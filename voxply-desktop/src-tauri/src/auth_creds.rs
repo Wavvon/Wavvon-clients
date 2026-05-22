@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use voxply_identity::{DeviceSubkey, Identity, SubkeyCert};
+use crate::identity::{DeviceSubkey, Identity, SubkeyCert};
 
 use crate::pairing::PairedIdentity;
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use voxply_identity::{HomeHubList, Identity, MasterIdentity};
+use crate::identity::{HomeHubList, Identity, MasterIdentity};
 
 fn home_hub_list_path() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;

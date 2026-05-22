@@ -5,7 +5,7 @@ use aes_gcm::{
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
-use voxply_identity::{MasterIdentity, SignedPrefsBlob};
+use crate::identity::{MasterIdentity, SignedPrefsBlob};
 
 // ---- Types ----
 

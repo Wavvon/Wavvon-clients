@@ -6,11 +6,12 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use voxply_identity::Identity;
+use crate::identity::Identity;
 use x25519_dalek;
 
 mod auth_creds;
 mod home_hub;
+mod identity;
 mod pairing;
 mod prefs_blob;
 
@@ -2141,7 +2142,7 @@ fn get_my_public_key() -> Result<String, String> {
     Ok(identity.public_key_hex())
 }
 
-fn load_master_identity() -> Result<voxply_identity::MasterIdentity, String> {
+fn load_master_identity() -> Result<crate::identity::MasterIdentity, String> {
     let path = Identity::default_path().map_err(|e| e.to_string())?;
     let identity = Identity::load(&path).map_err(|e| e.to_string())?;
     identity.master().map_err(|e| e.to_string())
@@ -3324,7 +3325,7 @@ async fn save_public_profile(
     avatar: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    use voxply_identity::{PublicHubEntry, PublicHubProfile};
+    use crate::identity::{PublicHubEntry, PublicHubProfile};
 
     let identity_path = Identity::default_path().map_err(|e| format!("Identity path: {e}"))?;
     let identity = Identity::load(&identity_path).map_err(|e| format!("Load identity: {e}"))?;
@@ -3617,8 +3618,8 @@ async fn get_dm_messages(
         .await
         .map_err(|e| format!("Invalid: {e}"))?;
 
-    let identity_path = voxply_identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = voxply_identity::Identity::load(&identity_path).ok();
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).ok();
 
     let mut result = Vec::with_capacity(raw.len());
     for msg in raw {
@@ -3646,7 +3647,7 @@ async fn get_dm_messages(
     Ok(result)
 }
 
-fn decrypt_dm_inner(conv_id: &str, envelope: &serde_json::Value, identity: &voxply_identity::Identity) -> Result<String, String> {
+fn decrypt_dm_inner(conv_id: &str, envelope: &serde_json::Value, identity: &crate::identity::Identity) -> Result<String, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
     use hkdf::Hkdf;
@@ -3775,14 +3776,14 @@ async fn check_for_updates(app: AppHandle) {
 
 #[tauri::command]
 async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), String> {
-    let identity_path = voxply_identity::Identity::default_path()
+    let identity_path = crate::identity::Identity::default_path()
         .map_err(|e| e.to_string())?;
-    let identity = voxply_identity::Identity::load(&identity_path)
+    let identity = crate::identity::Identity::load(&identity_path)
         .map_err(|e| e.to_string())?;
     let (_, dh_pub) = identity.dh_keypair();
     let dh_pubkey_hex = hex::encode(dh_pub.as_bytes());
     let sig_bytes = {
-        let msg = voxply_identity::DhKeyRecord::signing_bytes(
+        let msg = crate::identity::DhKeyRecord::signing_bytes(
             &identity.public_key_hex(), &dh_pubkey_hex,
         );
         identity.sign(&msg).to_bytes()
@@ -3855,9 +3856,9 @@ async fn encrypt_dm(
     use rand::RngCore;
     use sha2::Sha256;
 
-    let identity_path = voxply_identity::Identity::default_path()
+    let identity_path = crate::identity::Identity::default_path()
         .map_err(|e| e.to_string())?;
-    let identity = voxply_identity::Identity::load(&identity_path)
+    let identity = crate::identity::Identity::load(&identity_path)
         .map_err(|e| e.to_string())?;
     let (my_dh_sec, my_dh_pub) = identity.dh_keypair();
 
@@ -3913,8 +3914,8 @@ async fn decrypt_dm(
     conv_id: String,
     envelope: serde_json::Value,
 ) -> Result<String, String> {
-    let identity_path = voxply_identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = voxply_identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
     decrypt_dm_inner(&conv_id, &envelope, &identity)
 }
 

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rand::RngCore;
-use voxply_identity::{
+use crate::identity::{
     DeviceSubkey, Identity, MasterIdentity, PairingClaim, PairingComplete, PairingOffer,
     PairingStatus, SubkeyCert,
 };
@@ -218,7 +218,7 @@ pub async fn complete_pairing(
     // Derive blob key from master and wrap it for the new device.
     let blob_key = crate::prefs_blob::derive_blob_key(&master);
     let wrapped_blob_key_hex =
-        voxply_identity::wrap_blob_key(&blob_key, &cert.subkey_pubkey)
+        crate::identity::wrap_blob_key(&blob_key, &cert.subkey_pubkey)
             .map_err(|e| format!("ECIES wrap failed: {e}"))?;
 
     // Push a fresh blob to all home hubs so the new device can pull it after pairing.
@@ -438,7 +438,7 @@ pub async fn save_paired_identity(
     let sync_result = if !wrapped_blob_key_hex.is_empty()
         && wrapped_blob_key_hex != hex::encode([0u8; 32])
     {
-        match voxply_identity::unwrap_blob_key(&wrapped_blob_key_hex, &secret_array) {
+        match crate::identity::unwrap_blob_key(&wrapped_blob_key_hex, &secret_array) {
             Ok(blob_key) => {
                 let client = http_client().unwrap_or_else(|_| reqwest::Client::new());
                 match crate::prefs_blob::pull_prefs_blob(

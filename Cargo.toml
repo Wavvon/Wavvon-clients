@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "voxply-desktop/src-tauri",
-    "voxply-identity",
     "voxply-voice",
 ]
 
