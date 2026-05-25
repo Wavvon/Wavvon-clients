@@ -1,11 +1,11 @@
 # Voxply-desktop
 
-Desktop client for the [Voxply](https://github.com/YOUR_ORG/Voxply) platform.
+Desktop client for the [Voxply](https://github.com/Voxply/Voxply) platform.
 Voice chat, text channels, direct messages, alliances, bots, screen share —
 all running as a native desktop app backed by a Tauri Rust layer.
 
 Part of the Voxply project — see the
-[docs repo](https://github.com/YOUR_ORG/Voxply) for architecture,
+[docs repo](https://github.com/Voxply/Voxply) for architecture,
 API spec, and roadmap.
 
 ## Technologies
