@@ -5,8 +5,8 @@ Voice chat, text channels, direct messages, alliances, bots, screen share —
 all running as a native desktop app backed by a Tauri Rust layer.
 
 Part of the Voxply project — see the
-[docs repo](https://github.com/Voxply/Voxply) for architecture,
-API spec, and roadmap.
+[docs repo](https://github.com/Voxply/Voxply) for architecture and API spec,
+and the [roadmap](https://github.com/Voxply/Voxply/blob/main/ROADMAP.md) for what's next.
 
 ## Technologies
 
