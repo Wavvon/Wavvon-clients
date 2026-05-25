@@ -20,26 +20,6 @@ API spec, and roadmap.
 - **AES-GCM + HKDF** — end-to-end encrypted direct messages
 - **WebSocket** — real-time hub events
 
-## Repository structure
-
-```
-voxply-desktop/
-  src/                   React + TypeScript UI
-    components/          All UI components
-    hooks/               useVoice, useScreenShare, useReconnectBackoff
-    utils/               Formatting, audio, file helpers
-    types.ts             Wire types mirroring the hub API
-    styles.css           Design-token–based CSS
-  src-tauri/             Rust native layer (Tauri commands)
-    src/
-      lib.rs             All Tauri commands (~300 commands)
-      auth_creds.rs      Credential store
-      home_hub.rs        Home hub management
-      pairing.rs         Multi-device pairing
-voxply-identity/         Ed25519, PoW, BIP39 (shared with voxply-server)
-voxply-voice/            Audio pipeline crate
-```
-
 ## Quick start
 
 Requires [Node 20+](https://nodejs.org) and the
