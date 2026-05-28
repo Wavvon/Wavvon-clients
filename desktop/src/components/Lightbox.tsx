@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { FocusTrap } from "./FocusTrap";
 
 export function Lightbox({
   src,
@@ -19,19 +20,21 @@ export function Lightbox({
 
   return (
     <div className="lightbox" onClick={onClose}>
-      <img
-        src={src}
-        alt={alt}
-        className="lightbox-img"
-        onClick={(e) => e.stopPropagation()}
-      />
-      <button
-        className="lightbox-close"
-        onClick={onClose}
-        title="Close (Esc)"
-      >
-        ×
-      </button>
+      <FocusTrap>
+        <img
+          src={src}
+          alt={alt}
+          className="lightbox-img"
+          onClick={(e) => e.stopPropagation()}
+        />
+        <button
+          className="lightbox-close"
+          onClick={onClose}
+          title="Close (Esc)"
+        >
+          ×
+        </button>
+      </FocusTrap>
     </div>
   );
 }

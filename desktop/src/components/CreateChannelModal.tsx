@@ -1,4 +1,5 @@
 import React from "react";
+import { FocusTrap } from "./FocusTrap";
 
 interface Props {
   name: string;
@@ -18,6 +19,7 @@ export function CreateChannelModal({
 }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>
           Create {isCategory ? "Category" : "Channel"}
@@ -63,6 +65,7 @@ export function CreateChannelModal({
           <button onClick={onCreate}>Create</button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

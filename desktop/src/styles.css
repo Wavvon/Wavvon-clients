@@ -190,6 +190,20 @@
   box-sizing: border-box;
 }
 
+:root {
+  --focus-ring: 2px solid var(--ring);
+  --focus-ring-offset: 2px;
+}
+
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 body {
   font-family: var(--font-stack);
   font-size: var(--text-md);
@@ -2338,6 +2352,14 @@ select:focus {
   box-shadow: 0 0 0 3px var(--ring);
 }
 
+.modal input:focus-visible,
+.modal textarea:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -2474,6 +2496,10 @@ select:focus {
 .recovery-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.recovery-input:focus-visible {
+  outline: none;
 }
 
 .recovery-input-footer {
@@ -2890,6 +2916,10 @@ select:focus {
 .user-list-filter input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.user-list-filter input:focus-visible {
+  outline: none;
 }
 
 .user-list-empty {
@@ -3343,6 +3373,11 @@ select:focus {
   outline: none;
 }
 
+.palette-input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
 .palette-list {
   list-style: none;
   margin: 0;
@@ -3617,6 +3652,10 @@ select:focus {
 .reaction-picker-search:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.reaction-picker-search:focus-visible {
+  outline: none;
 }
 
 .reaction-picker-grid {
@@ -4286,6 +4325,69 @@ select:focus {
   color: var(--text-muted);
   border-radius: var(--r-pill);
   padding: 2px var(--space-2);
+}
+
+/* ============================================================
+   KEYBOARD ACCESSIBILITY
+   ============================================================ */
+
+.message-row:focus {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.message-actions-toolbar {
+  display: none;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.message-row:focus .message-actions-toolbar,
+.message-row:focus-within .message-actions-toolbar {
+  display: flex;
+}
+
+.keyboard-shortcuts-modal {
+  max-width: 560px;
+  width: 100%;
+}
+
+.keyboard-shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-top: var(--space-3);
+}
+
+.keyboard-shortcuts-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.keyboard-shortcuts-table td {
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.keyboard-shortcuts-table tr:last-child td {
+  border-bottom: none;
+}
+
+.kbd {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1px 6px;
+  white-space: nowrap;
 }
 
 .discover-tag.lang {

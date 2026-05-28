@@ -4,6 +4,7 @@ import type { Channel, HubIcon } from "../types";
 import { ChannelIcon } from "./Icons";
 import { ChannelIconPicker } from "./ChannelIconPicker";
 import { sanitizeSvg } from "../utils/svgSanitize";
+import { FocusTrap } from "./FocusTrap";
 
 const ACCENT_COLORS = [
   { id: "red",    hex: "#e74c3c" },
@@ -48,6 +49,14 @@ export function ChannelSettingsModal({
   useEffect(() => {
     invoke<HubIcon[]>("list_hub_icons").then(setHubIcons).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   useEffect(() => {
     if (tab !== "moderation" || !isAdmin) return;
@@ -99,6 +108,7 @@ export function ChannelSettingsModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal appearance-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{title}</h3>
 
@@ -286,6 +296,7 @@ export function ChannelSettingsModal({
           </>
         )}
       </div>
+      </FocusTrap>
     </div>
   );
 }

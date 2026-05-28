@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import type { Friend } from "../types";
+import { FocusTrap } from "./FocusTrap";
 
 interface Props {
   friends: Friend[];
@@ -20,8 +21,17 @@ export function FriendsModal({
   requestKey, onRequestKeyChange, requestHubUrl, onRequestHubUrlChange,
   onSendRequest, onAcceptFriend, onMessage, onRemoveFriend, onClose,
 }: Props) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3>Friends</h3>
 
@@ -107,6 +117,7 @@ export function FriendsModal({
           <button onClick={onClose}>Close</button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

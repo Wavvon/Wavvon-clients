@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { Channel } from "../types";
+import { FocusTrap } from "./FocusTrap";
 
 export function ChannelPalette({
   channels,
@@ -43,6 +44,7 @@ export function ChannelPalette({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="palette" onClick={(e) => e.stopPropagation()}>
         <input
           autoFocus
@@ -73,6 +75,7 @@ export function ChannelPalette({
           ↑↓ navigate · Enter select · Esc close
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

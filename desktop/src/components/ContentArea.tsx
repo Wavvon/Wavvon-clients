@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Channel,
@@ -168,6 +168,8 @@ export function ContentArea({
   const [botCard, setBotCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [activeGame, setActiveGame] = useState<InstalledGame | null>(null);
+  const [focusedMessageIndex, setFocusedMessageIndex] = useState<number>(-1);
+  const messageRowRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const openBotCard = useCallback((pubkey: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -204,6 +206,24 @@ export function ContentArea({
     onInputTextChange("/" + command + " ");
     setSlashSuggestions([]);
     setSlashSelectedIdx(0);
+  }
+
+  function handleMessageKeyDown(e: React.KeyboardEvent<HTMLDivElement>, index: number, displayedMessages: typeof messages) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = Math.min(index + 1, displayedMessages.length - 1);
+      setFocusedMessageIndex(next);
+      messageRowRefs.current[next]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = Math.max(index - 1, 0);
+      setFocusedMessageIndex(prev);
+      messageRowRefs.current[prev]?.focus();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setFocusedMessageIndex(-1);
+      messageInputRef.current?.focus();
+    }
   }
 
   function handleSlashKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -510,6 +530,7 @@ export function ContentArea({
                   const isMentioned = m.sender !== publicKey && mentionsName(m.content, myDisplayName);
                   const isEphemeral = !!m.visible_to_pubkey && m.visible_to_pubkey === publicKey;
                   const actionText = meAction(m.content);
+                  const displayedMessages = (searchResults ?? messages).filter((msg) => !blockedUsers.has(msg.sender));
                   if (actionText !== null) {
                     return (
                       <React.Fragment key={m.id}>
@@ -519,8 +540,11 @@ export function ContentArea({
                           </div>
                         )}
                         <div
+                          ref={(el) => { messageRowRefs.current[i] = el; }}
                           id={`msg-${m.id}`}
-                          className={`message message-action ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
+                          tabIndex={focusedMessageIndex === i ? 0 : -1}
+                          onKeyDown={(e) => handleMessageKeyDown(e, i, displayedMessages)}
+                          className={`message message-action message-row ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
                         >
                           <span className="action-asterisk">*</span>
                           <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
@@ -544,8 +568,11 @@ export function ContentArea({
                         </div>
                       )}
                       <div
+                        ref={(el) => { messageRowRefs.current[i] = el; }}
                         id={`msg-${m.id}`}
-                        className={`message ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
+                        tabIndex={focusedMessageIndex === i ? 0 : -1}
+                        onKeyDown={(e) => handleMessageKeyDown(e, i, displayedMessages)}
+                        className={`message message-row ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
                       >
                         {m.reply_to && (
                           <div

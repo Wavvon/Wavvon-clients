@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import type { InstalledGame } from "../types";
+import { FocusTrap } from "./FocusTrap";
 
 interface Props {
   games: InstalledGame[];
@@ -7,8 +9,17 @@ interface Props {
 }
 
 export function GamePicker({ games, onSelect, onClose }: Props) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal game-picker-modal" onClick={(e) => e.stopPropagation()}>
         <div className="game-picker-header">
           <h3>Activities</h3>
@@ -49,6 +60,7 @@ export function GamePicker({ games, onSelect, onClose }: Props) {
           </ul>
         )}
       </div>
+      </FocusTrap>
     </div>
   );
 }

@@ -41,6 +41,7 @@ import type {
   InstalledGame,
 } from "./types";
 import { ScreenSharePicker } from "./components/ScreenSharePicker";
+import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { useVoice } from "./hooks/useVoice";
 import { MAX_ATTACHMENT_BYTES, DEMO_HUB_URL } from "./constants";
 import { formatPubkey, mentionsName, newProfileId } from "./utils/format";
@@ -333,22 +334,6 @@ function App() {
   }, []);
 
 
-  // Global Ctrl+K (Cmd+K on macOS) opens the channel palette. We listen at
-  // the window level so it works regardless of focus -- the palette itself
-  // handles arrow nav + enter + escape internally.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const meta = e.ctrlKey || e.metaKey;
-      if (meta && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen(true);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-
   // Sweep typing entries older than 5s every second. Saves us from showing
   // a stale "X is typing..." if their typing:false event got lost.
   // Same sweep covers both channel and DM typing maps.
@@ -506,6 +491,7 @@ function App() {
 
   // Ctrl+K quick-switcher palette.
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Whether the right-side member list is collapsed. Local-only preference;
   // localStorage is fine since it's purely cosmetic + per-device.
@@ -2882,6 +2868,114 @@ function App() {
     setContextMenu(null);
   }
 
+  useEffect(() => {
+    function isTextInput(el: Element | null): boolean {
+      if (!el) return false;
+      const tag = (el as HTMLElement).tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
+    }
+
+    function onKey(e: KeyboardEvent) {
+      const meta = e.ctrlKey || e.metaKey;
+      const inText = isTextInput(document.activeElement);
+
+      if (meta && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+
+      if (meta && e.key === "/") {
+        e.preventDefault();
+        setShowKeyboardShortcuts((v) => !v);
+        return;
+      }
+
+      if (meta && e.key === ",") {
+        e.preventDefault();
+        openSettings();
+        return;
+      }
+
+      if (meta && e.shiftKey && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        voice.toggleSelfMute();
+        return;
+      }
+
+      if (meta && e.shiftKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        voice.toggleSelfDeafen();
+        return;
+      }
+
+      if (meta && e.shiftKey && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        if (voice.voiceChannelId) {
+          voice.handleVoiceLeave();
+        } else if (selectedChannel && !selectedChannel.is_category) {
+          voice.handleVoiceJoin(selectedChannel);
+        }
+        return;
+      }
+
+      if (meta && e.key === "ArrowUp") {
+        e.preventDefault();
+        const idx = hubs.findIndex((h) => h.hub_id === activeHubId);
+        if (idx > 0) {
+          const prev = hubs[idx - 1];
+          handleSwitchHub(prev.hub_id);
+          setView("channels");
+        }
+        return;
+      }
+
+      if (meta && e.key === "ArrowDown") {
+        e.preventDefault();
+        const idx = hubs.findIndex((h) => h.hub_id === activeHubId);
+        if (idx >= 0 && idx < hubs.length - 1) {
+          const next = hubs[idx + 1];
+          handleSwitchHub(next.hub_id);
+          setView("channels");
+        }
+        return;
+      }
+
+      if (e.altKey && e.key === "ArrowUp") {
+        e.preventDefault();
+        if (view === "channels" && selectedChannel) {
+          const visible = channels.filter((c) => !c.is_category);
+          const idx = visible.findIndex((c) => c.id === selectedChannel.id);
+          if (idx > 0) selectChannel(visible[idx - 1]);
+        }
+        return;
+      }
+
+      if (e.altKey && e.key === "ArrowDown") {
+        e.preventDefault();
+        if (view === "channels" && selectedChannel) {
+          const visible = channels.filter((c) => !c.is_category);
+          const idx = visible.findIndex((c) => c.id === selectedChannel.id);
+          if (idx >= 0 && idx < visible.length - 1) selectChannel(visible[idx + 1]);
+        }
+        return;
+      }
+
+      if (meta && e.key.toLowerCase() === "f" && !inText) {
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+
+      if (e.key === "/" && !inText && !meta) {
+        e.preventDefault();
+        messageInputRef.current?.focus();
+        return;
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hubs, activeHubId, selectedChannel, channels, view, voice]);
 
   return (
     <div className="app">
@@ -3434,6 +3528,10 @@ function App() {
               </div>
             </div>
           </div>
+        )}
+
+        {showKeyboardShortcuts && (
+          <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />
         )}
 
         {showCreateHub && (

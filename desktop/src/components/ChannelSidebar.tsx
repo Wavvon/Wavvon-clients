@@ -1,15 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type {
   Channel,
   Hub,
@@ -107,6 +108,8 @@ export function ChannelSidebar({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [hubCtxMenu, setHubCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const hubHeaderRef = useRef<HTMLDivElement>(null);
+  const [channelFocusIndex, setChannelFocusIndex] = useState(0);
+  const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
 
   useEffect(() => {
     if (!hubDropdownOpen) return;
@@ -120,7 +123,8 @@ export function ChannelSidebar({
   }, [hubDropdownOpen, onHubDropdownOpenChange]);
 
   const dndSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const flatVisible = useMemo((): FlatNode[] => {
@@ -164,6 +168,44 @@ export function ChannelSidebar({
     const overNode = overId ? flatVisible.find(n => n.node.id === overId) : null;
     setDragOverId(overNode?.node.is_category ? overId : null);
   }
+
+  const handleChannelKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
+    const node = flatVisible[index];
+    if (!node) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = Math.min(index + 1, flatVisible.length - 1);
+      setChannelFocusIndex(next);
+      channelItemRefs.current[next]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = Math.max(index - 1, 0);
+      setChannelFocusIndex(prev);
+      channelItemRefs.current[prev]?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setChannelFocusIndex(0);
+      channelItemRefs.current[0]?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const last = flatVisible.length - 1;
+      setChannelFocusIndex(last);
+      channelItemRefs.current[last]?.focus();
+    } else if (e.key === "ArrowLeft" && node.node.is_category && activeHubId) {
+      e.preventDefault();
+      if (!collapsedCategories[activeHubId]?.[node.node.id]) {
+        onToggleCategoryCollapsed(activeHubId, node.node.id);
+      }
+    } else if (e.key === "ArrowRight" && node.node.is_category && activeHubId) {
+      e.preventDefault();
+      if (collapsedCategories[activeHubId]?.[node.node.id]) {
+        onToggleCategoryCollapsed(activeHubId, node.node.id);
+      }
+    } else if ((e.key === "Enter" || e.key === " ") && !node.node.is_category) {
+      e.preventDefault();
+      onSelectChannel(node.node);
+    }
+  }, [flatVisible, activeHubId, collapsedCategories, onToggleCategoryCollapsed, onSelectChannel]);
 
   return (
     <div className="sidebar">
@@ -261,7 +303,7 @@ export function ChannelSidebar({
                 strategy={verticalListSortingStrategy}
               >
                 <ul className="channel-list">
-                  {flatVisible.map((n) =>
+                  {flatVisible.map((n, idx) =>
                     n.node.is_category ? (
                       <SortableCategoryItem
                         key={n.node.id}
@@ -270,10 +312,12 @@ export function ChannelSidebar({
                         childCount={n.childrenCount}
                         style={{ paddingLeft: n.depth * CHANNEL_INDENT_PX }}
                         isDragTarget={dragOverId === n.node.id}
+                        tabIndex={channelFocusIndex === idx ? 0 : -1}
                         onToggleCollapsed={() => {
                           if (activeHubId) onToggleCategoryCollapsed(activeHubId, n.node.id);
                         }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
+                        onKeyDown={(e) => handleChannelKeyDown(e, idx)}
                         onAdd={() => onOpenCreateChannel(n.node.id, false)}
                         onSettings={isAdmin ? (_e) => onOpenChannelSettings(n.node) : undefined}
                       />
@@ -287,9 +331,11 @@ export function ChannelSidebar({
                         participants={voicePartByChannel[n.node.id] ?? []}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         style={{ paddingLeft: n.depth * CHANNEL_INDENT_PX }}
-                        onClick={() => onSelectChannel(n.node)}
+                        tabIndex={channelFocusIndex === idx ? 0 : -1}
+                        onClick={() => { setChannelFocusIndex(idx); onSelectChannel(n.node); }}
                         onDoubleClick={() => { if (voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
+                        onKeyDown={(e) => handleChannelKeyDown(e, idx)}
                         onSettings={isAdmin ? (_e) => onOpenChannelSettings(n.node) : undefined}
                       />
                     )

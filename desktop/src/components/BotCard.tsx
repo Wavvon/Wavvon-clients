@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { BotProfile } from "../types";
 import { Avatar } from "./Avatar";
+import { FocusTrap } from "./FocusTrap";
 
 interface Props {
   pubkey: string;
@@ -42,6 +43,7 @@ export function BotCard({ pubkey, hubUrl, anchorRect, onClose }: Props) {
   const style = computePosition(anchorRect);
 
   return (
+    <FocusTrap>
     <div className="bot-card" ref={cardRef} style={style}>
       {error ? (
         <p className="muted">{error}</p>
@@ -76,6 +78,7 @@ export function BotCard({ pubkey, hubUrl, anchorRect, onClose }: Props) {
         </>
       )}
     </div>
+    </FocusTrap>
   );
 }
 

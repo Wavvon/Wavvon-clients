@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { EMOJI_CATALOG } from "../constants";
 import { loadRecentEmojis, pushRecentEmoji } from "../utils/recentEmoji";
+import { FocusTrap } from "./FocusTrap";
 
 export function ReactionPicker({
   onPick,
@@ -43,6 +44,7 @@ export function ReactionPicker({
         🙂+
       </button>
       {open && (
+        <FocusTrap>
         <div
           className="reaction-picker-popup"
           onClick={(e) => e.stopPropagation()}
@@ -95,6 +97,7 @@ export function ReactionPicker({
             )}
           </div>
         </div>
+        </FocusTrap>
       )}
     </div>
   );

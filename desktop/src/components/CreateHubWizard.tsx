@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Hub, FarmPublicInfo, FarmHubQuota, CreatedFarmHub } from "../types";
+import { FocusTrap } from "./FocusTrap";
 
 type Visibility = "public" | "private";
 
@@ -242,8 +243,17 @@ export function CreateHubWizard({ knownFarms, onHubCreated, onClose }: Props) {
       : []),
   ];
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div
         className="modal"
         style={{ maxWidth: 560, width: "100%" }}
@@ -416,6 +426,7 @@ export function CreateHubWizard({ knownFarms, onHubCreated, onClose }: Props) {
           </>
         )}
       </div>
+      </FocusTrap>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { User } from "../types";
 import { formatPubkey } from "../utils/format";
+import { FocusTrap } from "./FocusTrap";
 
 interface ChannelBan {
   channel_id: string;
@@ -42,6 +43,14 @@ export function ChannelBansModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId]);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   async function handleBan() {
     if (!picking) return;
     try {
@@ -77,6 +86,7 @@ export function ChannelBansModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3>Channel bans — #{channelName}</h3>
         <p className="muted">
@@ -156,6 +166,7 @@ export function ChannelBansModal({
           </button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

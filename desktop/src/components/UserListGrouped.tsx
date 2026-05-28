@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import type { User } from "../types";
 import { Avatar } from "./Avatar";
 import { formatPubkey } from "../utils/format";
@@ -16,9 +16,9 @@ export function UserListGrouped({
 }) {
   const [filter, setFilter] = useState("");
   const [botsExpanded, setBotsExpanded] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
 
-  // Filter on lowercased display_name OR pubkey prefix so users can find
-  // someone they know by name even when their display_name is null.
   const q = filter.trim().toLowerCase();
   const matched = q
     ? users.filter((u) =>
@@ -29,9 +29,6 @@ export function UserListGrouped({
   const bots = matched.filter((u) => u.is_bot && !u.is_webhook);
   const humans = matched.filter((u) => !u.is_bot);
 
-  // Online first, then offline. Within each, bucket by group_role (the name of
-  // the highest-priority role with display_separately=true), with null-role
-  // members falling into a generic "Online" / "Offline" bucket.
   const online = humans.filter((u) => u.online);
   const offline = humans.filter((u) => !u.online);
 
@@ -54,7 +51,44 @@ export function UserListGrouped({
   const onlineBuckets = bucket(online, "Online");
   const offlineBuckets = bucket(offline, "Offline");
 
+  const allUsers = [...online, ...offline];
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = Math.min(index + 1, allUsers.length - 1);
+      setFocusedIndex(next);
+      itemRefs.current[next]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = Math.max(index - 1, 0);
+      setFocusedIndex(prev);
+      itemRefs.current[prev]?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setFocusedIndex(0);
+      itemRefs.current[0]?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const last = allUsers.length - 1;
+      setFocusedIndex(last);
+      itemRefs.current[last]?.focus();
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const u = allUsers[index];
+      if (u && onContextMenu) {
+        const el = itemRefs.current[index];
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          onContextMenu({ clientX: rect.right, clientY: rect.top } as React.MouseEvent, u);
+        }
+      }
+    }
+  }, [allUsers, onContextMenu]);
+
   const onlineCount = humans.filter((u) => u.online).length;
+  let globalIdx = 0;
+
   return (
     <>
       <div className="user-list-header">
@@ -83,24 +117,30 @@ export function UserListGrouped({
             {title} — {list.length}
           </p>
           <ul className="user-list">
-            {list.map((u) => (
-              <li
-                key={u.public_key}
-                className="user-list-item"
-                onContextMenu={(e) => onContextMenu?.(e, u)}
-              >
-                <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
-                <span className="status-dot online" />
-                <span className="user-name">
-                  {u.display_name || u.public_key.slice(0, 16)}
-                </span>
-                {inVoice?.has(u.public_key) && (
-                  <span className="user-in-voice" title="In voice">
-                    🎙️
+            {list.map((u) => {
+              const idx = globalIdx++;
+              return (
+                <li
+                  key={u.public_key}
+                  ref={(el) => { itemRefs.current[idx] = el; }}
+                  className="user-list-item"
+                  tabIndex={focusedIndex === idx ? 0 : -1}
+                  onKeyDown={(e) => handleKeyDown(e, idx)}
+                  onContextMenu={(e) => onContextMenu?.(e, u)}
+                >
+                  <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
+                  <span className="status-dot online" />
+                  <span className="user-name">
+                    {u.display_name || u.public_key.slice(0, 16)}
                   </span>
-                )}
-              </li>
-            ))}
+                  {inVoice?.has(u.public_key) && (
+                    <span className="user-in-voice" title="In voice">
+                      🎙️
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
@@ -110,24 +150,30 @@ export function UserListGrouped({
             {title} — {list.length}
           </p>
           <ul className="user-list">
-            {list.map((u) => (
-              <li
-                key={u.public_key}
-                className="user-list-item offline"
-                onContextMenu={(e) => onContextMenu?.(e, u)}
-              >
-                <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
-                <span className="status-dot offline" />
-                <span className="user-name">
-                  {u.display_name || u.public_key.slice(0, 16)}
-                </span>
-                {inVoice?.has(u.public_key) && (
-                  <span className="user-in-voice" title="In voice">
-                    🎙️
+            {list.map((u) => {
+              const idx = globalIdx++;
+              return (
+                <li
+                  key={u.public_key}
+                  ref={(el) => { itemRefs.current[idx] = el; }}
+                  className="user-list-item offline"
+                  tabIndex={focusedIndex === idx ? 0 : -1}
+                  onKeyDown={(e) => handleKeyDown(e, idx)}
+                  onContextMenu={(e) => onContextMenu?.(e, u)}
+                >
+                  <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
+                  <span className="status-dot offline" />
+                  <span className="user-name">
+                    {u.display_name || u.public_key.slice(0, 16)}
                   </span>
-                )}
-              </li>
-            ))}
+                  {inVoice?.has(u.public_key) && (
+                    <span className="user-in-voice" title="In voice">
+                      🎙️
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}

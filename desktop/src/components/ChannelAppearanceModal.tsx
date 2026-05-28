@@ -4,6 +4,7 @@ import type { Channel, HubIcon } from "../types";
 import { ChannelIcon } from "./Icons";
 import { ChannelIconPicker } from "./ChannelIconPicker";
 import { sanitizeSvg } from "../utils/svgSanitize";
+import { FocusTrap } from "./FocusTrap";
 
 const ACCENT_COLORS = [
   { id: "red",    hex: "#e74c3c" },
@@ -35,6 +36,14 @@ export function ChannelAppearanceModal({ channel, onSave, onClose }: Props) {
     invoke<HubIcon[]>("list_hub_icons").then(setHubIcons).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -59,6 +68,7 @@ export function ChannelAppearanceModal({ channel, onSave, onClose }: Props) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal appearance-modal" onClick={(e) => e.stopPropagation()}>
         <h3>
           Edit appearance —{" "}
@@ -177,6 +187,7 @@ export function ChannelAppearanceModal({ channel, onSave, onClose }: Props) {
           </button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

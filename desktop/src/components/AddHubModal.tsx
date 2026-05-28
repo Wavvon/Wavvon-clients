@@ -1,4 +1,5 @@
 import React from "react";
+import { FocusTrap } from "./FocusTrap";
 
 type HubPreview =
   | { state: "idle" }
@@ -19,6 +20,7 @@ interface Props {
 export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, onAdd, onClose }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>Add Hub</h3>
         <p className="muted" style={{ marginBottom: "var(--space-3)" }}>
@@ -81,6 +83,7 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error
         </div>
         {error && <div className="error">{error}</div>}
       </div>
+      </FocusTrap>
     </div>
   );
 }

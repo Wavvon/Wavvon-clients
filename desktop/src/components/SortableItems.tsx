@@ -38,9 +38,11 @@ export function SortableChannelItem({
   participants,
   isCurrentVoiceChannel,
   style,
+  tabIndex,
   onClick,
   onDoubleClick,
   onContextMenu,
+  onKeyDown,
   onSettings,
 }: {
   channel: Channel;
@@ -50,9 +52,11 @@ export function SortableChannelItem({
   participants: VoiceParticipant[];
   isCurrentVoiceChannel: boolean;
   style?: React.CSSProperties;
+  tabIndex?: number;
   onClick: () => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
   onSettings?: (e: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -61,6 +65,8 @@ export function SortableChannelItem({
   return (
     <li
       ref={setNodeRef}
+      tabIndex={tabIndex}
+      onKeyDown={onKeyDown}
       className={`channel-item-wrap ${isDragging ? "dragging" : ""}`}
       style={{
         transform: CSS.Transform.toString(transform),
@@ -132,8 +138,10 @@ export function SortableCategoryItem({
   childCount,
   style,
   isDragTarget,
+  tabIndex,
   onToggleCollapsed,
   onContextMenu,
+  onKeyDown,
   onAdd,
   onSettings,
 }: {
@@ -143,8 +151,10 @@ export function SortableCategoryItem({
   childCount: number;
   style?: React.CSSProperties;
   isDragTarget?: boolean;
+  tabIndex?: number;
   onToggleCollapsed: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
   onAdd: () => void;
   onSettings?: (e: React.MouseEvent) => void;
 }) {
@@ -154,6 +164,8 @@ export function SortableCategoryItem({
   return (
     <li
       ref={setNodeRef}
+      tabIndex={tabIndex}
+      onKeyDown={onKeyDown}
       className={`category-group ${isDragging ? "dragging" : ""}`}
       style={{
         transform: isDragTarget ? undefined : CSS.Transform.toString(transform),

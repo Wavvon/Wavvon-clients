@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { InstalledGame } from "../types";
+import { FocusTrap } from "./FocusTrap";
 
 interface Props {
   game: InstalledGame;
@@ -50,6 +51,7 @@ export function GameModal({ game, theme, publicKey, displayName, avatar, onClose
 
   return (
     <div className="game-modal-overlay">
+      <FocusTrap>
       <div className="game-modal">
         <div className="game-modal-titlebar">
           <span className="game-modal-title">{game.name}</span>
@@ -63,6 +65,7 @@ export function GameModal({ game, theme, publicKey, displayName, avatar, onClose
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         />
       </div>
+      </FocusTrap>
     </div>
   );
 }

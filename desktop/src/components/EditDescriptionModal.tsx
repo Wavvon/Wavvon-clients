@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import type { Channel } from "../types";
+import { FocusTrap } from "./FocusTrap";
 
 interface Props {
   channel: Channel;
@@ -10,8 +11,17 @@ interface Props {
 }
 
 export function EditDescriptionModal({ channel, description, onDescriptionChange, onSave, onClose }: Props) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <FocusTrap>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>Edit description — #{channel.name}</h3>
         <textarea
@@ -26,6 +36,7 @@ export function EditDescriptionModal({ channel, description, onDescriptionChange
           <button onClick={onSave}>Save</button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

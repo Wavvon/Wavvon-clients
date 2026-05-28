@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   DndContext,
   DragEndEvent,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Hub, NotifyMode } from "../types";
 import { SortableHubIcon } from "./SortableItems";
 
@@ -38,11 +39,14 @@ export function HubSidebar({
   onHubReorder, onAddHub, onCreateHub, onDiscover, onFarmSettings,
 }: Props) {
   const dndSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const hubButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
     if (!addMenuOpen) return;
@@ -54,6 +58,32 @@ export function HubSidebar({
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [addMenuOpen]);
+
+  const handleHubKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = Math.min(index + 1, hubs.length - 1);
+      setFocusedIndex(next);
+      hubButtonRefs.current[next]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = Math.max(index - 1, 0);
+      setFocusedIndex(prev);
+      hubButtonRefs.current[prev]?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setFocusedIndex(0);
+      hubButtonRefs.current[0]?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const last = hubs.length - 1;
+      setFocusedIndex(last);
+      hubButtonRefs.current[last]?.focus();
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSwitchHub(hubs[index].hub_id);
+    }
+  }, [hubs, onSwitchHub]);
 
   return (
     <div className="hub-sidebar">
@@ -75,21 +105,25 @@ export function HubSidebar({
       <div className="hub-sidebar-divider" />
       <DndContext sensors={dndSensors} onDragEnd={onHubReorder}>
         <SortableContext items={hubs.map((h) => h.hub_id)} strategy={verticalListSortingStrategy}>
-          {hubs.map((h) => {
+          {hubs.map((h, index) => {
             const unread = unreadByHub[h.hub_id] || 0;
             const ping = pingByHub[h.hub_id];
             const offline = ping === null;
             const titleSuffix = offline ? " — offline" : ping === undefined ? "" : ` — ${ping}ms`;
+            const isFocused = focusedIndex === index;
             return (
               <SortableHubIcon key={h.hub_id} hubId={h.hub_id}>
                 <div className="hub-icon-box">
                   <button
+                    ref={(el) => { hubButtonRefs.current[index] = el; }}
+                    tabIndex={isFocused ? 0 : -1}
                     className={`hub-icon ${
                       h.hub_id === activeHubId && view === "channels" ? "active" : ""
                     } ${offline ? "offline" : ""} ${
                       hubNotifyMode[h.hub_id] === "silent" ? "muted" : ""
                     }`}
-                    onClick={() => { onSwitchHub(h.hub_id); }}
+                    onClick={() => { setFocusedIndex(index); onSwitchHub(h.hub_id); }}
+                    onKeyDown={(e) => handleHubKeyDown(e, index)}
                     onContextMenu={(e) => { e.preventDefault(); onRemoveHub(h.hub_id); }}
                     title={`${h.hub_name} (${h.hub_url})${titleSuffix}${
                       hubNotifyMode[h.hub_id] === "silent"
