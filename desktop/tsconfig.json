@@ -7,8 +7,11 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "@voxply/i18n": ["../../web/i18n/index.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../../web/i18n"],
+  "exclude": ["../../web/i18n/check-coverage.ts"]
 }

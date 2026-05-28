@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import type { Hub, NamedProfile } from "../types";
 import { formatPubkey } from "../utils/format";
 import { MicLevelMeter } from "./MicLevelMeter";
@@ -66,6 +67,7 @@ export interface SettingsPageProps {
 }
 
 export function SettingsPage(props: SettingsPageProps) {
+  const { i18n } = useTranslation();
   const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
   const [publicHubIds, setPublicHubIds] = useState<Set<string>>(new Set());
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | string>("idle");
@@ -254,6 +256,20 @@ export function SettingsPage(props: SettingsPageProps) {
                 it any time.
               </p>
               <ThemePicker value={props.theme} onChange={props.onThemeChange} />
+            </div>
+            <div className="settings-section">
+              <label className="settings-label">Language</label>
+              <div className="settings-row">
+                <select value={i18n.language} onChange={e => {
+                  i18n.changeLanguage(e.target.value);
+                  localStorage.setItem('voxply_language', e.target.value);
+                }}>
+                  <option value="en">English</option>
+                  <option value="it">Italiano</option>
+                  <option value="es">Español</option>
+                  <option value="de">Deutsch</option>
+                </select>
+              </div>
             </div>
           </section>
         )}

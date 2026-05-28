@@ -1,12 +1,17 @@
-// main.tsx — Entry point. Mounts the App component into the #root div.
-// In Blazor: this is like Program.cs calling builder.Build().RunAsync()
-
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { initI18n } from "@voxply/i18n";
 import App from "./App";
 import "./styles.css";
 
-// Find the <div id="root"> in index.html and render our App inside it
+const storedLang = localStorage.getItem('voxply_language');
+const browserLang = navigator.language.slice(0, 2);
+const supportedLangs = ['en', 'it', 'es', 'de'];
+const lang = supportedLangs.includes(storedLang ?? '') ? storedLang!
+           : supportedLangs.includes(browserLang) ? browserLang
+           : 'en';
+initI18n(lang);
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <App />
