@@ -499,6 +499,16 @@ export interface ExternalBotInviteResult {
   pubkey: string;
 }
 
+// ---- Games ----
+
+export interface InstalledGame {
+  id: string;
+  name: string;
+  entry_url: string;
+  description: string | null;
+  thumbnail_url: string | null;
+}
+
 // ---- Webhooks ----
 
 export interface WebhookInfo {

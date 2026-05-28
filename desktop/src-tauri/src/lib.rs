@@ -1156,6 +1156,30 @@ async fn list_channels(state: State<'_, AppState>) -> Result<Vec<ChannelInfo>, S
         .map_err(|e| format!("Invalid: {e}"))
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct InstalledGame {
+    id: String,
+    name: String,
+    entry_url: String,
+    description: Option<String>,
+    thumbnail_url: Option<String>,
+}
+
+#[tauri::command]
+async fn list_games(state: State<'_, AppState>) -> Result<Vec<InstalledGame>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    client
+        .get(format!("{hub_url}/hub/games"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid: {e}"))
+}
+
 #[tauri::command]
 async fn create_channel(
     name: String,
@@ -4907,6 +4931,7 @@ pub fn run() {
             remove_hub,
             auto_connect_saved,
             list_channels,
+            list_games,
             create_channel,
             update_channel_description,
             rename_channel,

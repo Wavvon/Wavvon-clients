@@ -38,6 +38,7 @@ import type {
   SurveySubmitResult,
   BotAdminInfo,
   BotDetailInfo,
+  InstalledGame,
 } from "./types";
 import { ScreenSharePicker } from "./components/ScreenSharePicker";
 import { useVoice } from "./hooks/useVoice";
@@ -471,6 +472,7 @@ function App() {
   // Chat state
   const [channels, setChannels] = useState<Channel[]>([]);
   useEffect(() => { channelsRef.current = channels; }, [channels]);
+  const [installedGames, setInstalledGames] = useState<InstalledGame[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -714,6 +716,10 @@ function App() {
   }, [users]);
   const myDisplayName = useMemo(
     () => users.find((u) => u.public_key === publicKey)?.display_name ?? null,
+    [users, publicKey]
+  );
+  const myAvatar = useMemo(
+    () => users.find((u) => u.public_key === publicKey)?.avatar ?? null,
     [users, publicKey]
   );
   const myDisplayNameRef = useRef<string | null>(null);
@@ -1291,6 +1297,12 @@ function App() {
       setUsers(u);
       const c = await invoke<Conversation[]>("list_conversations");
       setConversations(c);
+      try {
+        const games = await invoke<InstalledGame[]>("list_games");
+        setInstalledGames(games);
+      } catch {
+        setInstalledGames([]);
+      }
       // Reset selection when switching hub
       setSelectedChannel(null);
       setSelectedConversation(null);
@@ -3127,6 +3139,8 @@ function App() {
                   voiceChannelId={voice.voiceChannelId}
                   onVoiceJoin={() => voice.handleVoiceJoin()}
                   onVoiceLeave={voice.handleVoiceLeave}
+                  installedGames={installedGames}
+                  myAvatar={myAvatar}
                   inputText={inputText}
                   typingByKey={typingByKey}
                   dmTypingByKey={dmTypingByKey}

@@ -4501,6 +4501,167 @@ select:focus {
 }
 
 /* ============================================================
+   GAME PICKER
+   ============================================================ */
+.game-picker-modal {
+  width: 340px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.game-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.game-picker-header h3 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.game-picker-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0 var(--space-1);
+}
+
+.game-picker-close:hover {
+  color: var(--text);
+}
+
+.game-picker-empty {
+  padding: var(--space-5);
+  font-size: var(--text-sm);
+}
+
+.game-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.game-picker-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+}
+
+.game-picker-item:hover {
+  background: var(--bg-hover);
+}
+
+.game-picker-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.game-picker-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-sunken);
+  font-size: 20px;
+}
+
+.game-picker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-picker-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-picker-desc {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   GAME MODAL
+   ============================================================ */
+.game-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.game-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 94vw);
+  height: min(680px, 90vh);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg, 0 24px 48px rgba(0, 0, 0, 0.5));
+}
+
+.game-modal-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.game-modal-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.game-modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0 var(--space-1);
+}
+
+.game-modal-close:hover {
+  color: var(--text);
+}
+
+.game-modal-frame {
+  flex: 1 1 auto;
+  width: 100%;
+  border: none;
+  background: var(--bg-sunken);
+  min-height: 0;
+}
+
+/* ============================================================
    CHANNEL ICON GLYPHS
    ============================================================ */
 .channel-icon-default {
