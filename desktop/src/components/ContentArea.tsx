@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Channel,
@@ -94,7 +94,8 @@ interface Props {
   typingByKey: Record<string, TypingEntry>;
   dmTypingByKey: Record<string, TypingEntry>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  messagesContainerRef: React.RefObject<HTMLDivElement | null>;
+  messagesEndChannelRef: React.RefObject<HTMLLIElement | null>;
+  messagesContainerRef: React.RefObject<HTMLOListElement | null>;
   messageInputRef: React.RefObject<HTMLInputElement | null>;
   onReconnect: () => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
@@ -134,6 +135,7 @@ interface Props {
   shareKbps: number;
   onStopShare: () => void;
   onComponentInteract?: (messageId: string, customId: string, values: string[]) => void;
+  assertiveAnnouncement?: string;
 }
 
 export function ContentArea({
@@ -147,7 +149,7 @@ export function ContentArea({
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, voiceChannelId, onVoiceJoin, onVoiceLeave,
   installedGames, myAvatar,
   inputText, typingByKey, dmTypingByKey,
-  messagesEndRef, messagesContainerRef, messageInputRef,
+  messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
   onReconnect, onToggleReaction, onSetReplyTarget,
   onSaveEdit, onCancelEdit, onStartEdit, onDeleteMessage,
   onSend, onSendDm, onSendAllianceMessage,
@@ -162,6 +164,7 @@ export function ContentArea({
   activeScreenShares, screenShareViewerRef,
   sharing, shareKbps, onStopShare,
   onComponentInteract,
+  assertiveAnnouncement = "",
 }: Props) {
   const [slashSuggestions, setSlashSuggestions] = useState<SlashCommandEntry[]>([]);
   const [slashSelectedIdx, setSlashSelectedIdx] = useState(0);
@@ -169,7 +172,28 @@ export function ContentArea({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [activeGame, setActiveGame] = useState<InstalledGame | null>(null);
   const [focusedMessageIndex, setFocusedMessageIndex] = useState<number>(-1);
-  const messageRowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const messageRowRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
+  const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAnnouncementsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    if (document.hidden) return;
+    const latestMsg = messages[messages.length - 1];
+    if (!latestMsg) return;
+    pendingAnnouncementsRef.current.push(`${latestMsg.sender_name ?? 'Unknown'}: ${latestMsg.content}`);
+    if (announceTimerRef.current) return;
+    announceTimerRef.current = setTimeout(() => {
+      const batch = pendingAnnouncementsRef.current.splice(0);
+      if (batch.length === 1) {
+        setLiveAnnouncement(batch[0]);
+      } else {
+        setLiveAnnouncement(`${batch.length} new messages`);
+      }
+      announceTimerRef.current = null;
+    }, 2000);
+  }, [messages]);
 
   const openBotCard = useCallback((pubkey: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -208,7 +232,7 @@ export function ContentArea({
     setSlashSelectedIdx(0);
   }
 
-  function handleMessageKeyDown(e: React.KeyboardEvent<HTMLDivElement>, index: number, displayedMessages: typeof messages) {
+  function handleMessageKeyDown(e: React.KeyboardEvent<HTMLLIElement>, index: number, displayedMessages: typeof messages) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       const next = Math.min(index + 1, displayedMessages.length - 1);
@@ -258,7 +282,16 @@ export function ContentArea({
 
   return (
     <>
-      <div className="content">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-relevant="additions"
+        className="sr-only"
+      >
+        {liveAnnouncement}
+      </div>
+      <main className="content">
         {activeHubId && hubConnected[activeHubId] === false && (
           <div className="reconnect-banner">
             <span>{reconnectingHubs[activeHubId] ? "Reconnecting…" : "Disconnected from hub."}</span>
@@ -489,9 +522,9 @@ export function ContentArea({
                 </button>
               </div>
             )}
-            <div className="messages" ref={messagesContainerRef} onScroll={onMessagesScroll}>
+            <ol aria-label="Messages" className="messages" ref={messagesContainerRef} onScroll={onMessagesScroll}>
               {(searchResults ?? messages).length === 0 && (
-                <div className="channel-empty">
+                <li className="channel-empty">
                   {searchResults !== null ? (
                     <p>No messages match your search.</p>
                   ) : (
@@ -514,7 +547,7 @@ export function ContentArea({
                       </ul>
                     </>
                   )}
-                </div>
+                </li>
               )}
               {(searchResults ?? messages)
                 .filter((m) => !blockedUsers.has(m.sender))
@@ -531,22 +564,35 @@ export function ContentArea({
                   const isEphemeral = !!m.visible_to_pubkey && m.visible_to_pubkey === publicKey;
                   const actionText = meAction(m.content);
                   const displayedMessages = (searchResults ?? messages).filter((msg) => !blockedUsers.has(msg.sender));
+
+                  const msgAriaLabelParts = [`${senderLabel} at ${formatRelative(m.created_at)}: ${m.content}`];
+                  if (m.reply_to) msgAriaLabelParts.push(`Reply to ${m.reply_to.sender_name || formatPubkey(m.reply_to.sender)}.`);
+                  if (m.reactions && m.reactions.length > 0) {
+                    const total = m.reactions.reduce((n, r) => n + r.count, 0);
+                    msgAriaLabelParts.push(`${total} ${total === 1 ? "reaction" : "reactions"}: ${m.reactions.map(r => r.emoji).join(", ")}.`);
+                  }
+                  if (m.attachments && m.attachments.length > 0) {
+                    msgAriaLabelParts.push(`${m.attachments.length} ${m.attachments.length === 1 ? "attachment" : "attachments"}: ${m.attachments.map(a => a.name).join(", ")}.`);
+                  }
+                  const msgAriaLabel = msgAriaLabelParts.join(" ");
+
                   if (actionText !== null) {
                     return (
                       <React.Fragment key={m.id}>
                         {showSeparator && (
-                          <div className="day-separator">
+                          <li className="day-separator" aria-hidden="true">
                             <span className="day-separator-label">{formatDayLabel(m.created_at)}</span>
-                          </div>
+                          </li>
                         )}
-                        <div
+                        <li
                           ref={(el) => { messageRowRefs.current[i] = el; }}
                           id={`msg-${m.id}`}
                           tabIndex={focusedMessageIndex === i ? 0 : -1}
                           onKeyDown={(e) => handleMessageKeyDown(e, i, displayedMessages)}
+                          aria-label={msgAriaLabel}
                           className={`message message-action message-row ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
                         >
-                          <span className="action-asterisk">*</span>
+                          <span className="action-asterisk" aria-hidden="true">*</span>
                           <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
                             {senderLabel}
                           </span>
@@ -556,22 +602,23 @@ export function ContentArea({
                           {isEphemeral && (
                             <div className="message-ephemeral-label">Only you can see this</div>
                           )}
-                        </div>
+                        </li>
                       </React.Fragment>
                     );
                   }
                   return (
                     <React.Fragment key={m.id}>
                       {showSeparator && (
-                        <div className="day-separator">
+                        <li className="day-separator" aria-hidden="true">
                           <span className="day-separator-label">{formatDayLabel(m.created_at)}</span>
-                        </div>
+                        </li>
                       )}
-                      <div
+                      <li
                         ref={(el) => { messageRowRefs.current[i] = el; }}
                         id={`msg-${m.id}`}
                         tabIndex={focusedMessageIndex === i ? 0 : -1}
                         onKeyDown={(e) => handleMessageKeyDown(e, i, displayedMessages)}
+                        aria-label={msgAriaLabel}
                         className={`message message-row ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
                       >
                         {m.reply_to && (
@@ -580,7 +627,7 @@ export function ContentArea({
                             onClick={() => m.reply_to && onScrollToMessage(m.reply_to.message_id)}
                             title="Jump to original"
                           >
-                            <span className="reply-arrow">↪</span>
+                            <span className="reply-arrow" aria-hidden="true">↪</span>
                             <span className="reply-author">
                               {m.reply_to.sender_name || formatPubkey(m.reply_to.sender)}
                             </span>
@@ -601,10 +648,10 @@ export function ContentArea({
                           {senderLabel}
                         </span>
                         {senderUser?.is_bot && !senderUser?.is_webhook && (
-                          <span className="bot-badge">BOT</span>
+                          <span className="bot-badge" aria-hidden="true">BOT</span>
                         )}
                         {senderUser?.is_webhook && (
-                          <span className="bot-badge bot-badge--app">APP</span>
+                          <span className="bot-badge bot-badge--app" aria-hidden="true">APP</span>
                         )}
                         {isEditing ? (
                           <span className="message-edit">
@@ -640,9 +687,9 @@ export function ContentArea({
                                 (edited)
                               </span>
                             )}
-                            <span className="message-actions">
+                            <div role="toolbar" aria-label="Message actions" className="message-actions">
                               <ReactionPicker onPick={(emoji) => onToggleReaction(m.id, emoji)} />
-                              <button className="message-action" onClick={() => onSetReplyTarget(m)} title="Reply">
+                              <button className="message-action" onClick={() => onSetReplyTarget(m)} title="Reply" aria-label="Reply">
                                 ↩
                               </button>
                               <button
@@ -659,11 +706,12 @@ export function ContentArea({
                                   }
                                 }}
                                 title="Copy link"
+                                aria-label="Copy link"
                               >
                                 🔗
                               </button>
                               {isMine && (
-                                <button className="message-action" onClick={() => onStartEdit(m)} title="Edit">
+                                <button className="message-action" onClick={() => onStartEdit(m)} title="Edit" aria-label="Edit message">
                                   ✎
                                 </button>
                               )}
@@ -672,11 +720,12 @@ export function ContentArea({
                                   className="message-action danger"
                                   onClick={() => onDeleteMessage(m.id)}
                                   title="Delete"
+                                  aria-label="Delete message"
                                 >
                                   ✕
                                 </button>
                               )}
-                            </span>
+                            </div>
                             {m.reactions && m.reactions.length > 0 && (
                               <MessageReactions
                                 reactions={m.reactions}
@@ -699,12 +748,12 @@ export function ContentArea({
                             )}
                           </>
                         )}
-                      </div>
+                      </li>
                     </React.Fragment>
                   );
                 })}
-              <div ref={messagesEndRef} />
-            </div>
+              <li ref={messagesEndChannelRef} aria-hidden="true" />
+            </ol>
             {firstNotifyingMessageId &&
               messages.some((m) => m.id === firstNotifyingMessageId) && (
               <button
@@ -743,8 +792,10 @@ export function ContentArea({
                 onRemove={(i) => onSetPendingAttachments(pendingAttachments.filter((_, idx) => idx !== i))}
               />
             )}
-            <div
+            <form
+              aria-label="Compose message"
               className="input-area"
+              onSubmit={(e) => { e.preventDefault(); onSend(); }}
               onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
               onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
             >
@@ -787,8 +838,8 @@ export function ContentArea({
                   }
                 />
               </div>
-              <button onClick={onSend}>Send</button>
-            </div>
+              <button type="submit">Send</button>
+            </form>
           </>
         ) : selectedAllianceChannel ? (
           <>
@@ -844,10 +895,10 @@ export function ContentArea({
         ) : (
           <div className="no-channel"><p>Select a channel to start chatting</p></div>
         )}
-      </div>
+      </main>
 
       {view === "channels" && !memberSidebarHidden && (
-        <aside className="user-list-sidebar">
+        <aside className="user-list-sidebar" aria-label="Members">
           <UserListGrouped
             users={users}
             inVoice={voiceActiveUsers}

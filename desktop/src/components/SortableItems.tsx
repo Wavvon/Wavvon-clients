@@ -34,6 +34,8 @@ export function SortableChannelItem({
   channel,
   selected,
   unread,
+  unreadCount,
+  mentionCount,
   muted,
   participants,
   isCurrentVoiceChannel,
@@ -48,6 +50,8 @@ export function SortableChannelItem({
   channel: Channel;
   selected: boolean;
   unread: boolean;
+  unreadCount?: number;
+  mentionCount?: number;
   muted: boolean;
   participants: VoiceParticipant[];
   isCurrentVoiceChannel: boolean;
@@ -61,6 +65,14 @@ export function SortableChannelItem({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
+
+  const ariaLabelParts = [channel.name];
+  const uc = unreadCount ?? 0;
+  const mc = mentionCount ?? 0;
+  if (uc > 0) ariaLabelParts.push(`${uc} unread ${uc === 1 ? "message" : "messages"}`);
+  if (mc > 0) ariaLabelParts.push(`${mc} ${mc === 1 ? "mention" : "mentions"}`);
+  if (participants.length > 0) ariaLabelParts.push(`${participants.length} ${participants.length === 1 ? "person" : "people"} in voice`);
+  const channelAriaLabel = ariaLabelParts.join(", ");
 
   return (
     <li
@@ -89,15 +101,17 @@ export function SortableChannelItem({
         title="Double-click to join voice"
         {...attributes}
         {...listeners}
+        aria-label={channelAriaLabel}
       >
-        {unread && <span className="channel-unread-dot" />}
+        {unread && <span className="channel-unread-dot" aria-hidden="true" />}
         <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} />
         {" "}{channel.name}
-        {muted && <span className="channel-muted-icon" title="Muted">🔕</span>}
+        {muted && <span className="channel-muted-icon" title="Muted" aria-hidden="true">🔕</span>}
         {participants.length > 0 && (
           <span
             className="channel-voice-badge"
             title={`${participants.length} in voice`}
+            aria-hidden="true"
           >
             🎙️ {participants.length}
           </span>
@@ -121,7 +135,7 @@ export function SortableChannelItem({
               className="channel-participant"
               title={p.public_key}
             >
-              <span className="channel-participant-icon">🎙️</span>
+              <span className="channel-participant-icon" aria-hidden="true">🎙️</span>
               {p.display_name || p.public_key.slice(0, 12)}
             </li>
           ))}
@@ -163,6 +177,8 @@ export function SortableCategoryItem({
 
   return (
     <li
+      role="group"
+      aria-label={channel.name}
       ref={setNodeRef}
       tabIndex={tabIndex}
       onKeyDown={onKeyDown}
@@ -186,6 +202,7 @@ export function SortableCategoryItem({
       >
         <button
           className="category-chevron"
+          aria-expanded={!collapsed}
           onClick={(e) => {
             e.stopPropagation();
             onToggleCollapsed();
@@ -199,7 +216,7 @@ export function SortableCategoryItem({
         )}
         <span className="category-name">{channel.name.toUpperCase()}</span>
         {collapsed && childCount > 0 && (
-          <span className="category-count">{childCount}</span>
+          <span className="category-count" aria-hidden="true">{childCount}</span>
         )}
         <button
           className="btn-icon-small"

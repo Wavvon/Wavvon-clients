@@ -407,6 +407,10 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
+  const [voicePoliteAnnouncement, setVoicePoliteAnnouncement] = useState("");
+  const voiceAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingVoiceAnnouncementsRef = useRef<string[]>([]);
 
   const activeHubIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -788,7 +792,8 @@ function App() {
 
   // Ref to the messages container for auto-scroll
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndChannelRef = useRef<HTMLLIElement>(null);
+  const messagesContainerRef = useRef<HTMLOListElement>(null);
   // Ref to the channel-message input so we can auto-focus on channel switch
   // and after sending. Lets the user start typing immediately without
   // clicking back into the field.
@@ -814,7 +819,7 @@ function App() {
   // tighter than that and a slightly-up scroll would still re-anchor.
   useEffect(() => {
     if (stickToBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      (messagesEndChannelRef.current ?? messagesEndRef.current)?.scrollIntoView({ behavior: "smooth" });
       setNewWhileScrolledUp(0);
     } else {
       setNewWhileScrolledUp((n) => n + 1);
@@ -1029,21 +1034,20 @@ function App() {
             setHubConnected((prev) => {
               const was = prev[hub_id];
               const next = { ...prev, [hub_id]: connected };
-              // Surface a transient toast when this hub flips back to
-              // connected so the user knows the banner is gone for a reason.
-              if (
-                connected &&
-                was === false &&
-                hub_id === activeHubIdRef.current
-              ) {
-                setToast("Reconnected");
+              if (hub_id === activeHubIdRef.current) {
+                const hubName = hubs.find((h) => h.hub_id === hub_id)?.hub_name ?? "hub";
+                if (connected && was === false) {
+                  setToast("Reconnected");
+                  setAssertiveAnnouncement(`Reconnected to ${hubName}.`);
+                } else if (!connected && was !== false) {
+                  setAssertiveAnnouncement(`Disconnected from ${hubName}. Reconnecting…`);
+                }
               }
               return next;
             });
             if (connected) {
               onHubReconnected(hub_id);
             } else {
-              // Connection dropped — kick off the auto-reconnect loop.
               scheduleReconnect(hub_id);
             }
           }
@@ -1151,6 +1155,14 @@ function App() {
         }>("voice-joined", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           voice.onVoiceJoined(event.payload.channel_id, event.payload.participants);
+          const channelName = channelsRef.current.find((c) => c.id === event.payload.channel_id)?.name ?? event.payload.channel_id;
+          const others = event.payload.participants.filter((p) => p.public_key !== publicKeyRef.current);
+          if (others.length === 0) {
+            setAssertiveAnnouncement(`Joined voice in ${channelName}.`);
+          } else {
+            const names = others.map((p) => p.display_name || formatPubkey(p.public_key)).join(", ");
+            setAssertiveAnnouncement(`Joined voice in ${channelName} with ${others.length} other ${others.length === 1 ? "participant" : "participants"}: ${names}`);
+          }
         })
       );
 
@@ -1160,6 +1172,17 @@ function App() {
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
             voice.onParticipantJoined(event.payload.channel_id, event.payload.participant);
+            if (event.payload.participant.public_key !== publicKeyRef.current) {
+              const name = event.payload.participant.display_name || formatPubkey(event.payload.participant.public_key);
+              pendingVoiceAnnouncementsRef.current.push(`${name} joined voice`);
+              if (!voiceAnnounceTimerRef.current) {
+                voiceAnnounceTimerRef.current = setTimeout(() => {
+                  const batch = pendingVoiceAnnouncementsRef.current.splice(0);
+                  setVoicePoliteAnnouncement(batch.join(". "));
+                  voiceAnnounceTimerRef.current = null;
+                }, 2000);
+              }
+            }
           }
         )
       );
@@ -1170,6 +1193,18 @@ function App() {
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
             voice.onParticipantLeft(event.payload.channel_id, event.payload.public_key);
+            if (event.payload.public_key !== publicKeyRef.current) {
+              const u = users.find((u) => u.public_key === event.payload.public_key);
+              const name = u?.display_name || formatPubkey(event.payload.public_key);
+              pendingVoiceAnnouncementsRef.current.push(`${name} left voice`);
+              if (!voiceAnnounceTimerRef.current) {
+                voiceAnnounceTimerRef.current = setTimeout(() => {
+                  const batch = pendingVoiceAnnouncementsRef.current.splice(0);
+                  setVoicePoliteAnnouncement(batch.join(". "));
+                  voiceAnnounceTimerRef.current = null;
+                }, 2000);
+              }
+            }
           }
         )
       );
@@ -2979,6 +3014,22 @@ function App() {
 
   return (
     <div className="app">
+      <div
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {assertiveAnnouncement}
+      </div>
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {voicePoliteAnnouncement}
+      </div>
       {toast && (
         <div className="toast" onClick={() => setToast(null)}>
           {toast}
@@ -3286,13 +3337,14 @@ function App() {
                   voiceActiveUsers={voice.voiceActiveUsers}
                   voiceChannelId={voice.voiceChannelId}
                   onVoiceJoin={() => voice.handleVoiceJoin()}
-                  onVoiceLeave={voice.handleVoiceLeave}
+                  onVoiceLeave={() => { voice.handleVoiceLeave(); setAssertiveAnnouncement("Left voice"); }}
                   installedGames={installedGames}
                   myAvatar={myAvatar}
                   inputText={inputText}
                   typingByKey={typingByKey}
                   dmTypingByKey={dmTypingByKey}
                   messagesEndRef={messagesEndRef}
+                  messagesEndChannelRef={messagesEndChannelRef}
                   messagesContainerRef={messagesContainerRef}
                   messageInputRef={messageInputRef}
                   onReconnect={handleReconnect}
@@ -3339,6 +3391,7 @@ function App() {
                   sharing={voice.sharing}
                   shareKbps={voice.shareKbps}
                   onStopShare={voice.stopShare}
+                  assertiveAnnouncement={assertiveAnnouncement}
                 />
               </>
             )}

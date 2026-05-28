@@ -86,7 +86,7 @@ export function HubSidebar({
   }, [hubs, onSwitchHub]);
 
   return (
-    <div className="hub-sidebar">
+    <nav className="hub-sidebar" aria-label="Hubs">
       <div className="hub-icon-box">
         <button
           className={`hub-icon dm ${view === "dms" ? "active" : ""}`}
@@ -97,7 +97,7 @@ export function HubSidebar({
           @
         </button>
         {Object.keys(unreadDms).length > 0 && view !== "dms" && (
-          <span className="hub-unread-badge">
+          <span className="hub-unread-badge" aria-hidden="true">
             {Object.keys(unreadDms).length > 99 ? "99+" : Object.keys(unreadDms).length}
           </span>
         )}
@@ -105,54 +105,59 @@ export function HubSidebar({
       <div className="hub-sidebar-divider" />
       <DndContext sensors={dndSensors} onDragEnd={onHubReorder}>
         <SortableContext items={hubs.map((h) => h.hub_id)} strategy={verticalListSortingStrategy}>
-          {hubs.map((h, index) => {
-            const unread = unreadByHub[h.hub_id] || 0;
-            const ping = pingByHub[h.hub_id];
-            const offline = ping === null;
-            const titleSuffix = offline ? " — offline" : ping === undefined ? "" : ` — ${ping}ms`;
-            const isFocused = focusedIndex === index;
-            return (
-              <SortableHubIcon key={h.hub_id} hubId={h.hub_id}>
-                <div className="hub-icon-box">
-                  <button
-                    ref={(el) => { hubButtonRefs.current[index] = el; }}
-                    tabIndex={isFocused ? 0 : -1}
-                    className={`hub-icon ${
-                      h.hub_id === activeHubId && view === "channels" ? "active" : ""
-                    } ${offline ? "offline" : ""} ${
-                      hubNotifyMode[h.hub_id] === "silent" ? "muted" : ""
-                    }`}
-                    onClick={() => { setFocusedIndex(index); onSwitchHub(h.hub_id); }}
-                    onKeyDown={(e) => handleHubKeyDown(e, index)}
-                    onContextMenu={(e) => { e.preventDefault(); onRemoveHub(h.hub_id); }}
-                    title={`${h.hub_name} (${h.hub_url})${titleSuffix}${
-                      hubNotifyMode[h.hub_id] === "silent"
-                        ? " — silenced"
-                        : hubNotifyMode[h.hub_id] === "mentions"
-                        ? " — mentions only"
-                        : ""
-                    }`}
-                  >
-                    {h.hub_icon ? (
-                      <img src={h.hub_icon} alt={h.hub_name} className="hub-icon-image" />
-                    ) : (
-                      h.hub_name.slice(0, 2).toUpperCase()
+          <div role="tablist" aria-label="Hub list" aria-orientation="vertical">
+            {hubs.map((h, index) => {
+              const unread = unreadByHub[h.hub_id] || 0;
+              const ping = pingByHub[h.hub_id];
+              const offline = ping === null;
+              const titleSuffix = offline ? " — offline" : ping === undefined ? "" : ` — ${ping}ms`;
+              const isFocused = focusedIndex === index;
+              const isActive = h.hub_id === activeHubId && view === "channels";
+              return (
+                <SortableHubIcon key={h.hub_id} hubId={h.hub_id}>
+                  <div className="hub-icon-box">
+                    <button
+                      ref={(el) => { hubButtonRefs.current[index] = el; }}
+                      role="tab"
+                      aria-selected={isActive}
+                      tabIndex={isFocused ? 0 : -1}
+                      className={`hub-icon ${
+                        isActive ? "active" : ""
+                      } ${offline ? "offline" : ""} ${
+                        hubNotifyMode[h.hub_id] === "silent" ? "muted" : ""
+                      }`}
+                      onClick={() => { setFocusedIndex(index); onSwitchHub(h.hub_id); }}
+                      onKeyDown={(e) => handleHubKeyDown(e, index)}
+                      onContextMenu={(e) => { e.preventDefault(); onRemoveHub(h.hub_id); }}
+                      title={`${h.hub_name} (${h.hub_url})${titleSuffix}${
+                        hubNotifyMode[h.hub_id] === "silent"
+                          ? " — silenced"
+                          : hubNotifyMode[h.hub_id] === "mentions"
+                          ? " — mentions only"
+                          : ""
+                      }`}
+                    >
+                      {h.hub_icon ? (
+                        <img src={h.hub_icon} alt={h.hub_name} className="hub-icon-image" />
+                      ) : (
+                        h.hub_name.slice(0, 2).toUpperCase()
+                      )}
+                    </button>
+                    {unread > 0 && hubNotifyMode[h.hub_id] !== "silent" && (
+                      <span className="hub-unread-badge" aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
                     )}
-                  </button>
-                  {unread > 0 && hubNotifyMode[h.hub_id] !== "silent" && (
-                    <span className="hub-unread-badge">{unread > 99 ? "99+" : unread}</span>
-                  )}
-                  {hubNotifyMode[h.hub_id] === "silent" && (
-                    <span className="hub-muted-badge" title="Silenced">🔕</span>
-                  )}
-                  {hubNotifyMode[h.hub_id] === "mentions" && (
-                    <span className="hub-muted-badge" title="Mentions only">@</span>
-                  )}
-                </div>
-                {offline && <span className="hub-offline-label">offline</span>}
-              </SortableHubIcon>
-            );
-          })}
+                    {hubNotifyMode[h.hub_id] === "silent" && (
+                      <span className="hub-muted-badge" title="Silenced" aria-hidden="true">🔕</span>
+                    )}
+                    {hubNotifyMode[h.hub_id] === "mentions" && (
+                      <span className="hub-muted-badge" title="Mentions only" aria-hidden="true">@</span>
+                    )}
+                  </div>
+                  {offline && <span className="hub-offline-label" aria-hidden="true">offline</span>}
+                </SortableHubIcon>
+              );
+            })}
+          </div>
         </SortableContext>
       </DndContext>
 
@@ -231,6 +236,6 @@ export function HubSidebar({
           ⚙
         </button>
       )}
-    </div>
+    </nav>
   );
 }
