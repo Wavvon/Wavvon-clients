@@ -4654,6 +4654,350 @@ async fn set_challenge_settings(
 }
 
 // =============================================================================
+// Feature: Farm management commands
+// =============================================================================
+
+#[derive(Serialize, Deserialize, Clone)]
+struct FarmPublicInfo {
+    kind: Option<String>,
+    name: String,
+    description: String,
+    creation_policy: String,
+    hub_count: u32,
+    max_hubs_total: u32,
+    allow_discovery_listing: bool,
+    country: String,
+    region: String,
+    languages: Vec<String>,
+    tags: Vec<String>,
+    icon: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct FarmHubQuota {
+    hubs_owned_by_user: u32,
+    max_hubs_per_user: u32,
+    total_hubs: u32,
+    max_hubs_total: u32,
+    can_create: bool,
+    reason: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct FarmSettings {
+    name: String,
+    description: String,
+    creation_policy: String,
+    max_hubs_per_user: u32,
+    max_hubs_total: u32,
+    allow_discovery_listing: bool,
+    directory_public: bool,
+    languages: Vec<String>,
+    tags: Vec<String>,
+    country: String,
+    region: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct CreatedFarmHub {
+    id: String,
+    url: String,
+    hub_pubkey: String,
+    name: String,
+    visibility: String,
+    created_at: i64,
+}
+
+/// `GET {hub_url}/info` — no auth. Returns raw JSON (client reads `farm_url` from it).
+#[tauri::command]
+async fn get_hub_info(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/info"))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// `GET {farm_url}/farm/info` — no auth.
+#[tauri::command]
+async fn get_farm_info(
+    farm_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/farm/info"))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// `GET {farm_url}/farm/public-info` — no auth.
+#[tauri::command]
+async fn probe_farm(
+    farm_url: String,
+    state: State<'_, AppState>,
+) -> Result<FarmPublicInfo, String> {
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/farm/public-info"))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// `GET {farm_url}/farm/me/hub-quota` — requires farm session token.
+#[tauri::command]
+async fn get_farm_hub_quota(
+    farm_url: String,
+    state: State<'_, AppState>,
+) -> Result<FarmHubQuota, String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/farm/me/hub-quota"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// `GET {farm_url}/farm/settings` — requires farm session token.
+#[tauri::command]
+async fn get_farm_settings(
+    farm_url: String,
+    state: State<'_, AppState>,
+) -> Result<FarmSettings, String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/farm/settings"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// `PATCH {farm_url}/farm/settings` — requires farm session token.
+#[tauri::command]
+async fn patch_farm_settings(
+    farm_url: String,
+    settings: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<FarmSettings, String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .patch(format!("{base}/farm/settings"))
+        .bearer_auth(&token)
+        .json(&settings)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// `GET {farm_url}/farm/hubs` — requires farm session token. Returns `{ hubs: [...] }`.
+#[tauri::command]
+async fn get_farm_hubs_admin(
+    farm_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/farm/hubs"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// Suspend or unsuspend a farm hub — requires farm session token.
+#[tauri::command]
+async fn suspend_farm_hub(
+    farm_url: String,
+    hub_id: String,
+    suspended: bool,
+    reason: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = if suspended {
+        state
+            .http_client
+            .patch(format!("{base}/farm/hubs/{hub_id}/suspend"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "reason": reason }))
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {e}"))?
+    } else {
+        state
+            .http_client
+            .patch(format!("{base}/farm/hubs/{hub_id}/unsuspend"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {e}"))?
+    };
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+/// `DELETE {farm_url}/farm/hubs/{hub_id}` — requires farm session token.
+#[tauri::command]
+async fn delete_farm_hub(
+    farm_url: String,
+    hub_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .delete(format!("{base}/farm/hubs/{hub_id}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+/// `GET {farm_url}/farm/users?limit={limit}&page={page}` — requires farm session token.
+#[tauri::command]
+async fn get_farm_users(
+    farm_url: String,
+    page: Option<u32>,
+    limit: Option<u32>,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let mut req = state
+        .http_client
+        .get(format!("{base}/farm/users"))
+        .bearer_auth(&token);
+    if let Some(p) = page {
+        req = req.query(&[("page", p.to_string())]);
+    }
+    if let Some(l) = limit {
+        req = req.query(&[("limit", l.to_string())]);
+    }
+    let resp = req.send().await.map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// `POST {farm_url}/farm/users/{pubkey}/revoke-sessions` — requires farm session token.
+#[tauri::command]
+async fn revoke_farm_user_sessions(
+    farm_url: String,
+    pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/farm/users/{pubkey}/revoke-sessions"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+/// `POST {farm_url}/farm/hubs` with `{ name, description, visibility }` — requires farm session token.
+#[tauri::command]
+async fn create_hub_on_farm(
+    farm_url: String,
+    name: String,
+    description: Option<String>,
+    visibility: String,
+    state: State<'_, AppState>,
+) -> Result<CreatedFarmHub, String> {
+    let token = session_for_url(&state, &farm_url)?;
+    let base = farm_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/farm/hubs"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({
+            "name": name,
+            "description": description,
+            "visibility": visibility,
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// Connect to a hub by URL without an invite code. Wraps `add_hub`.
+#[tauri::command]
+async fn add_hub_by_url(
+    hub_url: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<HubInfo, String> {
+    add_hub(hub_url, None, state, app).await
+}
+
+// =============================================================================
 // Feature: Role Questionnaire / Onboarding Survey
 // =============================================================================
 
@@ -5107,6 +5451,19 @@ pub fn run() {
             survey_admin_get,
             survey_admin_put,
             survey_admin_responses,
+            get_hub_info,
+            get_farm_info,
+            probe_farm,
+            get_farm_hub_quota,
+            get_farm_settings,
+            patch_farm_settings,
+            get_farm_hubs_admin,
+            suspend_farm_hub,
+            delete_farm_hub,
+            get_farm_users,
+            revoke_farm_user_sessions,
+            create_hub_on_farm,
+            add_hub_by_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
