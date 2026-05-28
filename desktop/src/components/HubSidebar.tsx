@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -20,22 +20,40 @@ interface Props {
   pingByHub: Record<string, number | null>;
   hubNotifyMode: Record<string, NotifyMode>;
   hasActiveHub: boolean;
+  isFarmAdmin: boolean;
   onSwitchToDms: () => void;
   onSwitchHub: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
   onHubReorder: (event: DragEndEvent) => void;
   onAddHub: () => void;
+  onCreateHub: () => void;
   onDiscover: () => void;
+  onFarmSettings: () => void;
 }
 
 export function HubSidebar({
   hubs, activeHubId, view, showDiscover, unreadDms, unreadByHub, pingByHub,
-  hubNotifyMode, hasActiveHub, onSwitchToDms, onSwitchHub, onRemoveHub,
-  onHubReorder, onAddHub, onDiscover,
+  hubNotifyMode, hasActiveHub, isFarmAdmin,
+  onSwitchToDms, onSwitchHub, onRemoveHub,
+  onHubReorder, onAddHub, onCreateHub, onDiscover, onFarmSettings,
 }: Props) {
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!addMenuOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setAddMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [addMenuOpen]);
 
   return (
     <div className="hub-sidebar">
@@ -103,7 +121,64 @@ export function HubSidebar({
           })}
         </SortableContext>
       </DndContext>
-      <button className="hub-icon add" onClick={onAddHub} title="Add hub">+</button>
+
+      <div ref={addMenuRef} style={{ position: "relative" }}>
+        <button
+          className="hub-icon add"
+          onClick={() => setAddMenuOpen((v) => !v)}
+          title="Add or create hub"
+        >
+          +
+        </button>
+        {addMenuOpen && (
+          <div
+            style={{
+              position: "absolute",
+              left: "calc(100% + 8px)",
+              top: 0,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--r-md)",
+              padding: "4px 0",
+              minWidth: 160,
+              zIndex: 200,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            }}
+          >
+            <button
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 16px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--text)",
+              }}
+              onClick={() => { setAddMenuOpen(false); onAddHub(); }}
+            >
+              Join a hub
+            </button>
+            <button
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 16px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--text)",
+              }}
+              onClick={() => { setAddMenuOpen(false); onCreateHub(); }}
+            >
+              Create a hub
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="hub-sidebar-divider" />
       <button
         className={`hub-icon discover ${showDiscover ? "active" : ""}`}
@@ -112,6 +187,16 @@ export function HubSidebar({
       >
         ⊕
       </button>
+      {isFarmAdmin && (
+        <button
+          className="hub-icon"
+          onClick={onFarmSettings}
+          title="Farm settings"
+          style={{ fontSize: 14 }}
+        >
+          ⚙
+        </button>
+      )}
     </div>
   );
 }

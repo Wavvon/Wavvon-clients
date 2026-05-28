@@ -509,6 +509,104 @@ export interface InstalledGame {
   thumbnail_url: string | null;
 }
 
+// ---- Farm ----
+
+export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
+
+export interface FarmSettings {
+  name: string;
+  description: string;
+  creation_policy: FarmCreationPolicy;
+  max_hubs_per_user: number;
+  max_hubs_total: number;
+  allow_discovery_listing: boolean;
+  directory_public: boolean;
+  languages: string[];
+  tags: string[];
+  country: string;
+  region: string;
+}
+
+export interface FarmHubEntry {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_pubkey: string;
+  owner_display: string | null;
+  visibility: "public" | "private";
+  member_count: number | null;
+  url: string;
+  hub_pubkey: string;
+  created_at: number;
+  suspended_at: number | null;
+}
+
+export interface FarmUserEntry {
+  public_key: string;
+  master_pubkey: string | null;
+  first_seen_at: number;
+  last_seen_at: number;
+  hubs_owned: number;
+  hubs_member_of: number;
+  active_sessions: number;
+}
+
+export interface FarmUsersResponse {
+  users: FarmUserEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  next_cursor: string | null;
+}
+
+export interface FarmPublicInfo {
+  kind: "voxply-farm-public";
+  name: string;
+  description: string;
+  creation_policy: FarmCreationPolicy;
+  hub_count: number;
+  max_hubs_total: number;
+  allow_discovery_listing: boolean;
+  country: string;
+  region: string;
+  languages: string[];
+  tags: string[];
+  icon: string | null;
+}
+
+export interface FarmInfo {
+  kind: "voxply-farm";
+  name: string;
+  description: string;
+  public_key: string;
+  admin_pubkey: string;
+  directory_public: boolean;
+  policy: {
+    creation_policy: FarmCreationPolicy;
+    max_hubs_per_creator: number;
+    hub_creation_open: boolean;
+    allow_discovery_listing: boolean;
+  };
+}
+
+export interface FarmHubQuota {
+  hubs_owned_by_user: number;
+  max_hubs_per_user: number;
+  total_hubs: number;
+  max_hubs_total: number;
+  can_create: boolean;
+  reason: "quota_exceeded" | "policy_admin_only" | "policy_disabled" | null;
+}
+
+export interface CreatedFarmHub {
+  id: string;
+  url: string;
+  hub_pubkey: string;
+  name: string;
+  visibility: "public" | "private";
+  created_at: number;
+}
+
 // ---- Webhooks ----
 
 export interface WebhookInfo {

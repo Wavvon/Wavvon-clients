@@ -60,6 +60,8 @@ import {
   type HubAdminTab,
 } from "./components/HubAdminPage";
 import { AddHubModal } from "./components/AddHubModal";
+import { FarmSettingsPage, type FarmAdminTab } from "./components/FarmSettingsPage";
+import { CreateHubWizard } from "./components/CreateHubWizard";
 import { CreateChannelModal } from "./components/CreateChannelModal";
 import { FriendsModal } from "./components/FriendsModal";
 import { EditDescriptionModal } from "./components/EditDescriptionModal";
@@ -728,6 +730,14 @@ function App() {
   }, [myDisplayName]);
 
   const voice = useVoice({ activeHubId, selectedChannel, setError, setToast });
+
+  // Farm admin state
+  const [showFarmSettings, setShowFarmSettings] = useState(false);
+  const [farmAdminTab, setFarmAdminTab] = useState<FarmAdminTab>("general");
+  const [farmAdminUrl, setFarmAdminUrl] = useState<string>("");
+  const [isFarmAdmin, setIsFarmAdmin] = useState(false);
+  const [showCreateHub, setShowCreateHub] = useState(false);
+  const [knownFarms, setKnownFarms] = useState<{ url: string; name: string }[]>([]);
 
   // Settings
   const [showSettings, setShowSettings] = useState(false);
@@ -1899,6 +1909,40 @@ function App() {
     })();
   }, []);
 
+  // After hubs load and publicKey is known, check whether any connected hub
+  // is backed by a farm and whether the local user is its admin.
+  useEffect(() => {
+    if (!publicKey || hubs.length === 0) return;
+    async function checkFarmAdmin() {
+      const farms: { url: string; name: string }[] = [];
+      for (const hub of hubs) {
+        try {
+          const info = await invoke<{
+            farm_url?: string | null;
+          }>("get_hub_info", { hubUrl: hub.hub_url });
+          if (!info.farm_url) continue;
+          const farmUrl = info.farm_url;
+          const farmInfo = await invoke<{
+            admin_pubkey?: string;
+            name?: string;
+          }>("get_farm_info", { farmUrl });
+          const name = farmInfo.name ?? farmUrl;
+          if (!farms.some((f) => f.url === farmUrl)) {
+            farms.push({ url: farmUrl, name });
+          }
+          if (farmInfo.admin_pubkey && farmInfo.admin_pubkey === publicKey) {
+            setIsFarmAdmin(true);
+            setFarmAdminUrl(farmUrl);
+          }
+        } catch {
+          // Not a farmed hub or farm unreachable — skip.
+        }
+      }
+      setKnownFarms(farms);
+    }
+    void checkFarmAdmin();
+  }, [publicKey, hubs.length]);
+
   // Suppress the webview's default right-click menu (Reload / Inspect /
   // Back). Tauri 2 still enables it by default and a stray right-click
   // anywhere on the chrome would let the user accidentally reload the app.
@@ -2847,7 +2891,14 @@ function App() {
         </div>
       )}
       <>
-        {showHubAdmin ? (
+        {showFarmSettings ? (
+          <FarmSettingsPage
+            farmUrl={farmAdminUrl}
+            tab={farmAdminTab}
+            onTab={setFarmAdminTab}
+            onClose={() => setShowFarmSettings(false)}
+          />
+        ) : showHubAdmin ? (
           <HubAdminPage
             tab={hubAdminTab}
             onTab={setHubAdminTab}
@@ -2962,7 +3013,10 @@ function App() {
               onRemoveHub={handleRemoveHub}
               onHubReorder={handleHubReorder}
               onAddHub={() => setShowAddHub(true)}
+              onCreateHub={() => setShowCreateHub(true)}
               onDiscover={() => setShowDiscover((v) => !v)}
+              onFarmSettings={() => { setShowFarmSettings(true); setFarmAdminTab("general"); }}
+              isFarmAdmin={isFarmAdmin}
             />
             {showDiscover ? (
               <DiscoverPage
@@ -3380,6 +3434,21 @@ function App() {
               </div>
             </div>
           </div>
+        )}
+
+        {showCreateHub && (
+          <CreateHubWizard
+            knownFarms={knownFarms}
+            onHubCreated={(hub) => {
+              setHubs((prev) => {
+                if (prev.some((h) => h.hub_id === hub.hub_id)) return prev;
+                return [...prev, hub];
+              });
+              setActiveHubId(hub.hub_id);
+              setShowCreateHub(false);
+            }}
+            onClose={() => setShowCreateHub(false)}
+          />
         )}
       </>
     </div>
