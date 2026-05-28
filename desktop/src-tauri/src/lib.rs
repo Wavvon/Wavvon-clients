@@ -111,6 +111,8 @@ struct InfoResponse {
     #[serde(default)]
     icon: Option<String>,
     public_key: String,
+    #[serde(default)]
+    farm_url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -749,10 +751,11 @@ async fn add_hub(
     let hub_id = info.public_key.clone();
     let hub_name = info.name.clone();
     let hub_icon = info.icon.clone();
+    let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
 
     // Authenticate — paired-device clients include the master cert,
     // legacy clients use the single-key flow unchanged.
-    let token = creds.authenticate(&hub_url, &client, invite_code.as_deref()).await?;
+    let token = creds.authenticate(&auth_url, &client, invite_code.as_deref()).await?;
 
     // Auto-apply the user's default profile to this hub whenever the hub
     // doesn't already have a value for the field. Lets a new hub inherit
@@ -1400,7 +1403,16 @@ async fn reauth_session(
 
     let creds = auth_creds::load_active_credentials()?;
     let client = state.http_client.clone();
-    let new_token = creds.authenticate(&hub_url, &client, None).await?;
+    let info: InfoResponse = client
+        .get(format!("{hub_url}/info"))
+        .send()
+        .await
+        .map_err(|e| format!("reauth info fetch: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("reauth info decode: {e}"))?;
+    let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
+    let new_token = creds.authenticate(&auth_url, &client, None).await?;
 
     // Restart the WS task with the new token. Abort the stale one first.
     let (old_task, hub_id_clone) = {
