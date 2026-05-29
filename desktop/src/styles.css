@@ -6015,3 +6015,66 @@ a.embed-title:hover {
   padding-top: var(--space-2);
 }
 
+.dm-group-ack-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary, #1a1a2e);
+  z-index: 10;
+}
+
+.dm-group-ack-box {
+  max-width: 400px;
+  padding: var(--space-6, 24px);
+  background: var(--surface-1, #2a2a3e);
+  border-radius: var(--r-md, 8px);
+  border: 1px solid rgba(255, 170, 0, 0.4);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.dm-group-ack-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #ffaa00;
+  margin: 0;
+}
+
+.dm-group-ack-body {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #999);
+  margin: 0;
+}
+
+.cert-lockout-warning {
+  background: rgba(255, 80, 80, 0.1);
+  border: 1px solid rgba(255, 80, 80, 0.35);
+  border-radius: var(--r-sm, 4px);
+  color: #ff8080;
+  font-size: 0.8rem;
+  padding: 8px 12px;
+  margin-top: 6px;
+}
+
+.recovery-guide-steps {
+  padding-left: 20px;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #999);
+}
+
+.recovery-guide-steps li {
+  line-height: 1.5;
+}
+
+.recovery-guide-steps strong {
+  color: var(--text-primary, #eee);
+}
+

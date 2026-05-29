@@ -10,6 +10,7 @@ use crate::identity::Identity;
 use x25519_dalek;
 
 mod auth_creds;
+mod devices;
 mod home_hub;
 mod identity;
 mod pairing;
@@ -5411,6 +5412,9 @@ pub fn run() {
             pairing::claim_pairing_offer,
             pairing::save_paired_identity,
             pairing::get_paired_identity,
+            devices::device_list,
+            devices::device_revoke,
+            devices::subkey_issue,
             push_prefs_blob,
             pull_and_apply_prefs_blob,
             save_public_profile,

@@ -201,6 +201,7 @@ export function ContentArea({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [forumSelectedPost, setForumSelectedPost] = useState<PostSummary | null>(null);
   const [forumComposing, setForumComposing] = useState(false);
+  const [groupDmAcknowledged, setGroupDmAcknowledged] = useState(false);
 
   useEffect(() => {
     setForumSelectedPost(null);
@@ -343,6 +344,24 @@ export function ContentArea({
         {view === "dms" ? (
           selectedConversation ? (
             <>
+              {view === "dms" && selectedConversation.conv_type === "group" && !groupDmAcknowledged ? (
+                <div className="dm-group-ack-overlay">
+                  <div className="dm-group-ack-box">
+                    <p className="dm-group-ack-title">Group messages are not encrypted</p>
+                    <p className="dm-group-ack-body">
+                      {t("dm.group_banner")}
+                      {" "}{t("dm.group_banner_detail")}
+                    </p>
+                    <button
+                      className="btn-primary"
+                      onClick={() => setGroupDmAcknowledged(true)}
+                    >
+                      {t("dm.group_banner_got_it")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+              <>
               <div className="channel-header">
                 <h3>
                   @{" "}
@@ -452,6 +471,8 @@ export function ContentArea({
                 />
                 <button onClick={onSendDm}>{t("composer.send")}</button>
               </div>
+            </>
+              )}
             </>
           ) : (
             <div className="no-channel"><p>{t("dm.no_selection")}</p></div>

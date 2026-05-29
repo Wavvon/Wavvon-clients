@@ -14,6 +14,7 @@ export function RecoveryContactsSection({ activeHubUrl }: Props) {
   const [addStatus, setAddStatus] = useState<"idle" | "adding" | "added" | string>("idle");
   const [newPubkey, setNewPubkey] = useState("");
   const [rotateStatus, setRotateStatus] = useState<"idle" | "submitting" | "submitted" | string>("idle");
+  const [guideOpen, setGuideOpen] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -70,6 +71,23 @@ export function RecoveryContactsSection({ activeHubUrl }: Props) {
 
   return (
     <div>
+      <div className="settings-section">
+        <div className="recovery-guide-header" onClick={() => setGuideOpen(g => !g)} style={{ cursor: "pointer", userSelect: "none" }}>
+          <label className="settings-label" style={{ cursor: "pointer" }}>
+            {guideOpen ? "▾" : "▸"} How recovery works
+          </label>
+        </div>
+        {guideOpen && (
+          <ol className="recovery-guide-steps">
+            <li><strong>Set up contacts now</strong> — add 3–5 trusted identities below while you still have access to your key.</li>
+            <li><strong>If you lose your key</strong>, generate a new identity on the restore screen.</li>
+            <li><strong>Share your new public key out-of-band</strong> with your recovery contacts (e.g. by phone or another messaging app).</li>
+            <li><strong>Ask each contact to attest</strong> — they go to their Settings → Security → Recovery Contacts on this hub and submit an attestation for your new key.</li>
+            <li><strong>Once enough contacts have attested</strong> (the threshold is set by the hub admin), submit a rotation request below.</li>
+            <li><strong>The hub admin reviews and approves</strong> the request. Roles other than Owner can transfer; owner role requires a pre-designated successor.</li>
+          </ol>
+        )}
+      </div>
       <div className="settings-section">
         <label className="settings-label">Recovery contacts ({contacts.length}/5)</label>
         <p className="muted">

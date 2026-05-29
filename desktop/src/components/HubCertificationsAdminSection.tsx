@@ -77,6 +77,15 @@ export function HubCertificationsAdminSection({ hubUrl }: Props) {
         </select>
       </div>
 
+      {settings.cert_mode !== "none" && (
+        <div className="cert-lockout-warning">
+          <strong>Day-1 lockout risk:</strong> If you enable certification requirements, members
+          (including yourself) without a valid cert matching your rules cannot join or authenticate.
+          Make sure at least one admin has the required certifications before saving, or leave
+          cert_mode on <em>None</em> until certs have been issued.
+        </div>
+      )}
+
       {settings.cert_mode === "trusted" && (
         <div className="settings-section">
           <label className="settings-label">Trusted issuer pubkeys</label>
