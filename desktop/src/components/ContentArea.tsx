@@ -14,10 +14,14 @@ import type {
   VoiceParticipant,
   ActiveStream,
   InstalledGame,
+  PostSummary,
 } from "../types";
 import { GamePicker } from "./GamePicker";
 import { GameModal } from "./GameModal";
 import { GamepadIcon } from "./Icons";
+import { ForumPostList } from "./ForumPostList";
+import { ForumPostDetail } from "./ForumPostDetail";
+import { ForumComposer } from "./ForumComposer";
 import { MessageEmbeds } from "./MessageEmbeds";
 import { MessageComponents } from "./MessageComponents";
 import { ScreenShareViewer } from "./ScreenShareViewer";
@@ -47,6 +51,23 @@ interface SelectedAllianceChannel {
   channel: AllianceSharedChannel;
 }
 
+function IgnoredMessagePlaceholder() {
+  const [revealed, setRevealed] = React.useState(false);
+  return (
+    <li className="message message-row message-ignored-placeholder">
+      {revealed ? null : (
+        <button
+          className="btn-link muted"
+          style={{ fontSize: "var(--text-xs)" }}
+          onClick={() => setRevealed(true)}
+        >
+          Message from ignored user — click to reveal
+        </button>
+      )}
+    </li>
+  );
+}
+
 interface TypingEntry { name: string; ts: number }
 
 interface SlashCommandEntry {
@@ -72,6 +93,7 @@ interface Props {
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
+  ignoredUsers: Set<string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   isAdmin: boolean;
@@ -144,7 +166,7 @@ export function ContentArea({
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
   dmMessages, allianceMessages,
-  users, publicKey, blockedUsers, knownDisplayNames, myDisplayName,
+  users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, voiceChannelId, onVoiceJoin, onVoiceLeave,
@@ -173,6 +195,17 @@ export function ContentArea({
   const [botCard, setBotCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [activeGame, setActiveGame] = useState<InstalledGame | null>(null);
+  const [pendingGameForSession, setPendingGameForSession] = useState<InstalledGame | null>(null);
+  const [sessionPickerOpen, setSessionPickerOpen] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<{ id: string; host_pubkey: string; players: string[] }[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [forumSelectedPost, setForumSelectedPost] = useState<PostSummary | null>(null);
+  const [forumComposing, setForumComposing] = useState(false);
+
+  useEffect(() => {
+    setForumSelectedPost(null);
+    setForumComposing(false);
+  }, [selectedChannel?.id]);
   const [focusedMessageIndex, setFocusedMessageIndex] = useState<number>(-1);
   const messageRowRefs = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -423,6 +456,37 @@ export function ContentArea({
           ) : (
             <div className="no-channel"><p>{t("dm.no_selection")}</p></div>
           )
+        ) : selectedChannel && selectedChannel.channel_type === "forum" ? (
+          <div className="forum-area">
+            {forumComposing ? (
+              <ForumComposer
+                channelId={selectedChannel.id}
+                activeHubUrl={activeHub?.hub_url ?? ""}
+                onCreated={(post) => { setForumComposing(false); setForumSelectedPost(post); }}
+                onCancel={() => setForumComposing(false)}
+              />
+            ) : forumSelectedPost ? (
+              <ForumPostDetail
+                postSummary={forumSelectedPost}
+                channelId={selectedChannel.id}
+                activeHubUrl={activeHub?.hub_url ?? ""}
+                users={users}
+                myPubkey={publicKey}
+                myRoles={myRoles}
+                onBack={() => setForumSelectedPost(null)}
+                onPostUpdated={(updated) => setForumSelectedPost(updated)}
+              />
+            ) : (
+              <ForumPostList
+                channel={selectedChannel}
+                users={users}
+                myRoles={myRoles}
+                activeHubUrl={activeHub?.hub_url ?? ""}
+                onSelectPost={(post) => setForumSelectedPost(post)}
+                onNewPost={() => setForumComposing(true)}
+              />
+            )}
+          </div>
         ) : selectedChannel ? (
           <>
             <div className="channel-header">
@@ -551,6 +615,12 @@ export function ContentArea({
               {(searchResults ?? messages)
                 .filter((m) => !blockedUsers.has(m.sender))
                 .map((m, i, arr) => {
+                  const isIgnored = ignoredUsers.has(m.sender) && m.sender !== publicKey;
+                  if (isIgnored) {
+                    return (
+                      <IgnoredMessagePlaceholder key={m.id} />
+                    );
+                  }
                   const showSeparator = i === 0 || dayKey(m.created_at) !== dayKey(arr[i - 1].created_at);
                   const isMine = m.sender === publicKey;
                   const canDelete =
@@ -922,9 +992,59 @@ export function ContentArea({
       {pickerOpen && (
         <GamePicker
           games={installedGames}
-          onSelect={(game) => { setPickerOpen(false); setActiveGame(game); }}
+          onSelect={(game) => {
+            setPickerOpen(false);
+            const isMultiplayer = (game.permissions ?? []).includes("multiplayer");
+            if (isMultiplayer) {
+              invoke<{ id: string; host_pubkey: string; players: string[] }[]>("list_game_sessions", { gameId: game.id, channelId: selectedChannel?.id }).then((sessions) => {
+                setActiveSessions(sessions);
+                setPendingGameForSession(game);
+                setSessionPickerOpen(true);
+              }).catch(() => {
+                setActiveGame(game);
+                setActiveSessionId(null);
+              });
+            } else {
+              setActiveGame(game);
+              setActiveSessionId(null);
+            }
+          }}
           onClose={() => setPickerOpen(false)}
         />
+      )}
+
+      {sessionPickerOpen && pendingGameForSession && (
+        <div className="game-modal-overlay" onClick={() => { setSessionPickerOpen(false); setPendingGameForSession(null); }}>
+          <div className="game-session-picker" onClick={(e) => e.stopPropagation()}>
+            <h3>{pendingGameForSession.name} — Session</h3>
+            <button onClick={() => {
+              setSessionPickerOpen(false);
+              setActiveGame(pendingGameForSession);
+              setActiveSessionId(null);
+              setPendingGameForSession(null);
+            }}>
+              Create new session
+            </button>
+            {activeSessions.length > 0 && (
+              <>
+                <p className="muted" style={{ marginTop: 8 }}>Or join an existing session:</p>
+                {activeSessions.map((s) => (
+                  <button key={s.id} className="btn-secondary" onClick={() => {
+                    setSessionPickerOpen(false);
+                    setActiveGame(pendingGameForSession);
+                    setActiveSessionId(s.id);
+                    setPendingGameForSession(null);
+                  }}>
+                    Session by {s.host_pubkey.slice(0, 12)} ({s.players.length} players)
+                  </button>
+                ))}
+              </>
+            )}
+            <button className="btn-secondary" style={{ marginTop: 8 }} onClick={() => { setSessionPickerOpen(false); setPendingGameForSession(null); }}>
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       {activeGame && (
@@ -934,7 +1054,12 @@ export function ContentArea({
           publicKey={publicKey}
           displayName={myDisplayName}
           avatar={myAvatar}
-          onClose={() => setActiveGame(null)}
+          channelId={selectedChannel?.id ?? null}
+          channelName={selectedChannel?.name ?? null}
+          hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? null}
+          hubPubkey={null}
+          sessionId={activeSessionId}
+          onClose={() => { setActiveGame(null); setActiveSessionId(null); }}
         />
       )}
     </>

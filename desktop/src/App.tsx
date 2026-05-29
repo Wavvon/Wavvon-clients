@@ -150,6 +150,27 @@ function App() {
     });
   }
 
+  const [ignoredUsers, setIgnoredUsers] = useState<Set<string>>(new Set());
+
+  function toggleIgnoreUser(pubkey: string) {
+    setIgnoredUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(pubkey)) next.delete(pubkey);
+      else next.add(pubkey);
+      invoke("save_ignored_users", { ignored: Array.from(next) }).catch(() => {});
+      return next;
+    });
+  }
+
+  const [dndActive, setDndActive] = useState(false);
+
+  function toggleDnd() {
+    setDndActive((prev) => {
+      invoke("save_dnd_settings", { active: !prev }).catch(() => {});
+      return !prev;
+    });
+  }
+
 
   // Collapsed categories: hub_id -> { category_id: true }. Persisted so a
   // folded category stays folded across restarts. Categories not in the
@@ -1261,6 +1282,34 @@ function App() {
             `Couldn't authenticate with "${hub_name}". The hub may be offline, or you may have been banned. Use Reconnect to retry, or right-click to remove.`
           );
         })
+      );
+
+      unlistens.push(
+        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
+          "post-created",
+          (event) => {
+            const { hub_id, channel_id } = event.payload;
+            if (!channelsRef.current.some((c) => c.id === channel_id)) return;
+            const mode = effectiveNotifyMode(hub_id, channel_id);
+            if (mode !== "silent" && hub_id !== activeHubIdRef.current || channel_id !== selectedChannelIdRef.current) {
+              bumpUnread(hub_id, channel_id);
+            }
+          }
+        )
+      );
+
+      unlistens.push(
+        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
+          "reply-created",
+          (event) => {
+            const { hub_id, channel_id } = event.payload;
+            if (!channelsRef.current.some((c) => c.id === channel_id)) return;
+            const mode = effectiveNotifyMode(hub_id, channel_id);
+            if (mode !== "silent" && (hub_id !== activeHubIdRef.current || channel_id !== selectedChannelIdRef.current)) {
+              bumpUnread(hub_id, channel_id);
+            }
+          }
+        )
       );
     })();
 
@@ -2487,6 +2536,18 @@ function App() {
     }
   }
 
+  async function handleImportBackup() {
+    const passphrase = window.prompt("Enter the backup passphrase:");
+    if (passphrase === null) return;
+    try {
+      await invoke("import_identity_backup", { passphrase });
+      setToast("Identity restored from backup — reloading…");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   async function loadConversations() {
     try {
       const c = await invoke<Conversation[]>("list_conversations");
@@ -3101,6 +3162,7 @@ function App() {
             theme={theme}
             onThemeChange={handleSetTheme}
             hasActiveHub={hasActiveHub}
+            activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}
             copiedKey={copiedKey}
             onCopyKey={copyPublicKey}
@@ -3207,6 +3269,9 @@ function App() {
                       Try demo hub
                     </button>
                   )}
+                  <button className="btn-secondary" onClick={handleImportBackup}>
+                    Restore from backup
+                  </button>
                 </div>
                 <p className="welcome-hint muted">
                   Browse public hubs to find communities to join, or paste
@@ -3303,6 +3368,8 @@ function App() {
                   onToggleHideSilenced={() => setHideSilenced((v) => !v)}
                   sharing={voice.sharing}
                   onScreenShare={voice.handleScreenShare}
+                  dndActive={dndActive}
+                  onToggleDnd={toggleDnd}
                 />
                 <ContentArea
                   view={view}
@@ -3321,6 +3388,7 @@ function App() {
                   users={users}
                   publicKey={publicKey}
                   blockedUsers={blockedUsers}
+                  ignoredUsers={ignoredUsers}
                   knownDisplayNames={knownDisplayNames}
                   myDisplayName={myDisplayName}
                   isAdmin={isAdmin}
@@ -3553,12 +3621,14 @@ function App() {
             menu={userContextMenu}
             publicKey={publicKey}
             blockedUsers={blockedUsers}
+            ignoredUsers={ignoredUsers}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             onClose={() => setUserContextMenu(null)}
             onDm={handleUserDm}
             onAddFriend={handleUserAddFriend}
             onCopyKey={handleCopyUserKey}
             onToggleBlock={toggleBlockUser}
+            onToggleIgnore={toggleIgnoreUser}
             onToast={setToast}
             onJoinHub={handleDiscoverJoin}
           />

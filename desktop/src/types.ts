@@ -10,6 +10,7 @@ export interface Channel {
   created_by: string;
   parent_id: string | null;
   is_category: boolean;
+  channel_type: "text" | "forum";
   display_order: number;
   description: string | null;
   icon: string | null;
@@ -507,6 +508,10 @@ export interface InstalledGame {
   entry_url: string;
   description: string | null;
   thumbnail_url: string | null;
+  permissions?: string[];
+  channel_ids?: string[];
+  author?: string | null;
+  version?: string | null;
 }
 
 // ---- Farm ----
@@ -622,4 +627,212 @@ export interface WebhookInfo {
 export interface WebhookCreatedResult {
   id: string;
   webhook_url: string;
+}
+
+// ---- channel_type ----
+
+export type ChannelType = "text" | "forum";
+
+// ---- Forum ----
+
+export interface PostSummary {
+  id: string;
+  channel_id: string;
+  author_pubkey: string;
+  title: string;
+  created_at: number;
+  edited_at: number | null;
+  is_pinned: boolean;
+  is_locked: boolean;
+  reply_count: number;
+  last_activity_at: number;
+  is_deleted: boolean;
+}
+
+export interface ReplyView {
+  id: string;
+  post_id: string;
+  author_pubkey: string;
+  body: string;
+  created_at: number;
+  edited_at: number | null;
+  reply_to_id: string | null;
+  is_deleted: boolean;
+}
+
+export interface PostDetail extends PostSummary {
+  body: string;
+  replies: ReplyView[];
+  reply_cursor: string | null;
+}
+
+// ---- Server tags / badges ----
+
+export interface HubBadge {
+  payload: {
+    issuer_pubkey: string;
+    issuer_url: string;
+    subject_pubkey: string;
+    label: string;
+    issued_at: string;
+    expires_at: string | null;
+  };
+  signature: string;
+}
+
+export interface PendingBadgeOffer extends HubBadge {
+  id: string;
+  received_at: number;
+}
+
+// ---- Games (admin) ----
+
+export interface GameAdminInfo {
+  id: string;
+  name: string;
+  entry_url: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  author: string | null;
+  version: string | null;
+  permissions: string[];
+  channel_ids: string[];
+}
+
+// ---- Game sessions (Tier 2) ----
+
+export interface GameSession {
+  id: string;
+  game_id: string;
+  channel_id: string;
+  host_pubkey: string;
+  state: Record<string, unknown>;
+  players: string[];
+  created_at: number;
+  ended_at: number | null;
+}
+
+// ---- Hub certifications ----
+
+export interface CertPayload {
+  subject_kind: "user";
+  issuer_pubkey: string;
+  issuer_url: string;
+  subject_pubkey: string;
+  member_since: number;
+  standing: "good" | "revoked";
+  pow_level: number | null;
+  issued_at: number;
+  expires_at: number;
+  capabilities: string[];
+}
+
+export interface HubCertification {
+  payload: CertPayload;
+  signature: string;
+}
+
+export interface IssuedCertRow {
+  id: string;
+  subject_pubkey: string;
+  subject_display: string | null;
+  issued_at: number;
+  expires_at: number;
+  standing: "good" | "revoked";
+}
+
+export interface CertSettings {
+  cert_mode: "none" | "any" | "trusted";
+  cert_auto_issue: boolean;
+  cert_min_age_days: number;
+  cert_validity_days: number;
+  cert_trusted_issuers: string[];
+}
+
+// ---- Identity recovery ----
+
+export interface RecoveryContact {
+  pubkey: string;
+  display_name: string | null;
+  added_at: number;
+  hub_url: string;
+}
+
+export interface RotationAttestation {
+  contact_pubkey: string;
+  contact_display: string | null;
+  attested_at: number;
+}
+
+export interface RotationRequest {
+  id: string;
+  new_pubkey: string;
+  hub_url: string;
+  attestations: RotationAttestation[];
+  threshold: number;
+  submitted_at: number;
+}
+
+// ---- Block / Ignore / DND ----
+
+export interface BlockEntry {
+  pubkey: string;
+  since: number;
+}
+
+export interface IgnoreEntry {
+  pubkey: string;
+  since: number;
+}
+
+export interface DndSettings {
+  active: boolean;
+  start_hour: number | null;
+  end_hour: number | null;
+}
+
+// ---- Device list ----
+
+export interface PairedDevice {
+  subkey_pubkey: string;
+  device_label: string;
+  issued_at: number;
+  not_after: number | null;
+  is_this_device: boolean;
+}
+
+// ---- WebRTC screen share ----
+
+export interface WsScreenShareOffer {
+  type: "screen_share_offer";
+  channel_id: string;
+  to_pubkey: string;
+  from_pubkey: string;
+  sdp: string;
+  stream_id: string;
+}
+
+export interface WsScreenShareAnswer {
+  type: "screen_share_answer";
+  channel_id: string;
+  to_pubkey: string;
+  from_pubkey: string;
+  sdp: string;
+  stream_id: string;
+}
+
+export interface WsScreenShareIce {
+  type: "screen_share_ice";
+  channel_id: string;
+  to_pubkey: string;
+  from_pubkey: string;
+  candidate: string;
+  stream_id: string;
+}
+
+export interface WsScreenShareViewerJoined {
+  type: "screen_share_viewer_joined";
+  channel_id: string;
+  viewer_pubkey: string;
+  stream_id: string;
 }

@@ -7,19 +7,21 @@ interface Props {
   menu: { x: number; y: number; user: User };
   publicKey: string | null;
   blockedUsers: Set<string>;
+  ignoredUsers: Set<string>;
   activeHubUrl: string;
   onClose: () => void;
   onDm: (user: User) => void;
   onAddFriend: (user: User) => void;
   onCopyKey: (user: User) => void;
   onToggleBlock: (pubkey: string) => void;
+  onToggleIgnore: (pubkey: string) => void;
   onToast: (msg: string) => void;
   onJoinHub: (hubUrl: string, inviteCode: string) => void;
 }
 
 export function UserContextMenu({
-  menu, publicKey, blockedUsers, activeHubUrl,
-  onClose, onDm, onAddFriend, onCopyKey, onToggleBlock, onToast, onJoinHub,
+  menu, publicKey, blockedUsers, ignoredUsers, activeHubUrl,
+  onClose, onDm, onAddFriend, onCopyKey, onToggleBlock, onToggleIgnore, onToast, onJoinHub,
 }: Props) {
   const { x, y, user } = menu;
   const [profile, setProfile] = useState<PublicHubProfile | null | "loading">("loading");
@@ -64,17 +66,30 @@ export function UserContextMenu({
           Copy public key
         </button>
         {user.public_key !== publicKey && (
-          <button
-            className="context-menu-item"
-            onClick={() => {
-              const wasBlocked = blockedUsers.has(user.public_key);
-              onClose();
-              onToggleBlock(user.public_key);
-              onToast(wasBlocked ? "Unblocked" : "Blocked. Their messages will be hidden.");
-            }}
-          >
-            {blockedUsers.has(user.public_key) ? "Unblock user" : "Block user"}
-          </button>
+          <>
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                const wasIgnored = ignoredUsers.has(user.public_key);
+                onClose();
+                onToggleIgnore(user.public_key);
+                onToast(wasIgnored ? "No longer ignoring" : "Ignored. Their messages will be collapsed.");
+              }}
+            >
+              {ignoredUsers.has(user.public_key) ? "Unignore user" : "Ignore user"}
+            </button>
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                const wasBlocked = blockedUsers.has(user.public_key);
+                onClose();
+                onToggleBlock(user.public_key);
+                onToast(wasBlocked ? "Unblocked" : "Blocked. Their messages and mentions will be hidden.");
+              }}
+            >
+              {blockedUsers.has(user.public_key) ? "Unblock user" : "Block user"}
+            </button>
+          </>
         )}
         {profile === "loading" && (
           <div className="muted" style={{ padding: "4px 12px", fontSize: "var(--text-sm)" }}>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 interface HubListing {
@@ -13,6 +13,7 @@ interface HubListing {
   bio: string;
   tags: string[];
   language: string;
+  badges?: { label: string; issuer_url: string }[];
 }
 
 interface Props {
@@ -24,23 +25,27 @@ interface Props {
 const DEFAULT_DIR = "https://discovery.voxply.io";
 const PAGE_SIZE = 20;
 
+const POPULAR_TAGS = ["gaming", "music", "art", "tech", "anime", "sports", "community", "18+", "english", "social"];
+
 export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }: Props) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
   const [language, setLanguage] = useState("");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const [hubs, setHubs] = useState<HubListing[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchPage = useCallback(async (query: string, lang: string, pageNum: number, replace: boolean) => {
+  const fetchPage = useCallback(async (query: string, lang: string, tag: string | null, pageNum: number, replace: boolean) => {
     setLoading(true);
     setError("");
     try {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(pageNum) });
       if (query.trim()) params.set("q", query.trim());
       if (lang.trim()) params.set("language", lang.trim());
+      if (tag) params.set("tag", tag);
       const res = await fetch(`${directoryUrl}/api/hubs?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: { hubs: HubListing[]; total: number; page: number; limit: number } = await res.json();
@@ -54,7 +59,7 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
   }, [directoryUrl]);
 
   useEffect(() => {
-    fetchPage(q, language, 1, true);
+    fetchPage(q, language, activeTag, 1, true);
     setPage(1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -62,18 +67,33 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setPage(1);
-    fetchPage(q, language, 1, true);
+    fetchPage(q, language, activeTag, 1, true);
+  }
+
+  function handleTagFilter(tag: string) {
+    const next = activeTag === tag ? null : tag;
+    setActiveTag(next);
+    setPage(1);
+    fetchPage(q, language, next, 1, true);
   }
 
   function handleLoadMore() {
     const next = page + 1;
     setPage(next);
-    fetchPage(q, language, next, false);
+    fetchPage(q, language, activeTag, next, false);
   }
 
   function handleJoin(hub: HubListing) {
     onJoinHub(hub.hub_url, hub.invite_code ?? "");
     onClose();
+  }
+
+  function handleClear() {
+    setQ("");
+    setLanguage("");
+    setActiveTag(null);
+    fetchPage("", "", null, 1, true);
+    setPage(1);
   }
 
   return (
@@ -99,17 +119,25 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
           className="discover-lang-input"
         />
         <button type="submit" disabled={loading}>{t("discover.search.button")}</button>
-        {(q || language) && (
-          <button type="button" className="btn-secondary" onClick={() => {
-            setQ("");
-            setLanguage("");
-            fetchPage("", "", 1, true);
-            setPage(1);
-          }}>
+        {(q || language || activeTag) && (
+          <button type="button" className="btn-secondary" onClick={handleClear}>
             {t("discover.search.clear")}
           </button>
         )}
       </form>
+
+      <div className="discover-tag-chips" aria-label="Filter by tag">
+        {POPULAR_TAGS.map((tag) => (
+          <button
+            key={tag}
+            className={`discover-tag-chip ${activeTag === tag ? "active" : ""}`}
+            onClick={() => handleTagFilter(tag)}
+            aria-pressed={activeTag === tag}
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
 
       {error && <p className="error-text">{error}</p>}
 
@@ -142,11 +170,27 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
             {hub.tags.length > 0 && (
               <div className="discover-card-tags">
                 {hub.tags.map((tag) => (
-                  <span key={tag} className="discover-tag">{tag}</span>
+                  <button
+                    key={tag}
+                    className={`discover-tag ${activeTag === tag ? "active" : ""}`}
+                    onClick={() => handleTagFilter(tag)}
+                    title={`Filter by ${tag}`}
+                  >
+                    {tag}
+                  </button>
                 ))}
                 {hub.language && (
                   <span className="discover-tag lang">{hub.language}</span>
                 )}
+              </div>
+            )}
+            {hub.badges && hub.badges.length > 0 && (
+              <div className="discover-card-badges">
+                {hub.badges.map((b, i) => (
+                  <span key={i} className="discover-badge-chip" title={`Issued by ${b.issuer_url}`}>
+                    {b.label}
+                  </span>
+                ))}
               </div>
             )}
             <div className="discover-card-footer">

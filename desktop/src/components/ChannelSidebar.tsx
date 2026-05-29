@@ -86,6 +86,8 @@ interface Props {
   onToggleHideSilenced: () => void;
   sharing: boolean;
   onScreenShare: () => void;
+  dndActive: boolean;
+  onToggleDnd: () => void;
 }
 
 export function ChannelSidebar({
@@ -103,7 +105,7 @@ export function ChannelSidebar({
   onVoiceJoin, onVoiceLeave,
   onSelectAllianceChannel, onSelectConversation,
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
-  onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
+  onDragEnd, onToggleHideSilenced, sharing, onScreenShare, dndActive, onToggleDnd,
 }: Props) {
   const { t } = useTranslation();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -553,6 +555,14 @@ export function ChannelSidebar({
               {myDisplayName || publicKey?.slice(0, 12) || "You"}
             </span>
           </div>
+          <button
+            onClick={onToggleDnd}
+            className={`btn-icon-gear ${dndActive ? "active" : ""}`}
+            aria-pressed={dndActive}
+            title={dndActive ? "Quiet hours active — click to disable" : "Enable quiet hours (DND)"}
+          >
+            🌙
+          </button>
           <button onClick={onOpenSettings} className="btn-icon-gear" title={t("settings.title")}>
             ⚙
           </button>

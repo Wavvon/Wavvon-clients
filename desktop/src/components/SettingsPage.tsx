@@ -10,6 +10,10 @@ import { ProfileTab } from "./ProfileTab";
 import { RestoreIdentitySection } from "./RestoreIdentitySection";
 import { PairingSection } from "./PairingSection";
 import { HomeHubSection } from "./HomeHubSection";
+import { IdentityBackupSection } from "./IdentityBackupSection";
+import { RecoveryContactsSection } from "./RecoveryContactsSection";
+import { IdentityCertificationsSection } from "./IdentityCertificationsSection";
+import { DeviceListSection } from "./DeviceListSection";
 
 export type SettingsTab =
   | "profile"
@@ -40,6 +44,7 @@ export interface SettingsPageProps {
   theme: "calm" | "classic" | "linear" | "light";
   onThemeChange: (t: "calm" | "classic" | "linear" | "light") => void;
   hasActiveHub: boolean;
+  activeHubUrl: string;
   publicKey: string | null;
   copiedKey: boolean;
   onCopyKey: () => void;
@@ -384,12 +389,19 @@ export function SettingsPage(props: SettingsPageProps) {
                 </button>
               )}
             </div>
+            <IdentityBackupSection />
             <RestoreIdentitySection onRestore={props.onRecoverIdentity} />
+            {props.hasActiveHub && (
+              <RecoveryContactsSection activeHubUrl={props.activeHubUrl} />
+            )}
+            <IdentityCertificationsSection />
           </section>
         )}
         {props.tab === "devices" && (
           <section>
             <h1>{t("settings.tabs.devices")}</h1>
+            <h2>Linked devices</h2>
+            <DeviceListSection />
             <h2>{t("settings.devices.home_hubs.title")}</h2>
             <p className="muted">
               {t("settings.devices.home_hubs.hint")}

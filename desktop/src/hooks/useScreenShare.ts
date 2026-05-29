@@ -5,6 +5,11 @@ import type { ScreenShareOpts } from "../types";
 interface WsInfo {
   hub_url: string;
   token: string;
+  hub_pubkey: string;
+  screen_share_v2?: boolean;
+  turn_url?: string;
+  turn_username?: string;
+  turn_credential?: string;
 }
 
 function pickMime(): string {
@@ -23,6 +28,8 @@ function buildWsUrl(hubUrl: string, token: string): string {
   return `${hubUrl.replace(/^http/, "ws")}/ws?token=${encodeURIComponent(token)}`;
 }
 
+const DEFAULT_STUN = "stun:stun.l.google.com:19302";
+
 export function useScreenShare(channelId: string | null) {
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +39,26 @@ export function useScreenShare(channelId: string | null) {
   const recordersRef = useRef<MediaRecorder[]>([]);
   const streamsRef = useRef<MediaStream[]>([]);
   const streamIdsRef = useRef<string[]>([]);
-  // Rolling byte counter for bandwidth display. Reset on each startShare.
   const bytesInWindowRef = useRef(0);
   const kbpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const myPubkeyRef = useRef<string | null>(null);
+  const wsInfoRef = useRef<WsInfo | null>(null);
+
+  const canUseWebRtc = typeof RTCPeerConnection !== "undefined";
+
+  function buildIceConfig(info: WsInfo): RTCConfiguration {
+    const iceServers: RTCIceServer[] = [{ urls: DEFAULT_STUN }];
+    if (info.turn_url) {
+      iceServers.push({
+        urls: info.turn_url,
+        username: info.turn_username,
+        credential: info.turn_credential,
+      });
+    }
+    return { iceServers };
+  }
 
   async function startShare(opts: ScreenShareOpts) {
     if (!channelId) return;
@@ -43,17 +67,19 @@ export function useScreenShare(channelId: string | null) {
     let wsInfo: WsInfo;
     try {
       wsInfo = await invoke<WsInfo>("get_hub_ws_info");
+      wsInfoRef.current = wsInfo;
     } catch (e) {
       setError(String(e));
       return;
     }
 
+    myPubkeyRef.current = await invoke<string>("get_my_pubkey").catch(() => null);
+
+    const useWebRtc = canUseWebRtc && !!wsInfo.screen_share_v2;
+    const transport: "webrtc" | "chunks" = useWebRtc ? "webrtc" : "chunks";
+
     const ws = new WebSocket(buildWsUrl(wsInfo.hub_url, wsInfo.token));
     wsRef.current = ws;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "subscribe", channel_id: channelId }));
-    };
 
     ws.onerror = () => setError("Screen share connection failed");
 
@@ -62,11 +88,7 @@ export function useScreenShare(channelId: string | null) {
     let displayStream: MediaStream;
     try {
       displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          frameRate: { ideal: 30, max: 60 },
-          width: { max: 1920 },
-          height: { max: 1080 },
-        },
+        video: { frameRate: { ideal: 30, max: 60 }, width: { max: 1920 }, height: { max: 1080 } },
         audio: opts.includeAudio,
       });
     } catch (e) {
@@ -89,6 +111,7 @@ export function useScreenShare(channelId: string | null) {
         kind: "screen",
         mime,
         has_audio: opts.includeAudio,
+        transport,
       }));
     };
 
@@ -101,10 +124,86 @@ export function useScreenShare(channelId: string | null) {
         kind: "screen",
         mime,
         has_audio: opts.includeAudio,
+        transport,
       }));
     }
 
-    startRecorder(ws, displayStream, channelId, screenStreamId, mime);
+    if (useWebRtc) {
+      ws.onmessage = async (event) => {
+        if (typeof event.data !== "string") return;
+        let msg: { type: string; [k: string]: unknown };
+        try { msg = JSON.parse(event.data); } catch { return; }
+
+        if (msg.type === "screen_share_viewer_joined") {
+          const viewerPubkey = msg.viewer_pubkey as string;
+          const streamId = msg.stream_id as string;
+
+          const pc = new RTCPeerConnection(buildIceConfig(wsInfo));
+          peerConnectionsRef.current.set(viewerPubkey, pc);
+
+          displayStream.getTracks().forEach((track) => pc.addTrack(track, displayStream));
+
+          pc.onicecandidate = (e) => {
+            if (e.candidate && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: "screen_share_ice",
+                channel_id: channelId,
+                to_pubkey: viewerPubkey,
+                from_pubkey: myPubkeyRef.current,
+                candidate: JSON.stringify(e.candidate),
+                stream_id: streamId,
+              }));
+            }
+          };
+
+          pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === "failed") {
+              pc.close();
+              peerConnectionsRef.current.delete(viewerPubkey);
+              if (ws.readyState === WebSocket.OPEN) {
+                startRecorder(ws, displayStream, channelId, screenStreamId, mime);
+              }
+            }
+          };
+
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: "screen_share_offer",
+              channel_id: channelId,
+              to_pubkey: viewerPubkey,
+              from_pubkey: myPubkeyRef.current,
+              sdp: offer.sdp,
+              stream_id: streamId,
+            }));
+          }
+        }
+
+        if (msg.type === "screen_share_answer") {
+          const viewerPubkey = msg.from_pubkey as string;
+          const pc = peerConnectionsRef.current.get(viewerPubkey);
+          if (pc) {
+            await pc.setRemoteDescription({ type: "answer", sdp: msg.sdp as string });
+          }
+        }
+
+        if (msg.type === "screen_share_ice") {
+          const senderPubkey = msg.from_pubkey as string;
+          const pc = peerConnectionsRef.current.get(senderPubkey);
+          if (pc) {
+            try {
+              await pc.addIceCandidate(JSON.parse(msg.candidate as string));
+            } catch {
+              // ignore stale candidates
+            }
+          }
+        }
+      };
+    } else {
+      startRecorder(ws, displayStream, channelId, screenStreamId, mime);
+    }
 
     if (opts.includeWebcam) {
       try {
@@ -116,16 +215,21 @@ export function useScreenShare(channelId: string | null) {
         streamIdsRef.current.push(webcamStreamId);
         streamsRef.current.push(webcamStream);
 
-        ws.send(JSON.stringify({
-          type: "screen_share_start",
-          channel_id: channelId,
-          stream_id: webcamStreamId,
-          kind: "webcam",
-          mime,
-          has_audio: false,
-        }));
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: "screen_share_start",
+            channel_id: channelId,
+            stream_id: webcamStreamId,
+            kind: "webcam",
+            mime,
+            has_audio: false,
+            transport,
+          }));
+        }
 
-        startRecorder(ws, webcamStream, channelId, webcamStreamId, mime);
+        if (!useWebRtc) {
+          startRecorder(ws, webcamStream, channelId, webcamStreamId, mime);
+        }
       } catch {
         // webcam optional — screen share continues without it
       }
@@ -148,7 +252,7 @@ export function useScreenShare(channelId: string | null) {
   function startRecorder(
     ws: WebSocket,
     stream: MediaStream,
-    channelId: string,
+    cid: string,
     streamId: string,
     mime: string
   ) {
@@ -166,7 +270,7 @@ export function useScreenShare(channelId: string | null) {
       bytesInWindowRef.current += buf.byteLength;
       ws.send(JSON.stringify({
         type: "screen_share_chunk",
-        channel_id: channelId,
+        channel_id: cid,
         stream_id: streamId,
         seq: seq++,
         is_init: isFirstChunk,
@@ -190,6 +294,10 @@ export function useScreenShare(channelId: string | null) {
     for (const stream of streamsRef.current) {
       for (const track of stream.getTracks()) track.stop();
     }
+    for (const [, pc] of peerConnectionsRef.current) {
+      try { pc.close(); } catch {}
+    }
+    peerConnectionsRef.current.clear();
 
     if (ws && ws.readyState === WebSocket.OPEN && channel) {
       for (const id of ids) {

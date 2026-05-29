@@ -24,6 +24,10 @@ import { WebhooksSection } from "./WebhooksSection";
 import { SurveyAdminSection } from "./SurveyAdminSection";
 import { LobbySettingsSection } from "./LobbySettingsSection";
 import { ChallengeSettingsSection } from "./ChallengeSettingsSection";
+import { HubTagsSection } from "./HubTagsSection";
+import { HubBadgesSection } from "./HubBadgesSection";
+import { GamesAdminSection } from "./GamesAdminSection";
+import { HubCertificationsAdminSection } from "./HubCertificationsAdminSection";
 
 export type HubAdminTab =
   | "overview"
@@ -39,7 +43,11 @@ export type HubAdminTab =
   | "survey"
   | "lobby"
   | "challenge"
-  | "integrations";
+  | "integrations"
+  | "tags"
+  | "badges"
+  | "games"
+  | "certifications";
 
 export interface HubAdminPageProps {
   tab: HubAdminTab;
@@ -165,6 +173,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "survey", label: t("hub.admin.tabs.survey") },
     { id: "lobby", label: t("hub.admin.tabs.lobby") },
     { id: "challenge", label: t("hub.admin.tabs.challenge") },
+    { id: "tags", label: "Tags" },
+    { id: "badges", label: "Badges" },
+    { id: "games", label: "Games" },
+    { id: "certifications", label: "Certifications" },
   ];
 
   return (
@@ -605,6 +617,30 @@ export function HubAdminPage(props: HubAdminPageProps) {
         )}
         {props.tab === "challenge" && (
           <ChallengeSettingsSection hubUrl={props.activeHubUrl} />
+        )}
+        {props.tab === "tags" && (
+          <section>
+            <h1>Tags</h1>
+            <HubTagsSection />
+          </section>
+        )}
+        {props.tab === "badges" && (
+          <section>
+            <h1>Badges</h1>
+            <HubBadgesSection />
+          </section>
+        )}
+        {props.tab === "games" && (
+          <section>
+            <h1>Games</h1>
+            <GamesAdminSection hubUrl={props.activeHubUrl} channels={props.channels} />
+          </section>
+        )}
+        {props.tab === "certifications" && (
+          <section>
+            <h1>Certifications</h1>
+            <HubCertificationsAdminSection hubUrl={props.activeHubUrl} />
+          </section>
         )}
       </main>
     </div>

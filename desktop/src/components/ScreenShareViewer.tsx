@@ -10,6 +10,7 @@ import type { ActiveStream } from "../types";
 export interface ScreenShareViewerRef {
   appendChunk: (streamId: string, isInit: boolean, data: ArrayBuffer) => void;
   stopStream: (streamId: string) => void;
+  attachStream: (streamId: string, stream: MediaStream) => void;
 }
 
 interface Props {
@@ -28,6 +29,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
   ({ streams }, ref) => {
     const streamStates = useRef<Map<string, StreamState>>(new Map());
     const videoRefs = useRef<Map<string, HTMLVideoElement | null>>(new Map());
+    const webrtcStreams = useRef<Map<string, MediaStream>>(new Map());
     const [volumes, setVolumes] = useState<Record<string, number>>({});
 
     function drainQueue(streamId: string) {
@@ -61,12 +63,25 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
 
       stopStream(streamId) {
         const s = streamStates.current.get(streamId);
-        if (!s) return;
-        try {
-          if (s.mediaSource.readyState === "open") s.mediaSource.endOfStream();
-        } catch {}
-        URL.revokeObjectURL(s.objectUrl);
-        streamStates.current.delete(streamId);
+        if (s) {
+          try {
+            if (s.mediaSource.readyState === "open") s.mediaSource.endOfStream();
+          } catch {}
+          URL.revokeObjectURL(s.objectUrl);
+          streamStates.current.delete(streamId);
+        }
+        webrtcStreams.current.delete(streamId);
+        const el = videoRefs.current.get(streamId);
+        if (el) { el.srcObject = null; }
+      },
+
+      attachStream(streamId, stream) {
+        webrtcStreams.current.set(streamId, stream);
+        const el = videoRefs.current.get(streamId);
+        if (el) {
+          el.srcObject = stream;
+          el.play().catch(() => {});
+        }
       },
     }));
 
@@ -134,10 +149,12 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
             ref={(el) => {
               videoRefs.current.set(mainStream.stream_id, el);
               if (el) {
-                const s = streamStates.current.get(mainStream.stream_id);
-                if (s && el.src !== s.objectUrl) {
-                  el.src = s.objectUrl;
-                  el.play().catch(() => {});
+                const rtcStream = webrtcStreams.current.get(mainStream.stream_id);
+                if (rtcStream) {
+                  if (el.srcObject !== rtcStream) { el.srcObject = rtcStream; el.play().catch(() => {}); }
+                } else {
+                  const s = streamStates.current.get(mainStream.stream_id);
+                  if (s && el.src !== s.objectUrl) { el.src = s.objectUrl; el.play().catch(() => {}); }
                 }
               }
             }}
@@ -154,10 +171,12 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
             ref={(el) => {
               videoRefs.current.set(webcamStream.stream_id, el);
               if (el) {
-                const s = streamStates.current.get(webcamStream.stream_id);
-                if (s && el.src !== s.objectUrl) {
-                  el.src = s.objectUrl;
-                  el.play().catch(() => {});
+                const rtcStream = webrtcStreams.current.get(webcamStream.stream_id);
+                if (rtcStream) {
+                  if (el.srcObject !== rtcStream) { el.srcObject = rtcStream; el.play().catch(() => {}); }
+                } else {
+                  const s = streamStates.current.get(webcamStream.stream_id);
+                  if (s && el.src !== s.objectUrl) { el.src = s.objectUrl; el.play().catch(() => {}); }
                 }
               }
             }}
