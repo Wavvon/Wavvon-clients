@@ -7,8 +7,12 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
     "types": ["vite/client"],
     "paths": {
+      "i18next": ["./node_modules/i18next"],
+      "react-i18next": ["./node_modules/react-i18next"],
+      "i18next-icu": ["./node_modules/i18next-icu"],
       "@voxply/i18n": ["../../web/i18n/index.ts"]
     }
   },

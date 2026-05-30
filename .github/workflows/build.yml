@@ -43,10 +43,6 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/desktop/package-lock.json
 
-      - name: Install i18n deps
-        working-directory: web/i18n
-        run: npm install
-
       - name: Install JS deps
         working-directory: desktop/desktop
         run: npm ci
