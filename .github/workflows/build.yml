@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout desktop
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: desktop
 
       # The i18n package lives in Voxply-web at file:../../web/i18n
       - name: Checkout web (for i18n)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Voxply/Voxply-web
           path: web
@@ -38,7 +38,7 @@ jobs:
           workspaces: desktop/desktop/src-tauri
 
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm

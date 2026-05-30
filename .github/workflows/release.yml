@@ -28,12 +28,12 @@ jobs:
 
     steps:
       - name: Checkout desktop
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: desktop
 
       - name: Checkout web (for i18n)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Voxply/Voxply-web
           path: web
@@ -57,7 +57,7 @@ jobs:
             libasound2-dev
 
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -78,7 +78,7 @@ jobs:
         run: npx tauri build ${{ matrix.args }}
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             desktop/desktop/src-tauri/target/release/bundle/**/${{ matrix.artifact }}
