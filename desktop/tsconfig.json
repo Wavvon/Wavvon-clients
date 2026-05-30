@@ -7,7 +7,6 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "types": ["vite/client"],
     "paths": {
       "i18next": ["./node_modules/i18next"],
