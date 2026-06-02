@@ -72,7 +72,7 @@ interface Props {
   onRemoveHub: (hubId: string) => void;
   onOpenHubAdmin: () => void;
   onOpenHubAdminInvites: () => void;
-  onOpenCreateChannel: (parentId: string | null, isCategory: boolean) => void;
+  onOpenCreateChannel: (parentId: string | null) => void;
   onSelectChannel: (channel: Channel) => void;
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenChannelSettings: (channel: Channel) => void;
@@ -247,7 +247,7 @@ export function ChannelSidebar({
                 </button>
               )}
               {isAdmin && (
-                <button className="hub-dropdown-item" onClick={() => { onHubDropdownOpenChange(false); onOpenCreateChannel(null, false); }}>
+                <button className="hub-dropdown-item" onClick={() => { onHubDropdownOpenChange(false); onOpenCreateChannel(null); }}>
                   {t("hub.create_channel")}
                 </button>
               )}
@@ -330,7 +330,7 @@ export function ChannelSidebar({
                         }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, idx)}
-                        onAdd={() => onOpenCreateChannel(n.node.id, false)}
+                        onAdd={() => onOpenCreateChannel(n.node.id)}
                         onSettings={isAdmin ? (_e) => onOpenChannelSettings(n.node) : undefined}
                       />
                     ) : (
@@ -460,7 +460,7 @@ export function ChannelSidebar({
             onClick={(e) => e.stopPropagation()}
           >
             {isAdmin && (
-              <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); onOpenCreateChannel(null, false); }}>
+              <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); onOpenCreateChannel(null); }}>
                 {t("hub.create_channel")}
               </button>
             )}

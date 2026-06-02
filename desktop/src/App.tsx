@@ -658,7 +658,7 @@ function App() {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelDescription, setNewChannelDescription] = useState("");
-  const [newChannelIsCategory, setNewChannelIsCategory] = useState(false);
+  const [newChannelType, setNewChannelType] = useState<"text" | "forum" | "category">("text");
   const [newChannelParentId, setNewChannelParentId] = useState<string | null>(null);
 
   // Edit description dialog
@@ -2885,13 +2885,14 @@ function App() {
       const channel = await invoke<Channel>("create_channel", {
         name,
         parentId: newChannelParentId,
-        isCategory: newChannelIsCategory,
+        isCategory: newChannelType === "category",
+        channelType: newChannelType === "category" ? undefined : newChannelType,
         description: desc ? desc : null,
       });
       setChannels((prev) => [...prev, channel]);
       setNewChannelName("");
       setNewChannelDescription("");
-      setNewChannelIsCategory(false);
+      setNewChannelType("text");
       setNewChannelParentId(null);
       setShowCreateChannel(false);
       if (!channel.is_category) {
@@ -2967,9 +2968,9 @@ function App() {
     setContextMenu({ x: e.clientX, y: e.clientY, channel });
   }
 
-  function openCreateChannelUnder(parentId: string | null, isCategory: boolean) {
+  function openCreateChannelUnder(parentId: string | null) {
     setNewChannelParentId(parentId);
-    setNewChannelIsCategory(isCategory);
+    setNewChannelType("text");
     setShowCreateChannel(true);
     setContextMenu(null);
   }
@@ -3527,8 +3528,8 @@ function App() {
             onNameChange={setNewChannelName}
             description={newChannelDescription}
             onDescriptionChange={setNewChannelDescription}
-            isCategory={newChannelIsCategory}
-            onIsCategoryChange={setNewChannelIsCategory}
+            channelType={newChannelType}
+            onChannelTypeChange={setNewChannelType}
             parentId={newChannelParentId}
             onCreate={handleCreateChannel}
             onClose={() => setShowCreateChannel(false)}

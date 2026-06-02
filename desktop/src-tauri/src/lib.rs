@@ -174,6 +174,7 @@ struct ChannelInfo {
     created_by: String,
     parent_id: Option<String>,
     is_category: bool,
+    channel_type: String,
     display_order: i64,
     description: Option<String>,
     icon: Option<String>,
@@ -1190,6 +1191,7 @@ async fn create_channel(
     parent_id: Option<String>,
     is_category: bool,
     description: Option<String>,
+    channel_type: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ChannelInfo, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -1202,6 +1204,7 @@ async fn create_channel(
             "parent_id": parent_id,
             "is_category": is_category,
             "description": description,
+            "channel_type": channel_type,
         }))
         .send()
         .await

@@ -7,8 +7,8 @@ interface Props {
   onNameChange: (v: string) => void;
   description: string;
   onDescriptionChange: (v: string) => void;
-  isCategory: boolean;
-  onIsCategoryChange: (v: boolean) => void;
+  channelType: "text" | "forum" | "category";
+  onChannelTypeChange: (v: "text" | "forum" | "category") => void;
   parentId: string | null;
   onCreate: () => void;
   onClose: () => void;
@@ -16,7 +16,7 @@ interface Props {
 
 export function CreateChannelModal({
   name, onNameChange, description, onDescriptionChange,
-  isCategory, onIsCategoryChange, parentId, onCreate, onClose,
+  channelType, onChannelTypeChange, parentId, onCreate, onClose,
 }: Props) {
   const { t } = useTranslation();
   return (
@@ -24,24 +24,19 @@ export function CreateChannelModal({
       <FocusTrap>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>
-          {isCategory ? t("channel.create.title_category") : t("channel.create.title_channel")}
+          {channelType === "category" ? t("channel.create.title_category") : t("channel.create.title_channel")}
           {parentId ? t("channel.create.inside_category") : ""}
         </h3>
         <div className="channel-type-row">
-          <button
-            type="button"
-            className={`channel-type-btn ${!isCategory ? "selected" : ""}`}
-            onClick={() => onIsCategoryChange(false)}
-          >
-            {t("channel.create.type_channel")}
-          </button>
-          <button
-            type="button"
-            className={`channel-type-btn ${isCategory ? "selected" : ""}`}
-            onClick={() => onIsCategoryChange(true)}
-          >
-            {t("channel.create.type_category")}
-          </button>
+          {(["text", "forum", "category"] as const).map((ty) => (
+            <button key={ty} type="button"
+              className={`channel-type-btn ${channelType === ty ? "selected" : ""}`}
+              onClick={() => onChannelTypeChange(ty)}>
+              {ty === "text" ? t("channel.create.type_channel")
+               : ty === "forum" ? t("channel.create.type_forum")
+               : t("channel.create.type_category")}
+            </button>
+          ))}
         </div>
         <input
           type="text"
@@ -51,10 +46,10 @@ export function CreateChannelModal({
             if (e.key === "Enter") onCreate();
             if (e.key === "Escape") onClose();
           }}
-          placeholder={isCategory ? t("channel.create.name_placeholder_category") : t("channel.create.name_placeholder_channel")}
+          placeholder={channelType === "category" ? t("channel.create.name_placeholder_category") : t("channel.create.name_placeholder_channel")}
           autoFocus
         />
-        {!isCategory && (
+        {channelType !== "category" && (
           <textarea
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}

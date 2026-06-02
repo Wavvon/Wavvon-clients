@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { Channel, NotifyMode } from "../types";
 import { HoverSubmenu } from "./HoverSubmenu";
 
@@ -9,7 +10,7 @@ interface Props {
   onClose: () => void;
   onRename: (channel: Channel) => void;
   onSetMode: (hubId: string, channelId: string, mode: NotifyMode) => void;
-  onOpenCreateChannel: (parentId: string | null, isCategory: boolean) => void;
+  onOpenCreateChannel: (parentId: string | null) => void;
   onEditAppearance: (channel: Channel) => void;
   onDelete: (channelId: string) => void;
 }
@@ -19,6 +20,7 @@ export function ChannelContextMenu({
   onClose, onRename,
   onSetMode, onOpenCreateChannel, onEditAppearance, onDelete,
 }: Props) {
+  const { t } = useTranslation();
   const { x, y, channel } = menu;
 
   return (
@@ -37,42 +39,36 @@ export function ChannelContextMenu({
             className="context-menu-item"
             onClick={() => { onClose(); onRename(channel); }}
           >
-            Rename channel…
+            {t("channel.ctx.rename")}
           </button>
         )}
         {channel.is_category && (
           <>
             <button
               className="context-menu-item"
-              onClick={() => { onClose(); onOpenCreateChannel(channel.id, false); }}
+              onClick={() => { onClose(); onOpenCreateChannel(channel.id); }}
             >
-              Create channel here…
-            </button>
-            <button
-              className="context-menu-item"
-              onClick={() => { onClose(); onOpenCreateChannel(channel.id, true); }}
-            >
-              Create subcategory here…
+              {t("channel.ctx.create_here")}
             </button>
             <button
               className="context-menu-item"
               onClick={() => { onClose(); onEditAppearance(channel); }}
             >
-              Edit appearance…
+              {t("channel.ctx.appearance")}
             </button>
           </>
         )}
         {activeHubId && (
           <HoverSubmenu
-            trigger={<button className="context-menu-item context-menu-submenu-trigger">Notifications ▸</button>}
+            trigger={<button className="context-menu-item context-menu-submenu-trigger">{t("channel.ctx.notifications")} ▸</button>}
             triggerClassName="context-menu-submenu-wrap"
           >
             {activeHubId && (() => {
               const cur = effectiveNotifyMode(activeHubId, channel.id);
               return ([
-                { mode: "all" as NotifyMode, label: "All messages" },
-                { mode: "mentions" as NotifyMode, label: "Only @mentions" },
-                { mode: "silent" as NotifyMode, label: "Silent" },
+                { mode: "all" as NotifyMode, label: t("hub.notifications.all") },
+                { mode: "mentions" as NotifyMode, label: t("hub.notifications.mentions") },
+                { mode: "silent" as NotifyMode, label: t("hub.notifications.silent") },
               ]).map(({ mode, label }) => (
                 <button key={mode} className="context-menu-item context-menu-subitem"
                   onClick={() => { onClose(); onSetMode(activeHubId, channel.id, mode); }}>
@@ -86,7 +82,7 @@ export function ChannelContextMenu({
           className="context-menu-item danger"
           onClick={() => onDelete(channel.id)}
         >
-          Delete {channel.is_category ? "category" : "channel"}
+          {t("channel.ctx.delete", { type: channel.is_category ? t("channel.ctx.type_category") : t("channel.ctx.type_channel") })}
         </button>
       </div>
     </div>
