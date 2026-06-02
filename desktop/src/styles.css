@@ -4581,6 +4581,24 @@ select:focus-visible {
   align-items: center;
   justify-content: center;
   max-height: 60vh;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Multiple sharers: lay panels side by side */
+.screen-share-panel--multi {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-2);
+}
+
+.screen-share-panel--multi .screen-share-main-wrap {
+  max-height: 40vh;
+}
+
+.screen-share-panel--multi video.main-stream {
+  max-height: 40vh;
 }
 
 .screen-share-main-wrap:hover .pip-btn {
