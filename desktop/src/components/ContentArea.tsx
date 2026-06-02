@@ -202,6 +202,8 @@ export function ContentArea({
   const [forumSelectedPost, setForumSelectedPost] = useState<PostSummary | null>(null);
   const [forumComposing, setForumComposing] = useState(false);
   const [groupDmAcknowledged, setGroupDmAcknowledged] = useState(false);
+  // Track IME composition so we don't reset the input value mid-emoji on Windows.
+  const isComposing = React.useRef(false);
 
   useEffect(() => {
     setForumSelectedPost(null);
@@ -463,7 +465,9 @@ export function ContentArea({
                 <input
                   type="text"
                   value={inputText}
-                  onChange={(e) => { onInputTextChange(e.target.value); if (e.target.value.length > 0) onPingDmTyping(); }}
+                  onChange={(e) => { if (!isComposing.current) { onInputTextChange(e.target.value); if (e.target.value.length > 0) onPingDmTyping(); } }}
+                  onCompositionStart={() => { isComposing.current = true; }}
+                  onCompositionEnd={(e) => { isComposing.current = false; onInputTextChange((e.target as HTMLInputElement).value); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSendDm(); }
                   }}
@@ -919,7 +923,9 @@ export function ContentArea({
                   type="text"
                   value={inputText}
                   style={{ width: "100%" }}
-                  onChange={(e) => { handleSlashInputChange(e.target.value); if (e.target.value.length > 0) onPingTyping(); }}
+                  onChange={(e) => { if (!isComposing.current) { handleSlashInputChange(e.target.value); if (e.target.value.length > 0) onPingTyping(); } }}
+                  onCompositionStart={() => { isComposing.current = true; }}
+                  onCompositionEnd={(e) => { isComposing.current = false; handleSlashInputChange((e.target as HTMLInputElement).value); }}
                   onKeyDown={handleSlashKeyDown}
                   placeholder={
                     replyTarget
