@@ -1,5 +1,6 @@
 import React, {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -31,6 +32,26 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     const videoRefs = useRef<Map<string, HTMLVideoElement | null>>(new Map());
     const webrtcStreams = useRef<Map<string, MediaStream>>(new Map());
     const [volumes, setVolumes] = useState<Record<string, number>>({});
+    const [pipStreamId, setPipStreamId] = useState<string | null>(null);
+
+    const pipSupported =
+      typeof document !== "undefined" && "pictureInPictureEnabled" in document;
+
+    const enterPip = useCallback(async (streamId: string) => {
+      const el = videoRefs.current.get(streamId);
+      if (!el || !pipSupported) return;
+      try {
+        if (document.pictureInPictureElement === el) {
+          await document.exitPictureInPicture();
+        } else {
+          await el.requestPictureInPicture();
+          setPipStreamId(streamId);
+          el.addEventListener("leavepictureinpicture", () => setPipStreamId(null), { once: true });
+        }
+      } catch {
+        // Browser denied PiP (not playing yet, or feature not available) — ignore
+      }
+    }, [pipSupported]);
 
     function drainQueue(streamId: string) {
       const s = streamStates.current.get(streamId);
@@ -140,47 +161,57 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     return (
       <div className="screen-share-panel">
         {mainStream && (
-          <video
-            key={mainStream.stream_id}
-            className="main-stream"
-            autoPlay
-            muted
-            playsInline
-            ref={(el) => {
-              videoRefs.current.set(mainStream.stream_id, el);
-              if (el) {
-                const rtcStream = webrtcStreams.current.get(mainStream.stream_id);
-                if (rtcStream) {
-                  if (el.srcObject !== rtcStream) { el.srcObject = rtcStream; el.play().catch(() => {}); }
-                } else {
-                  const s = streamStates.current.get(mainStream.stream_id);
-                  if (s && el.src !== s.objectUrl) { el.src = s.objectUrl; el.play().catch(() => {}); }
+          <div className="screen-share-main-wrap">
+            <video
+              key={mainStream.stream_id}
+              className="main-stream"
+              autoPlay
+              muted
+              playsInline
+              ref={(el) => {
+                videoRefs.current.set(mainStream.stream_id, el);
+                if (el) {
+                  const rtcStream = webrtcStreams.current.get(mainStream.stream_id);
+                  if (rtcStream) {
+                    if (el.srcObject !== rtcStream) { el.srcObject = rtcStream; el.play().catch(() => {}); }
+                  } else {
+                    const s = streamStates.current.get(mainStream.stream_id);
+                    if (s && el.src !== s.objectUrl) { el.src = s.objectUrl; el.play().catch(() => {}); }
+                  }
                 }
-              }
-            }}
-          />
-        )}
-
-        {webcamStream && (
-          <video
-            key={webcamStream.stream_id}
-            className="webcam-overlay"
-            autoPlay
-            muted
-            playsInline
-            ref={(el) => {
-              videoRefs.current.set(webcamStream.stream_id, el);
-              if (el) {
-                const rtcStream = webrtcStreams.current.get(webcamStream.stream_id);
-                if (rtcStream) {
-                  if (el.srcObject !== rtcStream) { el.srcObject = rtcStream; el.play().catch(() => {}); }
-                } else {
-                  const s = streamStates.current.get(webcamStream.stream_id);
-                  if (s && el.src !== s.objectUrl) { el.src = s.objectUrl; el.play().catch(() => {}); }
-                }
-              }
-            }}
-          />
+              }}
+            />
+            {webcamStream && (
+              <video
+                key={webcamStream.stream_id}
+                className="webcam-overlay"
+                autoPlay
+                muted
+                playsInline
+                ref={(el) => {
+                  videoRefs.current.set(webcamStream.stream_id, el);
+                  if (el) {
+                    const rtcStream = webrtcStreams.current.get(webcamStream.stream_id);
+                    if (rtcStream) {
+                      if (el.srcObject !== rtcStream) { el.srcObject = rtcStream; el.play().catch(() => {}); }
+                    } else {
+                      const s = streamStates.current.get(webcamStream.stream_id);
+                      if (s && el.src !== s.objectUrl) { el.src = s.objectUrl; el.play().catch(() => {}); }
+                    }
+                  }
+                }}
+              />
+            )}
+            {pipSupported && (
+              <button
+                className="pip-btn"
+                title={pipStreamId === mainStream.stream_id ? "Exit picture-in-picture" : "Pop out (picture-in-picture)"}
+                onClick={() => enterPip(mainStream.stream_id)}
+              >
+                {pipStreamId === mainStream.stream_id ? "⊠" : "⧉"}
+              </button>
+            )}
+          </div>
         )}
 
         {streams.filter((s) => s.has_audio).map((s) => (

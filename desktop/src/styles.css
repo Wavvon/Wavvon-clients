@@ -4575,6 +4575,18 @@ select:focus-visible {
   border-bottom: 1px solid var(--border);
 }
 
+.screen-share-main-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 60vh;
+}
+
+.screen-share-main-wrap:hover .pip-btn {
+  opacity: 1;
+}
+
 .screen-share-panel video.main-stream {
   max-width: 100%;
   max-height: 60vh;
@@ -4588,6 +4600,27 @@ select:focus-visible {
   width: 20%;
   border-radius: var(--r-md);
   border: 2px solid var(--border);
+}
+
+.pip-btn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 4px 7px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+.pip-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .screen-share-volume {
