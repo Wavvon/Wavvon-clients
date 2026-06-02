@@ -59,8 +59,9 @@ jobs:
       - name: Install macOS deps
         if: matrix.platform == 'macos-latest'
         run: |
-          brew install opus pkg-config
+          brew install opus autoconf automake libtool pkg-config
           echo "PKG_CONFIG_PATH=$(brew --prefix opus)/lib/pkgconfig" >> $GITHUB_ENV
+          echo "OPUS_DIR=$(brew --prefix opus)" >> $GITHUB_ENV
 
       - name: Install Node
         uses: actions/setup-node@v6
