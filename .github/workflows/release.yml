@@ -19,7 +19,7 @@ jobs:
             args: --bundles nsis
             artifact: "*.exe"
           - platform: macos-latest
-            args: --bundles dmg --target universal-apple-darwin
+            args: --bundles dmg
             artifact: "*.dmg"
 
     runs-on: ${{ matrix.platform }}
@@ -40,8 +40,6 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: Swatinem/rust-cache@v2
         with:
