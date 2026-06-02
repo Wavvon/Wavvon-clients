@@ -3705,8 +3705,10 @@ select:focus-visible {
   gap: var(--space-2);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
-  width: 280px;
+  /* 304px gives 8 emoji columns (8×32px + 7×2px gaps) with 8px padding each side */
+  width: 304px;
   overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .reaction-picker-overlay {
@@ -3749,12 +3751,15 @@ select:focus-visible {
   max-height: 200px;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Reserve scrollbar gutter so columns don't shift when scrollbar appears */
+  scrollbar-gutter: stable;
 }
 
 .reaction-picker-recents {
-  /* Show at most two rows of recents; clip the rest */
-  max-height: 72px;
+  /* Show at most one row of recents (no scroll, no overflow) */
+  max-height: 36px;
   overflow: hidden;
+  scrollbar-gutter: auto;
 }
 
 .reaction-picker-section-label {
