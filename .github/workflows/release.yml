@@ -54,7 +54,11 @@ jobs:
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
             libgtk-3-dev patchelf libsoup-3.0-dev libjavascriptcoregtk-4.1-dev \
-            libasound2-dev
+            libasound2-dev libopus-dev
+
+      - name: Install macOS deps
+        if: matrix.platform == 'macos-latest'
+        run: brew install opus
 
       - name: Install Node
         uses: actions/setup-node@v6
