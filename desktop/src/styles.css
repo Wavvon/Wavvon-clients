@@ -3705,8 +3705,7 @@ select:focus-visible {
   gap: var(--space-2);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
-  /* 304px gives 8 emoji columns (8×32px + 7×2px gaps) with 8px padding each side */
-  width: 304px;
+  width: 320px;
   overflow-x: hidden;
   box-sizing: border-box;
 }
@@ -3751,8 +3750,18 @@ select:focus-visible {
   max-height: 200px;
   overflow-y: auto;
   overflow-x: hidden;
-  /* Reserve scrollbar gutter so columns don't shift when scrollbar appears */
-  scrollbar-gutter: stable;
+}
+
+/* Thin scrollbar so it doesn't eat into the emoji columns */
+.reaction-picker-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.reaction-picker-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.reaction-picker-grid::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }
 
 .reaction-picker-recents {
