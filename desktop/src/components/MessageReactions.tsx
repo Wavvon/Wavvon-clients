@@ -15,7 +15,7 @@ export function MessageReactions({
           key={r.emoji}
           className={`reaction-chip ${r.me ? "mine" : ""}`}
           onClick={() => onToggle(r.emoji)}
-          title={r.me ? "Remove your reaction" : "Add your reaction"}
+          title={`${r.count} ${r.count === 1 ? "reaction" : "reactions"}${r.me ? " — click to remove yours" : " — click to add yours"}`}
         >
           <span className="reaction-emoji">{r.emoji}</span>
           <span className="reaction-count">{r.count}</span>

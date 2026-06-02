@@ -3625,6 +3625,9 @@ select:focus-visible {
   gap: var(--space-1);
   margin-top: var(--space-1);
   margin-left: 36px;
+  /* Own row regardless of message-actions visibility */
+  width: 100%;
+  flex-basis: 100%;
 }
 
 .reaction-chip {
@@ -3687,6 +3690,7 @@ select:focus-visible {
   bottom: 100%;
   right: 0;
   margin-bottom: 4px;
+  margin-top: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -3695,8 +3699,16 @@ select:focus-visible {
   flex-direction: column;
   gap: var(--space-2);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 10;
+  z-index: 100;
   width: 280px;
+}
+
+/* Open downward when near the top of the viewport */
+.reaction-picker-popup.open-down {
+  bottom: auto;
+  top: 100%;
+  margin-bottom: 0;
+  margin-top: 4px;
 }
 
 .reaction-picker-search {

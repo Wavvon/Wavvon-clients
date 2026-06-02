@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { EMOJI_CATALOG } from "../constants";
 import { loadRecentEmojis, pushRecentEmoji } from "../utils/recentEmoji";
 import { FocusTrap } from "./FocusTrap";
@@ -9,7 +9,9 @@ export function ReactionPicker({
   onPick: (emoji: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [openDown, setOpenDown] = useState(false);
   const [query, setQuery] = useState("");
+  const btnRef = useRef<HTMLButtonElement>(null);
   // Re-read recents whenever we open so picks made elsewhere show up.
   const [recents, setRecents] = useState<string[]>(() => loadRecentEmojis());
 
@@ -31,14 +33,25 @@ export function ReactionPicker({
     handleClose();
   }
 
+  function handleOpen() {
+    if (!open) {
+      setRecents(loadRecentEmojis());
+      // Detect whether there is enough room above the button.
+      // The popup is ~280px tall; if the button is within 300px of the top
+      // of the viewport, open downward instead.
+      const rect = btnRef.current?.getBoundingClientRect();
+      const spaceAbove = rect?.top ?? 999;
+      setOpenDown(spaceAbove < 300);
+    }
+    setOpen((v) => !v);
+  }
+
   return (
     <div className="reaction-picker">
       <button
+        ref={btnRef}
         className="reaction-add-btn"
-        onClick={() => {
-          if (!open) setRecents(loadRecentEmojis());
-          setOpen((v) => !v);
-        }}
+        onClick={handleOpen}
         title="Add reaction"
       >
         🙂+
@@ -46,7 +59,7 @@ export function ReactionPicker({
       {open && (
         <FocusTrap>
         <div
-          className="reaction-picker-popup"
+          className={`reaction-picker-popup ${openDown ? "open-down" : ""}`}
           onClick={(e) => e.stopPropagation()}
         >
           <input
