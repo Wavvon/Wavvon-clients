@@ -88,6 +88,8 @@ interface Props {
   onToggleHideSilenced: () => void;
   sharing: boolean;
   onScreenShare: () => void;
+  hubStreamsCount: number;
+  onToggleHubStreams: () => void;
   dndActive: boolean;
   onToggleDnd: () => void;
   userStatus: UserStatus;
@@ -109,7 +111,7 @@ export function ChannelSidebar({
   onVoiceJoin, onVoiceLeave,
   onSelectAllianceChannel, onSelectConversation,
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
-  onDragEnd, onToggleHideSilenced, sharing, onScreenShare, dndActive, onToggleDnd,
+  onDragEnd, onToggleHideSilenced, sharing, onScreenShare, hubStreamsCount, onToggleHubStreams, dndActive, onToggleDnd,
   userStatus, onStatusChange,
 }: Props) {
   const { t } = useTranslation();
@@ -541,6 +543,18 @@ export function ChannelSidebar({
                 >
                   {sharing ? "⏹" : "🖥"}
                 </button>
+                {hubStreamsCount > 0 && (
+                  <button
+                    onClick={onToggleHubStreams}
+                    className="btn-icon-gear"
+                    title={`Hub streams (${hubStreamsCount} active)`}
+                  >
+                    📺
+                    {hubStreamsCount > 0 && (
+                      <span className="hub-streams-badge">{hubStreamsCount}</span>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={onVoiceLeave}
                   className="btn-icon-gear voice-call-btn end"

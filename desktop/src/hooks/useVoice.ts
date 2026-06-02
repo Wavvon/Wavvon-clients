@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "../types";
 import { useScreenShare } from "./useScreenShare";
 import { useScreenShareViewer } from "./useScreenShareViewer";
+import { useHubStreams } from "./useHubStreams";
 import { playVoiceTone } from "../utils/audio";
 
 interface UseVoiceParams {
@@ -43,6 +44,13 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   const { sharing, startShare, stopShare, kbps: shareKbps } = useScreenShare(voiceChannelId);
   const { streams: activeScreenShares, viewerRef: screenShareViewerRef } =
     useScreenShareViewer(voiceChannelId);
+  const {
+    hubStreams,
+    crossChannelStreams,
+    subscribeToStream,
+    unsubscribeFromStream,
+    subscribedStreamIds,
+  } = useHubStreams(activeHubId, screenShareViewerRef);
 
   useEffect(() => {
     if (!activeHubId) {
@@ -354,7 +362,12 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     stopShare,
     shareKbps,
     activeScreenShares,
+    crossChannelStreams,
     screenShareViewerRef,
+    hubStreams,
+    subscribeToStream,
+    unsubscribeFromStream,
+    subscribedStreamIds,
     loadVoiceSettings,
     persistVoiceSettings,
     toggleMicTest,

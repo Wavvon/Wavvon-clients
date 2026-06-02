@@ -276,6 +276,36 @@ export interface WsScreenShareStopped {
   sharer_pubkey: string;
 }
 
+export interface WsStreamSubscribed {
+  type: "stream_subscribed";
+  source_channel_id: string;
+  stream_id: string;
+  sharer_pubkey: string;
+  kind: string;
+  mime: string;
+  has_audio: boolean;
+}
+
+export interface WsStreamSubscriptionEnded {
+  type: "stream_subscription_ended";
+  source_channel_id: string;
+  stream_id: string;
+}
+
+export interface HubStreamInfo {
+  channel_id: string;
+  stream_id: string;
+  sharer_pubkey: string;
+  kind: string;
+  mime: string;
+  has_audio: boolean;
+}
+
+export interface WsHubStreams {
+  type: "hub_streams";
+  streams: HubStreamInfo[];
+}
+
 export interface ActiveStream {
   stream_id: string;
   sharer_pubkey: string;

@@ -41,6 +41,7 @@ import type {
   InstalledGame,
 } from "./types";
 import { ScreenSharePicker } from "./components/ScreenSharePicker";
+import { HubStreamsPanel } from "./components/HubStreamsPanel";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { useVoice } from "./hooks/useVoice";
 import { MAX_ATTACHMENT_BYTES, DEMO_HUB_URL } from "./constants";
@@ -705,6 +706,7 @@ function App() {
   const [requireApproval, setRequireApproval] = useState(false);
   const [minSecurityLevel, setMinSecurityLevel] = useState(0);
   const [maxChannelDepth, setMaxChannelDepth] = useState(0);
+  const [showHubStreams, setShowHubStreams] = useState(false);
   const [pendingMembers, setPendingMembers] = useState<PendingUser[]>([]);
 
   const isAdmin = myRoles.some((r) => r.permissions.includes("admin"));
@@ -3382,6 +3384,8 @@ function App() {
                   onToggleHideSilenced={() => setHideSilenced((v) => !v)}
                   sharing={voice.sharing}
                   onScreenShare={voice.handleScreenShare}
+                  hubStreamsCount={voice.hubStreams.filter((s) => s.kind === "screen").length}
+                  onToggleHubStreams={() => setShowHubStreams((v) => !v)}
                   dndActive={userStatus === "dnd"}
                   onToggleDnd={toggleDnd}
                   userStatus={userStatus}
@@ -3470,7 +3474,7 @@ function App() {
                   onOpenImage={openImage}
                   onToast={setToast}
                   onError={setError}
-                  activeScreenShares={voice.activeScreenShares}
+                  activeScreenShares={[...voice.activeScreenShares, ...voice.crossChannelStreams]}
                   screenShareViewerRef={voice.screenShareViewerRef}
                   mediaOutputDeviceId={voice.mediaOutputDeviceId || undefined}
                   sharing={voice.sharing}
@@ -3478,6 +3482,18 @@ function App() {
                   onStopShare={voice.stopShare}
                   assertiveAnnouncement={assertiveAnnouncement}
                 />
+                {showHubStreams && (
+                  <div style={{ position: "relative" }}>
+                    <HubStreamsPanel
+                      streams={voice.hubStreams}
+                      subscribedIds={voice.subscribedStreamIds.current}
+                      currentChannelId={selectedChannel?.id ?? null}
+                      onSubscribe={voice.subscribeToStream}
+                      onUnsubscribe={voice.unsubscribeFromStream}
+                      onClose={() => setShowHubStreams(false)}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>
