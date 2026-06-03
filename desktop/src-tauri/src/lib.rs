@@ -2189,6 +2189,143 @@ fn get_my_public_key() -> Result<String, String> {
     Ok(identity.public_key_hex())
 }
 
+/// Export the identity file to an encrypted `.voxback` file in `~/.voxply/`.
+///
+/// Uses Argon2id for key derivation and AES-256-GCM for encryption.
+/// Returns the path of the written file so the UI can show it to the user.
+#[tauri::command]
+fn export_identity_backup(passphrase: String) -> Result<String, String> {
+    use argon2::{Algorithm, Argon2, Params, Version};
+    use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce as AesNonce};
+    use rand::RngCore;
+
+    let identity_path = Identity::default_path().map_err(|e| e.to_string())?;
+    let plaintext = std::fs::read_to_string(&identity_path)
+        .map_err(|e| format!("Failed to read identity: {e}"))?;
+
+    // Argon2id key derivation: m=65536 KiB, t=3 iterations, p=1 lane.
+    let mut salt = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut salt);
+
+    let params = Params::new(65536, 3, 1, Some(32))
+        .map_err(|e| format!("Argon2 params: {e}"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut key = [0u8; 32];
+    argon2
+        .hash_password_into(passphrase.as_bytes(), &salt, &mut key)
+        .map_err(|e| format!("Argon2 hash: {e}"))?;
+
+    // AES-256-GCM encryption.
+    let mut nonce_bytes = [0u8; 12];
+    rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
+    let cipher = Aes256Gcm::new_from_slice(&key)
+        .map_err(|e| format!("AES key init: {e}"))?;
+    let ciphertext = cipher
+        .encrypt(AesNonce::from_slice(&nonce_bytes), plaintext.as_bytes())
+        .map_err(|e| format!("AES-GCM encrypt: {e}"))?;
+
+    let backup = serde_json::json!({
+        "version": 1,
+        "salt": hex::encode(salt),
+        "nonce": hex::encode(nonce_bytes),
+        "ciphertext": hex::encode(ciphertext),
+    });
+
+    // Write to ~/.voxply/ with a timestamp so multiple exports don't collide.
+    let home = dirs::home_dir().ok_or("No home directory")?;
+    let dir = home.join(".voxply");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir: {e}"))?;
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let dest = dir.join(format!("identity-backup-{ts}.voxback"));
+    std::fs::write(&dest, serde_json::to_string_pretty(&backup).unwrap())
+        .map_err(|e| format!("write backup: {e}"))?;
+
+    dest.to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Non-UTF-8 path".to_string())
+}
+
+/// Import an identity from an encrypted `.voxback` file.
+///
+/// Decrypts with the given passphrase, validates that the result is a parseable
+/// identity JSON, then overwrites `~/.voxply/identity.json`.
+/// Returns `Err("Wrong passphrase or corrupted backup")` on decryption failure.
+#[tauri::command]
+fn import_identity_backup(passphrase: String, src_path: String) -> Result<(), String> {
+    use argon2::{Algorithm, Argon2, Params, Version};
+    use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce as AesNonce};
+
+    #[derive(serde::Deserialize)]
+    struct BackupFile {
+        version: u32,
+        salt: String,
+        nonce: String,
+        ciphertext: String,
+    }
+
+    let raw = std::fs::read_to_string(&src_path)
+        .map_err(|e| format!("Cannot read backup file: {e}"))?;
+    let backup: BackupFile =
+        serde_json::from_str(&raw).map_err(|_| "Not a valid backup file".to_string())?;
+
+    if backup.version != 1 {
+        return Err(format!("Unsupported backup version {}", backup.version));
+    }
+
+    let salt = hex::decode(&backup.salt).map_err(|_| "Corrupted backup (salt)".to_string())?;
+    let nonce_bytes =
+        hex::decode(&backup.nonce).map_err(|_| "Corrupted backup (nonce)".to_string())?;
+    let ciphertext =
+        hex::decode(&backup.ciphertext).map_err(|_| "Corrupted backup (ciphertext)".to_string())?;
+
+    // Re-derive key with the same Argon2id parameters.
+    let params = Params::new(65536, 3, 1, Some(32))
+        .map_err(|e| format!("Argon2 params: {e}"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut key = [0u8; 32];
+    argon2
+        .hash_password_into(passphrase.as_bytes(), &salt, &mut key)
+        .map_err(|e| format!("Argon2 hash: {e}"))?;
+
+    let cipher = Aes256Gcm::new_from_slice(&key)
+        .map_err(|e| format!("AES key init: {e}"))?;
+    let plaintext = cipher
+        .decrypt(AesNonce::from_slice(&nonce_bytes), ciphertext.as_ref())
+        .map_err(|_| "Wrong passphrase or corrupted backup".to_string())?;
+
+    // Validate the decrypted bytes are a parseable identity JSON.
+    let identity_json = std::str::from_utf8(&plaintext)
+        .map_err(|_| "Wrong passphrase or corrupted backup".to_string())?;
+    // Attempt to parse via the Identity loader to catch malformed files.
+    let tmp = tempfile_identity(identity_json)?;
+    Identity::load(&tmp).map_err(|_| "Wrong passphrase or corrupted backup".to_string())?;
+    // Clean up temp file.
+    let _ = std::fs::remove_file(&tmp);
+
+    // Overwrite the live identity file.
+    let dest = Identity::default_path().map_err(|e| e.to_string())?;
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
+    }
+    std::fs::write(&dest, identity_json).map_err(|e| format!("write identity: {e}"))?;
+    Ok(())
+}
+
+/// Write `json` to a temp file and return its path. Used to validate backup
+/// JSON through `Identity::load` without touching the live identity file.
+fn tempfile_identity(json: &str) -> Result<std::path::PathBuf, String> {
+    let home = dirs::home_dir().ok_or("No home directory")?;
+    let path = home.join(".voxply").join(".identity-import-tmp");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
+    }
+    std::fs::write(&path, json).map_err(|e| format!("write tmp: {e}"))?;
+    Ok(path)
+}
+
 fn load_master_identity() -> Result<crate::identity::MasterIdentity, String> {
     let path = Identity::default_path().map_err(|e| e.to_string())?;
     let identity = Identity::load(&path).map_err(|e| e.to_string())?;
@@ -5695,6 +5832,8 @@ pub fn run() {
             submit_rotation_request,
             list_rotation_requests,
             add_hub_by_url,
+            export_identity_backup,
+            import_identity_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

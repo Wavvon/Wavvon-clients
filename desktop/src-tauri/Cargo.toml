@@ -28,6 +28,7 @@ bip39 = "2"
 curve25519-dalek = "4"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 aes-gcm = "0.10"
+argon2 = "0.5"
 hkdf = "0.12"
 sha2 = "0.10"
 voxply-voice = { path = "../../voice" }
