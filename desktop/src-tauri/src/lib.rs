@@ -1295,6 +1295,11 @@ async fn spawn_ws_task(
                                             }
                                             recompute_proximity_gains(&voice_zones, &my_pos, &roster_map, &gain_map, &load_voice_gains());
                                         }
+                                        let _ = app.emit("voice-position-updated", serde_json::json!({
+                                            "zone_id": zone_id,
+                                            "pubkey": pubkey,
+                                            "position": position,
+                                        }));
                                     }
                                     WsServerMessage::Other => {}
                                 }
@@ -2379,6 +2384,13 @@ fn set_voice_position(
         recompute_proximity_gains(&voice_zones, &my_pos, &roster_map, &gain_map, &load_voice_gains());
     }
     Ok(())
+}
+
+#[tauri::command]
+fn send_hub_ws_raw(payload: String, state: State<'_, AppState>) -> Result<(), String> {
+    let tx = active_ws_tx(&state)?;
+    tx.send(WsCommand::Raw(payload))
+        .map_err(|_| "WS closed".to_string())
 }
 
 #[tauri::command]
@@ -6090,6 +6102,7 @@ pub fn run() {
             save_voice_settings,
             set_voice_gain,
             set_voice_position,
+            send_hub_ws_raw,
             mic_test_start,
             mic_test_stop,
             update_display_name,

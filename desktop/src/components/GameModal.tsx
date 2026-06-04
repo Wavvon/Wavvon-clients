@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { InstalledGame } from "../types";
 import { FocusTrap } from "./FocusTrap";
 
@@ -33,6 +34,7 @@ function disclosureText(game: InstalledGame): string {
 
 export function GameModal({ game, theme, publicKey, displayName, avatar, channelId, channelName, hubName, hubPubkey, sessionId, onClose }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const autoZoneIdRef = useRef<string | null>(null);
 
   const src = (() => {
     const url = new URL(game.entry_url);
@@ -167,6 +169,56 @@ export function GameModal({ game, theme, publicKey, displayName, avatar, channel
           }
           break;
 
+        case "voxply:createVoiceZone": {
+          if (!sessionId) {
+            reply({ type: "voxply:error", reqId: msg.reqId, code: "not_in_voice" });
+            break;
+          }
+          const zoneId = typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `zone-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          autoZoneIdRef.current = zoneId;
+          const zonePayload = JSON.stringify({
+            type: "voice_zone_create",
+            zone_id: zoneId,
+            name: "game-world",
+            coordinate_system: msg.coordinate_system ?? "2d",
+            attenuation: msg.attenuation ?? { model: "linear", max_radius: 200 },
+            auth_mode: "session_roster",
+            session_id: sessionId,
+          });
+          try {
+            await invoke("send_hub_ws_raw", { payload: zonePayload });
+            reply({ type: "voxply:voiceZoneCreated", reqId: msg.reqId, data: { zone_id: zoneId } });
+          } catch (err) {
+            reply({ type: "voxply:error", reqId: msg.reqId, code: String(err) });
+          }
+          break;
+        }
+
+        case "voxply:setVoicePosition": {
+          const resolvedZoneId = msg.zone_id === "auto" ? autoZoneIdRef.current : (msg.zone_id as string | null);
+          if (!resolvedZoneId) {
+            reply({ type: "voxply:error", reqId: msg.reqId, code: "not_in_zone" });
+            break;
+          }
+          const pos = msg.position as { x: number; y: number; z?: number };
+          const posArray: number[] = pos.z !== undefined ? [pos.x, pos.y, pos.z] : [pos.x, pos.y];
+          try {
+            await invoke("set_voice_position", { zoneId: resolvedZoneId, position: posArray });
+            const updatePayload = JSON.stringify({
+              type: "voice_position_update",
+              zone_id: resolvedZoneId,
+              position: posArray,
+            });
+            await invoke("send_hub_ws_raw", { payload: updatePayload });
+            reply({ type: "voxply:ok", reqId: msg.reqId });
+          } catch (err) {
+            reply({ type: "voxply:error", reqId: msg.reqId, code: String(err) });
+          }
+          break;
+        }
+
         default:
           break;
       }
@@ -183,6 +235,19 @@ export function GameModal({ game, theme, publicKey, displayName, avatar, channel
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<{ zone_id: string; pubkey: string; position: number[] }>("voice-position-updated", (event) => {
+      const frame = iframeRef.current;
+      if (!frame?.contentWindow) return;
+      frame.contentWindow.postMessage({
+        type: "voxply:voicePositionUpdated",
+        data: { pubkey: event.payload.pubkey, position: event.payload.position },
+      }, "*");
+    }).then((u) => { unlisten = u; });
+    return () => { unlisten?.(); };
+  }, []);
 
   const disclosure = disclosureText(game);
 
