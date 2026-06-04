@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use audiopus::coder::{Decoder as OpusDecoder, Encoder as OpusEncoder};
-use audiopus::{Application, Channels, SampleRate};
+use audiopus::{Application, Bitrate, Channels, SampleRate};
 
 use crate::protocol::MAX_PACKET_SIZE;
 
@@ -15,25 +15,71 @@ fn to_opus_rate(rate: u32) -> Result<SampleRate> {
     }
 }
 
-/// Calculate frame size for 20ms at the given sample rate
+/// Resolved audio configuration passed to the voice pipeline.
+#[derive(Clone, Debug)]
+pub struct EffectiveVoiceConfig {
+    pub opus_app: Application,
+    /// Bitrate in kbps. None = Opus auto.
+    pub bitrate: Option<u32>,
+    pub channels: Channels,
+    /// Opus frame duration in milliseconds: 20, 40, or 60.
+    pub frame_duration_ms: u32,
+    /// Encoder complexity 0–10.
+    pub complexity: u32,
+    pub noise_suppress: bool,
+    pub vad_enabled: bool,
+    pub vad_threshold: f32,
+}
+
+impl Default for EffectiveVoiceConfig {
+    fn default() -> Self {
+        Self {
+            opus_app: Application::Voip,
+            bitrate: None,
+            channels: Channels::Mono,
+            frame_duration_ms: 20,
+            complexity: 5,
+            noise_suppress: true,
+            vad_enabled: true,
+            vad_threshold: crate::pipeline::DEFAULT_VAD_THRESHOLD,
+        }
+    }
+}
+
+/// Calculate frame size for a given duration at the given sample rate.
+pub fn frame_size_for_rate_and_ms(sample_rate: u32, frame_ms: u32) -> usize {
+    (sample_rate as usize) * frame_ms as usize / 1000
+}
+
+/// Calculate frame size for 20ms at the given sample rate (backward compat).
 pub fn frame_size_for_rate(sample_rate: u32) -> usize {
-    (sample_rate as usize) * 20 / 1000
+    frame_size_for_rate_and_ms(sample_rate, 20)
 }
 
 pub struct VoiceEncoder {
     encoder: OpusEncoder,
-    frame_size: usize,
+    pub frame_size: usize,
     frame_buf: Vec<f32>,
     encode_buf: Vec<u8>,
 }
 
 impl VoiceEncoder {
-    pub fn new(sample_rate: u32) -> Result<Self> {
+    pub fn new(sample_rate: u32, config: &EffectiveVoiceConfig) -> Result<Self> {
         let opus_rate = to_opus_rate(sample_rate)?;
-        let encoder = OpusEncoder::new(opus_rate, Channels::Mono, Application::Voip)
+        let mut encoder = OpusEncoder::new(opus_rate, config.channels, config.opus_app)
             .context("Failed to create Opus encoder")?;
-        let frame_size = frame_size_for_rate(sample_rate);
 
+        if let Some(kbps) = config.bitrate {
+            encoder
+                .set_bitrate(Bitrate::BitsPerSecond((kbps * 1000) as i32))
+                .context("Failed to set bitrate")?;
+        }
+
+        // complexity() takes u8 in audiopus 0.2; clamp to 0–10.
+        let c = config.complexity.min(10) as u8;
+        let _ = encoder.set_complexity(c); // best-effort; ignore error
+
+        let frame_size = frame_size_for_rate_and_ms(sample_rate, config.frame_duration_ms);
         Ok(Self {
             encoder,
             frame_size,

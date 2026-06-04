@@ -124,6 +124,26 @@ pub(crate) struct StoredVoiceSettings {
     /// Stored as a layout-independent code so it survives keyboard switches.
     #[serde(default)]
     ptt_key: Option<String>,
+    /// Audio quality profile: "standard" | "music" | "custom".
+    #[serde(default)]
+    audio_profile: Option<String>,
+    // Custom profile parameters — only applied when audio_profile = "custom".
+    #[serde(default)]
+    custom_bitrate: Option<u32>,
+    #[serde(default)]
+    custom_app: Option<String>,
+    #[serde(default)]
+    custom_noise_suppress: Option<bool>,
+    #[serde(default)]
+    custom_vad: Option<bool>,
+    #[serde(default)]
+    custom_vad_threshold: Option<f32>,
+    #[serde(default)]
+    custom_channels: Option<u16>,
+    #[serde(default)]
+    custom_frame_ms: Option<u32>,
+    #[serde(default)]
+    custom_complexity: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -2212,6 +2232,19 @@ async fn voice_join(
                 input_device: saved.input_device,
                 output_device: saved.output_device,
                 vad_threshold: saved.vad_threshold,
+                audio_profile: match saved.audio_profile.as_deref() {
+                    Some("music") => voxply_voice::AudioProfile::Music,
+                    Some("custom") => voxply_voice::AudioProfile::Custom,
+                    _ => voxply_voice::AudioProfile::Standard,
+                },
+                custom_bitrate: saved.custom_bitrate,
+                custom_app: saved.custom_app,
+                custom_noise_suppress: saved.custom_noise_suppress,
+                custom_vad: saved.custom_vad,
+                custom_vad_threshold: saved.custom_vad_threshold,
+                custom_channels: saved.custom_channels,
+                custom_frame_ms: saved.custom_frame_ms,
+                custom_complexity: saved.custom_complexity,
             };
             let mut pipeline = match voxply_voice::AudioPipeline::start_p2p_with_settings(
                 0, hub_addr, vsettings,
@@ -2512,6 +2545,19 @@ fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Result<(), Stri
                 input_device: saved.input_device,
                 output_device: saved.output_device,
                 vad_threshold: saved.vad_threshold,
+                audio_profile: match saved.audio_profile.as_deref() {
+                    Some("music") => voxply_voice::AudioProfile::Music,
+                    Some("custom") => voxply_voice::AudioProfile::Custom,
+                    _ => voxply_voice::AudioProfile::Standard,
+                },
+                custom_bitrate: saved.custom_bitrate,
+                custom_app: saved.custom_app,
+                custom_noise_suppress: saved.custom_noise_suppress,
+                custom_vad: saved.custom_vad,
+                custom_vad_threshold: saved.custom_vad_threshold,
+                custom_channels: saved.custom_channels,
+                custom_frame_ms: saved.custom_frame_ms,
+                custom_complexity: saved.custom_complexity,
             };
             let mut pipeline =
                 match voxply_voice::AudioPipeline::start_loopback_with_settings(vsettings).await {

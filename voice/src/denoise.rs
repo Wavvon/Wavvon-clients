@@ -6,6 +6,8 @@ pub struct Denoiser {
     state: Box<DenoiseState<'static>>,
     input_buf: Vec<f32>,
     output_frame: Vec<f32>,
+    /// When true, `process` passes samples through unchanged (no RNNoise).
+    pub bypass: bool,
 }
 
 impl Denoiser {
@@ -14,10 +16,15 @@ impl Denoiser {
             state: DenoiseState::new(),
             input_buf: Vec::with_capacity(RNNOISE_FRAME_SIZE),
             output_frame: vec![0.0f32; RNNOISE_FRAME_SIZE],
+            bypass: false,
         }
     }
 
     pub fn process(&mut self, samples: &[f32]) -> Vec<f32> {
+        if self.bypass {
+            return samples.to_vec();
+        }
+
         self.input_buf.extend_from_slice(samples);
         let mut output = Vec::new();
 

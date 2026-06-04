@@ -7,4 +7,4 @@ pub mod playback;
 pub mod protocol;
 pub mod transport;
 
-pub use pipeline::{AudioPipeline, VoiceSettings};
+pub use pipeline::{AudioPipeline, AudioProfile, VoiceSettings};

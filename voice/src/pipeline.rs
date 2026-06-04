@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::capture::AudioCapture;
-use crate::codec::{self, VoiceDecoder, VoiceEncoder};
+use crate::codec::{self, EffectiveVoiceConfig, VoiceDecoder, VoiceEncoder};
 use crate::denoise::Denoiser;
 use crate::playback::AudioPlayback;
 use crate::protocol::{VoicePacket, RING_BUFFER_SIZE};
@@ -26,13 +26,82 @@ pub const DEFAULT_VAD_THRESHOLD: f32 = 0.02;
 /// Prevents flickering on consonant gaps.
 const VAD_RELEASE_MS: u64 = 250;
 
+/// Audio quality profile selection.
+#[derive(Clone, Debug, Default)]
+pub enum AudioProfile {
+    /// Speech-optimised (Voip application, mono, denoiser on, VAD on).
+    #[default]
+    Standard,
+    /// Full-range audio (Audio application, stereo 128 kbps, denoiser/VAD off).
+    Music,
+    /// All parameters configurable via the custom_* fields on VoiceSettings.
+    Custom,
+}
+
 /// Configuration the client can tune in its settings UI.
 #[derive(Clone, Debug, Default)]
 pub struct VoiceSettings {
     pub input_device: Option<String>,
     pub output_device: Option<String>,
-    /// VAD threshold override. `None` uses DEFAULT_VAD_THRESHOLD.
+    /// VAD threshold override used in Standard and Custom profiles.
+    /// None uses DEFAULT_VAD_THRESHOLD.
     pub vad_threshold: Option<f32>,
+    /// Active audio profile.
+    pub audio_profile: AudioProfile,
+    // Custom profile overrides — only used when audio_profile = Custom.
+    pub custom_bitrate: Option<u32>,
+    pub custom_app: Option<String>,
+    pub custom_noise_suppress: Option<bool>,
+    pub custom_vad: Option<bool>,
+    pub custom_vad_threshold: Option<f32>,
+    pub custom_channels: Option<u16>,
+    pub custom_frame_ms: Option<u32>,
+    pub custom_complexity: Option<u32>,
+}
+
+impl VoiceSettings {
+    /// Resolve the active profile into a flat `EffectiveVoiceConfig`.
+    pub fn effective_config(&self) -> EffectiveVoiceConfig {
+        match self.audio_profile {
+            AudioProfile::Standard => EffectiveVoiceConfig {
+                vad_threshold: self
+                    .vad_threshold
+                    .unwrap_or(DEFAULT_VAD_THRESHOLD),
+                ..EffectiveVoiceConfig::default()
+            },
+            AudioProfile::Music => EffectiveVoiceConfig {
+                opus_app: audiopus::Application::Audio,
+                bitrate: Some(128),
+                channels: audiopus::Channels::Stereo,
+                frame_duration_ms: 20,
+                complexity: 9,
+                noise_suppress: false,
+                vad_enabled: false,
+                vad_threshold: DEFAULT_VAD_THRESHOLD,
+            },
+            AudioProfile::Custom => EffectiveVoiceConfig {
+                opus_app: match self.custom_app.as_deref() {
+                    Some("audio") => audiopus::Application::Audio,
+                    Some("lowdelay") => audiopus::Application::LowDelay,
+                    _ => audiopus::Application::Voip,
+                },
+                bitrate: self.custom_bitrate,
+                channels: if self.custom_channels == Some(2) {
+                    audiopus::Channels::Stereo
+                } else {
+                    audiopus::Channels::Mono
+                },
+                frame_duration_ms: self.custom_frame_ms.unwrap_or(20),
+                complexity: self.custom_complexity.unwrap_or(5),
+                noise_suppress: self.custom_noise_suppress.unwrap_or(true),
+                vad_enabled: self.custom_vad.unwrap_or(true),
+                vad_threshold: self
+                    .custom_vad_threshold
+                    .or(self.vad_threshold)
+                    .unwrap_or(DEFAULT_VAD_THRESHOLD),
+            },
+        }
+    }
 }
 
 pub struct AudioPipeline {
@@ -88,14 +157,16 @@ impl AudioPipeline {
         let capture = AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
         let playback = AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
 
+        let cfg = EffectiveVoiceConfig::default();
         let opus_rate = resolve_opus_rate(capture.actual_sample_rate);
-        let frame_size = codec::frame_size_for_rate(opus_rate);
+        let frame_size = codec::frame_size_for_rate_and_ms(opus_rate, cfg.frame_duration_ms);
         let (level_tx, level_rx) = mpsc::unbounded_channel::<f32>();
 
         let task = tokio::spawn(async move {
-            let mut encoder = VoiceEncoder::new(opus_rate).expect("Failed to create encoder");
+            let mut encoder = VoiceEncoder::new(opus_rate, &cfg).expect("Failed to create encoder");
             let mut decoder = VoiceDecoder::new(opus_rate).expect("Failed to create decoder");
             let mut denoiser = Denoiser::new();
+            denoiser.bypass = !cfg.noise_suppress;
             let mut read_buf = vec![0.0f32; frame_size];
             let mut interval = tokio::time::interval(Duration::from_millis(10));
             let mut level_tick: u32 = 0;
@@ -165,11 +236,13 @@ impl AudioPipeline {
         let capture = AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
         let playback = AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
 
-        let vad_threshold = settings.vad_threshold.unwrap_or(DEFAULT_VAD_THRESHOLD);
+        // Resolve the active profile once; all sub-tasks use the same snapshot.
+        let cfg = settings.effective_config();
+
         let (level_tx, level_rx) = mpsc::unbounded_channel::<f32>();
 
         let opus_rate = resolve_opus_rate(capture.actual_sample_rate);
-        let frame_size = codec::frame_size_for_rate(opus_rate);
+        let frame_size = codec::frame_size_for_rate_and_ms(opus_rate, cfg.frame_duration_ms);
 
         let mut socket = VoiceSocket::bind(local_port).await?;
         let actual_local_port = socket.local_addr()?.port();
@@ -187,9 +260,12 @@ impl AudioPipeline {
         // Send task: capture → encode → UDP, plus RMS-based VAD + level meter
         let send_socket = socket.clone();
         let send_muted = muted.clone();
+        let vad_enabled = cfg.vad_enabled;
+        let vad_threshold = cfg.vad_threshold;
         let send_task = tokio::spawn(async move {
-            let mut encoder = VoiceEncoder::new(opus_rate).expect("Failed to create encoder");
+            let mut encoder = VoiceEncoder::new(opus_rate, &cfg).expect("Failed to create encoder");
             let mut denoiser = Denoiser::new();
+            denoiser.bypass = !cfg.noise_suppress;
             let mut read_buf = vec![0.0f32; frame_size];
             let mut interval = tokio::time::interval(Duration::from_millis(10));
             let mut sequence: u16 = 0;
@@ -227,18 +303,27 @@ impl AudioPipeline {
                     let _ = level_tx.send(rms);
                 }
 
-                if rms > vad_threshold {
-                    last_active_at = Some(std::time::Instant::now());
+                if vad_enabled {
+                    if rms > vad_threshold {
+                        last_active_at = Some(std::time::Instant::now());
+                        if !is_speaking {
+                            is_speaking = true;
+                            let _ = speaking_tx.send(true);
+                        }
+                    } else if is_speaking {
+                        if let Some(last) = last_active_at {
+                            if last.elapsed() > Duration::from_millis(VAD_RELEASE_MS) {
+                                is_speaking = false;
+                                let _ = speaking_tx.send(false);
+                            }
+                        }
+                    }
+                } else {
+                    // VAD disabled (e.g. Music profile): always transmit.
+                    // Emit a single speaking=true on first audio; no release.
                     if !is_speaking {
                         is_speaking = true;
                         let _ = speaking_tx.send(true);
-                    }
-                } else if is_speaking {
-                    if let Some(last) = last_active_at {
-                        if last.elapsed() > Duration::from_millis(VAD_RELEASE_MS) {
-                            is_speaking = false;
-                            let _ = speaking_tx.send(false);
-                        }
                     }
                 }
 
