@@ -6368,6 +6368,32 @@ a.embed-title:hover {
   background: var(--bg-hover, #34373d);
 }
 
+.whisper-panel { position: absolute; bottom: 100%; right: 0; width: 280px; background: var(--bg-secondary, #2b2d31); border: 1px solid var(--border-color, #3a3d44); border-radius: 8px; padding: 0; z-index: 300; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); }
+.whisper-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border-color, #3a3d44); }
+.whisper-panel-title { font-size: 13px; font-weight: 700; }
+.whisper-panel-close { background: none; border: none; cursor: pointer; color: var(--text-muted, #96989d); font-size: 14px; }
+.whisper-active-banner { background: #5865f24d; border-bottom: 1px solid #5865f2; padding: 8px 14px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+.whisper-active-banner button { padding: 3px 8px; border-radius: 3px; background: #ed4245; color: #fff; border: none; cursor: pointer; font-size: 11px; }
+.whisper-tabs { display: flex; border-bottom: 1px solid var(--border-color, #3a3d44); }
+.whisper-tab { flex: 1; padding: 8px; font-size: 12px; border: none; background: none; cursor: pointer; color: var(--text-muted, #96989d); }
+.whisper-tab.active { color: var(--accent-color, #5865f2); border-bottom: 2px solid var(--accent-color, #5865f2); }
+.whisper-target-list { max-height: 160px; overflow-y: auto; padding: 6px 8px; }
+.whisper-target-item { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.whisper-target-item:hover { background: var(--bg-hover, #34373d); }
+.whisper-list-item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border-color, #3a3d44); font-size: 12px; }
+.whisper-list-targets { flex: 1; color: var(--text-muted, #96989d); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whisper-list-actions { display: flex; gap: 4px; }
+.whisper-list-actions button { padding: 2px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; border: 1px solid var(--border-color, #3a3d44); background: var(--bg-tertiary, #1e1f22); color: var(--text-normal, #dbdee1); }
+.whisper-actions { padding: 8px 10px; border-top: 1px solid var(--border-color, #3a3d44); display: flex; flex-direction: column; gap: 6px; }
+.whisper-start-btn { padding: 7px; border-radius: 4px; background: var(--accent-color, #5865f2); color: #fff; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+.whisper-save-btn { padding: 5px; border-radius: 4px; background: var(--bg-tertiary, #1e1f22); color: var(--text-muted, #96989d); border: 1px solid var(--border-color, #3a3d44); cursor: pointer; font-size: 12px; }
+.whisper-save-form { display: flex; gap: 4px; }
+.whisper-save-form input { flex: 1; padding: 4px 8px; border-radius: 3px; border: 1px solid var(--border-color, #3a3d44); background: var(--bg-tertiary, #1e1f22); color: var(--text-normal, #dbdee1); font-size: 12px; }
+.whisper-save-form button { padding: 4px 8px; border-radius: 3px; font-size: 12px; cursor: pointer; border: none; background: var(--accent-color, #5865f2); color: #fff; }
+.btn-icon-gear.whisper-active { background: #5865f24d; color: var(--accent-color, #5865f2); }
+.voice-btn-wrap { position: relative; }
+.participant-whisper-badge { font-size: 10px; font-weight: 600; color: #faa61a; margin-left: 4px; text-transform: uppercase; }
+
 .missions-panel { padding: 8px 0; }
 .missions-intro { font-size: 13px; color: var(--text-muted, #96989d); margin-bottom: 16px; line-height: 1.5; }
 .missions-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }

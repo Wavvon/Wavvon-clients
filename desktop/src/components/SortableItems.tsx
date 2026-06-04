@@ -34,10 +34,12 @@ export function SortableHubIcon({
 function VoiceParticipantRow({
   participant,
   gain,
+  isWhisperingToMe,
   onSetGain,
 }: {
   participant: VoiceParticipant;
   gain: number;
+  isWhisperingToMe?: boolean;
   onSetGain?: (publicKey: string, gainPct: number) => void;
 }) {
   const [open, setOpen] = React.useState(false);
@@ -55,6 +57,11 @@ function VoiceParticipantRow({
     >
       <span className="channel-participant-icon" aria-hidden="true">🎙️</span>
       {label}
+      {isWhisperingToMe && (
+        <span className="participant-whisper-badge" title={`${label} is whispering`}>
+          whispering
+        </span>
+      )}
       {gain !== 100 && (
         <span
           className={`participant-gain-badge ${gain === 0 ? "gain-muted" : gain > 100 ? "gain-boosted" : "gain-reduced"}`}
@@ -106,6 +113,7 @@ export function SortableChannelItem({
   style,
   tabIndex,
   voiceGains,
+  inboundWhispers,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -125,6 +133,7 @@ export function SortableChannelItem({
   style?: React.CSSProperties;
   tabIndex?: number;
   voiceGains?: Record<string, number>;
+  inboundWhispers?: Set<string>;
   onClick: () => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -209,6 +218,7 @@ export function SortableChannelItem({
               key={p.public_key}
               participant={p}
               gain={voiceGains?.[p.public_key] ?? 100}
+              isWhisperingToMe={inboundWhispers?.has(p.public_key)}
               onSetGain={onSetVoiceGain}
             />
           ))}

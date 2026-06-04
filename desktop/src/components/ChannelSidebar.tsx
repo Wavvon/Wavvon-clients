@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchBar } from "./SearchBar";
+import { WhisperPanel } from "./WhisperPanel";
+import type { WhisperTarget, WhisperList } from "../hooks/useWhisper";
 
 type UserStatus = "online" | "away" | "dnd" | "offline";
 import {
@@ -97,6 +99,17 @@ interface Props {
   onStatusChange: (s: UserStatus) => void;
   voiceGains: Record<string, number>;
   onSetVoiceGain: (publicKey: string, gainPct: number) => void;
+  inboundWhispers: Set<string>;
+  isWhispering: boolean;
+  whisperTargets: WhisperTarget[];
+  whisperLists: WhisperList[];
+  showWhisperPanel: boolean;
+  onToggleWhisperPanel: () => void;
+  onCloseWhisperPanel: () => void;
+  onStartWhisper: (targets: WhisperTarget[]) => void;
+  onStopWhisper: () => void;
+  onSaveWhisperList: (list: WhisperList) => void;
+  onDeleteWhisperList: (id: string) => void;
   videoEnabled: boolean;
   onVideoToggle: () => void;
   backgroundMode: string;
@@ -124,6 +137,9 @@ export function ChannelSidebar({
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare, hubStreamsCount, onToggleHubStreams, dndActive, onToggleDnd,
   userStatus, onStatusChange,
   voiceGains, onSetVoiceGain,
+  inboundWhispers, isWhispering, whisperTargets, whisperLists,
+  showWhisperPanel, onToggleWhisperPanel, onCloseWhisperPanel,
+  onStartWhisper, onStopWhisper, onSaveWhisperList, onDeleteWhisperList,
   videoEnabled, onVideoToggle, backgroundMode, showBgPicker, onShowBgPickerChange, onChangeBackground,
   onGlobalSearchNavigate,
 }: Props) {
@@ -366,6 +382,7 @@ export function ChannelSidebar({
                         style={{ paddingLeft: n.depth * CHANNEL_INDENT_PX }}
                         tabIndex={channelFocusIndex === idx ? 0 : -1}
                         voiceGains={voiceGains}
+                        inboundWhispers={inboundWhispers}
                         onClick={() => { setChannelFocusIndex(idx); onSelectChannel(n.node); }}
                         onDoubleClick={() => { if (voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
@@ -609,6 +626,34 @@ export function ChannelSidebar({
                     )}
                   </button>
                 )}
+                <div className="voice-btn-wrap">
+                  <button
+                    className={`btn-icon-gear ${isWhispering ? "active whisper-active" : ""}`}
+                    onClick={onToggleWhisperPanel}
+                    title="Whisper"
+                    aria-pressed={isWhispering}
+                  >
+                    🤫
+                  </button>
+                  {showWhisperPanel && (
+                    <WhisperPanel
+                      voiceParticipants={
+                        voiceChannelId
+                          ? (voicePartByChannel[voiceChannelId] ?? [])
+                          : []
+                      }
+                      voiceChannels={channels.filter(c => !c.is_category)}
+                      isWhispering={isWhispering}
+                      whisperTargets={whisperTargets}
+                      whisperLists={whisperLists}
+                      onStartWhisper={onStartWhisper}
+                      onStopWhisper={onStopWhisper}
+                      onSaveList={onSaveWhisperList}
+                      onDeleteList={onDeleteWhisperList}
+                      onClose={onCloseWhisperPanel}
+                    />
+                  )}
+                </div>
                 <button
                   onClick={onVoiceLeave}
                   className="btn-icon-gear voice-call-btn end"

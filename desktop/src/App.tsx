@@ -45,6 +45,7 @@ import { HubStreamsPanel } from "./components/HubStreamsPanel";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
+import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
 import { MAX_ATTACHMENT_BYTES, DEMO_HUB_URL } from "./constants";
 import { formatPubkey, mentionsName, newProfileId } from "./utils/format";
@@ -765,6 +766,9 @@ function App() {
     publicKey,
     voiceSpeakingPubkeys: voice.speakingPubkeys,
   });
+
+  const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
+  const [showWhisperPanel, setShowWhisperPanel] = useState(false);
 
   const [showBgPicker, setShowBgPicker] = useState(false);
 
@@ -3533,6 +3537,17 @@ function App() {
                   onStatusChange={handleStatusChange}
                   voiceGains={voice.voiceGains}
                   onSetVoiceGain={voice.setVoiceGain}
+                  inboundWhispers={whisper.inboundWhispers}
+                  isWhispering={whisper.isWhispering}
+                  whisperTargets={whisper.whisperTargets}
+                  whisperLists={whisper.whisperLists}
+                  showWhisperPanel={showWhisperPanel}
+                  onToggleWhisperPanel={() => setShowWhisperPanel(p => !p)}
+                  onCloseWhisperPanel={() => setShowWhisperPanel(false)}
+                  onStartWhisper={whisper.startWhisper}
+                  onStopWhisper={whisper.stopWhisper}
+                  onSaveWhisperList={whisper.saveWhisperList}
+                  onDeleteWhisperList={whisper.deleteWhisperList}
                   videoEnabled={video.videoEnabled}
                   onVideoToggle={() => video.videoEnabled ? video.disableVideo() : video.enableVideo()}
                   backgroundMode={video.backgroundMode}
