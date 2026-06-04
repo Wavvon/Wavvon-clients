@@ -61,6 +61,11 @@ adjusted, and accepted.
 Calling this out for transparency — it's not a fully hand-written
 codebase, and pretending otherwise wouldn't be honest.
 
+## Code signing policy
+
+Windows releases are signed via [SignPath Foundation](https://signpath.org).
+See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) for the full policy.
+
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE).
