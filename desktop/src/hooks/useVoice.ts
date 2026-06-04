@@ -25,6 +25,15 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   const [vadThreshold, setVadThreshold] = useState<number>(0.02);
   const [voiceMode, setVoiceMode] = useState<"vad" | "ptt">("vad");
   const [pttKey, setPttKey] = useState<string>("Space");
+  const [audioProfile, setAudioProfile] = useState<"standard" | "music" | "custom">("standard");
+  const [customBitrate, setCustomBitrate] = useState<number | null>(null);
+  const [customApp, setCustomApp] = useState<"voip" | "audio" | "lowdelay">("voip");
+  const [customNoiseSuppress, setCustomNoiseSuppress] = useState(true);
+  const [customVad, setCustomVad] = useState(true);
+  const [customVadThreshold, setCustomVadThreshold] = useState(0.02);
+  const [customChannels, setCustomChannels] = useState<1 | 2>(1);
+  const [customFrameMs, setCustomFrameMs] = useState<20 | 40 | 60>(20);
+  const [customComplexity, setCustomComplexity] = useState(5);
   const [micTesting, setMicTesting] = useState(false);
   const [micLevel, setMicLevel] = useState<number>(0);
   const [audioInputs, setAudioInputs] = useState<string[]>([]);
@@ -151,12 +160,31 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
         vad_threshold?: number;
         voice_mode?: string;
         ptt_key?: string;
+        audio_profile?: string;
+        custom_bitrate?: number | null;
+        custom_app?: string;
+        custom_noise_suppress?: boolean;
+        custom_vad?: boolean;
+        custom_vad_threshold?: number;
+        custom_channels?: number;
+        custom_frame_ms?: number;
+        custom_complexity?: number;
       }>("get_voice_settings");
       setVoiceInputDevice(saved.input_device || "");
       setVoiceOutputDevice(saved.output_device || "");
       setVadThreshold(saved.vad_threshold ?? 0.02);
       setVoiceMode(saved.voice_mode === "ptt" ? "ptt" : "vad");
       setPttKey(saved.ptt_key || "Space");
+      const prof = saved.audio_profile;
+      setAudioProfile(prof === "music" ? "music" : prof === "custom" ? "custom" : "standard");
+      setCustomBitrate(saved.custom_bitrate ?? null);
+      setCustomApp(saved.custom_app === "audio" ? "audio" : saved.custom_app === "lowdelay" ? "lowdelay" : "voip");
+      setCustomNoiseSuppress(saved.custom_noise_suppress ?? true);
+      setCustomVad(saved.custom_vad ?? true);
+      setCustomVadThreshold(saved.custom_vad_threshold ?? 0.02);
+      setCustomChannels(saved.custom_channels === 2 ? 2 : 1);
+      setCustomFrameMs(saved.custom_frame_ms === 40 ? 40 : saved.custom_frame_ms === 60 ? 60 : 20);
+      setCustomComplexity(saved.custom_complexity ?? 5);
     } catch (e) {
       console.error("Failed to load voice settings:", e);
     }
@@ -195,6 +223,50 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
           vad_threshold: threshold,
           voice_mode: mode,
           ptt_key: key,
+          audio_profile: audioProfile,
+          custom_bitrate: customBitrate,
+          custom_app: customApp,
+          custom_noise_suppress: customNoiseSuppress,
+          custom_vad: customVad,
+          custom_vad_threshold: customVadThreshold,
+          custom_channels: customChannels,
+          custom_frame_ms: customFrameMs,
+          custom_complexity: customComplexity,
+        },
+      });
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function persistAudioSettings(
+    profile: "standard" | "music" | "custom" = audioProfile,
+    bitrate: number | null = customBitrate,
+    app: "voip" | "audio" | "lowdelay" = customApp,
+    noiseSuppress: boolean = customNoiseSuppress,
+    vad: boolean = customVad,
+    vadThr: number = customVadThreshold,
+    channels: 1 | 2 = customChannels,
+    frameMs: 20 | 40 | 60 = customFrameMs,
+    complexity: number = customComplexity,
+  ) {
+    try {
+      await invoke("save_voice_settings", {
+        settings: {
+          input_device: voiceInputDevice || null,
+          output_device: voiceOutputDevice || null,
+          vad_threshold: vadThreshold,
+          voice_mode: voiceMode,
+          ptt_key: pttKey,
+          audio_profile: profile,
+          custom_bitrate: bitrate,
+          custom_app: app,
+          custom_noise_suppress: noiseSuppress,
+          custom_vad: vad,
+          custom_vad_threshold: vadThr,
+          custom_channels: channels,
+          custom_frame_ms: frameMs,
+          custom_complexity: complexity,
         },
       });
     } catch (e) {
@@ -390,8 +462,27 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     subscribeToStream,
     unsubscribeFromStream,
     subscribedStreamIds,
+    audioProfile,
+    setAudioProfile,
+    customBitrate,
+    setCustomBitrate,
+    customApp,
+    setCustomApp,
+    customNoiseSuppress,
+    setCustomNoiseSuppress,
+    customVad,
+    setCustomVad,
+    customVadThreshold,
+    setCustomVadThreshold,
+    customChannels,
+    setCustomChannels,
+    customFrameMs,
+    setCustomFrameMs,
+    customComplexity,
+    setCustomComplexity,
     loadVoiceSettings,
     persistVoiceSettings,
+    persistAudioSettings,
     toggleMicTest,
     toggleSelfMute,
     toggleSelfDeafen,

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { Hub, NamedProfile } from "../types";
 import { formatPubkey } from "../utils/format";
 import { MISSIONS_ENABLED } from "../constants";
+import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
 import { ThemePicker } from "./ThemePicker";
@@ -66,6 +67,25 @@ export interface SettingsPageProps {
   onVoiceModeChange: (m: "vad" | "ptt") => void;
   pttKey: string;
   onPttKeyChange: (k: string) => void;
+  audioProfile: "standard" | "music" | "custom";
+  onAudioProfileChange: (p: "standard" | "music" | "custom") => void;
+  customBitrate: number | null;
+  onCustomBitrateChange: (v: number | null) => void;
+  customApp: "voip" | "audio" | "lowdelay";
+  onCustomAppChange: (v: "voip" | "audio" | "lowdelay") => void;
+  customNoiseSuppress: boolean;
+  onCustomNoiseSuppressChange: (v: boolean) => void;
+  customVad: boolean;
+  onCustomVadChange: (v: boolean) => void;
+  customVadThreshold: number;
+  onCustomVadThresholdChange: (v: number) => void;
+  customChannels: 1 | 2;
+  onCustomChannelsChange: (v: 1 | 2) => void;
+  customFrameMs: 20 | 40 | 60;
+  onCustomFrameMsChange: (v: 20 | 40 | 60) => void;
+  customComplexity: number;
+  onCustomComplexityChange: (v: number) => void;
+  inVoice: boolean;
   mentionPingEnabled: boolean;
   onMentionPingChange: (v: boolean) => void;
   micLevel: number;
@@ -283,6 +303,27 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "voice" && (
           <section>
             <h1>{t("settings.tabs.voice")}</h1>
+            <AudioProfileSection
+              profile={props.audioProfile}
+              onProfile={props.onAudioProfileChange}
+              customBitrate={props.customBitrate}
+              onCustomBitrate={props.onCustomBitrateChange}
+              customApp={props.customApp}
+              onCustomApp={props.onCustomAppChange}
+              customNoiseSuppress={props.customNoiseSuppress}
+              onCustomNoiseSuppress={props.onCustomNoiseSuppressChange}
+              customVad={props.customVad}
+              onCustomVad={props.onCustomVadChange}
+              customVadThreshold={props.customVadThreshold}
+              onCustomVadThreshold={props.onCustomVadThresholdChange}
+              customChannels={props.customChannels}
+              onCustomChannels={props.onCustomChannelsChange}
+              customFrameMs={props.customFrameMs}
+              onCustomFrameMs={props.onCustomFrameMsChange}
+              customComplexity={props.customComplexity}
+              onCustomComplexity={props.onCustomComplexityChange}
+              inVoice={props.inVoice}
+            />
             <div className="settings-section">
               <div className="voice-devices-row">
                 <div>

@@ -3209,6 +3209,52 @@ function App() {
               voice.setPttKey(k);
               voice.persistVoiceSettings(voice.voiceInputDevice, voice.voiceOutputDevice, voice.vadThreshold, voice.voiceMode, k);
             }}
+            audioProfile={voice.audioProfile}
+            onAudioProfileChange={(p) => {
+              voice.setAudioProfile(p);
+              voice.persistAudioSettings(p);
+            }}
+            customBitrate={voice.customBitrate}
+            onCustomBitrateChange={(v) => {
+              voice.setCustomBitrate(v);
+              voice.persistAudioSettings(undefined, v);
+            }}
+            customApp={voice.customApp}
+            onCustomAppChange={(v) => {
+              voice.setCustomApp(v);
+              voice.persistAudioSettings(undefined, undefined, v);
+            }}
+            customNoiseSuppress={voice.customNoiseSuppress}
+            onCustomNoiseSuppressChange={(v) => {
+              voice.setCustomNoiseSuppress(v);
+              voice.persistAudioSettings(undefined, undefined, undefined, v);
+            }}
+            customVad={voice.customVad}
+            onCustomVadChange={(v) => {
+              voice.setCustomVad(v);
+              voice.persistAudioSettings(undefined, undefined, undefined, undefined, v);
+            }}
+            customVadThreshold={voice.customVadThreshold}
+            onCustomVadThresholdChange={(v) => {
+              voice.setCustomVadThreshold(v);
+              voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, v);
+            }}
+            customChannels={voice.customChannels}
+            onCustomChannelsChange={(v) => {
+              voice.setCustomChannels(v);
+              voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, v);
+            }}
+            customFrameMs={voice.customFrameMs}
+            onCustomFrameMsChange={(v) => {
+              voice.setCustomFrameMs(v);
+              voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, undefined, v);
+            }}
+            customComplexity={voice.customComplexity}
+            onCustomComplexityChange={(v) => {
+              voice.setCustomComplexity(v);
+              voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, v);
+            }}
+            inVoice={voice.voiceChannelId !== null}
             mentionPingEnabled={mentionPingEnabled}
             onMentionPingChange={setMentionPingEnabled}
             micLevel={voice.micLevel}
