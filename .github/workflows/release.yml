@@ -19,7 +19,7 @@ jobs:
             args: --bundles nsis
             artifact: "*.exe"
           - platform: macos-latest
-            args: --bundles dmg
+            args: --target universal-apple-darwin --bundles dmg
             artifact: "*.dmg"
 
     runs-on: ${{ matrix.platform }}
@@ -54,12 +54,54 @@ jobs:
             libgtk-3-dev patchelf libsoup-3.0-dev libjavascriptcoregtk-4.1-dev \
             libasound2-dev libopus-dev
 
-      - name: Install macOS deps
+      - name: Add macOS universal targets
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Build universal libopus (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
-          brew install opus autoconf automake libtool pkg-config
-          echo "PKG_CONFIG_PATH=$(brew --prefix opus)/lib/pkgconfig" >> $GITHUB_ENV
-          echo "OPUS_DIR=$(brew --prefix opus)" >> $GITHUB_ENV
+          set -euo pipefail
+
+          # Install build tools and arm64 Opus via Homebrew
+          brew install autoconf automake libtool pkg-config opus
+
+          # Grab the arm64 static library that Homebrew just installed
+          ARM64_LIB="$(brew --prefix opus)/lib/libopus.a"
+
+          # Get the Opus version Homebrew installed so we download matching source
+          OPUS_VERSION=$(brew list --versions opus | awk '{print $2}')
+
+          # Download matching Opus source for x86_64 cross-compilation
+          curl -fsSL "https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz" \
+            -o /tmp/opus.tar.gz
+          mkdir -p /tmp/opus-x86
+          tar -xzf /tmp/opus.tar.gz -C /tmp/opus-x86 --strip-components=1
+
+          # Cross-compile for x86_64
+          cd /tmp/opus-x86
+          ./configure \
+            --host=x86_64-apple-darwin \
+            CFLAGS="-arch x86_64 -target x86_64-apple-macos12" \
+            LDFLAGS="-arch x86_64 -target x86_64-apple-macos12" \
+            --enable-static --disable-shared \
+            --disable-doc --disable-extra-programs --with-pic
+          make -j4
+
+          X86_LIB="/tmp/opus-x86/lib/.libs/libopus.a"
+
+          # Lipo into a fat universal library
+          mkdir -p /tmp/opus-universal/lib
+          lipo -create "$ARM64_LIB" "$X86_LIB" \
+            -output /tmp/opus-universal/lib/libopus.a
+
+          # Verify
+          lipo -info /tmp/opus-universal/lib/libopus.a
+
+          # Point audiopus_sys to the fat library; skip pkg-config and build-from-source
+          echo "OPUS_LIB_DIR=/tmp/opus-universal/lib" >> "$GITHUB_ENV"
+          echo "OPUS_STATIC=1"                        >> "$GITHUB_ENV"
+          echo "LIBOPUS_NO_PKG=1"                     >> "$GITHUB_ENV"
 
       - name: Install Node
         uses: actions/setup-node@v6
