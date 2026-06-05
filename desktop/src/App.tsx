@@ -370,6 +370,14 @@ function App() {
     invoke<string[]>("load_blocked_users")
       .then((s) => setBlockedUsers(new Set(s ?? [])))
       .catch(console.error);
+
+    invoke<string[]>("load_ignored_users")
+      .then((s) => setIgnoredUsers(new Set(s ?? [])))
+      .catch(() => {});
+
+    invoke<boolean>("load_dnd_settings")
+      .then((active) => { if (active) setDndActive(true); })
+      .catch(() => {});
   }, []);
 
 
