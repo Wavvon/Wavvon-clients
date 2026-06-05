@@ -41,6 +41,7 @@ import type {
   InstalledGame,
 } from "./types";
 import { ScreenSharePicker } from "./components/ScreenSharePicker";
+import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
 import { HubStreamsPanel } from "./components/HubStreamsPanel";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { useVoice } from "./hooks/useVoice";
@@ -3703,9 +3704,6 @@ function App() {
                   onOpenImage={openImage}
                   onToast={setToast}
                   onError={setError}
-                  activeScreenShares={[...voice.activeScreenShares, ...voice.crossChannelStreams]}
-                  screenShareViewerRef={voice.screenShareViewerRef}
-                  mediaOutputDeviceId={voice.mediaOutputDeviceId || undefined}
                   sharing={voice.sharing}
                   shareKbps={voice.shareKbps}
                   onStopShare={voice.stopShare}
@@ -3895,6 +3893,12 @@ function App() {
             onJoinHub={handleDiscoverJoin}
           />
         )}
+
+        <ScreenShareOverlay
+          ref={voice.screenShareViewerRef}
+          streams={[...voice.activeScreenShares, ...voice.crossChannelStreams]}
+          mediaOutputDeviceId={voice.mediaOutputDeviceId || undefined}
+        />
 
         {voice.showSharePicker && (
           <ScreenSharePicker

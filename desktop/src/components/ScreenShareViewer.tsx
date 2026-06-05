@@ -231,7 +231,6 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
       sharerMap.set(s.sharer_pubkey, entry);
     }
     const sharers = [...sharerMap.entries()];
-    const multiSharer = sharers.length > 1;
 
     function renderVideo(stream: ActiveStream, className: string) {
       return (
@@ -258,7 +257,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     }
 
     return (
-      <div className={`screen-share-panel${multiSharer ? " screen-share-panel--multi" : ""}`}>
+      <div className="screen-share-panel">
         {sharers.map(([sharerPubkey, { screen: screenStream, webcam: webcamStream }]) => {
           const mainStream = screenStream ?? null;
           if (!mainStream) return null;

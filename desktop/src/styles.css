@@ -4757,6 +4757,123 @@ select:focus-visible {
   color: #fff;
 }
 
+/* ── Floating screen-share overlay ─────────────────────────── */
+.ss-overlay {
+  position: fixed;
+  z-index: 9000;
+  background: var(--bg-2, #1e1e1e);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: var(--r-md, 8px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 240px;
+  min-height: 36px;
+}
+
+.ss-overlay__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: 0 var(--space-2, 8px);
+  height: 36px;
+  flex-shrink: 0;
+  cursor: grab;
+  background: var(--bg-3, #2a2a2a);
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+  user-select: none;
+}
+
+.ss-overlay__header:active {
+  cursor: grabbing;
+}
+
+.ss-overlay__drag-icon {
+  color: var(--text-muted, #888);
+  font-size: 18px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ss-overlay__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #ccc);
+  pointer-events: none;
+}
+
+.ss-overlay__badge {
+  font-size: 11px;
+  background: var(--accent, #5865f2);
+  color: #fff;
+  border-radius: 10px;
+  padding: 1px 6px;
+  pointer-events: none;
+}
+
+.ss-overlay__spacer {
+  flex: 1;
+}
+
+.ss-overlay__btn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--r-sm, 4px);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ss-overlay__btn:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.08));
+  color: var(--text, #fff);
+}
+
+.ss-overlay__body {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  background: #000;
+}
+
+.ss-overlay__resize {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 1;
+}
+
+.ss-overlay .screen-share-panel {
+  position: relative;
+  background: #000;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-bottom: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2px;
+  align-items: stretch;
+}
+
+.ss-overlay .screen-share-main-wrap {
+  max-height: none;
+  height: 100%;
+}
+
+.ss-overlay .screen-share-panel video.main-stream {
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .screen-share-picker-overlay {
   position: fixed;
   inset: 0;

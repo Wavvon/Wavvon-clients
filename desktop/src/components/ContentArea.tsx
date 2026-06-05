@@ -12,7 +12,6 @@ import type {
   Conversation,
   AllianceSharedChannel,
   VoiceParticipant,
-  ActiveStream,
   InstalledGame,
   PostSummary,
 } from "../types";
@@ -24,8 +23,6 @@ import { ForumPostDetail } from "./ForumPostDetail";
 import { ForumComposer } from "./ForumComposer";
 import { MessageEmbeds } from "./MessageEmbeds";
 import { MessageComponents } from "./MessageComponents";
-import { ScreenShareViewer } from "./ScreenShareViewer";
-import type { ScreenShareViewerRef } from "./ScreenShareViewer";
 import {
   formatPubkey,
   meAction,
@@ -154,9 +151,6 @@ interface Props {
   onToast: (msg: string) => void;
   onError: (msg: string) => void;
   slashCommands?: SlashCommandEntry[];
-  activeScreenShares: ActiveStream[];
-  screenShareViewerRef: React.RefObject<ScreenShareViewerRef | null>;
-  mediaOutputDeviceId?: string;
   sharing: boolean;
   shareKbps: number;
   onStopShare: () => void;
@@ -187,7 +181,6 @@ export function ContentArea({
   onSetUserContextMenu, onSetEditingDraft, onInputTextChange, onKeyDown,
   onOpenImage, onToast, onError,
   slashCommands = [],
-  activeScreenShares, screenShareViewerRef, mediaOutputDeviceId,
   sharing, shareKbps, onStopShare,
   onComponentInteract,
   assertiveAnnouncement = "",
@@ -688,13 +681,6 @@ export function ContentArea({
                 )}
                 <button onClick={onCloseSearch} className="btn-small">{t("channel.search.close")}</button>
               </div>
-            )}
-            {activeScreenShares.length > 0 && (
-              <ScreenShareViewer
-                ref={screenShareViewerRef}
-                streams={activeScreenShares}
-                mediaOutputDeviceId={mediaOutputDeviceId}
-              />
             )}
             {sharing && (
               <div className="screen-share-active-bar">
