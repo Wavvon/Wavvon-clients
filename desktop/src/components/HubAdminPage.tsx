@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type {
@@ -139,6 +139,30 @@ export function HubAdminPage(props: HubAdminPageProps) {
   const [dirUrl, setDirUrl] = useState("https://discovery.voxply.io");
   const [dirStatus, setDirStatus] = useState<"idle" | "submitting" | "ok" | "error">("idle");
   const [dirError, setDirError] = useState("");
+  const [listed, setListed] = useState(false);
+  const [listingLoading, setListingLoading] = useState(false);
+
+  useEffect(() => {
+    if (props.tab !== "discovery") return;
+    fetch(props.activeHubUrl + "/federation/listing")
+      .then((r) => r.json())
+      .then((data: { listed?: boolean }) => {
+        if (typeof data.listed === "boolean") setListed(data.listed);
+      })
+      .catch(() => {});
+  }, [props.tab, props.activeHubUrl]);
+
+  async function handleListingToggle(next: boolean) {
+    setListingLoading(true);
+    try {
+      await invoke("set_hub_listed", { hubUrl: props.activeHubUrl, listed: next });
+      setListed(next);
+    } catch {
+      // leave state unchanged on error
+    } finally {
+      setListingLoading(false);
+    }
+  }
 
   async function handleSubmitToDirectory() {
     setDirStatus("submitting");
@@ -299,6 +323,21 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "discovery" && (
           <section>
             <h1>{t("hub.admin.discovery.title")}</h1>
+            <div className="settings-section">
+              <label className="settings-label">Public listing</label>
+              <div className="settings-row">
+                <label>List this hub publicly</label>
+                <input
+                  type="checkbox"
+                  checked={listed}
+                  disabled={listingLoading}
+                  onChange={(e) => handleListingToggle(e.target.checked)}
+                />
+              </div>
+              <p className="muted">
+                When enabled, anyone can discover this hub via its /federation/listing endpoint.
+              </p>
+            </div>
             <div className="settings-section">
               <label className="settings-label">{t("hub.admin.discovery.share.label")}</label>
               <p className="muted">

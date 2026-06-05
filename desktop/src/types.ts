@@ -881,3 +881,13 @@ export interface WsScreenShareViewerJoined {
   viewer_pubkey: string;
   stream_id: string;
 }
+
+export interface HubListing {
+  name: string;
+  description: string | null;
+  public_key: string;
+  hub_url: string;
+  tags: string[];
+  member_count_approx: number;
+  listed: boolean;
+}

@@ -16,9 +16,10 @@ interface Props {
   error: string | null;
   onAdd: () => void;
   onClose: () => void;
+  onBrowse?: () => void;
 }
 
-export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, onAdd, onClose }: Props) {
+export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, onAdd, onClose, onBrowse }: Props) {
   const { t } = useTranslation();
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -84,6 +85,13 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error
           </button>
         </div>
         {error && <div className="error">{error}</div>}
+        {onBrowse && (
+          <p style={{ marginTop: "var(--space-3)", textAlign: "center" }}>
+            <button className="btn-secondary" onClick={onBrowse} style={{ fontSize: "0.875em" }}>
+              Browse public hubs
+            </button>
+          </p>
+        )}
       </div>
       </FocusTrap>
     </div>

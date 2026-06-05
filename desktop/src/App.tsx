@@ -80,6 +80,7 @@ import { HubSidebar } from "./components/HubSidebar";
 import { ChannelSidebar } from "./components/ChannelSidebar";
 import { ContentArea } from "./components/ContentArea";
 import { DiscoverPage } from "./components/DiscoverPage";
+import { HubBrowser } from "./components/HubBrowser";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { Lobby } from "./components/Lobby";
 import { BotChallenge } from "./components/BotChallenge";
@@ -826,6 +827,7 @@ function App() {
   // Settings
   const [showSettings, setShowSettings] = useState(false);
   const [showDiscover, setShowDiscover] = useState(false);
+  const [showHubBrowser, setShowHubBrowser] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
     try {
       return localStorage.getItem("voxply.seenWelcome") !== "1";
@@ -3463,6 +3465,16 @@ function App() {
                 onClose={() => setShowDiscover(false)}
                 onJoinHub={handleDiscoverJoin}
               />
+            ) : showHubBrowser ? (
+              <HubBrowser
+                onClose={() => setShowHubBrowser(false)}
+                onJoinHub={(url, code) => {
+                  setHubUrl(url);
+                  setInviteCode(code);
+                  setShowHubBrowser(false);
+                  setShowAddHub(true);
+                }}
+              />
             ) : !hasActiveHub ? (
               showWelcome ? (
                 <WelcomeScreen
@@ -3474,6 +3486,7 @@ function App() {
                   onJoin={() => handleAddHub()}
                   onJoinDemo={openDemoHub}
                   onBrowse={() => setShowDiscover(true)}
+                  onCheckHubUrl={() => setShowHubBrowser(true)}
                   onDismiss={dismissWelcome}
                 />
               ) : (
@@ -3764,6 +3777,7 @@ function App() {
             error={error}
             onAdd={() => handleAddHub()}
             onClose={() => { setShowAddHub(false); setHubUrl(""); setInviteCode(""); }}
+            onBrowse={() => { setShowAddHub(false); setShowHubBrowser(true); }}
           />
         )}
 

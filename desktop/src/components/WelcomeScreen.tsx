@@ -16,6 +16,7 @@ interface WelcomeScreenProps {
   onJoin: () => void;
   onJoinDemo: () => void;
   onBrowse: () => void;
+  onCheckHubUrl?: () => void;
   onDismiss: () => void;
 }
 
@@ -28,6 +29,7 @@ export function WelcomeScreen({
   onJoin,
   onJoinDemo,
   onBrowse,
+  onCheckHubUrl,
   onDismiss,
 }: WelcomeScreenProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -104,6 +106,11 @@ export function WelcomeScreen({
         <button className="btn-secondary" onClick={onBrowse}>
           Browse public hubs
         </button>
+        {onCheckHubUrl && (
+          <button className="btn-secondary" onClick={onCheckHubUrl}>
+            Check a hub URL
+          </button>
+        )}
       </div>
 
       <details
