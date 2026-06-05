@@ -7783,6 +7783,20 @@ async fn set_discovery_tags(tags: Vec<String>, nsfw: bool, state: State<'_, AppS
     Ok(())
 }
 
+#[tauri::command]
+async fn set_hub_listed(hub_url: String, listed: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let res = state.http_client
+        .patch(format!("{}/admin/settings/listing", hub_url.trim_end_matches('/')))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "listed": listed }))
+        .send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     use tauri::menu::{Menu, MenuItem};
@@ -8141,6 +8155,7 @@ pub fn run() {
             game_kv_set,
             get_discovery_settings,
             set_discovery_tags,
+            set_hub_listed,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
