@@ -65,10 +65,10 @@ export function GamePicker({ games, channelId, onSelect, onClose }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
-      <div className="modal game-picker-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal game-picker-modal" role="dialog" aria-modal="true" aria-labelledby="game-picker-title" onClick={(e) => e.stopPropagation()}>
         <div className="game-picker-header">
-          <h3>Activities</h3>
-          <button className="game-picker-close" onClick={onClose} title="Close">×</button>
+          <h3 id="game-picker-title">Activities</h3>
+          <button className="game-picker-close" onClick={onClose} title="Close" aria-label="Close">×</button>
         </div>
         {games.length === 0 ? (
           <p className="muted game-picker-empty">

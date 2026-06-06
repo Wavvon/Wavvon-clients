@@ -31,6 +31,7 @@ export function Lightbox({
           className="lightbox-close"
           onClick={onClose}
           title="Close (Esc)"
+          aria-label="Close"
         >
           ×
         </button>

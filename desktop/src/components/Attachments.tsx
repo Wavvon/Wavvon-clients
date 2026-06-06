@@ -24,6 +24,7 @@ export function PendingAttachments({
             className="pending-attachment-remove"
             onClick={() => onRemove(i)}
             title="Remove"
+            aria-label="Remove"
           >
             ×
           </button>
