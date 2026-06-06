@@ -139,8 +139,9 @@ export function ExternalBotSection({ hubUrl, channels }: Props) {
       )}
 
       <div className="settings-section">
-        <label className="settings-label">{t("ext_bot.pubkey.label")}</label>
+        <label className="settings-label" htmlFor="ext-bot-pubkey">{t("ext_bot.pubkey.label")}</label>
         <input
+          id="ext-bot-pubkey"
           type="text"
           value={pubkeyInput}
           onChange={(e) => setPubkeyInput(e.target.value)}
@@ -149,8 +150,9 @@ export function ExternalBotSection({ hubUrl, channels }: Props) {
         />
       </div>
       <div className="settings-section">
-        <label className="settings-label">{t("ext_bot.note.label")}</label>
+        <label className="settings-label" htmlFor="ext-bot-note">{t("ext_bot.note.label")}</label>
         <input
+          id="ext-bot-note"
           type="text"
           value={noteInput}
           onChange={(e) => setNoteInput(e.target.value)}

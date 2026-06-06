@@ -10,7 +10,7 @@ export function PendingAttachments({
   return (
     <div className="pending-attachments">
       {items.map((a, i) => (
-        <div key={i} className="pending-attachment">
+        <div key={a.name} className="pending-attachment">
           {a.mime.startsWith("image/") ? (
             <img
               src={`data:${a.mime};base64,${a.data_b64}`}
@@ -44,12 +44,12 @@ export function MessageAttachments({
   if (!items || items.length === 0) return null;
   return (
     <div className="message-attachments">
-      {items.map((a, i) => {
+      {items.map((a) => {
         const url = `data:${a.mime};base64,${a.data_b64}`;
         if (a.mime.startsWith("image/")) {
           return (
             <button
-              key={i}
+              key={a.name}
               type="button"
               className="message-attachment-img-button"
               onClick={() => onImageClick?.(url, a.name)}
@@ -61,7 +61,7 @@ export function MessageAttachments({
         }
         return (
           <a
-            key={i}
+            key={a.name}
             href={url}
             download={a.name}
             className="message-attachment-file"

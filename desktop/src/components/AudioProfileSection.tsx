@@ -85,10 +85,11 @@ export function AudioProfileSection({
       {profile === "custom" && (
         <div className="audio-custom-panel">
           <div className="settings-row">
-            <label className="settings-label" style={{ width: 160 }}>
+            <label className="settings-label" htmlFor="audio-opus-mode" style={{ width: 160 }}>
               Opus mode
             </label>
             <select
+              id="audio-opus-mode"
               value={customApp}
               onChange={(e) =>
                 onCustomApp(e.target.value as "voip" | "audio" | "lowdelay")
@@ -101,10 +102,11 @@ export function AudioProfileSection({
           </div>
 
           <div className="settings-row">
-            <label className="settings-label" style={{ width: 160 }}>
+            <label className="settings-label" htmlFor="audio-bitrate" style={{ width: 160 }}>
               Bitrate
             </label>
             <input
+              id="audio-bitrate"
               type="range"
               min={6}
               max={320}
