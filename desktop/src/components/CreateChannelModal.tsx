@@ -22,8 +22,8 @@ export function CreateChannelModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="create-channel-title" onClick={(e) => e.stopPropagation()}>
+        <h3 id="create-channel-title">
           {channelType === "category" ? t("channel.create.title_category") : t("channel.create.title_channel")}
           {parentId ? t("channel.create.inside_category") : ""}
         </h3>

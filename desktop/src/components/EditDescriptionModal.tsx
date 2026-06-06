@@ -22,8 +22,8 @@ export function EditDescriptionModal({ channel, description, onDescriptionChange
   return (
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Edit description — #{channel.name}</h3>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-desc-title" onClick={(e) => e.stopPropagation()}>
+        <h3 id="edit-desc-title">Edit description — #{channel.name}</h3>
         <textarea
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}

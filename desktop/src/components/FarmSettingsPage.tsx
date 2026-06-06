@@ -36,8 +36,9 @@ function SuspendDialog({
   const [reason, setReason] = useState("");
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{t("farm.suspend_dialog.title")}</h3>
+      <FocusTrap>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="suspend-dialog-title" onClick={(e) => e.stopPropagation()}>
+        <h3 id="suspend-dialog-title">{t("farm.suspend_dialog.title")}</h3>
         <p className="muted" dangerouslySetInnerHTML={{ __html: t("farm.suspend_dialog.hint", { name: hubName }) }} />
         <label className="settings-label">{t("farm.suspend_dialog.reason")}</label>
         <input
@@ -59,6 +60,7 @@ function SuspendDialog({
           </button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }
@@ -75,8 +77,9 @@ function DeleteHubDialog({
   const { t } = useTranslation();
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{t("farm.delete_dialog.title")}</h3>
+      <FocusTrap>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="delete-hub-title" onClick={(e) => e.stopPropagation()}>
+        <h3 id="delete-hub-title">{t("farm.delete_dialog.title")}</h3>
         <p className="muted" dangerouslySetInnerHTML={{ __html: t("farm.delete_dialog.hint", { name: hubName }) }} />
         <div className="modal-actions">
           <button className="btn-secondary" onClick={onCancel}>
@@ -90,6 +93,7 @@ function DeleteHubDialog({
           </button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }
