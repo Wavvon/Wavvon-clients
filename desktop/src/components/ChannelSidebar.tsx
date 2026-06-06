@@ -255,7 +255,7 @@ export function ChannelSidebar({
   };
 
   return (
-    <nav className="sidebar" aria-label={t("member.list.title")}>
+    <nav className="sidebar" aria-label={t("channel.sidebar.label")}>
       {view === "channels" && (
         <div className="hub-header" ref={hubHeaderRef}>
           <button
