@@ -1195,6 +1195,7 @@ function App() {
                 setDmMessages((prev) => ({
                   ...prev,
                   [conversation_id]: history.map((m) => ({
+                    id: m.id,
                     sender: m.sender,
                     sender_name: m.sender_name,
                     content: m.content,
@@ -2524,6 +2525,7 @@ function App() {
       setDmMessages((prev) => ({
         ...prev,
         [conv.id]: history.map((m) => ({
+          id: m.id,
           sender: m.sender,
           sender_name: m.sender_name,
           content: m.content,
