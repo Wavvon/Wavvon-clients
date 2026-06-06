@@ -42,6 +42,10 @@ import { MessageContent } from "./MessageContent";
 import { UserListGrouped } from "./UserListGrouped";
 import { BotCard } from "./BotCard";
 import { EmojiPicker } from "./EmojiPicker";
+import { UserProfileCard } from "./UserProfileCard";
+import { PinnedMessages } from "./PinnedMessages";
+import { PollComposer } from "./PollComposer";
+import { EventsPanel } from "./EventsPanel";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -189,6 +193,10 @@ export function ContentArea({
   const [slashSuggestions, setSlashSuggestions] = useState<SlashCommandEntry[]>([]);
   const [slashSelectedIdx, setSlashSelectedIdx] = useState(0);
   const [botCard, setBotCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
+  const [profileCard, setProfileCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
+  const [showPinned, setShowPinned] = useState(false);
+  const [showPollComposer, setShowPollComposer] = useState(false);
+  const [showEventsPanel, setShowEventsPanel] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [activeGame, setActiveGame] = useState<InstalledGame | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -296,6 +304,12 @@ export function ContentArea({
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setBotCard({ pubkey, rect });
+  }, []);
+
+  const openProfileCard = useCallback((pubkey: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setProfileCard({ pubkey, rect });
   }, []);
 
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
@@ -650,6 +664,20 @@ export function ContentArea({
                 </button>
               )}
               <button
+                onClick={() => setShowPinned(true)}
+                className="btn-icon-header"
+                title="Pinned messages"
+              >
+                📌
+              </button>
+              <button
+                onClick={() => setShowEventsPanel(true)}
+                className="btn-icon-header"
+                title="Events"
+              >
+                📅
+              </button>
+              <button
                 onClick={() => searchOpen ? onCloseSearch() : onSetSearchOpen(true)}
                 className="btn-icon-header"
                 title={t("content.search.title")}
@@ -809,15 +837,19 @@ export function ContentArea({
                           </div>
                         )}
                         <span
-                          style={{ cursor: senderUser?.is_bot ? "pointer" : undefined }}
-                          onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => openBotCard(m.sender, e) : undefined}
+                          style={{ cursor: "pointer" }}
+                          onClick={senderUser?.is_bot && !senderUser?.is_webhook
+                            ? (e) => openBotCard(m.sender, e)
+                            : (e) => openProfileCard(m.sender, e)}
                         >
                           <Avatar src={senderUser?.avatar} name={senderLabel} size={28} />
                         </span>
                         <span
                           className="message-sender"
-                          style={{ color: colorForKey(m.sender), cursor: senderUser?.is_bot ? "pointer" : undefined }}
-                          onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => openBotCard(m.sender, e) : undefined}
+                          style={{ color: colorForKey(m.sender), cursor: "pointer" }}
+                          onClick={senderUser?.is_bot && !senderUser?.is_webhook
+                            ? (e) => openBotCard(m.sender, e)
+                            : (e) => openProfileCard(m.sender, e)}
                         >
                           {senderLabel}
                         </span>
@@ -884,6 +916,27 @@ export function ContentArea({
                               >
                                 🔗
                               </button>
+                              {isAdmin && activeHub && selectedChannel && (
+                                <button
+                                  className="message-action"
+                                  title="Pin message"
+                                  aria-label="Pin message"
+                                  onClick={async () => {
+                                    try {
+                                      await invoke("pin_message", {
+                                        hubUrl: activeHub.hub_url,
+                                        channelId: selectedChannel.id,
+                                        messageId: m.id,
+                                      });
+                                      onToast("Message pinned");
+                                    } catch (e) {
+                                      onError(String(e));
+                                    }
+                                  }}
+                                >
+                                  📌
+                                </button>
+                              )}
                               {isMine && (
                                 <button className="message-action" onClick={() => onStartEdit(m)} title={t("message.action.edit")} aria-label={t("message.action.edit")}>
                                   ✎
@@ -1021,6 +1074,16 @@ export function ContentArea({
                   messageInputRef.current?.focus();
                 }}
               />
+              {selectedChannel && activeHub && (
+                <button
+                  type="button"
+                  className="btn-attach"
+                  title="Create poll"
+                  onClick={() => setShowPollComposer(true)}
+                >
+                  📊
+                </button>
+              )}
               <div style={{ position: "relative", flex: 1 }}>
                 {slashSuggestions.length > 0 && (
                   <div className="slash-command-popup">
@@ -1132,6 +1195,58 @@ export function ContentArea({
           hubUrl={activeHub.hub_url}
           anchorRect={botCard.rect}
           onClose={() => setBotCard(null)}
+        />
+      )}
+
+      {profileCard && activeHub && (
+        <UserProfileCard
+          pubkey={profileCard.pubkey}
+          hubUrl={activeHub.hub_url}
+          anchorRect={profileCard.rect}
+          myPubkey={publicKey}
+          isAdmin={isAdmin}
+          myRoles={myRoles}
+          onClose={() => setProfileCard(null)}
+          onKick={(pk) => {
+            invoke("kick_user_cmd", { hubUrl: activeHub.hub_url, pubkey: pk }).catch(() => {});
+          }}
+          onBan={(pk) => {
+            invoke("ban_user_cmd", { hubUrl: activeHub.hub_url, pubkey: pk, reason: null }).catch(() => {});
+          }}
+          onMute={(pk) => {
+            invoke("voice_mute_user_cmd", { hubUrl: activeHub.hub_url, pubkey: pk, reason: null }).catch(() => {});
+          }}
+        />
+      )}
+
+      {showPinned && activeHub && selectedChannel && (
+        <PinnedMessages
+          hubUrl={activeHub.hub_url}
+          channelId={selectedChannel.id}
+          channelName={selectedChannel.name}
+          isAdmin={isAdmin}
+          onClose={() => setShowPinned(false)}
+          onScrollToMessage={onScrollToMessage}
+        />
+      )}
+
+      {showPollComposer && activeHub && selectedChannel && (
+        <PollComposer
+          hubUrl={activeHub.hub_url}
+          channelId={selectedChannel.id}
+          onCreated={() => {
+            setShowPollComposer(false);
+            onToast("Poll created");
+          }}
+          onClose={() => setShowPollComposer(false)}
+        />
+      )}
+
+      {showEventsPanel && activeHub && (
+        <EventsPanel
+          hubUrl={activeHub.hub_url}
+          isAdmin={isAdmin}
+          onClose={() => setShowEventsPanel(false)}
         />
       )}
 

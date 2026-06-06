@@ -7052,3 +7052,38 @@ a.embed-title:hover {
 /* ---- EmojiPicker server section ---- */
 .emoji-picker-server-section { border-bottom: 1px solid var(--border-color, #3a3d44); padding-bottom: 6px; margin-bottom: 6px; }
 .emoji-picker-section-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted, #96989d); padding: 4px 2px 2px; }
+
+/* ---- User profile card ---- */
+.user-profile-card { background: var(--surface, #2b2d31); border: 1px solid var(--border, #3a3d44); border-radius: var(--r-lg, 8px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); width: 260px; padding: 16px; z-index: 400; }
+.user-profile-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.user-profile-card-names { flex: 1; min-width: 0; }
+.user-profile-card-name { font-weight: 600; font-size: var(--text-sm); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-profile-card-pubkey { font-size: var(--text-xs); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-profile-card-close { margin-left: auto; flex-shrink: 0; }
+.user-profile-card-loading { padding: 8px 0; font-size: var(--text-sm); }
+.user-profile-card-field { font-size: var(--text-xs); margin-bottom: 6px; }
+.user-profile-card-roles { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.user-profile-card-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.user-profile-card-admin { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border, #3a3d44); }
+.role-chip { background: var(--bg-secondary, #1e1f22); border: 1px solid var(--border, #3a3d44); border-radius: 4px; padding: 2px 6px; font-size: var(--text-xs); }
+.badge-chip { border: 1px solid var(--accent, #5865f2); border-radius: 4px; padding: 2px 6px; font-size: var(--text-xs); color: var(--accent, #5865f2); }
+
+/* ---- Pinned messages panel ---- */
+.pinned-message-row { padding: 10px 0; border-bottom: 1px solid var(--border, #3a3d44); }
+.pinned-message-row:last-child { border-bottom: none; }
+.pinned-message-meta { font-size: var(--text-xs); margin-bottom: 4px; }
+.pinned-message-content { font-size: var(--text-sm); cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+.pinned-message-content:hover { background: var(--bg-hover, #34373d); }
+
+/* ---- Context menu extras ---- */
+.context-menu-separator { height: 1px; background: var(--border, #3a3d44); margin: 4px 0; }
+.context-menu-item-active { background: var(--bg-hover, #34373d); }
+
+/* ---- Event card active RSVP ---- */
+.event-card-btn.active { opacity: 1; font-weight: 700; box-shadow: 0 0 0 2px currentColor; }
+
+/* ---- Poll card delete btn area ---- */
+.poll-card-header { display: flex; align-items: center; gap: 6px; }
+
+/* ---- settings-input textarea ---- */
+.settings-input[rows] { height: auto; resize: vertical; }

@@ -902,3 +902,72 @@ export interface HubListing {
   member_count_approx: number;
   listed: boolean;
 }
+
+// ---- File upload result ----
+
+export interface UploadedAttachment {
+  url: string;
+  filename: string;
+  size_bytes: number;
+  mime_type: string;
+}
+
+// ---- Message pinning ----
+
+export interface PinnedMessage {
+  message_id: string;
+  pinned_by: string;
+  pinned_at: number;
+  message: Message;
+}
+
+// ---- User profile card ----
+
+export interface UserProfile {
+  public_key: string;
+  display_name: string;
+  avatar: string | null;
+  joined_at: number;
+  roles: RoleInfo[];
+  badges: Badge[];
+}
+
+export interface Badge {
+  label: string;
+  color?: string;
+}
+
+// ---- Polls (extended from PollCard.tsx inline types) ----
+
+export interface PollOption {
+  id: string;
+  text: string;
+  vote_count: number;
+  voted_by_me: boolean;
+}
+
+export interface Poll {
+  id: string;
+  channel_id: string;
+  question: string;
+  options: PollOption[];
+  closes_at?: number;
+  created_at: number;
+  creator_pubkey?: string;
+}
+
+// ---- Hub events ----
+
+export interface HubEvent {
+  id: string;
+  title: string;
+  description: string;
+  starts_at: number;
+  ends_at?: number;
+  location?: string;
+  channel_id?: string;
+  created_by: string;
+  my_rsvp?: string;
+  going_count: number;
+  maybe_count: number;
+}

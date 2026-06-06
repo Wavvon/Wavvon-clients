@@ -3453,6 +3453,7 @@ function App() {
               onSwitchToDms={() => { setView("dms"); if (hasActiveHub) loadConversations(); }}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
               onRemoveHub={handleRemoveHub}
+              onSetHubNotifyMode={setHubMode}
               onHubReorder={handleHubReorder}
               onAddHub={() => setShowAddHub(true)}
               onCreateHub={() => setShowCreateHub(true)}

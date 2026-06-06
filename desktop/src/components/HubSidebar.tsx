@@ -26,6 +26,7 @@ interface Props {
   onSwitchToDms: () => void;
   onSwitchHub: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
+  onSetHubNotifyMode?: (hubId: string, mode: NotifyMode) => void;
   onHubReorder: (event: DragEndEvent) => void;
   onAddHub: () => void;
   onCreateHub: () => void;
@@ -33,10 +34,29 @@ interface Props {
   onFarmSettings: () => void;
 }
 
+interface HubContextMenu {
+  hubId: string;
+  x: number;
+  y: number;
+}
+
+function menuBtnStyle(): React.CSSProperties {
+  return {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "8px 16px",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "var(--text)",
+  };
+}
+
 export function HubSidebar({
   hubs, activeHubId, view, showDiscover, unreadDms, unreadByHub, pingByHub,
   hubNotifyMode, hasActiveHub, isFarmAdmin,
-  onSwitchToDms, onSwitchHub, onRemoveHub,
+  onSwitchToDms, onSwitchHub, onRemoveHub, onSetHubNotifyMode,
   onHubReorder, onAddHub, onCreateHub, onDiscover, onFarmSettings,
 }: Props) {
   const { t } = useTranslation();
@@ -49,6 +69,8 @@ export function HubSidebar({
   const addMenuRef = useRef<HTMLDivElement>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const hubButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [hubContextMenu, setHubContextMenu] = useState<HubContextMenu | null>(null);
+  const hubContextRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!addMenuOpen) return;
@@ -60,6 +82,17 @@ export function HubSidebar({
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [addMenuOpen]);
+
+  useEffect(() => {
+    if (!hubContextMenu) return;
+    function onClickOutside(e: MouseEvent) {
+      if (hubContextRef.current && !hubContextRef.current.contains(e.target as Node)) {
+        setHubContextMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [hubContextMenu]);
 
   const handleHubKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
     if (e.key === "ArrowDown") {
@@ -86,6 +119,13 @@ export function HubSidebar({
       onSwitchHub(hubs[index].hub_id);
     }
   }, [hubs, onSwitchHub]);
+
+  const contextHub = hubContextMenu
+    ? hubs.find((h) => h.hub_id === hubContextMenu.hubId)
+    : null;
+  const currentMode = hubContextMenu
+    ? (hubNotifyMode[hubContextMenu.hubId] ?? "all")
+    : "all";
 
   return (
     <nav className="hub-sidebar" aria-label="Hubs">
@@ -130,7 +170,10 @@ export function HubSidebar({
                       }`}
                       onClick={() => { setFocusedIndex(index); onSwitchHub(h.hub_id); }}
                       onKeyDown={(e) => handleHubKeyDown(e, index)}
-                      onContextMenu={(e) => { e.preventDefault(); onRemoveHub(h.hub_id); }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setHubContextMenu({ hubId: h.hub_id, x: e.clientX, y: e.clientY });
+                      }}
                       title={`${h.hub_name} (${h.hub_url})${titleSuffix}${
                         hubNotifyMode[h.hub_id] === "silent"
                           ? t("hub.silenced_suffix")
@@ -186,34 +229,10 @@ export function HubSidebar({
               boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
             }}
           >
-            <button
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "8px 16px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--text)",
-              }}
-              onClick={() => { setAddMenuOpen(false); onAddHub(); }}
-            >
+            <button style={menuBtnStyle()} onClick={() => { setAddMenuOpen(false); onAddHub(); }}>
               {t("hub.join")}
             </button>
-            <button
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "8px 16px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--text)",
-              }}
-              onClick={() => { setAddMenuOpen(false); onCreateHub(); }}
-            >
+            <button style={menuBtnStyle()} onClick={() => { setAddMenuOpen(false); onCreateHub(); }}>
               {t("hub.create")}
             </button>
           </div>
@@ -237,6 +256,50 @@ export function HubSidebar({
         >
           ⚙
         </button>
+      )}
+
+      {hubContextMenu && contextHub && (
+        <div
+          ref={hubContextRef}
+          className="context-menu"
+          style={{
+            position: "fixed",
+            top: hubContextMenu.y,
+            left: hubContextMenu.x,
+            zIndex: 500,
+          }}
+          role="menu"
+          aria-label={`${contextHub.hub_name} options`}
+        >
+          <div className="context-menu-header">{contextHub.hub_name}</div>
+          <div style={{ padding: "4px 12px 2px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+            Notifications
+          </div>
+          {(["all", "mentions", "silent"] as NotifyMode[]).map((mode) => (
+            <button
+              key={mode}
+              className={`context-menu-item${currentMode === mode ? " context-menu-item-active" : ""}`}
+              role="menuitemradio"
+              aria-checked={currentMode === mode}
+              onClick={() => {
+                onSetHubNotifyMode?.(hubContextMenu.hubId, mode);
+                setHubContextMenu(null);
+              }}
+            >
+              {mode === "all" && "All messages"}
+              {mode === "mentions" && "Mentions only"}
+              {mode === "silent" && "Nothing"}
+              {currentMode === mode && " ✓"}
+            </button>
+          ))}
+          <div className="context-menu-separator" />
+          <button
+            className="context-menu-item danger"
+            onClick={() => { setHubContextMenu(null); onRemoveHub(hubContextMenu.hubId); }}
+          >
+            Leave hub
+          </button>
+        </div>
       )}
     </nav>
   );

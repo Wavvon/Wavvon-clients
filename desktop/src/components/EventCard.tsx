@@ -1,26 +1,13 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-
-export interface HubEvent {
-  id: string;
-  channel_id: string;
-  creator_pubkey: string;
-  title: string;
-  description: string;
-  starts_at: number;
-  ends_at?: number;
-  location?: string;
-  created_at: number;
-  rsvp_counts?: {
-    going: number;
-    maybe: number;
-    not_going: number;
-  };
-}
+import type { HubEvent } from "../types";
 
 interface Props {
   event: HubEvent;
+  hubUrl?: string;
+  isAdmin?: boolean;
   onRsvpChange?: (eventId: string, status: string) => void;
+  onDeleted?: (eventId: string) => void;
 }
 
 function formatTimestamp(ts: number): string {
@@ -33,14 +20,20 @@ function formatTimestamp(ts: number): string {
   });
 }
 
-export function EventCard({ event, onRsvpChange }: Props) {
+export function EventCard({ event, hubUrl, isAdmin, onRsvpChange, onDeleted }: Props) {
   const [busy, setBusy] = useState(false);
+  const [myRsvp, setMyRsvp] = useState<string | undefined>(event.my_rsvp);
 
   async function rsvp(status: string) {
     if (busy) return;
     setBusy(true);
     try {
-      await invoke("rsvp_event", { eventId: event.id, status });
+      if (hubUrl) {
+        await invoke("rsvp_event_hub", { hubUrl, eventId: event.id, status });
+      } else {
+        await invoke("rsvp_event", { eventId: event.id, status });
+      }
+      setMyRsvp(status);
       onRsvpChange?.(event.id, status);
     } catch (e) {
       console.error("RSVP failed:", e);
@@ -49,13 +42,31 @@ export function EventCard({ event, onRsvpChange }: Props) {
     }
   }
 
-  const counts = event.rsvp_counts ?? { going: 0, maybe: 0, not_going: 0 };
+  async function handleDelete() {
+    if (!hubUrl || !isAdmin) return;
+    try {
+      await invoke("delete_event", { hubUrl, eventId: event.id });
+      onDeleted?.(event.id);
+    } catch (e) {
+      console.error("Delete event failed:", e);
+    }
+  }
 
   return (
     <div className="event-card">
       <div className="event-card-header">
         <span className="event-card-icon">📅</span>
         <span className="event-card-title">{event.title}</span>
+        {isAdmin && hubUrl && (
+          <button
+            className="btn-small btn-secondary-small"
+            style={{ marginLeft: "auto" }}
+            onClick={handleDelete}
+            title="Delete event"
+          >
+            ✕
+          </button>
+        )}
       </div>
       <div className="event-card-time">{formatTimestamp(event.starts_at)}</div>
       {event.ends_at && (
@@ -70,29 +81,27 @@ export function EventCard({ event, onRsvpChange }: Props) {
         <div className="event-card-description">{event.description}</div>
       )}
       <div className="event-card-rsvp-counts">
-        <span>{counts.going} going</span>
+        <span>{event.going_count} going</span>
         <span> · </span>
-        <span>{counts.maybe} maybe</span>
-        <span> · </span>
-        <span>{counts.not_going} can't go</span>
+        <span>{event.maybe_count} maybe</span>
       </div>
       <div className="event-card-actions">
         <button
-          className="event-card-btn event-card-btn-going"
+          className={`event-card-btn event-card-btn-going${myRsvp === "going" ? " active" : ""}`}
           disabled={busy}
           onClick={() => rsvp("going")}
         >
           Going
         </button>
         <button
-          className="event-card-btn event-card-btn-maybe"
+          className={`event-card-btn event-card-btn-maybe${myRsvp === "maybe" ? " active" : ""}`}
           disabled={busy}
           onClick={() => rsvp("maybe")}
         >
           Maybe
         </button>
         <button
-          className="event-card-btn event-card-btn-cantgo"
+          className={`event-card-btn event-card-btn-cantgo${myRsvp === "not_going" ? " active" : ""}`}
           disabled={busy}
           onClick={() => rsvp("not_going")}
         >

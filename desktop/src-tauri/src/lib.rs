@@ -7278,6 +7278,379 @@ async fn vote_poll(
     Ok(())
 }
 
+// =============================================================================
+// Feature 1: File / image uploads
+// =============================================================================
+
+#[derive(Serialize)]
+struct UploadResult {
+    url: String,
+    filename: String,
+    size_bytes: u64,
+    mime_type: String,
+}
+
+#[tauri::command]
+async fn upload_file(
+    hub_url: String,
+    channel_id: String,
+    file_path: String,
+    state: State<'_, AppState>,
+) -> Result<UploadResult, String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let path = std::path::Path::new(&file_path);
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("file")
+        .to_string();
+    let bytes = tokio::fs::read(path).await.map_err(|e| e.to_string())?;
+    let size_bytes = bytes.len() as u64;
+    let mime_type = mime_guess::from_path(path)
+        .first_or_octet_stream()
+        .to_string();
+    let part = reqwest::multipart::Part::bytes(bytes)
+        .file_name(filename.clone())
+        .mime_str(&mime_type)
+        .map_err(|e| e.to_string())?;
+    let form = reqwest::multipart::Form::new().part("file", part);
+    let url = format!("{}/channels/{}/upload", hub_url.trim_end_matches('/'), channel_id);
+    let res = state
+        .http_client
+        .post(&url)
+        .bearer_auth(&token)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("Upload failed: HTTP {}", res.status()));
+    }
+    let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+    Ok(UploadResult {
+        url: json["url"].as_str().unwrap_or("").to_string(),
+        filename: json["filename"].as_str().unwrap_or(&filename).to_string(),
+        size_bytes: json["size_bytes"].as_u64().unwrap_or(size_bytes),
+        mime_type: json["mime_type"].as_str().unwrap_or(&mime_type).to_string(),
+    })
+}
+
+// =============================================================================
+// Feature 2: Message pinning
+// =============================================================================
+
+#[tauri::command]
+async fn pin_message(
+    hub_url: String,
+    channel_id: String,
+    message_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!(
+        "{}/channels/{}/pins/{}",
+        hub_url.trim_end_matches('/'),
+        channel_id,
+        message_id
+    );
+    state
+        .http_client
+        .post(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn unpin_message(
+    hub_url: String,
+    channel_id: String,
+    message_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!(
+        "{}/channels/{}/pins/{}",
+        hub_url.trim_end_matches('/'),
+        channel_id,
+        message_id
+    );
+    state
+        .http_client
+        .delete(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_pinned_messages(
+    hub_url: String,
+    channel_id: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!(
+        "{}/channels/{}/pins",
+        hub_url.trim_end_matches('/'),
+        channel_id
+    );
+    let res = state
+        .http_client
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    res.json().await.map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Feature 3: User profile cards
+// =============================================================================
+
+#[tauri::command]
+async fn get_user_profile(
+    hub_url: String,
+    pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!(
+        "{}/members/{}/profile",
+        hub_url.trim_end_matches('/'),
+        pubkey
+    );
+    let res = state
+        .http_client
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    res.json().await.map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Feature 4: Polls — create / delete / get-by-channel
+// =============================================================================
+
+#[tauri::command]
+async fn create_poll(
+    hub_url: String,
+    channel_id: String,
+    question: String,
+    options: Vec<String>,
+    closes_at: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!("{}/polls", hub_url.trim_end_matches('/'));
+    let mut body = serde_json::json!({
+        "channel_id": channel_id,
+        "question": question,
+        "options": options,
+    });
+    if let Some(ts) = closes_at {
+        body["closes_at"] = serde_json::Value::Number(ts.into());
+    }
+    let res = state
+        .http_client
+        .post(&url)
+        .bearer_auth(&token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    res.json().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_channel_polls(
+    hub_url: String,
+    channel_id: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!(
+        "{}/polls?channel_id={}",
+        hub_url.trim_end_matches('/'),
+        channel_id
+    );
+    let res = state
+        .http_client
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    res.json().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_poll(
+    hub_url: String,
+    poll_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!("{}/polls/{}", hub_url.trim_end_matches('/'), poll_id);
+    state
+        .http_client
+        .delete(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// =============================================================================
+// Feature 5: Events — delete / hub-scoped list (hub_url param)
+// =============================================================================
+
+#[tauri::command]
+async fn delete_event(
+    hub_url: String,
+    event_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!(
+        "{}/events/{}",
+        hub_url.trim_end_matches('/'),
+        event_id
+    );
+    state
+        .http_client
+        .delete(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_hub_events(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let url = format!(
+        "{}/events?upcoming=true&limit=50",
+        hub_url.trim_end_matches('/')
+    );
+    let res = state
+        .http_client
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    res.json().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn rsvp_event_hub(
+    hub_url: String,
+    event_id: String,
+    status: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &hub_url)?;
+    state
+        .http_client
+        .post(format!(
+            "{}/events/{}/rsvp",
+            hub_url.trim_end_matches('/'),
+            event_id
+        ))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "status": status }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn create_event_hub(
+    hub_url: String,
+    title: String,
+    description: String,
+    starts_at: i64,
+    ends_at: Option<i64>,
+    channel_id: Option<String>,
+    location: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let mut body = serde_json::json!({
+        "title": title,
+        "description": description,
+        "starts_at": starts_at,
+    });
+    if let Some(ts) = ends_at {
+        body["ends_at"] = serde_json::Value::Number(ts.into());
+    }
+    if let Some(ch) = channel_id {
+        body["channel_id"] = serde_json::Value::String(ch);
+    }
+    if let Some(loc) = location {
+        body["location"] = serde_json::Value::String(loc);
+    }
+    let res = state
+        .http_client
+        .post(format!("{}/events", hub_url.trim_end_matches('/')))
+        .bearer_auth(&token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    res.json().await.map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Feature 6: Per-hub notification preferences (client-side JSON file)
+// =============================================================================
+
+fn notif_prefs_path() -> Result<std::path::PathBuf, String> {
+    let base = dirs::data_dir().ok_or("Cannot determine data dir")?;
+    Ok(base.join("voxply").join("notification_prefs.json"))
+}
+
+#[tauri::command]
+fn get_notification_prefs() -> Result<serde_json::Value, String> {
+    let path = notif_prefs_path()?;
+    if !path.exists() {
+        return Ok(serde_json::json!({}));
+    }
+    let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_notification_pref(hub_url: String, level: String) -> Result<(), String> {
+    let path = notif_prefs_path()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut prefs: serde_json::Map<String, serde_json::Value> = if path.exists() {
+        let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&raw).unwrap_or_default()
+    } else {
+        serde_json::Map::new()
+    };
+    prefs.insert(hub_url, serde_json::Value::String(level));
+    let serialized = serde_json::to_string_pretty(&prefs).map_err(|e| e.to_string())?;
+    std::fs::write(&path, serialized).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn open_pip_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("screen-share-pip") {
@@ -8170,6 +8543,20 @@ pub fn run() {
             get_discovery_settings,
             set_discovery_tags,
             set_hub_listed,
+            upload_file,
+            pin_message,
+            unpin_message,
+            get_pinned_messages,
+            get_user_profile,
+            create_poll,
+            get_channel_polls,
+            delete_poll,
+            delete_event,
+            get_hub_events,
+            rsvp_event_hub,
+            create_event_hub,
+            get_notification_prefs,
+            set_notification_pref,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

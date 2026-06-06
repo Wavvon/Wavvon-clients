@@ -2,17 +2,17 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-export interface PollOption {
+export interface LegacyPollOption {
   id: string;
   text: string;
 }
 
-export interface Poll {
+export interface LegacyPoll {
   id: string;
   channel_id: string;
   creator_pubkey: string;
   question: string;
-  /** JSON-encoded PollOption[] */
+  /** JSON-encoded LegacyPollOption[] */
   options: string;
   ends_at?: number;
   max_choices: number;
@@ -29,11 +29,15 @@ interface PollVoteUpdatedPayload {
 }
 
 interface Props {
-  poll: Poll;
+  poll: LegacyPoll;
   hubId: string;
+  hubUrl?: string;
+  myPubkey?: string | null;
+  isAdmin?: boolean;
+  onDeleted?: (pollId: string) => void;
 }
 
-function parsedOptions(raw: string): PollOption[] {
+function parsedOptions(raw: string): LegacyPollOption[] {
   try {
     return JSON.parse(raw);
   } catch {
@@ -56,7 +60,7 @@ function formatEndsAt(ends_at?: number): string | null {
   return `ends ${new Date(ends_at * 1000).toLocaleDateString()}`;
 }
 
-export function PollCard({ poll, hubId }: Props) {
+export function PollCard({ poll, hubId, hubUrl, myPubkey, isAdmin, onDeleted }: Props) {
   const options = parsedOptions(poll.options);
   const [totals, setTotals] = useState<Record<string, number>>(poll.totals ?? {});
   const [yourVote, setYourVote] = useState<string[]>(poll.your_vote ?? []);
@@ -65,7 +69,6 @@ export function PollCard({ poll, hubId }: Props) {
 
   const totalVotes = Object.values(totals).reduce((a, b) => a + b, 0);
 
-  // Listen for live tally updates from the hub WS.
   useEffect(() => {
     const unlisten = listen<PollVoteUpdatedPayload>("poll-vote-updated", (event) => {
       const payload = event.payload;
@@ -89,7 +92,6 @@ export function PollCard({ poll, hubId }: Props) {
     try {
       await invoke("vote_poll", { pollId: poll.id, optionIds: newVote });
       setYourVote(newVote);
-      // Optimistically increment the chosen option.
       setTotals((prev) => {
         const next = { ...prev };
         next[optionId] = (next[optionId] ?? 0) + 1;
@@ -102,11 +104,34 @@ export function PollCard({ poll, hubId }: Props) {
     }
   }
 
+  async function handleDelete() {
+    if (!hubUrl) return;
+    try {
+      await invoke("delete_poll", { hubUrl, pollId: poll.id });
+      onDeleted?.(poll.id);
+    } catch (e) {
+      console.error("Delete poll failed:", e);
+    }
+  }
+
+  const canDelete =
+    isAdmin || (myPubkey != null && poll.creator_pubkey === myPubkey);
+
   return (
     <div className="poll-card">
       <div className="poll-card-header">
         <span className="poll-card-icon">📊</span>
         <span className="poll-card-question">{poll.question}</span>
+        {canDelete && hubUrl && (
+          <button
+            className="btn-small btn-secondary-small"
+            style={{ marginLeft: "auto" }}
+            onClick={handleDelete}
+            title="Delete poll"
+          >
+            ✕
+          </button>
+        )}
       </div>
       <div className="poll-card-options">
         {options.map((opt) => {
