@@ -63,6 +63,7 @@ export function RoleEditor({
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isBuiltin}
+          maxLength={64}
         />
         <input
           type="number"

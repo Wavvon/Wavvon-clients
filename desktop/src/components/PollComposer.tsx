@@ -85,6 +85,7 @@ export function PollComposer({ hubUrl, channelId, onCreated, onClose }: Props) {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="What's your question?"
+              maxLength={200}
               required
             />
           </label>
@@ -99,6 +100,7 @@ export function PollComposer({ hubUrl, channelId, onCreated, onClose }: Props) {
                   value={opt.value}
                   onChange={(e) => updateOption(i, e.target.value)}
                   placeholder={`Option ${i + 1}`}
+                  maxLength={100}
                   style={{ flex: 1 }}
                 />
                 {options.length > 2 && (
