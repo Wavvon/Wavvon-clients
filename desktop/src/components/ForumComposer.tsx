@@ -43,8 +43,9 @@ export function ForumComposer({ channelId, activeHubUrl, onCreated, onCancel }: 
     <div className="forum-composer">
       <h3 className="forum-composer-title">New post</h3>
       <div className="settings-section">
-        <label className="settings-label">Title</label>
+        <label className="settings-label" htmlFor="forum-title">Title</label>
         <input
+          id="forum-title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -55,8 +56,9 @@ export function ForumComposer({ channelId, activeHubUrl, onCreated, onCancel }: 
         />
       </div>
       <div className="settings-section">
-        <label className="settings-label">Body</label>
+        <label className="settings-label" htmlFor="forum-body">Body</label>
         <textarea
+          id="forum-body"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Write your post…"

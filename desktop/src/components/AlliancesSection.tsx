@@ -405,12 +405,13 @@ export function AlliancesSection({
                 {tab === "invite" && (
                   <div className="alliance-invite-tab">
                     <div className="alliance-invite-section">
-                      <label className="settings-label">{t("alliances.invite.push.label")}</label>
+                      <label className="settings-label" htmlFor="alliance-push-url">{t("alliances.invite.push.label")}</label>
                       <p className="muted">
                         {t("alliances.invite.push.hint")}
                       </p>
                       <div className="alliance-join-row">
                         <input
+                          id="alliance-push-url"
                           type="text"
                           value={pushTargetUrl}
                           onChange={(e) => setPushTargetUrl(e.target.value)}
@@ -471,12 +472,13 @@ export function AlliancesSection({
                     </div>
 
                     <div className="alliance-invite-section">
-                      <label className="settings-label">{t("alliances.join.label")}</label>
+                      <label className="settings-label" htmlFor="alliance-join-code">{t("alliances.join.label")}</label>
                       <p className="muted">
                         {t("alliances.join.hint")}
                       </p>
                       <div className="alliance-join-row">
                         <input
+                          id="alliance-join-code"
                           type="text"
                           value={joinCode}
                           onChange={(e) => setJoinCode(e.target.value)}

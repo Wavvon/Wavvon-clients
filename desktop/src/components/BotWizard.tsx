@@ -70,8 +70,9 @@ export function BotWizard({ hubUrl, onCreated, onClose }: BotWizardProps) {
           <>
             {error && <p style={{ color: "var(--color-error, red)", marginBottom: "var(--space-2)" }}>{error}</p>}
             <div className="settings-section">
-              <label className="settings-label">{t("bot.wizard.name_label")}</label>
+              <label className="settings-label" htmlFor="bot-display-name">{t("bot.wizard.name_label")}</label>
               <input
+                id="bot-display-name"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}

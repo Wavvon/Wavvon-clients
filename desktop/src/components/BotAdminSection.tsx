@@ -133,9 +133,10 @@ export function BotAdminSection({ hubUrl }: BotAdminSectionProps) {
                 <p className="muted" title={detail.created_by}>{truncatePk(detail.created_by)}</p>
               </div>
               <div className="settings-section">
-                <label className="settings-label">Webhook URL</label>
+                <label className="settings-label" htmlFor="bot-webhook-url">Webhook URL</label>
                 <div className="settings-row">
                   <input
+                    id="bot-webhook-url"
                     type="text"
                     value={webhookValue}
                     onChange={(e) => setWebhookValue(e.target.value)}
