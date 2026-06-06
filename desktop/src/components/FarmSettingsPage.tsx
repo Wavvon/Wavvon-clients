@@ -40,8 +40,9 @@ function SuspendDialog({
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="suspend-dialog-title" onClick={(e) => e.stopPropagation()}>
         <h3 id="suspend-dialog-title">{t("farm.suspend_dialog.title")}</h3>
         <p className="muted" dangerouslySetInnerHTML={{ __html: t("farm.suspend_dialog.hint", { name: hubName }) }} />
-        <label className="settings-label">{t("farm.suspend_dialog.reason")}</label>
+        <label className="settings-label" htmlFor="suspend-reason">{t("farm.suspend_dialog.reason")}</label>
         <input
+          id="suspend-reason"
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -178,8 +179,9 @@ function GeneralTab({ farmUrl }: { farmUrl: string }) {
       <h1>{t("farm.settings.tabs.general")}</h1>
 
       <div className="settings-section">
-        <label className="settings-label">{t("farm.settings.general.name")}</label>
+        <label className="settings-label" htmlFor="farm-name">{t("farm.settings.general.name")}</label>
         <input
+          id="farm-name"
           type="text"
           value={settings.name}
           onChange={(e) => setSettings({ ...settings, name: e.target.value })}
@@ -188,8 +190,9 @@ function GeneralTab({ farmUrl }: { farmUrl: string }) {
       </div>
 
       <div className="settings-section">
-        <label className="settings-label">{t("farm.settings.general.description")}</label>
+        <label className="settings-label" htmlFor="farm-description">{t("farm.settings.general.description")}</label>
         <textarea
+          id="farm-description"
           rows={3}
           value={settings.description}
           onChange={(e) =>
@@ -217,9 +220,10 @@ function GeneralTab({ farmUrl }: { farmUrl: string }) {
       </div>
 
       <div className="settings-section">
-        <label className="settings-label">{t("farm.settings.general.max_per_user")}</label>
+        <label className="settings-label" htmlFor="farm-max-per-user">{t("farm.settings.general.max_per_user")}</label>
         <p className="muted">{t("farm.settings.general.unlimited")}</p>
         <input
+          id="farm-max-per-user"
           type="number"
           min={0}
           value={settings.max_hubs_per_user}
@@ -233,9 +237,10 @@ function GeneralTab({ farmUrl }: { farmUrl: string }) {
       </div>
 
       <div className="settings-section">
-        <label className="settings-label">{t("farm.settings.general.max_total")}</label>
+        <label className="settings-label" htmlFor="farm-max-total">{t("farm.settings.general.max_total")}</label>
         <p className="muted">{t("farm.settings.general.unlimited")}</p>
         <input
+          id="farm-max-total"
           type="number"
           min={0}
           value={settings.max_hubs_total}

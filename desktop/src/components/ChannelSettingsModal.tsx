@@ -264,12 +264,13 @@ export function ChannelSettingsModal({
         {tab === "moderation" && isAdmin && (
           <>
             <div className="settings-section">
-              <label className="settings-label">Talk power</label>
+              <label className="settings-label" htmlFor="channel-talk-power">Talk power</label>
               <p className="muted">
                 Minimum priority required to speak in this channel. 0 allows anyone.
               </p>
               <div className="settings-row">
                 <input
+                  id="channel-talk-power"
                   type="number"
                   min={0}
                   value={talkPowerInput}
