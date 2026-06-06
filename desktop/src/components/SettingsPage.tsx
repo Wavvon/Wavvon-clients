@@ -285,9 +285,9 @@ export function SettingsPage(props: SettingsPageProps) {
               <ThemePicker value={props.theme} onChange={props.onThemeChange} />
             </div>
             <div className="settings-section">
-              <label className="settings-label">{t("settings.language.label")}</label>
+              <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
               <div className="settings-row">
-                <select value={i18n.language} onChange={e => {
+                <select id="settings-language" value={i18n.language} onChange={e => {
                   i18n.changeLanguage(e.target.value);
                   localStorage.setItem('voxply_language', e.target.value);
                 }}>
@@ -327,8 +327,9 @@ export function SettingsPage(props: SettingsPageProps) {
             <div className="settings-section">
               <div className="voice-devices-row">
                 <div>
-                  <label className="settings-label">{t("settings.voice.microphone")}</label>
+                  <label className="settings-label" htmlFor="settings-mic">{t("settings.voice.microphone")}</label>
                   <select
+                    id="settings-mic"
                     value={props.voiceInputDevice}
                     onChange={(e) => props.onInputDeviceChange(e.target.value)}
                   >
@@ -339,8 +340,9 @@ export function SettingsPage(props: SettingsPageProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="settings-label">{t("settings.voice.speaker")}</label>
+                  <label className="settings-label" htmlFor="settings-speaker">{t("settings.voice.speaker")}</label>
                   <select
+                    id="settings-speaker"
                     value={props.voiceOutputDevice}
                     onChange={(e) => props.onOutputDeviceChange(e.target.value)}
                   >
@@ -354,8 +356,9 @@ export function SettingsPage(props: SettingsPageProps) {
               {props.mediaOutputDevices.length > 0 && (
                 <div className="voice-devices-row" style={{ marginTop: "var(--space-3)" }}>
                   <div>
-                    <label className="settings-label">{t("settings.voice.media_speaker", "Screen share audio output")}</label>
+                    <label className="settings-label" htmlFor="settings-media-speaker">{t("settings.voice.media_speaker", "Screen share audio output")}</label>
                     <select
+                      id="settings-media-speaker"
                       value={props.mediaOutputDeviceId}
                       onChange={(e) => props.onMediaOutputDeviceChange(e.target.value)}
                     >
