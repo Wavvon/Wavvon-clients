@@ -103,8 +103,8 @@ export function WebhooksSection({ hubUrl, channels }: Props) {
       )}
 
       <div className="settings-section">
-        <label className="settings-label">{t("webhooks.channel.label")}</label>
-        <select value={channelId} onChange={(e) => setChannelId(e.target.value)} style={{ width: "100%" }}>
+        <label className="settings-label" htmlFor="webhook-channel">{t("webhooks.channel.label")}</label>
+        <select id="webhook-channel" value={channelId} onChange={(e) => setChannelId(e.target.value)} style={{ width: "100%" }}>
           <option value="">{t("webhooks.channel.placeholder")}</option>
           {textChannels.map((ch) => (
             <option key={ch.id} value={ch.id}>#{ch.name}</option>
@@ -112,8 +112,9 @@ export function WebhooksSection({ hubUrl, channels }: Props) {
         </select>
       </div>
       <div className="settings-section">
-        <label className="settings-label">{t("webhooks.name.label")}</label>
+        <label className="settings-label" htmlFor="webhook-name">{t("webhooks.name.label")}</label>
         <input
+          id="webhook-name"
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -122,8 +123,9 @@ export function WebhooksSection({ hubUrl, channels }: Props) {
         />
       </div>
       <div className="settings-section">
-        <label className="settings-label">{t("webhooks.avatar.label")}</label>
+        <label className="settings-label" htmlFor="webhook-avatar">{t("webhooks.avatar.label")}</label>
         <input
+          id="webhook-avatar"
           type="text"
           value={avatarUrl}
           onChange={(e) => setAvatarUrl(e.target.value)}

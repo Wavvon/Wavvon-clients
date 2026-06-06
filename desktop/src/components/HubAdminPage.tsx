@@ -234,8 +234,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <section>
             <h1>{t("hub.admin.overview.title")}</h1>
             <div className="settings-section">
-              <label className="settings-label">{t("hub.admin.overview.name")}</label>
+              <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
               <input
+                id="admin-hub-name"
                 type="text"
                 value={props.hubName}
                 onChange={(e) => props.onHubNameChange(e.target.value)}
@@ -243,9 +244,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
               />
             </div>
             <div className="settings-section">
-              <label className="settings-label">{t("hub.admin.overview.description")}</label>
+              <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
               <p className="muted">{t("hub.admin.overview.description_hint")}</p>
               <textarea
+                id="admin-hub-desc"
                 rows={3}
                 value={props.hubDescription}
                 onChange={(e) => props.onHubDescriptionChange(e.target.value)}
@@ -292,11 +294,12 @@ export function HubAdminPage(props: HubAdminPageProps) {
               </p>
             </div>
             <div className="settings-section">
-              <label className="settings-label">{t("hub.admin.overview.antispam")}</label>
+              <label className="settings-label" htmlFor="admin-antispam">{t("hub.admin.overview.antispam")}</label>
               <p className="muted">
                 {t("hub.admin.overview.antispam_hint")}
               </p>
               <input
+                id="admin-antispam"
                 type="number"
                 min={0}
                 max={9999}
@@ -306,11 +309,12 @@ export function HubAdminPage(props: HubAdminPageProps) {
               />
             </div>
             <div className="settings-section">
-              <label className="settings-label">{t("hub.admin.overview.max_depth")}</label>
+              <label className="settings-label" htmlFor="admin-max-depth">{t("hub.admin.overview.max_depth")}</label>
               <p className="muted">
                 {t("hub.admin.overview.max_depth_hint")}
               </p>
               <input
+                id="admin-max-depth"
                 type="number"
                 min={0}
                 max={20}
@@ -367,8 +371,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 {t("hub.admin.discovery.directory.hint")}
               </p>
               <div className="settings-section">
-                <label className="settings-label">{t("hub.admin.discovery.directory.tags")}</label>
+                <label className="settings-label" htmlFor="admin-dir-tags">{t("hub.admin.discovery.directory.tags")}</label>
                 <input
+                  id="admin-dir-tags"
                   type="text"
                   placeholder={t("hub.admin.discovery.directory.tags_placeholder")}
                   value={dirTags}
@@ -376,8 +381,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 />
               </div>
               <div className="settings-section">
-                <label className="settings-label">{t("hub.admin.discovery.directory.language")}</label>
+                <label className="settings-label" htmlFor="admin-dir-lang">{t("hub.admin.discovery.directory.language")}</label>
                 <input
+                  id="admin-dir-lang"
                   type="text"
                   placeholder="en"
                   value={dirLanguage}
@@ -385,8 +391,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 />
               </div>
               <div className="settings-section">
-                <label className="settings-label">{t("hub.admin.discovery.directory.bio")}</label>
+                <label className="settings-label" htmlFor="admin-dir-bio">{t("hub.admin.discovery.directory.bio")}</label>
                 <textarea
+                  id="admin-dir-bio"
                   rows={3}
                   placeholder={t("hub.admin.discovery.directory.bio_placeholder")}
                   value={dirBio}
@@ -394,8 +401,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 />
               </div>
               <div className="settings-section">
-                <label className="settings-label">{t("hub.admin.discovery.directory.invite_code")}</label>
+                <label className="settings-label" htmlFor="admin-dir-invite">{t("hub.admin.discovery.directory.invite_code")}</label>
                 <input
+                  id="admin-dir-invite"
                   type="text"
                   placeholder={t("hub.admin.discovery.directory.invite_code_placeholder")}
                   value={dirInviteCode}
@@ -403,8 +411,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 />
               </div>
               <div className="settings-section">
-                <label className="settings-label">{t("hub.admin.discovery.directory.url")}</label>
+                <label className="settings-label" htmlFor="admin-dir-url">{t("hub.admin.discovery.directory.url")}</label>
                 <input
+                  id="admin-dir-url"
                   type="text"
                   value={dirUrl}
                   onChange={(e) => setDirUrl(e.target.value)}
