@@ -1813,7 +1813,12 @@ function App() {
       });
       const allHubs = await invoke<Hub[]>("list_hubs");
       setHubs(allHubs);
-      if (!publicKey) setPublicKey(null);
+      if (!publicKey) {
+        try {
+          const key = await invoke<string>("get_my_public_key");
+          setPublicKey(key);
+        } catch {}
+      }
       if (!activeHubId) setActiveHubId(hub.hub_id);
       setShowAddHub(false);
       setHubUrl("");
