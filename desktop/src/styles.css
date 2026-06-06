@@ -2583,6 +2583,7 @@ select:focus-visible {
 .recovery-input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .recovery-input:focus-visible {
@@ -3008,6 +3009,7 @@ select:focus-visible {
 .user-list-filter input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .user-list-filter input:focus-visible {
@@ -3468,6 +3470,7 @@ select:focus-visible {
 .palette-input:focus-visible {
   outline: none;
   border-bottom-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .palette-list {
@@ -3751,6 +3754,7 @@ select:focus-visible {
 .reaction-picker-search:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .reaction-picker-search:focus-visible {
@@ -6677,6 +6681,7 @@ a.embed-title:hover {
 
 .global-search-input:focus {
   border-color: var(--accent, #5865f2);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .global-search-spinner {
