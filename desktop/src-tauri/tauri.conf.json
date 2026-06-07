@@ -43,11 +43,6 @@
     "shell": {
       "open": true
     },
-    "deep-link": {
-      "desktop": {
-        "schemes": ["voxply"]
-      }
-    },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEM0JBRjIwQTE0MjYyODUKUldTRllrS2hJSzg3alY1dWlPbnJGOWZGNDN6WnE1aS9tV05QcE9FQ0Y3S2tPRnF1U3EzYWRCQkIK",
       "endpoints": ["https://releases.voxply.io/latest.json"]
