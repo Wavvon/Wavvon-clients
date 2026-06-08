@@ -17,6 +17,8 @@ import { RecoveryContactsSection } from "./RecoveryContactsSection";
 import { IdentityCertificationsSection } from "./IdentityCertificationsSection";
 import { DeviceListSection } from "./DeviceListSection";
 import { MissionsSection } from "./MissionsSection";
+import { BlockIgnoreSection } from "./BlockIgnoreSection";
+import type { BlockEntry, IgnoreEntry } from "../types";
 
 export type SettingsTab =
   | "profile"
@@ -95,6 +97,11 @@ export interface SettingsPageProps {
   onShowRecovery: () => void;
   onRecoverIdentity: (phrase: string) => Promise<void>;
   onClearLocalData: () => void;
+  blocks: BlockEntry[];
+  ignores: IgnoreEntry[];
+  onUnblock: (pubkey: string) => void;
+  onUnignore: (pubkey: string) => void;
+  knownNames: Record<string, string | null>;
 }
 
 export function SettingsPage(props: SettingsPageProps) {
@@ -462,6 +469,13 @@ export function SettingsPage(props: SettingsPageProps) {
               <RecoveryContactsSection activeHubUrl={props.activeHubUrl} />
             )}
             <IdentityCertificationsSection />
+            <BlockIgnoreSection
+              blocks={props.blocks}
+              ignores={props.ignores}
+              onUnblock={props.onUnblock}
+              onUnignore={props.onUnignore}
+              knownNames={props.knownNames}
+            />
           </section>
         )}
         {props.tab === "devices" && (

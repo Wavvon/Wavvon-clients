@@ -150,9 +150,9 @@ function App() {
       const next = new Set(prev);
       if (next.has(pubkey)) next.delete(pubkey);
       else next.add(pubkey);
-      invoke("save_blocked_users", {
-        blocked: Array.from(next),
-      }).catch(() => {});
+      const list = Array.from(next);
+      invoke("save_blocked_users", { blocked: list }).catch(() => {});
+      invoke("update_dm_blocks", { blocked: list }).catch(() => {});
       return next;
     });
   }
@@ -556,6 +556,12 @@ function App() {
     bot_name: string;
   }
   const [slashCommands, setSlashCommands] = useState<SlashCommandEntry[]>([]);
+
+  const pubkeyToName = useMemo(() => {
+    const m: Record<string, string | null> = {};
+    for (const u of users) m[u.public_key] = u.display_name;
+    return m;
+  }, [users]);
 
   // Indexes for mention rendering. knownDisplayNames is the lower-cased set
   // of all display names on this hub so MessageContent can decide which
@@ -3316,6 +3322,11 @@ function App() {
             onShowRecovery={handleShowRecovery}
             onRecoverIdentity={handleRecoverIdentity}
             onClearLocalData={handleClearLocalData}
+            blocks={Array.from(blockedUsers).map((p) => ({ pubkey: p, since: 0 }))}
+            ignores={Array.from(ignoredUsers).map((p) => ({ pubkey: p, since: 0 }))}
+            onUnblock={toggleBlockUser}
+            onUnignore={toggleIgnoreUser}
+            knownNames={pubkeyToName}
           />
         ) : (
           <div className="main-layout">

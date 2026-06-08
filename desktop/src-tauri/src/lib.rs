@@ -754,6 +754,28 @@ fn save_ignored_users(ignored: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn update_dm_blocks(
+    blocked: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    #[derive(serde::Serialize)]
+    struct Payload { blocked_pubkeys: Vec<String> }
+    let resp = state.http_client
+        .put(format!("{base}/identity/dm-blocks"))
+        .bearer_auth(&token)
+        .json(&Payload { blocked_pubkeys: blocked })
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
 fn dnd_settings_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
     Ok(home.join(".voxply").join("dnd_settings.json"))
@@ -8766,6 +8788,7 @@ pub fn run() {
             save_ignored_users,
             load_dnd_settings,
             save_dnd_settings,
+            update_dm_blocks,
             get_talk_power,
             set_talk_power_cmd,
             assign_role,
