@@ -3269,6 +3269,7 @@ function App() {
             onThemeChange={handleSetTheme}
             skin={skin}
             onSkinChange={handleSkinChange}
+            onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
             hasActiveHub={hasActiveHub}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}

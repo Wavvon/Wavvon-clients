@@ -9,6 +9,7 @@ import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
 import { ThemePicker } from "./ThemePicker";
 import { SkinEditor, makeSeed } from "./SkinEditor";
+import { SkinsGallery } from "./SkinsGallery";
 import type { ThemeId, VoxplySkin } from "../skinValidation";
 import { ProfileTab } from "./ProfileTab";
 import { RestoreIdentitySection } from "./RestoreIdentitySection";
@@ -106,6 +107,7 @@ export interface SettingsPageProps {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
+  onImportSkin: (skin: VoxplySkin) => void;
 }
 
 export function SettingsPage(props: SettingsPageProps) {
@@ -301,6 +303,7 @@ export function SettingsPage(props: SettingsPageProps) {
                 onChange={props.onSkinChange}
               />
             )}
+            <SkinsGallery onImport={props.onImportSkin} />
             <div className="settings-section">
               <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
               <div className="settings-row">
