@@ -8218,7 +8218,7 @@ async fn list_admin_games(hub_url: String, state: State<'_, AppState>) -> Result
             "author": g["author"],
             "version": g["version"],
             "channel_ids": g["channel_scope"],
-            "permissions": serde_json::Value::Array(vec![]),
+            "permissions": g["capabilities"].as_array().cloned().unwrap_or_default(),
         })
     }).collect())
 }
@@ -8275,7 +8275,21 @@ async fn uninstall_game(hub_url: String, game_id: String, state: State<'_, AppSt
 }
 
 #[tauri::command]
-fn set_game_permissions(_hub_url: String, _game_id: String, _permissions: serde_json::Value) -> Result<(), String> {
+async fn set_game_permissions(
+    hub_url: String,
+    game_id: String,
+    permissions: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = session_for_url(&state, &hub_url)?;
+    let res = state.http_client
+        .put(format!("{}/admin/games/{}/permissions", hub_url.trim_end_matches('/'), game_id))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "capabilities": permissions }))
+        .send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
     Ok(())
 }
 

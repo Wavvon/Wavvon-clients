@@ -215,7 +215,7 @@ export function GamesAdminSection({ hubUrl, channels }: Props) {
             <div style={{ marginTop: 10 }}>
               <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>Capability grants</label>
               <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 8 }}>
-                Capability grants are not yet enforced and have no effect until a future update.
+                Grants let this game call additional APIs when launched by a user.
               </p>
               {ALL_CAPABILITIES.map((cap) => (
                 <label key={cap.id} className="checkbox-label" style={{ display: "block", marginTop: 4 }}>
