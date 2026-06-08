@@ -7421,6 +7421,102 @@ async fn vote_poll(
 }
 
 // =============================================================================
+// Screen / window capture source enumeration
+// =============================================================================
+
+#[derive(serde::Serialize)]
+pub struct CaptureSource {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub thumbnail_b64: String,
+}
+
+#[tauri::command]
+async fn list_capture_sources() -> Result<Vec<CaptureSource>, String> {
+    use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
+    use image::{imageops, DynamicImage, ImageFormat};
+
+    let mut sources = Vec::new();
+
+    // Screens — enumerate all monitors.
+    let monitors = xcap::Monitor::all().map_err(|e| e.to_string())?;
+    for (idx, monitor) in monitors.iter().enumerate() {
+        let rgba = monitor.capture_image().map_err(|e| e.to_string())?;
+        let thumb = imageops::thumbnail(&rgba, 160, 90);
+        let dyn_img = DynamicImage::ImageRgba8(thumb);
+        let mut buf = Vec::new();
+        dyn_img
+            .write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+        sources.push(CaptureSource {
+            id: format!("screen:{}:0", idx),
+            name: monitor.name().to_string(),
+            kind: "screen".to_string(),
+            thumbnail_b64: B64.encode(&buf),
+        });
+    }
+
+    // Windows — enumerate visible application windows.
+    let windows = xcap::Window::all().map_err(|e| e.to_string())?;
+    for win in windows {
+        if win.is_minimized() {
+            continue;
+        }
+        let title = win.title().to_string();
+        if title.is_empty() {
+            continue;
+        }
+        let rgba = match win.capture_image() {
+            Ok(i) => i,
+            Err(_) => continue,
+        };
+        if rgba.width() < 100 || rgba.height() < 100 {
+            continue;
+        }
+        let thumb = imageops::thumbnail(&rgba, 160, 90);
+        let dyn_img = DynamicImage::ImageRgba8(thumb);
+        let mut buf = Vec::new();
+        dyn_img
+            .write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+        sources.push(CaptureSource {
+            id: format!("window:{}", win.id()),
+            name: title,
+            kind: "window".to_string(),
+            thumbnail_b64: B64.encode(&buf),
+        });
+    }
+
+    Ok(sources)
+}
+
+// =============================================================================
+// Channel banner file patch
+// =============================================================================
+
+#[tauri::command]
+async fn patch_channel_banner_file(
+    channel_id: String,
+    banner_file_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .patch(format!("{hub_url}/channels/{channel_id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "banner_file_id": banner_file_id }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+// =============================================================================
 // Feature 1: File / image uploads
 // =============================================================================
 
@@ -7430,6 +7526,7 @@ struct UploadResult {
     filename: String,
     size_bytes: u64,
     mime_type: String,
+    file_id: String,
 }
 
 #[tauri::command]
@@ -7474,6 +7571,7 @@ async fn upload_file(
         filename: json["filename"].as_str().unwrap_or(&filename).to_string(),
         size_bytes: json["size_bytes"].as_u64().unwrap_or(size_bytes),
         mime_type: json["mime_type"].as_str().unwrap_or(&mime_type).to_string(),
+        file_id: json["id"].as_str().unwrap_or("").to_string(),
     })
 }
 
@@ -8704,6 +8802,8 @@ pub fn run() {
             get_notification_prefs,
             set_notification_pref,
             fetch_link_preview,
+            list_capture_sources,
+            patch_channel_banner_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
