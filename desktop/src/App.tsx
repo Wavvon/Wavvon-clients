@@ -40,7 +40,7 @@ import type {
   BotDetailInfo,
   InstalledGame,
 } from "./types";
-import { ScreenSharePicker } from "./components/ScreenSharePicker";
+import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
 import { HubStreamsPanel } from "./components/HubStreamsPanel";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
@@ -487,6 +487,7 @@ function App() {
   const [newChannelType, setNewChannelType] = useState<"text" | "forum" | "category" | "banner">("text");
   const [newBannerUrl, setNewBannerUrl] = useState("");
   const [newBannerSourceMode, setNewBannerSourceMode] = useState<"url" | "upload">("url");
+  const [newBannerFile, setNewBannerFile] = useState<File | null>(null);
   const [newChannelParentId, setNewChannelParentId] = useState<string | null>(null);
 
   // Edit description dialog
@@ -2868,8 +2869,32 @@ function App() {
         isCategory: newChannelType === "category",
         channelType: newChannelType === "category" ? undefined : newChannelType,
         description: desc ? desc : null,
-        bannerUrl: newChannelType === "banner" ? (newBannerUrl.trim() || null) : null,
+        bannerUrl: newChannelType === "banner" && newBannerSourceMode === "url"
+          ? (newBannerUrl.trim() || null)
+          : null,
       });
+
+      if (newChannelType === "banner" && newBannerSourceMode === "upload" && newBannerFile) {
+        const filePath = (newBannerFile as any).path as string | undefined;
+        if (filePath) {
+          const activeHub = hubs.find((h) => h.hub_id === activeHubId);
+          if (activeHub) {
+            const uploadResult = await invoke<{ file_id: string }>("upload_file", {
+              hubUrl: activeHub.hub_url,
+              channelId: channel.id,
+              filePath,
+            });
+            if (uploadResult.file_id) {
+              await invoke("patch_channel_banner_file", {
+                channelId: channel.id,
+                bannerFileId: uploadResult.file_id,
+              });
+              channel.banner_file_id = uploadResult.file_id;
+            }
+          }
+        }
+      }
+
       setChannels((prev) => [...prev, channel]);
       setNewChannelName("");
       setNewChannelDescription("");
@@ -2877,6 +2902,7 @@ function App() {
       setNewChannelParentId(null);
       setNewBannerUrl("");
       setNewBannerSourceMode("url");
+      setNewBannerFile(null);
       setShowCreateChannel(false);
       if (!channel.is_category && channel.channel_type !== "banner") {
         selectChannel(channel);
@@ -3622,6 +3648,8 @@ function App() {
             onBannerUrlChange={setNewBannerUrl}
             bannerSourceMode={newBannerSourceMode}
             onBannerSourceModeChange={setNewBannerSourceMode}
+            bannerFile={newBannerFile}
+            onBannerFileChange={setNewBannerFile}
             parentId={newChannelParentId}
             onCreate={handleCreateChannel}
             onClose={() => setShowCreateChannel(false)}
@@ -3746,7 +3774,7 @@ function App() {
         />
 
         {voice.showSharePicker && (
-          <ScreenSharePicker
+          <ScreenShareModal
             onStart={voice.handleShareStart}
             onCancel={() => voice.setShowSharePicker(false)}
           />

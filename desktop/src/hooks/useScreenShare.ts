@@ -87,10 +87,25 @@ export function useScreenShare(channelId: string | null) {
 
     let displayStream: MediaStream;
     try {
-      displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30, max: 60 }, width: { max: 1920 }, height: { max: 1080 } },
-        audio: opts.includeAudio,
-      });
+      displayStream = await navigator.mediaDevices.getDisplayMedia(
+        opts.sourceId
+          ? {
+              video: {
+                mandatory: {
+                  chromeMediaSource: "desktop",
+                  chromeMediaSourceId: opts.sourceId,
+                  maxFrameRate: 30,
+                  maxWidth: 1920,
+                  maxHeight: 1080,
+                },
+              } as unknown as MediaTrackConstraints,
+              audio: opts.includeAudio,
+            }
+          : {
+              video: { frameRate: { ideal: 30, max: 60 }, width: { max: 1920 }, height: { max: 1080 } },
+              audio: opts.includeAudio,
+            }
+      );
     } catch (e) {
       ws.close();
       wsRef.current = null;

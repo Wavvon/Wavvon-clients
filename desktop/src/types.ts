@@ -319,6 +319,7 @@ export interface ActiveStream {
 }
 
 export interface ScreenShareOpts {
+  sourceId?: string;
   includeAudio: boolean;
   includeWebcam: boolean;
   webcamDeviceId: string;

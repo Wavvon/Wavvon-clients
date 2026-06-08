@@ -13,6 +13,8 @@ interface Props {
   onBannerUrlChange: (v: string) => void;
   bannerSourceMode: "url" | "upload";
   onBannerSourceModeChange: (v: "url" | "upload") => void;
+  bannerFile: File | null;
+  onBannerFileChange: (f: File | null) => void;
   parentId: string | null;
   onCreate: () => void;
   onClose: () => void;
@@ -23,6 +25,7 @@ export function CreateChannelModal({
   channelType, onChannelTypeChange,
   bannerUrl, onBannerUrlChange,
   bannerSourceMode, onBannerSourceModeChange,
+  bannerFile, onBannerFileChange,
   parentId, onCreate, onClose,
 }: Props) {
   const { t } = useTranslation();
@@ -78,7 +81,16 @@ export function CreateChannelModal({
                 maxLength={2048}
               />
             ) : (
-              <p className="muted">Create the banner first, then upload an image via the channel settings.</p>
+              <div>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  onChange={(e) => onBannerFileChange(e.target.files?.[0] ?? null)}
+                />
+                {bannerFile && (
+                  <p className="muted" style={{ marginTop: 4 }}>{bannerFile.name}</p>
+                )}
+              </div>
             )}
           </div>
         )}
