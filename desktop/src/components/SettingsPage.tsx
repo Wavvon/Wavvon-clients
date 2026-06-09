@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { Hub, NamedProfile } from "../types";
 import { formatPubkey } from "../utils/format";
-import { MISSIONS_ENABLED } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
@@ -19,7 +18,6 @@ import { IdentityBackupSection } from "./IdentityBackupSection";
 import { RecoveryContactsSection } from "./RecoveryContactsSection";
 import { IdentityCertificationsSection } from "./IdentityCertificationsSection";
 import { DeviceListSection } from "./DeviceListSection";
-import { MissionsSection } from "./MissionsSection";
 import { BlockIgnoreSection } from "./BlockIgnoreSection";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
@@ -30,8 +28,7 @@ export type SettingsTab =
   | "voice"
   | "security"
   | "devices"
-  | "about"
-  | "missions";
+  | "about";
 
 export interface SettingsPageProps {
   tab: SettingsTab;
@@ -150,7 +147,6 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "security", label: t("settings.tabs.security") },
     { id: "devices", label: t("settings.tabs.devices") },
     { id: "about", label: t("settings.tabs.about") },
-    ...(MISSIONS_ENABLED ? [{ id: "missions" as SettingsTab, label: "Missions" }] : []),
   ];
 
   return (
@@ -514,12 +510,6 @@ export function SettingsPage(props: SettingsPageProps) {
             <p className="muted">
               {t("settings.about.description")}
             </p>
-          </section>
-        )}
-        {props.tab === "missions" && (
-          <section>
-            <h1>Missions</h1>
-            <MissionsSection publicKey={props.publicKey} />
           </section>
         )}
       </main>
