@@ -48,7 +48,7 @@ import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
-import { MAX_ATTACHMENT_BYTES, DEMO_HUB_URL } from "./constants";
+import { MAX_ATTACHMENT_BYTES } from "./constants";
 import { type ThemeId, type VoxplySkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
 import { formatPubkey, mentionsName, newProfileId } from "./utils/format";
 import { playMentionPing } from "./utils/audio";
@@ -2850,12 +2850,6 @@ function App() {
     setHubAdminTab("invites");
   }
 
-  function openDemoHub() {
-    if (!DEMO_HUB_URL) return;
-    setHubUrl(DEMO_HUB_URL);
-    setShowAddHub(true);
-  }
-
   const channelTree = useMemo(() => {
     return buildChannelTree(channels);
   }, [channels]);
@@ -3413,7 +3407,6 @@ function App() {
                   loading={loading}
                   error={error}
                   onJoin={() => handleAddHub()}
-                  onJoinDemo={openDemoHub}
                   onBrowse={() => setShowDiscover(true)}
                   onCheckHubUrl={() => setShowHubBrowser(true)}
                   onDismiss={dismissWelcome}

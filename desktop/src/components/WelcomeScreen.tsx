@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { DEMO_HUB_URL } from "../constants";
 
 type HubPreview =
   | { state: "idle" }
@@ -14,7 +13,6 @@ interface WelcomeScreenProps {
   loading: boolean;
   error: string | null;
   onJoin: () => void;
-  onJoinDemo: () => void;
   onBrowse: () => void;
   onCheckHubUrl?: () => void;
   onDismiss: () => void;
@@ -27,7 +25,6 @@ export function WelcomeScreen({
   loading,
   error,
   onJoin,
-  onJoinDemo,
   onBrowse,
   onCheckHubUrl,
   onDismiss,
@@ -95,14 +92,6 @@ export function WelcomeScreen({
       </section>
 
       <div className="welcome-cta-row">
-        <button
-          className="btn-secondary"
-          disabled={!DEMO_HUB_URL}
-          title={!DEMO_HUB_URL ? "Coming soon" : undefined}
-          onClick={onJoinDemo}
-        >
-          {DEMO_HUB_URL ? "Try demo hub" : "Try demo hub (coming soon)"}
-        </button>
         <button className="btn-secondary" onClick={onBrowse}>
           Browse public hubs
         </button>
