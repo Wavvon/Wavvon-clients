@@ -9811,6 +9811,7 @@ mod tests {
             vad_threshold: Some(0.02),
             voice_mode: Some("ptt".to_string()),
             ptt_key: Some("Space".to_string()),
+            ..Default::default()
         };
         let json = serde_json::to_string(&s).unwrap();
         let back: StoredVoiceSettings = serde_json::from_str(&json).unwrap();
