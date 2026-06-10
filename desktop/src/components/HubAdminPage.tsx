@@ -9,7 +9,7 @@ import type {
   PendingUser,
   RoleInfo,
 } from "../types";
-import { formatPubkey, formatRelative } from "../utils/format";
+import { formatPubkey, formatRelative } from "@voxply/utils";
 import { ImagePicker } from "./ImagePicker";
 import { InvitesSection } from "./InvitesSection";
 import { MemberRow } from "./MemberRow";

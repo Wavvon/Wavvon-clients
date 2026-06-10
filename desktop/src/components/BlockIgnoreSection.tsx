@@ -1,4 +1,4 @@
-import { formatPubkey } from "../utils/format";
+import { formatPubkey } from "@voxply/utils";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
 interface Props {

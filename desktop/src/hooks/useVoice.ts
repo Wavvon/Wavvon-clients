@@ -5,7 +5,7 @@ import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "
 import { useScreenShare } from "./useScreenShare";
 import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
-import { playVoiceTone } from "../utils/audio";
+import { playVoiceTone } from "@voxply/utils";
 
 interface UseVoiceParams {
   activeHubId: string | null;

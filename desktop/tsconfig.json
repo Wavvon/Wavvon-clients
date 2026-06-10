@@ -9,12 +9,14 @@
     "skipLibCheck": true,
     "types": ["vite/client"],
     "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
       "i18next": ["./node_modules/i18next"],
       "react-i18next": ["./node_modules/react-i18next"],
       "i18next-icu": ["./node_modules/i18next-icu"],
-      "@voxply/i18n": ["../../web/i18n/index.ts"]
+      "@voxply/i18n": ["../../web/i18n/index.ts"],
+      "@voxply/utils": ["../../web/utils/index.ts"]
     }
   },
-  "include": ["src", "../../web/i18n"],
+  "include": ["src", "../../web/i18n", "../../web/utils"],
   "exclude": ["../../web/i18n/check-coverage.ts"]
 }

@@ -51,11 +51,18 @@ import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
 import { MAX_ATTACHMENT_BYTES } from "./constants";
 import { type ThemeId, type VoxplySkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
-import { formatPubkey, mentionsName, newProfileId } from "./utils/format";
-import { playMentionPing } from "./utils/audio";
+import {
+  formatPubkey,
+  mentionsName,
+  newProfileId,
+  playMentionPing,
+  buildChannelTree,
+  flattenTree,
+  descendantIds,
+  computeDepth,
+} from "@voxply/utils";
 import { readFileAsB64 } from "./utils/files";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
-import { buildChannelTree, flattenTree, descendantIds, computeDepth } from "./utils/channels";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts } from "./hooks/useUnreadCounts";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";

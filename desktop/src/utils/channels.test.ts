@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildChannelTree, flattenTree, computeDepth, descendantIds } from "./channels";
+import { buildChannelTree, flattenTree, computeDepth, descendantIds } from "@voxply/utils";
 import type { Channel } from "../types";
 
 function ch(
