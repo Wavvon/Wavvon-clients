@@ -165,8 +165,20 @@ impl AudioPipeline {
         let (level_tx, level_rx) = mpsc::unbounded_channel::<f32>();
 
         let task = tokio::spawn(async move {
-            let mut encoder = VoiceEncoder::new(opus_rate, &cfg).expect("Failed to create encoder");
-            let mut decoder = VoiceDecoder::new(opus_rate).expect("Failed to create decoder");
+            let mut encoder = match VoiceEncoder::new(opus_rate, &cfg) {
+                Ok(e) => e,
+                Err(err) => {
+                    tracing::error!(error = %err, "Loopback: failed to create encoder, task exiting");
+                    return;
+                }
+            };
+            let mut decoder = match VoiceDecoder::new(opus_rate) {
+                Ok(d) => d,
+                Err(err) => {
+                    tracing::error!(error = %err, "Loopback: failed to create decoder, task exiting");
+                    return;
+                }
+            };
             let mut denoiser = Denoiser::new();
             denoiser.bypass = !cfg.noise_suppress;
             let mut read_buf = vec![0.0f32; frame_size];
@@ -269,7 +281,13 @@ impl AudioPipeline {
         let vad_enabled = cfg.vad_enabled;
         let vad_threshold = cfg.vad_threshold;
         let send_task = tokio::spawn(async move {
-            let mut encoder = VoiceEncoder::new(opus_rate, &cfg).expect("Failed to create encoder");
+            let mut encoder = match VoiceEncoder::new(opus_rate, &cfg) {
+                Ok(e) => e,
+                Err(err) => {
+                    tracing::error!(error = %err, "P2P send: failed to create encoder, task exiting");
+                    return;
+                }
+            };
             let mut denoiser = Denoiser::new();
             denoiser.bypass = !cfg.noise_suppress;
             let mut read_buf = vec![0.0f32; frame_size];
@@ -385,10 +403,25 @@ impl AudioPipeline {
                         if recv_deafened.load(Ordering::Relaxed) {
                             continue;
                         }
-                        // Get or create a decoder for this sender
-                        let decoder = decoders.entry(packet.sender_id).or_insert_with(|| {
-                            VoiceDecoder::new(opus_rate).expect("Failed to create decoder")
-                        });
+                        // Get or create a decoder for this sender. If decoder
+                        // construction fails (e.g. bad opus_rate), skip this packet
+                        // rather than panicking inside the receive task.
+                        let decoder = match decoders.entry(packet.sender_id) {
+                            std::collections::hash_map::Entry::Occupied(e) => e.into_mut(),
+                            std::collections::hash_map::Entry::Vacant(e) => {
+                                match VoiceDecoder::new(opus_rate) {
+                                    Ok(d) => e.insert(d),
+                                    Err(err) => {
+                                        tracing::warn!(
+                                            sender_id = packet.sender_id,
+                                            error = %err,
+                                            "Failed to create decoder for sender, dropping packet"
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
+                        };
 
                         match decoder.decode(&packet.opus_data) {
                             Ok(samples) => {
