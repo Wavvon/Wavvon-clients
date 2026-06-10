@@ -5343,15 +5343,8 @@ async fn encrypt_dm(
     let nonce_hex = hex::encode(nonce_bytes);
     let dh_pubkey_hex = hex::encode(my_dh_pub.as_bytes());
 
-    let signing_msg = {
-        let mut out = b"voxply/dm-ciphertext/v1\0".to_vec();
-        for s in [&conv_id, &ciphertext_hex, &nonce_hex, &dh_pubkey_hex] {
-            let b = s.as_bytes();
-            out.extend_from_slice(&(b.len() as u32).to_le_bytes());
-            out.extend_from_slice(b);
-        }
-        out
-    };
+    let signing_msg =
+        dm_envelope_signing_bytes(&conv_id, &ciphertext_hex, &nonce_hex, &dh_pubkey_hex);
     let sig = hex::encode(identity.sign(&signing_msg).to_bytes());
 
     Ok(serde_json::json!({
@@ -5396,6 +5389,24 @@ fn save_sender_key_state(state: &serde_json::Value) -> Result<(), String> {
     }
     let text = serde_json::to_string_pretty(state).map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// Signing bytes for a 1:1 encrypted DM envelope. Must stay
+/// byte-identical to the hub's canonical encoder; pinned by the wire
+/// vectors in identity.rs.
+fn dm_envelope_signing_bytes(
+    conv_id: &str,
+    ciphertext_hex: &str,
+    nonce_hex: &str,
+    dh_pubkey_hex: &str,
+) -> Vec<u8> {
+    let mut out = b"voxply/dm-ciphertext/v1\0".to_vec();
+    for s in [conv_id, ciphertext_hex, nonce_hex, dh_pubkey_hex] {
+        let b = s.as_bytes();
+        out.extend_from_slice(&(b.len() as u32).to_le_bytes());
+        out.extend_from_slice(b);
+    }
+    out
 }
 
 fn sender_key_dist_signing_bytes(
