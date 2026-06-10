@@ -992,3 +992,7 @@ export interface HubEvent {
   going_count: number;
   maybe_count: number;
 }
+
+export interface TauriFile extends File {
+  path?: string;
+}

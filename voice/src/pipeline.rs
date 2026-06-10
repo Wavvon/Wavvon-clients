@@ -6,8 +6,8 @@ use std::time::Duration;
 use tokio::sync::RwLock as TokioRwLock;
 
 use anyhow::Result;
-use ringbuf::HeapRb;
 use ringbuf::traits::{Consumer, Producer, Split};
+use ringbuf::HeapRb;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
@@ -64,9 +64,7 @@ impl VoiceSettings {
     pub fn effective_config(&self) -> EffectiveVoiceConfig {
         match self.audio_profile {
             AudioProfile::Standard => EffectiveVoiceConfig {
-                vad_threshold: self
-                    .vad_threshold
-                    .unwrap_or(DEFAULT_VAD_THRESHOLD),
+                vad_threshold: self.vad_threshold.unwrap_or(DEFAULT_VAD_THRESHOLD),
                 ..EffectiveVoiceConfig::default()
             },
             AudioProfile::Music => EffectiveVoiceConfig {
@@ -138,9 +136,7 @@ fn resolve_opus_rate(device_rate: u32) -> u32 {
     match device_rate {
         8000 | 12000 | 16000 | 24000 | 48000 => device_rate,
         _ => {
-            tracing::warn!(
-                "Device rate {device_rate} Hz not supported by Opus, using 48000 Hz"
-            );
+            tracing::warn!("Device rate {device_rate} Hz not supported by Opus, using 48000 Hz");
             48000
         }
     }
@@ -158,8 +154,10 @@ impl AudioPipeline {
         let playback_rb = HeapRb::<f32>::new(RING_BUFFER_SIZE);
         let (mut playback_prod, playback_cons) = playback_rb.split();
 
-        let capture = AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
-        let playback = AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
+        let capture =
+            AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
+        let playback =
+            AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
 
         let cfg = EffectiveVoiceConfig::default();
         let opus_rate = resolve_opus_rate(capture.actual_sample_rate);
@@ -187,7 +185,7 @@ impl AudioPipeline {
                 let denoised = denoiser.process(&read_buf[..count]);
 
                 level_tick = level_tick.wrapping_add(1);
-                if level_tick % 5 == 0 {
+                if level_tick.is_multiple_of(5) {
                     let _ = level_tx.send(rms_of(&denoised));
                 }
 
@@ -238,8 +236,10 @@ impl AudioPipeline {
         let playback_rb = HeapRb::<f32>::new(RING_BUFFER_SIZE);
         let (mut playback_prod, playback_cons) = playback_rb.split();
 
-        let capture = AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
-        let playback = AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
+        let capture =
+            AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
+        let playback =
+            AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
 
         // Resolve the active profile once; all sub-tasks use the same snapshot.
         let cfg = settings.effective_config();
@@ -305,7 +305,7 @@ impl AudioPipeline {
 
                 // Decimate level emission to ~20 Hz (every 5 ticks of 10 ms).
                 level_tick = level_tick.wrapping_add(1);
-                if level_tick % 5 == 0 {
+                if level_tick.is_multiple_of(5) {
                     let _ = level_tx.send(rms);
                 }
 
@@ -373,7 +373,10 @@ impl AudioPipeline {
                         // Track whisper state transitions before checking deafened,
                         // so indicators update even when deafened.
                         let is_whisper = packet.is_whisper();
-                        let was_whispering = whisper_state.get(&packet.sender_id).copied().unwrap_or(false);
+                        let was_whispering = whisper_state
+                            .get(&packet.sender_id)
+                            .copied()
+                            .unwrap_or(false);
                         if is_whisper != was_whispering {
                             whisper_state.insert(packet.sender_id, is_whisper);
                             let _ = whisper_tx.send((packet.sender_id, is_whisper));
@@ -383,9 +386,9 @@ impl AudioPipeline {
                             continue;
                         }
                         // Get or create a decoder for this sender
-                        let decoder = decoders
-                            .entry(packet.sender_id)
-                            .or_insert_with(|| VoiceDecoder::new(opus_rate).expect("Failed to create decoder"));
+                        let decoder = decoders.entry(packet.sender_id).or_insert_with(|| {
+                            VoiceDecoder::new(opus_rate).expect("Failed to create decoder")
+                        });
 
                         match decoder.decode(&packet.opus_data) {
                             Ok(samples) => {
@@ -401,12 +404,18 @@ impl AudioPipeline {
                                     let _ = playback_prod.push_slice(samples);
                                 } else {
                                     // Apply gain
-                                    let gained: Vec<f32> = samples.iter().map(|s| (s * gain).clamp(-1.0, 1.0)).collect();
+                                    let gained: Vec<f32> = samples
+                                        .iter()
+                                        .map(|s| (s * gain).clamp(-1.0, 1.0))
+                                        .collect();
                                     let _ = playback_prod.push_slice(&gained);
                                 }
                             }
                             Err(e) => {
-                                tracing::warn!("Decode error from sender {}: {e}", packet.sender_id);
+                                tracing::warn!(
+                                    "Decode error from sender {}: {e}",
+                                    packet.sender_id
+                                );
                             }
                         }
                     }

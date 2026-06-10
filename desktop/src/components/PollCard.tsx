@@ -70,7 +70,9 @@ export function PollCard({ poll, hubId, hubUrl, myPubkey, isAdmin, onDeleted }: 
   const totalVotes = Object.values(totals).reduce((a, b) => a + b, 0);
 
   useEffect(() => {
-    const unlisten = listen<PollVoteUpdatedPayload>("poll-vote-updated", (event) => {
+    let cancelled = false;
+    let unlistenFn: (() => void) | null = null;
+    listen<PollVoteUpdatedPayload>("poll-vote-updated", (event) => {
       const payload = event.payload;
       if (payload.hub_id === hubId && payload.poll_id === poll.id) {
         const converted: Record<string, number> = {};
@@ -79,9 +81,13 @@ export function PollCard({ poll, hubId, hubUrl, myPubkey, isAdmin, onDeleted }: 
         }
         setTotals(converted);
       }
+    }).then((fn) => {
+      if (cancelled) { fn(); return; }
+      unlistenFn = fn;
     });
     return () => {
-      unlisten.then((fn) => fn());
+      cancelled = true;
+      unlistenFn?.();
     };
   }, [hubId, poll.id]);
 

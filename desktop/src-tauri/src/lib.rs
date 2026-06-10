@@ -1,3 +1,4 @@
+use crate::identity::Identity;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -6,8 +7,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use crate::identity::Identity;
-use x25519_dalek;
+use x25519_dalek as _;
 
 mod auth_creds;
 mod devices;
@@ -15,6 +15,11 @@ mod home_hub;
 mod identity;
 mod pairing;
 mod prefs_blob;
+
+type VoiceRosterMaps = Option<(
+    std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<u16, f32>>>,
+    std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<u16, String>>>,
+)>;
 
 // --- Typed command errors ---
 
@@ -88,15 +93,42 @@ struct HubSession {
 enum WsCommand {
     Subscribe(String),
     Unsubscribe(String),
-    VoiceJoin { channel_id: String, udp_port: u16 },
-    VoiceLeave { channel_id: String },
-    VoiceSpeaking { channel_id: String, speaking: bool },
-    Typing { channel_id: String, typing: bool },
-    DmTyping { conversation_id: String, typing: bool },
-    GameSend { session_id: String, payload: serde_json::Value, to: Option<String> },
-    GameSetStatus { session_id: String, status: String },
-    GameSnapshot { session_id: String, blob: String },
-    GameEnd { session_id: String, result: Option<serde_json::Value> },
+    VoiceJoin {
+        channel_id: String,
+        udp_port: u16,
+    },
+    VoiceLeave {
+        channel_id: String,
+    },
+    VoiceSpeaking {
+        channel_id: String,
+        speaking: bool,
+    },
+    Typing {
+        channel_id: String,
+        typing: bool,
+    },
+    DmTyping {
+        conversation_id: String,
+        typing: bool,
+    },
+    GameSend {
+        session_id: String,
+        payload: serde_json::Value,
+        to: Option<String>,
+    },
+    GameSetStatus {
+        session_id: String,
+        status: String,
+    },
+    GameSnapshot {
+        session_id: String,
+        blob: String,
+    },
+    GameEnd {
+        session_id: String,
+        result: Option<serde_json::Value>,
+    },
     Raw(String),
 }
 
@@ -111,12 +143,21 @@ struct AttenuationConfigInfo {
     #[serde(default = "default_rolloff")]
     pub rolloff: f64,
 }
-fn default_attenuation_model() -> String { "linear".to_string() }
-fn default_max_radius() -> f64 { 200.0 }
-fn default_ref_dist() -> f64 { 20.0 }
-fn default_rolloff() -> f64 { 1.0 }
+fn default_attenuation_model() -> String {
+    "linear".to_string()
+}
+fn default_max_radius() -> f64 {
+    200.0
+}
+fn default_ref_dist() -> f64 {
+    20.0
+}
+fn default_rolloff() -> f64 {
+    1.0
+}
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct ZoneInfo {
     pub zone_id: String,
     pub coordinate_system: String,
@@ -275,7 +316,6 @@ struct PendingUser {
     first_seen_at: i64,
 }
 
-
 #[derive(Serialize, Deserialize, Clone)]
 struct ChannelInfo {
     id: String,
@@ -424,6 +464,7 @@ struct MessageInfo {
 
 #[derive(Deserialize)]
 #[serde(tag = "type")]
+#[allow(dead_code)]
 enum WsServerMessage {
     #[serde(rename = "message")]
     ChatMessage {
@@ -476,10 +517,7 @@ enum WsServerMessage {
         speaking: bool,
     },
     #[serde(rename = "error")]
-    Error {
-        context: String,
-        message: String,
-    },
+    Error { context: String, message: String },
     #[serde(rename = "dm")]
     DirectMessage {
         conversation_id: String,
@@ -515,10 +553,7 @@ enum WsServerMessage {
         attenuation: AttenuationConfigInfo,
     },
     #[serde(rename = "voice_zone_destroyed")]
-    VoiceZoneDestroyed {
-        channel_id: String,
-        zone_id: String,
-    },
+    VoiceZoneDestroyed { channel_id: String, zone_id: String },
     #[serde(rename = "voice_position_updated")]
     VoicePositionUpdated {
         channel_id: String,
@@ -546,10 +581,7 @@ enum WsServerMessage {
         display_name: Option<String>,
     },
     #[serde(rename = "game_player_left")]
-    GamePlayerLeft {
-        session_id: String,
-        pubkey: String,
-    },
+    GamePlayerLeft { session_id: String, pubkey: String },
     #[serde(rename = "game_host_changed")]
     GameHostChanged {
         session_id: String,
@@ -570,15 +602,9 @@ enum WsServerMessage {
         result: Option<serde_json::Value>,
     },
     #[serde(rename = "video_participant_enabled")]
-    VideoParticipantEnabled {
-        channel_id: String,
-        pubkey: String,
-    },
+    VideoParticipantEnabled { channel_id: String, pubkey: String },
     #[serde(rename = "video_participant_disabled")]
-    VideoParticipantDisabled {
-        channel_id: String,
-        pubkey: String,
-    },
+    VideoParticipantDisabled { channel_id: String, pubkey: String },
     #[serde(rename = "video_participants")]
     VideoParticipants {
         channel_id: String,
@@ -678,7 +704,10 @@ fn load_appearance() -> AppearanceSettings {
         .ok()
         .and_then(|p| std::fs::read_to_string(&p).ok())
         .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or(AppearanceSettings { slot: "calm".to_string(), skin: None })
+        .unwrap_or(AppearanceSettings {
+            slot: "calm".to_string(),
+            skin: None,
+        })
 }
 
 #[tauri::command]
@@ -794,18 +823,20 @@ fn save_ignored_users(ignored: Vec<String>) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn update_dm_blocks(
-    blocked: Vec<String>,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn update_dm_blocks(blocked: Vec<String>, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let base = hub_url.trim_end_matches('/');
     #[derive(serde::Serialize)]
-    struct Payload { blocked_pubkeys: Vec<String> }
-    let resp = state.http_client
+    struct Payload {
+        blocked_pubkeys: Vec<String>,
+    }
+    let resp = state
+        .http_client
         .put(format!("{base}/identity/dm-blocks"))
         .bearer_auth(&token)
-        .json(&Payload { blocked_pubkeys: blocked })
+        .json(&Payload {
+            blocked_pubkeys: blocked,
+        })
         .send()
         .await
         .map_err(|e| format!("Failed: {e}"))?;
@@ -1054,7 +1085,11 @@ fn load_active_hub_id() -> Option<String> {
     let path = active_hub_path().ok()?;
     let data = std::fs::read_to_string(&path).ok()?;
     let trimmed = data.trim();
-    if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn save_active_hub_id(hub_id: Option<&str>) {
@@ -1140,7 +1175,9 @@ async fn add_hub(
 
     // Authenticate — paired-device clients include the master cert,
     // legacy clients use the single-key flow unchanged.
-    let token = creds.authenticate(&auth_url, &client, invite_code.as_deref()).await?;
+    let token = creds
+        .authenticate(&auth_url, &client, invite_code.as_deref())
+        .await?;
 
     // Auto-apply the user's default profile to this hub whenever the hub
     // doesn't already have a value for the field. Lets a new hub inherit
@@ -1194,7 +1231,8 @@ async fn add_hub(
     }
 
     // Spawn WS task with hub_id tagging
-    let (cmd_tx, ws_task) = spawn_ws_task(hub_id.clone(), hub_url.clone(), token.clone(), app.clone()).await?;
+    let (cmd_tx, ws_task) =
+        spawn_ws_task(hub_id.clone(), hub_url.clone(), token.clone(), app.clone()).await?;
 
     let session = HubSession {
         hub_id: hub_id.clone(),
@@ -1467,10 +1505,7 @@ async fn spawn_ws_task(
                                     }
                                     WsServerMessage::VoiceRosterUpdate { channel_id, participants } => {
                                         // Update the roster map in the active voice session
-                                        let maps: Option<(
-                                            std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<u16, f32>>>,
-                                            std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<u16, String>>>,
-                                        )> = {
+                                        let maps: VoiceRosterMaps = {
                                             let app_state = app.state::<AppState>();
                                             let lock = app_state.voice.lock().unwrap();
                                             lock.as_ref()
@@ -1741,7 +1776,7 @@ async fn spawn_ws_task(
                         WsCommand::GameSend { session_id, payload, to } => {
                             let mut m = serde_json::json!({ "type": "game_send", "session_id": session_id, "payload": payload });
                             if let Some(t) = to { m["to"] = serde_json::json!(t); }
-                            if ws_tx.send(WsMessage::Text(m.to_string().into())).await.is_err() {
+                            if ws_tx.send(WsMessage::Text(m.to_string())).await.is_err() {
                                 break;
                             }
                             continue;
@@ -1756,13 +1791,13 @@ async fn spawn_ws_task(
                             serde_json::json!({ "type": "game_end", "session_id": session_id, "result": result })
                         }
                         WsCommand::Raw(raw_json) => {
-                            if ws_tx.send(WsMessage::Text(raw_json.into())).await.is_err() {
+                            if ws_tx.send(WsMessage::Text(raw_json)).await.is_err() {
                                 break;
                             }
                             continue;
                         }
                     };
-                    if ws_tx.send(WsMessage::Text(json.to_string().into())).await.is_err() {
+                    if ws_tx.send(WsMessage::Text(json.to_string())).await.is_err() {
                         break;
                     }
                 }
@@ -1943,7 +1978,8 @@ async fn update_channel_appearance(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let body = serde_json::json!({ "icon": icon, "color": color, "custom_icon_svg": custom_icon_svg });
+    let body =
+        serde_json::json!({ "icon": icon, "color": color, "custom_icon_svg": custom_icon_svg });
     let resp = client
         .patch(format!("{hub_url}/channels/{channel_id}"))
         .bearer_auth(&token)
@@ -2018,7 +2054,7 @@ async fn list_users(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<Us
                         .send()
                         .await
                         .map_err(|e| format!("Failed: {e}"))?;
-                    return retry.json().await.map_err(|e| format!("Invalid: {e}"))
+                    return retry.json().await.map_err(|e| format!("Invalid: {e}"));
                 }
                 Err(e) => {
                     // Auth refused — likely banned, or the hub identity changed.
@@ -2074,16 +2110,19 @@ async fn reauth_session(
         let mut hubs = state.hubs.lock().unwrap();
         let session = hubs.get_mut(hub_id).ok_or("Hub vanished mid-reauth")?;
         session.token = new_token.clone();
-        let old_task =
-            std::mem::replace(&mut session.ws_task, tokio::spawn(async {}));
+        let old_task = std::mem::replace(&mut session.ws_task, tokio::spawn(async {}));
         (old_task, session.hub_id.clone())
     };
     old_task.abort();
 
-    let (new_cmd_tx, new_task) =
-        spawn_ws_task(hub_id_clone.clone(), hub_url, new_token.clone(), app.clone())
-            .await
-            .map_err(|e| format!("ws reconnect: {e}"))?;
+    let (new_cmd_tx, new_task) = spawn_ws_task(
+        hub_id_clone.clone(),
+        hub_url,
+        new_token.clone(),
+        app.clone(),
+    )
+    .await
+    .map_err(|e| format!("ws reconnect: {e}"))?;
 
     {
         let mut hubs = state.hubs.lock().unwrap();
@@ -2114,7 +2153,10 @@ async fn get_messages(
         let body = resp.text().await.unwrap_or_default();
         return Err(map_http_status(status, body));
     }
-    let mut messages: Vec<MessageInfo> = resp.json().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut messages: Vec<MessageInfo> = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     messages.reverse();
     Ok(messages)
 }
@@ -2337,7 +2379,9 @@ async fn send_message(
         let body = resp.text().await.unwrap_or_default();
         return Err(map_http_status(status, body));
     }
-    resp.json().await.map_err(|e| AppError::Internal(e.to_string()))
+    resp.json()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))
 }
 
 #[tauri::command]
@@ -2350,7 +2394,9 @@ async fn edit_message(
     let (hub_url, token) = active_session(&state).map_err(AppError::Internal)?;
     let client = state.http_client.clone();
     let resp = client
-        .patch(format!("{hub_url}/channels/{channel_id}/messages/{message_id}"))
+        .patch(format!(
+            "{hub_url}/channels/{channel_id}/messages/{message_id}"
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "content": content }))
         .send()
@@ -2360,7 +2406,9 @@ async fn edit_message(
         let body = resp.text().await.unwrap_or_default();
         return Err(map_http_status(status, body));
     }
-    resp.json().await.map_err(|e| AppError::Internal(e.to_string()))
+    resp.json()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))
 }
 
 #[tauri::command]
@@ -2372,7 +2420,9 @@ async fn delete_message(
     let (hub_url, token) = active_session(&state).map_err(AppError::Internal)?;
     let client = state.http_client.clone();
     let resp = client
-        .delete(format!("{hub_url}/channels/{channel_id}/messages/{message_id}"))
+        .delete(format!(
+            "{hub_url}/channels/{channel_id}/messages/{message_id}"
+        ))
         .bearer_auth(&token)
         .send()
         .await?;
@@ -2663,8 +2713,10 @@ async fn preview_hub_info(url: String) -> Result<InfoResponse, String> {
 #[tauri::command]
 fn reorder_hubs(hub_ids: Vec<String>) -> Result<(), String> {
     let saved = load_saved_hubs();
-    let by_id: std::collections::HashMap<String, SavedHub> =
-        saved.iter().map(|h| (h.hub_id.clone(), h.clone())).collect();
+    let by_id: std::collections::HashMap<String, SavedHub> = saved
+        .iter()
+        .map(|h| (h.hub_id.clone(), h.clone()))
+        .collect();
 
     let mut next: Vec<SavedHub> = Vec::with_capacity(saved.len());
     let mut seen = std::collections::HashSet::new();
@@ -2685,11 +2737,7 @@ fn reorder_hubs(hub_ids: Vec<String>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn set_typing(
-    channel_id: String,
-    typing: bool,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+fn set_typing(channel_id: String, typing: bool, state: State<'_, AppState>) -> Result<(), String> {
     let tx = active_ws_tx(&state)?;
     // Best-effort: if the WS is closed, the user just doesn't broadcast a
     // typing event -- not worth surfacing to the UI.
@@ -2704,7 +2752,10 @@ fn set_dm_typing(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let tx = active_ws_tx(&state)?;
-    let _ = tx.send(WsCommand::DmTyping { conversation_id, typing });
+    let _ = tx.send(WsCommand::DmTyping {
+        conversation_id,
+        typing,
+    });
     Ok(())
 }
 
@@ -2796,26 +2847,41 @@ async fn voice_join(
                 custom_frame_ms: saved.custom_frame_ms,
                 custom_complexity: saved.custom_complexity,
             };
-            let mut pipeline = match voxply_voice::AudioPipeline::start_p2p_with_settings(
-                0, hub_addr, vsettings,
-            )
-            .await
-            {
-                Ok(p) => p,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("Audio: {e}")));
-                    return;
-                }
-            };
+            let mut pipeline =
+                match voxply_voice::AudioPipeline::start_p2p_with_settings(0, hub_addr, vsettings)
+                    .await
+                {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let _ = ready_tx.send(Err(format!("Audio: {e}")));
+                        return;
+                    }
+                };
 
             let local_port = pipeline.local_udp_port;
             let muted_arc = pipeline.muted.clone();
             let deafened_arc = pipeline.deafened.clone();
             let gain_map = pipeline.gain_map.clone();
             let roster_map = pipeline.roster_map.clone();
-            let voice_zones = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<String, ZoneInfo>::new()));
-            let my_position = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<String, Vec<f64>>::new()));
-            let _ = ready_tx.send(Ok((local_port, muted_arc, deafened_arc, gain_map, roster_map, voice_zones, my_position)));
+            let voice_zones =
+                std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+                    String,
+                    ZoneInfo,
+                >::new()));
+            let my_position =
+                std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+                    String,
+                    Vec<f64>,
+                >::new()));
+            let _ = ready_tx.send(Ok((
+                local_port,
+                muted_arc,
+                deafened_arc,
+                gain_map,
+                roster_map,
+                voice_zones,
+                my_position,
+            )));
 
             // Forward speaking state from the VAD to the hub WS and emit a
             // local Tauri event so the current user's own chip can pulse too.
@@ -2856,10 +2922,13 @@ async fn voice_join(
                         rm.get(&sender_id).cloned().unwrap_or_default()
                     };
                     if !pubkey.is_empty() {
-                        let _ = whisper_app.emit("voice-whisper-receiving", serde_json::json!({
-                            "sender_pubkey": pubkey,
-                            "is_whisper": is_whisper,
-                        }));
+                        let _ = whisper_app.emit(
+                            "voice-whisper-receiving",
+                            serde_json::json!({
+                                "sender_pubkey": pubkey,
+                                "is_whisper": is_whisper,
+                            }),
+                        );
                     }
                 }
             });
@@ -2938,10 +3007,9 @@ fn voice_leave(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 fn list_audio_devices() -> Result<AudioDeviceList, String> {
-    let inputs = voxply_voice::devices::list_input_devices()
-        .map_err(|e| format!("inputs: {e}"))?;
-    let outputs = voxply_voice::devices::list_output_devices()
-        .map_err(|e| format!("outputs: {e}"))?;
+    let inputs = voxply_voice::devices::list_input_devices().map_err(|e| format!("inputs: {e}"))?;
+    let outputs =
+        voxply_voice::devices::list_output_devices().map_err(|e| format!("outputs: {e}"))?;
     Ok(AudioDeviceList { inputs, outputs })
 }
 
@@ -2970,7 +3038,8 @@ fn set_voice_gain(public_key: String, gain: f32, state: State<'_, AppState>) -> 
     // Update the live gain map if in a voice session
     let session_data = {
         let lock = state.voice.lock().unwrap();
-        lock.as_ref().map(|s| (s.roster_map.clone(), s.gain_map.clone()))
+        lock.as_ref()
+            .map(|s| (s.roster_map.clone(), s.gain_map.clone()))
     };
     if let Some((roster_map, gain_map)) = session_data {
         let pk = public_key.clone();
@@ -3000,7 +3069,8 @@ fn recompute_proximity_gains(
 
     // Build pubkey → proximity_gain from all zones.
     // If a pubkey appears in multiple zones, multiply the contributions.
-    let mut pubkey_proximity: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
+    let mut pubkey_proximity: std::collections::HashMap<String, f32> =
+        std::collections::HashMap::new();
 
     for (zone_id, zone) in zmap.iter() {
         let my_pos = match my_pos_map.get(zone_id) {
@@ -3038,11 +3108,17 @@ fn recompute_proximity_gains(
 }
 
 fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
-    a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum::<f64>().sqrt()
+    a.iter()
+        .zip(b.iter())
+        .map(|(x, y)| (x - y).powi(2))
+        .sum::<f64>()
+        .sqrt()
 }
 
 fn evaluate_attenuation(cfg: &AttenuationConfigInfo, d: f64) -> f64 {
-    if d <= 0.0 { return 1.0; }
+    if d <= 0.0 {
+        return 1.0;
+    }
     match cfg.model.as_str() {
         "inverse_square" => {
             let ref_d = cfg.ref_dist.max(0.001);
@@ -3051,15 +3127,20 @@ fn evaluate_attenuation(cfg: &AttenuationConfigInfo, d: f64) -> f64 {
         "step" => {
             let inner = cfg.ref_dist;
             let outer = cfg.max_radius;
-            if d <= inner { 1.0 }
-            else if d >= outer { 0.0 }
-            else { 1.0 - (d - inner) / (outer - inner) }
+            if d <= inner {
+                1.0
+            } else if d >= outer {
+                0.0
+            } else {
+                1.0 - (d - inner) / (outer - inner)
+            }
         }
         "exponential" => {
             let k = cfg.rolloff / cfg.ref_dist.max(0.001);
             (-k * d).exp().clamp(0.0, 1.0)
         }
-        _ => { // "linear" default
+        _ => {
+            // "linear" default
             (1.0 - d / cfg.max_radius.max(0.001)).clamp(0.0, 1.0)
         }
     }
@@ -3071,15 +3152,26 @@ fn set_voice_position(
     position: Vec<f64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let session_data = state.voice.lock().unwrap().as_ref().map(|s| (
-        s.voice_zones.clone(),
-        s.my_position.clone(),
-        s.roster_map.clone(),
-        s.gain_map.clone(),
-    ));
+    let session_data = state.voice.lock().unwrap().as_ref().map(|s| {
+        (
+            s.voice_zones.clone(),
+            s.my_position.clone(),
+            s.roster_map.clone(),
+            s.gain_map.clone(),
+        )
+    });
     if let Some((voice_zones, my_pos, roster_map, gain_map)) = session_data {
-        my_pos.lock().unwrap().insert(zone_id.clone(), position.clone());
-        recompute_proximity_gains(&voice_zones, &my_pos, &roster_map, &gain_map, &load_voice_gains());
+        my_pos
+            .lock()
+            .unwrap()
+            .insert(zone_id.clone(), position.clone());
+        recompute_proximity_gains(
+            &voice_zones,
+            &my_pos,
+            &roster_map,
+            &gain_map,
+            &load_voice_gains(),
+        );
     }
     Ok(())
 }
@@ -3191,7 +3283,10 @@ fn mic_test_stop(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn update_display_name(display_name: String, state: State<'_, AppState>) -> Result<(), String> {
+async fn update_display_name(
+    display_name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -3298,8 +3393,11 @@ fn sign_message(message: String) -> Result<String, String> {
 /// Returns the path of the written file so the UI can show it to the user.
 #[tauri::command]
 fn export_identity_backup(passphrase: String) -> Result<String, String> {
+    use aes_gcm::{
+        aead::{Aead, KeyInit},
+        Aes256Gcm, Nonce as AesNonce,
+    };
     use argon2::{Algorithm, Argon2, Params, Version};
-    use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce as AesNonce};
     use rand::RngCore;
 
     let identity_path = Identity::default_path().map_err(|e| e.to_string())?;
@@ -3310,8 +3408,7 @@ fn export_identity_backup(passphrase: String) -> Result<String, String> {
     let mut salt = [0u8; 16];
     rand::rngs::OsRng.fill_bytes(&mut salt);
 
-    let params = Params::new(65536, 3, 1, Some(32))
-        .map_err(|e| format!("Argon2 params: {e}"))?;
+    let params = Params::new(65536, 3, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0u8; 32];
     argon2
@@ -3321,8 +3418,7 @@ fn export_identity_backup(passphrase: String) -> Result<String, String> {
     // AES-256-GCM encryption.
     let mut nonce_bytes = [0u8; 12];
     rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
-    let cipher = Aes256Gcm::new_from_slice(&key)
-        .map_err(|e| format!("AES key init: {e}"))?;
+    let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| format!("AES key init: {e}"))?;
     let ciphertext = cipher
         .encrypt(AesNonce::from_slice(&nonce_bytes), plaintext.as_bytes())
         .map_err(|e| format!("AES-GCM encrypt: {e}"))?;
@@ -3358,8 +3454,11 @@ fn export_identity_backup(passphrase: String) -> Result<String, String> {
 /// Returns `Err("Wrong passphrase or corrupted backup")` on decryption failure.
 #[tauri::command]
 fn import_identity_backup(passphrase: String, src_path: String) -> Result<(), String> {
+    use aes_gcm::{
+        aead::{Aead, KeyInit},
+        Aes256Gcm, Nonce as AesNonce,
+    };
     use argon2::{Algorithm, Argon2, Params, Version};
-    use aes_gcm::{aead::{Aead, KeyInit}, Aes256Gcm, Nonce as AesNonce};
 
     #[derive(serde::Deserialize)]
     struct BackupFile {
@@ -3369,8 +3468,8 @@ fn import_identity_backup(passphrase: String, src_path: String) -> Result<(), St
         ciphertext: String,
     }
 
-    let raw = std::fs::read_to_string(&src_path)
-        .map_err(|e| format!("Cannot read backup file: {e}"))?;
+    let raw =
+        std::fs::read_to_string(&src_path).map_err(|e| format!("Cannot read backup file: {e}"))?;
     let backup: BackupFile =
         serde_json::from_str(&raw).map_err(|_| "Not a valid backup file".to_string())?;
 
@@ -3385,16 +3484,14 @@ fn import_identity_backup(passphrase: String, src_path: String) -> Result<(), St
         hex::decode(&backup.ciphertext).map_err(|_| "Corrupted backup (ciphertext)".to_string())?;
 
     // Re-derive key with the same Argon2id parameters.
-    let params = Params::new(65536, 3, 1, Some(32))
-        .map_err(|e| format!("Argon2 params: {e}"))?;
+    let params = Params::new(65536, 3, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0u8; 32];
     argon2
         .hash_password_into(passphrase.as_bytes(), &salt, &mut key)
         .map_err(|e| format!("Argon2 hash: {e}"))?;
 
-    let cipher = Aes256Gcm::new_from_slice(&key)
-        .map_err(|e| format!("AES key init: {e}"))?;
+    let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| format!("AES key init: {e}"))?;
     let plaintext = cipher
         .decrypt(AesNonce::from_slice(&nonce_bytes), ciphertext.as_ref())
         .map_err(|_| "Wrong passphrase or corrupted backup".to_string())?;
@@ -3468,14 +3565,10 @@ async fn pull_and_apply_prefs_blob() -> Result<prefs_blob::LocalPrefs, String> {
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| e.to_string())?;
-    let prefs = prefs_blob::pull_prefs_blob(
-        &master.public_key_hex(),
-        &home_hubs,
-        &blob_key,
-        &client,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    let prefs =
+        prefs_blob::pull_prefs_blob(&master.public_key_hex(), &home_hubs, &blob_key, &client)
+            .await
+            .map_err(|e| e.to_string())?;
     let _ = save_blocked_users_raw(&prefs.blocked_users);
     let _ = save_voice_settings_to_disk(&prefs.voice_settings);
     Ok(prefs)
@@ -3547,10 +3640,7 @@ async fn list_alliances(state: State<'_, AppState>) -> Result<Vec<AllianceInfo>,
 }
 
 #[tauri::command]
-async fn create_alliance(
-    name: String,
-    state: State<'_, AppState>,
-) -> Result<AllianceInfo, String> {
+async fn create_alliance(name: String, state: State<'_, AppState>) -> Result<AllianceInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -3635,10 +3725,7 @@ async fn join_alliance(
 }
 
 #[tauri::command]
-async fn leave_alliance(
-    alliance_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn leave_alliance(alliance_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -3729,7 +3816,9 @@ async fn respond_to_alliance_invite(
     if accept {
         let url_val = own_hub_url.unwrap_or_default();
         let resp = client
-            .post(format!("{hub_url}/alliances/pending-invites/{invite_id}/accept"))
+            .post(format!(
+                "{hub_url}/alliances/pending-invites/{invite_id}/accept"
+            ))
             .bearer_auth(&token)
             .json(&serde_json::json!({ "own_hub_url": url_val }))
             .send()
@@ -3956,10 +4045,7 @@ async fn list_bans(state: State<'_, AppState>) -> Result<Vec<BanInfo>, String> {
 }
 
 #[tauri::command]
-async fn unban_user(
-    target_public_key: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn unban_user(target_public_key: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -4001,9 +4087,7 @@ async fn get_hub_settings(state: State<'_, AppState>) -> Result<HubSettings, Str
 }
 
 #[tauri::command]
-async fn list_pending_members(
-    state: State<'_, AppState>,
-) -> Result<Vec<PendingUser>, String> {
+async fn list_pending_members(state: State<'_, AppState>) -> Result<Vec<PendingUser>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -4018,7 +4102,6 @@ async fn list_pending_members(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
-
 #[tauri::command]
 async fn list_hub_icons(state: State<'_, AppState>) -> Result<Vec<HubIcon>, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -4032,7 +4115,9 @@ async fn list_hub_icons(state: State<'_, AppState>) -> Result<Vec<HubIcon>, Stri
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json::<Vec<HubIcon>>().await.map_err(|e| format!("Parse error: {e}"))
+    resp.json::<Vec<HubIcon>>()
+        .await
+        .map_err(|e| format!("Parse error: {e}"))
 }
 
 #[tauri::command]
@@ -4053,7 +4138,9 @@ async fn create_hub_icon(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json::<HubIcon>().await.map_err(|e| format!("Parse error: {e}"))
+    resp.json::<HubIcon>()
+        .await
+        .map_err(|e| format!("Parse error: {e}"))
 }
 
 #[tauri::command]
@@ -4078,10 +4165,7 @@ async fn rename_hub_icon(
 }
 
 #[tauri::command]
-async fn delete_hub_icon(
-    icon_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn delete_hub_icon(icon_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -4116,9 +4200,7 @@ async fn approve_member(
 }
 
 #[tauri::command]
-async fn list_hub_members(
-    state: State<'_, AppState>,
-) -> Result<Vec<MemberAdminInfo>, String> {
+async fn list_hub_members(state: State<'_, AppState>) -> Result<Vec<MemberAdminInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -4139,10 +4221,14 @@ async fn kick_user_cmd(
     reason: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    post_moderation(&state, "moderation/kick", serde_json::json!({
-        "target_public_key": target_public_key,
-        "reason": reason,
-    }))
+    post_moderation(
+        &state,
+        "moderation/kick",
+        serde_json::json!({
+            "target_public_key": target_public_key,
+            "reason": reason,
+        }),
+    )
     .await
 }
 
@@ -4152,10 +4238,14 @@ async fn ban_user_cmd(
     reason: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    post_moderation(&state, "moderation/bans", serde_json::json!({
-        "target_public_key": target_public_key,
-        "reason": reason,
-    }))
+    post_moderation(
+        &state,
+        "moderation/bans",
+        serde_json::json!({
+            "target_public_key": target_public_key,
+            "reason": reason,
+        }),
+    )
     .await
 }
 
@@ -4165,10 +4255,14 @@ async fn mute_user_cmd(
     reason: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    post_moderation(&state, "moderation/mutes", serde_json::json!({
-        "target_public_key": target_public_key,
-        "reason": reason,
-    }))
+    post_moderation(
+        &state,
+        "moderation/mutes",
+        serde_json::json!({
+            "target_public_key": target_public_key,
+            "reason": reason,
+        }),
+    )
     .await
 }
 
@@ -4179,11 +4273,15 @@ async fn timeout_user_cmd(
     reason: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    post_moderation(&state, "moderation/timeout", serde_json::json!({
-        "target_public_key": target_public_key,
-        "duration_seconds": duration_seconds,
-        "reason": reason,
-    }))
+    post_moderation(
+        &state,
+        "moderation/timeout",
+        serde_json::json!({
+            "target_public_key": target_public_key,
+            "duration_seconds": duration_seconds,
+            "reason": reason,
+        }),
+    )
     .await
 }
 
@@ -4206,9 +4304,7 @@ async fn channel_ban_user(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
-        .post(format!(
-            "{hub_url}/moderation/channels/{channel_id}/bans"
-        ))
+        .post(format!("{hub_url}/moderation/channels/{channel_id}/bans"))
         .bearer_auth(&token)
         .json(&serde_json::json!({
             "target_public_key": target_public_key,
@@ -4253,9 +4349,7 @@ async fn list_channel_bans(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
-        .get(format!(
-            "{hub_url}/moderation/channels/{channel_id}/bans"
-        ))
+        .get(format!("{hub_url}/moderation/channels/{channel_id}/bans"))
         .bearer_auth(&token)
         .send()
         .await
@@ -4280,10 +4374,14 @@ async fn voice_mute_user_cmd(
     reason: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    post_moderation(&state, "moderation/voice-mutes", serde_json::json!({
-        "target_public_key": target_public_key,
-        "reason": reason,
-    }))
+    post_moderation(
+        &state,
+        "moderation/voice-mutes",
+        serde_json::json!({
+            "target_public_key": target_public_key,
+            "reason": reason,
+        }),
+    )
     .await
 }
 
@@ -4295,7 +4393,9 @@ async fn voice_unmute_user_cmd(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
-        .delete(format!("{hub_url}/moderation/voice-mutes/{target_public_key}"))
+        .delete(format!(
+            "{hub_url}/moderation/voice-mutes/{target_public_key}"
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -4397,7 +4497,9 @@ async fn assign_role(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
-        .put(format!("{hub_url}/users/{target_public_key}/roles/{role_id}"))
+        .put(format!(
+            "{hub_url}/users/{target_public_key}/roles/{role_id}"
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -4417,7 +4519,9 @@ async fn unassign_role(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
-        .delete(format!("{hub_url}/users/{target_public_key}/roles/{role_id}"))
+        .delete(format!(
+            "{hub_url}/users/{target_public_key}/roles/{role_id}"
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -4587,7 +4691,11 @@ async fn update_hub_branding(
                 s.hub_name = new_name;
             }
             if let Some(new_icon) = icon {
-                s.hub_icon = if new_icon.is_empty() { None } else { Some(new_icon) };
+                s.hub_icon = if new_icon.is_empty() {
+                    None
+                } else {
+                    Some(new_icon)
+                };
             }
         }
     }
@@ -4727,10 +4835,15 @@ async fn submit_to_directory(
         .map_err(|e| format!("Sign request failed: {e}"))?;
 
     if !sign_resp.status().is_success() {
-        return Err(format!("Hub refused to sign: {}", sign_resp.text().await.unwrap_or_default()));
+        return Err(format!(
+            "Hub refused to sign: {}",
+            sign_resp.text().await.unwrap_or_default()
+        ));
     }
 
-    let signed: serde_json::Value = sign_resp.json().await
+    let signed: serde_json::Value = sign_resp
+        .json()
+        .await
         .map_err(|e| format!("Sign response decode: {e}"))?;
 
     // Step 2: submit the signed payload to the directory
@@ -4834,7 +4947,10 @@ async fn accept_friend(from_public_key: String, state: State<'_, AppState>) -> R
 }
 
 #[tauri::command]
-async fn remove_friend(target_public_key: String, state: State<'_, AppState>) -> Result<(), String> {
+async fn remove_friend(
+    target_public_key: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
@@ -4896,7 +5012,9 @@ async fn get_dm_messages(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let raw: Vec<RawDmMessageResponse> = client
-        .get(format!("{hub_url}/conversations/{conversation_id}/messages"))
+        .get(format!(
+            "{hub_url}/conversations/{conversation_id}/messages"
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -4912,7 +5030,8 @@ async fn get_dm_messages(
     for msg in raw {
         let content = if msg.is_encrypted {
             if let (Some(env), Some(ref id)) = (&msg.encrypted_envelope, &identity) {
-                decrypt_dm_inner(&conversation_id, env, id).unwrap_or_else(|_| "[decryption failed]".to_string())
+                decrypt_dm_inner(&conversation_id, env, id)
+                    .unwrap_or_else(|_| "[decryption failed]".to_string())
             } else {
                 "[encrypted]".to_string()
             }
@@ -4921,7 +5040,8 @@ async fn get_dm_messages(
                 if env["sender_pubkey"].as_str() == Some(&id.public_key_hex()) {
                     "[sent]".to_string()
                 } else {
-                    decrypt_group_dm_inner(&conversation_id, env, id).unwrap_or_else(|_| "[encrypted]".to_string())
+                    decrypt_group_dm_inner(&conversation_id, env, id)
+                        .unwrap_or_else(|_| "[encrypted]".to_string())
                 }
             } else {
                 "[encrypted]".to_string()
@@ -4945,32 +5065,46 @@ async fn get_dm_messages(
     Ok(result)
 }
 
-fn decrypt_dm_inner(conv_id: &str, envelope: &serde_json::Value, identity: &crate::identity::Identity) -> Result<String, String> {
+fn decrypt_dm_inner(
+    conv_id: &str,
+    envelope: &serde_json::Value,
+    identity: &crate::identity::Identity,
+) -> Result<String, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
     use hkdf::Hkdf;
     use sha2::Sha256;
 
     let (my_dh_sec, _) = identity.dh_keypair();
-    let sender_dh_hex = envelope["dh_pubkey_hex"].as_str().ok_or("missing dh_pubkey_hex")?;
-    let ciphertext_hex = envelope["ciphertext_hex"].as_str().ok_or("missing ciphertext_hex")?;
+    let sender_dh_hex = envelope["dh_pubkey_hex"]
+        .as_str()
+        .ok_or("missing dh_pubkey_hex")?;
+    let ciphertext_hex = envelope["ciphertext_hex"]
+        .as_str()
+        .ok_or("missing ciphertext_hex")?;
     let nonce_hex = envelope["nonce_hex"].as_str().ok_or("missing nonce_hex")?;
 
     let sender_bytes = hex::decode(sender_dh_hex).map_err(|e| e.to_string())?;
-    let sender_arr: [u8; 32] = sender_bytes.try_into().map_err(|_| "bad DH key".to_string())?;
+    let sender_arr: [u8; 32] = sender_bytes
+        .try_into()
+        .map_err(|_| "bad DH key".to_string())?;
     let sender_pub = x25519_dalek::PublicKey::from(sender_arr);
     let shared = my_dh_sec.diffie_hellman(&sender_pub);
 
     let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
     let mut key_bytes = [0u8; 32];
-    hk.expand(b"voxply/dm-key/v1", &mut key_bytes).map_err(|e| e.to_string())?;
+    hk.expand(b"voxply/dm-key/v1", &mut key_bytes)
+        .map_err(|e| e.to_string())?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key_bytes));
     let nonce_bytes = hex::decode(nonce_hex).map_err(|e| e.to_string())?;
     let nonce = Nonce::from_slice(&nonce_bytes);
     let ct = hex::decode(ciphertext_hex).map_err(|e| e.to_string())?;
-    let plaintext_bytes = cipher.decrypt(nonce, ct.as_slice()).map_err(|_| "decryption failed".to_string())?;
-    let plaintext: serde_json::Value = serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
+    let plaintext_bytes = cipher
+        .decrypt(nonce, ct.as_slice())
+        .map_err(|_| "decryption failed".to_string())?;
+    let plaintext: serde_json::Value =
+        serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
     Ok(plaintext["content"].as_str().unwrap_or("").to_string())
 }
 
@@ -5002,7 +5136,9 @@ async fn send_dm(
         })
     };
     let resp = client
-        .post(format!("{hub_url}/conversations/{conversation_id}/messages"))
+        .post(format!(
+            "{hub_url}/conversations/{conversation_id}/messages"
+        ))
         .bearer_auth(&token)
         .json(&body)
         .send()
@@ -5097,16 +5233,13 @@ async fn install_pending_update(pending: State<'_, PendingUpdate>) -> Result<(),
 
 #[tauri::command]
 async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), String> {
-    let identity_path = crate::identity::Identity::default_path()
-        .map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path)
-        .map_err(|e| e.to_string())?;
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
     let (_, dh_pub) = identity.dh_keypair();
     let dh_pubkey_hex = hex::encode(dh_pub.as_bytes());
     let sig_bytes = {
-        let msg = crate::identity::DhKeyRecord::signing_bytes(
-            &identity.public_key_hex(), &dh_pubkey_hex,
-        );
+        let msg =
+            crate::identity::DhKeyRecord::signing_bytes(&identity.public_key_hex(), &dh_pubkey_hex);
         identity.sign(&msg).to_bytes()
     };
     let signature_hex = hex::encode(sig_bytes);
@@ -5115,7 +5248,8 @@ async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), String> {
     // Collect hub urls + tokens before any await so the MutexGuard is dropped.
     let hub_sessions: Vec<(String, String)> = {
         let sessions = state.hubs.lock().unwrap();
-        sessions.values()
+        sessions
+            .values()
             .map(|s| (s.hub_url.clone(), s.token.clone()))
             .collect()
     };
@@ -5123,7 +5257,8 @@ async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), String> {
     for (hub_url, token) in hub_sessions {
         let url = format!("{}/identity/{}/dh-key", hub_url, pubkey_hex);
         let client = state.http_client.clone();
-        let _ = client.put(&url)
+        let _ = client
+            .put(&url)
             .bearer_auth(&token)
             .json(&serde_json::json!({
                 "dh_pubkey_hex": &dh_pubkey_hex,
@@ -5145,7 +5280,8 @@ async fn fetch_dh_key(
     // Drop the MutexGuard before the first await.
     let token: Option<String> = {
         let sessions = state.hubs.lock().unwrap();
-        sessions.values()
+        sessions
+            .values()
             .find(|s| s.hub_url == hub_url)
             .map(|s| s.token.clone())
     };
@@ -5177,10 +5313,8 @@ async fn encrypt_dm(
     use rand::RngCore;
     use sha2::Sha256;
 
-    let identity_path = crate::identity::Identity::default_path()
-        .map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path)
-        .map_err(|e| e.to_string())?;
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
     let (my_dh_sec, my_dh_pub) = identity.dh_keypair();
 
     let rec_bytes = hex::decode(&recipient_dh_pubkey_hex).map_err(|e| e.to_string())?;
@@ -5231,10 +5365,7 @@ async fn encrypt_dm(
 }
 
 #[tauri::command]
-async fn decrypt_dm(
-    conv_id: String,
-    envelope: serde_json::Value,
-) -> Result<String, String> {
+async fn decrypt_dm(conv_id: String, envelope: serde_json::Value) -> Result<String, String> {
     let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
     let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
     decrypt_dm_inner(&conv_id, &envelope, &identity)
@@ -5326,7 +5457,8 @@ fn wrap_chain_key(
     let shared = my_dh_sec.diffie_hellman(recipient_dh_pub);
     let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
     let mut wrap_key = [0u8; 32];
-    hk.expand(b"voxply/group-key-dist/v1", &mut wrap_key).map_err(|e| e.to_string())?;
+    hk.expand(b"voxply/group-key-dist/v1", &mut wrap_key)
+        .map_err(|e| e.to_string())?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
     let mut nonce_bytes = [0u8; 12];
@@ -5337,15 +5469,14 @@ fn wrap_chain_key(
     plaintext[..32].copy_from_slice(chain_key);
     plaintext[32..36].copy_from_slice(&iteration.to_be_bytes());
 
-    let ciphertext = cipher.encrypt(nonce, plaintext.as_slice()).map_err(|e| e.to_string())?;
+    let ciphertext = cipher
+        .encrypt(nonce, plaintext.as_slice())
+        .map_err(|e| e.to_string())?;
     Ok((hex::encode(ciphertext), hex::encode(nonce_bytes)))
 }
 
 #[tauri::command]
-async fn push_group_sender_key(
-    conv_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn push_group_sender_key(conv_id: String, state: State<'_, AppState>) -> Result<(), String> {
     use rand::RngCore;
 
     let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
@@ -5354,18 +5485,30 @@ async fn push_group_sender_key(
 
     let mut key_state = load_sender_key_state()?;
 
-    let (chain_key, version, iteration) = if let Some(existing) = key_state["my_keys"][&conv_id].as_object() {
-        let ck_hex = existing.get("chain_key_hex").and_then(|v| v.as_str()).ok_or("bad state")?;
-        let ck_bytes = hex::decode(ck_hex).map_err(|e| e.to_string())?;
-        let ck_arr: [u8; 32] = ck_bytes.try_into().map_err(|_| "bad chain key length".to_string())?;
-        let ver = existing.get("version").and_then(|v| v.as_u64()).unwrap_or(1) as u32;
-        let iter = existing.get("iteration").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-        (ck_arr, ver, iter)
-    } else {
-        let mut ck = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut ck);
-        (ck, 1u32, 0u32)
-    };
+    let (chain_key, version, iteration) =
+        if let Some(existing) = key_state["my_keys"][&conv_id].as_object() {
+            let ck_hex = existing
+                .get("chain_key_hex")
+                .and_then(|v| v.as_str())
+                .ok_or("bad state")?;
+            let ck_bytes = hex::decode(ck_hex).map_err(|e| e.to_string())?;
+            let ck_arr: [u8; 32] = ck_bytes
+                .try_into()
+                .map_err(|_| "bad chain key length".to_string())?;
+            let ver = existing
+                .get("version")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1) as u32;
+            let iter = existing
+                .get("iteration")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
+            (ck_arr, ver, iter)
+        } else {
+            let mut ck = [0u8; 32];
+            rand::thread_rng().fill_bytes(&mut ck);
+            (ck, 1u32, 0u32)
+        };
 
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
@@ -5373,13 +5516,22 @@ async fn push_group_sender_key(
     let convs: Vec<serde_json::Value> = client
         .get(format!("{hub_url}/conversations"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Failed: {e}"))?
-        .json().await.map_err(|e| format!("Invalid: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid: {e}"))?;
 
-    let members: Vec<String> = convs.iter()
+    let members: Vec<String> = convs
+        .iter()
         .find(|c| c["id"].as_str() == Some(&conv_id))
         .and_then(|c| c["members"].as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
     let my_pubkey = identity.public_key_hex();
@@ -5392,7 +5544,8 @@ async fn push_group_sender_key(
         let dh_resp: serde_json::Value = match client
             .get(format!("{hub_url}/identity/{member}/dh-key"))
             .bearer_auth(&token)
-            .send().await
+            .send()
+            .await
         {
             Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
             _ => continue,
@@ -5410,24 +5563,28 @@ async fn push_group_sender_key(
             Err(_) => continue,
         };
         let rec_pub = x25519_dalek::PublicKey::from(dh_arr);
-        let (wrapped_hex, nonce_hex) = match wrap_chain_key(&my_dh_sec, &rec_pub, &conv_id, &chain_key, iteration) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
+        let (wrapped_hex, nonce_hex) =
+            match wrap_chain_key(&my_dh_sec, &rec_pub, &conv_id, &chain_key, iteration) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
         recipients.push((member.clone(), format!("{}:{}", wrapped_hex, nonce_hex)));
     }
 
     let signing_bytes = sender_key_dist_signing_bytes(&conv_id, version, &recipients);
     let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
 
-    let recipients_json: Vec<serde_json::Value> = recipients.iter().map(|(pubkey, packed)| {
-        let parts: Vec<&str> = packed.splitn(2, ':').collect();
-        serde_json::json!({
-            "recipient_pubkey": pubkey,
-            "wrapped_key_hex": parts[0],
-            "wrap_nonce_hex": parts[1],
+    let recipients_json: Vec<serde_json::Value> = recipients
+        .iter()
+        .map(|(pubkey, packed)| {
+            let parts: Vec<&str> = packed.splitn(2, ':').collect();
+            serde_json::json!({
+                "recipient_pubkey": pubkey,
+                "wrapped_key_hex": parts[0],
+                "wrap_nonce_hex": parts[1],
+            })
         })
-    }).collect();
+        .collect();
 
     let resp = client
         .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
@@ -5439,7 +5596,9 @@ async fn push_group_sender_key(
             "recipients": recipients_json,
             "signature_hex": signature_hex,
         }))
-        .send().await.map_err(|e| format!("Failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
 
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
@@ -5489,13 +5648,22 @@ async fn rotate_group_sender_key(
     let convs: Vec<serde_json::Value> = client
         .get(format!("{hub_url}/conversations"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Failed: {e}"))?
-        .json().await.map_err(|e| format!("Invalid: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid: {e}"))?;
 
-    let members: Vec<String> = convs.iter()
+    let members: Vec<String> = convs
+        .iter()
         .find(|c| c["id"].as_str() == Some(&conv_id))
         .and_then(|c| c["members"].as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
     let my_pubkey = identity.public_key_hex();
@@ -5508,7 +5676,8 @@ async fn rotate_group_sender_key(
         let dh_resp: serde_json::Value = match client
             .get(format!("{hub_url}/identity/{member}/dh-key"))
             .bearer_auth(&token)
-            .send().await
+            .send()
+            .await
         {
             Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
             _ => continue,
@@ -5526,24 +5695,28 @@ async fn rotate_group_sender_key(
             Err(_) => continue,
         };
         let rec_pub = x25519_dalek::PublicKey::from(dh_arr);
-        let (wrapped_hex, nonce_hex) = match wrap_chain_key(&my_dh_sec, &rec_pub, &conv_id, &new_chain_key, iteration) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
+        let (wrapped_hex, nonce_hex) =
+            match wrap_chain_key(&my_dh_sec, &rec_pub, &conv_id, &new_chain_key, iteration) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
         recipients.push((member.clone(), format!("{}:{}", wrapped_hex, nonce_hex)));
     }
 
     let signing_bytes = sender_key_dist_signing_bytes(&conv_id, new_version, &recipients);
     let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
 
-    let recipients_json: Vec<serde_json::Value> = recipients.iter().map(|(pubkey, packed)| {
-        let parts: Vec<&str> = packed.splitn(2, ':').collect();
-        serde_json::json!({
-            "recipient_pubkey": pubkey,
-            "wrapped_key_hex": parts[0],
-            "wrap_nonce_hex": parts[1],
+    let recipients_json: Vec<serde_json::Value> = recipients
+        .iter()
+        .map(|(pubkey, packed)| {
+            let parts: Vec<&str> = packed.splitn(2, ':').collect();
+            serde_json::json!({
+                "recipient_pubkey": pubkey,
+                "wrapped_key_hex": parts[0],
+                "wrap_nonce_hex": parts[1],
+            })
         })
-    }).collect();
+        .collect();
 
     let resp = client
         .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
@@ -5555,7 +5728,9 @@ async fn rotate_group_sender_key(
             "recipients": recipients_json,
             "signature_hex": signature_hex,
         }))
-        .send().await.map_err(|e| format!("Failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
 
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
@@ -5587,8 +5762,12 @@ async fn fetch_group_sender_keys(
     let entries: Vec<serde_json::Value> = client
         .get(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Failed: {e}"))?
-        .json().await.map_err(|e| format!("Invalid: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid: {e}"))?;
 
     let mut key_state = load_sender_key_state()?;
 
@@ -5610,7 +5789,8 @@ async fn fetch_group_sender_keys(
         let dh_resp: serde_json::Value = match client
             .get(format!("{hub_url}/identity/{sender_pubkey}/dh-key"))
             .bearer_auth(&token)
-            .send().await
+            .send()
+            .await
         {
             Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
             _ => continue,
@@ -5637,7 +5817,10 @@ async fn fetch_group_sender_keys(
         let shared = my_dh_sec.diffie_hellman(&sender_dh_pub);
         let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
         let mut wrap_key = [0u8; 32];
-        if hk.expand(b"voxply/group-key-dist/v1", &mut wrap_key).is_err() {
+        if hk
+            .expand(b"voxply/group-key-dist/v1", &mut wrap_key)
+            .is_err()
+        {
             continue;
         }
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
@@ -5658,7 +5841,8 @@ async fn fetch_group_sender_keys(
             continue;
         }
         let chain_key_hex = hex::encode(&plaintext[..32]);
-        let unwrapped_iteration = u32::from_be_bytes(plaintext[32..36].try_into().unwrap_or([0; 4]));
+        let unwrapped_iteration =
+            u32::from_be_bytes(plaintext[32..36].try_into().unwrap_or([0; 4]));
 
         let existing_version = key_state["peer_keys"][&conv_id][&sender_pubkey]["version"]
             .as_u64()
@@ -5670,7 +5854,9 @@ async fn fetch_group_sender_keys(
         if key_state["peer_keys"].is_null() || !key_state["peer_keys"].is_object() {
             key_state["peer_keys"] = serde_json::json!({});
         }
-        if key_state["peer_keys"][&conv_id].is_null() || !key_state["peer_keys"][&conv_id].is_object() {
+        if key_state["peer_keys"][&conv_id].is_null()
+            || !key_state["peer_keys"][&conv_id].is_object()
+        {
             key_state["peer_keys"][&conv_id] = serde_json::json!({});
         }
         key_state["peer_keys"][&conv_id][&sender_pubkey] = serde_json::json!({
@@ -5684,10 +5870,7 @@ async fn fetch_group_sender_keys(
 }
 
 #[tauri::command]
-async fn encrypt_group_dm(
-    conv_id: String,
-    content: String,
-) -> Result<serde_json::Value, String> {
+async fn encrypt_group_dm(conv_id: String, content: String) -> Result<serde_json::Value, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
     use hkdf::Hkdf;
@@ -5699,13 +5882,16 @@ async fn encrypt_group_dm(
     let mut key_state = load_sender_key_state()?;
 
     let (chain_key, version, iteration) = {
-        let entry = key_state["my_keys"].get(&conv_id)
+        let entry = key_state["my_keys"]
+            .get(&conv_id)
             .filter(|v| v.is_object())
             .cloned()
             .ok_or_else(|| "no_sender_key".to_string())?;
         let ck_hex = entry["chain_key_hex"].as_str().ok_or("bad state")?;
         let ck_bytes = hex::decode(ck_hex).map_err(|e| e.to_string())?;
-        let ck_arr: [u8; 32] = ck_bytes.try_into().map_err(|_| "bad chain key length".to_string())?;
+        let ck_arr: [u8; 32] = ck_bytes
+            .try_into()
+            .map_err(|_| "bad chain key length".to_string())?;
         let ver = entry["version"].as_u64().unwrap_or(1) as u32;
         let iter = entry["iteration"].as_u64().unwrap_or(0) as u32;
         (ck_arr, ver, iter)
@@ -5713,7 +5899,9 @@ async fn encrypt_group_dm(
 
     let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
     let mut msg_key = [0u8; 32];
-    hk_msg.expand(b"voxply/group-msg/v1", &mut msg_key).map_err(|e| e.to_string())?;
+    hk_msg
+        .expand(b"voxply/group-msg/v1", &mut msg_key)
+        .map_err(|e| e.to_string())?;
 
     let mut nonce_bytes = [0u8; 12];
     nonce_bytes[8..12].copy_from_slice(&iteration.to_be_bytes());
@@ -5721,11 +5909,15 @@ async fn encrypt_group_dm(
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&msg_key));
     let plaintext = serde_json::json!({ "content": content }).to_string();
-    let ciphertext = cipher.encrypt(nonce, plaintext.as_bytes()).map_err(|e| e.to_string())?;
+    let ciphertext = cipher
+        .encrypt(nonce, plaintext.as_bytes())
+        .map_err(|e| e.to_string())?;
 
     let hk_chain = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
     let mut new_chain_key = [0u8; 32];
-    hk_chain.expand(b"voxply/group-chain/v1", &mut new_chain_key).map_err(|e| e.to_string())?;
+    hk_chain
+        .expand(b"voxply/group-chain/v1", &mut new_chain_key)
+        .map_err(|e| e.to_string())?;
     let new_iteration = iteration + 1;
 
     key_state["my_keys"][&conv_id] = serde_json::json!({
@@ -5737,7 +5929,8 @@ async fn encrypt_group_dm(
 
     let ciphertext_hex = hex::encode(&ciphertext);
     let nonce_hex = hex::encode(nonce_bytes);
-    let signing_bytes = group_envelope_signing_bytes(&conv_id, version, iteration, &ciphertext_hex, &nonce_hex);
+    let signing_bytes =
+        group_envelope_signing_bytes(&conv_id, version, iteration, &ciphertext_hex, &nonce_hex);
     let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
 
     Ok(serde_json::json!({
@@ -5752,10 +5945,7 @@ async fn encrypt_group_dm(
 }
 
 #[tauri::command]
-async fn decrypt_group_dm(
-    conv_id: String,
-    envelope: serde_json::Value,
-) -> Result<String, String> {
+async fn decrypt_group_dm(conv_id: String, envelope: serde_json::Value) -> Result<String, String> {
     let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
     let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
     decrypt_group_dm_inner(&conv_id, &envelope, &identity)
@@ -5771,10 +5961,14 @@ fn decrypt_group_dm_inner(
     use hkdf::Hkdf;
     use sha2::Sha256;
 
-    let sender_pubkey = envelope["sender_pubkey"].as_str().ok_or("missing sender_pubkey")?;
+    let sender_pubkey = envelope["sender_pubkey"]
+        .as_str()
+        .ok_or("missing sender_pubkey")?;
     let sender_key_version = envelope["sender_key_version"].as_u64().unwrap_or(1) as u32;
     let iteration = envelope["iteration"].as_u64().ok_or("missing iteration")? as u32;
-    let ciphertext_hex = envelope["ciphertext_hex"].as_str().ok_or("missing ciphertext_hex")?;
+    let ciphertext_hex = envelope["ciphertext_hex"]
+        .as_str()
+        .ok_or("missing ciphertext_hex")?;
     let nonce_hex = envelope["nonce_hex"].as_str().ok_or("missing nonce_hex")?;
 
     if sender_pubkey == identity.public_key_hex() {
@@ -5787,15 +5981,26 @@ fn decrypt_group_dm_inner(
         .as_object()
         .ok_or_else(|| "key_not_found".to_string())?;
 
-    let stored_version = peer_entry.get("version").and_then(|v| v.as_u64()).unwrap_or(1) as u32;
+    let stored_version = peer_entry
+        .get("version")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(1) as u32;
     if stored_version != sender_key_version {
         return Err("version_mismatch".to_string());
     }
 
-    let stored_ck_hex = peer_entry.get("chain_key_hex").and_then(|v| v.as_str()).ok_or("bad state")?;
+    let stored_ck_hex = peer_entry
+        .get("chain_key_hex")
+        .and_then(|v| v.as_str())
+        .ok_or("bad state")?;
     let stored_ck_bytes = hex::decode(stored_ck_hex).map_err(|e| e.to_string())?;
-    let mut chain_key: [u8; 32] = stored_ck_bytes.try_into().map_err(|_| "bad chain key length".to_string())?;
-    let stored_iteration = peer_entry.get("iteration").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+    let mut chain_key: [u8; 32] = stored_ck_bytes
+        .try_into()
+        .map_err(|_| "bad chain key length".to_string())?;
+    let stored_iteration = peer_entry
+        .get("iteration")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
 
     if stored_iteration > iteration {
         return Err("chain_advanced_past_message".to_string());
@@ -5804,20 +6009,26 @@ fn decrypt_group_dm_inner(
     for i in stored_iteration..iteration {
         let hk = Hkdf::<Sha256>::new(Some(&i.to_be_bytes()), &chain_key);
         let mut next = [0u8; 32];
-        hk.expand(b"voxply/group-chain/v1", &mut next).map_err(|e| e.to_string())?;
+        hk.expand(b"voxply/group-chain/v1", &mut next)
+            .map_err(|e| e.to_string())?;
         chain_key = next;
     }
 
     let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
     let mut msg_key = [0u8; 32];
-    hk_msg.expand(b"voxply/group-msg/v1", &mut msg_key).map_err(|e| e.to_string())?;
+    hk_msg
+        .expand(b"voxply/group-msg/v1", &mut msg_key)
+        .map_err(|e| e.to_string())?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&msg_key));
     let nonce_bytes = hex::decode(nonce_hex).map_err(|e| e.to_string())?;
     let nonce = Nonce::from_slice(&nonce_bytes);
     let ct = hex::decode(ciphertext_hex).map_err(|e| e.to_string())?;
-    let plaintext_bytes = cipher.decrypt(nonce, ct.as_slice()).map_err(|_| "decryption failed".to_string())?;
-    let plaintext: serde_json::Value = serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
+    let plaintext_bytes = cipher
+        .decrypt(nonce, ct.as_slice())
+        .map_err(|_| "decryption failed".to_string())?;
+    let plaintext: serde_json::Value =
+        serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
     Ok(plaintext["content"].as_str().unwrap_or("").to_string())
 }
 
@@ -5829,34 +6040,47 @@ fn decrypt_group_dm_inner(
 async fn list_bots(state: State<'_, AppState>) -> Result<Vec<BotInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    client.get(format!("{hub_url}/bots"))
+    client
+        .get(format!("{hub_url}/bots"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Request failed: {e}"))?
-        .json().await.map_err(|e| format!("Invalid response: {e}"))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
 async fn create_bot(name: String, state: State<'_, AppState>) -> Result<BotInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client.post(format!("{hub_url}/bots"))
+    let resp = client
+        .post(format!("{hub_url}/bots"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "name": name }))
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         let msg = resp.text().await.unwrap_or_default();
         return Err(msg);
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
 async fn delete_bot(public_key: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client.delete(format!("{hub_url}/bots/{public_key}"))
+    let resp = client
+        .delete(format!("{hub_url}/bots/{public_key}"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         let msg = resp.text().await.unwrap_or_default();
         return Err(msg);
@@ -5865,18 +6089,30 @@ async fn delete_bot(public_key: String, state: State<'_, AppState>) -> Result<()
 }
 
 #[tauri::command]
-async fn rotate_bot_token(public_key: String, state: State<'_, AppState>) -> Result<String, String> {
+async fn rotate_bot_token(
+    public_key: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client.post(format!("{hub_url}/bots/{public_key}/rotate-token"))
+    let resp = client
+        .post(format!("{hub_url}/bots/{public_key}/rotate-token"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         let msg = resp.text().await.unwrap_or_default();
         return Err(msg);
     }
-    let v: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid response: {e}"))?;
-    v["token"].as_str().map(|s| s.to_string()).ok_or("Missing token in response".to_string())
+    let v: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))?;
+    v["token"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or("Missing token in response".to_string())
 }
 
 // =============================================================================
@@ -5934,7 +6170,9 @@ async fn admin_list_bots(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -5956,7 +6194,9 @@ async fn admin_create_bot(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6021,7 +6261,9 @@ async fn admin_get_bot_detail(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 // =============================================================================
@@ -6090,7 +6332,9 @@ async fn get_bot_profile(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 // =============================================================================
@@ -6129,7 +6373,9 @@ async fn admin_list_external_bots(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6152,7 +6398,9 @@ async fn admin_add_external_bot(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6237,7 +6485,9 @@ async fn admin_list_webhooks(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6265,7 +6515,9 @@ async fn admin_create_webhook(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6287,7 +6539,9 @@ async fn admin_regenerate_webhook(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6354,7 +6608,9 @@ async fn lobby_status(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6376,7 +6632,9 @@ async fn lobby_submit_proof(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6396,7 +6654,9 @@ async fn lobby_get_welcome(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6461,7 +6721,9 @@ async fn challenge_fetch(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6483,7 +6745,9 @@ async fn challenge_submit(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -6583,7 +6847,9 @@ async fn get_hub_info(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// `GET {farm_url}/farm/info` — no auth.
@@ -6602,7 +6868,9 @@ async fn get_farm_info(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// `GET {farm_url}/farm/public-info` — no auth.
@@ -6621,7 +6889,9 @@ async fn probe_farm(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// `GET {farm_url}/farm/me/hub-quota` — requires farm session token.
@@ -6642,7 +6912,9 @@ async fn get_farm_hub_quota(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// `GET {farm_url}/farm/settings` — requires farm session token.
@@ -6663,7 +6935,9 @@ async fn get_farm_settings(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// `PATCH {farm_url}/farm/settings` — requires farm session token.
@@ -6686,7 +6960,9 @@ async fn patch_farm_settings(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// `GET {farm_url}/farm/hubs` — requires farm session token. Returns `{ hubs: [...] }`.
@@ -6707,7 +6983,9 @@ async fn get_farm_hubs_admin(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// Suspend or unsuspend a farm hub — requires farm session token.
@@ -6788,11 +7066,16 @@ async fn get_farm_users(
     if let Some(l) = limit {
         req = req.query(&[("limit", l.to_string())]);
     }
-    let resp = req.send().await.map_err(|e| format!("Request failed: {e}"))?;
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// `POST {farm_url}/farm/users/{pubkey}/revoke-sessions` — requires farm session token.
@@ -6843,7 +7126,9 @@ async fn create_hub_on_farm(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// GET /farm/admin/servers
@@ -6854,14 +7139,19 @@ async fn get_farm_servers(
 ) -> Result<serde_json::Value, String> {
     let token = session_for_url(&state, &farm_url)?;
     let base = farm_url.trim_end_matches('/');
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .get(format!("{base}/farm/admin/servers"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// POST /farm/admin/server-token
@@ -6874,15 +7164,20 @@ async fn generate_farm_server_token(
 ) -> Result<serde_json::Value, String> {
     let token = session_for_url(&state, &farm_url)?;
     let base = farm_url.trim_end_matches('/');
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .post(format!("{base}/farm/admin/server-token"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "name": name, "region": region }))
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// POST /farm/admin/totp/setup
@@ -6893,14 +7188,19 @@ async fn farm_totp_setup(
 ) -> Result<serde_json::Value, String> {
     let token = session_for_url(&state, &farm_url)?;
     let base = farm_url.trim_end_matches('/');
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .post(format!("{base}/farm/admin/totp/setup"))
         .bearer_auth(&token)
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 /// POST /farm/admin/totp/confirm
@@ -6913,11 +7213,14 @@ async fn farm_totp_confirm(
 ) -> Result<(), String> {
     let token = session_for_url(&state, &farm_url)?;
     let base = farm_url.trim_end_matches('/');
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .post(format!("{base}/farm/admin/totp/confirm"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "secret": secret, "code": code }))
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
@@ -6933,11 +7236,14 @@ async fn farm_totp_disable(
 ) -> Result<(), String> {
     let token = session_for_url(&state, &farm_url)?;
     let base = farm_url.trim_end_matches('/');
-    let resp = state.http_client
+    let resp = state
+        .http_client
         .post(format!("{base}/farm/admin/totp/disable"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "code": code }))
-        .send().await.map_err(|e| format!("Request failed: {e}"))?;
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
@@ -7013,12 +7319,16 @@ async fn list_recovery_contacts(
         return Err(resp.text().await.unwrap_or_default());
     }
     let cr: RecoveryContactsResponse = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-    Ok(cr.contacts.into_iter().map(|c| RecoveryContact {
-        pubkey: c.pubkey,
-        display_name: None,
-        added_at: c.added_at,
-        hub_url: hub_url.clone(),
-    }).collect())
+    Ok(cr
+        .contacts
+        .into_iter()
+        .map(|c| RecoveryContact {
+            pubkey: c.pubkey,
+            display_name: None,
+            added_at: c.added_at,
+            hub_url: hub_url.clone(),
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -7051,7 +7361,10 @@ async fn add_recovery_contact(
         .http_client
         .put(format!("{base}/recovery/contacts"))
         .bearer_auth(&token)
-        .json(&SetContactsPayload { contacts, threshold })
+        .json(&SetContactsPayload {
+            contacts,
+            threshold,
+        })
         .send()
         .await
         .map_err(|e| format!("Failed: {e}"))?;
@@ -7062,7 +7375,12 @@ async fn add_recovery_contact(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    Ok(RecoveryContact { pubkey, display_name: None, added_at: now, hub_url })
+    Ok(RecoveryContact {
+        pubkey,
+        display_name: None,
+        added_at: now,
+        hub_url,
+    })
 }
 
 #[tauri::command]
@@ -7095,10 +7413,10 @@ async fn submit_rotation_request(
     let token = session_for_url(&state, &hub_url)?;
     // Load the identity to get the current user's public key (old_pubkey for rotation).
     let old_pubkey = {
-        let path = crate::identity::Identity::default_path()
-            .map_err(|e| format!("Identity path: {e}"))?;
-        let identity = crate::identity::Identity::load(&path)
-            .map_err(|e| format!("Load identity: {e}"))?;
+        let path =
+            crate::identity::Identity::default_path().map_err(|e| format!("Identity path: {e}"))?;
+        let identity =
+            crate::identity::Identity::load(&path).map_err(|e| format!("Load identity: {e}"))?;
         identity.public_key_hex()
     };
     let base = hub_url.trim_end_matches('/');
@@ -7153,14 +7471,17 @@ async fn list_rotation_requests(
     }
     let rows: Vec<MyRotationRequestResponse> =
         resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-    Ok(rows.into_iter().map(|r| RotationRequest {
-        id: r.id,
-        new_pubkey: r.new_pubkey,
-        hub_url: hub_url.clone(),
-        attestations: vec![],
-        threshold: r.threshold,
-        submitted_at: r.created_at,
-    }).collect())
+    Ok(rows
+        .into_iter()
+        .map(|r| RotationRequest {
+            id: r.id,
+            new_pubkey: r.new_pubkey,
+            hub_url: hub_url.clone(),
+            attestations: vec![],
+            threshold: r.threshold,
+            submitted_at: r.created_at,
+        })
+        .collect())
 }
 
 /// Connect to a hub by URL without an invite code. Wraps `add_hub`.
@@ -7272,7 +7593,9 @@ async fn survey_current(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -7295,7 +7618,9 @@ async fn survey_submit(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -7315,7 +7640,9 @@ async fn survey_admin_get(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -7359,7 +7686,9 @@ async fn survey_admin_responses(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid response: {e}"))
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 // =============================================================================
@@ -7379,7 +7708,8 @@ async fn game_create_session(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_hub_url_and_token(&state)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .post(format!("{hub_url}/games/{game_id}/sessions"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "channel_id": channel_id }))
@@ -7389,7 +7719,9 @@ async fn game_create_session(
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -7398,7 +7730,8 @@ async fn game_join_session(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_hub_url_and_token(&state)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .post(format!("{hub_url}/games/sessions/{session_id}/join"))
         .bearer_auth(&token)
         .send()
@@ -7407,16 +7740,16 @@ async fn game_join_session(
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn game_leave_session(
-    session_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+async fn game_leave_session(session_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_hub_url_and_token(&state)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .post(format!("{hub_url}/games/sessions/{session_id}/leave"))
         .bearer_auth(&token)
         .send()
@@ -7434,7 +7767,8 @@ async fn game_get_session(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_hub_url_and_token(&state)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .get(format!("{hub_url}/games/sessions/{session_id}"))
         .bearer_auth(&token)
         .send()
@@ -7443,7 +7777,9 @@ async fn game_get_session(
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -7452,7 +7788,8 @@ async fn game_list_sessions(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_hub_url_and_token(&state)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .get(format!("{hub_url}/games/sessions"))
         .query(&[("channel_id", channel_id.as_str())])
         .bearer_auth(&token)
@@ -7462,7 +7799,9 @@ async fn game_list_sessions(
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -7473,18 +7812,22 @@ fn game_send_move(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let tx = active_ws_tx(&state)?;
-    tx.send(WsCommand::GameSend { session_id, payload, to })
-        .map_err(|_| "WS closed".to_string())
+    tx.send(WsCommand::GameSend {
+        session_id,
+        payload,
+        to,
+    })
+    .map_err(|_| "WS closed".to_string())
 }
 
 #[tauri::command]
-fn game_start_session(
-    session_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+fn game_start_session(session_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let tx = active_ws_tx(&state)?;
-    tx.send(WsCommand::GameSetStatus { session_id, status: "in_progress".to_string() })
-        .map_err(|_| "WS closed".to_string())
+    tx.send(WsCommand::GameSetStatus {
+        session_id,
+        status: "in_progress".to_string(),
+    })
+    .map_err(|_| "WS closed".to_string())
 }
 
 #[tauri::command]
@@ -7532,8 +7875,11 @@ async fn game_shared_kv_get(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_hub_url_and_token(&state)?;
-    let res = state.http_client
-        .get(format!("{hub_url}/games/sessions/{session_id}/shared-kv/{key}"))
+    let res = state
+        .http_client
+        .get(format!(
+            "{hub_url}/games/sessions/{session_id}/shared-kv/{key}"
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -7541,7 +7887,9 @@ async fn game_shared_kv_get(
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -7552,8 +7900,11 @@ async fn game_shared_kv_set(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_hub_url_and_token(&state)?;
-    let res = state.http_client
-        .put(format!("{hub_url}/games/sessions/{session_id}/shared-kv/{key}"))
+    let res = state
+        .http_client
+        .put(format!(
+            "{hub_url}/games/sessions/{session_id}/shared-kv/{key}"
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "value": value }))
         .send()
@@ -7665,7 +8016,7 @@ pub struct CaptureSource {
 
 #[tauri::command]
 async fn list_capture_sources() -> Result<Vec<CaptureSource>, String> {
-    use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
     use image::{imageops, DynamicImage, ImageFormat};
 
     let mut sources = Vec::new();
@@ -7784,7 +8135,11 @@ async fn upload_file(
         .mime_str(&mime_type)
         .map_err(|e| e.to_string())?;
     let form = reqwest::multipart::Form::new().part("file", part);
-    let url = format!("{}/channels/{}/upload", hub_url.trim_end_matches('/'), channel_id);
+    let url = format!(
+        "{}/channels/{}/upload",
+        hub_url.trim_end_matches('/'),
+        channel_id
+    );
     let res = state
         .http_client
         .post(&url)
@@ -7991,11 +8346,7 @@ async fn delete_event(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let token = session_for_url(&state, &hub_url)?;
-    let url = format!(
-        "{}/events/{}",
-        hub_url.trim_end_matches('/'),
-        event_id
-    );
+    let url = format!("{}/events/{}", hub_url.trim_end_matches('/'), event_id);
     state
         .http_client
         .delete(&url)
@@ -8050,6 +8401,7 @@ async fn rsvp_event_hub(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn create_event_hub(
     hub_url: String,
     title: String,
@@ -8179,7 +8531,9 @@ fn start_whisper(
 #[tauri::command]
 fn stop_whisper(state: State<'_, AppState>) -> Result<(), String> {
     let tx = active_ws_tx(&state)?;
-    let _ = tx.send(WsCommand::Raw(r#"{"type":"voice_whisper_stop"}"#.to_string()));
+    let _ = tx.send(WsCommand::Raw(
+        r#"{"type":"voice_whisper_stop"}"#.to_string(),
+    ));
     Ok(())
 }
 
@@ -8187,7 +8541,9 @@ fn stop_whisper(state: State<'_, AppState>) -> Result<(), String> {
 
 fn whisper_lists_path(hub_id: &str) -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join(format!("whisper_lists_{hub_id}.json")))
+    Ok(home
+        .join(".voxply")
+        .join(format!("whisper_lists_{hub_id}.json")))
 }
 
 #[tauri::command]
@@ -8213,74 +8569,134 @@ fn save_whisper_lists(hub_id: String, lists: serde_json::Value) -> Result<(), St
 // --- Cert/badge group ---
 
 #[tauri::command]
-async fn get_cert_settings(hub_url: String, state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+async fn get_cert_settings(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .get(format!("{}/admin/settings/certs", hub_url.trim_end_matches('/')))
+    let res = state
+        .http_client
+        .get(format!(
+            "{}/admin/settings/certs",
+            hub_url.trim_end_matches('/')
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn get_audit_log(hub_url: String, state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+async fn get_audit_log(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .get(format!("{}/admin/audit-log?limit=100", hub_url.trim_end_matches('/')))
+    let res = state
+        .http_client
+        .get(format!(
+            "{}/admin/audit-log?limit=100",
+            hub_url.trim_end_matches('/')
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn list_issued_certs(hub_url: String, state: State<'_, AppState>) -> Result<Vec<serde_json::Value>, String> {
+async fn list_issued_certs(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .get(format!("{}/admin/certs", hub_url.trim_end_matches('/')))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
     let rows: Vec<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
-    Ok(rows.into_iter().map(|r| {
-        serde_json::json!({
-            "id": r["id"],
-            "subject_pubkey": r["subject_pubkey"],
-            "subject_display": serde_json::Value::Null,
-            "issued_at": r["issued_at"],
-            "expires_at": r["expires_at"],
-            "standing": r["standing"],
+    Ok(rows
+        .into_iter()
+        .map(|r| {
+            serde_json::json!({
+                "id": r["id"],
+                "subject_pubkey": r["subject_pubkey"],
+                "subject_display": serde_json::Value::Null,
+                "issued_at": r["issued_at"],
+                "expires_at": r["expires_at"],
+                "standing": r["standing"],
+            })
         })
-    }).collect())
+        .collect())
 }
 
 #[tauri::command]
-async fn save_cert_settings(hub_url: String, settings: serde_json::Value, state: State<'_, AppState>) -> Result<(), String> {
+async fn save_cert_settings(
+    hub_url: String,
+    settings: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let token = session_for_url(&state, &hub_url)?;
-    let cert_auto_issue = settings["cert_auto_issue"].as_bool()
-        .map(|b| if b { "true".to_string() } else { "false".to_string() });
-    let cert_standing_days = settings["cert_min_age_days"].as_i64().map(|n| n.to_string());
-    let cert_validity_days = settings["cert_validity_days"].as_i64().map(|n| n.to_string());
+    let cert_auto_issue = settings["cert_auto_issue"].as_bool().map(|b| {
+        if b {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        }
+    });
+    let cert_standing_days = settings["cert_min_age_days"]
+        .as_i64()
+        .map(|n| n.to_string());
+    let cert_validity_days = settings["cert_validity_days"]
+        .as_i64()
+        .map(|n| n.to_string());
     let cert_mode = settings["cert_mode"].as_str().map(|s| s.to_string());
     let cert_trusted_issuers = settings.get("cert_trusted_issuers").cloned();
     let mut body = serde_json::Map::new();
-    if let Some(v) = cert_auto_issue { body.insert("cert_auto_issue".into(), v.into()); }
-    if let Some(v) = cert_standing_days { body.insert("cert_standing_days".into(), v.into()); }
-    if let Some(v) = cert_validity_days { body.insert("cert_validity_days".into(), v.into()); }
-    if let Some(v) = cert_mode { body.insert("cert_mode".into(), v.into()); }
-    if let Some(v) = cert_trusted_issuers { body.insert("cert_trusted_issuers".into(), v); }
-    let res = state.http_client
-        .patch(format!("{}/admin/settings/certs", hub_url.trim_end_matches('/')))
+    if let Some(v) = cert_auto_issue {
+        body.insert("cert_auto_issue".into(), v.into());
+    }
+    if let Some(v) = cert_standing_days {
+        body.insert("cert_standing_days".into(), v.into());
+    }
+    if let Some(v) = cert_validity_days {
+        body.insert("cert_validity_days".into(), v.into());
+    }
+    if let Some(v) = cert_mode {
+        body.insert("cert_mode".into(), v.into());
+    }
+    if let Some(v) = cert_trusted_issuers {
+        body.insert("cert_trusted_issuers".into(), v);
+    }
+    let res = state
+        .http_client
+        .patch(format!(
+            "{}/admin/settings/certs",
+            hub_url.trim_end_matches('/')
+        ))
         .bearer_auth(&token)
         .json(&body)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8288,12 +8704,23 @@ async fn save_cert_settings(hub_url: String, settings: serde_json::Value, state:
 }
 
 #[tauri::command]
-async fn issue_cert(hub_url: String, subject_pubkey: String, state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+async fn issue_cert(
+    hub_url: String,
+    subject_pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .post(format!("{}/admin/certs/{}", hub_url.trim_end_matches('/'), subject_pubkey))
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/admin/certs/{}",
+            hub_url.trim_end_matches('/'),
+            subject_pubkey
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8310,12 +8737,23 @@ async fn issue_cert(hub_url: String, subject_pubkey: String, state: State<'_, Ap
 }
 
 #[tauri::command]
-async fn revoke_cert(hub_url: String, subject_pubkey: String, state: State<'_, AppState>) -> Result<(), String> {
+async fn revoke_cert(
+    hub_url: String,
+    subject_pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .post(format!("{}/admin/certs/{}/revoke", hub_url.trim_end_matches('/'), subject_pubkey))
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/admin/certs/{}/revoke",
+            hub_url.trim_end_matches('/'),
+            subject_pubkey
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8327,14 +8765,22 @@ async fn fetch_my_certs(state: State<'_, AppState>) -> Result<Vec<serde_json::Va
     let pubkey = get_my_public_key()?;
     let sessions: Vec<(String, String)> = {
         let hubs = state.hubs.lock().unwrap();
-        hubs.values().map(|s| (s.hub_url.clone(), s.token.clone())).collect()
+        hubs.values()
+            .map(|s| (s.hub_url.clone(), s.token.clone()))
+            .collect()
     };
     let mut all_certs = Vec::new();
     for (hub_url, token) in sessions {
-        if let Ok(res) = state.http_client
-            .get(format!("{}/identity/{}/certs", hub_url.trim_end_matches('/'), pubkey))
+        if let Ok(res) = state
+            .http_client
+            .get(format!(
+                "{}/identity/{}/certs",
+                hub_url.trim_end_matches('/'),
+                pubkey
+            ))
             .bearer_auth(&token)
-            .send().await
+            .send()
+            .await
         {
             if res.status().is_success() {
                 if let Ok(certs) = res.json::<Vec<serde_json::Value>>().await {
@@ -8349,36 +8795,53 @@ async fn fetch_my_certs(state: State<'_, AppState>) -> Result<Vec<serde_json::Va
 #[tauri::command]
 async fn list_badges(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .get(format!("{}/badges", hub_url.trim_end_matches('/')))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn list_pending_badges(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .get(format!("{}/badges/pending", hub_url.trim_end_matches('/')))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn accept_badge(badge_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .post(format!("{}/badges/pending/{}/accept", hub_url.trim_end_matches('/'), badge_id))
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/badges/pending/{}/accept",
+            hub_url.trim_end_matches('/'),
+            badge_id
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8388,10 +8851,17 @@ async fn accept_badge(badge_id: String, state: State<'_, AppState>) -> Result<()
 #[tauri::command]
 async fn decline_badge(badge_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .post(format!("{}/badges/pending/{}/decline", hub_url.trim_end_matches('/'), badge_id))
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/badges/pending/{}/decline",
+            hub_url.trim_end_matches('/'),
+            badge_id
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8401,10 +8871,17 @@ async fn decline_badge(badge_id: String, state: State<'_, AppState>) -> Result<(
 #[tauri::command]
 async fn remove_badge(badge_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .delete(format!("{}/badges/{}", hub_url.trim_end_matches('/'), badge_id))
+    let res = state
+        .http_client
+        .delete(format!(
+            "{}/badges/{}",
+            hub_url.trim_end_matches('/'),
+            badge_id
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8412,13 +8889,23 @@ async fn remove_badge(badge_id: String, state: State<'_, AppState>) -> Result<()
 }
 
 #[tauri::command]
-async fn grant_badge(target_hub_url: String, label: String, state: State<'_, AppState>) -> Result<(), String> {
+async fn grant_badge(
+    target_hub_url: String,
+    label: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .post(format!("{}/admin/badges/issue", hub_url.trim_end_matches('/')))
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/admin/badges/issue",
+            hub_url.trim_end_matches('/')
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "recipient_hub_url": target_hub_url, "label": label }))
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8428,41 +8915,58 @@ async fn grant_badge(target_hub_url: String, label: String, state: State<'_, App
 // --- Game management ---
 
 #[tauri::command]
-async fn list_admin_games(hub_url: String, state: State<'_, AppState>) -> Result<Vec<serde_json::Value>, String> {
+async fn list_admin_games(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
+    let res = state
+        .http_client
         .get(format!("{}/admin/games", hub_url.trim_end_matches('/')))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
     let body: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
     let games = body["games"].as_array().cloned().unwrap_or_default();
-    Ok(games.into_iter().map(|g| {
-        serde_json::json!({
-            "id": g["id"],
-            "name": g["name"],
-            "entry_url": g["entry_url"],
-            "description": g["description"],
-            "thumbnail_url": g["thumbnail_url"],
-            "author": g["author"],
-            "version": g["version"],
-            "channel_ids": g["channel_scope"],
-            "permissions": g["capabilities"].as_array().cloned().unwrap_or_default(),
+    Ok(games
+        .into_iter()
+        .map(|g| {
+            serde_json::json!({
+                "id": g["id"],
+                "name": g["name"],
+                "entry_url": g["entry_url"],
+                "description": g["description"],
+                "thumbnail_url": g["thumbnail_url"],
+                "author": g["author"],
+                "version": g["version"],
+                "channel_ids": g["channel_scope"],
+                "permissions": g["capabilities"].as_array().cloned().unwrap_or_default(),
+            })
         })
-    }).collect())
+        .collect())
 }
 
 #[tauri::command]
-async fn fetch_game_manifest(manifest_url: String, state: State<'_, AppState>) -> Result<serde_json::Value, String> {
-    let res = state.http_client
+async fn fetch_game_manifest(
+    manifest_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let res = state
+        .http_client
         .get(&manifest_url)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -8475,30 +8979,54 @@ async fn install_game(
 ) -> Result<serde_json::Value, String> {
     let token = session_for_url(&state, &hub_url)?;
     let resolved_entry_url = if let Some(ref murl) = manifest_url {
-        let mres = state.http_client.get(murl).send().await.map_err(|e| e.to_string())?;
+        let mres = state
+            .http_client
+            .get(murl)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
         let manifest: serde_json::Value = mres.json().await.map_err(|e| e.to_string())?;
-        manifest["entry_url"].as_str().ok_or("Manifest missing entry_url")?.to_string()
+        manifest["entry_url"]
+            .as_str()
+            .ok_or("Manifest missing entry_url")?
+            .to_string()
     } else {
         entry_url.ok_or("entry_url or manifest_url required")?
     };
-    let res = state.http_client
+    let res = state
+        .http_client
         .post(format!("{}/admin/games", hub_url.trim_end_matches('/')))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "name": name, "entry_url": resolved_entry_url }))
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn uninstall_game(hub_url: String, game_id: String, state: State<'_, AppState>) -> Result<(), String> {
+async fn uninstall_game(
+    hub_url: String,
+    game_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .delete(format!("{}/games/{}/enable", hub_url.trim_end_matches('/'), game_id))
+    let res = state
+        .http_client
+        .delete(format!(
+            "{}/games/{}/enable",
+            hub_url.trim_end_matches('/'),
+            game_id
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8513,11 +9041,18 @@ async fn set_game_permissions(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .put(format!("{}/admin/games/{}/permissions", hub_url.trim_end_matches('/'), game_id))
+    let res = state
+        .http_client
+        .put(format!(
+            "{}/admin/games/{}/permissions",
+            hub_url.trim_end_matches('/'),
+            game_id
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "capabilities": permissions }))
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8532,11 +9067,18 @@ async fn set_game_channels(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .put(format!("{}/admin/games/{}/channels", hub_url.trim_end_matches('/'), game_id))
+    let res = state
+        .http_client
+        .put(format!(
+            "{}/admin/games/{}/channels",
+            hub_url.trim_end_matches('/'),
+            game_id
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "channel_ids": channel_ids }))
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8544,32 +9086,56 @@ async fn set_game_channels(
 }
 
 #[tauri::command]
-async fn game_list_channel_users(channel_id: String, state: State<'_, AppState>) -> Result<Vec<serde_json::Value>, String> {
+async fn game_list_channel_users(
+    channel_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .get(format!("{}/channels/{}/members", hub_url.trim_end_matches('/'), channel_id))
+    let res = state
+        .http_client
+        .get(format!(
+            "{}/channels/{}/members",
+            hub_url.trim_end_matches('/'),
+            channel_id
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
     let users: Vec<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
-    Ok(users.into_iter().map(|u| {
-        serde_json::json!({
-            "pubkey": u["public_key"],
-            "display_name": u["display_name"],
+    Ok(users
+        .into_iter()
+        .map(|u| {
+            serde_json::json!({
+                "pubkey": u["public_key"],
+                "display_name": u["display_name"],
+            })
         })
-    }).collect())
+        .collect())
 }
 
 #[tauri::command]
-async fn game_post_message(channel_id: String, content: String, state: State<'_, AppState>) -> Result<(), String> {
+async fn game_post_message(
+    channel_id: String,
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .post(format!("{}/channels/{}/messages", hub_url.trim_end_matches('/'), channel_id))
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/channels/{}/messages",
+            hub_url.trim_end_matches('/'),
+            channel_id
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "content": content }))
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8577,21 +9143,37 @@ async fn game_post_message(channel_id: String, content: String, state: State<'_,
 }
 
 #[tauri::command]
-async fn game_get_recent_messages(channel_id: String, limit: u32, state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+async fn game_get_recent_messages(
+    channel_id: String,
+    limit: u32,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .get(format!("{}/channels/{}/messages?limit={}", hub_url.trim_end_matches('/'), channel_id, limit))
+    let res = state
+        .http_client
+        .get(format!(
+            "{}/channels/{}/messages?limit={}",
+            hub_url.trim_end_matches('/'),
+            channel_id,
+            limit
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
-    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    res.json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 fn game_kv_path(game_id: &str) -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join(format!("game_kv_{}.json", game_id)))
+    Ok(home
+        .join(".voxply")
+        .join(format!("game_kv_{}.json", game_id)))
 }
 
 #[tauri::command]
@@ -8601,7 +9183,8 @@ fn game_kv_get(game_id: String, key: String) -> Result<Option<String>, String> {
         return Ok(None);
     }
     let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let map: std::collections::HashMap<String, String> = serde_json::from_str(&text).unwrap_or_default();
+    let map: std::collections::HashMap<String, String> =
+        serde_json::from_str(&text).unwrap_or_default();
     Ok(map.get(&key).cloned())
 }
 
@@ -8627,10 +9210,16 @@ fn game_kv_set(game_id: String, key: String, value: String) -> Result<(), String
 #[tauri::command]
 async fn get_discovery_settings(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .get(format!("{}/admin/settings/tags", hub_url.trim_end_matches('/')))
+    let res = state
+        .http_client
+        .get(format!(
+            "{}/admin/settings/tags",
+            hub_url.trim_end_matches('/')
+        ))
         .bearer_auth(&token)
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8641,13 +9230,23 @@ async fn get_discovery_settings(state: State<'_, AppState>) -> Result<serde_json
 }
 
 #[tauri::command]
-async fn set_discovery_tags(tags: Vec<String>, nsfw: bool, state: State<'_, AppState>) -> Result<(), String> {
+async fn set_discovery_tags(
+    tags: Vec<String>,
+    nsfw: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let res = state.http_client
-        .patch(format!("{}/admin/settings/tags", hub_url.trim_end_matches('/')))
+    let res = state
+        .http_client
+        .patch(format!(
+            "{}/admin/settings/tags",
+            hub_url.trim_end_matches('/')
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "tags": tags, "nsfw": nsfw }))
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8672,7 +9271,11 @@ async fn fetch_link_preview(
     let encoded = urlencoding_emoji(&url);
     let resp = state
         .http_client
-        .get(format!("{}/preview?url={}", hub_url.trim_end_matches('/'), encoded))
+        .get(format!(
+            "{}/preview?url={}",
+            hub_url.trim_end_matches('/'),
+            encoded
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -8686,13 +9289,23 @@ async fn fetch_link_preview(
 }
 
 #[tauri::command]
-async fn set_hub_listed(hub_url: String, listed: bool, state: State<'_, AppState>) -> Result<(), String> {
+async fn set_hub_listed(
+    hub_url: String,
+    listed: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let token = session_for_url(&state, &hub_url)?;
-    let res = state.http_client
-        .patch(format!("{}/admin/settings/listing", hub_url.trim_end_matches('/')))
+    let res = state
+        .http_client
+        .patch(format!(
+            "{}/admin/settings/listing",
+            hub_url.trim_end_matches('/')
+        ))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "listed": listed }))
-        .send().await.map_err(|e| e.to_string())?;
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -8746,7 +9359,12 @@ pub fn run() {
                 })
                 .on_tray_icon_event(|tray, event| {
                     use tauri::tray::TrayIconEvent;
-                    if let TrayIconEvent::Click { button, button_state, .. } = event {
+                    if let TrayIconEvent::Click {
+                        button,
+                        button_state,
+                        ..
+                    } = event
+                    {
                         if button == tauri::tray::MouseButton::Left
                             && button_state == tauri::tray::MouseButtonState::Up
                         {

@@ -65,8 +65,7 @@ impl Identity {
         let json = fs::read_to_string(path).context("Failed to read identity file")?;
         let data: SavedIdentity =
             serde_json::from_str(&json).context("Failed to parse identity file")?;
-        let secret_bytes =
-            hex::decode(&data.secret_key).context("Invalid hex in identity file")?;
+        let secret_bytes = hex::decode(&data.secret_key).context("Invalid hex in identity file")?;
         let secret_array: [u8; 32] = secret_bytes
             .try_into()
             .map_err(|_| anyhow!("Secret key must be exactly 32 bytes"))?;
@@ -142,7 +141,7 @@ impl Identity {
     pub fn dh_keypair(&self) -> (x25519_dalek::StaticSecret, x25519_dalek::PublicKey) {
         use sha2::Sha512;
         let seed = self.signing_key.to_bytes();
-        let hash = Sha512::digest(&seed);
+        let hash = Sha512::digest(seed);
         let mut scalar = [0u8; 32];
         scalar.copy_from_slice(&hash[..32]);
         scalar[0] &= 248;
@@ -283,13 +282,16 @@ impl DeviceSubkey {
 // Signature verification helper
 // ---------------------------------------------------------------------------
 
-pub fn verify_signature(public_key_hex: &str, message: &[u8], signature_bytes: &[u8]) -> Result<()> {
+pub fn verify_signature(
+    public_key_hex: &str,
+    message: &[u8],
+    signature_bytes: &[u8],
+) -> Result<()> {
     let pub_bytes = hex::decode(public_key_hex).context("Invalid public key hex")?;
     let pub_array: [u8; 32] = pub_bytes
         .try_into()
         .map_err(|_| anyhow!("Public key must be 32 bytes"))?;
-    let verifying_key =
-        VerifyingKey::from_bytes(&pub_array).context("Invalid public key bytes")?;
+    let verifying_key = VerifyingKey::from_bytes(&pub_array).context("Invalid public key bytes")?;
     let sig_array: [u8; 64] = signature_bytes
         .try_into()
         .map_err(|_| anyhow!("Signature must be 64 bytes"))?;
@@ -360,7 +362,7 @@ pub fn verify_security_level(public_key_hex: &str, nonce: u64, claimed_level: u3
 fn hash_level(public_key_hex: &str, nonce: u64) -> u32 {
     let mut hasher = Sha256::new();
     hasher.update(public_key_hex.as_bytes());
-    hasher.update(&nonce.to_le_bytes());
+    hasher.update(nonce.to_le_bytes());
     let result = hasher.finalize();
     leading_zero_bits(&result)
 }
@@ -382,10 +384,7 @@ const ECIES_INFO: &[u8] = b"voxply/ecies/v1";
 ///
 /// Returns a 184-char hex string encoding:
 ///   eph_x25519_pub[32] || aes_gcm_nonce[12] || aes_gcm_ciphertext_and_tag[48]
-pub fn wrap_blob_key(
-    blob_key: &[u8; 32],
-    recipient_ed25519_pubkey_hex: &str,
-) -> Result<String> {
+pub fn wrap_blob_key(blob_key: &[u8; 32], recipient_ed25519_pubkey_hex: &str) -> Result<String> {
     let pubkey_bytes = hex::decode(recipient_ed25519_pubkey_hex)
         .map_err(|e| anyhow!("invalid pubkey hex: {e}"))?;
     let pubkey_bytes: [u8; 32] = pubkey_bytes
@@ -427,8 +426,7 @@ pub fn wrap_blob_key(
 
 /// Unwrap a wrapped blob key using the recipient's Ed25519 seed (32-byte secret).
 pub fn unwrap_blob_key(wrapped_hex: &str, recipient_ed25519_seed: &[u8; 32]) -> Result<[u8; 32]> {
-    let bytes =
-        hex::decode(wrapped_hex).map_err(|e| anyhow!("invalid wrapped_hex: {e}"))?;
+    let bytes = hex::decode(wrapped_hex).map_err(|e| anyhow!("invalid wrapped_hex: {e}"))?;
     if bytes.len() != 92 {
         return Err(anyhow!(
             "wrapped blob key must be 92 bytes, got {}",
@@ -523,11 +521,20 @@ impl HomeHubList {
     }
 
     pub fn to_signing_bytes(&self) -> Vec<u8> {
-        Self::signing_bytes(&self.master_pubkey, &self.hubs, self.issued_at, self.sequence)
+        Self::signing_bytes(
+            &self.master_pubkey,
+            &self.hubs,
+            self.issued_at,
+            self.sequence,
+        )
     }
 
     pub fn verify(&self) -> Result<()> {
-        check_sig(&self.master_pubkey, &self.to_signing_bytes(), &self.signature)
+        check_sig(
+            &self.master_pubkey,
+            &self.to_signing_bytes(),
+            &self.signature,
+        )
     }
 }
 
@@ -582,7 +589,11 @@ impl SubkeyCert {
     }
 
     pub fn verify(&self) -> Result<()> {
-        check_sig(&self.master_pubkey, &self.to_signing_bytes(), &self.signature)
+        check_sig(
+            &self.master_pubkey,
+            &self.to_signing_bytes(),
+            &self.signature,
+        )
     }
 }
 
@@ -609,7 +620,11 @@ impl RevocationEntry {
     }
 
     pub fn verify(&self) -> Result<()> {
-        check_sig(&self.master_pubkey, &self.to_signing_bytes(), &self.signature)
+        check_sig(
+            &self.master_pubkey,
+            &self.to_signing_bytes(),
+            &self.signature,
+        )
     }
 }
 
@@ -689,7 +704,11 @@ impl PairingOffer {
     }
 
     pub fn verify(&self) -> Result<()> {
-        check_sig(&self.master_pubkey, &self.to_signing_bytes(), &self.signature)
+        check_sig(
+            &self.master_pubkey,
+            &self.to_signing_bytes(),
+            &self.signature,
+        )
     }
 }
 
@@ -703,11 +722,7 @@ pub struct PairingClaim {
 }
 
 impl PairingClaim {
-    pub fn signing_bytes(
-        pairing_token: &str,
-        subkey_pubkey: &str,
-        device_label: &str,
-    ) -> Vec<u8> {
+    pub fn signing_bytes(pairing_token: &str, subkey_pubkey: &str, device_label: &str) -> Vec<u8> {
         let mut buf = Vec::new();
         buf.extend_from_slice(b"voxply/pairing-claim/v1\0");
         write_str(&mut buf, pairing_token);

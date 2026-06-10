@@ -12,12 +12,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
 
       - name: Generate release notes (current tag only)
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         with:
           config: cliff.toml
           args: --latest --strip header
@@ -26,7 +26,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           body_path: CHANGES.md
           prerelease: ${{ contains(github.ref_name, '-') }}
@@ -58,20 +58,20 @@ jobs:
 
     steps:
       - name: Checkout desktop
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           path: desktop
 
       - name: Checkout web (for i18n)
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: Voxply/Voxply-web
           path: web
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: desktop/desktop/src-tauri
 
@@ -134,7 +134,7 @@ jobs:
           echo "LIBOPUS_NO_PKG=1"                     >> "$GITHUB_ENV"
 
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
           cache: npm
@@ -166,7 +166,7 @@ jobs:
 
       - name: Upload unsigned installer for SignPath (Windows)
         if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: unsigned-installer
           path: signing-input/voxply-setup.exe
@@ -174,7 +174,7 @@ jobs:
 
       - name: Sign installer via SignPath (Windows)
         if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@ced31329c0317e779dad2eec2a7c3bb46ea1343e # v1
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
@@ -187,7 +187,7 @@ jobs:
 
       - name: Swap in signed installer (Windows)
         if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: signed-installer
           path: signing-input
@@ -204,14 +204,14 @@ jobs:
           Write-Output "Signed installer verified"
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           files: |
             desktop/desktop/src-tauri/target/**/release/bundle/**/${{ matrix.artifact }}
 
       - name: Upload macOS updater bundle to GitHub Release
         if: matrix.platform == 'macos-latest'
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           files: |
             desktop/desktop/src-tauri/target/**/release/bundle/macos/*.app.tar.gz
@@ -251,7 +251,7 @@ jobs:
             Out-File -FilePath windows.json -Encoding utf8NoBOM
 
       - name: Upload update metadata artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: update-meta-${{ matrix.platform-key }}
           path: ${{ matrix.platform-key }}.json
@@ -265,19 +265,19 @@ jobs:
       contents: write
     steps:
       - name: Download Linux metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: update-meta-linux
           path: meta
 
       - name: Download Windows metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: update-meta-windows
           path: meta
 
       - name: Download macOS metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: update-meta-macos
           path: meta
@@ -306,6 +306,6 @@ jobs:
           "
 
       - name: Upload latest.json to GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           files: latest.json

@@ -39,6 +39,7 @@ import type {
   BotAdminInfo,
   BotDetailInfo,
   InstalledGame,
+  TauriFile,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
@@ -1771,23 +1772,39 @@ function App() {
         setShowAddHub(true);
       }
     });
-    const unlisten = listen<string>("join-hub-requested", (event) => {
+    let cancelled = false;
+    let unlistenFn: (() => void) | null = null;
+    listen<string>("join-hub-requested", (event) => {
       const parsed = parseHubInput(event.payload);
       if (parsed) {
         setHubUrl(parsed.hubUrl);
         setInviteCode(parsed.inviteCode);
         setShowAddHub(true);
       }
+    }).then((fn) => {
+      if (cancelled) { fn(); return; }
+      unlistenFn = fn;
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
   }, []);
 
   const [updateInfo, setUpdateInfo] = useState<{ version: string; notes: string | null } | null>(null);
   useEffect(() => {
-    const unlisten = listen<{ version: string; notes: string | null }>("update-available", (ev) => {
+    let cancelled = false;
+    let unlistenFn: (() => void) | null = null;
+    listen<{ version: string; notes: string | null }>("update-available", (ev) => {
       setUpdateInfo(ev.payload);
+    }).then((fn) => {
+      if (cancelled) { fn(); return; }
+      unlistenFn = fn;
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
   }, []);
 
   // Debounced fetch of /info while the user types a hub URL.
@@ -2952,7 +2969,7 @@ function App() {
       });
 
       if (newChannelType === "banner" && newBannerSourceMode === "upload" && newBannerFile) {
-        const filePath = (newBannerFile as any).path as string | undefined;
+        const filePath = (newBannerFile as TauriFile).path;
         if (filePath) {
           const activeHub = hubs.find((h) => h.hub_id === activeHubId);
           if (activeHub) {

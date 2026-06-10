@@ -12,6 +12,8 @@ export class BackgroundProcessor {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private segmentation: any = null;
   private mask: ImageData | null = null;
+  private tempCanvas: HTMLCanvasElement;
+  private tempCtx: CanvasRenderingContext2D;
 
   constructor(stream: MediaStream) {
     this.rawStream = stream;
@@ -19,6 +21,10 @@ export class BackgroundProcessor {
     this.canvas.width = 640;
     this.canvas.height = 480;
     this.ctx = this.canvas.getContext("2d")!;
+    this.tempCanvas = document.createElement("canvas");
+    this.tempCanvas.width = 640;
+    this.tempCanvas.height = 480;
+    this.tempCtx = this.tempCanvas.getContext("2d")!;
     this.video = document.createElement("video");
     this.video.srcObject = stream;
     this.video.autoplay = true;
@@ -83,12 +89,12 @@ export class BackgroundProcessor {
       this.ctx.clearRect(0, 0, width, height);
     }
 
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = width;
-    tempCanvas.height = height;
-    const tempCtx = tempCanvas.getContext("2d")!;
-    tempCtx.drawImage(this.video, 0, 0, width, height);
-    const frame = tempCtx.getImageData(0, 0, width, height);
+    if (this.tempCanvas.width !== width || this.tempCanvas.height !== height) {
+      this.tempCanvas.width = width;
+      this.tempCanvas.height = height;
+    }
+    this.tempCtx.drawImage(this.video, 0, 0, width, height);
+    const frame = this.tempCtx.getImageData(0, 0, width, height);
     const maskData = this.mask.data;
     for (let i = 0; i < frame.data.length; i += 4) {
       const maskIdx = i / 4;
@@ -97,8 +103,8 @@ export class BackgroundProcessor {
         frame.data[i + 3] = 0;
       }
     }
-    tempCtx.putImageData(frame, 0, 0);
-    this.ctx.drawImage(tempCanvas, 0, 0);
+    this.tempCtx.putImageData(frame, 0, 0);
+    this.ctx.drawImage(this.tempCanvas, 0, 0);
 
     this.segmentation.send({ image: this.video }).catch(() => {});
   }

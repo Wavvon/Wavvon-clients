@@ -9,3 +9,5 @@ build/
 **/*.db-wal
 .env
 voxply-desktop/src-tauri/gen/
+*.key
+*.pem

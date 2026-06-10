@@ -5,6 +5,7 @@ use ringbuf::traits::Consumer;
 use crate::devices::find_output_device;
 
 pub struct AudioPlayback {
+    #[allow(dead_code)]
     stream: cpal::Stream,
     pub actual_sample_rate: u32,
     pub actual_channels: u16,

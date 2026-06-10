@@ -7137,3 +7137,6 @@ a.embed-title:hover {
 
 /* ---- settings-input textarea ---- */
 .settings-input[rows] { height: auto; resize: vertical; }
+
+/* ---- Top-level error boundary fallback ---- */
+.error-boundary-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; color: var(--text-normal, #dbdee1); font-size: var(--text-md, 16px); }

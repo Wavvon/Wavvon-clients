@@ -12,13 +12,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout desktop
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           path: desktop
 
       # The i18n package lives in Voxply-web at file:../../web/i18n
       - name: Checkout web (for i18n)
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: Voxply/Voxply-web
           path: web
@@ -32,14 +32,14 @@ jobs:
             libasound2-dev
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: desktop/desktop/src-tauri
 
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
           cache: npm
@@ -52,6 +52,14 @@ jobs:
       - name: TypeScript check
         working-directory: desktop/desktop
         run: npx tsc --noEmit
+
+      - name: cargo fmt check
+        working-directory: desktop
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        working-directory: desktop
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Cargo check (Tauri Rust side)
         working-directory: desktop/desktop/src-tauri

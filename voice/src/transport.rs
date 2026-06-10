@@ -35,9 +35,7 @@ impl VoiceSocket {
     }
 
     pub async fn send(&self, packet: &VoicePacket) -> Result<()> {
-        let addr = self
-            .remote_addr
-            .context("No remote address set")?;
+        let addr = self.remote_addr.context("No remote address set")?;
         let data = packet.serialize();
         self.socket
             .send_to(&data, addr)

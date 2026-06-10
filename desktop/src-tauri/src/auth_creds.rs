@@ -77,8 +77,8 @@ impl AuthCredentials {
             "security_level": self.security_level,
         });
         if let Some(cert) = &self.cert {
-            body["subkey_cert"] = serde_json::to_value(cert)
-                .map_err(|e| format!("serialize cert: {e}"))?;
+            body["subkey_cert"] =
+                serde_json::to_value(cert).map_err(|e| format!("serialize cert: {e}"))?;
         }
         if let Some(code) = invite_code {
             body["invite_code"] = serde_json::Value::String(code.to_string());
@@ -97,8 +97,10 @@ impl AuthCredentials {
                 resp.text().await.unwrap_or_default()
             ));
         }
-        let verify: VerifyResponse =
-            resp.json().await.map_err(|e| format!("verify decode: {e}"))?;
+        let verify: VerifyResponse = resp
+            .json()
+            .await
+            .map_err(|e| format!("verify decode: {e}"))?;
         Ok(verify.token)
     }
 }
@@ -115,8 +117,7 @@ pub fn load_active_credentials() -> Result<AuthCredentials, String> {
         let secret_array: [u8; 32] = secret
             .try_into()
             .map_err(|_| "subkey secret must be 32 bytes".to_string())?;
-        let subkey =
-            DeviceSubkey::from_secret_bytes(&secret_array, paired.device_label.clone());
+        let subkey = DeviceSubkey::from_secret_bytes(&secret_array, paired.device_label.clone());
         // Subkey devices bypass PoW — the pairing relationship is already a
         // trust gate; requiring PoW per-subkey would penalise legitimate users.
         return Ok(AuthCredentials {

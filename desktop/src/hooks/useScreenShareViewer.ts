@@ -46,6 +46,11 @@ export function useScreenShareViewer(channelId: string | null) {
 
       ws = new WebSocket(buildWsUrl(info.hub_url, info.token));
       wsRef.current = ws;
+      if (cancelled) {
+        ws.close();
+        wsRef.current = null;
+        return;
+      }
 
       let pendingEnvelope: WsScreenShareChunkOut | null = null;
 

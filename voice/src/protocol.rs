@@ -72,7 +72,13 @@ impl ReceivedVoicePacket {
             let sequence = u16::from_be_bytes([data[3], data[4]]);
             let timestamp = u32::from_be_bytes([data[5], data[6], data[7], data[8]]);
             let opus_data = data[9..].to_vec();
-            return Ok(Self { sender_id, packet_type, sequence, timestamp, opus_data });
+            return Ok(Self {
+                sender_id,
+                packet_type,
+                sequence,
+                timestamp,
+                opus_data,
+            });
         }
         if data.len() >= 8 {
             // Backward compat: old 8-byte header — no packet_type byte.
@@ -80,7 +86,13 @@ impl ReceivedVoicePacket {
             let sequence = u16::from_be_bytes([data[2], data[3]]);
             let timestamp = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
             let opus_data = data[8..].to_vec();
-            return Ok(Self { sender_id, packet_type: 0x00, sequence, timestamp, opus_data });
+            return Ok(Self {
+                sender_id,
+                packet_type: 0x00,
+                sequence,
+                timestamp,
+                opus_data,
+            });
         }
         anyhow::bail!("Received packet too short: {} bytes", data.len());
     }
