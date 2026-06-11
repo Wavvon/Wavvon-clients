@@ -11,6 +11,8 @@ Native app for Windows, macOS, and Linux built with Tauri 2 (Rust
 shell, system WebView) and React, with a real native audio pipeline —
 no browser limitations on voice.
 
+![A Voxply community in the unified channel view - text + voice in one place, live presence](https://raw.githubusercontent.com/Voxply/Voxply/main/assets/screenshot-channel.png)
+
 ## Features
 
 - **Voice that feels native** — Opus over UDP with RNNoise denoising,
