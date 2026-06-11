@@ -30,7 +30,6 @@ import type {
   Friend,
   Conversation,
   DmMessage,
-  DmMessageFull,
   AllianceInfo,
   AllianceSharedChannel,
   ActiveStream,
@@ -69,6 +68,7 @@ import { useHubConnections } from "./hooks/useHubConnections";
 import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useFriends } from "./hooks/useFriends";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
+import { useDms } from "./hooks/useDms";
 import { Lightbox } from "./components/Lightbox";
 import { ChannelPalette } from "./components/ChannelPalette";
 import { ChannelBansModal } from "./components/ChannelBansModal";
@@ -139,11 +139,6 @@ function App() {
     clearUnread,
     clearHubUnread,
   } = useUnreadCounts();
-
-  // Conversation unread set. In-memory only -- DMs always come back to view
-  // through the conversation list, so persisting per-launch isn't worth the
-  // complexity yet.
-  const [unreadDms, setUnreadDms] = useState<Record<string, boolean>>({});
 
   const {
     hubNotifyMode,
@@ -413,6 +408,46 @@ function App() {
     clearAllDmTyping,
   } = useTypingIndicators(selectedChannelForTypingRef, selectedConversationForTypingRef);
 
+  // Stable getter refs for useDms — avoids passing mutable state directly.
+  const inputTextRef = useRef(inputText);
+  useEffect(() => { inputTextRef.current = inputText; }, [inputText]);
+  const pendingAttachmentsRef = useRef(pendingAttachments);
+  useEffect(() => { pendingAttachmentsRef.current = pendingAttachments; }, [pendingAttachments]);
+
+  const {
+    view,
+    setView,
+    viewRef,
+    conversations,
+    setConversations,
+    conversationsRef,
+    selectedConversation,
+    setSelectedConversation,
+    selectedConversationIdRef,
+    dmMessages,
+    unreadDms,
+    setUnreadDms,
+    encryptionWarning,
+    setEncryptionWarning,
+    loadConversations,
+    selectConversation,
+    startDmWith,
+    handleSendDm,
+    onDmEvent,
+    onDmMemberChanged,
+  } = useDms({
+    publicKeyRef,
+    activeHubIdRef,
+    selectedConversationForTypingRef,
+    getActiveHub: () => hubs.find((h) => h.is_active),
+    getPendingAttachments: () => pendingAttachmentsRef.current,
+    getInputText: () => inputTextRef.current,
+    clearInput: () => setInputText(""),
+    clearPendingAttachments: () => setPendingAttachments([]),
+    setError,
+    clearAllDmTyping,
+  });
+
   // Per-channel search. When a query is active, the message list is
   // replaced by search results (newest-first) until the user clears it.
   const [searchQuery, setSearchQuery] = useState("");
@@ -451,12 +486,6 @@ function App() {
     x: number;
     y: number;
     user: User;
-  } | null>(null);
-
-  const [encryptionWarning, setEncryptionWarning] = useState<{
-    message: string;
-    onConfirm?: () => void;
-    onCancel: () => void;
   } | null>(null);
 
   async function handleHubReorder(event: DragEndEvent) {
@@ -819,26 +848,6 @@ function App() {
 
   const [hideSilenced, setHideSilenced] = useState(false);
 
-  // DMs
-  const [view, setView] = useState<"channels" | "dms">("channels");
-  // Mirror current view in a ref so window-level event listeners can read
-  // the latest value without re-registering on every state change.
-  const viewRef = useRef<typeof view>(view);
-  useEffect(() => {
-    viewRef.current = view;
-  }, [view]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const conversationsRef = useRef<Conversation[]>([]);
-  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
-  const selectedConversationIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    selectedConversationIdRef.current = selectedConversation?.id ?? null;
-    selectedConversationForTypingRef.current = selectedConversation;
-  }, [selectedConversation]);
-
   // Ref to the messages container for auto-scroll
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndChannelRef = useRef<HTMLLIElement>(null);
@@ -1100,21 +1109,7 @@ function App() {
           added: string[];
           removed: string[];
         }>("dm-member-changed", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          const myKey = publicKeyRef.current;
-          if (myKey && event.payload.removed.includes(myKey)) {
-            // I was removed — clear selection if viewing this conversation.
-            if (selectedConversationIdRef.current === event.payload.conversation_id) {
-              setSelectedConversation(null);
-            }
-          }
-          // Refresh conversation list so membership changes are visible.
-          void loadConversations();
-          // Rotate sender key on any membership change to prevent removed
-          // members from decrypting future messages.
-          void invoke("rotate_group_sender_key", {
-            convId: event.payload.conversation_id,
-          }).catch(() => {});
+          onDmMemberChanged(event.payload);
         }),
       );
 
@@ -1255,40 +1250,8 @@ function App() {
 
       unlistens.push(
         await listen<DmMessage & { hub_id: string; conversation_id: string }>("dm", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          const { conversation_id, hub_id: _, ...msg } = event.payload;
-          setDmMessages((prev) => {
-            const list = prev[conversation_id] || [];
-            return { ...prev, [conversation_id]: [...list, msg] };
-          });
-          // Mark this conversation unread unless the user is currently
-          // viewing it (in DM view AND it's the selected conversation).
-          const lookingHere =
-            viewRef.current === "dms" &&
-            selectedConversationIdRef.current === conversation_id;
-          if (!lookingHere && msg.sender !== publicKeyRef.current) {
-            setUnreadDms((prev) => ({ ...prev, [conversation_id]: true }));
-          }
-          const conv = conversationsRef.current.find((c) => c.id === conversation_id);
-          if (conv?.conv_type === "group" && msg.sender !== publicKeyRef.current) {
-            invoke("fetch_group_sender_keys", { convId: conversation_id })
-              .then(() => invoke<DmMessageFull[]>("get_dm_messages", { conversationId: conversation_id }))
-              .then((history) => {
-                setDmMessages((prev) => ({
-                  ...prev,
-                  [conversation_id]: history.map((m) => ({
-                    id: m.id,
-                    sender: m.sender,
-                    sender_name: m.sender_name,
-                    content: m.content,
-                    timestamp: m.created_at,
-                    attachments: m.attachments,
-                    is_encrypted: m.is_encrypted,
-                  })),
-                }));
-              })
-              .catch(() => {});
-          }
+          const { conversation_id, hub_id, ...msg } = event.payload;
+          onDmEvent(conversation_id, msg, hub_id);
         })
       );
 
@@ -2187,174 +2150,9 @@ function App() {
     }
   }
 
-
-  async function loadConversations() {
-    try {
-      const c = await invoke<Conversation[]>("list_conversations");
-      setConversations(c);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function selectConversation(conv: Conversation) {
-    setSelectedConversation(conv);
-    selectedConversationForTypingRef.current = conv;
-    clearAllDmTyping();
-    setUnreadDms((prev) => {
-      if (!prev[conv.id]) return prev;
-      const { [conv.id]: _, ...rest } = prev;
-      return rest;
-    });
-    try {
-      const history = await invoke<DmMessageFull[]>("get_dm_messages", {
-        conversationId: conv.id,
-      });
-      setDmMessages((prev) => ({
-        ...prev,
-        [conv.id]: history.map((m) => ({
-          id: m.id,
-          sender: m.sender,
-          sender_name: m.sender_name,
-          content: m.content,
-          timestamp: m.created_at,
-          attachments: m.attachments,
-          delivery_failed: m.delivery_failed,
-        })),
-      }));
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function startDmWith(targetKey: string, targetHubUrl?: string | null) {
-    try {
-      const memberHubs: Record<string, string> = {};
-      if (targetHubUrl) memberHubs[targetKey] = targetHubUrl;
-      const conv = await invoke<Conversation>("create_conversation", {
-        members: [targetKey],
-        memberHubs,
-      });
-      // Make sure it's in the list
-      setConversations((prev) => {
-        if (prev.some((c) => c.id === conv.id)) return prev;
-        return [...prev, conv];
-      });
-      await selectConversation(conv);
-      setView("dms");
-      setShowFriends(false);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleSendDm() {
-    if (!selectedConversation) return;
-    const content = inputText;
-    const attachments = pendingAttachments;
-    if (!content.trim() && attachments.length === 0) return;
-
-    const doSend = async (encryptedEnvelope?: object, groupEncryptedEnvelope?: object) => {
-      setInputText("");
-      setPendingAttachments([]);
-      try {
-        await invoke("send_dm", {
-          conversationId: selectedConversation.id,
-          content: (encryptedEnvelope || groupEncryptedEnvelope) ? undefined : content,
-          attachments: attachments.length > 0 ? attachments : undefined,
-          encryptedEnvelope,
-          groupEncryptedEnvelope,
-        });
-        setDmMessages((prev) => {
-          const list = prev[selectedConversation.id] || [];
-          return {
-            ...prev,
-            [selectedConversation.id]: [
-              ...list,
-              {
-                sender: publicKey || "",
-                sender_name: null,
-                content,
-                timestamp: Math.floor(Date.now() / 1000),
-                attachments,
-                is_encrypted: !!encryptedEnvelope,
-              },
-            ],
-          };
-        });
-      } catch (e) {
-        setError(String(e));
-      }
-    };
-
-    if (selectedConversation.conv_type === "group") {
-      try {
-        const groupEnv = await invoke<object>("encrypt_group_dm", {
-          convId: selectedConversation.id,
-          content,
-        });
-        await doSend(undefined, groupEnv);
-      } catch (e) {
-        if (String(e).includes("no_sender_key")) {
-          try {
-            await invoke("push_group_sender_key", { convId: selectedConversation.id });
-            const groupEnv = await invoke<object>("encrypt_group_dm", {
-              convId: selectedConversation.id,
-              content,
-            });
-            await doSend(undefined, groupEnv);
-          } catch {
-            setEncryptionWarning({
-              message: "Encryption failed. The message was not sent.",
-              onCancel: () => setEncryptionWarning(null),
-            });
-          }
-        } else {
-          setEncryptionWarning({
-            message: "Encryption failed. The message was not sent.",
-            onCancel: () => setEncryptionWarning(null),
-          });
-        }
-      }
-      return;
-    }
-
-    const otherKey = selectedConversation.members.find((k) => k !== publicKey);
-    if (!otherKey) { await doSend(); return; }
-
-    const activeHub = hubs.find((h) => h.is_active);
-    if (!activeHub) { await doSend(); return; }
-
-    try {
-      const dhPubkey = await invoke<string | null>("fetch_dh_key", {
-        pubkey: otherKey,
-        hubUrl: activeHub.hub_url,
-      });
-
-      if (!dhPubkey) {
-        setEncryptionWarning({
-          message: "This recipient hasn't published an encryption key. This message will not be encrypted.",
-          onConfirm: async () => {
-            setEncryptionWarning(null);
-            await doSend();
-          },
-          onCancel: () => setEncryptionWarning(null),
-        });
-        return;
-      }
-
-      const envelope = await invoke<object>("encrypt_dm", {
-        convId: selectedConversation.id,
-        content,
-        recipientDhPubkeyHex: dhPubkey,
-      });
-      await doSend(envelope);
-    } catch {
-      setEncryptionWarning({
-        message: "Encryption failed. The message was not sent.",
-        onCancel: () => setEncryptionWarning(null),
-      });
-    }
+  async function startDmWithAndClose(targetKey: string, targetHubUrl?: string | null) {
+    await startDmWith(targetKey, targetHubUrl);
+    setShowFriends(false);
   }
 
   async function openSettings() {
@@ -3305,7 +3103,7 @@ function App() {
             onRequestHubUrlChange={setFriendRequestHubUrl}
             onSendRequest={handleSendFriendRequest}
             onAcceptFriend={handleAcceptFriend}
-            onMessage={startDmWith}
+            onMessage={startDmWithAndClose}
             onRemoveFriend={handleRemoveFriend}
             onClose={() => setShowFriends(false)}
           />
