@@ -869,6 +869,8 @@ pub(crate) enum WsServerMessage {
         channel_id: String,
         hub_udp_port: u16,
         participants: Vec<VoiceParticipantInfo>,
+        #[serde(default)]
+        udp_register_token: Option<String>,
     },
     #[serde(rename = "voice_participant_joined")]
     VoiceParticipantJoined {

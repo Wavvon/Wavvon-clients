@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::RwLock as TokioRwLock;
 
@@ -130,6 +130,12 @@ pub struct AudioPipeline {
     pub gain_map: Arc<TokioRwLock<HashMap<u16, f32>>>,
     /// Roster map: sender_id → pubkey. Updated by the Tauri WS handler on voice_roster_update.
     pub roster_map: Arc<TokioRwLock<HashMap<u16, String>>>,
+    /// UDP registration token (64 hex chars). When set, a registration loop
+    /// sends b"VXRG" + token every 500 ms until the hub acks with b"VXRA".
+    /// None means no registration required (older hub that does not send the field).
+    pub udp_reg_token: Arc<Mutex<Option<String>>>,
+    /// Set to true by the receive task when the hub replies with b"VXRA".
+    pub udp_reg_acked: Arc<AtomicBool>,
 }
 
 fn resolve_opus_rate(device_rate: u32) -> u32 {
@@ -228,6 +234,8 @@ impl AudioPipeline {
             deafened: Arc::new(AtomicBool::new(false)),
             gain_map: Arc::new(TokioRwLock::new(HashMap::new())),
             roster_map: Arc::new(TokioRwLock::new(HashMap::new())),
+            udp_reg_token: Arc::new(Mutex::new(None)),
+            udp_reg_acked: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -274,6 +282,9 @@ impl AudioPipeline {
 
         let gain_map = Arc::new(TokioRwLock::new(HashMap::<u16, f32>::new()));
         let roster_map = Arc::new(TokioRwLock::new(HashMap::<u16, String>::new()));
+
+        let udp_reg_token: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let udp_reg_acked = Arc::new(AtomicBool::new(false));
 
         // Send task: capture → encode → UDP, plus RMS-based VAD + level meter
         let send_socket = socket.clone();
@@ -375,10 +386,13 @@ impl AudioPipeline {
             }
         });
 
-        // Receive task: UDP → decode → playback (per-sender decoder + gain + whisper state)
+        // Receive task: UDP → decode → playback (per-sender decoder + gain + whisper state).
+        // Raw bytes are inspected first so the 4-byte VXRA registration ack is
+        // recognised before handing data to the audio deserialiser.
         let recv_socket = socket.clone();
         let recv_deafened = deafened.clone();
         let recv_gain_map = gain_map.clone();
+        let recv_acked = udp_reg_acked.clone();
         let recv_task = tokio::spawn(async move {
             // Per-sender decoder map: sender_id → VoiceDecoder
             let mut decoders: HashMap<u16, VoiceDecoder> = HashMap::new();
@@ -386,8 +400,22 @@ impl AudioPipeline {
             let mut whisper_state: HashMap<u16, bool> = HashMap::new();
 
             loop {
-                match recv_socket.recv_from_hub().await {
-                    Ok((packet, _from)) => {
+                match recv_socket.recv_raw().await {
+                    Ok((raw, _from)) => {
+                        // 4-byte VXRA: registration ack from the hub.
+                        if raw == b"VXRA" {
+                            recv_acked.store(true, Ordering::Release);
+                            tracing::info!("UDP registration ack (VXRA) received");
+                            continue;
+                        }
+
+                        // Parse as an audio packet; packets shorter than 8 bytes
+                        // are silently ignored (no log spam for stray datagrams).
+                        let packet = match crate::protocol::ReceivedVoicePacket::deserialize(&raw) {
+                            Ok(p) => p,
+                            Err(_) => continue,
+                        };
+
                         // Track whisper state transitions before checking deafened,
                         // so indicators update even when deafened.
                         let is_whisper = packet.is_whisper();
@@ -459,12 +487,59 @@ impl AudioPipeline {
             }
         });
 
+        // Registration loop: watches udp_reg_token; when a token is present and
+        // not yet acked, sends b"VXRG" + token every 500 ms until acked or 30 s
+        // elapses (matching the server-side token TTL).
+        let reg_socket = socket.clone();
+        let reg_token = udp_reg_token.clone();
+        let reg_acked = udp_reg_acked.clone();
+        let reg_task = tokio::spawn(async move {
+            // Wait up to 30 s total; poll for a token first (it arrives shortly
+            // after the pipeline starts, via the WS voice_joined message).
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+            let mut interval = tokio::time::interval(Duration::from_millis(500));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+            loop {
+                interval.tick().await;
+
+                if tokio::time::Instant::now() >= deadline {
+                    // Only warn if we actually had a token to register.
+                    let has_token = reg_token.lock().unwrap().is_some();
+                    if has_token && !reg_acked.load(Ordering::Acquire) {
+                        tracing::warn!("UDP registration timed out after 30 s (no VXRA received)");
+                    }
+                    return;
+                }
+
+                if reg_acked.load(Ordering::Acquire) {
+                    // Already acked — nothing more to do.
+                    return;
+                }
+
+                let token_opt = reg_token.lock().unwrap().clone();
+                let token = match token_opt {
+                    Some(t) => t,
+                    None => continue, // token not yet set, keep polling
+                };
+
+                // Build the 68-byte VXRG packet: b"VXRG" + 64 ASCII hex chars.
+                let mut pkt = Vec::with_capacity(68);
+                pkt.extend_from_slice(b"VXRG");
+                pkt.extend_from_slice(token.as_bytes());
+
+                if let Err(e) = reg_socket.send_raw(&pkt).await {
+                    tracing::warn!("UDP VXRG send error: {e}");
+                }
+            }
+        });
+
         tracing::info!("P2P voice started → {remote_addr}");
 
         Ok(Self {
             _capture: capture,
             _playback: playback,
-            tasks: vec![send_task, recv_task],
+            tasks: vec![send_task, recv_task, reg_task],
             local_udp_port: actual_local_port,
             speaking_rx: Some(speaking_rx),
             level_rx: Some(level_rx),
@@ -473,7 +548,20 @@ impl AudioPipeline {
             deafened,
             gain_map,
             roster_map,
+            udp_reg_token,
+            udp_reg_acked,
         })
+    }
+
+    /// Set the UDP registration token. The registration loop (already running)
+    /// will pick it up on its next 500 ms tick and start sending VXRG packets.
+    /// Call this immediately after the hub delivers the `voice_joined` message.
+    /// Does nothing if ack already received or if called on a loopback pipeline
+    /// (which has no real UDP hub).
+    pub fn register_udp(&self, token: String) {
+        if !self.udp_reg_acked.load(Ordering::Acquire) {
+            *self.udp_reg_token.lock().unwrap() = Some(token);
+        }
     }
 
     pub async fn stop(self) {

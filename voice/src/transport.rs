@@ -65,4 +65,28 @@ impl VoiceSocket {
         let packet = ReceivedVoicePacket::deserialize(&buf[..len])?;
         Ok((packet, from))
     }
+
+    /// Receive raw bytes from the socket without any parsing. Used by callers
+    /// that need to inspect the first bytes before deciding how to interpret
+    /// the packet (e.g. to detect the 4-byte VXRA registration ack before
+    /// handing audio packets to the normal deserialiser).
+    pub async fn recv_raw(&self) -> Result<(Vec<u8>, SocketAddr)> {
+        let mut buf = [0u8; 2048];
+        let (len, from) = self
+            .socket
+            .recv_from(&mut buf)
+            .await
+            .context("UDP recv failed")?;
+        Ok((buf[..len].to_vec(), from))
+    }
+
+    /// Send raw bytes to the hub's UDP endpoint.
+    pub async fn send_raw(&self, data: &[u8]) -> Result<()> {
+        let addr = self.remote_addr.context("No remote address set")?;
+        self.socket
+            .send_to(data, addr)
+            .await
+            .context("UDP send_raw failed")?;
+        Ok(())
+    }
 }

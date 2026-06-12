@@ -113,6 +113,11 @@ pub(crate) struct VoiceSession {
     pub voice_zones: std::sync::Arc<std::sync::Mutex<HashMap<String, ZoneInfo>>>,
     /// My own position per zone: zone_id → Vec<f64>
     pub my_position: std::sync::Arc<std::sync::Mutex<HashMap<String, Vec<f64>>>>,
+    /// UDP source-address registration token (64-char hex). Set by the ws task
+    /// when the hub sends a `voice_joined` message with `udp_register_token`.
+    /// The registration loop (running in the voice thread) reads this to send
+    /// VXRG packets until acked.
+    pub udp_reg_token: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
 // ---------------------------------------------------------------------------
