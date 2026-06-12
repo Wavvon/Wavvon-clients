@@ -52,6 +52,7 @@ pub(crate) async fn voice_join(
             std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<u16, String>>>,
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, ZoneInfo>>>,
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<f64>>>>,
+            std::sync::Arc<std::sync::Mutex<Option<String>>>,
         ),
         String,
     >;
@@ -107,6 +108,7 @@ pub(crate) async fn voice_join(
             let deafened_arc = pipeline.deafened.clone();
             let gain_map = pipeline.gain_map.clone();
             let roster_map = pipeline.roster_map.clone();
+            let udp_reg_token = pipeline.udp_reg_token.clone();
             let voice_zones =
                 std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
                     String,
@@ -125,6 +127,7 @@ pub(crate) async fn voice_join(
                 roster_map,
                 voice_zones,
                 my_position,
+                udp_reg_token,
             )));
 
             let speaking_rx = pipeline.speaking_rx.take();
@@ -181,7 +184,16 @@ pub(crate) async fn voice_join(
         });
     });
 
-    let (local_port, muted, deafened, gain_map, roster_map, voice_zones, my_position) = ready_rx
+    let (
+        local_port,
+        muted,
+        deafened,
+        gain_map,
+        roster_map,
+        voice_zones,
+        my_position,
+        udp_reg_token,
+    ) = ready_rx
         .recv()
         .map_err(|_| "Voice thread died".to_string())??;
 
@@ -202,6 +214,7 @@ pub(crate) async fn voice_join(
         roster_map,
         voice_zones,
         my_position,
+        udp_reg_token,
     });
 
     Ok(())
@@ -400,6 +413,7 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
         roster_map: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         voice_zones: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         my_position: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        udp_reg_token: std::sync::Arc::new(std::sync::Mutex::new(None)),
     });
 
     Ok(())

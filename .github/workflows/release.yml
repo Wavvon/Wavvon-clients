@@ -118,7 +118,9 @@ jobs:
             --disable-doc --disable-extra-programs --with-pic
           make -j4
 
-          X86_LIB="/tmp/opus-x86/lib/.libs/libopus.a"
+          # opus's autotools layout varies by version; locate the static lib
+          X86_LIB=$(find /tmp/opus-x86 -name libopus.a | head -1)
+          if [ -z "$X86_LIB" ]; then echo "x86_64 libopus.a not found"; exit 1; fi
 
           # Lipo into a fat universal library
           mkdir -p /tmp/opus-universal/lib
@@ -152,7 +154,9 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build ${{ matrix.args }}
+        # The updater overlay enables createUpdaterArtifacts (.sig + macOS
+        # .app.tar.gz) only in CI, so local builds don't require the signing key.
+        run: npx tauri build --config src-tauri/tauri.updater.conf.json ${{ matrix.args }}
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
