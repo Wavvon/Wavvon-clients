@@ -1,6 +1,6 @@
 {
   "name": "voxply-desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,6 +21,7 @@
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@types/dompurify": "^3.0.5",
     "@voxply/i18n": "file:../../web/i18n",
+    "@voxply/utils": "file:../../web/utils",
     "dompurify": "^3.4.8",
     "i18next": "^24.2.3",
     "i18next-icu": "^2.4.3",

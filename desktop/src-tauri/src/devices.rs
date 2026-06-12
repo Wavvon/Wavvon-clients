@@ -42,7 +42,9 @@ pub async fn device_list() -> Result<Vec<PairedDevice>, String> {
             (p.master_pubkey, p.subkey_pubkey)
         } else {
             let path = Identity::default_path().map_err(|e| e.to_string())?;
-            let identity = Identity::load_or_create(&path).map_err(|e| e.to_string())?.0;
+            let identity = Identity::load_or_create(&path)
+                .map_err(|e| e.to_string())?
+                .0;
             let master = identity.master().map_err(|e| e.to_string())?;
             let master_pubkey = master.public_key_hex();
             let my_pubkey = identity.public_key_hex();
@@ -67,27 +69,25 @@ pub async fn device_list() -> Result<Vec<PairedDevice>, String> {
             master_pubkey
         );
         match client.get(&endpoint).send().await {
-            Ok(resp) if resp.status().is_success() => {
-                match resp.json::<Vec<SubkeyCert>>().await {
-                    Ok(certs) => {
-                        let devices = certs
-                            .into_iter()
-                            .map(|cert| {
-                                let is_this_device = cert.subkey_pubkey == my_pubkey;
-                                PairedDevice {
-                                    subkey_pubkey: cert.subkey_pubkey,
-                                    device_label: cert.device_label,
-                                    issued_at: cert.issued_at,
-                                    not_after: cert.not_after,
-                                    is_this_device,
-                                }
-                            })
-                            .collect();
-                        return Ok(devices);
-                    }
-                    Err(_) => continue,
+            Ok(resp) if resp.status().is_success() => match resp.json::<Vec<SubkeyCert>>().await {
+                Ok(certs) => {
+                    let devices = certs
+                        .into_iter()
+                        .map(|cert| {
+                            let is_this_device = cert.subkey_pubkey == my_pubkey;
+                            PairedDevice {
+                                subkey_pubkey: cert.subkey_pubkey,
+                                device_label: cert.device_label,
+                                issued_at: cert.issued_at,
+                                not_after: cert.not_after,
+                                is_this_device,
+                            }
+                        })
+                        .collect();
+                    return Ok(devices);
                 }
-            }
+                Err(_) => continue,
+            },
             _ => continue,
         }
     }
@@ -99,9 +99,8 @@ pub async fn device_list() -> Result<Vec<PairedDevice>, String> {
 /// Revoke a device subkey. Requires master identity (phrase) on this device.
 #[tauri::command]
 pub async fn device_revoke(pubkey: String) -> Result<(), String> {
-    let master = load_master_identity().map_err(|_| {
-        "device revoke requires master identity on this device".to_string()
-    })?;
+    let master = load_master_identity()
+        .map_err(|_| "device revoke requires master identity on this device".to_string())?;
     let master_pubkey = master.public_key_hex();
     let revoked_at = now_secs();
 

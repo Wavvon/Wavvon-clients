@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rand::RngCore;
 use crate::identity::{
     DeviceSubkey, Identity, MasterIdentity, PairingClaim, PairingComplete, PairingOffer,
     PairingStatus, SubkeyCert,
 };
+use rand::RngCore;
 
 const OFFER_LIFETIME_SECS: u64 = 240; // 4 minutes — under the hub's 5-minute cap.
 const HTTP_TIMEOUT_SECS: u64 = 10;
@@ -119,8 +119,7 @@ pub struct HubFailure {
 #[tauri::command]
 pub async fn start_pairing_offer(home_hubs: Vec<String>) -> Result<StartPairingResult, String> {
     let offer = build_offer(home_hubs)?;
-    let qr_payload = serde_json::to_string(&offer)
-        .map_err(|e| format!("serialize offer: {e}"))?;
+    let qr_payload = serde_json::to_string(&offer).map_err(|e| format!("serialize offer: {e}"))?;
 
     let client = http_client()?;
     let (posted_count, failures) = publish_offer(&offer, &client).await;
@@ -213,13 +212,13 @@ pub async fn complete_pairing(
         fallback_hubs,
         signature,
     };
-    cert.verify().map_err(|e| format!("cert self-verify: {e}"))?;
+    cert.verify()
+        .map_err(|e| format!("cert self-verify: {e}"))?;
 
     // Derive blob key from master and wrap it for the new device.
     let blob_key = crate::prefs_blob::derive_blob_key(&master);
-    let wrapped_blob_key_hex =
-        crate::identity::wrap_blob_key(&blob_key, &cert.subkey_pubkey)
-            .map_err(|e| format!("ECIES wrap failed: {e}"))?;
+    let wrapped_blob_key_hex = crate::identity::wrap_blob_key(&blob_key, &cert.subkey_pubkey)
+        .map_err(|e| format!("ECIES wrap failed: {e}"))?;
 
     // Push a fresh blob to all home hubs so the new device can pull it after pairing.
     let home_hubs = crate::home_hub::read_cached_designation()
@@ -335,8 +334,7 @@ pub async fn claim_pairing_offer(
     let subkey_pubkey = subkey.public_key_hex();
     let subkey_secret_hex = hex::encode(subkey.secret_bytes());
 
-    let bytes =
-        PairingClaim::signing_bytes(&offer.pairing_token, &subkey_pubkey, &device_label);
+    let bytes = PairingClaim::signing_bytes(&offer.pairing_token, &subkey_pubkey, &device_label);
     let proof = hex::encode(subkey.sign(&bytes).to_bytes());
 
     let claim = PairingClaim {
@@ -396,8 +394,7 @@ pub async fn save_paired_identity(
     home_hubs: Vec<String>,
     wrapped_blob_key_hex: String,
 ) -> Result<SyncResult, String> {
-    cert.verify()
-        .map_err(|e| format!("cert signature: {e}"))?;
+    cert.verify().map_err(|e| format!("cert signature: {e}"))?;
     if cert.master_pubkey != master_pubkey {
         return Err("cert master_pubkey doesn't match expected".to_string());
     }
@@ -408,8 +405,8 @@ pub async fn save_paired_identity(
     // Sanity-check the subkey bytes round-trip to the same pubkey we
     // claimed under. If this fails the secret got mangled in transit
     // through the UI layer.
-    let secret_bytes = hex::decode(&subkey_secret_hex)
-        .map_err(|e| format!("decode secret: {e}"))?;
+    let secret_bytes =
+        hex::decode(&subkey_secret_hex).map_err(|e| format!("decode secret: {e}"))?;
     let secret_array: [u8; 32] = secret_bytes
         .try_into()
         .map_err(|_| "subkey secret must be 32 bytes".to_string())?;
@@ -450,11 +447,18 @@ pub async fn save_paired_identity(
                 .await
                 {
                     Ok(prefs) => {
-                        let _ = crate::save_blocked_users_raw(&prefs.blocked_users);
-                        let _ = crate::save_voice_settings_to_disk(&prefs.voice_settings);
-                        SyncResult { synced: true, error: None }
+                        let _ = crate::local_store::save_blocked_users_raw(&prefs.blocked_users);
+                        let _ =
+                            crate::local_store::save_voice_settings_to_disk(&prefs.voice_settings);
+                        SyncResult {
+                            synced: true,
+                            error: None,
+                        }
                     }
-                    Err(e) => SyncResult { synced: false, error: Some(e.to_string()) },
+                    Err(e) => SyncResult {
+                        synced: false,
+                        error: Some(e.to_string()),
+                    },
                 }
             }
             Err(e) => SyncResult {
@@ -512,8 +516,7 @@ mod tests {
         {
             return;
         }
-        let offer =
-            build_offer(vec!["https://a.example".to_string()]).expect("build");
+        let offer = build_offer(vec!["https://a.example".to_string()]).expect("build");
         assert!(offer.verify().is_ok());
         assert!(offer.expires_at > offer.issued_at);
         assert_eq!(offer.expires_at - offer.issued_at, OFFER_LIFETIME_SECS);

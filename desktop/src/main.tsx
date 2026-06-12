@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { initI18n } from "@voxply/i18n";
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
 
 const storedLang = localStorage.getItem('voxply_language');
@@ -14,6 +15,8 @@ initI18n(lang);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

@@ -12,12 +12,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
 
       - name: Generate release notes (current tag only)
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         with:
           config: cliff.toml
           args: --latest --strip header
@@ -26,7 +26,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           body_path: CHANGES.md
           prerelease: ${{ contains(github.ref_name, '-') }}
@@ -58,22 +58,22 @@ jobs:
 
     steps:
       - name: Checkout desktop
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           path: desktop
 
       - name: Checkout web (for i18n)
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: Voxply/Voxply-web
           path: web
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
-          workspaces: desktop/desktop/src-tauri
+          workspaces: desktop
 
       - name: Install Linux deps
         if: matrix.platform == 'ubuntu-22.04'
@@ -134,7 +134,7 @@ jobs:
           echo "LIBOPUS_NO_PKG=1"                     >> "$GITHUB_ENV"
 
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
           cache: npm
@@ -144,9 +144,9 @@ jobs:
         working-directory: desktop/desktop
         run: npm ci
 
-      # Authenticode signing: SignPath submits the unsigned installer to the
-      # SignPath cloud HSM for EV signing, then we swap in the signed copy.
-      # Activates only when SIGNPATH_API_TOKEN is set. See docs/code-signing.md
+      # Windows Authenticode signing is deferred until the project has the
+      # popularity to qualify for (or justify paying for) a signing service —
+      # see docs/code-signing.md in the docs repo. Installers ship unsigned.
       - name: Tauri build
         working-directory: desktop/desktop
         env:
@@ -154,67 +154,20 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx tauri build ${{ matrix.args }}
 
-      - name: Stage unsigned installer (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          $installer = Get-ChildItem "desktop\desktop\src-tauri\target\release\bundle\nsis\*.exe" | Select-Object -First 1
-          if (-not $installer) { throw "No NSIS installer found" }
-          New-Item -ItemType Directory -Force "signing-input" | Out-Null
-          Copy-Item $installer.FullName "signing-input\voxply-setup.exe"
-          Write-Output "Staged: $($installer.FullName)"
-
-      - name: Upload unsigned installer for SignPath (Windows)
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-installer
-          path: signing-input/voxply-setup.exe
-          retention-days: 1
-
-      - name: Sign installer via SignPath (Windows)
-        if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
-        uses: signpath/github-action-submit-signing-request@v1
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: voxply-desktop
-          signing-policy-slug: release-signing
-          artifact-configuration-slug: nsis-installer
-          github-artifact-name: unsigned-installer
-          wait-for-completion: true
-          output-artifact-name: signed-installer
-
-      - name: Swap in signed installer (Windows)
-        if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
-        uses: actions/download-artifact@v4
-        with:
-          name: signed-installer
-          path: signing-input
-
-      - name: Move signed installer into bundle dir (Windows)
-        if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
-        shell: pwsh
-        run: |
-          $bundleDir = "desktop\desktop\src-tauri\target\release\bundle\nsis"
-          $original = Get-ChildItem $bundleDir -Filter "*.exe" | Select-Object -First 1
-          if ($original) { Remove-Item $original.FullName }
-          Copy-Item "signing-input\voxply-setup.exe" "$bundleDir\voxply-setup.exe"
-          signtool verify /pa /v "$bundleDir\voxply-setup.exe"
-          Write-Output "Signed installer verified"
-
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
+          fail_on_unmatched_files: true
           files: |
-            desktop/desktop/src-tauri/target/**/release/bundle/**/${{ matrix.artifact }}
+            desktop/target/**/release/bundle/**/${{ matrix.artifact }}
 
       - name: Upload macOS updater bundle to GitHub Release
         if: matrix.platform == 'macos-latest'
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
+          fail_on_unmatched_files: true
           files: |
-            desktop/desktop/src-tauri/target/**/release/bundle/macos/*.app.tar.gz
+            desktop/target/**/release/bundle/macos/*.app.tar.gz
 
       # Collect the updater signature and bundle URL for latest.json assembly.
       - name: Collect update metadata (Linux / macOS)
@@ -222,11 +175,11 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.platform }}" = "macos-latest" ]; then
-            SIG_FILE=$(find desktop/desktop/src-tauri/target -name "*.app.tar.gz.sig" 2>/dev/null | head -1)
-            BUNDLE=$(find desktop/desktop/src-tauri/target -name "*.app.tar.gz" ! -name "*.sig" 2>/dev/null | head -1)
+            SIG_FILE=$(find desktop/target -name "*.app.tar.gz.sig" 2>/dev/null | head -1)
+            BUNDLE=$(find desktop/target -name "*.app.tar.gz" ! -name "*.sig" 2>/dev/null | head -1)
           else
-            SIG_FILE=$(find desktop/desktop/src-tauri/target -name "*.AppImage.sig" 2>/dev/null | head -1)
-            BUNDLE=$(find desktop/desktop/src-tauri/target -name "*.AppImage" ! -name "*.sig" 2>/dev/null | head -1)
+            SIG_FILE=$(find desktop/target -name "*.AppImage.sig" 2>/dev/null | head -1)
+            BUNDLE=$(find desktop/target -name "*.AppImage" ! -name "*.sig" 2>/dev/null | head -1)
           fi
           FILENAME=$(basename "$BUNDLE")
           URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$FILENAME"
@@ -240,8 +193,8 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          $sigFile = Get-ChildItem -Path "desktop\desktop\src-tauri\target" -Recurse -Filter "*.exe.sig" | Select-Object -First 1
-          $exeFile = Get-ChildItem -Path "desktop\desktop\src-tauri\target" -Recurse -Filter "*.exe" |
+          $sigFile = Get-ChildItem -Path "desktop\target" -Recurse -Filter "*.exe.sig" | Select-Object -First 1
+          $exeFile = Get-ChildItem -Path "desktop\target" -Recurse -Filter "*.exe" |
             Where-Object { $_.Extension -eq ".exe" -and $_.Name -notlike "*.sig" } |
             Select-Object -First 1
           $signature = (Get-Content $sigFile.FullName -Raw).Trim()
@@ -251,7 +204,7 @@ jobs:
             Out-File -FilePath windows.json -Encoding utf8NoBOM
 
       - name: Upload update metadata artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: update-meta-${{ matrix.platform-key }}
           path: ${{ matrix.platform-key }}.json
@@ -265,19 +218,19 @@ jobs:
       contents: write
     steps:
       - name: Download Linux metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: update-meta-linux
           path: meta
 
       - name: Download Windows metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: update-meta-windows
           path: meta
 
       - name: Download macOS metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: update-meta-macos
           path: meta
@@ -306,6 +259,6 @@ jobs:
           "
 
       - name: Upload latest.json to GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           files: latest.json

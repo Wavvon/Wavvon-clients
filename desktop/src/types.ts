@@ -4,22 +4,8 @@
 // HTTP endpoints. Keep them in sync with the Rust side; a renamed
 // field in src-tauri or server/voxply-hub means a rename here too.
 
-export interface Channel {
-  id: string;
-  name: string;
-  created_by: string;
-  parent_id: string | null;
-  is_category: boolean;
-  channel_type: "text" | "forum" | "banner";
-  display_order: number;
-  description: string | null;
-  icon: string | null;
-  color: string | null;
-  custom_icon_svg: string | null;
-  created_at: number;
-  banner_url?: string | null;
-  banner_file_id?: string | null;
-}
+// Channel is shared with the channel-tree helpers in @voxply/utils.
+export type { Channel } from "@voxply/utils";
 
 export interface HubIcon {
   id: string;
@@ -991,4 +977,8 @@ export interface HubEvent {
   my_rsvp?: string;
   going_count: number;
   maybe_count: number;
+}
+
+export interface TauriFile extends File {
+  path?: string;
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PairedDevice } from "../types";
-import { formatPubkey, formatRelative } from "../utils/format";
+import { formatPubkey, formatRelative } from "@voxply/utils";
 
 export function DeviceListSection() {
   const [devices, setDevices] = useState<PairedDevice[]>([]);

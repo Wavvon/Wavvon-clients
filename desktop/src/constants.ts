@@ -135,9 +135,6 @@ export const QUICK_REACTIONS = EMOJI_CATALOG.slice(0, 8).map(([e]) => e);
 
 export const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024; // matches the hub cap
 
-export const RECENT_EMOJI_KEY = "voxply.recentEmojis";
-export const RECENT_EMOJI_MAX = 8;
-
 export const MIC_METER_MAX = 0.2;
 
 export const ALL_PERMISSIONS: { id: string; label: string }[] = [

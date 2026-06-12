@@ -30,7 +30,6 @@ import type {
   Friend,
   Conversation,
   DmMessage,
-  DmMessageFull,
   AllianceInfo,
   AllianceSharedChannel,
   ActiveStream,
@@ -39,6 +38,7 @@ import type {
   BotAdminInfo,
   BotDetailInfo,
   InstalledGame,
+  TauriFile,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
@@ -50,15 +50,25 @@ import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
 import { MAX_ATTACHMENT_BYTES } from "./constants";
 import { type ThemeId, type VoxplySkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
-import { formatPubkey, mentionsName, newProfileId } from "./utils/format";
-import { playMentionPing } from "./utils/audio";
+import {
+  formatPubkey,
+  mentionsName,
+  playMentionPing,
+  buildChannelTree,
+  flattenTree,
+  descendantIds,
+  computeDepth,
+} from "@voxply/utils";
 import { readFileAsB64 } from "./utils/files";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
-import { buildChannelTree, flattenTree, descendantIds, computeDepth } from "./utils/channels";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts } from "./hooks/useUnreadCounts";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
 import { useHubConnections } from "./hooks/useHubConnections";
+import { useHubAdmin } from "./hooks/useHubAdmin";
+import { useFriends } from "./hooks/useFriends";
+import { useSettingsProfile } from "./hooks/useSettingsProfile";
+import { useDms } from "./hooks/useDms";
 import { Lightbox } from "./components/Lightbox";
 import { ChannelPalette } from "./components/ChannelPalette";
 import { ChannelBansModal } from "./components/ChannelBansModal";
@@ -129,11 +139,6 @@ function App() {
     clearUnread,
     clearHubUnread,
   } = useUnreadCounts();
-
-  // Conversation unread set. In-memory only -- DMs always come back to view
-  // through the conversation list, so persisting per-launch isn't worth the
-  // complexity yet.
-  const [unreadDms, setUnreadDms] = useState<Record<string, boolean>>({});
 
   const {
     hubNotifyMode,
@@ -264,6 +269,63 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  const {
+    showHubAdmin,
+    setShowHubAdmin,
+    hubAdminTab,
+    setHubAdminTab,
+    myRoles,
+    setMyRoles,
+    myApprovalStatus,
+    setMyApprovalStatus,
+    adminHubName,
+    setAdminHubName,
+    adminHubDescription,
+    setAdminHubDescription,
+    adminHubIcon,
+    setAdminHubIcon,
+    adminRoles,
+    adminMembers,
+    adminBans,
+    adminInvites,
+    requireApproval,
+    setRequireApproval,
+    minSecurityLevel,
+    setMinSecurityLevel,
+    maxChannelDepth,
+    setMaxChannelDepth,
+    pendingMembers,
+    isAdmin,
+    openHubAdmin,
+    openHubAdminInvites,
+    handleSaveHubBranding,
+    refreshPending,
+    handleApproveMember,
+    refreshRoles,
+    handleCreateRole,
+    handleUpdateRole,
+    handleDeleteRole,
+    refreshMembers,
+    handleKickMember,
+    handleBanMember,
+    handleMuteMember,
+    handleTimeoutMember,
+    refreshBans,
+    handleUnban,
+    refreshInvites,
+    handleCreateInvite,
+    handleRevokeInvite,
+    handleToggleRoleAssignment,
+    loadAdminTabData,
+  } = useHubAdmin({
+    activeHubId,
+    hubs,
+    setHubs: (updater) => setHubs(updater),
+    setError,
+    setToast,
+  });
+
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
   const [voicePoliteAnnouncement, setVoicePoliteAnnouncement] = useState("");
   const voiceAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -346,6 +408,46 @@ function App() {
     clearAllDmTyping,
   } = useTypingIndicators(selectedChannelForTypingRef, selectedConversationForTypingRef);
 
+  // Stable getter refs for useDms — avoids passing mutable state directly.
+  const inputTextRef = useRef(inputText);
+  useEffect(() => { inputTextRef.current = inputText; }, [inputText]);
+  const pendingAttachmentsRef = useRef(pendingAttachments);
+  useEffect(() => { pendingAttachmentsRef.current = pendingAttachments; }, [pendingAttachments]);
+
+  const {
+    view,
+    setView,
+    viewRef,
+    conversations,
+    setConversations,
+    conversationsRef,
+    selectedConversation,
+    setSelectedConversation,
+    selectedConversationIdRef,
+    dmMessages,
+    unreadDms,
+    setUnreadDms,
+    encryptionWarning,
+    setEncryptionWarning,
+    loadConversations,
+    selectConversation,
+    startDmWith,
+    handleSendDm,
+    onDmEvent,
+    onDmMemberChanged,
+  } = useDms({
+    publicKeyRef,
+    activeHubIdRef,
+    selectedConversationForTypingRef,
+    getActiveHub: () => hubs.find((h) => h.is_active),
+    getPendingAttachments: () => pendingAttachmentsRef.current,
+    getInputText: () => inputTextRef.current,
+    clearInput: () => setInputText(""),
+    clearPendingAttachments: () => setPendingAttachments([]),
+    setError,
+    clearAllDmTyping,
+  });
+
   // Per-channel search. When a query is active, the message list is
   // replaced by search results (newest-first) until the user clears it.
   const [searchQuery, setSearchQuery] = useState("");
@@ -384,12 +486,6 @@ function App() {
     x: number;
     y: number;
     user: User;
-  } | null>(null);
-
-  const [encryptionWarning, setEncryptionWarning] = useState<{
-    message: string;
-    onConfirm?: () => void;
-    onCancel: () => void;
   } | null>(null);
 
   async function handleHubReorder(event: DragEndEvent) {
@@ -449,13 +545,11 @@ function App() {
 
   async function handleUserAddFriend(u: User) {
     setUserContextMenu(null);
-    if (u.public_key === publicKey) return;
-    try {
-      await invoke("send_friend_request", { targetPublicKey: u.public_key });
-      setToast(`Friend request sent to ${u.display_name || formatPubkey(u.public_key)}`);
-    } catch (e) {
-      setError(String(e));
-    }
+    await handleUserAddFriendFromHook(
+      u.public_key,
+      publicKey,
+      u.display_name || formatPubkey(u.public_key),
+    );
   }
 
   async function handleCopyUserKey(u: User) {
@@ -505,41 +599,8 @@ function App() {
     { channelId: string; channelName: string } | null
   >(null);
 
-  // Hub admin panel
   const [hubDropdownOpen, setHubDropdownOpen] = useState(false);
-  const [showHubAdmin, setShowHubAdmin] = useState(false);
-  const [hubAdminTab, setHubAdminTab] = useState<HubAdminTab>("overview");
-  const [myRoles, setMyRoles] = useState<RoleInfo[]>([]);
-  // "pending" means the active hub requires admin approval and our user
-  // record hasn't been approved yet. We render a landing page in that case
-  // instead of the empty channel list, so the user knows what's going on.
-  const [myApprovalStatus, setMyApprovalStatus] = useState<
-    "approved" | "pending" | "unknown"
-  >("unknown");
-  const [adminHubName, setAdminHubName] = useState("");
-  const [adminHubDescription, setAdminHubDescription] = useState("");
-  const [adminHubIcon, setAdminHubIcon] = useState("");
-
-  // Role editor
-  const [adminRoles, setAdminRoles] = useState<RoleInfo[]>([]);
-
-  // Member admin
-  const [adminMembers, setAdminMembers] = useState<MemberAdminInfo[]>([]);
-
-  // Ban admin
-  const [adminBans, setAdminBans] = useState<BanInfo[]>([]);
-
-  // Invite admin
-  const [adminInvites, setAdminInvites] = useState<InviteInfo[]>([]);
-
-  // Approval queue + hub-wide flags
-  const [requireApproval, setRequireApproval] = useState(false);
-  const [minSecurityLevel, setMinSecurityLevel] = useState(0);
-  const [maxChannelDepth, setMaxChannelDepth] = useState(0);
   const [showHubStreams, setShowHubStreams] = useState(false);
-  const [pendingMembers, setPendingMembers] = useState<PendingUser[]>([]);
-
-  const isAdmin = myRoles.some((r) => r.permissions.includes("admin"));
 
   // Context menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; channel: Channel } | null>(null);
@@ -643,8 +704,43 @@ function App() {
   const [showCreateHub, setShowCreateHub] = useState(false);
   const [knownFarms, setKnownFarms] = useState<{ url: string; name: string }[]>([]);
 
-  // Settings
-  const [showSettings, setShowSettings] = useState(false);
+  const {
+    showSettings,
+    setShowSettings,
+    settingsTab,
+    setSettingsTab,
+    theme,
+    setTheme,
+    skin,
+    setSkin,
+    profiles,
+    setProfiles,
+    defaultProfileId,
+    setDefaultProfileId,
+    recoveryPhrase,
+    setRecoveryPhrase,
+    copiedKey,
+    persistProfileFile,
+    handleCreateProfile,
+    handleUpdateProfile,
+    handleDeleteProfile,
+    handleSetDefaultProfile,
+    handleApplyProfileToHub,
+    handleSetTheme,
+    handleSkinChange,
+    handleShowRecovery,
+    handleClearLocalData,
+    handleRecoverIdentity,
+    handleImportBackup,
+    copyPublicKey,
+  } = useSettingsProfile({
+    hasActiveHub,
+    setUsers: (updater) => setUsers(updater),
+    setPublicKey,
+    setError,
+    setToast,
+  });
+
   const [showDiscover, setShowDiscover] = useState(false);
   const [showHubBrowser, setShowHubBrowser] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
@@ -654,13 +750,6 @@ function App() {
       return true;
     }
   });
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
-  const [theme, setTheme] = useState<ThemeId>("calm");
-  const [skin, setSkin] = useState<VoxplySkin | null>(null);
-  const [profiles, setProfiles] = useState<NamedProfile[]>([]);
-  const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
-  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
 
   // Whether to play the mention ping. Local-only preference; OS notifications
   // and unread badges are unaffected by this toggle.
@@ -740,36 +829,24 @@ function App() {
     }
   }
 
-  // Friends
-  const [showFriends, setShowFriends] = useState(false);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [pendingFriends, setPendingFriends] = useState<Friend[]>([]);
-  const [friendRequestKey, setFriendRequestKey] = useState("");
-  // Optional hub URL field — when filled, the friend is treated as cross-hub
-  // and the friendship is created already-accepted (no federated request flow yet).
-  const [friendRequestHubUrl, setFriendRequestHubUrl] = useState("");
+  const {
+    showFriends,
+    setShowFriends,
+    friends,
+    pendingFriends,
+    friendRequestKey,
+    setFriendRequestKey,
+    friendRequestHubUrl,
+    setFriendRequestHubUrl,
+    refreshFriends,
+    openFriends,
+    handleSendFriendRequest,
+    handleAcceptFriend,
+    handleRemoveFriend,
+    handleUserAddFriend: handleUserAddFriendFromHook,
+  } = useFriends({ setError, setToast });
 
   const [hideSilenced, setHideSilenced] = useState(false);
-
-  // DMs
-  const [view, setView] = useState<"channels" | "dms">("channels");
-  // Mirror current view in a ref so window-level event listeners can read
-  // the latest value without re-registering on every state change.
-  const viewRef = useRef<typeof view>(view);
-  useEffect(() => {
-    viewRef.current = view;
-  }, [view]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const conversationsRef = useRef<Conversation[]>([]);
-  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
-  const selectedConversationIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    selectedConversationIdRef.current = selectedConversation?.id ?? null;
-    selectedConversationForTypingRef.current = selectedConversation;
-  }, [selectedConversation]);
 
   // Ref to the messages container for auto-scroll
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -867,33 +944,10 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showHubAdmin]);
 
-  // Load data for whichever admin tab the user opens
   useEffect(() => {
     if (!showHubAdmin) return;
-    if (hubAdminTab === "roles") {
-      refreshRoles();
-    } else if (hubAdminTab === "members") {
-      refreshRoles(); // roles list used for the assign-role dropdown
-      refreshMembers();
-      refreshPending();
-      voice.refreshVoiceMutes();
-    } else if (hubAdminTab === "bans") {
-      refreshBans();
-    } else if (hubAdminTab === "invites") {
-      refreshInvites();
-    }
+    loadAdminTabData(hubAdminTab, voice.refreshVoiceMutes);
   }, [showHubAdmin, hubAdminTab]);
-
-  async function copyPublicKey() {
-    if (!publicKey) return;
-    try {
-      await navigator.clipboard.writeText(publicKey);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
-    } catch (e) {
-      setError("Failed to copy: " + e);
-    }
-  }
 
   // Surface any error as a toast so the user actually sees it
   // (we removed the always-visible connect screen that used to render it).
@@ -1055,21 +1109,7 @@ function App() {
           added: string[];
           removed: string[];
         }>("dm-member-changed", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          const myKey = publicKeyRef.current;
-          if (myKey && event.payload.removed.includes(myKey)) {
-            // I was removed — clear selection if viewing this conversation.
-            if (selectedConversationIdRef.current === event.payload.conversation_id) {
-              setSelectedConversation(null);
-            }
-          }
-          // Refresh conversation list so membership changes are visible.
-          void loadConversations();
-          // Rotate sender key on any membership change to prevent removed
-          // members from decrypting future messages.
-          void invoke("rotate_group_sender_key", {
-            convId: event.payload.conversation_id,
-          }).catch(() => {});
+          onDmMemberChanged(event.payload);
         }),
       );
 
@@ -1210,40 +1250,8 @@ function App() {
 
       unlistens.push(
         await listen<DmMessage & { hub_id: string; conversation_id: string }>("dm", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          const { conversation_id, hub_id: _, ...msg } = event.payload;
-          setDmMessages((prev) => {
-            const list = prev[conversation_id] || [];
-            return { ...prev, [conversation_id]: [...list, msg] };
-          });
-          // Mark this conversation unread unless the user is currently
-          // viewing it (in DM view AND it's the selected conversation).
-          const lookingHere =
-            viewRef.current === "dms" &&
-            selectedConversationIdRef.current === conversation_id;
-          if (!lookingHere && msg.sender !== publicKeyRef.current) {
-            setUnreadDms((prev) => ({ ...prev, [conversation_id]: true }));
-          }
-          const conv = conversationsRef.current.find((c) => c.id === conversation_id);
-          if (conv?.conv_type === "group" && msg.sender !== publicKeyRef.current) {
-            invoke("fetch_group_sender_keys", { convId: conversation_id })
-              .then(() => invoke<DmMessageFull[]>("get_dm_messages", { conversationId: conversation_id }))
-              .then((history) => {
-                setDmMessages((prev) => ({
-                  ...prev,
-                  [conversation_id]: history.map((m) => ({
-                    id: m.id,
-                    sender: m.sender,
-                    sender_name: m.sender_name,
-                    content: m.content,
-                    timestamp: m.created_at,
-                    attachments: m.attachments,
-                    is_encrypted: m.is_encrypted,
-                  })),
-                }));
-              })
-              .catch(() => {});
-          }
+          const { conversation_id, hub_id, ...msg } = event.payload;
+          onDmEvent(conversation_id, msg, hub_id);
         })
       );
 
@@ -1414,224 +1422,6 @@ function App() {
     }
   }
 
-  async function openHubAdmin() {
-    setHubDropdownOpen(false);
-    setShowHubAdmin(true);
-    setHubAdminTab("overview");
-    try {
-      const branding = await invoke<{
-        name: string;
-        description: string | null;
-        icon: string | null;
-      }>("get_hub_branding");
-      setAdminHubName(branding.name);
-      setAdminHubDescription(branding.description ?? "");
-      setAdminHubIcon(branding.icon ?? "");
-
-      const settings = await invoke<{
-        require_approval: boolean;
-        invite_only: boolean;
-        min_security_level: number;
-        max_channel_depth: number;
-      }>("get_hub_settings");
-      setRequireApproval(settings.require_approval);
-      setMinSecurityLevel(settings.min_security_level ?? 0);
-      setMaxChannelDepth(settings.max_channel_depth ?? 0);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleSaveHubBranding() {
-    try {
-      await invoke("update_hub_branding", {
-        name: adminHubName.trim() || null,
-        description: adminHubDescription,
-        icon: adminHubIcon,
-        requireApproval: requireApproval,
-        minSecurityLevel: minSecurityLevel,
-        maxChannelDepth: maxChannelDepth,
-      });
-      // Refresh hub list so the new name flows into the hub-icon title
-      const refreshed = await invoke<Hub[]>("list_hubs");
-      setHubs(refreshed);
-      setToast("Hub settings saved");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function refreshPending() {
-    try {
-      const p = await invoke<PendingUser[]>("list_pending_members");
-      setPendingMembers(p);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleApproveMember(publicKey: string) {
-    try {
-      await invoke("approve_member", { targetPublicKey: publicKey });
-      setToast("Member approved");
-      await refreshPending();
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function refreshRoles() {
-    try {
-      const r = await invoke<RoleInfo[]>("list_roles");
-      setAdminRoles(r);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleCreateRole(
-    name: string,
-    permissions: string[],
-    priority: number,
-    displaySeparately: boolean
-  ) {
-    try {
-      await invoke("create_role", {
-        name,
-        permissions,
-        priority,
-        displaySeparately,
-      });
-      await refreshRoles();
-      setToast("Role created");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleUpdateRole(
-    roleId: string,
-    updates: {
-      name?: string;
-      permissions?: string[];
-      priority?: number;
-      display_separately?: boolean;
-    }
-  ) {
-    try {
-      await invoke("update_role", {
-        roleId,
-        name: updates.name ?? null,
-        permissions: updates.permissions ?? null,
-        priority: updates.priority ?? null,
-        displaySeparately: updates.display_separately ?? null,
-      });
-      await refreshRoles();
-      setToast("Role updated");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleDeleteRole(roleId: string) {
-    if (!confirm("Delete this role? Users assigned to it will lose the role.")) return;
-    try {
-      await invoke("delete_role", { roleId });
-      await refreshRoles();
-      setToast("Role deleted");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function refreshMembers() {
-    try {
-      const m = await invoke<MemberAdminInfo[]>("list_hub_members");
-      setAdminMembers(m);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleKickMember(publicKey: string) {
-    const reason = prompt("Reason for kick (optional)") ?? "";
-    try {
-      await invoke("kick_user_cmd", {
-        targetPublicKey: publicKey,
-        reason: reason.trim() || null,
-      });
-      setToast("Kicked");
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleBanMember(publicKey: string) {
-    const reason = prompt("Reason for ban (optional)") ?? "";
-    if (!confirm("Ban this user? They won't be able to rejoin.")) return;
-    try {
-      await invoke("ban_user_cmd", {
-        targetPublicKey: publicKey,
-        reason: reason.trim() || null,
-      });
-      setToast("Banned");
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleMuteMember(publicKey: string) {
-    const reason = prompt("Reason for mute (optional)") ?? "";
-    try {
-      await invoke("mute_user_cmd", {
-        targetPublicKey: publicKey,
-        reason: reason.trim() || null,
-      });
-      setToast("Muted");
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleTimeoutMember(publicKey: string) {
-    const durationStr = prompt(
-      "Timeout duration in minutes (1-1440)",
-      "10"
-    );
-    if (!durationStr) return;
-    const minutes = Number(durationStr);
-    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) {
-      setError("Invalid duration");
-      return;
-    }
-    const reason = prompt("Reason (optional)") ?? "";
-    try {
-      await invoke("timeout_user_cmd", {
-        targetPublicKey: publicKey,
-        durationSeconds: Math.floor(minutes * 60),
-        reason: reason.trim() || null,
-      });
-      setToast(`Timed out for ${minutes}m`);
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function refreshBans() {
-    try {
-      const b = await invoke<BanInfo[]>("list_bans");
-      setAdminBans(b);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-
   async function handleSetTalkPower(channelId: string) {
     let current = 0;
     try {
@@ -1658,76 +1448,6 @@ function App() {
         minTalkPower: Math.floor(n),
       });
       setToast(n === 0 ? "Talk power cleared" : `Talk power set to ${Math.floor(n)}`);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleUnban(publicKey: string) {
-    if (!confirm("Unban this user? They'll be able to rejoin.")) return;
-    try {
-      await invoke("unban_user", { targetPublicKey: publicKey });
-      setToast("Unbanned");
-      await refreshBans();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function refreshInvites() {
-    try {
-      const i = await invoke<InviteInfo[]>("list_invites");
-      setAdminInvites(i);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleCreateInvite(
-    maxUses: number | null,
-    expiresInSeconds: number | null
-  ) {
-    try {
-      await invoke<InviteInfo>("create_invite", {
-        maxUses,
-        expiresInSeconds,
-      });
-      await refreshInvites();
-      setToast("Invite created");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleRevokeInvite(code: string) {
-    if (!confirm(`Revoke invite ${code}?`)) return;
-    try {
-      await invoke("revoke_invite", { code });
-      await refreshInvites();
-      setToast("Invite revoked");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleToggleRoleAssignment(
-    publicKey: string,
-    roleId: string,
-    hasRole: boolean
-  ) {
-    try {
-      if (hasRole) {
-        await invoke("unassign_role", {
-          targetPublicKey: publicKey,
-          roleId,
-        });
-      } else {
-        await invoke("assign_role", {
-          targetPublicKey: publicKey,
-          roleId,
-        });
-      }
-      await refreshMembers();
     } catch (e) {
       setError(String(e));
     }
@@ -1771,23 +1491,39 @@ function App() {
         setShowAddHub(true);
       }
     });
-    const unlisten = listen<string>("join-hub-requested", (event) => {
+    let cancelled = false;
+    let unlistenFn: (() => void) | null = null;
+    listen<string>("join-hub-requested", (event) => {
       const parsed = parseHubInput(event.payload);
       if (parsed) {
         setHubUrl(parsed.hubUrl);
         setInviteCode(parsed.inviteCode);
         setShowAddHub(true);
       }
+    }).then((fn) => {
+      if (cancelled) { fn(); return; }
+      unlistenFn = fn;
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
   }, []);
 
   const [updateInfo, setUpdateInfo] = useState<{ version: string; notes: string | null } | null>(null);
   useEffect(() => {
-    const unlisten = listen<{ version: string; notes: string | null }>("update-available", (ev) => {
+    let cancelled = false;
+    let unlistenFn: (() => void) | null = null;
+    listen<{ version: string; notes: string | null }>("update-available", (ev) => {
       setUpdateInfo(ev.payload);
+    }).then((fn) => {
+      if (cancelled) { fn(); return; }
+      unlistenFn = fn;
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
   }, []);
 
   // Debounced fetch of /info while the user types a hub URL.
@@ -2414,394 +2150,9 @@ function App() {
     }
   }
 
-
-  /** Persist the full LocalProfile to disk. Pass the parts you want to change;
-   *  current state is used for the rest. */
-  async function persistProfileFile(overrides: {
-    profiles?: NamedProfile[];
-    defaultProfileId?: string | null;
-    theme?: "calm" | "classic" | "linear" | "light";
-  } = {}) {
-    const next = {
-      profiles: overrides.profiles ?? profiles,
-      default_profile_id: overrides.defaultProfileId ?? defaultProfileId,
-      theme: overrides.theme ?? theme,
-    };
-    try {
-      await invoke("save_profile", { profile: next });
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleCreateProfile() {
-    const fresh: NamedProfile = {
-      id: newProfileId(),
-      label: `Profile ${profiles.length + 1}`,
-      display_name: "",
-      avatar: null,
-    };
-    const next = [...profiles, fresh];
-    setProfiles(next);
-    // First profile created becomes the default automatically.
-    const nextDefault = profiles.length === 0 ? fresh.id : defaultProfileId;
-    if (nextDefault !== defaultProfileId) setDefaultProfileId(nextDefault);
-    await persistProfileFile({ profiles: next, defaultProfileId: nextDefault });
-  }
-
-  async function handleUpdateProfile(
-    id: string,
-    patch: Partial<Omit<NamedProfile, "id">>
-  ) {
-    const next = profiles.map((p) =>
-      p.id === id ? { ...p, ...patch } : p
-    );
-    setProfiles(next);
-    await persistProfileFile({ profiles: next });
-  }
-
-  async function handleDeleteProfile(id: string) {
-    if (profiles.length <= 1) {
-      setError("You need at least one profile.");
-      return;
-    }
-    if (!confirm("Delete this profile?")) return;
-    const next = profiles.filter((p) => p.id !== id);
-    setProfiles(next);
-    let nextDefault = defaultProfileId;
-    if (defaultProfileId === id) {
-      nextDefault = next[0]?.id ?? null;
-      setDefaultProfileId(nextDefault);
-    }
-    await persistProfileFile({ profiles: next, defaultProfileId: nextDefault });
-  }
-
-  async function handleSetDefaultProfile(id: string) {
-    setDefaultProfileId(id);
-    await persistProfileFile({ defaultProfileId: id });
-    setToast("Default profile updated");
-  }
-
-  async function handleApplyProfileToHub(id: string) {
-    if (!hasActiveHub) return;
-    const p = profiles.find((x) => x.id === id);
-    if (!p) return;
-    try {
-      if (p.display_name.trim()) {
-        await invoke("update_display_name", { displayName: p.display_name });
-      }
-      await invoke("update_avatar", { avatar: p.avatar ?? "" });
-      const u = await invoke<User[]>("list_users");
-      setUsers(u);
-      setToast(`Applied "${p.label}" to this hub`);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleSetTheme(t: ThemeId) {
-    if (t !== "custom") {
-      clearSkinTokens();
-      setSkin(null);
-      document.documentElement.dataset.theme = t;
-      await persistProfileFile({ theme: t });
-    }
-    setTheme(t);
-    if (t !== "custom") {
-      await invoke("save_appearance", { settings: { slot: t, skin: null } }).catch(() => {});
-    }
-  }
-
-  async function handleSkinChange(s: VoxplySkin) {
-    setSkin(s);
-    document.documentElement.dataset.theme = s.base;
-    applySkinTokens(s);
-    setTheme("custom");
-    await invoke("save_appearance", { settings: { slot: "custom", skin: s } }).catch(() => {});
-  }
-
-  async function handleShowRecovery() {
-    try {
-      const phrase = await invoke<string>("get_recovery_phrase");
-      setRecoveryPhrase(phrase);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleClearLocalData() {
-    const ok = confirm(
-      "Clear local preferences?\n\nThis wipes unread, mutes, pinned channels, collapsed categories, voice settings, and recently-used emojis.\n\nYour identity and saved hubs are kept.",
-    );
-    if (!ok) return;
-    const confirm2 = confirm("Are you sure? This can't be undone.");
-    if (!confirm2) return;
-    try {
-      await invoke("clear_local_data");
-      // localStorage flags too -- those live in the webview, not on disk
-      // via Tauri.
-      try {
-        localStorage.removeItem("voxply.recentEmojis");
-        localStorage.removeItem("voxply.memberSidebarHidden");
-        localStorage.removeItem("voxply.mentionPing");
-      } catch {}
-      setToast("Local data cleared — reloading…");
-      setTimeout(() => window.location.reload(), 600);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleRecoverIdentity(phrase: string) {
-    try {
-      const newPubkey = await invoke<string>("recover_identity_from_phrase", {
-        phrase,
-      });
-      // The backend already cleared hub sessions and the saved-hubs file.
-      // Reloading is the cleanest way to reset every piece of in-memory
-      // state (active hub, channels, messages, voice, friends, etc.) without
-      // hand-resetting twenty pieces of React state.
-      setRecoveryPhrase(null);
-      setPublicKey(newPubkey);
-      setToast("Identity restored — reloading…");
-      setTimeout(() => window.location.reload(), 600);
-    } catch (e) {
-      setError(String(e));
-      throw e;
-    }
-  }
-
-  async function handleImportBackup() {
-    const passphrase = window.prompt("Enter the backup passphrase:");
-    if (passphrase === null) return;
-    try {
-      await invoke("import_identity_backup", { passphrase });
-      setToast("Identity restored from backup — reloading…");
-      setTimeout(() => window.location.reload(), 600);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function loadConversations() {
-    try {
-      const c = await invoke<Conversation[]>("list_conversations");
-      setConversations(c);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function selectConversation(conv: Conversation) {
-    setSelectedConversation(conv);
-    selectedConversationForTypingRef.current = conv;
-    clearAllDmTyping();
-    setUnreadDms((prev) => {
-      if (!prev[conv.id]) return prev;
-      const { [conv.id]: _, ...rest } = prev;
-      return rest;
-    });
-    try {
-      const history = await invoke<DmMessageFull[]>("get_dm_messages", {
-        conversationId: conv.id,
-      });
-      setDmMessages((prev) => ({
-        ...prev,
-        [conv.id]: history.map((m) => ({
-          id: m.id,
-          sender: m.sender,
-          sender_name: m.sender_name,
-          content: m.content,
-          timestamp: m.created_at,
-          attachments: m.attachments,
-          delivery_failed: m.delivery_failed,
-        })),
-      }));
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function startDmWith(targetKey: string, targetHubUrl?: string | null) {
-    try {
-      const memberHubs: Record<string, string> = {};
-      if (targetHubUrl) memberHubs[targetKey] = targetHubUrl;
-      const conv = await invoke<Conversation>("create_conversation", {
-        members: [targetKey],
-        memberHubs,
-      });
-      // Make sure it's in the list
-      setConversations((prev) => {
-        if (prev.some((c) => c.id === conv.id)) return prev;
-        return [...prev, conv];
-      });
-      await selectConversation(conv);
-      setView("dms");
-      setShowFriends(false);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleSendDm() {
-    if (!selectedConversation) return;
-    const content = inputText;
-    const attachments = pendingAttachments;
-    if (!content.trim() && attachments.length === 0) return;
-
-    const doSend = async (encryptedEnvelope?: object, groupEncryptedEnvelope?: object) => {
-      setInputText("");
-      setPendingAttachments([]);
-      try {
-        await invoke("send_dm", {
-          conversationId: selectedConversation.id,
-          content: (encryptedEnvelope || groupEncryptedEnvelope) ? undefined : content,
-          attachments: attachments.length > 0 ? attachments : undefined,
-          encryptedEnvelope,
-          groupEncryptedEnvelope,
-        });
-        setDmMessages((prev) => {
-          const list = prev[selectedConversation.id] || [];
-          return {
-            ...prev,
-            [selectedConversation.id]: [
-              ...list,
-              {
-                sender: publicKey || "",
-                sender_name: null,
-                content,
-                timestamp: Math.floor(Date.now() / 1000),
-                attachments,
-                is_encrypted: !!encryptedEnvelope,
-              },
-            ],
-          };
-        });
-      } catch (e) {
-        setError(String(e));
-      }
-    };
-
-    if (selectedConversation.conv_type === "group") {
-      try {
-        const groupEnv = await invoke<object>("encrypt_group_dm", {
-          convId: selectedConversation.id,
-          content,
-        });
-        await doSend(undefined, groupEnv);
-      } catch (e) {
-        if (String(e).includes("no_sender_key")) {
-          try {
-            await invoke("push_group_sender_key", { convId: selectedConversation.id });
-            const groupEnv = await invoke<object>("encrypt_group_dm", {
-              convId: selectedConversation.id,
-              content,
-            });
-            await doSend(undefined, groupEnv);
-          } catch {
-            setEncryptionWarning({
-              message: "Encryption failed. The message was not sent.",
-              onCancel: () => setEncryptionWarning(null),
-            });
-          }
-        } else {
-          setEncryptionWarning({
-            message: "Encryption failed. The message was not sent.",
-            onCancel: () => setEncryptionWarning(null),
-          });
-        }
-      }
-      return;
-    }
-
-    const otherKey = selectedConversation.members.find((k) => k !== publicKey);
-    if (!otherKey) { await doSend(); return; }
-
-    const activeHub = hubs.find((h) => h.is_active);
-    if (!activeHub) { await doSend(); return; }
-
-    try {
-      const dhPubkey = await invoke<string | null>("fetch_dh_key", {
-        pubkey: otherKey,
-        hubUrl: activeHub.hub_url,
-      });
-
-      if (!dhPubkey) {
-        setEncryptionWarning({
-          message: "This recipient hasn't published an encryption key. This message will not be encrypted.",
-          onConfirm: async () => {
-            setEncryptionWarning(null);
-            await doSend();
-          },
-          onCancel: () => setEncryptionWarning(null),
-        });
-        return;
-      }
-
-      const envelope = await invoke<object>("encrypt_dm", {
-        convId: selectedConversation.id,
-        content,
-        recipientDhPubkeyHex: dhPubkey,
-      });
-      await doSend(envelope);
-    } catch {
-      setEncryptionWarning({
-        message: "Encryption failed. The message was not sent.",
-        onCancel: () => setEncryptionWarning(null),
-      });
-    }
-  }
-
-  async function refreshFriends() {
-    try {
-      const f = await invoke<Friend[]>("list_friends");
-      const p = await invoke<Friend[]>("list_pending_friends");
-      setFriends(f);
-      setPendingFriends(p);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function openFriends() {
-    setShowFriends(true);
-    await refreshFriends();
-  }
-
-  async function handleSendFriendRequest() {
-    const key = friendRequestKey.trim();
-    if (!key) return;
-    const url = friendRequestHubUrl.trim();
-    try {
-      await invoke("send_friend_request", {
-        targetPublicKey: key,
-        friendHubUrl: url ? url : null,
-        displayName: null,
-      });
-      setFriendRequestKey("");
-      setFriendRequestHubUrl("");
-      await refreshFriends();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleAcceptFriend(fromKey: string) {
-    try {
-      await invoke("accept_friend", { fromPublicKey: fromKey });
-      await refreshFriends();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleRemoveFriend(targetKey: string) {
-    try {
-      await invoke("remove_friend", { targetPublicKey: targetKey });
-      await refreshFriends();
-    } catch (e) {
-      setError(String(e));
-    }
+  async function startDmWithAndClose(targetKey: string, targetHubUrl?: string | null) {
+    await startDmWith(targetKey, targetHubUrl);
+    setShowFriends(false);
   }
 
   async function openSettings() {
@@ -2860,11 +2211,6 @@ function App() {
     } catch (e) {
       setError(String(e));
     }
-  }
-
-  async function openHubAdminInvites() {
-    await openHubAdmin();
-    setHubAdminTab("invites");
   }
 
   const channelTree = useMemo(() => {
@@ -2952,7 +2298,7 @@ function App() {
       });
 
       if (newChannelType === "banner" && newBannerSourceMode === "upload" && newBannerFile) {
-        const filePath = (newBannerFile as any).path as string | undefined;
+        const filePath = (newBannerFile as TauriFile).path;
         if (filePath) {
           const activeHub = hubs.find((h) => h.hub_id === activeHubId);
           if (activeHub) {
@@ -3292,7 +2638,7 @@ function App() {
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}
             copiedKey={copiedKey}
-            onCopyKey={copyPublicKey}
+            onCopyKey={() => copyPublicKey(publicKey)}
             audioInputs={voice.audioInputs}
             audioOutputs={voice.audioOutputs}
             voiceInputDevice={voice.voiceInputDevice}
@@ -3512,8 +2858,8 @@ function App() {
                   onSetHubMode={setHubMode}
                   onClearHubUnread={(hubId) => { clearHubUnread(hubId); clearHubFirstNotify(hubId); }}
                   onRemoveHub={handleRemoveHub}
-                  onOpenHubAdmin={openHubAdmin}
-                  onOpenHubAdminInvites={openHubAdminInvites}
+                  onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}
+                  onOpenHubAdminInvites={() => { setHubDropdownOpen(false); openHubAdminInvites(); }}
                   onOpenCreateChannel={openCreateChannelUnder}
                   onSelectChannel={selectChannel}
                   onChannelContextMenu={openContextMenu}
@@ -3757,7 +3103,7 @@ function App() {
             onRequestHubUrlChange={setFriendRequestHubUrl}
             onSendRequest={handleSendFriendRequest}
             onAcceptFriend={handleAcceptFriend}
-            onMessage={startDmWith}
+            onMessage={startDmWithAndClose}
             onRemoveFriend={handleRemoveFriend}
             onClose={() => setShowFriends(false)}
           />

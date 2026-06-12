@@ -5,7 +5,7 @@ import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "
 import { useScreenShare } from "./useScreenShare";
 import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
-import { playVoiceTone } from "../utils/audio";
+import { playVoiceTone } from "@voxply/utils";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -106,7 +106,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     tick();
     const handle = setInterval(tick, 1500);
     let unlisten: (() => void) | undefined;
-    listen<void>("voice-update", () => { if (!cancelled) tick(); }).then((fn) => { unlisten = fn; });
+    listen("voice-roster-update", () => { if (!cancelled) tick(); }).then((fn) => { unlisten = fn; });
 
     let unlistenSpeaking: (() => void) | undefined;
     listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {

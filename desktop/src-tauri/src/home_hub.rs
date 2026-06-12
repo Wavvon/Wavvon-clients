@@ -50,8 +50,7 @@ pub fn build_designation(urls: Vec<String>) -> Result<HomeHubList, String> {
         .unwrap_or(1);
 
     let issued_at = now_secs();
-    let bytes =
-        HomeHubList::signing_bytes(&master_pubkey, &urls, issued_at, next_sequence);
+    let bytes = HomeHubList::signing_bytes(&master_pubkey, &urls, issued_at, next_sequence);
     let signature = hex::encode(master.sign(&bytes).to_bytes());
 
     let designation = HomeHubList {
@@ -173,9 +172,11 @@ mod tests {
         {
             return;
         }
-        let urls = vec!["https://a.example".to_string(), "https://b.example".to_string()];
+        let urls = vec![
+            "https://a.example".to_string(),
+            "https://b.example".to_string(),
+        ];
         let designation = build_designation(urls).expect("build");
         assert!(designation.verify().is_ok());
     }
-
 }

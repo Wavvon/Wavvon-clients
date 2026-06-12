@@ -1,18 +1,18 @@
-use anyhow::{anyhow, Result};
+use crate::identity::{MasterIdentity, SignedPrefsBlob};
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     Aes256Gcm, Nonce,
 };
+use anyhow::{anyhow, Result};
 use hkdf::Hkdf;
 use sha2::Sha256;
-use crate::identity::{MasterIdentity, SignedPrefsBlob};
 
 // ---- Types ----
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LocalPrefs {
     pub blocked_users: Vec<String>,
-    pub voice_settings: crate::StoredVoiceSettings,
+    pub voice_settings: crate::local_store::StoredVoiceSettings,
 }
 
 // ---- Blob key derivation ----
@@ -20,7 +20,8 @@ pub struct LocalPrefs {
 pub fn derive_blob_key(master: &MasterIdentity) -> [u8; 32] {
     let hk = Hkdf::<Sha256>::new(None, &master.secret_seed());
     let mut key = [0u8; 32];
-    hk.expand(b"voxply/prefs-blob-key/v1", &mut key).expect("HKDF expand");
+    hk.expand(b"voxply/prefs-blob-key/v1", &mut key)
+        .expect("HKDF expand");
     key
 }
 
@@ -30,7 +31,9 @@ pub fn encrypt_prefs(blob_key: &[u8; 32], prefs: &LocalPrefs) -> Result<Vec<u8>>
     let json = serde_json::to_vec(prefs)?;
     let cipher = Aes256Gcm::new_from_slice(blob_key).map_err(|e| anyhow!("{e}"))?;
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-    let ciphertext = cipher.encrypt(&nonce, json.as_ref()).map_err(|e| anyhow!("{e}"))?;
+    let ciphertext = cipher
+        .encrypt(&nonce, json.as_ref())
+        .map_err(|e| anyhow!("{e}"))?;
     let mut out = Vec::with_capacity(12 + ciphertext.len());
     out.extend_from_slice(&nonce);
     out.extend_from_slice(&ciphertext);
@@ -79,8 +82,8 @@ pub async fn push_prefs_blob(
     home_hubs: &[String],
     client: &reqwest::Client,
 ) -> Result<()> {
-    let blocked = crate::load_blocked_users().unwrap_or_default();
-    let voice = crate::load_voice_settings();
+    let blocked = crate::local_store::load_blocked_users().unwrap_or_default();
+    let voice = crate::local_store::load_voice_settings();
     let prefs = LocalPrefs {
         blocked_users: blocked,
         voice_settings: voice,
@@ -136,7 +139,8 @@ pub async fn pull_prefs_blob(
         let Ok(blob) = resp.json::<SignedPrefsBlob>().await else {
             continue;
         };
-        blob.verify().map_err(|e| anyhow!("blob signature invalid: {e}"))?;
+        blob.verify()
+            .map_err(|e| anyhow!("blob signature invalid: {e}"))?;
         let ciphertext = hex::decode(&blob.ciphertext_hex)?;
         return decrypt_prefs(blob_key, &ciphertext);
     }

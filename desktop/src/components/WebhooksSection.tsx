@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { Channel, WebhookInfo, WebhookCreatedResult } from "../types";
-import { formatRelative } from "../utils/format";
+import { formatRelative } from "@voxply/utils";
 
 interface Props {
   hubUrl: string;

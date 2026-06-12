@@ -51,6 +51,11 @@ export function useHubStreams(
 
       ws = new WebSocket(buildWsUrl(info.hub_url, info.token));
       wsRef.current = ws;
+      if (cancelled) {
+        ws.close();
+        wsRef.current = null;
+        return;
+      }
       ws.binaryType = "arraybuffer";
 
       let pendingEnvelope: WsScreenShareChunkOut | null = null;
