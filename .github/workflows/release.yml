@@ -48,7 +48,9 @@ jobs:
             platform-key: windows
           - platform: macos-latest
             # macos bundle produces the .app.tar.gz required by the updater
-            args: --target universal-apple-darwin --bundles dmg,macos
+            # "app" is the .app bundle (tauri CLI has no "macos" bundle value);
+            # with createUpdaterArtifacts it also produces the .app.tar.gz + .sig
+            args: --target universal-apple-darwin --bundles dmg,app
             artifact: "*.dmg"
             platform-key: macos
 
