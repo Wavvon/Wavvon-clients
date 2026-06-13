@@ -57,6 +57,7 @@ import {
   computeDepth,
   useReconnectBackoff,
 } from "@voxply/utils";
+import { parseHubInput } from "@voxply/core";
 import { readFileAsB64 } from "./utils/files";
 import { Lightbox } from "./components/Lightbox";
 import { ChannelPalette } from "./components/ChannelPalette";
@@ -1464,26 +1465,6 @@ function App() {
     } catch (e) {
       setError(String(e));
     }
-  }
-
-  // Normalise whatever the user typed/pasted/deep-linked into a proper
-  // hub URL + optional invite code.
-  function parseHubInput(raw: string): { hubUrl: string; inviteCode: string } | null {
-    const trimmed = raw.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith("voxply://")) {
-      const rest = trimmed.slice("voxply://".length);
-      const slashIdx = rest.indexOf("/");
-      const hostPart = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
-      const codePart = slashIdx === -1 ? "" : rest.slice(slashIdx + 1).split("?")[0];
-      if (!hostPart) return null;
-      const isLocal = hostPart.startsWith("localhost") || hostPart.startsWith("127.");
-      return { hubUrl: `${isLocal ? "http" : "https"}://${hostPart}`, inviteCode: codePart };
-    }
-    if (/^https?:\/\//i.test(trimmed)) return { hubUrl: trimmed, inviteCode: "" };
-    // Plain hostname — normalise to https (http for localhost/loopback)
-    const isLocal = trimmed.startsWith("localhost") || trimmed.startsWith("127.");
-    return { hubUrl: `${isLocal ? "http" : "https"}://${trimmed}`, inviteCode: "" };
   }
 
   function handleHubUrlChange(v: string) {

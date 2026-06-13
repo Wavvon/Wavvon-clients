@@ -31,6 +31,9 @@ importers:
       '@tauri-apps/plugin-shell':
         specifier: ^2.3.5
         version: 2.3.5
+      '@voxply/core':
+        specifier: workspace:*
+        version: link:../../../packages/core
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../../packages/i18n
@@ -98,6 +101,9 @@ importers:
       '@scure/bip39':
         specifier: ^1.4.0
         version: 1.6.0
+      '@voxply/core':
+        specifier: workspace:*
+        version: link:../../../packages/core
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../../packages/i18n
@@ -171,6 +177,9 @@ importers:
       '@types/dompurify':
         specifier: ^3.0.5
         version: 3.2.0
+      '@voxply/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -253,6 +262,9 @@ importers:
       '@types/dompurify':
         specifier: ^3.0.5
         version: 3.2.0
+      '@voxply/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n

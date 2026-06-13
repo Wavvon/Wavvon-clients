@@ -22,6 +22,7 @@
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@types/dompurify": "^3.0.5",
+    "@voxply/core": "workspace:*",
     "@voxply/i18n": "workspace:*",
     "@voxply/utils": "workspace:*",
     "dompurify": "^3.4.8",

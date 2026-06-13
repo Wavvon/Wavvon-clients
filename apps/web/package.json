@@ -21,6 +21,7 @@
     "@noble/hashes": "^1.6.0",
     "@scure/bip39": "^1.4.0",
     "@types/dompurify": "^3.0.5",
+    "@voxply/core": "workspace:*",
     "@voxply/i18n": "workspace:*",
     "@voxply/utils": "workspace:*",
     "dompurify": "^3.4.8",

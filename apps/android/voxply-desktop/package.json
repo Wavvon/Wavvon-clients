@@ -17,6 +17,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-shell": "^2.3.5",
+    "@voxply/core": "workspace:*",
     "@voxply/i18n": "workspace:*",
     "@voxply/utils": "workspace:*",
     "i18next": "^24.2.2",

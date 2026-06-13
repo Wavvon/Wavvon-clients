@@ -9,6 +9,7 @@ import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { flattenTree, descendantIds, computeDepth } from "@voxply/utils";
+import { parseHubInput } from "@voxply/core";
 import type {
   Channel,
   Attachment,
@@ -1350,7 +1351,7 @@ export default function App() {
       {showAddHub && (
         <AddHubModal
           hubUrl={hubUrl}
-          onHubUrlChange={(v) => { setHubUrl(v); setHubPreview({ state: "idle" }); setAddHubError(null); }}
+          onHubUrlChange={(v) => { const p = parseHubInput(v); setHubUrl(p?.hubUrl ?? v); if (p?.inviteCode) setInviteCode(p.inviteCode); setHubPreview({ state: "idle" }); setAddHubError(null); }}
           hubPreview={hubPreview}
           inviteCode={inviteCode}
           onInviteCodeChange={setInviteCode}

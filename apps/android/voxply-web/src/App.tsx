@@ -28,6 +28,7 @@ import { ChannelSidebar } from "@components/ChannelSidebar";
 import { ContentArea } from "@components/ContentArea";
 import { AddHubModal } from "@components/AddHubModal";
 import { buildChannelTree, type TreeNode } from "@voxply/utils";
+import { parseHubInput } from "@voxply/core";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
 import {
   restorePersistedHubs,
@@ -985,7 +986,7 @@ export default function App() {
       {showAddHub && (
         <AddHubModal
           hubUrl={hubUrl}
-          onHubUrlChange={(v) => { setHubUrl(v); setHubPreview({ state: "idle" }); setAddHubError(null); }}
+          onHubUrlChange={(v) => { const p = parseHubInput(v); setHubUrl(p?.hubUrl ?? v); if (p?.inviteCode) setInviteCode(p.inviteCode); setHubPreview({ state: "idle" }); setAddHubError(null); }}
           hubPreview={hubPreview}
           inviteCode={inviteCode}
           onInviteCodeChange={setInviteCode}
