@@ -45,7 +45,7 @@ import {
   HubApiError,
 } from "@platform";
 import type { WsHandlers } from "@platform";
-import { getActiveHubId } from "@platform";
+import { getActiveHubId, activeSession } from "@platform";
 import {
   getMessages,
   sendMessage,
@@ -67,6 +67,7 @@ import { PairingPanel } from "./platform-android/PairingPanel";
 import { publicKeyHex, signBytes, dhKeypairFromSeed } from "@voxply/core";
 import { seedToPhrase, phraseToSeed, validatePhrase } from "@voxply/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { open as openFilePicker } from "@tauri-apps/plugin-dialog";
 
 // ---- Types ----
@@ -241,8 +242,10 @@ export default function App() {
 
   const loadingHub = useRef(false);
 
-  // Voice-not-available toast
-  const [voiceToast, setVoiceToast] = useState(false);
+  // === Voice ===
+  const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
+  const [selfMuted, setSelfMuted] = useState(false);
+  const [selfDeafened, setSelfDeafened] = useState(false);
 
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -355,9 +358,14 @@ export default function App() {
       }
     },
     onVoiceState: (raw) => {
-      const m = raw as { channel_id?: string; participants?: VoiceParticipant[] };
-      if (m.channel_id && m.participants) {
-        setVoicePartByChannel((prev) => ({ ...prev, [m.channel_id!]: m.participants! }));
+      const m = raw as Record<string, unknown>;
+      if (m.type === "voice_joined" && typeof m.udp_register_token === "string") {
+        void invoke("voice_set_reg_token", { token: m.udp_register_token });
+      }
+      const chan = m.channel_id as string | undefined;
+      const parts = m.participants as VoiceParticipant[] | undefined;
+      if (chan && parts) {
+        setVoicePartByChannel((prev) => ({ ...prev, [chan]: parts }));
       }
     },
     onScreenShare: () => {},
@@ -658,11 +666,52 @@ export default function App() {
     }
   }
 
-  // === Voice (not available on mobile) ===
+  // === Voice ===
 
-  function showVoiceNotAvailable() {
-    setVoiceToast(true);
-    setTimeout(() => setVoiceToast(false), 4000);
+  async function handleVoiceJoin(ch: Channel) {
+    try {
+      const sess = activeSession();
+      const host = sess.hub_url
+        .replace(/^https?:\/\//, "")
+        .split("/")[0]
+        .split(":")[0];
+      const udpPort = await invoke<number>("voice_join", {
+        hubAddr: `${host}:3001`,
+        channelId: ch.id,
+      });
+      sess.ws?.send({ type: "voice_join", channel_id: ch.id, udp_port: udpPort });
+      setVoiceChannelId(ch.id);
+      setSelfMuted(false);
+      setSelfDeafened(false);
+    } catch (e) {
+      console.error("Voice join failed:", e);
+    }
+  }
+
+  async function handleVoiceLeave() {
+    const channelId = voiceChannelId;
+    try {
+      await invoke("voice_leave");
+      if (channelId) {
+        activeSession().ws?.send({ type: "voice_leave", channel_id: channelId });
+      }
+    } catch {}
+    setVoiceChannelId(null);
+    setSelfMuted(false);
+    setSelfDeafened(false);
+  }
+
+  async function handleToggleMute() {
+    const next = !selfMuted;
+    setSelfMuted(next);
+    await invoke("voice_set_muted", { muted: next }).catch(() => {});
+  }
+
+  async function handleToggleDeafen() {
+    const next = !selfDeafened;
+    setSelfDeafened(next);
+    if (next) setSelfMuted(true);
+    await invoke("voice_set_deafened", { deafened: next }).catch(() => {});
   }
 
   // === Misc helpers ===
@@ -747,9 +796,9 @@ export default function App() {
           unreadByChannel={unreadByChannel}
           collapsedCategories={collapsedCategories}
           voicePartByChannel={voicePartByChannel}
-          voiceChannelId={null}
-          selfMuted={false}
-          selfDeafened={false}
+          voiceChannelId={voiceChannelId}
+          selfMuted={selfMuted}
+          selfDeafened={selfDeafened}
           users={users}
           publicKey={publicKey}
           pingByHub={pingByHub}
@@ -785,13 +834,13 @@ export default function App() {
           onSelectChannel={handleSelectChannel}
           onChannelContextMenu={() => {}}
           onOpenChannelSettings={() => {}}
-          onVoiceJoin={() => showVoiceNotAvailable()}
-          onVoiceLeave={() => {}}
+          onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
+          onVoiceLeave={() => void handleVoiceLeave()}
           onSelectAllianceChannel={() => {}}
           onSelectConversation={handleSelectConversation}
           onOpenFriends={() => {}}
-          onToggleSelfMute={() => {}}
-          onToggleSelfDeafen={() => {}}
+          onToggleSelfMute={() => void handleToggleMute()}
+          onToggleSelfDeafen={() => void handleToggleDeafen()}
           onOpenSettings={() => setShowSettings(true)}
           onToggleHideSilenced={() => {}}
           onDragEnd={() => {}}
@@ -815,19 +864,6 @@ export default function App() {
              style={{ color: "var(--accent)" }}>Download</a>
           <button onClick={() => setUpdateAvailable(null)}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>✕</button>
-        </div>
-      )}
-
-      {voiceToast && (
-        <div
-          style={{
-            position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
-            background: "var(--surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--r-md)", padding: "8px 16px", zIndex: 9999,
-            fontSize: "var(--text-sm)", color: "var(--text)",
-          }}
-        >
-          Voice is not available on mobile.
         </div>
       )}
 
@@ -862,9 +898,9 @@ export default function App() {
         reconnectingHubs={reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voiceActiveUsers}
-        voiceChannelId={null}
-        onVoiceJoin={() => showVoiceNotAvailable()}
-        onVoiceLeave={() => {}}
+        voiceChannelId={voiceChannelId}
+        onVoiceJoin={() => selectedChannel && void handleVoiceJoin(selectedChannel)}
+        onVoiceLeave={() => void handleVoiceLeave()}
         installedGames={installedGames}
         myAvatar={meInfo?.avatar ?? null}
         inputText={inputText}
