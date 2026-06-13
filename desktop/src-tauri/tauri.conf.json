@@ -1,0 +1,51 @@
+{
+  "productName": "Voxply",
+  "version": "0.2.0",
+  "identifier": "com.voxply.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Voxply",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "appimage", "dmg"],
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    },
+    "icon": [
+      "icons/icon.ico",
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEM0JBRjIwQTE0MjYyODUKUldTRllrS2hJSzg3alY1dWlPbnJGOWZGNDN6WnE1aS9tV05QcE9FQ0Y3S2tPRnF1U3EzYWRCQkIK",
+      "endpoints": ["https://github.com/Voxply/Voxply-desktop/releases/latest/download/latest.json"]
+    }
+  }
+}

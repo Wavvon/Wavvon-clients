@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"],
+    "paths": {
+      "i18next": ["./node_modules/i18next"],
+      "react-i18next": ["./node_modules/react-i18next"],
+      "i18next-icu": ["./node_modules/i18next-icu"],
+      "@voxply/i18n": ["../../web/i18n/index.ts"]
+    }
+  },
+  "include": ["src", "../../web/i18n"],
+  "exclude": ["../../web/i18n/check-coverage.ts"]
+}

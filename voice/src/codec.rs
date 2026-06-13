@@ -11,9 +11,7 @@ fn to_opus_rate(rate: u32) -> Result<SampleRate> {
         16000 => Ok(SampleRate::Hz16000),
         24000 => Ok(SampleRate::Hz24000),
         48000 => Ok(SampleRate::Hz48000),
-        _ => anyhow::bail!(
-            "Unsupported sample rate for Opus: {rate}. Supported: 8000, 12000, 16000, 24000, 48000"
-        ),
+        _ => anyhow::bail!("Unsupported sample rate for Opus: {rate}. Supported: 8000, 12000, 16000, 24000, 48000"),
     }
 }
 
@@ -113,7 +111,6 @@ impl VoiceEncoder {
 
 pub struct VoiceDecoder {
     decoder: OpusDecoder,
-    #[allow(dead_code)]
     frame_size: usize,
     decode_buf: Vec<f32>,
 }
@@ -121,8 +118,8 @@ pub struct VoiceDecoder {
 impl VoiceDecoder {
     pub fn new(sample_rate: u32) -> Result<Self> {
         let opus_rate = to_opus_rate(sample_rate)?;
-        let decoder =
-            OpusDecoder::new(opus_rate, Channels::Mono).context("Failed to create Opus decoder")?;
+        let decoder = OpusDecoder::new(opus_rate, Channels::Mono)
+            .context("Failed to create Opus decoder")?;
         let frame_size = frame_size_for_rate(sample_rate);
 
         Ok(Self {

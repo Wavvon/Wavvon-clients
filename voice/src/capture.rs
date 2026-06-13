@@ -5,7 +5,6 @@ use ringbuf::traits::Producer;
 use crate::devices::find_input_device;
 
 pub struct AudioCapture {
-    #[allow(dead_code)]
     stream: cpal::Stream,
     pub actual_sample_rate: u32,
     pub actual_channels: u16,
@@ -51,7 +50,8 @@ impl AudioCapture {
                     // If stereo, mix down to mono by averaging pairs
                     if channels > 1 {
                         for chunk in data.chunks(channels as usize) {
-                            let mono: f32 = chunk.iter().sum::<f32>() / channels as f32;
+                            let mono: f32 =
+                                chunk.iter().sum::<f32>() / channels as f32;
                             let _ = producer.try_push(mono);
                         }
                     } else {

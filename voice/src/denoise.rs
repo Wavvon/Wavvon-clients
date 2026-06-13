@@ -10,12 +10,6 @@ pub struct Denoiser {
     pub bypass: bool,
 }
 
-impl Default for Denoiser {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Denoiser {
     pub fn new() -> Self {
         Self {

@@ -5,7 +5,9 @@ use cpal::traits::{DeviceTrait, HostTrait};
 /// The default device is always listed first when present.
 pub fn list_input_devices() -> Result<Vec<String>> {
     let host = cpal::default_host();
-    let default_name = host.default_input_device().and_then(|d| d.name().ok());
+    let default_name = host
+        .default_input_device()
+        .and_then(|d| d.name().ok());
 
     let mut names: Vec<String> = host
         .input_devices()
@@ -25,7 +27,9 @@ pub fn list_input_devices() -> Result<Vec<String>> {
 /// Names of all available output devices (speakers/headphones).
 pub fn list_output_devices() -> Result<Vec<String>> {
     let host = cpal::default_host();
-    let default_name = host.default_output_device().and_then(|d| d.name().ok());
+    let default_name = host
+        .default_output_device()
+        .and_then(|d| d.name().ok());
 
     let mut names: Vec<String> = host
         .output_devices()

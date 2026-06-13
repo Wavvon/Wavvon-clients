@@ -1,0 +1,311 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  changelog:
+    name: Create release with changelog
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes (current tag only)
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          body_path: CHANGES.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: changelog
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            args: --bundles appimage
+            artifact: "*.AppImage"
+            platform-key: linux
+          - platform: windows-latest
+            args: --bundles nsis
+            artifact: "*.exe"
+            platform-key: windows
+          - platform: macos-latest
+            # macos bundle produces the .app.tar.gz required by the updater
+            args: --target universal-apple-darwin --bundles dmg,macos
+            artifact: "*.dmg"
+            platform-key: macos
+
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout desktop
+        uses: actions/checkout@v6
+        with:
+          path: desktop
+
+      - name: Checkout web (for i18n)
+        uses: actions/checkout@v6
+        with:
+          repository: Voxply/Voxply-web
+          path: web
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/desktop/src-tauri
+
+      - name: Install Linux deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+            libgtk-3-dev patchelf libsoup-3.0-dev libjavascriptcoregtk-4.1-dev \
+            libasound2-dev libopus-dev
+
+      - name: Add macOS universal targets
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Build universal libopus (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          set -euo pipefail
+
+          # Install build tools and arm64 Opus via Homebrew
+          brew install autoconf automake libtool pkg-config opus
+
+          # Grab the arm64 static library that Homebrew just installed
+          ARM64_LIB="$(brew --prefix opus)/lib/libopus.a"
+
+          # Get the Opus version Homebrew installed so we download matching source
+          OPUS_VERSION=$(brew list --versions opus | awk '{print $2}')
+
+          # Download matching Opus source for x86_64 cross-compilation
+          curl -fsSL "https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz" \
+            -o /tmp/opus.tar.gz
+          mkdir -p /tmp/opus-x86
+          tar -xzf /tmp/opus.tar.gz -C /tmp/opus-x86 --strip-components=1
+
+          # Cross-compile for x86_64
+          cd /tmp/opus-x86
+          ./configure \
+            --host=x86_64-apple-darwin \
+            CFLAGS="-arch x86_64 -target x86_64-apple-macos12" \
+            LDFLAGS="-arch x86_64 -target x86_64-apple-macos12" \
+            --enable-static --disable-shared \
+            --disable-doc --disable-extra-programs --with-pic
+          make -j4
+
+          X86_LIB="/tmp/opus-x86/lib/.libs/libopus.a"
+
+          # Lipo into a fat universal library
+          mkdir -p /tmp/opus-universal/lib
+          lipo -create "$ARM64_LIB" "$X86_LIB" \
+            -output /tmp/opus-universal/lib/libopus.a
+
+          # Verify
+          lipo -info /tmp/opus-universal/lib/libopus.a
+
+          # Point audiopus_sys to the fat library; skip pkg-config and build-from-source
+          echo "OPUS_LIB_DIR=/tmp/opus-universal/lib" >> "$GITHUB_ENV"
+          echo "OPUS_STATIC=1"                        >> "$GITHUB_ENV"
+          echo "LIBOPUS_NO_PKG=1"                     >> "$GITHUB_ENV"
+
+      - name: Install Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/desktop/package-lock.json
+
+      - name: Install JS deps
+        working-directory: desktop/desktop
+        run: npm ci
+
+      # Authenticode signing: SignPath submits the unsigned installer to the
+      # SignPath cloud HSM for EV signing, then we swap in the signed copy.
+      # Activates only when SIGNPATH_API_TOKEN is set. See docs/code-signing.md
+      - name: Tauri build
+        working-directory: desktop/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build ${{ matrix.args }}
+
+      - name: Stage unsigned installer (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "desktop\desktop\src-tauri\target\release\bundle\nsis\*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "No NSIS installer found" }
+          New-Item -ItemType Directory -Force "signing-input" | Out-Null
+          Copy-Item $installer.FullName "signing-input\voxply-setup.exe"
+          Write-Output "Staged: $($installer.FullName)"
+
+      - name: Upload unsigned installer for SignPath (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-installer
+          path: signing-input/voxply-setup.exe
+          retention-days: 1
+
+      - name: Sign installer via SignPath (Windows)
+        if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: voxply-desktop
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: nsis-installer
+          github-artifact-name: unsigned-installer
+          wait-for-completion: true
+          output-artifact-name: signed-installer
+
+      - name: Swap in signed installer (Windows)
+        if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-installer
+          path: signing-input
+
+      - name: Move signed installer into bundle dir (Windows)
+        if: matrix.platform == 'windows-latest' && secrets.SIGNPATH_API_TOKEN != ''
+        shell: pwsh
+        run: |
+          $bundleDir = "desktop\desktop\src-tauri\target\release\bundle\nsis"
+          $original = Get-ChildItem $bundleDir -Filter "*.exe" | Select-Object -First 1
+          if ($original) { Remove-Item $original.FullName }
+          Copy-Item "signing-input\voxply-setup.exe" "$bundleDir\voxply-setup.exe"
+          signtool verify /pa /v "$bundleDir\voxply-setup.exe"
+          Write-Output "Signed installer verified"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            desktop/desktop/src-tauri/target/**/release/bundle/**/${{ matrix.artifact }}
+
+      - name: Upload macOS updater bundle to GitHub Release
+        if: matrix.platform == 'macos-latest'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            desktop/desktop/src-tauri/target/**/release/bundle/macos/*.app.tar.gz
+
+      # Collect the updater signature and bundle URL for latest.json assembly.
+      - name: Collect update metadata (Linux / macOS)
+        if: matrix.platform != 'windows-latest'
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            SIG_FILE=$(find desktop/desktop/src-tauri/target -name "*.app.tar.gz.sig" 2>/dev/null | head -1)
+            BUNDLE=$(find desktop/desktop/src-tauri/target -name "*.app.tar.gz" ! -name "*.sig" 2>/dev/null | head -1)
+          else
+            SIG_FILE=$(find desktop/desktop/src-tauri/target -name "*.AppImage.sig" 2>/dev/null | head -1)
+            BUNDLE=$(find desktop/desktop/src-tauri/target -name "*.AppImage" ! -name "*.sig" 2>/dev/null | head -1)
+          fi
+          FILENAME=$(basename "$BUNDLE")
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$FILENAME"
+          node -e "
+            const fs = require('fs');
+            const sig = fs.readFileSync('$SIG_FILE', 'utf8').trim();
+            process.stdout.write(JSON.stringify({url: '$URL', signature: sig}));
+          " > ${{ matrix.platform-key }}.json
+
+      - name: Collect update metadata (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $sigFile = Get-ChildItem -Path "desktop\desktop\src-tauri\target" -Recurse -Filter "*.exe.sig" | Select-Object -First 1
+          $exeFile = Get-ChildItem -Path "desktop\desktop\src-tauri\target" -Recurse -Filter "*.exe" |
+            Where-Object { $_.Extension -eq ".exe" -and $_.Name -notlike "*.sig" } |
+            Select-Object -First 1
+          $signature = (Get-Content $sigFile.FullName -Raw).Trim()
+          $filename = $exeFile.Name
+          $url = "https://github.com/$($env:GITHUB_REPOSITORY)/releases/download/$($env:GITHUB_REF_NAME)/$filename"
+          @{url=$url;signature=$signature} | ConvertTo-Json -Compress |
+            Out-File -FilePath windows.json -Encoding utf8NoBOM
+
+      - name: Upload update metadata artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-meta-${{ matrix.platform-key }}
+          path: ${{ matrix.platform-key }}.json
+          retention-days: 1
+
+  manifest:
+    name: Publish update manifest
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: update-meta-linux
+          path: meta
+
+      - name: Download Windows metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: update-meta-windows
+          path: meta
+
+      - name: Download macOS metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: update-meta-macos
+          path: meta
+
+      - name: Assemble latest.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const linux = JSON.parse(fs.readFileSync('meta/linux.json', 'utf8'));
+            const windows = JSON.parse(fs.readFileSync('meta/windows.json', 'utf8'));
+            const mac = JSON.parse(fs.readFileSync('meta/macos.json', 'utf8'));
+            const tag = process.env.GITHUB_REF_NAME;
+            const manifest = {
+              version: tag.replace(/^v/, ''),
+              notes: '',
+              pub_date: new Date().toISOString(),
+              platforms: {
+                'linux-x86_64': linux,
+                'windows-x86_64': windows,
+                'darwin-x86_64': mac,
+                'darwin-aarch64': mac,
+              },
+            };
+            fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
+            console.log('Manifest written for', tag);
+          "
+
+      - name: Upload latest.json to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: latest.json
