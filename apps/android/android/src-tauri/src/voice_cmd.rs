@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
 pub(crate) struct VoiceSession {
@@ -19,7 +19,9 @@ pub(crate) struct VoiceState {
 
 impl VoiceState {
     pub fn new() -> Self {
-        Self { session: Mutex::new(None) }
+        Self {
+            session: Mutex::new(None),
+        }
     }
 }
 
@@ -75,16 +77,17 @@ pub(crate) async fn voice_join(
         };
         rt.block_on(async move {
             let vsettings = voxply_voice::VoiceSettings::default();
-            let mut pipeline =
-                match voxply_voice::AudioPipeline::start_p2p_with_settings(0, addr, vsettings)
-                    .await
-                {
-                    Ok(p) => p,
-                    Err(e) => {
-                        let _ = ready_tx.send(Err(format!("Audio: {e}")));
-                        return;
-                    }
-                };
+            let mut pipeline = match voxply_voice::AudioPipeline::start_p2p_with_settings(
+                0, addr, vsettings,
+            )
+            .await
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    let _ = ready_tx.send(Err(format!("Audio: {e}")));
+                    return;
+                }
+            };
 
             let local_port = pipeline.local_udp_port;
             let muted = pipeline.muted.clone();
@@ -195,18 +198,14 @@ pub(crate) fn voice_set_deafened(
 
 #[tauri::command]
 pub(crate) fn list_audio_devices() -> Result<AudioDeviceList, String> {
-    let inputs =
-        voxply_voice::devices::list_input_devices().map_err(|e| format!("inputs: {e}"))?;
+    let inputs = voxply_voice::devices::list_input_devices().map_err(|e| format!("inputs: {e}"))?;
     let outputs =
         voxply_voice::devices::list_output_devices().map_err(|e| format!("outputs: {e}"))?;
     Ok(AudioDeviceList { inputs, outputs })
 }
 
 #[tauri::command]
-pub(crate) fn mic_test_start(
-    state: State<'_, VoiceState>,
-    app: AppHandle,
-) -> Result<(), String> {
+pub(crate) fn mic_test_start(state: State<'_, VoiceState>, app: AppHandle) -> Result<(), String> {
     if state.session.lock().unwrap().is_some() {
         return Err("Leave the voice channel before testing the mic".to_string());
     }
