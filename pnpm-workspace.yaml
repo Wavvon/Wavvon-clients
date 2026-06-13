@@ -1,0 +1,9 @@
+packages:
+  - 'packages/*'
+  - 'desktop'
+  - 'apps/web/web'
+  - 'apps/android/voxply-desktop'
+  - 'apps/android/voxply-web'
+
+allowBuilds:
+  esbuild: true

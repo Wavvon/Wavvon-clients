@@ -1,0 +1,8 @@
+{
+  "name": "@voxply/platform",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Platform adapter interface (concrete impls live per-app)",
+  "main": "src/index.ts",
+  "scripts": {}
+}
