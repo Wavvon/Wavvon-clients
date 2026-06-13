@@ -1,0 +1,8 @@
+.claude/
+node_modules/
+dist/
+build/
+.env
+*.key
+*.pem
+*.keystore

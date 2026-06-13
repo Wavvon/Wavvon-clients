@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "types": ["vite/client"],
+    "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "i18next": ["./node_modules/i18next"],
+      "react-i18next": ["./node_modules/react-i18next"],
+      "i18next-icu": ["./node_modules/i18next-icu"],
+      "@components/*": ["./src/components/*"],
+      "@shared/types": ["./src/types"],
+      "@shared/utils/*": ["./src/utils/*"],
+      "@shared/hooks/*": ["./src/hooks/*"],
+      "@shared/constants": ["./src/constants"],
+      "@platform": ["./src/platform/index"],
+      "@identity/*": ["./src/identity/*"],
+      "@voxply/i18n": ["../i18n/index.ts"],
+      "@voxply/utils": ["../utils/index.ts"]
+    }
+  },
+  "include": ["src", "../i18n", "../utils"],
+  "exclude": ["../i18n/check-coverage.ts"]
+}
