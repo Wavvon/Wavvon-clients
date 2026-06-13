@@ -7,8 +7,8 @@ export interface IdentityRecord {
   security_level: number;
 }
 
-export type { SubkeyCert, PairedState } from "@identity/store";
-export { loadPairedState, savePairedState, clearPairedState } from "@identity/store";
+export type { SubkeyCert, PairedState } from "../identity/store";
+export { loadPairedState, savePairedState, clearPairedState } from "../identity/store";
 
 const STORE_KEY = "identity";
 

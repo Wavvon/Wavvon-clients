@@ -8,23 +8,29 @@
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "@tauri-apps/api"],
+    "types": ["vite/client"],
     "paths": {
-      "@components/*": ["../voxply-desktop/src/components/*"],
-      "@shared/types": ["../voxply-desktop/src/types"],
-      "@shared/utils/*": ["../voxply-desktop/src/utils/*"],
-      "@shared/hooks/*": ["../voxply-desktop/src/hooks/*"],
-      "@shared/constants": ["../voxply-desktop/src/constants"],
-      "@platform": ["../voxply-web/src/platform/index"],
-      "@identity/*": ["../voxply-web/src/identity/*"],
-      "@voxply/i18n": ["../voxply-web/i18n/index.ts"],
-      "@voxply/utils": ["../voxply-web/utils/index.ts"]
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "react/jsx-dev-runtime": ["./node_modules/@types/react/jsx-dev-runtime.d.ts"],
+      "i18next": ["./node_modules/i18next"],
+      "react-i18next": ["./node_modules/react-i18next"],
+      "i18next-icu": ["./node_modules/i18next-icu"],
+      "@components/*": ["./src/components/*"],
+      "@shared/types": ["./src/types"],
+      "@shared/utils/*": ["./src/utils/*"],
+      "@shared/hooks/*": ["./src/hooks/*"],
+      "@shared/constants": ["./src/constants"],
+      "@platform": ["./src/platform/index"],
+      "@voxply/i18n": ["../../../packages/i18n/index.ts"],
+      "@voxply/core": ["../../../packages/core/src/index.ts"],
+      "@voxply/ui": ["../../../packages/ui/src/index.ts"],
+      "@voxply/ui/styles.css": ["../../../packages/ui/src/styles.css"],
+      "@noble/curves/*": ["./node_modules/@voxply/core/node_modules/@noble/curves/*"],
+      "@noble/hashes/*": ["./node_modules/@voxply/core/node_modules/@noble/hashes/*"],
+      "@noble/ciphers/*": ["./node_modules/@voxply/core/node_modules/@noble/ciphers/*"]
     }
   },
-  "include": [
-    "src",
-    "../voxply-desktop/src/components",
-    "../voxply-desktop/src/utils",
-    "../voxply-desktop/src/hooks"
-  ]
+  "include": ["src", "../../../packages/ui/src"],
+  "exclude": ["src/identity/wire.test.ts"]
 }

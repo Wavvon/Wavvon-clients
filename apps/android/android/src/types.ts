@@ -49,7 +49,6 @@ export interface Message {
   embeds?: Embed[];
   components?: ComponentRow[];
   is_bot_sender?: boolean;
-  reply_count?: number;
 }
 
 export type NotifyMode = "all" | "mentions" | "silent";
@@ -411,13 +410,6 @@ export interface BotDetailInfo extends BotAdminInfo {
   commands: BotSlashCommandInfo[];
 }
 
-export interface InstalledGame {
-  id: string;
-  name: string;
-  url: string;
-  icon: string | null;
-}
-
 // ---- Bot message types ----
 
 export interface Embed {
@@ -467,6 +459,8 @@ export interface SelectOption {
   description?: string;
 }
 
+// ---- Bot profile (public card) ----
+
 export interface BotCommandDef {
   name: string;
   description: string;
@@ -480,6 +474,8 @@ export interface BotProfile {
   commands: BotCommandDef[];
 }
 
+// ---- External bots ----
+
 export interface ExternalBotRow {
   public_key: string;
   display_name: string | null;
@@ -492,6 +488,168 @@ export interface ExternalBotInviteResult {
   bot_invite_token: string;
   pubkey: string;
 }
+
+// ---- Games ----
+
+export interface InstalledGame {
+  id: string;
+  name: string;
+  entry_url: string;
+  description: string | null;
+  thumbnail_url: string | null;
+}
+
+// ---- Forum ----
+
+export interface PostSummary {
+  id: string;
+  channel_id: string;
+  author_pubkey: string;
+  title: string;
+  created_at: number;
+  edited_at: number | null;
+  is_pinned: boolean;
+  is_locked: boolean;
+  reply_count: number;
+  last_activity_at: number;
+  is_deleted: boolean;
+  unread_reply_count?: number | null;
+}
+
+export interface ReplyView {
+  id: string;
+  post_id: string;
+  author_pubkey: string;
+  body: string;
+  created_at: number;
+  edited_at: number | null;
+  reply_to_id: string | null;
+  is_deleted: boolean;
+}
+
+export interface PostDetail extends PostSummary {
+  body: string;
+  replies: ReplyView[];
+  reply_cursor?: string;
+}
+
+// ---- Server tags / badges ----
+
+export interface HubBadge {
+  issuer_pubkey: string;
+  issuer_url: string;
+  label: string;
+  issued_at: string;
+  expires_at: string | null;
+  signature: string;
+}
+
+export interface PendingBadgeOffer extends HubBadge {
+  id: string;
+  received_at: number;
+}
+
+// ---- Games (admin) ----
+
+export interface AdminGame {
+  id: string;
+  name: string;
+  entry_url: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  installed_by: string;
+  installed_at: number;
+  capabilities: string[];
+  channel_scope: string[];
+}
+
+// ---- Gaming Tier 2 ----
+
+export interface GameSession {
+  session_id: string;
+  game_id: string;
+  channel_id: string;
+  host_pubkey: string;
+  status: "lobby" | "in_progress" | "ended" | "abandoned";
+  players: GamePlayer[];
+  max_players: number;
+  created_at: number;
+}
+
+export interface GamePlayer {
+  pubkey: string;
+  display_name: string | null;
+  joined_at: number;
+  connected: boolean;
+}
+
+// ---- Hub certifications ----
+
+export interface CertPayload {
+  subject_kind: "user";
+  issuer_pubkey: string;
+  issuer_url: string;
+  subject_pubkey: string;
+  member_since: number;
+  standing: "good" | "revoked";
+  pow_level: number | null;
+  issued_at: number;
+  expires_at: number;
+  capabilities: string[];
+}
+
+export interface Certification {
+  payload: CertPayload;
+  signature: string;
+}
+
+// ---- Identity recovery ----
+
+export interface RecoveryContact {
+  pubkey: string;
+  added_at: number;
+}
+
+export interface RecoverySettings {
+  owner_pubkey: string;
+  threshold: number;
+  contacts: RecoveryContact[];
+}
+
+export interface RotationRequest {
+  id: string;
+  old_pubkey: string;
+  new_pubkey: string;
+  status: string;
+  reason: string | null;
+  created_at: number;
+  attestation_count: number;
+}
+
+// ---- Block / Ignore / DND ----
+
+export interface BlockEntry {
+  pubkey: string;
+  since: number;
+}
+
+export interface IgnoreEntry {
+  pubkey: string;
+  since: number;
+}
+
+export interface DndSchedule {
+  start: string;
+  end: string;
+  tz: string;
+}
+
+export interface DndSettings {
+  enabled: boolean;
+  schedule: DndSchedule | null;
+}
+
+// ---- Webhooks ----
 
 export interface WebhookInfo {
   id: string;
@@ -507,8 +665,6 @@ export interface WebhookCreatedResult {
   id: string;
   webhook_url: string;
 }
-
-// ---- Identity Recovery ----
 
 export interface RecoveryContactEntry {
   pubkey: string;

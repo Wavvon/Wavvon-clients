@@ -433,10 +433,11 @@ export function SettingsPage(props: SettingsPageProps) {
           <section>
             <h1>Privacy</h1>
             <BlockIgnoreSection
-              blockedUsers={props.blockedEntries}
-              ignoredUsers={props.ignoredEntries}
+              blocks={props.blockedEntries}
+              ignores={props.ignoredEntries}
               onUnblock={props.onUnblock}
               onUnignore={props.onUnignore}
+              knownNames={{}}
             />
           </section>
         )}

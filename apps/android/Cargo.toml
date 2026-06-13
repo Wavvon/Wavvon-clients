@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "android/src-tauri",
-    "voxply-desktop/src-tauri",
 ]
 
 [workspace.dependencies]

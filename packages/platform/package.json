@@ -1,8 +1,9 @@
 {
   "name": "@voxply/platform",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "Platform adapter interface (concrete impls live per-app)",
+  "description": "Platform adapter interface — TypeScript types only; each app provides a concrete implementation",
   "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {}
 }

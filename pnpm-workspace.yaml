@@ -2,8 +2,7 @@ packages:
   - 'packages/*'
   - 'apps/desktop'
   - 'apps/web'
-  - 'apps/android/voxply-desktop'
-  - 'apps/android/voxply-web'
+  - 'apps/android/android'
 
 allowBuilds:
   esbuild: true

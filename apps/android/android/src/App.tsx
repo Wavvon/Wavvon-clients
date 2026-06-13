@@ -64,8 +64,8 @@ import {
 import { sendComponentInteraction } from "@platform";
 import { loadIdentity, saveIdentity, generateIdentity } from "./platform-android/identity-store";
 import { PairingPanel } from "./platform-android/PairingPanel";
-import { publicKeyHex, signBytes, dhKeypairFromSeed } from "@identity/crypto";
-import { seedToPhrase, phraseToSeed, validatePhrase } from "@identity/recovery";
+import { publicKeyHex, signBytes, dhKeypairFromSeed } from "@voxply/core";
+import { seedToPhrase, phraseToSeed, validatePhrase } from "@voxply/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openFilePicker } from "@tauri-apps/plugin-dialog";
 

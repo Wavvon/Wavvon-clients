@@ -1,6 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519";
-import { loadPairedState, savePairedState } from "@identity/store";
-import type { SubkeyCert } from "@identity/store";
+import { loadPairedState, savePairedState } from "../identity/store";
+import type { SubkeyCert } from "../identity/store";
 
 function bytesToHex(b: Uint8Array): string {
   return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
