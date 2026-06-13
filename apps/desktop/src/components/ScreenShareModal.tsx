@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ScreenShareOpts } from "../types";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 interface CaptureSource {
   id: string;

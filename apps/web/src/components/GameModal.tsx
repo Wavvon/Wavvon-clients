@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { InstalledGame, InstalledGameAdmin, Message } from "../types";
-import { FocusTrap } from "./FocusTrap";
 import { hubFetch } from "../platform/http";
+import { FocusTrap } from "@voxply/ui";
 
 interface Props {
   game: InstalledGame;

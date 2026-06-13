@@ -1,7 +1,7 @@
 import React from "react";
 import type { Message, User, RoleInfo, Hub } from "../../types";
-import { TypingIndicator } from "../TypingIndicator";
 import { MessageRow } from "./MessageRow";
+import { TypingIndicator } from "@voxply/ui";
 
 type TypingEntry = { name: string; ts: number };
 

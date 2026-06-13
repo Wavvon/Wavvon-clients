@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { initI18n } from "@voxply/i18n";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import "./styles.css";
+import "@voxply/ui/styles.css";
 
 const storedLang = localStorage.getItem('voxply_language');
 const browserLang = navigator.language.slice(0, 2);

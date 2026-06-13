@@ -30,7 +30,7 @@ import type {
 import type { TreeNode, FlatNode } from "@voxply/core";
 import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
 import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
-import { HoverSubmenu } from "./HoverSubmenu";
+import { HoverSubmenu } from "@voxply/ui";
 
 const CHANNEL_INDENT_PX = 16;
 

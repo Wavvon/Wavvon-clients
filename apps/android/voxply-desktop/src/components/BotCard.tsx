@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { BotProfile } from "../types";
-import { Avatar } from "./Avatar";
-import { FocusTrap } from "./FocusTrap";
+import { Avatar, FocusTrap } from "@voxply/ui";
 
 interface Props {
   pubkey: string;

@@ -43,7 +43,7 @@ import type {
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
 import { HubStreamsPanel } from "./components/HubStreamsPanel";
-import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
+import { KeyboardShortcuts } from "@voxply/ui";
 import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";

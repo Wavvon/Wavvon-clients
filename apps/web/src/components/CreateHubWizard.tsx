@@ -8,7 +8,7 @@ import {
 } from "@platform";
 import type { Hub, FarmPublicInfo, FarmHubQuota, CreatedFarmHub } from "../types";
 import type { WsHandlers } from "@platform";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 type Visibility = "public" | "private";
 

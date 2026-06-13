@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { User } from "../types";
 import { formatPubkey } from "@voxply/core";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 interface ChannelBan {
   channel_id: string;

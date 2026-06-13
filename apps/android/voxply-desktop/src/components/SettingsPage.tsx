@@ -14,8 +14,8 @@ import { RestoreIdentitySection } from "./RestoreIdentitySection";
 import { PairingSection } from "./PairingSection";
 import { HomeHubSection } from "./HomeHubSection";
 import { IdentityBackupSection } from "./IdentityBackupSection";
-import { BlockIgnoreSection } from "./BlockIgnoreSection";
 import { DndSection } from "./DndSection";
+import { BlockIgnoreSection } from "@voxply/ui";
 
 export type SettingsTab =
   | "profile"

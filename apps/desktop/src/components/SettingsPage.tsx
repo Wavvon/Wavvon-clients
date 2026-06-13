@@ -18,8 +18,8 @@ import { IdentityBackupSection } from "./IdentityBackupSection";
 import { RecoveryContactsSection } from "./RecoveryContactsSection";
 import { IdentityCertificationsSection } from "./IdentityCertificationsSection";
 import { DeviceListSection } from "./DeviceListSection";
-import { BlockIgnoreSection } from "./BlockIgnoreSection";
 import type { BlockEntry, IgnoreEntry } from "../types";
+import { BlockIgnoreSection } from "@voxply/ui";
 
 export type SettingsTab =
   | "profile"

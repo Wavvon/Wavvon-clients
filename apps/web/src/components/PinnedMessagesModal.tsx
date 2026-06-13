@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { PinnedMessage } from "../types";
 import { getPins } from "@platform";
 import { formatRelative } from "@voxply/core";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 interface Props {
   channelId: string;

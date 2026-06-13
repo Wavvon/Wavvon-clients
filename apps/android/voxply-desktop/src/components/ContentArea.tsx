@@ -20,13 +20,12 @@ import { UserListGrouped } from "./UserListGrouped";
 import { BotCard } from "./BotCard";
 import { ScreenShareViewer } from "./ScreenShareViewer";
 import type { ScreenShareViewerRef } from "./ScreenShareViewer";
-import { ReconnectBanner } from "./content/ReconnectBanner";
 import { DmView } from "./content/DmView";
 import { ForumView } from "./content/ForumView";
 import { ChannelHeader } from "./content/ChannelHeader";
 import { ChannelMessageList } from "./content/ChannelMessageList";
 import { ChannelComposer } from "./content/ChannelComposer";
-import { AllianceView } from "./content/AllianceView";
+import { AllianceView, ReconnectBanner } from "@voxply/ui";
 
 interface SelectedAllianceChannel {
   alliance_id: string;

@@ -37,6 +37,9 @@ importers:
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../../packages/i18n
+      '@voxply/ui':
+        specifier: workspace:*
+        version: link:../../../packages/ui
       i18next:
         specifier: ^24.2.2
         version: 24.2.3(typescript@6.0.3)
@@ -104,6 +107,9 @@ importers:
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../../packages/i18n
+      '@voxply/ui':
+        specifier: workspace:*
+        version: link:../../../packages/ui
       i18next:
         specifier: ^24.2.2
         version: 24.2.3(typescript@5.9.3)
@@ -177,6 +183,9 @@ importers:
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@voxply/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       dompurify:
         specifier: ^3.4.8
         version: 3.4.9
@@ -259,6 +268,9 @@ importers:
       '@voxply/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@voxply/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       dompurify:
         specifier: ^3.4.8
         version: 3.4.9
@@ -344,7 +356,26 @@ importers:
 
   packages/platform: {}
 
-  packages/ui: {}
+  packages/ui:
+    dependencies:
+      '@voxply/core':
+        specifier: workspace:*
+        version: link:../core
+      dompurify:
+        specifier: '>=3'
+        version: 3.4.9
+      marked:
+        specifier: '>=12'
+        version: 18.0.5
+      react:
+        specifier: '>=19'
+        version: 19.2.7
+      react-dom:
+        specifier: '>=19'
+        version: 19.2.7(react@19.2.7)
+      react-i18next:
+        specifier: '>=15'
+        version: 15.7.4(i18next@24.2.3(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
 
 packages:
 

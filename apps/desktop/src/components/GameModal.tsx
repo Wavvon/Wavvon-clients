@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { InstalledGame, GameSessionDetail } from "../types";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 interface Props {
   game: InstalledGame;

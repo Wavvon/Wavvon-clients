@@ -12,14 +12,12 @@ import {
   formatFullTimestamp,
   formatRelative,
 } from "@voxply/core";
-import { Avatar } from "../Avatar";
-import { MessageContent } from "../MessageContent";
-import { MessageAttachments } from "../Attachments";
 import { MessageReactions } from "../MessageReactions";
 import { ReactionPicker } from "../ReactionPicker";
 import { MessageEmbeds } from "../MessageEmbeds";
 import { MessageComponents } from "../MessageComponents";
 import { IgnoredMessagePlaceholder, MessageLinkPreview, URL_RE } from "./MessageHelpers";
+import { Avatar, MessageAttachments, MessageContent } from "@voxply/ui";
 
 type HubEmojiEntry = { id: string; name: string; url: string };
 

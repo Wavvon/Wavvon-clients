@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 export function Lightbox({
   src,

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { UserProfile, RoleInfo } from "../types";
-import { Avatar } from "./Avatar";
 import { formatPubkey, formatRelative } from "@voxply/core";
+import { Avatar } from "@voxply/ui";
 
 interface Props {
   pubkey: string;

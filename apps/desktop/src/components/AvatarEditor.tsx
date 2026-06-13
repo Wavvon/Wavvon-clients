@@ -1,5 +1,5 @@
-import { Avatar } from "./Avatar";
 import { ImagePicker } from "./ImagePicker";
+import { Avatar } from "@voxply/ui";
 
 export function AvatarEditor({
   value,

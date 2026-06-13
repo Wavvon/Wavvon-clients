@@ -2,9 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
 import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@voxply/core";
-import { MessageContent } from "../MessageContent";
-import { MessageAttachments, PendingAttachments } from "../Attachments";
-import { TypingIndicator } from "../TypingIndicator";
+import { MessageAttachments, MessageContent, PendingAttachments, TypingIndicator } from "@voxply/ui";
 
 interface TypingEntry { name: string; ts: number }
 

@@ -1,7 +1,7 @@
 import React from "react";
 import type { Message, Attachment, User } from "../../types";
 import { formatPubkey } from "@voxply/core";
-import { PendingAttachments } from "../Attachments";
+import { PendingAttachments } from "@voxply/ui";
 
 interface SlashCommandEntry {
   command: string;

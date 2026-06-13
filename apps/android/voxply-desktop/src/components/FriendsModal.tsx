@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import type { Friend } from "../types";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 interface Props {
   friends: Friend[];

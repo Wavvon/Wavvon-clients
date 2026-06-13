@@ -2,7 +2,7 @@ import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { hubFetch } from "@platform";
 import { EMOJI_CATALOG } from "../constants";
 import { loadRecentEmojis, pushRecentEmoji } from "@voxply/core";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 const POPUP_HEIGHT = 320;
 

@@ -31,7 +31,7 @@ import { ContentArea } from "@components/ContentArea";
 import { AddHubModal } from "@components/AddHubModal";
 import { FarmSettingsPage } from "@components/FarmSettingsPage";
 import { CreateHubWizard } from "@components/CreateHubWizard";
-import { KeyboardShortcuts } from "@components/KeyboardShortcuts";
+import { KeyboardShortcuts } from "@voxply/ui";
 import { HubAdminPage } from "./components/HubAdminPage";
 import { SearchBar } from "@components/SearchBar";
 import { WelcomeScreenContainer } from "@components/WelcomeScreen";

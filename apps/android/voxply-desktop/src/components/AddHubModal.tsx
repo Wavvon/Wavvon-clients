@@ -1,5 +1,5 @@
 import React from "react";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 type HubPreview =
   | { state: "idle" }

@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import type { Hub, NamedProfile, NotifLevel, BlockEntry, IgnoreEntry } from "@shared/types";
 import { hubFetch, getNotifPref, setNotifPref } from "@platform";
 import { loadIdentity, seedToPhrase } from "@identity/index";
-import { BlockIgnoreSection } from "./BlockIgnoreSection";
 import { SkinEditor, makeSeed } from "./SkinEditor";
 import { SkinsGallery } from "./SkinsGallery";
 import type { ThemeId, VoxplySkin } from "../skinValidation";
+import { BlockIgnoreSection } from "@voxply/ui";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account";
 

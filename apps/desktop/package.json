@@ -24,6 +24,7 @@
     "@types/dompurify": "^3.0.5",
     "@voxply/core": "workspace:*",
     "@voxply/i18n": "workspace:*",
+    "@voxply/ui": "workspace:*",
     "dompurify": "^3.4.8",
     "i18next": "^24.2.3",
     "i18next-icu": "^2.4.3",

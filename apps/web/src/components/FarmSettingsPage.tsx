@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { FocusTrap } from "./FocusTrap";
 import {
   getFarmSettings,
   patchFarmSettings,
@@ -17,6 +16,7 @@ import type {
   FarmCreationPolicy,
 } from "../types";
 import { formatPubkey, formatRelative } from "@voxply/core";
+import { FocusTrap } from "@voxply/ui";
 
 export type FarmAdminTab = "general" | "hubs" | "users";
 

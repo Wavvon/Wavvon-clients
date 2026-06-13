@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { FocusTrap } from "./FocusTrap";
 import { invoke } from "@tauri-apps/api/core";
 import type { BotAdminInfo, BotCreatedResult } from "../types";
+import { FocusTrap } from "@voxply/ui";
 
 interface BotWizardProps {
   hubUrl: string;

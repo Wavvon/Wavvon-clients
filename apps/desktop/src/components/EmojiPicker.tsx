@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { EMOJI_CATALOG } from "../constants";
 import { loadRecentEmojis, pushRecentEmoji } from "@voxply/core";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 const POPUP_HEIGHT = 320;
 

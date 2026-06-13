@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { ScreenShareOpts } from "../types";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 interface Props {
   onStart: (opts: ScreenShareOpts) => void;

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { EMOJI_CATALOG } from "../constants";
 import { loadRecentEmojis, pushRecentEmoji } from "@voxply/core";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 export function ReactionPicker({
   onPick,

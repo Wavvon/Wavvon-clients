@@ -3,10 +3,11 @@ import type { Hub } from "@shared/types";
 import { PairingSection } from "./PairingSection";
 import { IdentityBackupSection } from "./IdentityBackupSection";
 import { RecoveryContactsSection } from "./RecoveryContactsSection";
-import { BlockIgnoreSection, type BlockEntry, type IgnoreEntry } from "./BlockIgnoreSection";
 import { SkinEditor, makeSeed } from "./SkinEditor";
 import { SkinsGallery } from "./SkinsGallery";
 import type { ThemeId, VoxplySkin } from "../skinValidation";
+import { BlockIgnoreSection } from "@voxply/ui";
+import type { BlockEntry, IgnoreEntry } from "@voxply/ui";
 
 export type SettingsTab = "profile" | "account" | "appearance" | "devices";
 

@@ -11,13 +11,17 @@
     "types": ["vite/client"],
     "paths": {
       "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "react/jsx-dev-runtime": ["./node_modules/@types/react/jsx-dev-runtime.d.ts"],
       "i18next": ["./node_modules/i18next"],
       "react-i18next": ["./node_modules/react-i18next"],
       "i18next-icu": ["./node_modules/i18next-icu"],
       "@voxply/i18n": ["../../web/i18n/index.ts"],
-      "@voxply/core": ["../../packages/core/src/index.ts"]
+      "@voxply/core": ["../../packages/core/src/index.ts"],
+      "@voxply/ui": ["../../packages/ui/src/index.ts"],
+      "@voxply/ui/styles.css": ["../../packages/ui/src/styles.css"]
     }
   },
-  "include": ["src", "../../web/i18n"],
+  "include": ["src", "../../web/i18n", "../../packages/ui/src"],
   "exclude": ["../../web/i18n/check-coverage.ts"]
 }

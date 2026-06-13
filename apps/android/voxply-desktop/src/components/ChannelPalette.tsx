@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { Channel } from "../types";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 export function ChannelPalette({
   channels,

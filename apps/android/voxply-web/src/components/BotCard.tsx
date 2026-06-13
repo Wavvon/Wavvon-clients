@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { BotProfile } from "../types";
 import { hubFetch } from "../platform/http";
-import { Avatar } from "./Avatar";
+import { Avatar } from "@voxply/ui";
 
 interface Props {
   pubkey: string;

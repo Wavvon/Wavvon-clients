@@ -11,14 +11,20 @@
     "types": ["vite/client"],
     "paths": {
       "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "react/jsx-dev-runtime": ["./node_modules/@types/react/jsx-dev-runtime.d.ts"],
       "@components/*": ["./src/components/*"],
       "@shared/types": ["./src/types"],
       "@shared/utils/*": ["./src/utils/*"],
       "@shared/hooks/*": ["./src/hooks/*"],
       "@shared/constants": ["./src/constants"],
       "@platform": ["./src/platform/index"],
-      "@identity/*": ["./src/identity/*"]
+      "@identity/*": ["./src/identity/*"],
+      "@voxply/core": ["../../../packages/core/src/index.ts"],
+      "@voxply/i18n": ["../../../packages/i18n/index.ts"],
+      "@voxply/ui": ["../../../packages/ui/src/index.ts"],
+      "@voxply/ui/styles.css": ["../../../packages/ui/src/styles.css"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "../../../packages/ui/src"]
 }

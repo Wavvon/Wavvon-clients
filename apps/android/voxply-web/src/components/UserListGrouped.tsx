@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { User } from "../types";
-import { Avatar } from "./Avatar";
+import { Avatar } from "@voxply/ui";
 
 export function UserListGrouped({
   users,

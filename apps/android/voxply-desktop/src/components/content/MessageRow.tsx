@@ -11,13 +11,11 @@ import {
   formatFullTimestamp,
   formatRelative,
 } from "@voxply/core";
-import { Avatar } from "../Avatar";
-import { MessageContent } from "../MessageContent";
-import { MessageAttachments } from "../Attachments";
 import { MessageReactions } from "../MessageReactions";
 import { ReactionPicker } from "../ReactionPicker";
 import { MessageEmbeds } from "../MessageEmbeds";
 import { MessageComponents } from "../MessageComponents";
+import { Avatar, MessageAttachments, MessageContent } from "@voxply/ui";
 
 interface Props {
   message: Message;

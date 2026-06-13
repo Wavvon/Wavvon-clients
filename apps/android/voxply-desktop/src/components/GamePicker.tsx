@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { InstalledGame } from "../types";
-import { FocusTrap } from "./FocusTrap";
+import { FocusTrap } from "@voxply/ui";
 
 interface Props {
   games: InstalledGame[];

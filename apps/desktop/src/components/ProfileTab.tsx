@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, NamedProfile } from "../types";
-import { Avatar } from "./Avatar";
 import { AvatarEditor } from "./AvatarEditor";
+import { Avatar } from "@voxply/ui";
 
 const HUB_PROFILES_KEY = "voxply.hubProfiles";
 
