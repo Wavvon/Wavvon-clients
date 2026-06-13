@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "android/src-tauri",
+    "voxply-desktop/src-tauri",
+]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

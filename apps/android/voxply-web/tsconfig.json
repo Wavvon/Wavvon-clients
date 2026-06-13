@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"],
+    "paths": {
+      "@components/*": ["./src/components/*"],
+      "@shared/types": ["./src/types"],
+      "@shared/utils/*": ["./src/utils/*"],
+      "@shared/hooks/*": ["./src/hooks/*"],
+      "@shared/constants": ["./src/constants"],
+      "@platform": ["./src/platform/index"],
+      "@identity/*": ["./src/identity/*"],
+      "@voxply/utils": ["./utils/index.ts"]
+    }
+  },
+  "include": ["src", "utils"]
+}
