@@ -2877,7 +2877,8 @@ function App() {
                   onSaveWhisperList={whisper.saveWhisperList}
                   onDeleteWhisperList={whisper.deleteWhisperList}
                   videoEnabled={video.videoEnabled}
-                  onVideoToggle={() => video.videoEnabled ? video.disableVideo() : video.enableVideo()}
+                  onVideoToggle={(deviceId) => video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId)}
+                  onCameraDeviceChange={video.switchCamera}
                   backgroundMode={video.backgroundMode}
                   showBgPicker={showBgPicker}
                   onShowBgPickerChange={setShowBgPicker}

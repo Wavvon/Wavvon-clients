@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, Attachment, User } from "../../types";
 import { formatPubkey } from "@voxply/core";
@@ -65,6 +65,19 @@ export function ChannelComposer({
   onShowPollComposer,
 }: Props) {
   const { t } = useTranslation();
+  const [plusOpen, setPlusOpen] = useState(false);
+  const plusRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!plusOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (plusRef.current && !plusRef.current.contains(e.target as Node)) {
+        setPlusOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [plusOpen]);
 
   return (
     <>
@@ -95,15 +108,41 @@ export function ChannelComposer({
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
         onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
       >
-        <label className="btn-attach" title={t("composer.attach")}>
-          📎
-          <input
-            type="file"
-            multiple
-            style={{ display: "none" }}
-            onChange={(e) => { onAttachFiles(e.target.files); (e.target as HTMLInputElement).value = ""; }}
-          />
-        </label>
+        <div style={{ position: "relative" }} ref={plusRef}>
+          <button
+            type="button"
+            className="btn-attach"
+            title="More options"
+            aria-label="More options"
+            aria-expanded={plusOpen}
+            onClick={() => setPlusOpen((v) => !v)}
+          >
+            +
+          </button>
+          {plusOpen && (
+            <div className="plus-menu" role="menu">
+              <label className="plus-menu-item" role="menuitem" onClick={() => setPlusOpen(false)}>
+                📎 {t("composer.attach")}
+                <input
+                  type="file"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => { onAttachFiles(e.target.files); (e.target as HTMLInputElement).value = ""; }}
+                />
+              </label>
+              {showPollButton && (
+                <button
+                  type="button"
+                  className="plus-menu-item"
+                  role="menuitem"
+                  onClick={() => { setPlusOpen(false); onShowPollComposer(); }}
+                >
+                  📊 Create poll
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <EmojiPicker
           hubUrl={activeHubUrl}
           onPick={(emoji) => {
@@ -111,16 +150,6 @@ export function ChannelComposer({
             messageInputRef.current?.focus();
           }}
         />
-        {showPollButton && (
-          <button
-            type="button"
-            className="btn-attach"
-            title="Create poll"
-            onClick={onShowPollComposer}
-          >
-            📊
-          </button>
-        )}
         <div style={{ position: "relative", flex: 1 }}>
           {slashSuggestions.length > 0 && (
             <div className="slash-command-popup">

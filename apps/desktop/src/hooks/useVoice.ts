@@ -342,6 +342,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     const target = channel ?? selectedChannel;
     if (!target || target.is_category) return;
     try {
+      if (voiceChannelId && voiceChannelId !== target.id) {
+        await invoke("voice_leave");
+      }
       await invoke("voice_join", { channelId: target.id });
       playVoiceTone("up");
     } catch (e) {

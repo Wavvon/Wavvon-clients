@@ -2222,6 +2222,16 @@ select,
   border-color: var(--danger-hover);
 }
 
+.camera-device-select {
+  height: 28px;
+  font-size: var(--text-xs);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  cursor: pointer;
+  max-width: 120px;
+}
 
 .btn-small {
   padding: var(--space-2) var(--space-3);
@@ -3335,6 +3345,39 @@ select:focus-visible {
 .btn-attach:hover {
   color: var(--accent);
   border-color: var(--accent);
+}
+
+.plus-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-secondary, #2b2d31);
+  border: 1px solid var(--border, #3f4147);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 100;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.plus-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.plus-menu-item:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.07));
 }
 
 .md-codeblock-wrap {
@@ -4954,6 +4997,14 @@ select:focus-visible {
   display: flex;
   gap: var(--space-3);
   justify-content: flex-end;
+}
+
+.screen-share-source-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .screen-share-macos-notice {

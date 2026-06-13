@@ -215,10 +215,11 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     return () => unsubs.forEach(u => u());
   }, [activeHubId, voiceChannelId, publicKey, videoEnabled, processedStream]);
 
-  async function enableVideo() {
+  async function enableVideo(deviceId?: string) {
     if (!voiceChannelIdRef.current) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const videoConstraint = deviceId ? { deviceId: { exact: deviceId } } : true;
+      const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
       setRawStream(stream);
       const proc = new BackgroundProcessor(stream);
       bgProcessor.current = proc;
@@ -251,6 +252,27 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     }
   }, [voiceChannelId]);
 
+  async function switchCamera(deviceId: string) {
+    if (!voiceChannelIdRef.current) return;
+    rawStream?.getTracks().forEach(t => t.stop());
+    bgProcessor.current?.stop();
+    bgProcessor.current = null;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } }, audio: false });
+      setRawStream(stream);
+      const proc = new BackgroundProcessor(stream);
+      bgProcessor.current = proc;
+      const out = await proc.start(backgroundMode, backgroundImage);
+      setProcessedStream(out);
+      for (const [, entry] of peers.current) {
+        const sender = entry.conn.getSenders().find(s => s.track?.kind === "video");
+        if (sender) sender.replaceTrack(out.getVideoTracks()[0]);
+      }
+    } catch (e) {
+      console.error("Camera switch failed:", e);
+    }
+  }
+
   async function changeBackground(mode: BackgroundMode, image?: string | null) {
     setBackgroundMode(mode);
     if (image !== undefined) setBackgroundImage(image);
@@ -270,6 +292,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     backgroundImage,
     enableVideo,
     disableVideo,
+    switchCamera,
     changeBackground,
   };
 }
