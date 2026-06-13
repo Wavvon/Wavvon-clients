@@ -1,4 +1,5 @@
 /target
+/desktop/
 .claude/
 node_modules/
 dist/
