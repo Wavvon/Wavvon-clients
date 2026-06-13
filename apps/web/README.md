@@ -1,9 +1,5 @@
 # Voxply Web
 
-[![Build check](https://github.com/Voxply/Voxply-web/actions/workflows/build.yml/badge.svg)](https://github.com/Voxply/Voxply-web/actions/workflows/build.yml)
-[![Deploy to GitHub Pages](https://github.com/Voxply/Voxply-web/actions/workflows/deploy.yml/badge.svg)](https://github.com/Voxply/Voxply-web/actions/workflows/deploy.yml)
-[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-
 The browser client for [Voxply](https://github.com/Voxply/Voxply) — an
 open-source, federated voice + text platform where communities run
 their own servers and **your identity is a keypair, not an account**.
@@ -40,16 +36,18 @@ speak the hub's UDP voice protocol).
   `dist/` from any web server or CDN. Tagged releases are also
   auto-deployed to GitHub Pages from CI.
 
+This app lives in the [Voxply-client](https://github.com/Voxply/Voxply-client)
+monorepo at `apps/web`. Run pnpm commands from the **repo root**, not
+from this directory.
+
 ## Quick start
 
-Requires [Node 20+](https://nodejs.org).
+Requires [Node 20+](https://nodejs.org) and
+[pnpm 11+](https://pnpm.io). From the monorepo root:
 
 ```bash
-git clone https://github.com/Voxply/Voxply-web
-cd Voxply-web/web
-npm install
-npm run dev
-# Open http://localhost:1421
+pnpm install                       # installs the whole workspace, once
+pnpm --filter voxply-web run dev   # → http://localhost:1421
 ```
 
 Click **Add hub** and enter a hub URL (`http://localhost:3000` for a
@@ -58,29 +56,33 @@ to run one in 2 minutes).
 
 ## Building & checks
 
+From the repo root:
+
 ```bash
-cd web
-npm run build        # static bundle in dist/
-npm run typecheck    # tsc --noEmit
-npm test             # vitest
+pnpm --filter voxply-web run build       # static bundle in apps/web/dist/
+pnpm --filter voxply-web run typecheck   # tsc --noEmit
+pnpm --filter voxply-web run test        # vitest
 ```
 
-## Repository layout
+The production build is a static bundle — serve `apps/web/dist/` from
+any web server or CDN, or let a hub self-serve it via
+`VOXPLY_WEB_CLIENT_DIR`.
+
+## Where things live
 
 | Path | What it is |
 |---|---|
-| `web/` | The React client (Vite) |
-| `i18n/` | Shared `@voxply/i18n` package (also used by the desktop client) |
-| `utils/` | Shared `@voxply/utils` package |
+| `apps/web/` *(this dir)* | The React client (Vite) |
+| `packages/i18n/` | `@voxply/i18n` — shared locale strings + ICU machinery |
+| `packages/utils/` | `@voxply/utils` — shared utilities |
+| `packages/core/` | `@voxply/core` — shared platform-agnostic TS |
 
 ## The Voxply project
 
 | Repo | What it is |
 |---|---|
+| [Voxply-client](https://github.com/Voxply/Voxply-client) | All clients (desktop / web / Android) + shared packages — **web is here, in `apps/web`** |
 | [Voxply-server](https://github.com/Voxply/Voxply-server) | Hub server, farm tooling, identity crate (Rust) |
-| [Voxply-desktop](https://github.com/Voxply/Voxply-desktop) | Desktop client — Windows / macOS / Linux (Tauri 2 + React) |
-| **Voxply-web** *(this repo)* | Browser client (text + DMs) |
-| [Voxply-android](https://github.com/Voxply/Voxply-android) | Android client (Tauri 2) |
 | [Voxply-discovery](https://github.com/Voxply/Voxply-discovery) | Optional public hub directory |
 | [Voxply](https://github.com/Voxply/Voxply) | Architecture wiki, roadmap, API spec |
 
@@ -89,13 +91,9 @@ New here? Start with
 the browser client's design rationale is in
 [browser-client.md](https://github.com/Voxply/Voxply/blob/main/docs/browser-client.md).
 
-## Contributing
-
-Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
-
 ## License
 
-[GNU Affero General Public License v3.0](LICENSE).
+[GNU Affero General Public License v3.0](../../LICENSE).
 
 ## Built with AI assistance
 
