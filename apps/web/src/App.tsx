@@ -869,7 +869,7 @@ export default function App() {
       await session.start();
       voiceSessionRef.current = session;
     } catch (e) {
-      console.error('Voice join failed:', e);
+      showHubError("Voice: " + String(e));
     }
   }
 

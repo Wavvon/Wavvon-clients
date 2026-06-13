@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
+import type { BackgroundMode } from "../utils/backgroundProcessor";
 import type { Hub, NamedProfile } from "../types";
 import { formatPubkey } from "@voxply/core";
 import { AudioProfileSection } from "./AudioProfileSection";
@@ -104,6 +105,8 @@ export interface SettingsPageProps {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
+  backgroundMode: BackgroundMode;
+  onChangeBackground: (mode: BackgroundMode) => void;
   onImportSkin: (skin: VoxplySkin) => void;
 }
 
@@ -406,6 +409,23 @@ export function SettingsPage(props: SettingsPageProps) {
                 <span className="muted voice-mic-test-hint">
                   {t("settings.voice.mic_test.hint")}
                 </span>
+              </div>
+            </div>
+            <div className="settings-section">
+              <label className="settings-label">Camera background</label>
+              <div className="settings-row" style={{ gap: "var(--space-2)" }}>
+                <button
+                  className={`btn-secondary${props.backgroundMode === "none" ? " active" : ""}`}
+                  onClick={() => props.onChangeBackground("none")}
+                >
+                  None
+                </button>
+                <button
+                  className={`btn-secondary${props.backgroundMode === "blur" ? " active" : ""}`}
+                  onClick={() => props.onChangeBackground("blur")}
+                >
+                  Blur
+                </button>
               </div>
             </div>
             <div className="settings-section">

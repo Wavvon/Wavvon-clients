@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -19,15 +20,15 @@ jobs:
         id: ver
         run: |
           VERSION=$(node -pe "require('./apps/desktop/src-tauri/tauri.conf.json').version")
-          echo "version=desktop-v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Detected version: desktop-v$VERSION"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: v$VERSION"
 
       - name: Check if tag already exists
         id: check
         run: |
-          if git rev-parse "refs/tags/${{ steps.ver.outputs.version }}" >/dev/null 2>&1; then
+          if git rev-parse "refs/tags/${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Tag ${{ steps.ver.outputs.version }} already exists — no release needed"
+            echo "Tag ${{ steps.ver.outputs.tag }} already exists — no release needed"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -35,6 +36,26 @@ jobs:
       - name: Create and push tag
         if: steps.check.outputs.exists == 'false'
         run: |
-          git tag "${{ steps.ver.outputs.version }}"
-          git push origin "${{ steps.ver.outputs.version }}"
-          echo "Tagged ${{ steps.ver.outputs.version }} — release workflow will start shortly"
+          git tag "${{ steps.ver.outputs.tag }}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      - name: Dispatch release-desktop workflow
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release-desktop.yml --ref "${{ steps.ver.outputs.tag }}"
+
+      - name: Dispatch release-web workflow
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release-web.yml --ref "${{ steps.ver.outputs.tag }}"
+
+      - name: Dispatch release-android workflow
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release-android.yml --ref "${{ steps.ver.outputs.tag }}"

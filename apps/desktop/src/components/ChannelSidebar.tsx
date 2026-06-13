@@ -113,10 +113,6 @@ interface Props {
   videoEnabled: boolean;
   onVideoToggle: (deviceId?: string) => void;
   onCameraDeviceChange: (deviceId: string) => void;
-  backgroundMode: string;
-  showBgPicker: boolean;
-  onShowBgPickerChange: (v: boolean) => void;
-  onChangeBackground: (mode: "none" | "blur") => void;
   onGlobalSearchNavigate: (channelId: string, messageId: string) => void;
 }
 
@@ -141,7 +137,7 @@ export function ChannelSidebar({
   inboundWhispers, isWhispering, whisperTargets, whisperLists,
   showWhisperPanel, onToggleWhisperPanel, onCloseWhisperPanel,
   onStartWhisper, onStopWhisper, onSaveWhisperList, onDeleteWhisperList,
-  videoEnabled, onVideoToggle, onCameraDeviceChange, backgroundMode, showBgPicker, onShowBgPickerChange, onChangeBackground,
+  videoEnabled, onVideoToggle, onCameraDeviceChange,
   onGlobalSearchNavigate,
 }: Props) {
   const { t } = useTranslation();
@@ -634,33 +630,6 @@ export function ChannelSidebar({
                       </option>
                     ))}
                   </select>
-                )}
-                {videoEnabled && (
-                  <div className="video-bg-picker-wrap">
-                    <button
-                      className="btn-icon-gear"
-                      onClick={() => onShowBgPickerChange(!showBgPicker)}
-                      title="Background effects"
-                    >
-                      🖼
-                    </button>
-                    {showBgPicker && (
-                      <div className="video-bg-picker">
-                        <button
-                          onClick={() => { onChangeBackground("none"); onShowBgPickerChange(false); }}
-                          className={backgroundMode === "none" ? "active" : ""}
-                        >
-                          None
-                        </button>
-                        <button
-                          onClick={() => { onChangeBackground("blur"); onShowBgPickerChange(false); }}
-                          className={backgroundMode === "blur" ? "active" : ""}
-                        >
-                          Blur
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 )}
                 {hubStreamsCount > 0 && (
                   <button

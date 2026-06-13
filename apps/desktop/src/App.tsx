@@ -662,8 +662,6 @@ function App() {
   const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
   const [showWhisperPanel, setShowWhisperPanel] = useState(false);
 
-  const [showBgPicker, setShowBgPicker] = useState(false);
-
   function buildTiles(
     remoteStreams: Map<string, MediaStream>,
     videoPubkeys: Set<string>,
@@ -924,6 +922,10 @@ function App() {
   }, [toast]);
 
 
+
+  useEffect(() => {
+    if (voice.shareError) setToast(voice.shareError);
+  }, [voice.shareError]);
 
   // ESC closes the settings view (and stops the mic test if one is running)
   useEffect(() => {
@@ -2615,6 +2617,8 @@ function App() {
             skin={skin}
             onSkinChange={handleSkinChange}
             onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
+            backgroundMode={video.backgroundMode}
+            onChangeBackground={video.changeBackground}
             hasActiveHub={hasActiveHub}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}
@@ -2879,10 +2883,6 @@ function App() {
                   videoEnabled={video.videoEnabled}
                   onVideoToggle={(deviceId) => video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId)}
                   onCameraDeviceChange={video.switchCamera}
-                  backgroundMode={video.backgroundMode}
-                  showBgPicker={showBgPicker}
-                  onShowBgPickerChange={setShowBgPicker}
-                  onChangeBackground={video.changeBackground}
                   onGlobalSearchNavigate={(channelId, _messageId) => {
                     const ch = channels.find((c) => c.id === channelId);
                     if (ch) selectChannel(ch);

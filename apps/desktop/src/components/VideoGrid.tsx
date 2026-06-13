@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 
 interface VideoTile {
   pubkey: string;
@@ -53,6 +53,52 @@ function Tile({
 }
 
 export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props) {
+  const [pipLeft, setPipLeft] = useState<number | null>(null);
+  const [pipTop, setPipTop] = useState<number | null>(null);
+  const [pipWidth, setPipWidth] = useState(120);
+
+  useEffect(() => {
+    if (pipLeft === null && selfStream) {
+      setPipLeft(window.innerWidth - 132);
+      setPipTop(window.innerHeight - 186);
+    }
+  }, [pipLeft, selfStream]);
+
+  function startDrag(e: React.MouseEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).classList.contains("video-self-resize-handle")) return;
+    e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const sl = pipLeft ?? window.innerWidth - 132;
+    const st = pipTop ?? window.innerHeight - 186;
+    function onMove(ev: MouseEvent) {
+      setPipLeft(Math.max(0, Math.min(window.innerWidth - pipWidth, sl + ev.clientX - sx)));
+      setPipTop(Math.max(0, Math.min(window.innerHeight - 60, st + ev.clientY - sy)));
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  function startResize(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    const sx = e.clientX;
+    const sw = pipWidth;
+    function onMove(ev: MouseEvent) {
+      setPipWidth(Math.max(80, Math.min(400, sw + ev.clientX - sx)));
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
   if (tiles.length === 0 && !selfStream) return null;
 
   const count = tiles.length;
@@ -68,18 +114,29 @@ export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props
             </div>
           )}
           <div className="video-grid-thumbnails">
-            {tiles.slice(1).map(t => (
+            {tiles.slice(1).map((t) => (
               <Tile key={t.pubkey} tile={t} onPin={onPin} onUnpin={onUnpin} />
             ))}
           </div>
         </>
       ) : (
-        tiles.map(t => <Tile key={t.pubkey} tile={t} onPin={onPin} onUnpin={onUnpin} />)
+        tiles.map((t) => <Tile key={t.pubkey} tile={t} onPin={onPin} onUnpin={onUnpin} />)
       )}
       {selfStream && (
-        <div className="video-self-view">
+        <div
+          className="video-self-view"
+          style={{
+            left: pipLeft ?? undefined,
+            top: pipTop ?? undefined,
+            right: pipLeft === null ? 12 : undefined,
+            bottom: pipTop === null ? 80 : undefined,
+            width: pipWidth,
+          }}
+          onMouseDown={startDrag}
+        >
           <VideoElement stream={selfStream} muted />
           <div className="video-tile-name">{selfName} (you)</div>
+          <div className="video-self-resize-handle" onMouseDown={startResize} />
         </div>
       )}
     </div>
