@@ -925,6 +925,10 @@ function App() {
 
 
 
+  useEffect(() => {
+    if (voice.shareError) setToast(voice.shareError);
+  }, [voice.shareError]);
+
   // ESC closes the settings view (and stops the mic test if one is running)
   useEffect(() => {
     if (!showSettings) return;

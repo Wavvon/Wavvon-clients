@@ -4,6 +4,10 @@ import { resolve } from "path";
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    exclude: ["opusscript"],
+  },
+  assetsInclude: ["**/*.wasm"],
   resolve: {
     alias: {
       "@components": resolve(__dirname, "src/components"),

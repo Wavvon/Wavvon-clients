@@ -16,6 +16,7 @@ export function initI18n(lng: string = 'en') {
       fallbackLng: 'en',
       resources: { en: { translation: en }, it: { translation: it }, es: { translation: es }, de: { translation: de } },
       interpolation: { escapeValue: false },
+      initImmediate: false,
     });
   return i18n;
 }
