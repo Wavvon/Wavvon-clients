@@ -3,7 +3,7 @@ name: Release Web
 on:
   push:
     tags:
-      - "web-v*"
+      - "v*"
   workflow_dispatch:
 
 jobs:

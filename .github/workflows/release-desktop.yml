@@ -3,7 +3,7 @@ name: Release Desktop
 on:
   push:
     tags:
-      - "desktop-v*"
+      - "v*"
   workflow_dispatch:
 
 jobs:
@@ -241,7 +241,7 @@ jobs:
             const mac = JSON.parse(fs.readFileSync('meta/macos.json', 'utf8'));
             const tag = process.env.GITHUB_REF_NAME;
             const manifest = {
-              version: tag.replace(/^desktop-v/, ''),
+              version: tag.replace(/^v/, ''),
               notes: '',
               pub_date: new Date().toISOString(),
               platforms: {

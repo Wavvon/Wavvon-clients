@@ -3,7 +3,8 @@ name: Release Android
 on:
   push:
     tags:
-      - "android-v*"
+      - "v*"
+  workflow_dispatch:
 
 jobs:
   changelog:

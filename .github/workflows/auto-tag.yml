@@ -16,42 +16,46 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read desktop version from tauri.conf.json
+      - name: Read version from tauri.conf.json
         id: ver
         run: |
           VERSION=$(node -pe "require('./apps/desktop/src-tauri/tauri.conf.json').version")
-          echo "desktop=desktop-v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "web=web-v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Detected version: $VERSION"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: v$VERSION"
 
-      - name: Check if desktop tag already exists
+      - name: Check if tag already exists
         id: check
         run: |
-          if git rev-parse "refs/tags/${{ steps.ver.outputs.desktop }}" >/dev/null 2>&1; then
+          if git rev-parse "refs/tags/${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Tag ${{ steps.ver.outputs.desktop }} already exists — no release needed"
+            echo "Tag ${{ steps.ver.outputs.tag }} already exists — no release needed"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create and push tags
+      - name: Create and push tag
         if: steps.check.outputs.exists == 'false'
         run: |
-          git tag "${{ steps.ver.outputs.desktop }}"
-          git push origin "${{ steps.ver.outputs.desktop }}"
-          git tag "${{ steps.ver.outputs.web }}"
-          git push origin "${{ steps.ver.outputs.web }}"
+          git tag "${{ steps.ver.outputs.tag }}"
+          git push origin "${{ steps.ver.outputs.tag }}"
 
       - name: Dispatch release-desktop workflow
         if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh workflow run release-desktop.yml --ref "${{ steps.ver.outputs.desktop }}"
+          gh workflow run release-desktop.yml --ref "${{ steps.ver.outputs.tag }}"
 
       - name: Dispatch release-web workflow
         if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh workflow run release-web.yml --ref "${{ steps.ver.outputs.web }}"
+          gh workflow run release-web.yml --ref "${{ steps.ver.outputs.tag }}"
+
+      - name: Dispatch release-android workflow
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release-android.yml --ref "${{ steps.ver.outputs.tag }}"
