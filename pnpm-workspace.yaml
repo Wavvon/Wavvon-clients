@@ -6,3 +6,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+peerDependencyRules:
+  allowedVersions:
+    'i18next>typescript': '*'
