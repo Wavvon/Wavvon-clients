@@ -1,6 +1,6 @@
 {
   "productName": "Voxply",
-  "version": "0.2.5",
+  "version": "0.2.4",
   "identifier": "com.voxply.desktop",
   "build": {
     "frontendDist": "../dist",
