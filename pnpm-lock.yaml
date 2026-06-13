@@ -228,6 +228,9 @@ importers:
       marked:
         specifier: ^18.0.5
         version: 18.0.5
+      opusscript:
+        specifier: ^0.1.1
+        version: 0.1.1
       react:
         specifier: ^19.0.0
         version: 19.2.7
@@ -1535,6 +1538,9 @@ packages:
   obug@2.1.2:
     resolution: {integrity: sha512-AWGB9WFcRXOQs48Z/udjI5ZcZMHXwX8XPByNpOydgcGsDLIzjGizhoMWJyKAWze7AVW/2W1i+/gPX4YtKe5cyg==}
     engines: {node: '>=12.20.0'}
+
+  opusscript@0.1.1:
+    resolution: {integrity: sha512-mL0fZZOUnXdZ78woRXp18lApwpp0lF5tozJOD1Wut0dgrA9WuQTgSels/CSmFleaAZrJi/nci5KOVtbuxeWoQA==}
 
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
@@ -2849,6 +2855,8 @@ snapshots:
   node-releases@2.0.47: {}
 
   obug@2.1.2: {}
+
+  opusscript@0.1.1: {}
 
   pathe@2.0.3: {}
 

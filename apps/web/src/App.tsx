@@ -42,7 +42,7 @@ import { buildChannelTree } from "@voxply/core";
 import type { TreeNode } from "@voxply/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
-import { listBotCommands, updateDmBlocks, fetchVoiceRoster } from "@platform";
+import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession } from "@platform";
 import {
   restorePersistedHubs,
   addHub,
@@ -58,6 +58,7 @@ import {
 } from "@platform";
 import type { WsHandlers } from "@platform";
 import { getActiveHubId } from "@platform";
+import { VoiceWsSession } from "./platform/voice";
 import {
   getMessages,
   sendMessage,
@@ -219,6 +220,10 @@ export default function App() {
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
   const [voiceActiveUsers] = useState<Set<string>>(new Set());
+  const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
+  const [selfMuted, setSelfMuted] = useState(false);
+  const [selfDeafened, setSelfDeafened] = useState(false);
+  const voiceSessionRef = useRef<VoiceWsSession | null>(null);
   const [installedGames, setInstalledGames] = useState<InstalledGame[]>([]);
   const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
   const [userAlliances, setUserAlliances] = useState<AllianceInfo[]>([]);
@@ -357,8 +362,6 @@ export default function App() {
 
   const loadingHub = useRef(false);
 
-  // Voice-not-available toast
-  const [voiceToast, setVoiceToast] = useState(false);
 
   // === Identity init ===
 
@@ -826,11 +829,50 @@ export default function App() {
     } catch {}
   }
 
-  // === Voice (not available in browser) ===
+  // === Voice ===
 
-  function showVoiceNotAvailable() {
-    setVoiceToast(true);
-    setTimeout(() => setVoiceToast(false), 4000);
+  async function handleVoiceJoin(ch: Channel) {
+    try {
+      const sess = activeSession();
+      const session = new VoiceWsSession(sess.hub_url, sess.token, ch.id, {
+        onReady: (_senderId, _participants) => {
+          setVoiceChannelId(ch.id);
+          setSelfMuted(false);
+          setSelfDeafened(false);
+        },
+        onClose: () => {
+          voiceSessionRef.current = null;
+          setVoiceChannelId(null);
+          setSelfMuted(false);
+          setSelfDeafened(false);
+        },
+      });
+      await session.start();
+      voiceSessionRef.current = session;
+    } catch (e) {
+      console.error('Voice join failed:', e);
+    }
+  }
+
+  function handleVoiceLeave() {
+    voiceSessionRef.current?.stop();
+    voiceSessionRef.current = null;
+    setVoiceChannelId(null);
+    setSelfMuted(false);
+    setSelfDeafened(false);
+  }
+
+  function handleToggleMute() {
+    const next = !selfMuted;
+    setSelfMuted(next);
+    voiceSessionRef.current?.setMuted(next);
+  }
+
+  function handleToggleDeafen() {
+    const next = !selfDeafened;
+    setSelfDeafened(next);
+    if (next) setSelfMuted(true);
+    voiceSessionRef.current?.setDeafened(next);
   }
 
   const channelTypingByKey = useMemo(() => {
@@ -1006,19 +1048,6 @@ export default function App() {
       >
         {voicePoliteAnnouncement}
       </div>
-      {voiceToast && (
-        <div
-          style={{
-            position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
-            background: "var(--surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--r-md)", padding: "8px 16px", zIndex: 9999,
-            fontSize: "var(--text-sm)", color: "var(--text)",
-          }}
-        >
-          Voice is not available in the browser client. Open Voxply on your desktop to join.
-        </div>
-      )}
-
       {hubErrorToast && (
         <div
           style={{
@@ -1173,9 +1202,9 @@ export default function App() {
         unreadByChannel={unreadByChannel}
         collapsedCategories={collapsedCategories}
         voicePartByChannel={voicePartByChannel}
-        voiceChannelId={null}
-        selfMuted={false}
-        selfDeafened={false}
+        voiceChannelId={voiceChannelId}
+        selfMuted={selfMuted}
+        selfDeafened={selfDeafened}
         users={users}
         publicKey={publicKey}
         pingByHub={pingByHub}
@@ -1208,13 +1237,13 @@ export default function App() {
         onOpenCreateChannel={() => {}}
         onSelectChannel={handleSelectChannel}
         onChannelContextMenu={() => {}}
-        onVoiceJoin={() => showVoiceNotAvailable()}
-        onVoiceLeave={() => {}}
+        onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
+        onVoiceLeave={handleVoiceLeave}
         onSelectAllianceChannel={() => {}}
         onSelectConversation={handleSelectConversation}
         onOpenFriends={() => {}}
-        onToggleSelfMute={() => {}}
-        onToggleSelfDeafen={() => {}}
+        onToggleSelfMute={handleToggleMute}
+        onToggleSelfDeafen={handleToggleDeafen}
         onOpenSettings={() => setShowSettings(true)}
         onDragEnd={handleChannelDragEnd}
         sharing={false}
@@ -1252,6 +1281,9 @@ export default function App() {
         reconnectingHubs={reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voiceActiveUsers}
+        voiceChannelId={voiceChannelId}
+        onVoiceJoin={() => selectedChannel && void handleVoiceJoin(selectedChannel)}
+        onVoiceLeave={handleVoiceLeave}
         installedGames={installedGames}
         myAvatar={meInfo?.avatar ?? null}
         inputText={inputText}
