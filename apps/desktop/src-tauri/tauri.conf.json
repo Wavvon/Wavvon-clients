@@ -1,6 +1,6 @@
 {
   "productName": "Voxply",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "identifier": "com.voxply.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -26,7 +26,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "appimage", "dmg"],
+    "targets": [
+      "nsis",
+      "appimage",
+      "dmg"
+    ],
     "windows": {
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com"
@@ -45,7 +49,9 @@
     },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEM0JBRjIwQTE0MjYyODUKUldTRllrS2hJSzg3alY1dWlPbnJGOWZGNDN6WnE1aS9tV05QcE9FQ0Y3S2tPRnF1U3EzYWRCQkIK",
-      "endpoints": ["https://github.com/Voxply/Voxply-desktop/releases/latest/download/latest.json"]
+      "endpoints": [
+        "https://github.com/Voxply/Voxply-desktop/releases/latest/download/latest.json"
+      ]
     }
   }
 }

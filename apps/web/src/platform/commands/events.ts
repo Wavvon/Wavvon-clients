@@ -10,7 +10,7 @@ export async function createEvent(data: {
   title: string;
   description?: string | null;
   location?: string | null;
-  start_at: number;
+  starts_at: number;
   end_at?: number | null;
 }): Promise<HubEvent> {
   const res = await hubFetch("/events", {
@@ -22,13 +22,16 @@ export async function createEvent(data: {
 
 export async function rsvpEvent(eventId: string, status: RsvpStatus): Promise<void> {
   await hubFetch(`/events/${eventId}/rsvp`, {
-    method: "PUT",
+    method: "POST",
     body: JSON.stringify({ status }),
   });
 }
 
 export async function cancelRsvp(eventId: string): Promise<void> {
-  await hubFetch(`/events/${eventId}/rsvp`, { method: "DELETE" });
+  await hubFetch(`/events/${eventId}/rsvp`, {
+    method: "POST",
+    body: JSON.stringify({ status: "not_going" }),
+  });
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {

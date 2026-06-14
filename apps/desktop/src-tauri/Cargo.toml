@@ -37,6 +37,6 @@ futures-util = "0.3"
 dirs = "6"
 url = "2"
 mime_guess = "2"
-xcap = "0.0.14"
+xcap = "0.3.3"
 image = { version = "0.25", default-features = false, features = ["png"] }
 base64 = "0.22"

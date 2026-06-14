@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type {
@@ -47,14 +47,6 @@ import {
 import type { WsHandlers } from "@platform";
 import { getActiveHubId, activeSession } from "@platform";
 import {
-  getMessages,
-  sendMessage,
-  editMessage,
-  deleteMessage,
-  addReaction,
-  removeReaction,
-} from "@platform";
-import {
   listConversations,
   createConversation,
   getDmMessages,
@@ -69,6 +61,8 @@ import { seedToPhrase, phraseToSeed, validatePhrase } from "@voxply/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openFilePicker } from "@tauri-apps/plugin-dialog";
+import { useChannelMessages } from "./hooks/useChannelMessages";
+import { useAlliances } from "./hooks/useAlliances";
 
 // ---- Types ----
 
@@ -191,28 +185,13 @@ export default function App() {
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
   const [voiceActiveUsers] = useState<Set<string>>(new Set());
   const [installedGames, setInstalledGames] = useState<InstalledGame[]>([]);
-  const [userAlliances, setUserAlliances] = useState<AllianceInfo[]>([]);
-  const [allianceChannels] = useState<Record<string, AllianceSharedChannel[]>>({});
 
   // === View ===
   const [view, setView] = useState<View>("channels");
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
 
-  // === Messages ===
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputText, setInputText] = useState("");
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editingDraft, setEditingDraft] = useState("");
-  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [newWhileScrolledUp, setNewWhileScrolledUp] = useState(0);
+  // === Misc message UI ===
   const [memberSidebarHidden, setMemberSidebarHidden] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Message[] | null>(null);
-  const [firstNotifyingMessageId, setFirstNotifyingMessageId] = useState<string | null>(null);
   const [typingByKey] = useState<Record<string, { name: string; ts: number }>>({});
   const [allianceMessages] = useState<Message[]>([]);
 
@@ -234,9 +213,6 @@ export default function App() {
   const [defaultProfileId] = useState<string | null>(null);
 
   // === Refs ===
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
-  const messageInputRef = useRef<HTMLInputElement | null>(null);
   const screenShareViewerRef = useRef<ScreenShareViewerRef | null>(null);
   const mobileShellRef = useRef<MobileShellHandle | null>(null);
 
@@ -304,13 +280,18 @@ export default function App() {
     return () => { unlisten.then((f) => f()); };
   }, [ready]);
 
+  // === Channel messages hook ===
+
+  const channelMsgs = useChannelMessages({ activeHubId, clearUnread });
+  const alliances = useAlliances();
+
   // === WS handlers (stable via ref) ===
 
   const activeHubIdRef = useRef<string | null>(null);
   useEffect(() => { activeHubIdRef.current = activeHubId; }, [activeHubId]);
 
   const selectedChannelRef = useRef<Channel | null>(null);
-  useEffect(() => { selectedChannelRef.current = selectedChannel; }, [selectedChannel]);
+  useEffect(() => { selectedChannelRef.current = channelMsgs.selectedChannel; }, [channelMsgs.selectedChannel]);
 
   const selectedConvRef = useRef<Conversation | null>(null);
   useEffect(() => { selectedConvRef.current = selectedConversation; }, [selectedConversation]);
@@ -322,19 +303,23 @@ export default function App() {
       if (type === "message") {
         const msg = m.message as Message | undefined;
         if (!msg) return;
-        setMessages((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
+        channelMsgs.setMessagesRef.current((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
         const hub = activeHubIdRef.current;
         const selCh = selectedChannelRef.current;
         if (hub && m.channel_id && m.channel_id !== selCh?.id) {
           bumpUnread(hub, m.channel_id as string);
         }
-        setStickToBottom((stick) => { if (stick) setNewWhileScrolledUp(0); else setNewWhileScrolledUp((n) => n + 1); return stick; });
+        channelMsgs.setStickToBottomRef.current((stick) => {
+          if (stick) channelMsgs.setNewWhileScrolledUpRef.current(0);
+          else channelMsgs.setNewWhileScrolledUpRef.current((n) => n + 1);
+          return stick;
+        });
       } else if (type === "message_edited") {
         const msg = m.message as Message | undefined;
-        if (msg) setMessages((prev) => prev.map((x) => x.id === msg.id ? msg : x));
+        if (msg) channelMsgs.setMessagesRef.current((prev) => prev.map((x) => x.id === msg.id ? msg : x));
       } else if (type === "message_deleted") {
         const id = m.message_id as string;
-        if (id) setMessages((prev) => prev.filter((x) => x.id !== id));
+        if (id) channelMsgs.setMessagesRef.current((prev) => prev.filter((x) => x.id !== id));
       }
     },
     onDm: (raw) => {
@@ -442,7 +427,7 @@ export default function App() {
     if (loadingHub.current) return;
     loadingHub.current = true;
     try {
-      const [ch, usr, me, convs, games, alliances] = await Promise.allSettled([
+      const [ch, usr, me, convs, games, allianceResult] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
         hubFetch("/users").then((r) => r.json() as Promise<User[]>),
         hubFetch("/me").then((r) => r.json() as Promise<MeInfo>),
@@ -455,7 +440,7 @@ export default function App() {
       if (me.status === "fulfilled") setMeInfo(me.value);
       if (convs.status === "fulfilled") setConversations(convs.value);
       if (games.status === "fulfilled") setInstalledGames(games.value);
-      if (alliances.status === "fulfilled") setUserAlliances(alliances.value);
+      if (allianceResult.status === "fulfilled") alliances.setUserAlliances(allianceResult.value);
     } finally {
       loadingHub.current = false;
     }
@@ -466,9 +451,8 @@ export default function App() {
   async function handleSwitchHub(hubId: string) {
     setActiveHub(hubId);
     setActiveHubIdState(hubId);
-    setSelectedChannel(null);
+    channelMsgs.setMessages([]);
     setSelectedConversation(null);
-    setMessages([]);
     setView("channels");
     await loadHubData();
   }
@@ -480,7 +464,7 @@ export default function App() {
     if (activeHubId === hubId) {
       const next = list[0]?.hub_id ?? null;
       setActiveHubIdState(next);
-      setSelectedChannel(null);
+      channelMsgs.setMessages([]);
       setSelectedConversation(null);
       if (next) await loadHubData();
     }
@@ -530,79 +514,11 @@ export default function App() {
     }
   }
 
-  // === Channel / messages ===
-
-  async function handleSelectChannel(ch: Channel) {
-    setSelectedChannel(ch);
-    setSelectedConversation(null);
-    setView("channels");
-    setMessages([]);
-    setReplyTarget(null);
-    setEditingMessageId(null);
-    if (activeHubId) clearUnread(activeHubId, ch.id);
-    try {
-      const msgs = await getMessages(ch.id);
-      setMessages(msgs);
-      setStickToBottom(true);
-      setNewWhileScrolledUp(0);
-    } catch {}
-  }
-
-  async function handleSend() {
-    if (!selectedChannel || !inputText.trim()) return;
-    const text = inputText.trim();
-    setInputText("");
-    try {
-      await sendMessage(selectedChannel.id, text, pendingAttachments.length ? pendingAttachments : undefined, replyTarget?.id);
-      setPendingAttachments([]);
-      setReplyTarget(null);
-    } catch {}
-  }
-
-  async function handleSaveEdit() {
-    if (!editingMessageId || !editingDraft.trim() || !selectedChannel) return;
-    try {
-      await editMessage(selectedChannel.id, editingMessageId, editingDraft.trim());
-      setEditingMessageId(null);
-      setEditingDraft("");
-    } catch {}
-  }
-
-  function handleCancelEdit() { setEditingMessageId(null); setEditingDraft(""); }
-
-  function handleStartEdit(msg: Message) {
-    setEditingMessageId(msg.id);
-    setEditingDraft(msg.content);
-  }
-
-  async function handleDeleteMessage(msgId: string) {
-    if (!selectedChannel) return;
-    try {
-      await deleteMessage(selectedChannel.id, msgId);
-      setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    } catch {}
-  }
-
-  async function handleToggleReaction(msgId: string, emoji: string) {
-    if (!selectedChannel) return;
-    const msg = messages.find((m) => m.id === msgId);
-    const existing = msg?.reactions?.find((r) => r.emoji === emoji);
-    try {
-      if (existing?.me) await removeReaction(selectedChannel.id, msgId, emoji);
-      else await addReaction(selectedChannel.id, msgId, emoji);
-    } catch {}
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void handleSend(); }
-    if (e.key === "Escape") { setReplyTarget(null); setEditingMessageId(null); }
-  }
-
   // === DMs ===
 
   async function handleSelectConversation(conv: Conversation) {
     setSelectedConversation(conv);
-    setSelectedChannel(null);
+    channelMsgs.setMessages([]);
     setView("dms");
     setUnreadDms((prev) => { const n = { ...prev }; delete n[conv.id]; return n; });
     if (!dmMessages[conv.id]) {
@@ -623,9 +539,9 @@ export default function App() {
   }
 
   async function handleSendDm() {
-    if (!selectedConversation || !inputText.trim()) return;
-    const text = inputText.trim();
-    setInputText("");
+    if (!selectedConversation || !channelMsgs.inputText.trim()) return;
+    const text = channelMsgs.inputText.trim();
+    channelMsgs.setInputText("");
     try {
       await sendDm(selectedConversation.id, text);
     } catch {}
@@ -660,7 +576,7 @@ export default function App() {
           return { name, mime, data_b64 } satisfies Attachment;
         })
       );
-      setPendingAttachments((prev) => [...prev, ...attachments]);
+      channelMsgs.setPendingAttachments((prev) => [...prev, ...attachments]);
     } catch {
       // User cancelled or permission denied — silently ignore
     }
@@ -792,7 +708,7 @@ export default function App() {
           activeHubId={activeHubId}
           hubs={hubs}
           channels={channels}
-          selectedChannel={selectedChannel}
+          selectedChannel={channelMsgs.selectedChannel}
           unreadByChannel={unreadByChannel}
           collapsedCategories={collapsedCategories}
           voicePartByChannel={voicePartByChannel}
@@ -807,8 +723,8 @@ export default function App() {
           hubDropdownOpen={hubDropdownOpen}
           hideSilenced={false}
           silencedChannelIds={new Set()}
-          userAlliances={userAlliances}
-          allianceChannels={allianceChannels}
+          userAlliances={alliances.userAlliances}
+          allianceChannels={alliances.allianceChannels}
           selectedAllianceChannel={null}
           conversations={conversations}
           selectedConversation={selectedConversation}
@@ -831,7 +747,7 @@ export default function App() {
           onOpenHubAdmin={() => {}}
           onOpenHubAdminInvites={() => {}}
           onOpenCreateChannel={() => {}}
-          onSelectChannel={handleSelectChannel}
+          onSelectChannel={(ch) => { setView("channels"); setSelectedConversation(null); void channelMsgs.handleSelectChannel(ch); }}
           onChannelContextMenu={() => {}}
           onOpenChannelSettings={() => {}}
           onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
@@ -848,7 +764,7 @@ export default function App() {
           onToggleDnd={() => {}}
         />
       }
-      title={selectedChannel?.name ?? selectedConversation?.id ?? "Voxply"}
+      title={channelMsgs.selectedChannel?.name ?? selectedConversation?.id ?? "Voxply"}
       onBack={() => {}}
     >
       {updateAvailable && (
@@ -872,13 +788,13 @@ export default function App() {
         activeHubId={activeHubId}
         hubs={hubs}
         theme={theme}
-        selectedChannel={selectedChannel}
+        selectedChannel={channelMsgs.selectedChannel}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={null}
-        messages={messages}
-        searchResults={searchResults}
-        searchOpen={searchOpen}
-        searchQuery={searchQuery}
+        messages={channelMsgs.messages}
+        searchResults={channelMsgs.searchResults}
+        searchOpen={channelMsgs.searchOpen}
+        searchQuery={channelMsgs.searchQuery}
         dmMessages={dmMessages}
         allianceMessages={allianceMessages}
         users={users}
@@ -888,55 +804,55 @@ export default function App() {
         myDisplayName={meInfo?.display_name ?? null}
         isAdmin={isAdmin}
         myRoles={myRoles}
-        editingMessageId={editingMessageId}
-        editingDraft={editingDraft}
-        replyTarget={replyTarget}
-        pendingAttachments={pendingAttachments}
-        stickToBottom={stickToBottom}
-        newWhileScrolledUp={newWhileScrolledUp}
+        editingMessageId={channelMsgs.editingMessageId}
+        editingDraft={channelMsgs.editingDraft}
+        replyTarget={channelMsgs.replyTarget}
+        pendingAttachments={channelMsgs.pendingAttachments}
+        stickToBottom={channelMsgs.stickToBottom}
+        newWhileScrolledUp={channelMsgs.newWhileScrolledUp}
         hubConnected={hubConnected}
         reconnectingHubs={reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voiceActiveUsers}
         voiceChannelId={voiceChannelId}
-        onVoiceJoin={() => selectedChannel && void handleVoiceJoin(selectedChannel)}
+        onVoiceJoin={() => channelMsgs.selectedChannel && void handleVoiceJoin(channelMsgs.selectedChannel)}
         onVoiceLeave={() => void handleVoiceLeave()}
         installedGames={installedGames}
         myAvatar={meInfo?.avatar ?? null}
-        inputText={inputText}
+        inputText={channelMsgs.inputText}
         typingByKey={typingByKey}
         dmTypingByKey={dmTypingByKey}
-        messagesEndRef={messagesEndRef}
-        messagesContainerRef={messagesContainerRef}
-        messageInputRef={messageInputRef}
+        messagesEndRef={channelMsgs.messagesEndRef}
+        messagesContainerRef={channelMsgs.messagesContainerRef}
+        messageInputRef={channelMsgs.messageInputRef}
         onReconnect={() => {}}
-        onToggleReaction={handleToggleReaction}
-        onSetReplyTarget={setReplyTarget}
-        onSaveEdit={handleSaveEdit}
-        onCancelEdit={handleCancelEdit}
-        onStartEdit={handleStartEdit}
-        onDeleteMessage={handleDeleteMessage}
-        onSend={handleSend}
+        onToggleReaction={channelMsgs.handleToggleReaction}
+        onSetReplyTarget={channelMsgs.setReplyTarget}
+        onSaveEdit={channelMsgs.handleSaveEdit}
+        onCancelEdit={channelMsgs.handleCancelEdit}
+        onStartEdit={channelMsgs.handleStartEdit}
+        onDeleteMessage={channelMsgs.handleDeleteMessage}
+        onSend={channelMsgs.handleSend}
         onSendDm={handleSendDm}
         onSendAllianceMessage={() => {}}
         onPingTyping={() => {}}
         onPingDmTyping={() => {}}
-        onSetPendingAttachments={setPendingAttachments}
+        onSetPendingAttachments={channelMsgs.setPendingAttachments}
         onAttachFiles={handleAttachFiles}
         onOpenEditDescription={() => {}}
-        firstNotifyingMessageId={firstNotifyingMessageId}
-        onClearFirstNotify={() => setFirstNotifyingMessageId(null)}
+        firstNotifyingMessageId={channelMsgs.firstNotifyingMessageId}
+        onClearFirstNotify={() => channelMsgs.setFirstNotifyingMessageId(null)}
         onScrollToMessage={() => {}}
         onSetMemberSidebarHidden={setMemberSidebarHidden}
-        onSetSearchOpen={setSearchOpen}
-        onSetSearchQuery={setSearchQuery}
-        onCloseSearch={() => { setSearchOpen(false); setSearchResults(null); setSearchQuery(""); }}
-        onJumpToBottom={() => { setStickToBottom(true); setNewWhileScrolledUp(0); }}
+        onSetSearchOpen={channelMsgs.setSearchOpen}
+        onSetSearchQuery={channelMsgs.setSearchQuery}
+        onCloseSearch={() => { channelMsgs.setSearchOpen(false); channelMsgs.setSearchResults(null); channelMsgs.setSearchQuery(""); }}
+        onJumpToBottom={() => { channelMsgs.setStickToBottom(true); channelMsgs.setNewWhileScrolledUp(0); }}
         onMessagesScroll={() => {}}
         onSetUserContextMenu={() => {}}
-        onSetEditingDraft={setEditingDraft}
-        onInputTextChange={setInputText}
-        onKeyDown={handleKeyDown}
+        onSetEditingDraft={channelMsgs.setEditingDraft}
+        onInputTextChange={channelMsgs.setInputText}
+        onKeyDown={channelMsgs.handleKeyDown}
         onOpenImage={() => {}}
         onToast={() => {}}
         onError={() => {}}

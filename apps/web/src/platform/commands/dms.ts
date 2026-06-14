@@ -36,6 +36,7 @@ interface RawDmMessage {
   attachments?: Attachment[];
   is_encrypted?: boolean;
   encrypted_envelope?: DmEnvelope;
+  group_encrypted_envelope?: unknown;
   delivery_failed?: boolean;
 }
 
@@ -62,6 +63,8 @@ export async function getDmMessages(
       } catch {
         content = "[decryption failed]";
       }
+    } else if (!m.content && m.group_encrypted_envelope) {
+      content = "🔒 Encrypted message (upgrade client to read)";
     }
     return {
       id: m.id,

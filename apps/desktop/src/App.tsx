@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type {
@@ -48,20 +48,16 @@ import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
-import { MAX_ATTACHMENT_BYTES } from "./constants";
 import { type ThemeId, type VoxplySkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
 import {
   formatPubkey,
-  mentionsName,
-  playMentionPing,
   buildChannelTree,
   flattenTree,
   descendantIds,
   computeDepth,
 } from "@voxply/core";
 import { parseHubInput } from "@voxply/core";
-import { readFileAsB64 } from "./utils/files";
-import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
+import { saveDraft } from "./utils/drafts";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts } from "./hooks/useUnreadCounts";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -70,6 +66,9 @@ import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useFriends } from "./hooks/useFriends";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useDms } from "./hooks/useDms";
+import { useChannelMessages } from "./hooks/useChannelMessages";
+import { useAlliances } from "./hooks/useAlliances";
+import { useWsHandlers } from "./hooks/useWsHandlers";
 import { Lightbox } from "./components/Lightbox";
 import { ChannelPalette } from "./components/ChannelPalette";
 import { ChannelBansModal } from "./components/ChannelBansModal";
@@ -384,16 +383,9 @@ function App() {
   const [channels, setChannels] = useState<Channel[]>([]);
   useEffect(() => { channelsRef.current = channels; }, [channels]);
   const [installedGames, setInstalledGames] = useState<InstalledGame[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputText, setInputText] = useState("");
-  // Attachments staged for the next outgoing message. Cleared on send/cancel.
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
-  // Message we're currently replying to. Null means a top-level message.
-  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
 
+  // Refs kept in App so useTypingIndicators and useChannelMessages can share them.
   const selectedChannelForTypingRef = useRef<Channel | null>(null);
-  useEffect(() => { selectedChannelForTypingRef.current = selectedChannel; }, [selectedChannel]);
   const selectedConversationForTypingRef = useRef<Conversation | null>(null);
 
   const {
@@ -409,11 +401,16 @@ function App() {
     clearAllDmTyping,
   } = useTypingIndicators(selectedChannelForTypingRef, selectedConversationForTypingRef);
 
-  // Stable getter refs for useDms — avoids passing mutable state directly.
-  const inputTextRef = useRef(inputText);
-  useEffect(() => { inputTextRef.current = inputText; }, [inputText]);
-  const pendingAttachmentsRef = useRef(pendingAttachments);
-  useEffect(() => { pendingAttachmentsRef.current = pendingAttachments; }, [pendingAttachments]);
+  // Stable getter refs for useDms — avoids capturing stale closures.
+  const inputTextRef = useRef("");
+  const pendingAttachmentsRef = useRef<Attachment[]>([]);
+  const clearInputRef = useRef<() => void>(() => {});
+  const clearPendingAttachmentsRef = useRef<() => void>(() => {});
+
+  // Refs that useChannelMessages needs, declared here so they exist before both
+  // useDms and useChannelMessages are called.
+  const myDisplayNameRef = useRef<string | null>(null);
+  const selectedChannelIdRef = useRef<string | null>(null);
 
   const {
     view,
@@ -443,21 +440,48 @@ function App() {
     getActiveHub: () => hubs.find((h) => h.is_active),
     getPendingAttachments: () => pendingAttachmentsRef.current,
     getInputText: () => inputTextRef.current,
-    clearInput: () => setInputText(""),
-    clearPendingAttachments: () => setPendingAttachments([]),
+    clearInput: () => clearInputRef.current(),
+    clearPendingAttachments: () => clearPendingAttachmentsRef.current(),
     setError,
     clearAllDmTyping,
   });
 
-  // Per-channel search. When a query is active, the message list is
-  // replaced by search results (newest-first) until the user clears it.
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Message[] | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-
   // Ctrl+K quick-switcher palette.
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+
+  const channelMessages = useChannelMessages({
+    activeHubIdRef,
+    publicKeyRef,
+    myDisplayNameRef,
+    channelsRef,
+    hubsRef,
+    selectedChannelIdRef,
+    effectiveNotifyMode,
+    bumpUnread,
+    clearUnread,
+    setFirstNotify,
+    clearFirstNotify,
+    clearAllTyping,
+    setError,
+    setToast,
+  });
+
+  // Keep refs in sync so useTypingIndicators sees the current channel/conv.
+  useEffect(() => {
+    selectedChannelForTypingRef.current = channelMessages.selectedChannel;
+  }, [channelMessages.selectedChannel]);
+
+  // Keep stable getter refs in sync for useDms.
+  useEffect(() => { inputTextRef.current = channelMessages.inputText; }, [channelMessages.inputText]);
+  useEffect(() => { pendingAttachmentsRef.current = channelMessages.pendingAttachments; }, [channelMessages.pendingAttachments]);
+  useEffect(() => { clearInputRef.current = () => channelMessages.setInputText(""); }, [channelMessages.setInputText]);
+  useEffect(() => { clearPendingAttachmentsRef.current = () => channelMessages.setPendingAttachments([]); }, [channelMessages.setPendingAttachments]);
+
+  // Keep selectedChannelIdRef in sync (used by WS handlers).
+  useEffect(() => {
+    selectedChannelIdRef.current = channelMessages.selectedChannel?.id ?? null;
+  }, [channelMessages.selectedChannel]);
 
   // Whether the right-side member list is collapsed. Local-only preference;
   // localStorage is fine since it's purely cosmetic + per-device.
@@ -563,19 +587,13 @@ function App() {
     }
   }
 
-  // Alliance sidebar state. We surface every alliance the active hub belongs
-  // to plus the channels each member shares with it. Selecting a remote one
-  // routes message reads through /alliances/.../messages on our hub.
-  const [userAlliances, setUserAlliances] = useState<AllianceInfo[]>([]);
-  const [allianceChannels, setAllianceChannels] = useState<
-    Record<string, AllianceSharedChannel[]>
-  >({});
-  const [selectedAllianceChannel, setSelectedAllianceChannel] = useState<{
-    alliance_id: string;
-    alliance_name: string;
-    channel: AllianceSharedChannel;
-  } | null>(null);
-  const [allianceMessages, setAllianceMessages] = useState<Message[]>([]);
+  const {
+    userAlliances,
+    setUserAlliances,
+    allianceChannels,
+    setAllianceChannels,
+    loadAlliances,
+  } = useAlliances(setError);
 
   // Create channel dialog
   const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -645,12 +663,11 @@ function App() {
     () => users.find((u) => u.public_key === publicKey)?.avatar ?? null,
     [users, publicKey]
   );
-  const myDisplayNameRef = useRef<string | null>(null);
   useEffect(() => {
     myDisplayNameRef.current = myDisplayName;
   }, [myDisplayName]);
 
-  const voice = useVoice({ activeHubId, selectedChannel, setError, setToast });
+  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast });
 
   const video = useVideo({
     activeHubId,
@@ -750,84 +767,6 @@ function App() {
     }
   });
 
-  // Whether to play the mention ping. Local-only preference; OS notifications
-  // and unread badges are unaffected by this toggle.
-  const [mentionPingEnabled, setMentionPingEnabledState] = useState<boolean>(
-    () => {
-      try {
-        return localStorage.getItem("voxply.mentionPing") !== "0";
-      } catch {
-        return true;
-      }
-    },
-  );
-  function setMentionPingEnabled(v: boolean) {
-    setMentionPingEnabledState(v);
-    try {
-      localStorage.setItem("voxply.mentionPing", v ? "1" : "0");
-    } catch {}
-  }
-  const mentionPingRef = useRef(mentionPingEnabled);
-  useEffect(() => {
-    mentionPingRef.current = mentionPingEnabled;
-  }, [mentionPingEnabled]);
-
-  type PendingNotifEntry = {
-    hubName: string;
-    channels: Map<string, { name: string; count: number; isMention: boolean }>;
-    timer: ReturnType<typeof setTimeout>;
-  };
-  const pendingNotifsRef = useRef<Map<string, PendingNotifEntry>>(new Map());
-
-  function flushNotif(hubId: string) {
-    const entry = pendingNotifsRef.current.get(hubId);
-    if (!entry) return;
-    pendingNotifsRef.current.delete(hubId);
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-
-    const channelList = [...entry.channels.values()];
-    const totalCount = channelList.reduce((n, c) => n + c.count, 0);
-    const hasMention = channelList.some((c) => c.isMention);
-
-    let title: string;
-    let body: string;
-    if (channelList.length === 1) {
-      const ch = channelList[0];
-      title = hasMention ? `Mentioned in #${ch.name}` : `New messages in #${ch.name}`;
-      body = `${totalCount} new message${totalCount > 1 ? "s" : ""} in ${entry.hubName}`;
-    } else {
-      const names = channelList.map((c) => `#${c.name}`).join(", ");
-      title = hasMention ? `Mentions in ${entry.hubName}` : `New messages in ${entry.hubName}`;
-      body = `${totalCount} new message${totalCount > 1 ? "s" : ""} in ${names}`;
-    }
-
-    try { new Notification(title, { body }); } catch {}
-  }
-
-  function queueNotif(hubId: string, hubName: string, channelId: string, channelName: string, isMention: boolean) {
-    const map = pendingNotifsRef.current;
-    const existing = map.get(hubId);
-    if (existing) {
-      clearTimeout(existing.timer);
-      const ch = existing.channels.get(channelId);
-      if (ch) {
-        ch.count += 1;
-        ch.isMention = ch.isMention || isMention;
-      } else {
-        existing.channels.set(channelId, { name: channelName, count: 1, isMention });
-      }
-      existing.timer = setTimeout(() => flushNotif(hubId), 3000);
-    } else {
-      const channels = new Map<string, { name: string; count: number; isMention: boolean }>();
-      channels.set(channelId, { name: channelName, count: 1, isMention });
-      map.set(hubId, {
-        hubName,
-        channels,
-        timer: setTimeout(() => flushNotif(hubId), 3000),
-      });
-    }
-  }
-
   const {
     showFriends,
     setShowFriends,
@@ -846,73 +785,6 @@ function App() {
   } = useFriends({ setError, setToast });
 
   const [hideSilenced, setHideSilenced] = useState(false);
-
-  // Ref to the messages container for auto-scroll
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesEndChannelRef = useRef<HTMLLIElement>(null);
-  const messagesContainerRef = useRef<HTMLOListElement>(null);
-  // Ref to the channel-message input so we can auto-focus on channel switch
-  // and after sending. Lets the user start typing immediately without
-  // clicking back into the field.
-  const messageInputRef = useRef<HTMLInputElement>(null);
-  // Tracks whether the user is parked near the bottom of the message list.
-  // We only auto-scroll on new messages while this is true; otherwise the
-  // user is reading history and scrolling them is rude. The "↓ N new" pill
-  // counts new messages they've missed so they can jump down explicitly.
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const stickToBottomRef = useRef(true);
-  useEffect(() => {
-    stickToBottomRef.current = stickToBottom;
-  }, [stickToBottom]);
-  const [newWhileScrolledUp, setNewWhileScrolledUp] = useState(0);
-
-  // Ref to the currently selected channel ID (for the event listener closure).
-  // Why a ref? Because event listeners capture the state at time of setup — using
-  // a ref ensures we always read the latest value without re-registering the listener.
-  const selectedChannelIdRef = useRef<string | null>(null);
-
-  // Auto-scroll only when the user is already near the bottom. Using a
-  // 120px threshold matches the natural "I'm reading the latest" zone --
-  // tighter than that and a slightly-up scroll would still re-anchor.
-  useEffect(() => {
-    if (stickToBottom) {
-      (messagesEndChannelRef.current ?? messagesEndRef.current)?.scrollIntoView({ behavior: "smooth" });
-      setNewWhileScrolledUp(0);
-    } else {
-      setNewWhileScrolledUp((n) => n + 1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
-
-  // Reset on channel switch -- user starts fresh at the bottom.
-  useEffect(() => {
-    setStickToBottom(true);
-    setNewWhileScrolledUp(0);
-    // Auto-focus the message input so the user can start typing immediately.
-    // Small delay lets the new channel render first.
-    if (selectedChannel) {
-      setTimeout(() => messageInputRef.current?.focus(), 0);
-    }
-  }, [selectedChannel?.id]);
-
-  function handleMessagesScroll() {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const atBottom = distanceFromBottom < 120;
-    if (atBottom !== stickToBottom) setStickToBottom(atBottom);
-    if (atBottom && newWhileScrolledUp > 0) setNewWhileScrolledUp(0);
-    if (atBottom && activeHubId && selectedChannel) {
-      clearFirstNotify(activeHubId, selectedChannel.id);
-    }
-  }
-
-  function jumpToBottom() {
-    const el = messagesContainerRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    setStickToBottom(true);
-    setNewWhileScrolledUp(0);
-  }
 
   // Auto-dismiss toast after 5 seconds
   useEffect(() => {
@@ -958,357 +830,35 @@ function App() {
     if (error) setToast(error);
   }, [error]);
 
-  // Keep the ref in sync with the state
-  useEffect(() => {
-    selectedChannelIdRef.current = selectedChannel?.id ?? null;
-  }, [selectedChannel]);
-
-  // Listen for real-time chat messages from the Rust backend.
-  // This runs once when the component mounts.
-  useEffect(() => {
-    const unlistens: UnlistenFn[] = [];
-
-    (async () => {
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message: Message }>(
-          "chat-message",
-          (event) => {
-            const { hub_id, channel_id, message } = event.payload;
-
-            // Permission gate: drop messages for channels the client hasn't
-            // listed. Guards deleted/race-condition channels today; will guard
-            // per-channel ACLs when those land.
-            if (!channelsRef.current.some((c) => c.id === channel_id)) return;
-
-            const isActiveHub = hub_id === activeHubIdRef.current;
-            const isActiveChannel =
-              isActiveHub && channel_id === selectedChannelIdRef.current;
-            const myName = myDisplayNameRef.current;
-            const isMention =
-              !!myName &&
-              message.sender !== publicKeyRef.current &&
-              mentionsName(message.content, myName);
-
-            const mode = effectiveNotifyMode(hub_id, channel_id);
-            const allowBump =
-              mode === "all" || (mode === "mentions" && isMention);
-
-            if (isActiveChannel) {
-              setMessages((prev) => {
-                if (prev.some((m) => m.id === message.id)) return prev;
-                return [...prev, message];
-              });
-            } else if (allowBump) {
-              bumpUnread(hub_id, channel_id);
-              setFirstNotify(hub_id, channel_id, message.id);
-            }
-
-            // Notification (audio + OS): fires when the message would pin AND
-            // the channel isn't currently visible AND either it's a @mention
-            // or mode is "all" and the app window doesn't have focus.
-            const shouldNotify =
-              allowBump &&
-              !isActiveChannel &&
-              (isMention || (mode === "all" && !document.hasFocus()));
-
-            if (shouldNotify) {
-              if (mentionPingRef.current) playMentionPing();
-              const channelName =
-                channelsRef.current.find((c) => c.id === channel_id)?.name ?? channel_id;
-              const hubEntry = hubsRef.current.find((h) => h.hub_id === hub_id);
-              const hubName = hubEntry?.hub_name ?? hub_id;
-              queueNotif(hub_id, hubName, channel_id, channelName, isMention);
-            }
-          }
-        )
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message: Message }>(
-          "chat-message-edited",
-          (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
-            if (event.payload.channel_id !== selectedChannelIdRef.current) return;
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === event.payload.message.id ? event.payload.message : m
-              )
-            );
-          }
-        )
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message_id: string }>(
-          "chat-message-deleted",
-          (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
-            if (event.payload.channel_id !== selectedChannelIdRef.current) return;
-            setMessages((prev) =>
-              prev.filter((m) => m.id !== event.payload.message_id)
-            );
-          }
-        )
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; connected: boolean }>(
-          "hub-ws-status",
-          (event) => {
-            const { hub_id, connected } = event.payload;
-            setHubConnected((prev) => {
-              const was = prev[hub_id];
-              const next = { ...prev, [hub_id]: connected };
-              if (hub_id === activeHubIdRef.current) {
-                const hubName = hubs.find((h) => h.hub_id === hub_id)?.hub_name ?? "hub";
-                if (connected && was === false) {
-                  setToast("Reconnected");
-                  setAssertiveAnnouncement(`Reconnected to ${hubName}.`);
-                } else if (!connected && was !== false) {
-                  setAssertiveAnnouncement(`Disconnected from ${hubName}. Reconnecting…`);
-                }
-              }
-              return next;
-            });
-            if (connected) {
-              onHubReconnected(hub_id);
-            } else {
-              scheduleReconnect(hub_id);
-            }
-          }
-        )
-      );
-
-      unlistens.push(
-        await listen<{
-          hub_id: string;
-          conversation_id: string;
-          sender: string;
-          sender_name: string | null;
-          typing: boolean;
-        }>("dm-typing", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          // Only show when the user is actually viewing this conversation.
-          if (
-            event.payload.conversation_id !==
-            selectedConversationIdRef.current
-          )
-            return;
-          if (event.payload.sender === publicKeyRef.current) return;
-          const name =
-            event.payload.sender_name || formatPubkey(event.payload.sender);
-          if (event.payload.typing) {
-            setDmTypingEntry(event.payload.sender, name);
-          } else {
-            clearDmTypingEntry(event.payload.sender);
-          }
-        }),
-      );
-
-      unlistens.push(
-        await listen<{
-          hub_id: string;
-          conversation_id: string;
-          added: string[];
-          removed: string[];
-        }>("dm-member-changed", (event) => {
-          onDmMemberChanged(event.payload);
-        }),
-      );
-
-      unlistens.push(
-        await listen<{
-          hub_id: string;
-          channel_id: string;
-          public_key: string;
-          display_name: string | null;
-          typing: boolean;
-        }>("chat-typing", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          if (event.payload.channel_id !== selectedChannelIdRef.current) return;
-          if (event.payload.public_key === publicKeyRef.current) return;
-          const name =
-            event.payload.display_name ||
-            formatPubkey(event.payload.public_key);
-          if (event.payload.typing) {
-            setTypingEntry(event.payload.public_key, name);
-          } else {
-            clearTypingEntry(event.payload.public_key);
-          }
-        })
-      );
-
-      unlistens.push(
-        await listen<{
-          hub_id: string;
-          channel_id: string;
-          message_id: string;
-          reactions: { emoji: string; count: number; me: boolean }[];
-        }>("chat-reactions-updated", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          if (event.payload.channel_id !== selectedChannelIdRef.current) return;
-          // The server can't know per-recipient `me` for broadcasts, so it
-          // sends `me: false`. We patch our own flag locally based on the
-          // existing message reactions before the update.
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== event.payload.message_id) return m;
-              const myEmojis = new Set(
-                (m.reactions ?? []).filter((r) => r.me).map((r) => r.emoji)
-              );
-              return {
-                ...m,
-                reactions: event.payload.reactions.map((r) => ({
-                  ...r,
-                  me: myEmojis.has(r.emoji),
-                })),
-              };
-            })
-          );
-        })
-      );
-
-      unlistens.push(
-        await listen<{
-          hub_id: string;
-          channel_id: string;
-          hub_udp_port: number;
-          participants: VoiceParticipant[];
-        }>("voice-joined", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
-          voice.onVoiceJoined(event.payload.channel_id, event.payload.participants);
-          const channelName = channelsRef.current.find((c) => c.id === event.payload.channel_id)?.name ?? event.payload.channel_id;
-          const others = event.payload.participants.filter((p) => p.public_key !== publicKeyRef.current);
-          if (others.length === 0) {
-            setAssertiveAnnouncement(`Joined voice in ${channelName}.`);
-          } else {
-            const names = others.map((p) => p.display_name || formatPubkey(p.public_key)).join(", ");
-            setAssertiveAnnouncement(`Joined voice in ${channelName} with ${others.length} other ${others.length === 1 ? "participant" : "participants"}: ${names}`);
-          }
-        })
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; participant: VoiceParticipant }>(
-          "voice-participant-joined",
-          (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
-            voice.onParticipantJoined(event.payload.channel_id, event.payload.participant);
-            if (event.payload.participant.public_key !== publicKeyRef.current) {
-              const name = event.payload.participant.display_name || formatPubkey(event.payload.participant.public_key);
-              pendingVoiceAnnouncementsRef.current.push(`${name} joined voice`);
-              if (!voiceAnnounceTimerRef.current) {
-                voiceAnnounceTimerRef.current = setTimeout(() => {
-                  const batch = pendingVoiceAnnouncementsRef.current.splice(0);
-                  setVoicePoliteAnnouncement(batch.join(". "));
-                  voiceAnnounceTimerRef.current = null;
-                }, 2000);
-              }
-            }
-          }
-        )
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; public_key: string }>(
-          "voice-participant-left",
-          (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
-            voice.onParticipantLeft(event.payload.channel_id, event.payload.public_key);
-            if (event.payload.public_key !== publicKeyRef.current) {
-              const u = users.find((u) => u.public_key === event.payload.public_key);
-              const name = u?.display_name || formatPubkey(event.payload.public_key);
-              pendingVoiceAnnouncementsRef.current.push(`${name} left voice`);
-              if (!voiceAnnounceTimerRef.current) {
-                voiceAnnounceTimerRef.current = setTimeout(() => {
-                  const batch = pendingVoiceAnnouncementsRef.current.splice(0);
-                  setVoicePoliteAnnouncement(batch.join(". "));
-                  voiceAnnounceTimerRef.current = null;
-                }, 2000);
-              }
-            }
-          }
-        )
-      );
-
-      unlistens.push(
-        await listen<number>("mic-level", (event) => {
-          voice.onMicLevel(event.payload);
-        })
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; context: string; message: string }>(
-          "hub-error",
-          async (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
-            setToast(event.payload.message);
-            if (event.payload.context === "voice_join") {
-              await voice.onHubErrorVoiceJoin();
-            }
-          }
-        )
-      );
-
-
-      unlistens.push(
-        await listen<DmMessage & { hub_id: string; conversation_id: string }>("dm", (event) => {
-          const { conversation_id, hub_id, ...msg } = event.payload;
-          onDmEvent(conversation_id, msg, hub_id);
-        })
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; hub_name: string }>("hub-session-lost", async (event) => {
-          const { hub_name } = event.payload;
-          // Don't auto-remove the hub — that was overly destructive on
-          // transient failures (hub briefly offline, network blip, hub
-          // restart with brief auth window). The auto-reconnect loop
-          // handles real recoveries; if the user has actually been banned
-          // they'll see persistent failures and can remove the hub
-          // manually from its context menu.
-          setToast(
-            `Couldn't authenticate with "${hub_name}". The hub may be offline, or you may have been banned. Use Reconnect to retry, or right-click to remove.`
-          );
-        })
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
-          "post-created",
-          (event) => {
-            const { hub_id, channel_id } = event.payload;
-            if (!channelsRef.current.some((c) => c.id === channel_id)) return;
-            const mode = effectiveNotifyMode(hub_id, channel_id);
-            if (mode !== "silent" && hub_id !== activeHubIdRef.current || channel_id !== selectedChannelIdRef.current) {
-              bumpUnread(hub_id, channel_id);
-            }
-          }
-        )
-      );
-
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
-          "reply-created",
-          (event) => {
-            const { hub_id, channel_id } = event.payload;
-            if (!channelsRef.current.some((c) => c.id === channel_id)) return;
-            const mode = effectiveNotifyMode(hub_id, channel_id);
-            if (mode !== "silent" && (hub_id !== activeHubIdRef.current || channel_id !== selectedChannelIdRef.current)) {
-              bumpUnread(hub_id, channel_id);
-            }
-          }
-        )
-      );
-    })();
-
-    return () => {
-      unlistens.forEach((u) => u());
-      // Cancel any pending auto-reconnect timers so they don't fire
-      // against an unmounted component (matters in dev / HMR).
-      cancelAllReconnectTimers();
-    };
-  }, []);
+  useWsHandlers({
+    activeHubIdRef,
+    publicKeyRef,
+    selectedChannelIdRef,
+    selectedConversationIdRef,
+    users,
+    setHubConnected,
+    setAssertiveAnnouncement,
+    setToast,
+    setTypingEntry,
+    clearTypingEntry,
+    setDmTypingEntry,
+    clearDmTypingEntry,
+    onDmEvent,
+    onDmMemberChanged,
+    onHubReconnected,
+    scheduleReconnect,
+    cancelAllReconnectTimers,
+    onVoiceJoined: voice.onVoiceJoined,
+    onParticipantJoined: voice.onParticipantJoined,
+    onParticipantLeft: voice.onParticipantLeft,
+    onMicLevel: voice.onMicLevel,
+    onHubErrorVoiceJoin: voice.onHubErrorVoiceJoin,
+    pendingVoiceAnnouncementsRef,
+    voiceAnnounceTimerRef,
+    setVoicePoliteAnnouncement,
+    hubs,
+    channelsRef,
+  });
 
   async function loadHubData() {
     try {
@@ -1351,10 +901,8 @@ function App() {
         setChannels([]);
         setUsers([]);
         setConversations([]);
-        setSelectedChannel(null);
-        setSelectedConversation(null);
-        setSelectedAllianceChannel(null);
-        setMessages([]);
+        channelMessages.setSelectedAllianceChannel(null);
+        channelMessages.setMessages([]);
         setUserAlliances([]);
         setAllianceChannels({});
         return;
@@ -1373,33 +921,10 @@ function App() {
         setInstalledGames([]);
       }
       // Reset selection when switching hub
-      setSelectedChannel(null);
-      setSelectedConversation(null);
-      setSelectedAllianceChannel(null);
-      setAllianceMessages([]);
-      setMessages([]);
-      // Pull alliances + their shared channels for the sidebar
-      try {
-        const al = await invoke<AllianceInfo[]>("list_alliances");
-        setUserAlliances(al);
-        const byId: Record<string, AllianceSharedChannel[]> = {};
-        await Promise.all(
-          al.map(async (a) => {
-            try {
-              byId[a.id] = await invoke<AllianceSharedChannel[]>(
-                "list_alliance_shared_channels",
-                { allianceId: a.id }
-              );
-            } catch {
-              byId[a.id] = [];
-            }
-          })
-        );
-        setAllianceChannels(byId);
-      } catch {
-        setUserAlliances([]);
-        setAllianceChannels({});
-      }
+      channelMessages.setSelectedAllianceChannel(null);
+      channelMessages.setAllianceMessages([]);
+      channelMessages.setMessages([]);
+      await loadAlliances();
     } catch (e) {
       setError(String(e));
     }
@@ -1777,18 +1302,18 @@ function App() {
   // pane. Only fires when nothing's selected; user-driven channel
   // changes don't re-trigger because selectedChannel is set.
   useEffect(() => {
-    if (selectedChannel) return;
+    if (channelMessages.selectedChannel) return;
     if (channels.length === 0) return;
     // Skip categories and banner channels — pick the first interactive leaf.
     const firstLeaf = channels.find((c) => !c.is_category && c.channel_type !== "banner");
     if (firstLeaf) {
-      selectChannel(firstLeaf);
+      channelMessages.selectChannel(firstLeaf);
     }
     // selectChannel is stable in scope but eslint can't prove that;
     // listing it would re-trigger every render. Channels is the real
     // signal we want to watch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channels, selectedChannel]);
+  }, [channels, channelMessages.selectedChannel]);
 
   // Reload data when switching hubs
   useEffect(() => {
@@ -1839,299 +1364,6 @@ function App() {
       clearInterval(interval);
     };
   }, [hubs]);
-
-  // Run search whenever the query or selected channel changes. Empty query
-  // clears the results panel so the regular message list comes back.
-  useEffect(() => {
-    if (!selectedChannel) {
-      setSearchResults(null);
-      return;
-    }
-    const q = searchQuery.trim();
-    if (!q) {
-      setSearchResults(null);
-      return;
-    }
-    let cancelled = false;
-    const handle = setTimeout(async () => {
-      try {
-        const r = await invoke<Message[]>("search_messages", {
-          channelId: selectedChannel.id,
-          query: q,
-        });
-        if (!cancelled) setSearchResults(r);
-      } catch (e) {
-        if (!cancelled) setError(String(e));
-      }
-    }, 200);
-    return () => {
-      cancelled = true;
-      clearTimeout(handle);
-    };
-  }, [searchQuery, selectedChannel]);
-
-  function closeSearch() {
-    setSearchOpen(false);
-    setSearchQuery("");
-    setSearchResults(null);
-  }
-
-  async function selectChannel(channel: Channel) {
-    // Unsubscribe from previous channel's WS updates
-    if (selectedChannel && selectedChannel.id !== channel.id) {
-      await invoke("unsubscribe_channel", { channelId: selectedChannel.id });
-    }
-
-    // Leaving alliance-channel mode
-    setSelectedAllianceChannel(null);
-    setAllianceMessages([]);
-    // Reset any in-flight search when switching channels.
-    closeSearch();
-
-    setSelectedChannel(channel);
-    setMessages([]);
-    clearAllTyping();
-    if (activeHubId) {
-      clearUnread(activeHubId, channel.id);
-      setInputText(loadDraft(`${activeHubId}/${channel.id}`));
-    } else {
-      setInputText("");
-    }
-    try {
-      const msgs = await invoke<Message[]>("get_messages", {
-        channelId: channel.id,
-      });
-      setMessages(msgs);
-
-      // Subscribe to real-time updates for this channel
-      await invoke("subscribe_channel", { channelId: channel.id });
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleSendAllianceMessage() {
-    if (!selectedAllianceChannel) return;
-    const content = inputText.trim();
-    if (!content) return;
-    try {
-      await invoke("send_alliance_channel_message", {
-        allianceId: selectedAllianceChannel.alliance_id,
-        channelId: selectedAllianceChannel.channel.channel_id,
-        content,
-      });
-      setInputText("");
-      // Refetch since we don't subscribe to remote alliance channels yet --
-      // there's no WS push for federated messages.
-      try {
-        const msgs = await invoke<Message[]>("get_alliance_channel_messages", {
-          allianceId: selectedAllianceChannel.alliance_id,
-          channelId: selectedAllianceChannel.channel.channel_id,
-        });
-        setAllianceMessages(msgs);
-      } catch {}
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function selectAllianceChannel(
-    alliance: AllianceInfo,
-    ch: AllianceSharedChannel
-  ) {
-    // If the alliance channel is one of OUR local channels, route through the
-    // normal selectChannel flow so subscriptions and posting just work.
-    const localMatch = channels.find((c) => c.id === ch.channel_id);
-    if (localMatch) {
-      await selectChannel(localMatch);
-      return;
-    }
-
-    if (selectedChannel) {
-      await invoke("unsubscribe_channel", { channelId: selectedChannel.id });
-      setSelectedChannel(null);
-    }
-
-    setSelectedAllianceChannel({
-      alliance_id: alliance.id,
-      alliance_name: alliance.name,
-      channel: ch,
-    });
-    setAllianceMessages([]);
-    try {
-      const msgs = await invoke<Message[]>("get_alliance_channel_messages", {
-        allianceId: alliance.id,
-        channelId: ch.channel_id,
-      });
-      setAllianceMessages(msgs);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  function startEditingMessage(m: Message) {
-    setEditingMessageId(m.id);
-    setEditingDraft(m.content);
-  }
-
-  function cancelEditingMessage() {
-    setEditingMessageId(null);
-    setEditingDraft("");
-  }
-
-  async function handleSaveEditedMessage() {
-    if (!editingMessageId || !selectedChannel) return;
-    const content = editingDraft.trim();
-    if (!content) return;
-    try {
-      const updated = await invoke<Message>("edit_message", {
-        channelId: selectedChannel.id,
-        messageId: editingMessageId,
-        content,
-      });
-      setMessages((prev) =>
-        prev.map((m) => (m.id === updated.id ? updated : m))
-      );
-      cancelEditingMessage();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleDeleteMessage(messageId: string) {
-    if (!selectedChannel) return;
-    if (!confirm("Delete this message?")) return;
-    try {
-      await invoke("delete_message", {
-        channelId: selectedChannel.id,
-        messageId,
-      });
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function toggleReaction(messageId: string, emoji: string) {
-    if (!selectedChannel) return;
-    // Optimistic update so the click feels instant; the WS broadcast will
-    // reconcile if there's drift.
-    let optimisticMine = false;
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.id !== messageId) return m;
-        const reactions = m.reactions ? [...m.reactions] : [];
-        const idx = reactions.findIndex((r) => r.emoji === emoji);
-        if (idx === -1) {
-          reactions.push({ emoji, count: 1, me: true });
-          optimisticMine = true;
-        } else {
-          const r = reactions[idx];
-          if (r.me) {
-            const next = { ...r, count: r.count - 1, me: false };
-            if (next.count <= 0) reactions.splice(idx, 1);
-            else reactions[idx] = next;
-          } else {
-            reactions[idx] = { ...r, count: r.count + 1, me: true };
-            optimisticMine = true;
-          }
-        }
-        return { ...m, reactions };
-      })
-    );
-    try {
-      if (optimisticMine) {
-        await invoke("add_reaction", {
-          channelId: selectedChannel.id,
-          messageId,
-          emoji,
-        });
-      } else {
-        await invoke("remove_reaction", {
-          channelId: selectedChannel.id,
-          messageId,
-          emoji,
-        });
-      }
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleSend() {
-    if (!selectedChannel) return;
-    const content = inputText;
-    const attachments = pendingAttachments;
-    const reply = replyTarget;
-    if (!content.trim() && attachments.length === 0) return;
-    setInputText("");
-    if (activeHubId) clearDraft(`${activeHubId}/${selectedChannel.id}`);
-    setPendingAttachments([]);
-    setReplyTarget(null);
-    try {
-      const msg = await invoke<Message>("send_message", {
-        channelId: selectedChannel.id,
-        content,
-        attachments,
-        replyTo: reply?.id ?? null,
-      });
-      // Dedup: the WebSocket may have already added this message
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
-    } catch (e) {
-      setError(String(e));
-      // Restore the user's draft on failure.
-      setInputText(content);
-      setPendingAttachments(attachments);
-      setReplyTarget(reply);
-    }
-  }
-
-  /** Scroll the message with the given id into view and briefly flash it. */
-  function scrollToMessage(id: string) {
-    const el = document.getElementById(`msg-${id}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("flash");
-    setTimeout(() => el.classList.remove("flash"), 1200);
-  }
-
-  /** Read a File into a base64 string (no data: prefix). */
-  async function attachFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
-    const next: Attachment[] = [...pendingAttachments];
-    let totalBytes = next.reduce((n, a) => n + a.data_b64.length, 0);
-    for (const f of Array.from(files)) {
-      try {
-        const b64 = await readFileAsB64(f);
-        if (totalBytes + b64.length > MAX_ATTACHMENT_BYTES) {
-          setError(
-            `Attachments would exceed 3MB cap (already at ${(totalBytes / 1_000_000).toFixed(1)}MB)`
-          );
-          break;
-        }
-        totalBytes += b64.length;
-        next.push({
-          name: f.name,
-          mime: f.type || "application/octet-stream",
-          data_b64: b64,
-        });
-      } catch (e) {
-        setError(String(e));
-      }
-    }
-    setPendingAttachments(next);
-  }
-
-  // Handle Enter key in input
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
 
   async function startDmWithAndClose(targetKey: string, targetHubUrl?: string | null) {
     await startDmWith(targetKey, targetHubUrl);
@@ -2188,8 +1420,9 @@ function App() {
     try {
       await invoke("rename_channel", { channelId: channel.id, name: trimmed });
       setChannels((prev) => prev.map((c) => c.id === channel.id ? { ...c, name: trimmed } : c));
-      if (selectedChannel?.id === channel.id) {
-        setSelectedChannel({ ...selectedChannel, name: trimmed });
+      const sel = channelMessages.selectedChannel;
+      if (sel?.id === channel.id) {
+        channelMessages.selectChannel({ ...sel, name: trimmed });
       }
     } catch (e) {
       setError(String(e));
@@ -2311,7 +1544,7 @@ function App() {
       setNewBannerFile(null);
       setShowCreateChannel(false);
       if (!channel.is_category && channel.channel_type !== "banner") {
-        selectChannel(channel);
+        channelMessages.selectChannel(channel);
       }
     } catch (e) {
       setError(String(e));
@@ -2339,8 +1572,9 @@ function App() {
             : c
         )
       );
-      if (selectedChannel?.id === editDescriptionChannel.id) {
-        setSelectedChannel({ ...selectedChannel, description: desc ? desc : null });
+      const sel = channelMessages.selectedChannel;
+      if (sel?.id === editDescriptionChannel.id) {
+        channelMessages.selectChannel({ ...sel, description: desc ? desc : null });
       }
       setEditDescriptionChannel(null);
     } catch (e) {
@@ -2353,9 +1587,8 @@ function App() {
     try {
       await invoke("delete_channel", { channelId });
       setChannels((prev) => prev.filter((c) => c.id !== channelId));
-      if (selectedChannel?.id === channelId) {
-        setSelectedChannel(null);
-        setMessages([]);
+      if (channelMessages.selectedChannel?.id === channelId) {
+        channelMessages.clearSelectedChannel();
       }
       setContextMenu(null);
     } catch (e) {
@@ -2435,8 +1668,8 @@ function App() {
         e.preventDefault();
         if (voice.voiceChannelId) {
           voice.handleVoiceLeave();
-        } else if (selectedChannel && !selectedChannel.is_category) {
-          voice.handleVoiceJoin(selectedChannel);
+        } else if (channelMessages.selectedChannel && !channelMessages.selectedChannel.is_category) {
+          voice.handleVoiceJoin(channelMessages.selectedChannel);
         }
         return;
       }
@@ -2469,11 +1702,11 @@ function App() {
           const unreadSet = unreadByChannel[activeHubId] ?? {};
           const unreadChannels = channels.filter((c) => !c.is_category && unreadSet[c.id]);
           if (unreadChannels.length > 0) {
-            const idx = selectedChannel
-              ? unreadChannels.findIndex((c) => c.id === selectedChannel.id)
+            const idx = channelMessages.selectedChannel
+              ? unreadChannels.findIndex((c) => c.id === channelMessages.selectedChannel!.id)
               : -1;
             const prev = idx > 0 ? unreadChannels[idx - 1] : unreadChannels[unreadChannels.length - 1];
-            selectChannel(prev);
+            channelMessages.selectChannel(prev);
           }
         }
         return;
@@ -2485,13 +1718,13 @@ function App() {
           const unreadSet = unreadByChannel[activeHubId] ?? {};
           const unreadChannels = channels.filter((c) => !c.is_category && unreadSet[c.id]);
           if (unreadChannels.length > 0) {
-            const idx = selectedChannel
-              ? unreadChannels.findIndex((c) => c.id === selectedChannel.id)
+            const idx = channelMessages.selectedChannel
+              ? unreadChannels.findIndex((c) => c.id === channelMessages.selectedChannel!.id)
               : -1;
             const next = idx >= 0 && idx < unreadChannels.length - 1
               ? unreadChannels[idx + 1]
               : unreadChannels[0];
-            selectChannel(next);
+            channelMessages.selectChannel(next);
           }
         }
         return;
@@ -2499,25 +1732,25 @@ function App() {
 
       if (meta && e.key.toLowerCase() === "f" && !inText) {
         e.preventDefault();
-        setSearchOpen(true);
+        channelMessages.setSearchOpen(true);
         return;
       }
 
       if (e.key === "/" && !inText && !meta) {
         e.preventDefault();
-        messageInputRef.current?.focus();
+        channelMessages.messageInputRef.current?.focus();
         return;
       }
 
       if (e.key === "Escape") {
         if (contextMenu) { setContextMenu(null); return; }
         if (paletteOpen) { setPaletteOpen(false); return; }
-        if (replyTarget) { setReplyTarget(null); return; }
+        if (channelMessages.replyTarget) { channelMessages.setReplyTarget(null); return; }
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hubs, activeHubId, selectedChannel, channels, view, voice, unreadByChannel, contextMenu, paletteOpen, replyTarget]);
+  }, [hubs, activeHubId, channelMessages.selectedChannel, channels, view, voice, unreadByChannel, contextMenu, paletteOpen, channelMessages.replyTarget]);
 
   return (
     <div className="app">
@@ -2700,8 +1933,8 @@ function App() {
               voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, v);
             }}
             inVoice={voice.voiceChannelId !== null}
-            mentionPingEnabled={mentionPingEnabled}
-            onMentionPingChange={setMentionPingEnabled}
+            mentionPingEnabled={channelMessages.mentionPingEnabled}
+            onMentionPingChange={channelMessages.setMentionPingEnabled}
             micLevel={voice.micLevel}
             micTesting={voice.micTesting}
             onToggleMicTest={voice.toggleMicTest}
@@ -2815,7 +2048,7 @@ function App() {
                   activeHubId={activeHubId}
                   hubs={hubs}
                   channels={channels}
-                  selectedChannel={selectedChannel}
+                  selectedChannel={channelMessages.selectedChannel}
                   unreadByChannel={unreadByChannel}
                   collapsedCategories={collapsedCategories}
                   voicePartByChannel={voice.voicePartByChannel}
@@ -2832,7 +2065,7 @@ function App() {
                   silencedChannelIds={silencedChannelIds}
                   userAlliances={userAlliances}
                   allianceChannels={allianceChannels}
-                  selectedAllianceChannel={selectedAllianceChannel}
+                  selectedAllianceChannel={channelMessages.selectedAllianceChannel}
                   conversations={conversations}
                   selectedConversation={selectedConversation}
                   unreadDms={unreadDms}
@@ -2846,12 +2079,12 @@ function App() {
                   onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}
                   onOpenHubAdminInvites={() => { setHubDropdownOpen(false); openHubAdminInvites(); }}
                   onOpenCreateChannel={openCreateChannelUnder}
-                  onSelectChannel={selectChannel}
+                  onSelectChannel={channelMessages.selectChannel}
                   onChannelContextMenu={openContextMenu}
                   onOpenChannelSettings={(ch) => setChannelSettingsModal(ch)}
                   onVoiceJoin={voice.handleVoiceJoin}
                   onVoiceLeave={voice.handleVoiceLeave}
-                  onSelectAllianceChannel={selectAllianceChannel}
+                  onSelectAllianceChannel={channelMessages.selectAllianceChannel}
                   onSelectConversation={selectConversation}
                   onOpenFriends={openFriends}
                   onToggleSelfMute={voice.toggleSelfMute}
@@ -2885,7 +2118,7 @@ function App() {
                   onCameraDeviceChange={video.switchCamera}
                   onGlobalSearchNavigate={(channelId, _messageId) => {
                     const ch = channels.find((c) => c.id === channelId);
-                    if (ch) selectChannel(ch);
+                    if (ch) channelMessages.selectChannel(ch);
                   }}
                 />
                 {(video.videoEnabled || video.remoteStreams.size > 0) && (
@@ -2908,15 +2141,15 @@ function App() {
                   activeHubId={activeHubId}
                   hubs={hubs}
                   theme={theme}
-                  selectedChannel={selectedChannel}
+                  selectedChannel={channelMessages.selectedChannel}
                   selectedConversation={selectedConversation}
-                  selectedAllianceChannel={selectedAllianceChannel}
-                  messages={messages}
-                  searchResults={searchResults}
-                  searchOpen={searchOpen}
-                  searchQuery={searchQuery}
+                  selectedAllianceChannel={channelMessages.selectedAllianceChannel}
+                  messages={channelMessages.messages}
+                  searchResults={channelMessages.searchResults}
+                  searchOpen={channelMessages.searchOpen}
+                  searchQuery={channelMessages.searchQuery}
                   dmMessages={dmMessages}
-                  allianceMessages={allianceMessages}
+                  allianceMessages={channelMessages.allianceMessages}
                   users={users}
                   publicKey={publicKey}
                   blockedUsers={blockedUsers}
@@ -2925,12 +2158,12 @@ function App() {
                   myDisplayName={myDisplayName}
                   isAdmin={isAdmin}
                   myRoles={myRoles}
-                  editingMessageId={editingMessageId}
-                  editingDraft={editingDraft}
-                  replyTarget={replyTarget}
-                  pendingAttachments={pendingAttachments}
-                  stickToBottom={stickToBottom}
-                  newWhileScrolledUp={newWhileScrolledUp}
+                  editingMessageId={channelMessages.editingMessageId}
+                  editingDraft={channelMessages.editingDraft}
+                  replyTarget={channelMessages.replyTarget}
+                  pendingAttachments={channelMessages.pendingAttachments}
+                  stickToBottom={channelMessages.stickToBottom}
+                  newWhileScrolledUp={channelMessages.newWhileScrolledUp}
                   hubConnected={hubConnected}
                   reconnectingHubs={reconnectingHubs}
                   memberSidebarHidden={memberSidebarHidden}
@@ -2940,51 +2173,51 @@ function App() {
                   onVoiceLeave={() => { voice.handleVoiceLeave(); setAssertiveAnnouncement("Left voice"); }}
                   installedGames={installedGames}
                   myAvatar={myAvatar}
-                  inputText={inputText}
+                  inputText={channelMessages.inputText}
                   typingByKey={typingByKey}
                   dmTypingByKey={dmTypingByKey}
-                  messagesEndRef={messagesEndRef}
-                  messagesEndChannelRef={messagesEndChannelRef}
-                  messagesContainerRef={messagesContainerRef}
-                  messageInputRef={messageInputRef}
+                  messagesEndRef={channelMessages.messagesEndRef}
+                  messagesEndChannelRef={channelMessages.messagesEndChannelRef}
+                  messagesContainerRef={channelMessages.messagesContainerRef}
+                  messageInputRef={channelMessages.messageInputRef}
                   onReconnect={handleReconnect}
-                  onToggleReaction={toggleReaction}
-                  onSetReplyTarget={setReplyTarget}
-                  onSaveEdit={handleSaveEditedMessage}
-                  onCancelEdit={cancelEditingMessage}
-                  onStartEdit={startEditingMessage}
-                  onDeleteMessage={handleDeleteMessage}
-                  onSend={handleSend}
+                  onToggleReaction={channelMessages.toggleReaction}
+                  onSetReplyTarget={channelMessages.setReplyTarget}
+                  onSaveEdit={channelMessages.handleSaveEditedMessage}
+                  onCancelEdit={channelMessages.cancelEditingMessage}
+                  onStartEdit={channelMessages.startEditingMessage}
+                  onDeleteMessage={channelMessages.handleDeleteMessage}
+                  onSend={channelMessages.handleSend}
                   onSendDm={handleSendDm}
-                  onSendAllianceMessage={handleSendAllianceMessage}
+                  onSendAllianceMessage={channelMessages.handleSendAllianceMessage}
                   onPingTyping={pingTyping}
                   onPingDmTyping={pingDmTyping}
-                  onSetPendingAttachments={setPendingAttachments}
-                  onAttachFiles={attachFiles}
+                  onSetPendingAttachments={channelMessages.setPendingAttachments}
+                  onAttachFiles={channelMessages.attachFiles}
                   onOpenEditDescription={openEditDescription}
                   firstNotifyingMessageId={
-                    activeHubId && selectedChannel
-                      ? (firstNotifyId[activeHubId]?.[selectedChannel.id] ?? null)
+                    activeHubId && channelMessages.selectedChannel
+                      ? (firstNotifyId[activeHubId]?.[channelMessages.selectedChannel.id] ?? null)
                       : null
                   }
                   onClearFirstNotify={() => {
-                    if (activeHubId && selectedChannel)
-                      clearFirstNotify(activeHubId, selectedChannel.id);
+                    if (activeHubId && channelMessages.selectedChannel)
+                      clearFirstNotify(activeHubId, channelMessages.selectedChannel.id);
                   }}
-                  onScrollToMessage={scrollToMessage}
+                  onScrollToMessage={channelMessages.scrollToMessage}
                   onSetMemberSidebarHidden={setMemberSidebarHidden}
-                  onSetSearchOpen={setSearchOpen}
-                  onSetSearchQuery={setSearchQuery}
-                  onCloseSearch={closeSearch}
-                  onJumpToBottom={jumpToBottom}
-                  onMessagesScroll={handleMessagesScroll}
+                  onSetSearchOpen={channelMessages.setSearchOpen}
+                  onSetSearchQuery={channelMessages.setSearchQuery}
+                  onCloseSearch={channelMessages.closeSearch}
+                  onJumpToBottom={channelMessages.jumpToBottom}
+                  onMessagesScroll={channelMessages.handleMessagesScroll}
                   onSetUserContextMenu={setUserContextMenu}
-                  onSetEditingDraft={setEditingDraft}
+                  onSetEditingDraft={channelMessages.setEditingDraft}
                   onInputTextChange={(v) => {
-                    setInputText(v);
-                    if (activeHubId && selectedChannel) saveDraft(`${activeHubId}/${selectedChannel.id}`, v);
+                    channelMessages.setInputText(v);
+                    if (activeHubId && channelMessages.selectedChannel) saveDraft(`${activeHubId}/${channelMessages.selectedChannel.id}`, v);
                   }}
-                  onKeyDown={handleKeyDown}
+                  onKeyDown={channelMessages.handleKeyDown}
                   slashCommands={slashCommands}
                   onOpenImage={openImage}
                   onToast={setToast}
@@ -2999,7 +2232,7 @@ function App() {
                     <HubStreamsPanel
                       streams={voice.hubStreams}
                       subscribedIds={voice.subscribedStreamIds.current}
-                      currentChannelId={selectedChannel?.id ?? null}
+                      currentChannelId={channelMessages.selectedChannel?.id ?? null}
                       onSubscribe={voice.subscribeToStream}
                       onUnsubscribe={voice.unsubscribeFromStream}
                       onClose={() => setShowHubStreams(false)}
@@ -3132,8 +2365,9 @@ function App() {
               try {
                 await invoke("update_channel_description", { channelId: channelSettingsModal.id, description: desc ? desc : null });
                 setChannels(prev => prev.map(c => c.id === channelSettingsModal.id ? { ...c, description: desc ? desc : null } : c));
-                if (selectedChannel?.id === channelSettingsModal.id) {
-                  setSelectedChannel({ ...selectedChannel, description: desc ? desc : null });
+                const sel = channelMessages.selectedChannel;
+                if (sel?.id === channelSettingsModal.id) {
+                  channelMessages.selectChannel({ ...sel, description: desc ? desc : null });
                 }
               } catch (e) { setError(String(e)); }
             }}
@@ -3156,7 +2390,7 @@ function App() {
           <ChannelPalette
             channels={channels.filter((c) => !c.is_category)}
             onClose={() => setPaletteOpen(false)}
-            onSelect={(c) => { setPaletteOpen(false); selectChannel(c); }}
+            onSelect={(c) => { setPaletteOpen(false); channelMessages.selectChannel(c); }}
           />
         )}
 

@@ -26,9 +26,17 @@ pub(crate) async fn list_capture_sources() -> Result<Vec<CaptureSource>, String>
         dyn_img
             .write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
             .map_err(|e| e.to_string())?;
+        let name = {
+            let n = monitor.name();
+            if n.is_empty() {
+                format!("Screen {}", idx)
+            } else {
+                n.to_string()
+            }
+        };
         sources.push(CaptureSource {
             id: format!("screen:{}:0", idx),
-            name: monitor.name().to_string(),
+            name,
             kind: "screen".to_string(),
             thumbnail_b64: B64.encode(&buf),
         });
@@ -57,8 +65,9 @@ pub(crate) async fn list_capture_sources() -> Result<Vec<CaptureSource>, String>
         dyn_img
             .write_to(&mut std::io::Cursor::new(&mut buf), ImageFormat::Png)
             .map_err(|e| e.to_string())?;
+        let id = format!("window:{}", win.id());
         sources.push(CaptureSource {
-            id: format!("window:{}", win.id()),
+            id,
             name: title,
             kind: "window".to_string(),
             thumbnail_b64: B64.encode(&buf),

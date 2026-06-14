@@ -90,14 +90,15 @@ export interface EventRsvp {
 
 export interface HubEvent {
   id: string;
+  channel_id?: string;
   title: string;
   description: string | null;
   location: string | null;
-  start_at: number;
+  starts_at: number;
   end_at: number | null;
-  created_by: string;
+  creator_pubkey?: string;
   created_at: number;
-  rsvps: EventRsvp[];
+  rsvp_counts: { going: number; maybe: number; not_going: number };
 }
 
 export type NotifLevel = "all" | "mentions" | "none";

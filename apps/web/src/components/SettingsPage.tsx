@@ -6,6 +6,7 @@ import { SkinEditor, makeSeed } from "./SkinEditor";
 import { SkinsGallery } from "./SkinsGallery";
 import type { ThemeId, VoxplySkin } from "../skinValidation";
 import { BlockIgnoreSection } from "@voxply/ui";
+import { IdentityBackupSection } from "./IdentityBackupSection";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account";
 
@@ -313,6 +314,10 @@ export function SettingsPage(props: SettingsPageProps) {
                   Reveal recovery phrase
                 </button>
               )}
+            </div>
+            <div className="settings-section" style={{ marginTop: 20 }}>
+              <label className="settings-label">Identity backup</label>
+              <IdentityBackupSection publicKey={props.publicKey} />
             </div>
             <BlockIgnoreSection
               blocks={props.blocks}

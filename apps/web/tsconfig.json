@@ -8,7 +8,6 @@
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "types": ["vite/client"],
     "paths": {
       "react": ["./node_modules/@types/react/index.d.ts"],

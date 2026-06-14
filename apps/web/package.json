@@ -1,6 +1,6 @@
 {
   "name": "voxply-web",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -41,7 +41,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "playwright": "^1.60.0",
     "tsx": "^4.22.4",
-    "typescript": "^5.8.0",
+    "typescript": "^6.0.3",
     "vite": "^6.0.0",
     "vitest": "^3.2.4"
   }
