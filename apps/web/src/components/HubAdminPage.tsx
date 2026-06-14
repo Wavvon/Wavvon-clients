@@ -14,6 +14,7 @@ import { CertificationsSection } from "./CertificationsSection";
 import { RecoveryContactsSection } from "./RecoveryContactsSection";
 import { WebhooksSection } from "./WebhooksSection";
 import { submitToDirectory } from "../platform/commands/hubAdmin";
+import { ExternalBotSection } from "./ExternalBotSection";
 
 export type HubAdminTab =
   | "overview"
@@ -22,6 +23,7 @@ export type HubAdminTab =
   | "roles"
   | "members"
   | "bans"
+  | "external-bots"
   | "invites"
   | "integrations"
   | "games"
@@ -111,6 +113,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "bans", label: "Bans" },
     { id: "invites", label: "Invites" },
     { id: "integrations", label: "Integrations" },
+    { id: "external-bots", label: "External Bots" },
     { id: "games", label: "Games" },
     { id: "certifications", label: "Certifications" },
     { id: "recovery", label: "Recovery" },
@@ -344,6 +347,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "integrations" && (
           <WebhooksSection channels={props.channels} />
+        )}
+
+        {props.tab === "external-bots" && (
+          <ExternalBotSection channels={props.channels} />
         )}
 
         {props.tab === "games" && (

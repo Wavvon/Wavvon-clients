@@ -1,6 +1,7 @@
 export interface WsHandlers {
   onMessage?: (m: object) => void;
   onDm?: (m: object) => void;
+  onDmMemberChanged?: (e: object) => void;
   onTyping?: (e: object) => void;
   onVoiceState?: (e: object) => void;
   onScreenShare?: (e: object) => void;
@@ -91,6 +92,8 @@ export class HubWebSocket {
       this.handlers.onMessage?.(tagged);
     } else if (type === "dm") {
       this.handlers.onDm?.(tagged);
+    } else if (type === "dm_member_changed") {
+      this.handlers.onDmMemberChanged?.(tagged);
     } else if (type === "typing" || type === "dm_typing") {
       this.handlers.onTyping?.(tagged);
     } else if (type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" || type === "voice_participant_speaking" || type === "voice_roster_update") {
@@ -102,7 +105,7 @@ export class HubWebSocket {
       this.handlers.onScreenShare?.(tagged);
     } else if (type === "message_pinned" || type === "message_unpinned") {
       this.handlers.onPin?.(tagged);
-    } else if (type === "poll_created" || type === "poll_updated" || type === "poll_deleted") {
+    } else if (type === "poll_vote_updated") {
       this.handlers.onPoll?.(tagged);
     } else if (type === "error") {
       this.handlers.onError?.(tagged);

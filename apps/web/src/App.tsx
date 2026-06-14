@@ -8,7 +8,7 @@ import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth } from "@voxply/core";
+import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing } from "@voxply/core";
 import { parseHubInput } from "@voxply/core";
 import type {
   Channel,
@@ -39,6 +39,7 @@ import { WelcomeScreenContainer } from "@components/WelcomeScreen";
 import { SettingsPage } from "@components/SettingsPage";
 import { UserContextMenu } from "@components/UserContextMenu";
 import { MobileShell } from "@components/MobileShell";
+import { DiscoverPage } from "@components/DiscoverPage";
 import { buildChannelTree } from "@voxply/core";
 import type { TreeNode } from "@voxply/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
@@ -220,7 +221,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
-  const [voiceActiveUsers] = useState<Set<string>>(new Set());
+  const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
@@ -228,7 +229,8 @@ export default function App() {
   const [installedGames, setInstalledGames] = useState<InstalledGame[]>([]);
   const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
   const [userAlliances, setUserAlliances] = useState<AllianceInfo[]>([]);
-  const [allianceChannels] = useState<Record<string, AllianceSharedChannel[]>>({});
+  const [allianceChannels, setAllianceChannels] = useState<Record<string, AllianceSharedChannel[]>>({});
+  const [pendingApprovalHubs, setPendingApprovalHubs] = useState<Set<string>>(new Set());
 
   // === View ===
   const [view, setView] = useState<View>("channels");
@@ -333,6 +335,7 @@ export default function App() {
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // === New web-only UI state ===
+  const [showDiscover, setShowDiscover] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
     try { return localStorage.getItem("voxply.seenWelcome") !== "1"; } catch { return true; }
@@ -348,6 +351,8 @@ export default function App() {
   const selectedConvIdRef = useRef<string | undefined>(undefined);
   const publicKeyRef = useRef<string | null>(publicKey);
   publicKeyRef.current = publicKey;
+  const mentionPingEnabledRef = useRef(mentionPingEnabled);
+  mentionPingEnabledRef.current = mentionPingEnabled;
   const { typingByKey, dmTypingByKey, receiveTyping, pingTyping, pingDmTyping } = useTypingIndicators(
     () => selectedChannelIdRef.current,
     () => selectedConvIdRef.current,
@@ -407,6 +412,9 @@ export default function App() {
   const hubsRef = useRef<Hub[]>([]);
   useEffect(() => { hubsRef.current = hubs; }, [hubs]);
 
+  const meInfoRef = useRef<MeInfo | null>(null);
+  useEffect(() => { meInfoRef.current = meInfo; }, [meInfo]);
+
   const selectedChannelRef = useRef<Channel | null>(null);
   useEffect(() => {
     selectedChannelRef.current = selectedChannel;
@@ -448,6 +456,21 @@ export default function App() {
         } else if (msgHubId && m.channel_id) {
           bumpUnread(msgHubId, m.channel_id as string);
         }
+        const myName = meInfoRef.current?.display_name ?? null;
+        const myPk = publicKeyRef.current;
+        const isMention = (myName && mentionsName(msg.content, myName)) ||
+          (myPk && msg.content.includes(myPk));
+        if (isMention && msg.sender !== myPk) {
+          if (mentionPingEnabledRef.current) {
+            try { playMentionPing(); } catch { /* audio context may not be ready */ }
+          }
+          if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+            new Notification(`${msg.sender_name ?? "Someone"} mentioned you`, {
+              body: msg.content.slice(0, 100),
+              tag: msg.id,
+            });
+          }
+        }
       } else if (type === "message_edited") {
         if (msgHubId !== activeHub) return;
         if (m.channel_id !== selectedChannelRef.current?.id) return;
@@ -464,7 +487,16 @@ export default function App() {
         const msgId = m.message_id as string | undefined;
         const reactions = m.reactions as Message["reactions"] | undefined;
         if (msgId && reactions) {
-          setMessages((prev) => prev.map((x) => x.id === msgId ? { ...x, reactions } : x));
+          setMessages((prev) => prev.map((x) => {
+            if (x.id !== msgId) return x;
+            const myEmojis = new Set(
+              (x.reactions ?? []).filter((r) => r.me).map((r) => r.emoji)
+            );
+            return {
+              ...x,
+              reactions: reactions.map((r) => ({ ...r, me: myEmojis.has(r.emoji) })),
+            };
+          }));
         }
       }
     },
@@ -492,7 +524,7 @@ export default function App() {
       }
     },
     onVoiceState: (raw) => {
-      const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; _hub_id?: string };
+      const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; _hub_id?: string };
       if (m._hub_id !== activeHubIdRef.current) return;
       if (!m.channel_id) return;
       const channelId = m.channel_id;
@@ -510,6 +542,12 @@ export default function App() {
           }
           return { ...prev, [channelId]: next };
         });
+        setVoiceActiveUsers((prev) => {
+          if (!prev.has(leftKey)) return prev;
+          const next = new Set(prev);
+          next.delete(leftKey);
+          return next;
+        });
       } else if (m.type === "voice_participant_joined") {
         if (!m.participant) return;
         const joined = m.participant;
@@ -517,6 +555,17 @@ export default function App() {
           const existing = prev[channelId] ?? [];
           if (existing.some((p) => p.public_key === joined.public_key)) return prev;
           return { ...prev, [channelId]: [...existing, joined] };
+        });
+      } else if (m.type === "voice_participant_speaking") {
+        if (!m.public_key) return;
+        const speakerKey = m.public_key;
+        const isSpeaking = m.speaking ?? true;
+        setVoiceActiveUsers((prev) => {
+          const hasSpeaker = prev.has(speakerKey);
+          if (isSpeaking === hasSpeaker) return prev;
+          const next = new Set(prev);
+          if (isSpeaking) next.add(speakerKey); else next.delete(speakerKey);
+          return next;
         });
       } else if (m.participants) {
         setVoicePartByChannel((prev) => ({ ...prev, [channelId]: m.participants! }));
@@ -552,6 +601,22 @@ export default function App() {
       if (m._hub_id !== activeHubIdRef.current) return;
       const message = (m.message as string | undefined) ?? "An error occurred on the hub.";
       showHubError(message);
+    },
+    onDmMemberChanged: (raw) => {
+      const m = raw as { conversation_id?: string; added?: string[]; removed?: string[] };
+      if (!m.conversation_id) return;
+      const convId = m.conversation_id;
+      hubFetch(`/conversations/${convId}`).then((r) => r.json() as Promise<import("@shared/types").Conversation>).then((updated) => {
+        setConversations((prev) => prev.map((c) => c.id === convId ? updated : c));
+      }).catch(() => {});
+    },
+    onPin: (raw) => {
+      const m = raw as Record<string, unknown>;
+      if (m._hub_id !== activeHubIdRef.current) return;
+    },
+    onPoll: (raw) => {
+      const m = raw as Record<string, unknown>;
+      if (m._hub_id !== activeHubIdRef.current) return;
     },
     onReauthNeeded: (hubId) => {
       reauthorizeHub(hubId, stableHandlersRef.current).then(() => {
@@ -605,15 +670,49 @@ export default function App() {
       ]);
       if (ch.status === "fulfilled") setChannels(ch.value);
       if (usr.status === "fulfilled") setUsers(usr.value);
-      if (me.status === "fulfilled") setMeInfo(me.value);
+      if (me.status === "fulfilled") {
+        const meVal = me.value;
+        setMeInfo(meVal);
+        const hubId = getActiveHubId();
+        if (meVal.approval_status === "pending" && hubId) {
+          setPendingApprovalHubs((prev) => new Set([...prev, hubId]));
+          return;
+        }
+        if (hubId) {
+          setPendingApprovalHubs((prev) => {
+            if (!prev.has(hubId)) return prev;
+            const next = new Set(prev);
+            next.delete(hubId);
+            return next;
+          });
+        }
+      }
       if (convs.status === "fulfilled") setConversations(convs.value);
       if (games.status === "fulfilled") setInstalledGames(games.value);
-      if (alliances.status === "fulfilled") setUserAlliances(alliances.value);
+      if (alliances.status === "fulfilled") {
+        const als = alliances.value;
+        setUserAlliances(als);
+        const byId: Record<string, AllianceSharedChannel[]> = {};
+        await Promise.allSettled(
+          als.map(async (a) => {
+            try {
+              const r = await hubFetch(`/alliances/${a.id}/channels`);
+              byId[a.id] = await r.json() as AllianceSharedChannel[];
+            } catch {
+              byId[a.id] = [];
+            }
+          })
+        );
+        setAllianceChannels(byId);
+      }
       if (cmds.status === "fulfilled") setSlashCommands(cmds.value);
       if (voiceRoster.status === "fulfilled") setVoicePartByChannel(voiceRoster.value);
       const hubId = getActiveHubId();
       if (hubId) {
         getUnreadCounts().then((counts) => seedUnreadFromServer(hubId, counts)).catch(() => {});
+      }
+      if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
       }
     } finally {
       loadingHub.current = false;
@@ -962,6 +1061,32 @@ export default function App() {
   }, [searchQuery, selectedChannel]);
 
   useEffect(() => {
+    if (hubs.length === 0) return;
+    let cancelled = false;
+    async function tick() {
+      for (const h of hubs) {
+        if (cancelled) return;
+        try {
+          const { pingHub } = await import("./platform/commands/hubs");
+          const ms = await pingHub(h.hub_id);
+          if (cancelled) return;
+          setPingByHub((prev) => ({ ...prev, [h.hub_id]: ms }));
+        } catch {
+          if (cancelled) return;
+          setPingByHub((prev) => ({ ...prev, [h.hub_id]: null }));
+        }
+      }
+    }
+    void tick();
+    const interval = setInterval(() => { void tick(); }, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hubs.length]);
+
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey;
       const tag = (e.target as HTMLElement)?.tagName;
@@ -1104,6 +1229,20 @@ export default function App() {
         </div>
       )}
 
+      {showDiscover && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg, #1a1a2e)", overflow: "auto" }}>
+          <DiscoverPage
+            onClose={() => setShowDiscover(false)}
+            onJoinHub={(hubUrl, inviteCode) => {
+              setHubUrl(hubUrl);
+              setInviteCode(inviteCode);
+              setShowDiscover(false);
+              setShowAddHub(true);
+            }}
+          />
+        </div>
+      )}
+
       {showSearchBar && (
         <SearchBar
           hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
@@ -1195,7 +1334,7 @@ export default function App() {
         hubs={hubs}
         activeHubId={activeHubId}
         view={view as "channels" | "dms"}
-        showDiscover={false}
+        showDiscover={true}
         unreadDms={unreadDms}
         unreadByHub={unreadByHub}
         pingByHub={pingByHub}
@@ -1208,7 +1347,7 @@ export default function App() {
         onHubReorder={handleHubReorder}
         onAddHub={() => setShowAddHub(true)}
         onCreateHub={() => setShowCreateHub(true)}
-        onDiscover={() => {}}
+        onDiscover={() => setShowDiscover(true)}
         onFarmSettings={() => { setShowFarmSettings(true); setFarmAdminTab("general"); }}
       />
 
@@ -1269,7 +1408,16 @@ export default function App() {
         onScreenShare={() => {}}
       />
 
-      <ContentArea
+      {activeHubId && pendingApprovalHubs.has(activeHubId) ? (
+        <main className="content" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontSize: 40 }}>⏳</div>
+          <h2 style={{ margin: 0 }}>Waiting for approval</h2>
+          <p className="muted" style={{ margin: 0, textAlign: "center", maxWidth: 320 }}>
+            Your membership request is pending. A hub admin will review your request shortly.
+          </p>
+          <button className="btn-secondary" onClick={() => loadHubData()}>Check again</button>
+        </main>
+      ) : <ContentArea
         view={view as "channels" | "dms"}
         activeHubId={activeHubId}
         hubs={hubs}
@@ -1335,8 +1483,21 @@ export default function App() {
         onSetSearchQuery={setSearchQuery}
         onCloseSearch={() => { setSearchOpen(false); setSearchResults(null); setSearchQuery(""); }}
         onJumpToBottom={() => { setStickToBottom(true); setNewWhileScrolledUp(0); }}
-        onMessagesScroll={() => {}}
-        onSetUserContextMenu={() => {}}
+        onMessagesScroll={() => {
+          const el = messagesContainerRef.current;
+          if (!el) return;
+          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+          setStickToBottom(atBottom);
+          if (atBottom) setNewWhileScrolledUp(0);
+        }}
+        onSetUserContextMenu={(menu) => {
+          if (!menu) { setUserContextMenu(null); return; }
+          setUserContextMenu({
+            pubkey: menu.user.public_key,
+            displayName: menu.user.display_name,
+            position: { x: menu.x, y: menu.y },
+          });
+        }}
         onSetEditingDraft={setEditingDraft}
         onInputTextChange={(v) => {
           setInputText(v);
@@ -1350,7 +1511,7 @@ export default function App() {
         activeScreenShares={activeScreenShares}
         screenShareViewerRef={screenShareViewerRef}
         assertiveAnnouncement={assertiveAnnouncement}
-      />
+      />}
       </MobileShell>
 
       {showHubAdmin && activeHubId && (

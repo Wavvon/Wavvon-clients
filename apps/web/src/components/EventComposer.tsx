@@ -34,7 +34,7 @@ export function EventComposer({ onCreated, onClose }: Props) {
         title: title.trim(),
         description: description.trim() || null,
         location: location.trim() || null,
-        start_at: Math.floor(startMs / 1000),
+        starts_at: Math.floor(startMs / 1000),
         end_at: endAt ? Math.floor(new Date(endAt).getTime() / 1000) : null,
       });
       onCreated(event);

@@ -95,10 +95,17 @@ export async function suspendFarmHub(
   suspended: boolean,
   reason: string | null,
 ): Promise<void> {
-  await farmFetch(farmUrl, `/farm/hubs/${hubId}/suspend`, {
-    method: "PATCH",
-    body: JSON.stringify({ suspended, reason }),
-  });
+  if (suspended) {
+    await farmFetch(farmUrl, `/farm/hubs/${hubId}/suspend`, {
+      method: "PATCH",
+      body: JSON.stringify({ reason }),
+    });
+  } else {
+    await farmFetch(farmUrl, `/farm/hubs/${hubId}/unsuspend`, {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    });
+  }
 }
 
 export async function deleteFarmHub(

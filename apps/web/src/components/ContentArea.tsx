@@ -31,6 +31,8 @@ import { ChannelHeader } from "./content/ChannelHeader";
 import { ChannelMessageList } from "./content/ChannelMessageList";
 import { ChannelComposer } from "./content/ChannelComposer";
 import { PollComposer } from "./PollComposer";
+import { EventsPanel } from "./EventsPanel";
+import { GameSessionPanel } from "./GameSessionPanel";
 import { AllianceView, ReconnectBanner } from "@voxply/ui";
 
 interface SelectedAllianceChannel {
@@ -191,6 +193,7 @@ export function ContentArea({
   const [profileCardPubkey, setProfileCardPubkey] = useState<string | null>(null);
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [channelPolls, setChannelPolls] = useState<Poll[]>([]);
+  const [activeContentTab, setActiveContentTab] = useState<"messages" | "events" | "games">("messages");
 
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() => {
     if (!selectedChannel) return new Set();
@@ -212,6 +215,7 @@ export function ContentArea({
 
   useEffect(() => {
     setChannelPolls([]);
+    setActiveContentTab("messages");
   }, [selectedChannel?.id]);
 
   function persistExpandedThreads(next: Set<string>) {
@@ -465,7 +469,43 @@ export function ContentArea({
               onOpenEditDescription={onOpenEditDescription}
               onStopShare={onStopShare}
             />
-            <ChannelMessageList
+            {(installedGames.length > 0) && (
+              <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
+                {(["messages", "events", "games"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveContentTab(tab)}
+                    style={{
+                      padding: "6px 12px",
+                      background: "none",
+                      border: "none",
+                      borderBottom: activeContentTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
+                      cursor: "pointer",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: activeContentTab === tab ? 600 : 400,
+                      color: activeContentTab === tab ? "var(--text)" : "var(--text-muted)",
+                      marginBottom: -1,
+                    }}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeContentTab === "events" ? (
+              <EventsPanel myPubkey={publicKey} isAdmin={isAdmin} />
+            ) : activeContentTab === "games" && selectedChannel ? (
+              <GameSessionPanel
+                channelId={selectedChannel.id}
+                installedGames={installedGames}
+                publicKey={publicKey}
+                canStartGame={isAdmin}
+                onLaunchGame={(game) => { setActiveGame(game); }}
+              />
+            ) : null}
+
+            {activeContentTab === "messages" && <><ChannelMessageList
               selectedChannelName={selectedChannel.name}
               selectedChannelDescription={selectedChannel.description}
               messages={messages}
@@ -542,7 +582,7 @@ export function ContentArea({
               onFillMention={fillMention}
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
-            />
+            /></>}
           </>
         ) : selectedAllianceChannel ? (
           <AllianceView

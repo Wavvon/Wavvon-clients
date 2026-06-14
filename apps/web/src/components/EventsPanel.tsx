@@ -20,8 +20,8 @@ export function EventsPanel({ myPubkey, isAdmin }: Props) {
       .then((list) => {
         const now = Math.floor(Date.now() / 1000);
         const upcoming = list
-          .filter((e) => e.start_at >= now || (e.end_at !== null && e.end_at >= now))
-          .sort((a, b) => a.start_at - b.start_at);
+          .filter((e) => e.starts_at >= now || (e.end_at !== null && e.end_at >= now))
+          .sort((a, b) => a.starts_at - b.starts_at);
         setEvents(upcoming);
       })
       .catch((e) => setError(String(e)))
@@ -42,7 +42,7 @@ export function EventsPanel({ myPubkey, isAdmin }: Props) {
   }
 
   function handleCreated(event: HubEvent) {
-    setEvents((prev) => [...prev, event].sort((a, b) => a.start_at - b.start_at));
+    setEvents((prev) => [...prev, event].sort((a, b) => a.starts_at - b.starts_at));
   }
 
   return (
