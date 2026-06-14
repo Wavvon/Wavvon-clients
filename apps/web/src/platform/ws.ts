@@ -11,6 +11,7 @@ export interface WsHandlers {
   onPoll?: (e: object) => void;
   onError?: (e: object) => void;
   onReauthNeeded?: (hubId: string) => void;
+  onChannelsUpdated?: (hubId: string) => void;
 }
 
 const BACKOFF_INITIAL = 1000;
@@ -109,6 +110,8 @@ export class HubWebSocket {
       this.handlers.onPoll?.(tagged);
     } else if (type === "error") {
       this.handlers.onError?.(tagged);
+    } else if (type === "channels_updated") {
+      this.handlers.onChannelsUpdated?.(this.hub_id);
     }
   }
 
@@ -137,6 +140,14 @@ export class HubWebSocket {
 
   unsubscribeChannel(channelId: string): void {
     this.send({ type: "unsubscribe", channel_id: channelId });
+  }
+
+  watchVoice(channelId: string): void {
+    this.send({ type: "voice_watch", channel_id: channelId });
+  }
+
+  unwatchVoice(): void {
+    this.send({ type: "voice_unwatch" });
   }
 
   close(): void {

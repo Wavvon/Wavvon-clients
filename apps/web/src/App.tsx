@@ -623,6 +623,12 @@ export default function App() {
         if (hubId === activeHubIdRef.current) void loadHubData();
       }).catch(() => {});
     },
+    onChannelsUpdated: (hubId) => {
+      if (hubId !== activeHubIdRef.current) return;
+      hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then((list) => {
+        setChannels(list);
+      }).catch(() => {});
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
@@ -957,12 +963,22 @@ export default function App() {
           setVoiceChannelId(ch.id);
           setSelfMuted(false);
           setSelfDeafened(false);
+          const me = meInfoRef.current;
+          if (me) {
+            setVoicePartByChannel((prev) => {
+              const existing = prev[ch.id] ?? [];
+              if (existing.some((p) => p.public_key === me.public_key)) return prev;
+              return { ...prev, [ch.id]: [...existing, { public_key: me.public_key, display_name: me.display_name }] };
+            });
+          }
+          try { activeSession().ws?.watchVoice(ch.id); } catch {}
         },
         onClose: () => {
           voiceSessionRef.current = null;
           setVoiceChannelId(null);
           setSelfMuted(false);
           setSelfDeafened(false);
+          try { activeSession().ws?.unwatchVoice(); } catch {}
         },
       });
       await session.start();
@@ -973,11 +989,26 @@ export default function App() {
   }
 
   function handleVoiceLeave() {
+    const channelId = voiceChannelId;
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
     setSelfMuted(false);
     setSelfDeafened(false);
+    try { activeSession().ws?.unwatchVoice(); } catch {}
+    const me = meInfoRef.current;
+    if (me && channelId) {
+      setVoicePartByChannel((prev) => {
+        const existing = prev[channelId];
+        if (!existing) return prev;
+        const next = existing.filter((p) => p.public_key !== me.public_key);
+        if (next.length === 0) {
+          const { [channelId]: _, ...rest } = prev;
+          return rest;
+        }
+        return { ...prev, [channelId]: next };
+      });
+    }
   }
 
   function handleToggleMute() {
