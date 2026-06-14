@@ -11,6 +11,8 @@ interface OpusCodec {
   delete(): void;
 }
 
+const OPUS_FRAME_SIZE = 960; // 20 ms at 48 kHz
+
 export class VoiceWsSession {
   private ws: WebSocket | null = null;
   private audioCtx: AudioContext | null = null;
@@ -23,6 +25,8 @@ export class VoiceWsSession {
   private muted = false;
   private deafened = false;
   private closed = false;
+  private sampleAccum = new Int16Array(OPUS_FRAME_SIZE);
+  private sampleAccumLen = 0;
 
   constructor(
     private hubUrl: string,
@@ -39,7 +43,7 @@ export class VoiceWsSession {
 
     this.audioCtx = new AudioContext({ sampleRate: 48000 });
     const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
-    this.processor = this.audioCtx.createScriptProcessor(960, 1, 1);
+    this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
     this.processor.onaudioprocess = (e) => this.onAudioProcess(e);
     source.connect(this.processor);
     this.processor.connect(this.audioCtx.destination);
@@ -68,26 +72,37 @@ export class VoiceWsSession {
     if (this.muted || !this.ws || this.ws.readyState !== WebSocket.OPEN || !this.encoder) return;
 
     const float32 = e.inputBuffer.getChannelData(0);
-    const int16 = new Int16Array(float32.length);
-    for (let i = 0; i < float32.length; i++) {
-      int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32767));
-    }
+    let offset = 0;
 
-    let opusBytes: Uint8Array;
-    try {
-      opusBytes = this.encoder.encode(new Uint8Array(int16.buffer), 960);
-    } catch {
-      return;
-    }
+    while (offset < float32.length) {
+      const space = OPUS_FRAME_SIZE - this.sampleAccumLen;
+      const take = Math.min(space, float32.length - offset);
+      for (let i = 0; i < take; i++) {
+        this.sampleAccum[this.sampleAccumLen + i] = Math.max(-32768, Math.min(32767, float32[offset + i] * 32767));
+      }
+      this.sampleAccumLen += take;
+      offset += take;
 
-    const packet = new ArrayBuffer(6 + opusBytes.length);
-    const view = new DataView(packet);
-    view.setUint16(0, this.sequence & 0xffff, false);
-    view.setUint32(2, this.timestamp & 0xffffffff, false);
-    new Uint8Array(packet, 6).set(opusBytes);
-    this.sequence++;
-    this.timestamp += 960;
-    this.ws.send(packet);
+      if (this.sampleAccumLen === OPUS_FRAME_SIZE) {
+        let opusBytes: Uint8Array;
+        try {
+          opusBytes = this.encoder.encode(new Uint8Array(this.sampleAccum.buffer), OPUS_FRAME_SIZE);
+        } catch {
+          this.sampleAccumLen = 0;
+          return;
+        }
+
+        const packet = new ArrayBuffer(6 + opusBytes.length);
+        const view = new DataView(packet);
+        view.setUint16(0, this.sequence & 0xffff, false);
+        view.setUint32(2, this.timestamp & 0xffffffff, false);
+        new Uint8Array(packet, 6).set(opusBytes);
+        this.sequence++;
+        this.timestamp += OPUS_FRAME_SIZE;
+        this.ws.send(packet);
+        this.sampleAccumLen = 0;
+      }
+    }
   }
 
   private onWsMessage(ev: MessageEvent): void {
@@ -146,6 +161,7 @@ export class VoiceWsSession {
 
   stop(): void {
     this.closed = true;
+    this.sampleAccumLen = 0;
     this.processor?.disconnect();
     this.processor = null;
     for (const track of this.mediaStream?.getTracks() ?? []) track.stop();
