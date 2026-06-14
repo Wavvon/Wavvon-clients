@@ -595,6 +595,9 @@ export default function App() {
     onStatusChange: (connected, hubId) => {
       const hubName = hubsRef.current.find((h) => h.hub_id === hubId)?.hub_name ?? "hub";
       handleStatusChange(hubId, hubName, connected, setAssertiveAnnouncement);
+      if (connected && hubId === activeHubIdRef.current) {
+        hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
+      }
     },
     onError: (raw) => {
       const m = raw as Record<string, unknown>;
