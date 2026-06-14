@@ -12,6 +12,8 @@ export interface WsHandlers {
   onError?: (e: object) => void;
   onReauthNeeded?: (hubId: string) => void;
   onChannelsUpdated?: (hubId: string) => void;
+  onMemberOnline?: (publicKey: string, hubId: string) => void;
+  onMemberOffline?: (publicKey: string, hubId: string) => void;
 }
 
 const BACKOFF_INITIAL = 1000;
@@ -112,6 +114,10 @@ export class HubWebSocket {
       this.handlers.onError?.(tagged);
     } else if (type === "channels_updated") {
       this.handlers.onChannelsUpdated?.(this.hub_id);
+    } else if (type === "member_online") {
+      this.handlers.onMemberOnline?.(tagged.public_key as string, this.hub_id);
+    } else if (type === "member_offline") {
+      this.handlers.onMemberOffline?.(tagged.public_key as string, this.hub_id);
     }
   }
 

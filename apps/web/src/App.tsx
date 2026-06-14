@@ -632,6 +632,14 @@ export default function App() {
         setChannels(list);
       }).catch(() => {});
     },
+    onMemberOnline: (publicKey, hubId) => {
+      if (hubId !== activeHubIdRef.current) return;
+      setUsers((prev) => prev.map((u) => u.public_key === publicKey ? { ...u, online: true } : u));
+    },
+    onMemberOffline: (publicKey, hubId) => {
+      if (hubId !== activeHubIdRef.current) return;
+      setUsers((prev) => prev.map((u) => u.public_key === publicKey ? { ...u, online: false } : u));
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
