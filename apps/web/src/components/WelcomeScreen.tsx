@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { addHub } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
+import { parseHubInput } from "@voxply/core";
 
 type HubPreview =
   | { state: "idle" }
@@ -167,7 +168,10 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, onDismiss, init
     setLoading(true);
     setError(null);
     try {
-      const hub = await addHub(hubUrl.trim(), wsHandlers);
+      const parsed = parseHubInput(hubUrl.trim());
+      const cleanUrl = parsed?.hubUrl ?? hubUrl.trim();
+      const inviteCode = parsed?.inviteCode || undefined;
+      const hub = await addHub(cleanUrl, wsHandlers, inviteCode ? { invite_code: inviteCode } : undefined);
       onHubAdded(hub);
     } catch (e) {
       setError(String(e));
