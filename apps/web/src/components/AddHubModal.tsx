@@ -59,6 +59,12 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
               {hubPreview.description && (
                 <p className="muted">{hubPreview.description}</p>
               )}
+              <p className="muted" style={{ margin: "4px 0 0", fontSize: "var(--text-sm)" }}>
+                Hosted by{" "}
+                <a href={hubPreview.url} target="_blank" rel="noreferrer">
+                  {hubPreview.url}
+                </a>
+              </p>
               {hubPreview.invite_only && (
                 <p className="muted hub-preview-warn">
                   🔒 Invite-only — paste the full invite link to join

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { addHub } from "@platform";
+import React, { useEffect, useState } from "react";
+import { addHub, previewHubInfo } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
 import { parseHubInput } from "@voxply/core";
@@ -58,7 +58,10 @@ export function WelcomeScreen({
 
         {homeHubHint && (
           <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 4 }}>
-            Served by this hub — {homeHubHint}
+            Hosted by{" "}
+            <a href={homeHubHint} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+              {homeHubHint}
+            </a>
           </p>
         )}
         {hubPreview.state === "loading" && (
@@ -81,6 +84,12 @@ export function WelcomeScreen({
               {hubPreview.description && (
                 <p className="muted" style={{ margin: "2px 0 0", fontSize: "var(--text-sm)" }}>{hubPreview.description}</p>
               )}
+              <p className="muted" style={{ margin: "4px 0 0", fontSize: "var(--text-sm)" }}>
+                Hosted by{" "}
+                <a href={hubPreview.url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+                  {hubPreview.url}
+                </a>
+              </p>
               {hubPreview.invite_only && (
                 <p className="muted hub-preview-warn" style={{ margin: "2px 0 0", fontSize: "var(--text-sm)" }}>
                   Invite-only — paste the full invite link to join
@@ -150,9 +159,25 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl }
   const [error, setError] = useState<string | null>(null);
   const [hubPreview, setHubPreview] = useState<HubPreview>({ state: "idle" });
 
+  useEffect(() => {
+    const trimmed = hubUrl.trim();
+    if (!trimmed) { setHubPreview({ state: "idle" }); return; }
+    setHubPreview({ state: "loading" });
+    const timer = setTimeout(async () => {
+      try {
+        const parsed = parseHubInput(trimmed);
+        const cleanUrl = parsed?.hubUrl ?? trimmed;
+        const info = await previewHubInfo(cleanUrl);
+        setHubPreview({ state: "ok", url: cleanUrl, name: info.name, icon: info.icon });
+      } catch (e) {
+        setHubPreview({ state: "error", message: String(e) });
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [hubUrl]);
+
   function handleHubUrlChange(v: string) {
     setHubUrl(v);
-    setHubPreview({ state: "idle" });
     setError(null);
   }
 
