@@ -31,6 +31,7 @@ import { ChannelSidebar } from "@components/ChannelSidebar";
 import { ContentArea } from "@components/ContentArea";
 import { AddHubModal } from "@components/AddHubModal";
 import { CreateChannelModal } from "@components/CreateChannelModal";
+import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/FarmSettingsPage";
 import { CreateHubWizard } from "@components/CreateHubWizard";
 import { KeyboardShortcuts } from "@voxply/ui";
@@ -220,6 +221,10 @@ export default function App() {
   const [createChannelLoading, setCreateChannelLoading] = useState(false);
   const [createChannelError, setCreateChannelError] = useState<string | null>(null);
   const [channelCtxMenu, setChannelCtxMenu] = useState<{ channel: Channel; x: number; y: number } | null>(null);
+  const [channelSettingsCtx, setChannelSettingsCtx] = useState<Channel | null>(null);
+  const [channelSettingsSaving, setChannelSettingsSaving] = useState(false);
+  const [channelSettingsDeleting, setChannelSettingsDeleting] = useState(false);
+  const [channelSettingsError, setChannelSettingsError] = useState<string | null>(null);
 
   // === Hub data ===
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -832,6 +837,41 @@ export default function App() {
       setCreateChannelError(e instanceof HubApiError ? e.message : String(e));
     } finally {
       setCreateChannelLoading(false);
+    }
+  }
+
+  async function handleSaveChannelSettings(name: string, description: string) {
+    if (!channelSettingsCtx) return;
+    setChannelSettingsSaving(true);
+    setChannelSettingsError(null);
+    try {
+      await hubFetch(`/channels/${channelSettingsCtx.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description: description || null }),
+      });
+      setChannelSettingsCtx(null);
+      hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
+    } catch (e) {
+      setChannelSettingsError(e instanceof HubApiError ? e.message : String(e));
+    } finally {
+      setChannelSettingsSaving(false);
+    }
+  }
+
+  async function handleDeleteChannel() {
+    if (!channelSettingsCtx) return;
+    setChannelSettingsDeleting(true);
+    setChannelSettingsError(null);
+    try {
+      await hubFetch(`/channels/${channelSettingsCtx.id}`, { method: "DELETE" });
+      if (selectedChannel?.id === channelSettingsCtx.id) setSelectedChannel(null);
+      setChannelSettingsCtx(null);
+      hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
+    } catch (e) {
+      setChannelSettingsError(e instanceof HubApiError ? e.message : String(e));
+    } finally {
+      setChannelSettingsDeleting(false);
     }
   }
 
@@ -1458,6 +1498,7 @@ export default function App() {
         onOpenCreateChannel={(parentId, isCategory) => { setCreateChannelCtx({ parentId, isCategory }); setCreateChannelError(null); }}
         onSelectChannel={handleSelectChannel}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
+        onOpenChannelSettings={(channel) => { setChannelSettingsCtx(channel); setChannelSettingsError(null); }}
         onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
         onVoiceLeave={handleVoiceLeave}
         onSelectAllianceChannel={() => {}}
@@ -1649,6 +1690,18 @@ export default function App() {
         />
       )}
 
+      {channelSettingsCtx && (
+        <ChannelSettingsModal
+          channel={channelSettingsCtx}
+          saving={channelSettingsSaving}
+          deleting={channelSettingsDeleting}
+          error={channelSettingsError}
+          onSave={handleSaveChannelSettings}
+          onDelete={handleDeleteChannel}
+          onClose={() => { setChannelSettingsCtx(null); setChannelSettingsError(null); }}
+        />
+      )}
+
       {channelCtxMenu && (
         <div
           className="context-menu-overlay"
@@ -1673,6 +1726,17 @@ export default function App() {
             {isAdmin && (
               <button className="context-menu-item" onClick={() => { setChannelCtxMenu(null); setCreateChannelCtx({ parentId: null, isCategory: true }); setCreateChannelError(null); }}>
                 Create category
+              </button>
+            )}
+            {isAdmin && <hr style={{ margin: "4px 0", border: "none", borderTop: "1px solid var(--border)" }} />}
+            {isAdmin && (
+              <button className="context-menu-item" onClick={() => { const ch = channelCtxMenu!.channel; setChannelCtxMenu(null); setChannelSettingsCtx(ch); setChannelSettingsError(null); }}>
+                Edit "{channelCtxMenu.channel.name}"
+              </button>
+            )}
+            {isAdmin && (
+              <button className="context-menu-item danger" onClick={() => { const ch = channelCtxMenu!.channel; setChannelCtxMenu(null); setChannelSettingsCtx(ch); setChannelSettingsError(null); }}>
+                Delete "{channelCtxMenu.channel.name}"
               </button>
             )}
           </div>
