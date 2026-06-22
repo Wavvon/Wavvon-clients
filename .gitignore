@@ -12,3 +12,5 @@ build/
 voxply-desktop/src-tauri/gen/
 *.key
 *.pem
+hub_identity.json
+hub.search/
