@@ -34,6 +34,7 @@ interface SettingsPageProps {
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
   onImportSkin: (skin: VoxplySkin) => void;
+  onProfileSaved?: () => void;
 }
 
 const TABS: { id: SettingsTab; label: string }[] = [
@@ -81,6 +82,7 @@ export function SettingsPage(props: SettingsPageProps) {
       });
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
+      props.onProfileSaved?.();
     } catch (e) {
       setSaveStatus(String(e));
     }

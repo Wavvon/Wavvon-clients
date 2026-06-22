@@ -1388,6 +1388,10 @@ export default function App() {
             onUnblock={toggleBlockUser}
             onUnignore={toggleIgnoreUser}
             knownNames={pubkeyToName}
+            onProfileSaved={() => {
+              hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
+              hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
+            }}
           />
         </div>
       )}
