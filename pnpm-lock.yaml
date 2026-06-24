@@ -15,7 +15,7 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
-  apps/android/android:
+  apps/android:
     dependencies:
       '@dnd-kit/core':
         specifier: ^6.1.0
@@ -46,13 +46,13 @@ importers:
         version: 3.2.0
       '@voxply/core':
         specifier: workspace:*
-        version: link:../../../packages/core
+        version: link:../../packages/core
       '@voxply/i18n':
         specifier: workspace:*
-        version: link:../../../packages/i18n
+        version: link:../../packages/i18n
       '@voxply/ui':
         specifier: workspace:*
-        version: link:../../../packages/ui
+        version: link:../../packages/ui
       dompurify:
         specifier: ^3.4.8
         version: 3.4.9
