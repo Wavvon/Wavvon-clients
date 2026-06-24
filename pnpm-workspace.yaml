@@ -2,7 +2,7 @@ packages:
   - 'packages/*'
   - 'apps/desktop'
   - 'apps/web'
-  - 'apps/android/android'
+  - 'apps/android'
 
 allowBuilds:
   esbuild: true

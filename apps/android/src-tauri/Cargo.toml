@@ -19,5 +19,5 @@ tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-voxply-voice = { path = "../../../../voice" }
+voxply-voice = { path = "../../../crates/voice" }
 tokio = { version = "1", features = ["full"] }

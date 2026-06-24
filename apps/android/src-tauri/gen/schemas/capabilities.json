@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default capabilities for Voxply Android","local":true,"permissions":["core:default","shell:allow-open","deep-link:default","notification:default","dialog:default"],"platforms":["android"]}}

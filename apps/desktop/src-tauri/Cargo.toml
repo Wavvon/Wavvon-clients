@@ -31,7 +31,7 @@ aes-gcm = "0.10"
 argon2 = "0.5"
 hkdf = "0.12"
 sha2 = "0.10"
-voxply-voice = { path = "../../../voice" }
+voxply-voice = { path = "../../../crates/voice" }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
 dirs = "6"

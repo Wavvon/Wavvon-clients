@@ -18,19 +18,18 @@ multi-checkout release dance.
 ```
 clients/
 ├── apps/
-│   ├── desktop/        Tauri 2 desktop app — React UI + Rust shell (v0.2.4)
-│   ├── web/            Vite + React browser SPA (v0.2.0)
-│   └── android/
-│       ├── voxply-desktop/   Android (Tauri) build of the desktop client
-│       └── voxply-web/       Android (Tauri) build of the web client
+│   ├── desktop/        Tauri 2 desktop app — React UI + Rust shell
+│   ├── web/            Vite + React browser SPA
+│   └── android/        Tauri 2 Android app — same React UI, packaged as APK
+├── crates/
+│   └── voice/          Rust voice codec library (cpal, Opus, RNNoise)
 ├── packages/
-│   ├── core/           @voxply/core  — shared TS: hub-input/invite parsing, more to come
-│   ├── i18n/           @voxply/i18n  — locale strings + ICU i18n machinery
-│   ├── utils/          @voxply/utils — shared utilities (format, channels, hex, …)
-│   ├── ui/             @voxply/ui    — shared React components (stub, future)
-│   └── platform/       @voxply/platform — platform-adapter interface (stub, future)
-├── voice/              Rust voice codec library (cpal, Opus, RNNoise)
-├── Cargo.toml          Rust workspace: apps/desktop/src-tauri + voice
+│   ├── core/           @voxply/core     — crypto, hub-input parsing, shared utils
+│   ├── i18n/           @voxply/i18n     — locale strings + ICU i18n machinery
+│   ├── ui/             @voxply/ui       — shared React components + canonical CSS
+│   └── platform/       @voxply/platform — platform-adapter interface
+├── scripts/
+├── Cargo.toml          Rust workspace: apps/desktop/src-tauri + crates/voice
 ├── package.json        pnpm workspace root
 └── pnpm-workspace.yaml
 ```
@@ -51,9 +50,8 @@ The Rust `voice` crate is shared by the desktop and Android Tauri shells.
   browser; live voice is desktop-only (browsers can't speak the hub's
   UDP voice protocol). Identity lives in IndexedDB and never leaves the
   device.
-- **Android** (`apps/android`) — two Tauri 2 wrappers packaged as APKs,
-  mirroring the desktop and web UIs for mobile. Same hub API as every
-  other client.
+- **Android** (`apps/android`) — Tauri 2 app packaged as an APK, sharing
+  the same React UI and hub API as every other client.
 
 All clients share one Ed25519 keypair identity with a 24-word BIP39
 recovery phrase and QR multi-device pairing. No accounts, no telemetry.
@@ -85,9 +83,7 @@ Each client opens with an "Add a hub" prompt. Paste a hub URL
 [Voxply-server](https://github.com/Voxply/Voxply-server) to run one in
 2 minutes) to connect.
 
-> The `apps/desktop` and `apps/android/voxply-desktop` packages share
-> the npm name `voxply-desktop` (likewise `voxply-web`). When a filter is
-> ambiguous, target by path instead, e.g.
+> If a filter name is ambiguous, target by path instead, e.g.
 > `pnpm --filter ./apps/desktop run dev`.
 
 ## Build & checks

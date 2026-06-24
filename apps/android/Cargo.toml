@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "android/src-tauri",
+    "src-tauri",
 ]
 
 [workspace.dependencies]

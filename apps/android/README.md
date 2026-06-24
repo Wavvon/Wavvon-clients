@@ -57,7 +57,7 @@ the Android SDK + NDK.
 pnpm install
 
 # generate the Android project, then run on a device/emulator
-cd apps/android/android
+cd apps/android
 npx tauri android init
 npx tauri android dev
 ```
@@ -65,26 +65,17 @@ npx tauri android dev
 ### Release APK
 
 ```bash
-cd apps/android/android
+cd apps/android
 npx tauri android build --target aarch64 --target armv7
-# Output: apps/android/android/src-tauri/gen/android/app/build/outputs/apk/
+# Output: apps/android/src-tauri/gen/android/app/build/outputs/apk/
 ```
 
-See [`android/SIGNING.md`](android/SIGNING.md) for keystore
-configuration. CI signs APKs when the `ANDROID_KEYSTORE_BASE64`,
-`ANDROID_KEYSTORE_PASSWORD`, and `ANDROID_KEY_PASSWORD` repository
-secrets are set.
+See [`SIGNING.md`](SIGNING.md) for keystore configuration. CI signs
+APKs when the `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+and `ANDROID_KEY_PASSWORD` repository secrets are set.
 
-## Layout (under `apps/android/`)
-
-| Path | What it is |
-|---|---|
-| `android/` | The Tauri 2 Android shell + project, signing config |
-| `voxply-desktop/` | Android build of the desktop client UI |
-| `voxply-web/` | Android build of the web client UI |
-
-The Rust `voice` crate and the `@voxply/*` packages are shared from the
-monorepo root, not vendored here.
+The Rust `voice` crate (`crates/voice/`) and the `@voxply/*` packages
+are shared from the monorepo root, not vendored here.
 
 ## The Voxply project
 

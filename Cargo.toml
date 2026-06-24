@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "apps/desktop/src-tauri",
-    "voice",
+    "crates/voice",
 ]
 
 [workspace.dependencies]
