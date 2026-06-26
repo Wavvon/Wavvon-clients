@@ -944,6 +944,7 @@ export interface BotAppOpenEvent {
   channel_id: string;
   mini_app_url: string;
   session_token: string;
+  requires_camera: boolean;
 }
 
 export interface BotAppCloseEvent {

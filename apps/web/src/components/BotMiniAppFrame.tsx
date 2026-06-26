@@ -34,7 +34,7 @@ export function BotMiniAppFrame({ event, hubUrl, onClose }: Props) {
       <iframe
         ref={iframeRef}
         src={event.mini_app_url}
-        sandbox="allow-scripts allow-same-origin allow-forms"
+        sandbox={`allow-scripts allow-same-origin allow-forms${event.requires_camera ? ' allow-camera' : ''}`}
         style={{ width: '100%', height: '100%', border: 'none' }}
         title="Bot Mini App"
       />

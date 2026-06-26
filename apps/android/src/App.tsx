@@ -378,6 +378,7 @@ export default function App() {
           token: ev.session_token,
           channelId: ev.channel_id,
           botId: ev.bot_id,
+          requiresCamera: ev.requires_camera,
         }).catch(() => {});
       } else if (type === "bot_app_close") {
         const botId = m.bot_id as string;

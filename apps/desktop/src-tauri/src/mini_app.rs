@@ -9,6 +9,7 @@ pub(crate) fn open_mini_app(
     token: String,
     channel_id: String,
     bot_id: String,
+    requires_camera: bool,
 ) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window(&label) {
         existing.show().ok();
@@ -20,8 +21,9 @@ pub(crate) fn open_mini_app(
         "window.__VOXPLY_HUB__ = {:?}; \
          window.__VOXPLY_TOKEN__ = {:?}; \
          window.__VOXPLY_CHANNEL__ = {:?}; \
-         window.__VOXPLY_BOT_ID__ = {:?};",
-        hub_url, token, channel_id, bot_id
+         window.__VOXPLY_BOT_ID__ = {:?}; \
+         window.__VOXPLY_REQUIRES_CAMERA__ = {};",
+        hub_url, token, channel_id, bot_id, requires_camera
     );
 
     WebviewWindowBuilder::new(
