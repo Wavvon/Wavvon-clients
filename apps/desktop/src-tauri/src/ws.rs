@@ -274,41 +274,6 @@ pub(crate) async fn spawn_ws_task(
                                             "position": position,
                                         }));
                                     }
-                                    WsServerMessage::GameSessionCreated { session_id, game_id, channel_id, host_pubkey } => {
-                                        let _ = app.emit("game-session-created", serde_json::json!({
-                                            "hub_id": hub_id_for_task, "session_id": session_id,
-                                            "game_id": game_id, "channel_id": channel_id, "host_pubkey": host_pubkey,
-                                        }));
-                                    }
-                                    WsServerMessage::GamePlayerJoined { session_id, pubkey, display_name } => {
-                                        let _ = app.emit("game-player-joined", serde_json::json!({
-                                            "hub_id": hub_id_for_task, "session_id": session_id,
-                                            "pubkey": pubkey, "display_name": display_name,
-                                        }));
-                                    }
-                                    WsServerMessage::GamePlayerLeft { session_id, pubkey } => {
-                                        let _ = app.emit("game-player-left", serde_json::json!({
-                                            "hub_id": hub_id_for_task, "session_id": session_id, "pubkey": pubkey,
-                                        }));
-                                    }
-                                    WsServerMessage::GameHostChanged { session_id, new_host_pubkey } => {
-                                        let _ = app.emit("game-host-changed", serde_json::json!({
-                                            "hub_id": hub_id_for_task, "session_id": session_id,
-                                            "new_host_pubkey": new_host_pubkey,
-                                        }));
-                                    }
-                                    WsServerMessage::GameEventMsg { session_id, from_pubkey, payload } => {
-                                        let _ = app.emit("game-event", serde_json::json!({
-                                            "hub_id": hub_id_for_task, "session_id": session_id,
-                                            "from_pubkey": from_pubkey, "payload": payload,
-                                        }));
-                                    }
-                                    WsServerMessage::GameSessionEnded { session_id, reason, result } => {
-                                        let _ = app.emit("game-session-ended", serde_json::json!({
-                                            "hub_id": hub_id_for_task, "session_id": session_id,
-                                            "reason": reason, "result": result,
-                                        }));
-                                    }
                                     WsServerMessage::VideoParticipantEnabled { channel_id, pubkey } => {
                                         let _ = app.emit("video-participant-enabled", serde_json::json!({
                                             "hub_id": hub_id_for_task,
@@ -423,23 +388,6 @@ pub(crate) async fn spawn_ws_task(
                                 "conversation_id": conversation_id,
                                 "typing": typing,
                             })
-                        }
-                        WsCommand::GameSend { session_id, payload, to } => {
-                            let mut m = serde_json::json!({ "type": "game_send", "session_id": session_id, "payload": payload });
-                            if let Some(t) = to { m["to"] = serde_json::json!(t); }
-                            if ws_tx.send(WsMessage::Text(m.to_string())).await.is_err() {
-                                break;
-                            }
-                            continue;
-                        }
-                        WsCommand::GameSetStatus { session_id, status } => {
-                            serde_json::json!({ "type": "game_set_status", "session_id": session_id, "status": status })
-                        }
-                        WsCommand::GameSnapshot { session_id, blob } => {
-                            serde_json::json!({ "type": "game_snapshot", "session_id": session_id, "blob": blob })
-                        }
-                        WsCommand::GameEnd { session_id, result } => {
-                            serde_json::json!({ "type": "game_end", "session_id": session_id, "result": result })
                         }
                         WsCommand::Raw(raw_json) => {
                             if ws_tx.send(WsMessage::Text(raw_json)).await.is_err() {

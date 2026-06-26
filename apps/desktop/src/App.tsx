@@ -37,7 +37,6 @@ import type {
   SurveySubmitResult,
   BotAdminInfo,
   BotDetailInfo,
-  InstalledGame,
   TauriFile,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
@@ -382,7 +381,6 @@ function App() {
   // Chat state
   const [channels, setChannels] = useState<Channel[]>([]);
   useEffect(() => { channelsRef.current = channels; }, [channels]);
-  const [installedGames, setInstalledGames] = useState<InstalledGame[]>([]);
 
   // Refs kept in App so useTypingIndicators and useChannelMessages can share them.
   const selectedChannelForTypingRef = useRef<Channel | null>(null);
@@ -914,12 +912,6 @@ function App() {
       setUsers(u);
       const c = await invoke<Conversation[]>("list_conversations");
       setConversations(c);
-      try {
-        const games = await invoke<InstalledGame[]>("list_games");
-        setInstalledGames(games);
-      } catch {
-        setInstalledGames([]);
-      }
       // Reset selection when switching hub
       channelMessages.setSelectedAllianceChannel(null);
       channelMessages.setAllianceMessages([]);
@@ -2171,7 +2163,6 @@ function App() {
                   voiceChannelId={voice.voiceChannelId}
                   onVoiceJoin={() => voice.handleVoiceJoin()}
                   onVoiceLeave={() => { voice.handleVoiceLeave(); setAssertiveAnnouncement("Left voice"); }}
-                  installedGames={installedGames}
                   myAvatar={myAvatar}
                   inputText={channelMessages.inputText}
                   typingByKey={typingByKey}

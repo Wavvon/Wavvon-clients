@@ -337,19 +337,6 @@ pub(crate) struct VoiceRosterEntryInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Game types
-// ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct InstalledGame {
-    pub id: String,
-    pub name: String,
-    pub entry_url: String,
-    pub description: Option<String>,
-    pub thumbnail_url: Option<String>,
-}
-
-// ---------------------------------------------------------------------------
 // Admin / moderation types
 // ---------------------------------------------------------------------------
 
@@ -937,41 +924,6 @@ pub(crate) enum WsServerMessage {
     VoiceZoneState {
         channel_id: String,
         zones: Vec<VoiceZoneSnapshotInfo>,
-    },
-    #[serde(rename = "game_session_created")]
-    GameSessionCreated {
-        session_id: String,
-        game_id: String,
-        channel_id: String,
-        host_pubkey: String,
-    },
-    #[serde(rename = "game_player_joined")]
-    GamePlayerJoined {
-        session_id: String,
-        pubkey: String,
-        #[serde(default)]
-        display_name: Option<String>,
-    },
-    #[serde(rename = "game_player_left")]
-    GamePlayerLeft { session_id: String, pubkey: String },
-    #[serde(rename = "game_host_changed")]
-    GameHostChanged {
-        session_id: String,
-        new_host_pubkey: String,
-    },
-    #[serde(rename = "game_event")]
-    GameEventMsg {
-        session_id: String,
-        from_pubkey: String,
-        payload: serde_json::Value,
-    },
-    #[serde(rename = "game_session_ended")]
-    GameSessionEnded {
-        session_id: String,
-        #[serde(default)]
-        reason: Option<String>,
-        #[serde(default)]
-        result: Option<serde_json::Value>,
     },
     #[serde(rename = "video_participant_enabled")]
     VideoParticipantEnabled { channel_id: String, pubkey: String },

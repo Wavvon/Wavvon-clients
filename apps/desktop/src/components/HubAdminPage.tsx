@@ -26,7 +26,6 @@ import { LobbySettingsSection } from "./LobbySettingsSection";
 import { ChallengeSettingsSection } from "./ChallengeSettingsSection";
 import { HubTagsSection } from "./HubTagsSection";
 import { HubBadgesSection } from "./HubBadgesSection";
-import { GamesAdminSection } from "./GamesAdminSection";
 import { HubCertificationsAdminSection } from "./HubCertificationsAdminSection";
 import { HubAuditLogSection } from "./HubAuditLogSection";
 
@@ -47,7 +46,6 @@ export type HubAdminTab =
   | "integrations"
   | "tags"
   | "badges"
-  | "games"
   | "certifications"
   | "audit-log";
 
@@ -201,7 +199,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "challenge", label: t("hub.admin.tabs.challenge") },
     { id: "tags", label: "Tags" },
     { id: "badges", label: "Badges" },
-    { id: "games", label: "Games" },
     { id: "certifications", label: "Certifications" },
     { id: "audit-log", label: "Audit Log" },
   ];
@@ -679,12 +676,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <section>
             <h1>Badges</h1>
             <HubBadgesSection />
-          </section>
-        )}
-        {props.tab === "games" && (
-          <section>
-            <h1>Games</h1>
-            <GamesAdminSection hubUrl={props.activeHubUrl} channels={props.channels} />
           </section>
         )}
         {props.tab === "certifications" && (

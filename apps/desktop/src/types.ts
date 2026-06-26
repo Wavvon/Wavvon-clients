@@ -521,20 +521,6 @@ export interface ExternalBotInviteResult {
   pubkey: string;
 }
 
-// ---- Games ----
-
-export interface InstalledGame {
-  id: string;
-  name: string;
-  entry_url: string;
-  description: string | null;
-  thumbnail_url: string | null;
-  permissions?: string[];
-  channel_ids?: string[];
-  author?: string | null;
-  version?: string | null;
-}
-
 // ---- Farm ----
 
 export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
@@ -705,47 +691,6 @@ export interface HubBadge {
 export interface PendingBadgeOffer extends HubBadge {
   id: string;
   received_at: number;
-}
-
-// ---- Games (admin) ----
-
-export interface GameAdminInfo {
-  id: string;
-  name: string;
-  entry_url: string;
-  description: string | null;
-  thumbnail_url: string | null;
-  author: string | null;
-  version: string | null;
-  permissions: string[];
-  channel_ids: string[];
-}
-
-// ---- Game sessions (Tier 2) ----
-
-export interface GameSession {
-  id: string;
-  game_id: string;
-  channel_id: string;
-  host_pubkey: string;
-  state: Record<string, unknown>;
-  players: string[];
-  created_at: number;
-  ended_at: number | null;
-}
-
-export interface GameSessionPlayer {
-  pubkey: string;
-  display_name: string | null;
-}
-
-export interface GameSessionDetail {
-  id: string;
-  game_id: string;
-  channel_id: string;
-  host_pubkey: string;
-  status: string;
-  players: GameSessionPlayer[];
 }
 
 // ---- Hub certifications ----

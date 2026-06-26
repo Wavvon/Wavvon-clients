@@ -1,6 +1,5 @@
 use crate::state::{active_session, active_ws_tx, AppState, WsCommand};
 use crate::types::ChannelInfo;
-use serde::{Deserialize, Serialize};
 use tauri::State;
 
 #[tauri::command]
@@ -18,29 +17,6 @@ pub(crate) async fn list_channels(state: State<'_, AppState>) -> Result<Vec<Chan
         .map_err(|e| format!("Invalid: {e}"))
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct InstalledGame {
-    pub id: String,
-    pub name: String,
-    pub entry_url: String,
-    pub description: Option<String>,
-    pub thumbnail_url: Option<String>,
-}
-
-#[tauri::command]
-pub(crate) async fn list_games(state: State<'_, AppState>) -> Result<Vec<InstalledGame>, String> {
-    let (hub_url, token) = active_session(&state)?;
-    let client = state.http_client.clone();
-    client
-        .get(format!("{hub_url}/hub/games"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?
-        .json()
-        .await
-        .map_err(|e| format!("Invalid: {e}"))
-}
 
 #[tauri::command]
 pub(crate) async fn list_hub_emojis(
