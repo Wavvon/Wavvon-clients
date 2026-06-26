@@ -38,6 +38,9 @@ import type {
   BotAdminInfo,
   BotDetailInfo,
   TauriFile,
+  BotAppLaunchEvent,
+  BotAppOpenEvent,
+  BotAppCloseEvent,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
@@ -99,6 +102,7 @@ import { Lobby } from "./components/Lobby";
 import { BotChallenge } from "./components/BotChallenge";
 import { SurveyComponent } from "./components/Survey";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { BotAppLaunchCard } from "./components/BotAppLaunchCard";
 
 function App() {
   // Multi-hub state
@@ -637,6 +641,15 @@ function App() {
   }
   const [slashCommands, setSlashCommands] = useState<SlashCommandEntry[]>([]);
 
+  const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
+
+  function sendBotAppJoin(botId: string, channelId: string) {
+    if (!activeHubId) return;
+    invoke("send_hub_ws_raw", {
+      payload: JSON.stringify({ type: "bot_app_join", bot_id: botId, channel_id: channelId }),
+    }).catch(() => {});
+  }
+
   const pubkeyToName = useMemo(() => {
     const m: Record<string, string | null> = {};
     for (const u of users) m[u.public_key] = u.display_name;
@@ -856,6 +869,32 @@ function App() {
     setVoicePoliteAnnouncement,
     hubs,
     channelsRef,
+    onBotAppLaunch: (ev: BotAppLaunchEvent) => {
+      setActiveBotApps((prev) => {
+        const next = new Map(prev);
+        next.set(ev.bot_id, ev);
+        return next;
+      });
+    },
+    onBotAppOpen: (ev: BotAppOpenEvent, hubUrl: string) => {
+      const label = `mini-app-${ev.bot_id}`;
+      invoke("open_mini_app", {
+        label,
+        url: ev.mini_app_url,
+        hubUrl,
+        token: ev.session_token,
+        channelId: ev.channel_id,
+        botId: ev.bot_id,
+      }).catch(() => {});
+    },
+    onBotAppClose: (ev: BotAppCloseEvent) => {
+      setActiveBotApps((prev) => {
+        const next = new Map(prev);
+        next.delete(ev.bot_id);
+        return next;
+      });
+      invoke("close_mini_app", { label: `mini-app-${ev.bot_id}` }).catch(() => {});
+    },
   });
 
   async function loadHubData() {
@@ -2128,6 +2167,24 @@ function App() {
                     onUnpin={() => video.setPinnedPubkey(null)}
                   />
                 )}
+                {channelMessages.selectedChannel && (() => {
+                  const channelId = channelMessages.selectedChannel.id;
+                  const cards = Array.from(activeBotApps.values()).filter(
+                    (e) => e.channel_id === channelId
+                  );
+                  if (cards.length === 0) return null;
+                  return (
+                    <div className="bot-app-launch-cards">
+                      {cards.map((ev) => (
+                        <BotAppLaunchCard
+                          key={ev.bot_id}
+                          event={ev}
+                          onJoin={sendBotAppJoin}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
                 <ContentArea
                   view={view}
                   activeHubId={activeHubId}

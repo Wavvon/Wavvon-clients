@@ -24,7 +24,9 @@ import type {
   AllianceInfo,
   AllianceSharedChannel,
 } from "@shared/types";
-import type { ActiveStream } from "./types";
+import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent } from "./types";
+import { BotAppLaunchCard } from "@components/BotAppLaunchCard";
+import { BotMiniAppFrame } from "@components/BotMiniAppFrame";
 import { HubSidebar } from "@components/HubSidebar";
 import { ChannelSidebar } from "@components/ChannelSidebar";
 import { ContentArea } from "@components/ContentArea";
@@ -371,6 +373,9 @@ export default function App() {
   const screenShareViewerRef = useRef<ScreenShareViewerRef | null>(null);
   const [activeScreenShares, setActiveScreenShares] = useState<ActiveStream[]>([]);
 
+  const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
+  const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
+
   const loadingHub = useRef(false);
 
 
@@ -644,10 +649,41 @@ export default function App() {
       if (hubId !== activeHubIdRef.current) return;
       setUsers((prev) => prev.map((u) => u.public_key === publicKey ? { ...u, online: false } : u));
     },
+    onBotApp: (raw) => {
+      const m = raw as Record<string, unknown>;
+      if (m._hub_id !== activeHubIdRef.current) return;
+      const type = m.type as string;
+      if (type === "bot_app_launch") {
+        const ev = m as unknown as BotAppLaunchEvent;
+        setActiveBotApps((prev) => {
+          const next = new Map(prev);
+          next.set(ev.bot_id, ev);
+          return next;
+        });
+      } else if (type === "bot_app_open") {
+        const ev = m as unknown as BotAppOpenEvent;
+        const hubUrl = hubsRef.current.find((h) => h.hub_id === activeHubIdRef.current)?.hub_url ?? "";
+        setActiveOpenApp({ event: ev, hubUrl });
+      } else if (type === "bot_app_close") {
+        const botId = m.bot_id as string;
+        setActiveBotApps((prev) => {
+          const next = new Map(prev);
+          next.delete(botId);
+          return next;
+        });
+        setActiveOpenApp((prev) => prev?.event.bot_id === botId ? null : prev);
+      }
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   stableHandlersRef.current = stableHandlers;
+
+  function sendBotAppJoin(botId: string, channelId: string) {
+    try {
+      activeSession().ws?.send({ type: "bot_app_join", bot_id: botId, channel_id: channelId });
+    } catch {}
+  }
 
   // === Hub restore on startup ===
 
@@ -1506,6 +1542,14 @@ export default function App() {
         onScreenShare={() => {}}
       />
 
+      {activeOpenApp && (
+        <BotMiniAppFrame
+          event={activeOpenApp.event}
+          hubUrl={activeOpenApp.hubUrl}
+          onClose={() => setActiveOpenApp(null)}
+        />
+      )}
+
       {activeHubId && pendingApprovalHubs.has(activeHubId) ? (
         <main className="content" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: 40 }}>⏳</div>
@@ -1515,7 +1559,26 @@ export default function App() {
           </p>
           <button className="btn-secondary" onClick={() => loadHubData()}>Check again</button>
         </main>
-      ) : <ContentArea
+      ) : <>
+        {(() => {
+          if (!selectedChannel) return null;
+          const cards = Array.from(activeBotApps.values()).filter(
+            (ev) => ev.channel_id === selectedChannel.id,
+          );
+          if (cards.length === 0) return null;
+          return (
+            <div className="bot-app-launch-cards">
+              {cards.map((ev) => (
+                <BotAppLaunchCard
+                  key={ev.bot_id}
+                  event={ev}
+                  onJoin={sendBotAppJoin}
+                />
+              ))}
+            </div>
+          );
+        })()}
+        <ContentArea
         view={view as "channels" | "dms"}
         activeHubId={activeHubId}
         hubs={hubs}
@@ -1608,7 +1671,7 @@ export default function App() {
         activeScreenShares={activeScreenShares}
         screenShareViewerRef={screenShareViewerRef}
         assertiveAnnouncement={assertiveAnnouncement}
-      />}
+      /></>}
       </MobileShell>
 
       {showHubAdmin && activeHubId && (

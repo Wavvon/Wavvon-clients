@@ -19,6 +19,7 @@ mod identity_cmd;
 mod lobby;
 mod local_store;
 mod messages;
+mod mini_app;
 mod pairing;
 mod prefs_blob;
 mod screen_share;
@@ -347,6 +348,9 @@ pub fn run() {
             screen_share::list_capture_sources,
             screen_share::open_pip_window,
             screen_share::close_pip_window,
+            // Mini-app windows
+            mini_app::open_mini_app,
+            mini_app::close_mini_app,
             // Certs / audit
             certs::get_cert_settings,
             certs::get_audit_log,

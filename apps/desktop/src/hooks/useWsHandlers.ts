@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { formatPubkey } from "@voxply/core";
-import type { DmMessage, VoiceParticipant, Conversation, User } from "../types";
+import type { DmMessage, VoiceParticipant, Conversation, User, BotAppLaunchEvent, BotAppOpenEvent, BotAppCloseEvent } from "../types";
 
 export interface WsHandlersParams {
   activeHubIdRef: RefObject<string | null>;
@@ -34,8 +34,11 @@ export interface WsHandlersParams {
   pendingVoiceAnnouncementsRef: RefObject<string[]>;
   voiceAnnounceTimerRef: RefObject<ReturnType<typeof setTimeout> | null>;
   setVoicePoliteAnnouncement: (msg: string) => void;
-  hubs: { hub_id: string; hub_name: string }[];
+  hubs: { hub_id: string; hub_name: string; hub_url: string }[];
   channelsRef: RefObject<{ id: string; name: string }[]>;
+  onBotAppLaunch: (event: BotAppLaunchEvent) => void;
+  onBotAppOpen: (event: BotAppOpenEvent, hubUrl: string) => void;
+  onBotAppClose: (event: BotAppCloseEvent) => void;
 }
 
 export function useWsHandlers({
@@ -66,6 +69,9 @@ export function useWsHandlers({
   setVoicePoliteAnnouncement,
   hubs,
   channelsRef,
+  onBotAppLaunch,
+  onBotAppOpen,
+  onBotAppClose,
 }: WsHandlersParams) {
   useEffect(() => {
     const unlistens: (() => void)[] = [];
@@ -245,6 +251,32 @@ export function useWsHandlers({
           setToast(
             `Couldn't authenticate with "${hub_name}". The hub may be offline, or you may have been banned. Use Reconnect to retry, or right-click to remove.`
           );
+        })
+      );
+
+      unlistens.push(
+        await listen<BotAppLaunchEvent & { hub_id: string }>("bot-app-launch", (event) => {
+          if (event.payload.hub_id !== activeHubIdRef.current) return;
+          const { hub_id: _hub_id, ...ev } = event.payload;
+          onBotAppLaunch(ev as BotAppLaunchEvent);
+        })
+      );
+
+      unlistens.push(
+        await listen<BotAppOpenEvent & { hub_id: string }>("bot-app-open", (event) => {
+          if (event.payload.hub_id !== activeHubIdRef.current) return;
+          const hubId = event.payload.hub_id;
+          const hubUrl = hubs.find((h) => h.hub_id === hubId)?.hub_url ?? "";
+          const { hub_id: _hub_id, ...ev } = event.payload;
+          onBotAppOpen(ev as BotAppOpenEvent, hubUrl);
+        })
+      );
+
+      unlistens.push(
+        await listen<BotAppCloseEvent & { hub_id: string }>("bot-app-close", (event) => {
+          if (event.payload.hub_id !== activeHubIdRef.current) return;
+          const { hub_id: _hub_id, ...ev } = event.payload;
+          onBotAppClose(ev as BotAppCloseEvent);
         })
       );
     })();

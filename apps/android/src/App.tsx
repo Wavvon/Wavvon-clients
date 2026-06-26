@@ -59,6 +59,8 @@ import { publicKeyHex, signBytes, dhKeypairFromSeed } from "@voxply/core";
 import { seedToPhrase, phraseToSeed, validatePhrase } from "@voxply/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
+import type { BotAppLaunchEvent, BotAppOpenEvent } from "./types";
+import { BotAppLaunchCard } from "./components/BotAppLaunchCard";
 import { open as openFilePicker } from "@tauri-apps/plugin-dialog";
 import { useChannelMessages } from "./hooks/useChannelMessages";
 import { useAlliances } from "./hooks/useAlliances";
@@ -223,6 +225,7 @@ export default function App() {
 
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
 
   // === Identity init ===
 
@@ -355,6 +358,36 @@ export default function App() {
     onStatusChange: (connected) => {
       const id = activeHubIdRef.current;
       if (id) setHubConnected((prev) => ({ ...prev, [id]: connected }));
+    },
+    onBotApp: (raw) => {
+      const m = raw as Record<string, unknown>;
+      const type = m.type as string;
+      if (type === "bot_app_launch") {
+        const ev = m as unknown as BotAppLaunchEvent;
+        setActiveBotApps((prev) => {
+          const next = new Map(prev);
+          next.set(ev.bot_id, ev);
+          return next;
+        });
+      } else if (type === "bot_app_open") {
+        const ev = m as unknown as BotAppOpenEvent;
+        const label = `mini-app-${ev.bot_id}`;
+        invoke("open_mini_app", {
+          label,
+          url: ev.mini_app_url,
+          token: ev.session_token,
+          channelId: ev.channel_id,
+          botId: ev.bot_id,
+        }).catch(() => {});
+      } else if (type === "bot_app_close") {
+        const botId = m.bot_id as string;
+        setActiveBotApps((prev) => {
+          const next = new Map(prev);
+          next.delete(botId);
+          return next;
+        });
+        invoke("close_mini_app", { label: `mini-app-${botId}` }).catch(() => {});
+      }
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
@@ -626,6 +659,14 @@ export default function App() {
     await invoke("voice_set_deafened", { deafened: next }).catch(() => {});
   }
 
+  // === Bot mini-apps ===
+
+  function sendBotAppJoin(botId: string, channelId: string) {
+    try {
+      activeSession().ws?.send({ type: "bot_app_join", bot_id: botId, channel_id: channelId });
+    } catch {}
+  }
+
   // === Misc helpers ===
 
   function handleCopyKey() {
@@ -778,6 +819,26 @@ export default function App() {
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>✕</button>
         </div>
       )}
+
+      {(() => {
+        const sel = channelMsgs.selectedChannel;
+        if (!sel) return null;
+        const cards = Array.from(activeBotApps.values()).filter(
+          (ev) => ev.channel_id === sel.id,
+        );
+        if (cards.length === 0) return null;
+        return (
+          <div className="bot-app-launch-cards">
+            {cards.map((ev) => (
+              <BotAppLaunchCard
+                key={ev.bot_id}
+                event={ev}
+                onJoin={sendBotAppJoin}
+              />
+            ))}
+          </div>
+        );
+      })()}
 
       <ContentArea
         view={view}

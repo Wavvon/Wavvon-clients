@@ -965,6 +965,22 @@ pub(crate) enum WsServerMessage {
     VoiceWhisperStarted { sender_pubkey: String },
     #[serde(rename = "voice_whisper_stopped")]
     VoiceWhisperStopped { sender_pubkey: String },
+    #[serde(rename = "bot_app_launch")]
+    BotAppLaunch {
+        bot_id: String,
+        title: String,
+        description: String,
+        channel_id: String,
+    },
+    #[serde(rename = "bot_app_open")]
+    BotAppOpen {
+        bot_id: String,
+        channel_id: String,
+        mini_app_url: String,
+        session_token: String,
+    },
+    #[serde(rename = "bot_app_close")]
+    BotAppClose { bot_id: String, channel_id: String },
     #[serde(other)]
     Other,
 }

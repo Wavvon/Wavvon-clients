@@ -847,6 +847,30 @@ export interface LinkPreview {
   domain: string;
 }
 
+// ---- Bot mini-app events ----
+
+export interface BotAppLaunchEvent {
+  type: 'bot_app_launch';
+  bot_id: string;
+  title: string;
+  description: string;
+  channel_id: string;
+}
+
+export interface BotAppOpenEvent {
+  type: 'bot_app_open';
+  bot_id: string;
+  channel_id: string;
+  mini_app_url: string;
+  session_token: string;
+}
+
+export interface BotAppCloseEvent {
+  type: 'bot_app_close';
+  bot_id: string;
+  channel_id: string;
+}
+
 // ---- WebRTC Screen Share v2 ----
 
 export interface WsScreenShareOffer {

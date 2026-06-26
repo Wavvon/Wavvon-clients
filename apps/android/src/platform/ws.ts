@@ -5,6 +5,7 @@ export interface WsHandlers {
   onVoiceState?: (e: object) => void;
   onScreenShare?: (e: object) => void;
   onStatusChange?: (connected: boolean) => void;
+  onBotApp?: (e: object) => void;
 }
 
 const BACKOFF_INITIAL = 1000;
@@ -76,6 +77,8 @@ export class HubWebSocket {
       type === "screen_share_stopped"
     ) {
       this.handlers.onScreenShare?.(msg);
+    } else if (type === "bot_app_launch" || type === "bot_app_open" || type === "bot_app_close") {
+      this.handlers.onBotApp?.(msg);
     }
   }
 
