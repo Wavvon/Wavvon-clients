@@ -1,5 +1,10 @@
 {
   "app.title": "Wavvon",
+  "onboarding.display_name.title": "Come ti chiamiamo?",
+  "onboarding.display_name.hint": "Imposta un nome visualizzato così gli altri sanno chi sei. Puoi cambiarlo in qualsiasi momento nelle Impostazioni.",
+  "onboarding.display_name.placeholder": "Il tuo nome",
+  "onboarding.display_name.skip": "Salta per ora",
+  "onboarding.display_name.save": "Salva nome",
   "welcome.tagline": "Chat vocale decentralizzata. La tua identità, ogni hub.",
   "welcome.join": "Entra nell'hub",
   "welcome.looking_up": "Ricerca hub…",
