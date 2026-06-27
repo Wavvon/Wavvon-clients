@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { SearchBar } from "./SearchBar";
 import { WhisperPanel } from "./WhisperPanel";
 import type { WhisperTarget, WhisperList } from "../hooks/useWhisper";
@@ -149,6 +150,8 @@ export function ChannelSidebar({
   const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const whisperBtnRef = useRef<HTMLButtonElement>(null);
+  const [whisperPanelPos, setWhisperPanelPos] = useState<{ bottom: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!hubDropdownOpen) return;
@@ -160,6 +163,12 @@ export function ChannelSidebar({
     document.addEventListener("mousedown", onOutsideClick);
     return () => document.removeEventListener("mousedown", onOutsideClick);
   }, [hubDropdownOpen, onHubDropdownOpenChange]);
+
+  useEffect(() => {
+    if (!showWhisperPanel || !whisperBtnRef.current) return;
+    const rect = whisperBtnRef.current.getBoundingClientRect();
+    setWhisperPanelPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left });
+  }, [showWhisperPanel]);
 
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -645,6 +654,7 @@ export function ChannelSidebar({
                 )}
                 <div className="voice-btn-wrap">
                   <button
+                    ref={whisperBtnRef}
                     className={`btn-icon-gear ${isWhispering ? "active whisper-active" : ""}`}
                     onClick={onToggleWhisperPanel}
                     title="Whisper"
@@ -652,7 +662,9 @@ export function ChannelSidebar({
                   >
                     🤫
                   </button>
-                  {showWhisperPanel && (
+                </div>
+                {showWhisperPanel && whisperPanelPos && createPortal(
+                  <div style={{ position: "fixed", bottom: whisperPanelPos.bottom, left: whisperPanelPos.left, zIndex: 9999 }}>
                     <WhisperPanel
                       voiceParticipants={
                         voiceChannelId
@@ -669,8 +681,9 @@ export function ChannelSidebar({
                       onDeleteList={onDeleteWhisperList}
                       onClose={onCloseWhisperPanel}
                     />
-                  )}
-                </div>
+                  </div>,
+                  document.body
+                )}
                 <button
                   onClick={onVoiceLeave}
                   className="btn-icon-gear voice-call-btn end"

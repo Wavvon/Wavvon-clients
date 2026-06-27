@@ -6588,7 +6588,7 @@ a.embed-title:hover {
   background: var(--bg-hover, #34373d);
 }
 
-.whisper-panel { position: absolute; bottom: 100%; left: 0; width: 280px; background: var(--bg-secondary, #2b2d31); border: 1px solid var(--border-color, #3a3d44); border-radius: 8px; padding: 0; z-index: 300; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); }
+.whisper-panel { width: 280px; background: var(--bg-secondary, #2b2d31); border: 1px solid var(--border-color, #3a3d44); border-radius: 8px; padding: 0; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); }
 .whisper-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border-color, #3a3d44); }
 .whisper-panel-title { font-size: 13px; font-weight: 700; }
 .whisper-panel-close { background: none; border: none; cursor: pointer; color: var(--text-muted, #96989d); font-size: 14px; }
