@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { CertSettings, IssuedCertRow } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";

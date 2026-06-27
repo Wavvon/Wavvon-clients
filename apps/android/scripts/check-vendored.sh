@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 # Verify the vendored copies of @wavvon/i18n and @wavvon/utils under
 # wavvon-web/ are byte-identical to their canonical sources in Wavvon-web.
 # Usage: scripts/check-vendored.sh [path-to-Wavvon-web-checkout]   (default: ../web)

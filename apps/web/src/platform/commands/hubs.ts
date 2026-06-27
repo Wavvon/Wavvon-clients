@@ -1,4 +1,4 @@
-﻿import { hexToBytes } from "@wavvon/core";
+import { hexToBytes } from "@wavvon/core";
 import { rawFetch, hubFetch } from "../http";
 import {
   getSession,

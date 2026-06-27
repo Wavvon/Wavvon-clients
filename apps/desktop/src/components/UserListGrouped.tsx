@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import type { User } from "../types";
 import { formatPubkey } from "@wavvon/core";
 import { Avatar } from "@wavvon/ui";

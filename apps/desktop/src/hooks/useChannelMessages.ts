@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, type RefObject } from "react";
+import { useState, useRef, useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { mentionsName, playMentionPing } from "@wavvon/core";

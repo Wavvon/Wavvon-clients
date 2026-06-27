@@ -1,4 +1,4 @@
-﻿# Android Release Signing
+# Android Release Signing
 
 Release APKs are signed with a single long-lived self-signed keystore.
 **Losing this keystore forces every existing user to uninstall and reinstall**

@@ -1,4 +1,4 @@
-﻿// Shared constants for the Wavvon desktop client.
+// Shared constants for the Wavvon desktop client.
 //
 // Pure values with no React or runtime dependencies. Anything that
 // needs hooks or a render context belongs in a component file.

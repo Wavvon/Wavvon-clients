@@ -1,4 +1,4 @@
-﻿const RECENT_EMOJI_KEY = "wavvon.recentEmojis";
+const RECENT_EMOJI_KEY = "wavvon.recentEmojis";
 const RECENT_EMOJI_MAX = 8;
 
 export function loadRecentEmojis(): string[] {

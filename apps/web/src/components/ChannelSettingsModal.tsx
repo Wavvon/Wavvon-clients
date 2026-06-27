@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { FocusTrap } from "@wavvon/ui";
 import type { Channel } from "@shared/types";
 

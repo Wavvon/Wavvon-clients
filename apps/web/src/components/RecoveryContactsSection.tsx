@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { RecoveryRotationRequest } from "../types";
 import { formatPubkey } from "@wavvon/core";
 import {

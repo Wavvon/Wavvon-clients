@@ -1,4 +1,4 @@
-﻿// Local identity primitives — reimplemented directly against standard crypto
+// Local identity primitives — reimplemented directly against standard crypto
 // crates so wavvon-desktop has no dependency on any hub-internal crate.
 
 #![allow(dead_code)]

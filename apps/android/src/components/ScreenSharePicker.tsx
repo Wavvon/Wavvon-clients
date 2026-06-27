@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { ScreenShareOpts } from "../types";
 import { FocusTrap } from "@wavvon/ui";
 

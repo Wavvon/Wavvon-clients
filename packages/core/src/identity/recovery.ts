@@ -1,4 +1,4 @@
-﻿import * as bip39 from "@scure/bip39";
+import * as bip39 from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 
 // 32-byte seed hex → 24-word BIP39 mnemonic (256-bit entropy + 8-bit checksum).

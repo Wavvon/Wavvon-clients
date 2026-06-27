@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { applySkinTokens, clearSkinTokens } from "../skinValidation";
 import type { SettingsTab } from "../components/SettingsPage";

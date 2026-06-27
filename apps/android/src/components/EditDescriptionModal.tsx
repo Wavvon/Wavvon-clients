@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from "react";
+import React, { useEffect } from "react";
 import type { Channel } from "../types";
 import { FocusTrap } from "@wavvon/ui";
 

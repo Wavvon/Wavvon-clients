@@ -1,4 +1,4 @@
-﻿use crate::state::{active_session, AppState};
+use crate::state::{active_session, AppState};
 use crate::types::{
     AttachmentInfo, ConversationInfo, DmMessageInfo, FriendInfo, RawDmMessageResponse,
 };

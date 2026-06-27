@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Message, User, RoleInfo, Hub } from "../../types";
 import {

@@ -1,4 +1,4 @@
-﻿import { openDB, type IDBPDatabase } from "idb";
+import { openDB, type IDBPDatabase } from "idb";
 import { ed25519 } from "@noble/curves/ed25519";
 import { bytesToHex, hexToBytes } from "@wavvon/core";
 

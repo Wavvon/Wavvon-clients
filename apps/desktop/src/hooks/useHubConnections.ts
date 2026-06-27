@@ -1,4 +1,4 @@
-﻿import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useReconnectBackoff } from "@wavvon/core";
 

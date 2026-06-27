@@ -1,4 +1,4 @@
-﻿import { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import type { NotifyMode } from "../types";
 
 type HubNotifyMode = Record<string, NotifyMode>;

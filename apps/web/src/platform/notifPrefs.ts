@@ -1,4 +1,4 @@
-﻿import type { NotifLevel } from "@shared/types";
+import type { NotifLevel } from "@shared/types";
 
 function key(hubUrl: string): string {
   return `wavvon.notif.${hubUrl}`;

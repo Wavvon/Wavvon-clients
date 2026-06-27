@@ -1,4 +1,4 @@
-﻿import { THEMES } from "../constants";
+import { THEMES } from "../constants";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 
 export function ThemePicker({

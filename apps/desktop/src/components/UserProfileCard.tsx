@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { UserProfile, RoleInfo } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";

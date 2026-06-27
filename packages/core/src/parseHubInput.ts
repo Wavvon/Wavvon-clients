@@ -1,4 +1,4 @@
-﻿export interface HubInputResult {
+export interface HubInputResult {
   hubUrl: string;
   inviteCode: string;
 }

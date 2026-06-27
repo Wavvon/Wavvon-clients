@@ -1,4 +1,4 @@
-﻿use crate::state::PendingUpdate;
+use crate::state::PendingUpdate;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 /// Background update check — fires once at startup, best-effort.

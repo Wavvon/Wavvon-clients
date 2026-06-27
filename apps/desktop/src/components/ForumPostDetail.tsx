@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PostDetail, ReplyView, PostSummary, User } from "../types";
 import { formatRelative } from "@wavvon/core";

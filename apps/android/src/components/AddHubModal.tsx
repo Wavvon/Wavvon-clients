@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { FocusTrap } from "@wavvon/ui";
 
 type HubPreview =

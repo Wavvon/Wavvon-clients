@@ -1,4 +1,4 @@
-﻿// App.tsx — Root component
+// App.tsx — Root component
 //
 // React concepts for Blazor devs:
 // - useState(initial) returns [value, setter] — private field + setter

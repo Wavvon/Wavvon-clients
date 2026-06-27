@@ -1,4 +1,4 @@
-﻿use anyhow::Result;
+use anyhow::Result;
 use wavvon_voice::AudioPipeline;
 
 /// Run two instances of this to test P2P voice:

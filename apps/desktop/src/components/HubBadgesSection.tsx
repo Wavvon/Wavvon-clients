@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { HubBadge, PendingBadgeOffer } from "../types";
 import { formatRelative } from "@wavvon/core";

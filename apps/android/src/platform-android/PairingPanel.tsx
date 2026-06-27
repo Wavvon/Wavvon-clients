@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { claimPairingOffer, isPaired } from "./pairing";
 
 export function PairingPanel({ onClose }: { onClose: () => void }) {

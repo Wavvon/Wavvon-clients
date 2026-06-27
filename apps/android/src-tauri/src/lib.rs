@@ -1,4 +1,4 @@
-﻿mod voice_cmd;
+mod voice_cmd;
 use voice_cmd::VoiceState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

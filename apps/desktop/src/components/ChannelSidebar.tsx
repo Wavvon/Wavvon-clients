@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchBar } from "./SearchBar";
 import { WhisperPanel } from "./WhisperPanel";
 import type { WhisperTarget, WhisperList } from "../hooks/useWhisper";

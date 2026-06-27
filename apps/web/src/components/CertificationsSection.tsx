@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { CertIssuance, CertAdmissionSettings } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import {

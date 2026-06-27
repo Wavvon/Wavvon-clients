@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { MemberAdminInfo, RoleInfo } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 

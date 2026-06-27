@@ -1,4 +1,4 @@
-﻿import { CSSProperties, useMemo, useRef, useState } from "react";
+import { CSSProperties, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EMOJI_CATALOG } from "../constants";
 import { loadRecentEmojis, pushRecentEmoji } from "@wavvon/core";

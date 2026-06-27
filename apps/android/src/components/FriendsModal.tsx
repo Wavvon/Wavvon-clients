@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from "react";
+import React, { useEffect } from "react";
 import type { Friend } from "../types";
 import { FocusTrap } from "@wavvon/ui";
 

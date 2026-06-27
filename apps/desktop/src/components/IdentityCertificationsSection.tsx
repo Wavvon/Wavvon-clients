@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { HubCertification } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";

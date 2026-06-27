@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { NamedProfile, User } from "../types";
 import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "../skinValidation";

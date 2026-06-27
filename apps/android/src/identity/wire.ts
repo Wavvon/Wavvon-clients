@@ -1,4 +1,4 @@
-﻿// Wire format helpers — match Rust's write_u32_le / write_u64_le / write_str /
+// Wire format helpers — match Rust's write_u32_le / write_u64_le / write_str /
 // write_str_vec in desktop/src-tauri/src/identity.rs.
 
 function concat(...parts: Uint8Array[]): Uint8Array {

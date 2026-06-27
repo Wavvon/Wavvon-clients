@@ -1,4 +1,4 @@
-﻿import { ed25519 } from "@noble/curves/ed25519";
+import { ed25519 } from "@noble/curves/ed25519";
 import { loadPairedState, savePairedState } from "../identity/store";
 import type { SubkeyCert } from "../identity/store";
 

@@ -1,4 +1,4 @@
-﻿import { sha512 } from "@noble/hashes/sha512";
+import { sha512 } from "@noble/hashes/sha512";
 import { hkdf } from "@noble/hashes/hkdf";
 import { sha256 } from "@noble/hashes/sha256";
 import { gcm } from "@noble/ciphers/aes";

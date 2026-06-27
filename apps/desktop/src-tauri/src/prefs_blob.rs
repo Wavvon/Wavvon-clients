@@ -1,4 +1,4 @@
-﻿use crate::identity::{MasterIdentity, SignedPrefsBlob};
+use crate::identity::{MasterIdentity, SignedPrefsBlob};
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     Aes256Gcm, Nonce,

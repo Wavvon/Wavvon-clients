@@ -1,4 +1,4 @@
-﻿import { rawFetch, hubFetch } from "../http";
+import { rawFetch, hubFetch } from "../http";
 import {
   getSession,
   setSession,

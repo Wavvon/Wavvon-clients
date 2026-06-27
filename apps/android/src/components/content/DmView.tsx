@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
 import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
 import { MessageAttachments, MessageContent, PendingAttachments, TypingIndicator } from "@wavvon/ui";

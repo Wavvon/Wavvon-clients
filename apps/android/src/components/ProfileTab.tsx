@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Hub, NamedProfile } from "../types";
 import { AvatarEditor } from "./AvatarEditor";
 import { Avatar } from "@wavvon/ui";

@@ -1,4 +1,4 @@
-﻿use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
 pub(crate) fn open_mini_app(

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import type { Message, User, RoleInfo, Hub } from "../../types";
 import { MessageRow } from "./MessageRow";
 import { TypingIndicator } from "@wavvon/ui";

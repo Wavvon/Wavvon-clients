@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { addHub, previewHubInfo } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";

@@ -1,4 +1,4 @@
-﻿# Wavvon Web
+# Wavvon Web
 
 The browser client for [Wavvon](https://github.com/Wavvon/Wavvon) — an
 open-source, federated voice + text platform where communities run

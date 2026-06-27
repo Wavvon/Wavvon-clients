@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import type { User } from "../types";
 import { formatPubkey } from "@wavvon/core";
 

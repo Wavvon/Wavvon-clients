@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import type { Message, Attachment, User } from "../../types";
 import { formatPubkey } from "@wavvon/core";
 import { PendingAttachments } from "@wavvon/ui";

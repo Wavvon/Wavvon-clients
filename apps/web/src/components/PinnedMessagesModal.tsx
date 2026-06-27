@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { PinnedMessage } from "../types";
 import { getPins } from "@platform";
 import { formatRelative } from "@wavvon/core";

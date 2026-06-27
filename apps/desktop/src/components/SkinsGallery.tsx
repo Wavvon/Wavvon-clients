@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { validateSkin } from "../skinValidation";
 import type { WavvonSkin } from "../skinValidation";
 

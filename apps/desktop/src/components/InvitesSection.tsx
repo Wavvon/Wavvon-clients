@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { InviteInfo } from "../types";
 import { EXPIRY_OPTIONS } from "../constants";

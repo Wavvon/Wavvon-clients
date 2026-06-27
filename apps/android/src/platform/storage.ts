@@ -1,4 +1,4 @@
-﻿const SAVED_HUBS_KEY = "wavvon:saved_hubs";
+const SAVED_HUBS_KEY = "wavvon:saved_hubs";
 const ACTIVE_HUB_KEY = "wavvon:active_hub";
 const TOKEN_PREFIX = "wavvon:token:";
 

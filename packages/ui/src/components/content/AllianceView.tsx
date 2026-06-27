@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, AllianceSharedChannel } from "../../types";
 import { formatPubkey, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";

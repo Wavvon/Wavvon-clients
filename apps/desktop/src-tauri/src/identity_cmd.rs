@@ -1,4 +1,4 @@
-﻿#![allow(dead_code)]
+#![allow(dead_code)]
 use crate::identity::Identity;
 use crate::local_store::{save_active_hub_id, save_hubs_list};
 use crate::state::{active_session, AppState};

@@ -1,4 +1,4 @@
-﻿// Wavvon desktop Tauri shell — composition root.
+// Wavvon desktop Tauri shell — composition root.
 // All domain logic lives in the modules below. This file wires them together.
 
 mod admin;

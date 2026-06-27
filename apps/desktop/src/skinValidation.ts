@@ -1,4 +1,4 @@
-﻿export type SkinBase = "calm" | "classic" | "linear" | "light";
+export type SkinBase = "calm" | "classic" | "linear" | "light";
 export type ThemeId = SkinBase | "custom";
 
 export interface WavvonSkin {

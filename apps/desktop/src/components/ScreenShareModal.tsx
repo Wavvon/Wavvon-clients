@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ScreenShareOpts } from "../types";
 import { FocusTrap } from "@wavvon/ui";

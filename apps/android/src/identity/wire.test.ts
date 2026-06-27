@@ -1,4 +1,4 @@
-﻿// Canonical wire-format vectors from hub/docs/wire-format.md (enforced
+// Canonical wire-format vectors from hub/docs/wire-format.md (enforced
 // server-side by hub/identity/tests/wire_vectors.rs). These pin the
 // hand-written encoders in wire.ts to the exact bytes the hub produces,
 // so the formats cannot drift apart.

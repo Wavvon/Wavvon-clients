@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { UserProfile } from "../types";
 import { getUserProfile } from "@platform";
 import { formatRelative } from "@wavvon/core";

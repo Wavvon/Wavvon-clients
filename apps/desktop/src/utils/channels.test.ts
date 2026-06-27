@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { buildChannelTree, flattenTree, computeDepth, descendantIds } from "@wavvon/core";
 import type { Channel } from "../types";
 

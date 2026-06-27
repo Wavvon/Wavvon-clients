@@ -1,4 +1,4 @@
-﻿# Wavvon Clients
+# Wavvon Clients
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 

@@ -1,4 +1,4 @@
-﻿// Shared type definitions for the Wavvon desktop client.
+// Shared type definitions for the Wavvon desktop client.
 //
 // These map to the JSON shapes returned by Tauri commands and hub
 // HTTP endpoints. Keep them in sync with the Rust side; a renamed

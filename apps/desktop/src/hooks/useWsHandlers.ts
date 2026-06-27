@@ -1,4 +1,4 @@
-﻿import { useEffect, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { formatPubkey } from "@wavvon/core";
 import type { DmMessage, VoiceParticipant, Conversation, User, BotAppLaunchEvent, BotAppOpenEvent, BotAppCloseEvent } from "../types";

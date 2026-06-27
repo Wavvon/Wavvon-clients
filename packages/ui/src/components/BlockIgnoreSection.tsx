@@ -1,4 +1,4 @@
-﻿import { formatPubkey } from "@wavvon/core";
+import { formatPubkey } from "@wavvon/core";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
 interface Props {

@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import type { User } from "../types";
 import { Avatar } from "@wavvon/ui";
 
