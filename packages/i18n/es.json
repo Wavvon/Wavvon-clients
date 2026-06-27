@@ -384,7 +384,7 @@
   "friends.remove": "Remove",
   "dm.header.title": "Direct Messages",
   "dm.no_selection": "Select a conversation",
-  "dm.no_conversations": "No conversations. Start one from your friends list.",
+  "dm.no_conversations": "Aún no hay mensajes directos. Haz clic en un miembro de la lista de usuarios para iniciar una conversación.",
   "dm.group_banner": "Los DMs de grupo no están cifrados de extremo a extremo. El operador del hub puede leer estos mensajes.",
   "dm.group_banner_detail": "Usa los DMs de grupo solo con personas en las que confíes en este hub.",
   "dm.group_banner_got_it": "Entendido",

@@ -150,9 +150,10 @@ interface WelcomeScreenContainerProps {
   wsHandlers: WsHandlers;
   onHubAdded: (hub: Hub) => void;
   initialHubUrl?: string;
+  onBrowse?: () => void;
 }
 
-export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl }: WelcomeScreenContainerProps) {
+export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, onBrowse }: WelcomeScreenContainerProps) {
   const [hubUrl, setHubUrl] = useState(initialHubUrl ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -205,6 +206,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl }
       loading={loading}
       error={error}
       onJoin={handleJoin}
+      onBrowse={onBrowse}
       homeHubHint={initialHubUrl}
     />
   );

@@ -736,7 +736,13 @@ export default function App() {
         listBotCommands().catch(() => [] as Array<{ command: string; description: string; bot_name: string }>),
         fetchVoiceRoster().catch(() => ({} as Record<string, VoiceParticipant[]>)),
       ]);
-      if (ch.status === "fulfilled") setChannels(ch.value);
+      if (ch.status === "fulfilled") {
+        setChannels(ch.value);
+        if (!selectedChannelRef.current) {
+          const first = ch.value.find((c) => !c.is_category && c.channel_type !== "banner");
+          if (first) setSelectedChannel(first);
+        }
+      }
       if (usr.status === "fulfilled") setUsers(usr.value);
       if (me.status === "fulfilled") {
         const meVal = me.value;
@@ -1376,6 +1382,7 @@ export default function App() {
               void loadHubData();
             }}
             initialHubUrl={homeHubUrl}
+            onBrowse={() => setShowDiscover(true)}
           />
         </div>
       )}
