@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Channel, Message } from "../../types";
+import { PhoneOffIcon } from "../Icons";
 
 interface Props {
   selectedChannel: Channel;
@@ -76,7 +77,7 @@ export function ChannelHeader({
               className="btn-voice-header btn-voice-leave"
               title={t("voice.leave")}
             >
-              🔴 {t("voice.leave.header")}
+              <PhoneOffIcon /> {t("voice.leave.header")}
             </button>
           ) : (
             <button

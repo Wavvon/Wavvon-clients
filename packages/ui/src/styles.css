@@ -3951,7 +3951,7 @@ select:focus-visible {
   font-size: var(--text-md);
 }
 
-.input-area button {
+.input-area button[type="submit"] {
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--r-md);
@@ -3962,7 +3962,7 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.input-area button:hover {
+.input-area button[type="submit"]:hover {
   background: var(--accent-hover);
 }
 
