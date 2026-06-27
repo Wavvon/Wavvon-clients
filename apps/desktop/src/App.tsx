@@ -2466,6 +2466,17 @@ function App() {
             onToggleIgnore={toggleIgnoreUser}
             onToast={setToast}
             onJoinHub={handleDiscoverJoin}
+            allRoles={isAdmin ? adminRoles : undefined}
+            memberRoleIds={isAdmin
+              ? new Set(
+                  adminMembers
+                    .find((m) => m.public_key === userContextMenu.user.public_key)
+                    ?.roles.map((r) => r.id) ?? []
+                )
+              : undefined}
+            onToggleRole={isAdmin
+              ? (roleId, hasRole) => handleToggleRoleAssignment(userContextMenu.user.public_key, roleId, hasRole)
+              : undefined}
           />
         )}
 
