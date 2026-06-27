@@ -164,6 +164,7 @@
   "settings.account.public_profile.saved": "Salvato",
   "settings.voice.microphone": "Microfono",
   "settings.voice.speaker": "Altoparlante",
+  "settings.voice.camera": "Webcam",
   "settings.voice.system_default": "Predefinito di sistema",
   "settings.voice.sensitivity.label": "Sensibilità microfono — soglia {value}",
   "settings.voice.sensitivity.hint": "Trascina il marcatore. La voce viene rilevata quando la barra verde lo supera. L'animazione appare solo in voce o durante un test microfono. Le modifiche si applicano al prossimo canale vocale.",

@@ -164,6 +164,7 @@
   "settings.account.public_profile.saved": "Saved",
   "settings.voice.microphone": "Mikrofon",
   "settings.voice.speaker": "Lautsprecher",
+  "settings.voice.camera": "Kamera",
   "settings.voice.system_default": "System default",
   "settings.voice.sensitivity.label": "Mic sensitivity — threshold {value}",
   "settings.voice.sensitivity.hint": "Drag the marker. Voice is detected when the green bar crosses it. Fill animates only while you're in voice or running a mic test. Changes apply on the next voice channel you join.",

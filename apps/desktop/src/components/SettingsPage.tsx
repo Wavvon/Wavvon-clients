@@ -108,6 +108,9 @@ export interface SettingsPageProps {
   backgroundMode: BackgroundMode;
   onChangeBackground: (mode: BackgroundMode) => void;
   onImportSkin: (skin: WavvonSkin) => void;
+  videoInputs: { deviceId: string; label: string }[];
+  videoInputDevice: string;
+  onVideoInputDeviceChange: (v: string) => void;
 }
 
 export function SettingsPage(props: SettingsPageProps) {
@@ -383,6 +386,23 @@ export function SettingsPage(props: SettingsPageProps) {
                     >
                       <option value="">{t("settings.voice.system_default")}</option>
                       {props.mediaOutputDevices.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+              {props.videoInputs.length > 0 && (
+                <div className="voice-devices-row" style={{ marginTop: "var(--space-3)" }}>
+                  <div>
+                    <label className="settings-label" htmlFor="settings-camera">{t("settings.voice.camera", "Camera")}</label>
+                    <select
+                      id="settings-camera"
+                      value={props.videoInputDevice}
+                      onChange={(e) => props.onVideoInputDeviceChange(e.target.value)}
+                    >
+                      <option value="">{t("settings.voice.system_default")}</option>
+                      {props.videoInputs.map((d) => (
                         <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
                       ))}
                     </select>

@@ -29,6 +29,26 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
   const [pinnedPubkey, setPinnedPubkey] = useState<string | null>(null);
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("none");
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [videoInputs, setVideoInputs] = useState<{ deviceId: string; label: string }[]>([]);
+  const [videoInputDevice, setVideoInputDeviceState] = useState<string>(
+    () => localStorage.getItem("wavvon.cameraDevice") ?? ""
+  );
+
+  useEffect(() => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      setVideoInputs(
+        devices
+          .filter((d) => d.kind === "videoinput" && d.deviceId !== "")
+          .map((d) => ({ deviceId: d.deviceId, label: d.label || d.deviceId.slice(0, 8) }))
+      );
+    }).catch(() => {});
+  }, []);
+
+  function setVideoInputDevice(deviceId: string) {
+    setVideoInputDeviceState(deviceId);
+    localStorage.setItem("wavvon.cameraDevice", deviceId);
+  }
 
   const peers = useRef<Map<string, PeerEntry>>(new Map());
   const speakerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -217,8 +237,9 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
 
   async function enableVideo(deviceId?: string) {
     if (!voiceChannelIdRef.current) return;
+    const targetDevice = deviceId ?? (videoInputDevice || undefined);
     try {
-      const videoConstraint = deviceId ? { deviceId: { exact: deviceId } } : true;
+      const videoConstraint = targetDevice ? { deviceId: { exact: targetDevice } } : true;
       const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
       setRawStream(stream);
       const proc = new BackgroundProcessor(stream);
@@ -294,5 +315,8 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     disableVideo,
     switchCamera,
     changeBackground,
+    videoInputs,
+    videoInputDevice,
+    setVideoInputDevice,
   };
 }

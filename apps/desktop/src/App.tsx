@@ -1897,6 +1897,9 @@ function App() {
             onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
             backgroundMode={video.backgroundMode}
             onChangeBackground={video.changeBackground}
+            videoInputs={video.videoInputs}
+            videoInputDevice={video.videoInputDevice}
+            onVideoInputDeviceChange={video.setVideoInputDevice}
             hasActiveHub={hasActiveHub}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}
