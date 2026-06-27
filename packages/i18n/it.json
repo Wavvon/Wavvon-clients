@@ -44,6 +44,7 @@
   "channel.create.description_placeholder": "Descrizione del canale (opzionale) — mostrata nell'intestazione del canale",
   "channel.add_description": "Aggiungi una descrizione…",
   "channel.ctx.create_here": "Crea qui…",
+  "channel.ctx.edit_banner": "Modifica banner…",
   "channel.ctx.rename": "Rinomina canale…",
   "channel.ctx.appearance": "Modifica aspetto…",
   "channel.ctx.notifications": "Notifiche",

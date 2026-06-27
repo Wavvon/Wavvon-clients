@@ -125,6 +125,7 @@ pub fn run() {
             channels::set_typing,
             channels::set_dm_typing,
             channels::patch_channel_banner_file,
+            channels::patch_channel_banner_url,
             // Messages
             messages::get_messages,
             messages::get_thread_replies,

@@ -44,6 +44,7 @@
   "channel.create.description_placeholder": "Channel description (optional) — shown in the channel header",
   "channel.add_description": "Add a description…",
   "channel.ctx.create_here": "Create here…",
+  "channel.ctx.edit_banner": "Edit banner…",
   "channel.ctx.rename": "Rename channel…",
   "channel.ctx.appearance": "Edit appearance…",
   "channel.ctx.notifications": "Notifications",

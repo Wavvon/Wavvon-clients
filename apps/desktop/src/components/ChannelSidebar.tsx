@@ -30,7 +30,7 @@ import type {
 } from "../types";
 import type { TreeNode, FlatNode } from "@wavvon/core";
 import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
-import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
+import { SortableBannerItem, SortableCategoryItem, SortableChannelItem } from "./SortableItems";
 import { HoverSubmenu } from "@wavvon/ui";
 
 const CHANNEL_INDENT_PX = 16;
@@ -380,14 +380,12 @@ export function ChannelSidebar({
                       const src = n.node.banner_url ?? (n.node.banner_file_id ? `${hubUrl}/uploads/${n.node.banner_file_id}` : null);
                       if (!src) return null;
                       return (
-                        <li key={n.node.id} style={{ padding: "4px 0", listStyle: "none" }}>
-                          <img
-                            src={src}
-                            alt=""
-                            style={{ width: "100%", height: "auto", display: "block", borderRadius: 4 }}
-                            draggable={false}
-                          />
-                        </li>
+                        <SortableBannerItem
+                          key={n.node.id}
+                          channel={n.node}
+                          src={src}
+                          onContextMenu={isAdmin ? (e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); } : undefined}
+                        />
                       );
                     })() : (
                       <SortableChannelItem

@@ -100,6 +100,42 @@ function VoiceParticipantRow({
   );
 }
 
+export function SortableBannerItem({
+  channel,
+  src,
+  onContextMenu,
+}: {
+  channel: Channel;
+  src: string;
+  onContextMenu?: (e: React.MouseEvent) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: channel.id });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{
+        padding: "4px 0",
+        listStyle: "none",
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+      onContextMenu={onContextMenu}
+      {...attributes}
+      {...listeners}
+    >
+      <img
+        src={src}
+        alt=""
+        style={{ width: "100%", height: "auto", display: "block", borderRadius: 4 }}
+        draggable={false}
+      />
+    </li>
+  );
+}
+
 export function SortableChannelItem({
   channel,
   activeHubId,

@@ -91,6 +91,7 @@ import { EditDescriptionModal } from "./components/EditDescriptionModal";
 import { ChannelContextMenu } from "./components/ChannelContextMenu";
 import { ChannelSettingsModal } from "./components/ChannelSettingsModal";
 import { ChannelAppearanceModal } from "./components/ChannelAppearanceModal";
+import { BannerEditModal } from "./components/BannerEditModal";
 import { UserContextMenu } from "./components/UserContextMenu";
 import { HubSidebar } from "./components/HubSidebar";
 import { ChannelSidebar } from "./components/ChannelSidebar";
@@ -613,6 +614,7 @@ function App() {
 
   const [appearanceChannel, setAppearanceChannel] = useState<Channel | null>(null);
   const [channelSettingsModal, setChannelSettingsModal] = useState<Channel | null>(null);
+  const [bannerEditChannel, setBannerEditChannel] = useState<Channel | null>(null);
 
   // Channel-bans dialog. Stores the channel we're managing bans for so the
   // modal can fetch + mutate without round-tripping through context menu state.
@@ -1632,6 +1634,17 @@ function App() {
     setAppearanceChannel(channel);
   }
 
+  async function handleSaveBannerUrl(channelId: string, bannerUrl: string) {
+    try {
+      await invoke("patch_channel_banner_url", { channelId, bannerUrl });
+      setChannels((prev) =>
+        prev.map((c) => (c.id === channelId ? { ...c, banner_url: bannerUrl, banner_file_id: null } : c))
+      );
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   async function handleSaveAppearance(channel: Channel, icon: string | null, color: string | null, customIconSvg: string | null) {
     try {
       await invoke("update_channel_appearance", { channelId: channel.id, icon, color, customIconSvg });
@@ -2384,6 +2397,7 @@ function App() {
             onOpenCreateChannel={openCreateChannelUnder}
             onEditAppearance={handleEditAppearance}
             onDelete={handleDeleteChannel}
+            onEditBanner={(ch) => { setContextMenu(null); setBannerEditChannel(ch); }}
           />
         )}
 
@@ -2402,6 +2416,14 @@ function App() {
             channel={appearanceChannel}
             onSave={(icon, color, customIconSvg) => handleSaveAppearance(appearanceChannel, icon, color, customIconSvg)}
             onClose={() => setAppearanceChannel(null)}
+          />
+        )}
+
+        {bannerEditChannel && (
+          <BannerEditModal
+            channel={bannerEditChannel}
+            onSave={handleSaveBannerUrl}
+            onClose={() => setBannerEditChannel(null)}
           />
         )}
 

@@ -13,12 +13,13 @@ interface Props {
   onOpenCreateChannel: (parentId: string | null) => void;
   onEditAppearance: (channel: Channel) => void;
   onDelete: (channelId: string) => void;
+  onEditBanner?: (channel: Channel) => void;
 }
 
 export function ChannelContextMenu({
   menu, activeHubId, effectiveNotifyMode,
   onClose, onRename,
-  onSetMode, onOpenCreateChannel, onEditAppearance, onDelete,
+  onSetMode, onOpenCreateChannel, onEditAppearance, onDelete, onEditBanner,
 }: Props) {
   const { t } = useTranslation();
   const { x, y, channel } = menu;
@@ -34,7 +35,15 @@ export function ChannelContextMenu({
         style={{ top: y, left: x }}
         onClick={(e) => e.stopPropagation()}
       >
-        {!channel.is_category && (
+        {channel.channel_type === "banner" && onEditBanner && (
+          <button
+            className="context-menu-item"
+            onClick={() => { onClose(); onEditBanner(channel); }}
+          >
+            {t("channel.ctx.edit_banner")}
+          </button>
+        )}
+        {!channel.is_category && channel.channel_type !== "banner" && (
           <button
             className="context-menu-item"
             onClick={() => { onClose(); onRename(channel); }}
@@ -58,7 +67,7 @@ export function ChannelContextMenu({
             </button>
           </>
         )}
-        {activeHubId && (
+        {activeHubId && channel.channel_type !== "banner" && (
           <HoverSubmenu
             trigger={<button className="context-menu-item context-menu-submenu-trigger">{t("channel.ctx.notifications")} ▸</button>}
             triggerClassName="context-menu-submenu-wrap"

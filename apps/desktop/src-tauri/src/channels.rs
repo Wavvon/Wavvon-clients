@@ -259,3 +259,24 @@ pub(crate) async fn patch_channel_banner_file(
     }
     Ok(())
 }
+
+#[tauri::command]
+pub(crate) async fn patch_channel_banner_url(
+    channel_id: String,
+    banner_url: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .patch(format!("{hub_url}/channels/{channel_id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "banner_url": banner_url }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
