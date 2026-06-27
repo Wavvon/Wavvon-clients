@@ -84,8 +84,8 @@ interface Props {
   onOpenSettings: () => void;
   onDragEnd: (event: DragEndEvent) => void;
   onToggleHideSilenced?: () => void;
-  sharing: boolean;
-  onScreenShare: () => void;
+  sharing?: boolean;
+  onScreenShare?: () => void;
 }
 
 export function ChannelSidebar({
@@ -518,7 +518,11 @@ export function ChannelSidebar({
                   aria-label={selfMuted ? t("voice.unmute") : t("voice.mute")}
                   title={selfMuted ? t("voice.unmute.short") : t("voice.mute.short")}
                 >
-                  {selfMuted ? "🚫🎙️" : "🎙️"}
+                  {selfMuted ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 2l20 20-1.4 1.4-3.07-3.07A8 8 0 0 1 4.07 11H6a6 6 0 0 0 8.93 5.52l-1.56-1.56A4 4 0 0 1 8 12V9.41L3.4 4.82 2 3.41 3.41 2zM13 5.17V6a4 4 0 0 1 .83 7.9L12 12.07V6a1.98 1.98 0 0 0-2.92-1.75L7.64 2.82A4 4 0 0 1 13 5.17zm-1 13.76V22h-2v-3.07A8 8 0 0 1 5.08 13h1.95A6 6 0 0 0 12 18.93z"/></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4zm-1 16.93A8 8 0 0 1 4.07 11H6a6 6 0 0 0 12 0h1.93A8 8 0 0 1 13 18.93V22h-2v-3.07z"/></svg>
+                  )}
                 </button>
                 <button
                   onClick={onToggleSelfDeafen}
@@ -527,15 +531,22 @@ export function ChannelSidebar({
                   aria-label={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}
                   title={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}
                 >
-                  {selfDeafened ? "🚫🔊" : "🔊"}
+                  <svg
+                    width="16" height="16" viewBox="0 0 24 24" fill="currentColor"
+                    style={selfDeafened ? { opacity: 0.4 } : undefined}
+                  >
+                    <path d="M12 3a9 9 0 0 0-9 9v5a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H5v-2a7 7 0 0 1 14 0v2h-2a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-5a9 9 0 0 0-9-9z"/>
+                  </svg>
                 </button>
-                <button
-                  onClick={onScreenShare}
-                  className={`btn-icon-gear ${sharing ? "active" : ""}`}
-                  title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
-                >
-                  {sharing ? "⏹" : "🖥"}
-                </button>
+                {onScreenShare && (
+                  <button
+                    onClick={onScreenShare}
+                    className={`btn-icon-gear ${sharing ? "active" : ""}`}
+                    title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6l-1 3h6l-1-3h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12z"/></svg>
+                  </button>
+                )}
                 <button
                   onClick={onVoiceLeave}
                   className="btn-icon-gear voice-call-btn end"

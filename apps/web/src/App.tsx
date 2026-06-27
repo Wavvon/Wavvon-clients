@@ -1577,8 +1577,6 @@ export default function App() {
         onToggleSelfDeafen={handleToggleDeafen}
         onOpenSettings={() => setShowSettings(true)}
         onDragEnd={handleChannelDragEnd}
-        sharing={false}
-        onScreenShare={() => {}}
       />
 
       {activeOpenApp && (
