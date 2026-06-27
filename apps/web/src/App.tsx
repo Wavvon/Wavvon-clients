@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useUnreadCounts } from "./hooks/useUnreadCounts";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -182,6 +183,7 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
 // ---- App ----
 
 export default function App() {
+  const { t } = useTranslation();
   // === Identity ===
   const [ready, setReady] = useState<"checking" | "setup" | "ok">("checking");
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -1771,28 +1773,28 @@ export default function App() {
           >
             {isAdmin && channelCtxMenu.channel.is_category && (
               <button className="context-menu-item" onClick={() => { const ch = channelCtxMenu; setChannelCtxMenu(null); setCreateChannelCtx({ parentId: ch.channel.id, isCategory: false }); setCreateChannelError(null); }}>
-                Create channel in "{channelCtxMenu.channel.name}"
+                {t("channel.ctx.create_in", { name: channelCtxMenu.channel.name })}
               </button>
             )}
             {isAdmin && (
               <button className="context-menu-item" onClick={() => { setChannelCtxMenu(null); setCreateChannelCtx({ parentId: null, isCategory: false }); setCreateChannelError(null); }}>
-                Create channel
+                {t("channel.create.button")}
               </button>
             )}
             {isAdmin && (
               <button className="context-menu-item" onClick={() => { setChannelCtxMenu(null); setCreateChannelCtx({ parentId: null, isCategory: true }); setCreateChannelError(null); }}>
-                Create category
+                {t("channel.ctx.create_category")}
               </button>
             )}
             {isAdmin && <hr style={{ margin: "4px 0", border: "none", borderTop: "1px solid var(--border)" }} />}
             {isAdmin && (
               <button className="context-menu-item" onClick={() => { const ch = channelCtxMenu!.channel; setChannelCtxMenu(null); setChannelSettingsCtx(ch); setChannelSettingsError(null); }}>
-                Edit "{channelCtxMenu.channel.name}"
+                {t("channel.ctx.edit_name", { name: channelCtxMenu.channel.name })}
               </button>
             )}
             {isAdmin && (
               <button className="context-menu-item danger" onClick={() => { const ch = channelCtxMenu!.channel; setChannelCtxMenu(null); setChannelSettingsCtx(ch); setChannelSettingsError(null); }}>
-                Delete "{channelCtxMenu.channel.name}"
+                {t("channel.ctx.delete_name", { name: channelCtxMenu.channel.name })}
               </button>
             )}
           </div>

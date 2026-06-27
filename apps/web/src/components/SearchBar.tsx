@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { hubFetch } from "@platform";
 
 export interface GlobalSearchResult {
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function SearchBar({ onClose, onNavigate }: Props) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -88,10 +90,10 @@ export function SearchBar({ onClose, onNavigate }: Props) {
           <input
             ref={inputRef}
             className="global-search-input"
-            placeholder="Search messages..."
+            placeholder={t("search.placeholder")}
             value={query}
             onChange={handleChange}
-            aria-label="Search messages"
+            aria-label={t("search.placeholder")}
             aria-expanded={results.length > 0}
             aria-haspopup="listbox"
             role="combobox"
@@ -103,7 +105,7 @@ export function SearchBar({ onClose, onNavigate }: Props) {
           <button
             onClick={onClose}
             className="btn-ghost"
-            aria-label="Close search"
+            aria-label={t("channel.search.close")}
             style={{ padding: "4px 8px" }}
           >
             Esc
@@ -142,7 +144,7 @@ export function SearchBar({ onClose, onNavigate }: Props) {
 
         {query.trim().length >= 2 && !loading && results.length === 0 && (
           <p className="muted" style={{ padding: "8px 12px", margin: 0, fontSize: "var(--text-sm)" }}>
-            No results found.
+            {t("search.no_results")}
           </p>
         )}
       </div>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FocusTrap } from "@wavvon/ui";
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 type ChannelKind = "text" | "forum" | "banner" | "category";
 
 export function CreateChannelModal({ initialIsCategory, parentId, parentName, loading, error, onSubmit, onClose }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<ChannelKind>(initialIsCategory ? "category" : "text");
   const [description, setDescription] = useState("");
@@ -35,30 +37,30 @@ export function CreateChannelModal({ initialIsCategory, parentId, parentName, lo
           aria-labelledby="create-channel-title"
           onClick={(e) => e.stopPropagation()}
         >
-          <h3 id="create-channel-title">Create Channel</h3>
+          <h3 id="create-channel-title">{t("channel.create.title_channel")}</h3>
 
           {parentName && (
             <p className="muted" style={{ marginBottom: "var(--space-3)", fontSize: "var(--text-sm)" }}>
-              Under <strong>{parentName}</strong>
+              <strong>{t("channel.create.under_category", { name: parentName })}</strong>
             </p>
           )}
 
           <label style={{ display: "block", marginBottom: "var(--space-2)" }}>
-            <span className="label-text">Type</span>
+            <span className="label-text">{t("channel.create.type_label")}</span>
             <select
               value={kind}
               onChange={(e) => setKind(e.target.value as ChannelKind)}
               style={{ display: "block", width: "100%", marginTop: 4 }}
             >
-              <option value="text">Text</option>
-              <option value="forum">Forum</option>
-              <option value="banner">Banner</option>
-              <option value="category">Category</option>
+              <option value="text">{t("channel.create.type_text")}</option>
+              <option value="forum">{t("channel.create.type_forum")}</option>
+              <option value="banner">{t("channel.create.type_banner")}</option>
+              <option value="category">{t("channel.create.type_category")}</option>
             </select>
           </label>
 
           <label style={{ display: "block", marginBottom: "var(--space-2)" }}>
-            <span className="label-text">Name</span>
+            <span className="label-text">{t("channel.create.name_label")}</span>
             <input
               type="text"
               value={name}
@@ -67,7 +69,7 @@ export function CreateChannelModal({ initialIsCategory, parentId, parentName, lo
                 if (e.key === "Enter") handleSubmit();
                 if (e.key === "Escape") onClose();
               }}
-              placeholder={isCategory ? "e.g. General" : "e.g. announcements"}
+              placeholder={isCategory ? t("channel.create.name_placeholder_category") : t("channel.create.name_placeholder_channel")}
               autoFocus
               style={{ display: "block", width: "100%", marginTop: 4 }}
             />
@@ -75,7 +77,7 @@ export function CreateChannelModal({ initialIsCategory, parentId, parentName, lo
 
           {!isCategory && (
             <label style={{ display: "block", marginBottom: "var(--space-3)" }}>
-              <span className="label-text">Description (optional)</span>
+              <span className="label-text">{t("channel.create.description_label")}</span>
               <input
                 type="text"
                 value={description}
@@ -84,16 +86,16 @@ export function CreateChannelModal({ initialIsCategory, parentId, parentName, lo
                   if (e.key === "Enter") handleSubmit();
                   if (e.key === "Escape") onClose();
                 }}
-                placeholder="What's this channel for?"
+                placeholder={t("channel.create.description_hint")}
                 style={{ display: "block", width: "100%", marginTop: 4 }}
               />
             </label>
           )}
 
           <div className="modal-actions">
-            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button onClick={onClose} className="btn-secondary">{t("modal.cancel")}</button>
             <button onClick={handleSubmit} disabled={loading || !name.trim()}>
-              {loading ? "Creating…" : "Create"}
+              {loading ? t("modal.creating") : t("modal.create")}
             </button>
           </div>
 

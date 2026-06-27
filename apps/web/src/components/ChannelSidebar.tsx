@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   DragEndEvent,
@@ -148,10 +149,17 @@ export function ChannelSidebar({
 
   const activeNode = activeId ? flatVisible.find((n) => n.node.id === activeId) : null;
 
+  const { t } = useTranslation();
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
   const myDisplayName = users.find((u) => u.public_key === publicKey)?.display_name;
   const activePing = activeHubId ? pingByHub[activeHubId] : undefined;
   const voiceChannelName = channels.find((c) => c.id === voiceChannelId)?.name;
+
+  const notifyModeLabels: Record<NotifyMode, string> = {
+    all: t("hub.notifications.all"),
+    mentions: t("hub.notifications.mentions"),
+    silent: t("hub.notifications.silent"),
+  };
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
@@ -209,7 +217,7 @@ export function ChannelSidebar({
   }, [flatVisible, activeHubId, collapsedCategories, onToggleCategoryCollapsed, onSelectChannel]);
 
   return (
-    <nav className="sidebar" aria-label="Channels">
+    <nav className="sidebar" aria-label={t("channel.sidebar.label")}>
       {view === "channels" && (
         <div className="hub-header" ref={hubHeaderRef}>
           <button
@@ -223,32 +231,28 @@ export function ChannelSidebar({
             <div className="hub-dropdown">
               {isAdmin && (
                 <button className="hub-dropdown-item" onClick={onOpenHubAdminInvites}>
-                  Invite people
+                  {t("hub.invite_people")}
                 </button>
               )}
               {isAdmin && (
                 <button className="hub-dropdown-item" onClick={onOpenHubAdmin}>
-                  Hub settings
+                  {t("hub.settings")}
                 </button>
               )}
               {isAdmin && (
                 <button className="hub-dropdown-item" onClick={() => { onHubDropdownOpenChange(false); onOpenCreateChannel(null, false); }}>
-                  Create…
+                  {t("hub.create_channel")}
                 </button>
               )}
               <HoverSubmenu
-                trigger={<button className="hub-dropdown-item hub-dropdown-submenu-trigger">Notifications ▸</button>}
+                trigger={<button className="hub-dropdown-item hub-dropdown-submenu-trigger">{t("hub.notifications")} ▸</button>}
               >
                 {activeHubId && (() => {
                   const cur = hubNotifyMode[activeHubId] ?? "all";
-                  return ([
-                    { mode: "all" as NotifyMode, label: "All messages" },
-                    { mode: "mentions" as NotifyMode, label: "@mentions only" },
-                    { mode: "silent" as NotifyMode, label: "Silence" },
-                  ]).map(({ mode, label }) => (
+                  return (["all", "mentions", "silent"] as NotifyMode[]).map((mode) => (
                     <button key={mode} className="hub-dropdown-item hub-dropdown-subitem"
                       onClick={() => { onHubDropdownOpenChange(false); onSetHubMode(activeHubId, mode); }}>
-                      {cur === mode ? "✓ " : "   "}{label}
+                      {cur === mode ? "✓ " : "   "}{notifyModeLabels[mode]}
                     </button>
                   ));
                 })()}
@@ -257,7 +261,7 @@ export function ChannelSidebar({
                 className="hub-dropdown-item"
                 onClick={() => { onHubDropdownOpenChange(false); onToggleHideSilenced?.(); }}
               >
-                {hideSilenced ? "✓ " : ""}Hide silenced channels
+                {hideSilenced ? "✓ " : ""}{t("hub.hide_silenced")}
               </button>
               {activeHubId && Object.keys(unreadByChannel[activeHubId] ?? {}).length > 0 && (
                 <button
@@ -267,7 +271,7 @@ export function ChannelSidebar({
                     onClearHubUnread(activeHubId);
                   }}
                 >
-                  Mark all as read
+                  {t("hub.mark_all_read")}
                 </button>
               )}
               <button
@@ -277,7 +281,7 @@ export function ChannelSidebar({
                   if (activeHubId) onRemoveHub(activeHubId);
                 }}
               >
-                Leave hub
+                {t("hub.leave")}
               </button>
             </div>
           )}
@@ -403,8 +407,8 @@ export function ChannelSidebar({
         ) : (
           <>
             <div className="sidebar-header">
-              <h3>Direct Messages</h3>
-              <button className="btn-icon" onClick={onOpenFriends} title="Friends">
+              <h3>{t("dm.header.title")}</h3>
+              <button className="btn-icon" onClick={onOpenFriends} title={t("friends.title")}>
                 👥
               </button>
             </div>
@@ -433,7 +437,7 @@ export function ChannelSidebar({
                 })}
             </ul>
             {conversations.length === 0 && (
-              <p className="muted">No conversations. Start one from your friends list.</p>
+              <p className="muted">{t("dm.no_conversations")}</p>
             )}
           </>
         )}
@@ -452,49 +456,45 @@ export function ChannelSidebar({
           >
             {isAdmin && (
               <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); onOpenCreateChannel(null, false); }}>
-                Create…
+                {t("hub.create_channel")}
               </button>
             )}
             {isAdmin && (
               <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); onOpenHubAdminInvites(); }}>
-                Invite people
+                {t("hub.invite_people")}
               </button>
             )}
             {isAdmin && (
               <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); onOpenHubAdmin(); }}>
-                Hub settings
+                {t("hub.settings")}
               </button>
             )}
             <button
               className="context-menu-item"
               onClick={() => { setHubCtxMenu(null); onToggleHideSilenced?.(); }}
             >
-              {hideSilenced ? "✓ " : ""}Hide silenced channels
+              {hideSilenced ? "✓ " : ""}{t("hub.hide_silenced")}
             </button>
             <HoverSubmenu
-              trigger={<button className="context-menu-item context-menu-submenu-trigger">Notifications ▸</button>}
+              trigger={<button className="context-menu-item context-menu-submenu-trigger">{t("hub.notifications")} ▸</button>}
             >
               {activeHubId && (() => {
                 const cur = hubNotifyMode[activeHubId] ?? "all";
-                return ([
-                  { mode: "all" as NotifyMode, label: "All messages" },
-                  { mode: "mentions" as NotifyMode, label: "@mentions only" },
-                  { mode: "silent" as NotifyMode, label: "Silence" },
-                ]).map(({ mode, label }) => (
+                return (["all", "mentions", "silent"] as NotifyMode[]).map((mode) => (
                   <button key={mode} className="context-menu-item context-menu-subitem"
                     onClick={() => { setHubCtxMenu(null); onSetHubMode(activeHubId, mode); }}>
-                    {cur === mode ? "✓ " : "   "}{label}
+                    {cur === mode ? "✓ " : "   "}{notifyModeLabels[mode]}
                   </button>
                 ));
               })()}
             </HoverSubmenu>
             {activeHubId && Object.keys(unreadByChannel[activeHubId] ?? {}).length > 0 && (
               <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); if (activeHubId) onClearHubUnread(activeHubId); }}>
-                Mark all as read
+                {t("hub.mark_all_read")}
               </button>
             )}
             <button className="context-menu-item danger" onClick={() => { setHubCtxMenu(null); if (activeHubId) onRemoveHub(activeHubId); }}>
-              Leave hub
+              {t("hub.leave")}
             </button>
           </div>
         </div>
@@ -515,8 +515,8 @@ export function ChannelSidebar({
                   onClick={onToggleSelfMute}
                   className={`btn-icon-gear ${selfMuted ? "active" : ""}`}
                   aria-pressed={selfMuted}
-                  aria-label={selfMuted ? "Unmute microphone" : "Mute microphone"}
-                  title={selfMuted ? "Unmute mic" : "Mute mic"}
+                  aria-label={selfMuted ? t("voice.unmute") : t("voice.mute")}
+                  title={selfMuted ? t("voice.unmute.short") : t("voice.mute.short")}
                 >
                   {selfMuted ? "🚫🎙️" : "🎙️"}
                 </button>
@@ -524,23 +524,23 @@ export function ChannelSidebar({
                   onClick={onToggleSelfDeafen}
                   className={`btn-icon-gear ${selfDeafened ? "active" : ""}`}
                   aria-pressed={selfDeafened}
-                  aria-label={selfDeafened ? "Undeafen" : "Deafen"}
-                  title={selfDeafened ? "Undeafen" : "Deafen"}
+                  aria-label={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}
+                  title={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}
                 >
                   {selfDeafened ? "🚫🔊" : "🔊"}
                 </button>
                 <button
                   onClick={onScreenShare}
                   className={`btn-icon-gear ${sharing ? "active" : ""}`}
-                  title={sharing ? "Stop sharing" : "Share screen"}
+                  title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
                 >
                   {sharing ? "⏹" : "🖥"}
                 </button>
                 <button
                   onClick={onVoiceLeave}
                   className="btn-icon-gear voice-call-btn end"
-                  title="Leave voice"
-                  aria-label="Leave voice"
+                  title={t("voice.leave")}
+                  aria-label={t("voice.leave")}
                 >
                   <PhoneOffIcon />
                 </button>
@@ -556,7 +556,7 @@ export function ChannelSidebar({
               {myDisplayName || publicKey?.slice(0, 12) || "You"}
             </span>
           </div>
-          <button onClick={onOpenSettings} className="btn-icon-gear" title="Settings">
+          <button onClick={onOpenSettings} className="btn-icon-gear" title={t("settings.title")}>
             ⚙
           </button>
         </div>
