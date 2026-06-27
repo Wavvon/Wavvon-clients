@@ -105,6 +105,7 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<"choose" | "generated" | "recover">("choose");
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
+  const [showHexBackup, setShowHexBackup] = useState(false);
   const [phrase, setPhrase] = useState("");
   const [hexInput, setHexInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +142,16 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
         <h2>Save your recovery phrase</h2>
         <p className="muted">Write these 24 words down and store them somewhere safe. Anyone with this phrase can control your identity.</p>
         <div style={{ background: "var(--bg-elevated)", padding: 16, borderRadius: "var(--r-md)", fontFamily: "monospace", lineHeight: 1.8, marginBottom: 16 }}>{generatedPhrase}</div>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>Seed hex (alternative backup): <code>{generatedSeed}</code></p>
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: "inherit", padding: 0, textDecoration: "underline" }}
+            onClick={() => setShowHexBackup((v) => !v)}
+          >
+            {showHexBackup ? "Hide" : "Show"} seed hex (alternative backup)
+          </button>
+          {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
+        </p>
         <button className="btn-primary" onClick={onComplete} style={{ marginTop: 16 }}>
           I saved my phrase — Continue
         </button>
