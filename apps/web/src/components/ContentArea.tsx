@@ -18,7 +18,7 @@ import { UserListGrouped } from "./UserListGrouped";
 import { BotCard } from "./BotCard";
 import { UserProfileCard } from "./UserProfileCard";
 import { PinnedMessagesModal } from "./PinnedMessagesModal";
-import { hubFetch } from "@platform";
+import { hubFetch, getPolls } from "@platform";
 import { activeSession } from "../platform/session";
 import { ScreenShareViewer } from "./ScreenShareViewer";
 import type { ScreenShareViewerRef } from "./ScreenShareViewer";
@@ -209,7 +209,10 @@ export function ContentArea({
   useEffect(() => {
     setChannelPolls([]);
     setActiveContentTab("messages");
-  }, [selectedChannel?.id]);
+    if (selectedChannel) {
+      getPolls(selectedChannel.id).then(setChannelPolls).catch(() => {});
+    }
+  }, [selectedChannel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function persistExpandedThreads(next: Set<string>) {
     if (!selectedChannel) return;
