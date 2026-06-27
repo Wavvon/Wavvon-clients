@@ -218,7 +218,7 @@ export function SortableChannelItem({
         aria-label={channelAriaLabel}
       >
         {unread && <span className="channel-unread-dot" aria-hidden="true" />}
-        <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} />
+        <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
         {channel.channel_type === "forum" && (
           <span className="forum-type-badge" title="Forum channel" aria-label="Forum channel">📋</span>
         )}

@@ -140,7 +140,7 @@ export function SortableChannelItem({
         aria-label={channelAriaLabel}
       >
         {unread && <span className="channel-unread-dot" aria-hidden="true" />}
-        <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} />
+        <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
         {" "}{channel.name}
         {activeHubId && hasDraft(`${activeHubId}/${channel.id}`) && (
           <span className="channel-draft-badge" title="Unsent draft">Draft</span>

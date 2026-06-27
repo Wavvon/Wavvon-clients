@@ -437,7 +437,7 @@ export function ContentArea({
             isAdmin={isAdmin}
           />
         ) : selectedChannel ? (
-          <>
+          <div className="chat-column">
             <ChannelHeader
               selectedChannel={selectedChannel}
               voiceChannelId={voiceChannelId}
@@ -564,7 +564,7 @@ export function ContentArea({
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
             /></>}
-          </>
+          </div>
         ) : selectedAllianceChannel ? (
           <AllianceView
             selectedAllianceChannel={selectedAllianceChannel}
