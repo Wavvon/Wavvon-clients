@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   BanInfo,
   Channel,
@@ -73,6 +74,7 @@ function hubToWavvonUrl(hubUrl: string): string {
 }
 
 export function HubAdminPage(props: HubAdminPageProps) {
+  const { t } = useTranslation();
   const [copiedShare, setCopiedShare] = useState(false);
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
@@ -90,7 +92,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     try {
       await submitToDirectory(
         dirUrl,
-        dirTags.split(",").map((t) => t.trim()).filter(Boolean),
+        dirTags.split(",").map((s) => s.trim()).filter(Boolean),
         dirLanguage.trim() || "en",
         dirBio,
         dirInviteCode.trim() || null,
@@ -103,23 +105,23 @@ export function HubAdminPage(props: HubAdminPageProps) {
   }
 
   const TABS: { id: HubAdminTab; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "discovery", label: "Discovery" },
-    { id: "tags", label: "Tags & Badges" },
-    { id: "roles", label: "Roles" },
-    { id: "members", label: "Members" },
-    { id: "bans", label: "Bans" },
-    { id: "invites", label: "Invites" },
-    { id: "integrations", label: "Integrations" },
-    { id: "external-bots", label: "External Bots" },
-    { id: "certifications", label: "Certifications" },
-    { id: "recovery", label: "Recovery" },
+    { id: "overview", label: t("hub.admin.tabs.overview") },
+    { id: "discovery", label: t("hub.admin.tabs.discovery") },
+    { id: "tags", label: t("admin.tabs.tags") },
+    { id: "roles", label: t("hub.admin.tabs.roles") },
+    { id: "members", label: t("hub.admin.tabs.members") },
+    { id: "bans", label: t("hub.admin.tabs.bans") },
+    { id: "invites", label: t("hub.admin.tabs.invites") },
+    { id: "integrations", label: t("hub.admin.tabs.integrations") },
+    { id: "external-bots", label: t("admin.tabs.external_bots") },
+    { id: "certifications", label: t("admin.tabs.certifications") },
+    { id: "recovery", label: t("admin.tabs.recovery") },
   ];
 
   return (
     <div className="settings-page">
       <aside className="settings-nav">
-        <h2>Hub Settings</h2>
+        <h2>{t("hub.admin.title")}</h2>
         <ul>
           {TABS.map((tab) => (
             <li key={tab.id}>
@@ -132,83 +134,83 @@ export function HubAdminPage(props: HubAdminPageProps) {
             </li>
           ))}
         </ul>
-        <button className="settings-nav-close" onClick={props.onClose}>Close</button>
+        <button className="settings-nav-close" onClick={props.onClose}>{t("modal.close")}</button>
       </aside>
       <main className="settings-content">
-        <button className="settings-close-x" onClick={props.onClose} title="Close">×</button>
+        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}>×</button>
 
         {props.tab === "overview" && (
           <section>
-            <h1>Hub overview</h1>
+            <h1>{t("hub.admin.overview.title")}</h1>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-hub-name">Hub name</label>
+              <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
               <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => props.onHubNameChange(e.target.value)} />
             </div>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-hub-desc">Description</label>
+              <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
               <textarea id="admin-hub-desc" rows={3} value={props.hubDescription} onChange={(e) => props.onHubDescriptionChange(e.target.value)} />
             </div>
             <div className="settings-section">
-              <label className="settings-label">Membership</label>
+              <label className="settings-label">{t("hub.admin.overview.membership")}</label>
               <label className="checkbox-label">
                 <input type="checkbox" checked={props.requireApproval} onChange={(e) => props.onRequireApprovalChange(e.target.checked)} />
-                Require approval to join
+                {t("admin.overview.require_approval_short")}
               </label>
             </div>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-antispam">Min. security level (anti-spam)</label>
+              <label className="settings-label" htmlFor="admin-antispam">{t("hub.admin.overview.antispam")}</label>
               <input id="admin-antispam" type="number" min={0} max={9999} value={props.minSecurityLevel} onChange={(e) => props.onMinSecurityLevelChange(Number(e.target.value))} />
             </div>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-max-depth">Max channel depth</label>
-              <p className="muted">0 = unlimited. Limits how deeply channels can be nested.</p>
+              <label className="settings-label" htmlFor="admin-max-depth">{t("hub.admin.overview.max_depth")}</label>
+              <p className="muted">{t("hub.admin.overview.max_depth_hint")}</p>
               <input id="admin-max-depth" type="number" min={0} max={20} value={props.maxChannelDepth} onChange={(e) => props.onMaxChannelDepthChange(Number(e.target.value))} />
             </div>
             <div className="settings-section">
-              <button onClick={props.onSave}>Save changes</button>
+              <button onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
             </div>
           </section>
         )}
 
         {props.tab === "discovery" && (
           <section>
-            <h1>Discovery</h1>
+            <h1>{t("hub.admin.discovery.title")}</h1>
             <div className="settings-section">
-              <label className="settings-label">Hub invite link</label>
+              <label className="settings-label">{t("hub.admin.discovery.share.label")}</label>
               <div className="settings-row">
                 <code className="pubkey-display">{hubToWavvonUrl(props.activeHubUrl)}</code>
                 <button onClick={() => { navigator.clipboard.writeText(hubToWavvonUrl(props.activeHubUrl)).catch(() => {}); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }}>
-                  {copiedShare ? "Copied!" : "Copy"}
+                  {copiedShare ? t("hub.admin.discovery.share.copied") : t("hub.admin.discovery.share.copy")}
                 </button>
               </div>
             </div>
             <div className="settings-section">
-              <label className="settings-label">Submit to directory</label>
-              <p className="muted">Make your hub discoverable at <code>{dirUrl}</code>.</p>
+              <label className="settings-label">{t("hub.admin.discovery.directory.label")}</label>
+              <p className="muted">{t("admin.discovery.directory.hint_url", { url: dirUrl })}</p>
               <div className="settings-section">
-                <label className="settings-label">Tags (comma-separated)</label>
-                <input type="text" placeholder="gaming, english, casual" value={dirTags} onChange={(e) => setDirTags(e.target.value)} />
+                <label className="settings-label">{t("hub.admin.discovery.directory.tags")}</label>
+                <input type="text" placeholder={t("hub.admin.discovery.directory.tags_placeholder")} value={dirTags} onChange={(e) => setDirTags(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Language</label>
+                <label className="settings-label">{t("hub.admin.discovery.directory.language")}</label>
                 <input type="text" placeholder="en" value={dirLanguage} onChange={(e) => setDirLanguage(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Bio</label>
-                <textarea rows={3} placeholder="A short description for the directory…" value={dirBio} onChange={(e) => setDirBio(e.target.value)} />
+                <label className="settings-label">{t("hub.admin.discovery.directory.bio")}</label>
+                <textarea rows={3} placeholder={t("hub.admin.discovery.directory.bio_placeholder")} value={dirBio} onChange={(e) => setDirBio(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Invite code (optional)</label>
-                <input type="text" placeholder="Open invite code for the directory" value={dirInviteCode} onChange={(e) => setDirInviteCode(e.target.value)} />
+                <label className="settings-label">{t("hub.admin.discovery.directory.invite_code")}</label>
+                <input type="text" placeholder={t("hub.admin.discovery.directory.invite_code_placeholder")} value={dirInviteCode} onChange={(e) => setDirInviteCode(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Directory URL</label>
+                <label className="settings-label">{t("hub.admin.discovery.directory.url")}</label>
                 <input type="text" value={dirUrl} onChange={(e) => setDirUrl(e.target.value)} />
               </div>
-              {dirStatus === "ok" && <p className="muted" style={{ color: "var(--success)" }}>Submitted.</p>}
+              {dirStatus === "ok" && <p className="muted" style={{ color: "var(--success)" }}>{t("hub.admin.discovery.directory.ok")}</p>}
               {dirStatus === "error" && <p className="error-text">{dirError}</p>}
               <button onClick={handleSubmitToDirectory} disabled={dirStatus === "submitting"}>
-                {dirStatus === "submitting" ? "Submitting…" : "Submit to directory"}
+                {dirStatus === "submitting" ? t("hub.admin.discovery.directory.submitting") : t("hub.admin.discovery.directory.submit")}
               </button>
             </div>
           </section>
@@ -222,19 +224,23 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <section>
             {props.pendingMembers.length > 0 && (
               <div className="pending-section">
-                <h2>Pending members ({props.pendingMembers.length})</h2>
+                <h2>{t("hub.admin.members.pending.title", { count: props.pendingMembers.length })}</h2>
                 <table className="members-table">
-                  <thead><tr><th>User</th><th>Since</th><th>Actions</th></tr></thead>
+                  <thead><tr>
+                    <th>{t("hub.admin.members.pending.col.user")}</th>
+                    <th>{t("hub.admin.members.pending.col.signed_up")}</th>
+                    <th>{t("hub.admin.members.pending.col.actions")}</th>
+                  </tr></thead>
                   <tbody>
                     {props.pendingMembers.map((p) => (
                       <tr key={p.public_key}>
                         <td>
-                          <div>{p.display_name || "(no name)"}</div>
+                          <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
                           <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
                         </td>
                         <td>{formatRelative(p.first_seen_at)}</td>
                         <td>
-                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>Approve</button>
+                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
                         </td>
                       </tr>
                     ))}
@@ -242,44 +248,54 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 </table>
               </div>
             )}
-            <h1>Members ({props.members.length})</h1>
+            <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
             <table className="members-table">
-              <thead><tr><th>Name</th><th>Roles</th><th>Joined</th><th>Actions</th></tr></thead>
+              <thead><tr>
+                <th>{t("hub.admin.members.col.name")}</th>
+                <th>{t("hub.admin.members.col.roles")}</th>
+                <th>{t("hub.admin.members.col.joined")}</th>
+                <th>{t("hub.admin.members.col.actions")}</th>
+              </tr></thead>
               <tbody>
                 {props.members.map((m) => (
                   <tr key={m.public_key}>
                     <td>
-                      <div>{m.display_name || "(no name)"}</div>
+                      <div>{m.display_name || t("hub.admin.members.pending.no_name")}</div>
                       <div className="member-pk" title={m.public_key}>{formatPubkey(m.public_key)}</div>
                     </td>
                     <td>{m.roles.map((r) => r.name).join(", ") || "—"}</td>
                     <td>{formatRelative(m.first_seen_at)}</td>
                     <td>
-                      <button className="btn-small" onClick={() => props.onKickMember(m.public_key)}>Kick</button>
-                      <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>Ban</button>
+                      <button className="btn-small" onClick={() => props.onKickMember(m.public_key)}>{t("admin.members.kick")}</button>
+                      <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("admin.members.ban")}</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {props.members.length === 0 && <p className="muted">No members.</p>}
+            {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
           </section>
         )}
 
         {props.tab === "bans" && (
           <section>
-            <h1>Bans ({props.bans.length})</h1>
-            {props.bans.length === 0 && <p className="muted">No bans.</p>}
+            <h1>{t("hub.admin.bans.title", { count: props.bans.length })}</h1>
+            {props.bans.length === 0 && <p className="muted">{t("hub.admin.bans.empty")}</p>}
             {props.bans.length > 0 && (
               <table className="members-table">
-                <thead><tr><th>User</th><th>Reason</th><th>When</th><th>Actions</th></tr></thead>
+                <thead><tr>
+                  <th>{t("hub.admin.bans.col.user")}</th>
+                  <th>{t("hub.admin.bans.col.reason")}</th>
+                  <th>{t("hub.admin.bans.col.when")}</th>
+                  <th>{t("hub.admin.bans.col.actions")}</th>
+                </tr></thead>
                 <tbody>
                   {props.bans.map((b) => (
                     <tr key={b.target_public_key}>
                       <td><span className="member-pk">{formatPubkey(b.target_public_key)}</span></td>
                       <td>{b.reason || <span className="muted">—</span>}</td>
                       <td>{formatRelative(b.created_at)}</td>
-                      <td><button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>Unban</button></td>
+                      <td><button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>{t("hub.admin.bans.unban")}</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -290,20 +306,20 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "invites" && (
           <section>
-            <h1>Invites</h1>
+            <h1>{t("hub.admin.tabs.invites")}</h1>
             <div className="settings-section">
-              <label className="settings-label">Create invite</label>
+              <label className="settings-label">{t("invites.create.title")}</label>
               <div className="settings-row">
                 <input
                   type="number"
-                  placeholder="Max uses (blank = unlimited)"
+                  placeholder={t("invites.create.max_uses_placeholder")}
                   value={inviteMaxUses}
                   onChange={(e) => setInviteMaxUses(e.target.value)}
                   style={{ width: 180 }}
                 />
                 <input
                   type="number"
-                  placeholder="Expires in seconds (blank = never)"
+                  placeholder={t("admin.invite.expires_placeholder")}
                   value={inviteExpiry}
                   onChange={(e) => setInviteExpiry(e.target.value)}
                   style={{ width: 220 }}
@@ -312,7 +328,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   inviteMaxUses ? Number(inviteMaxUses) : null,
                   inviteExpiry ? Number(inviteExpiry) : null,
                 )}>
-                  Create
+                  {t("invites.create.button")}
                 </button>
               </div>
             </div>
@@ -320,10 +336,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
               <div key={inv.code} className="settings-row">
                 <code className="pubkey-display">{inv.code}</code>
                 <span className="muted">
-                  {inv.uses}/{inv.max_uses ?? "∞"} uses
-                  {inv.expires_at ? ` · expires ${formatRelative(inv.expires_at)}` : ""}
+                  {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
+                  {inv.expires_at ? ` · ${t("admin.invite.expires_relative", { date: formatRelative(inv.expires_at) })}` : ""}
                 </span>
-                <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>Revoke</button>
+                <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
               </div>
             ))}
           </section>
@@ -331,8 +347,8 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "roles" && (
           <section>
-            <h1>Roles</h1>
-            <p className="muted">Manage roles and permissions here.</p>
+            <h1>{t("hub.admin.roles.title")}</h1>
+            <p className="muted">{t("hub.admin.roles.hint")}</p>
             {props.roles.map((r) => (
               <div key={r.id} className="settings-row">
                 <span>{r.name}</span>
@@ -359,7 +375,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "recovery" && (
           <section>
-            <h1>Recovery</h1>
+            <h1>{t("admin.tabs.recovery")}</h1>
             <RecoveryContactsSection hubUrl={props.activeHubUrl} isAdmin={props.isAdmin} publicKey={null} />
           </section>
         )}

@@ -602,6 +602,17 @@
   "channel.settings.tab_settings": "Ajustes",
   "channel.settings.tab_moderation": "Moderación",
   "channel.settings.description": "Descripción",
+  "admin.tabs.tags": "Etiquetas y distintivos",
+  "admin.tabs.external_bots": "Bots externos",
+  "admin.tabs.certifications": "Certificaciones",
+  "admin.tabs.recovery": "Recuperación",
+  "admin.overview.require_approval_short": "Requerir aprobación para unirse",
+  "admin.discovery.directory.hint_url": "Haz que tu hub sea visible en {{url}}.",
+  "admin.members.kick": "Expulsar",
+  "admin.members.ban": "Banear",
+  "admin.invite.expires_placeholder": "Caduca en segundos (vacío = nunca)",
+  "admin.invite.uses_label": "usos",
+  "admin.invite.expires_relative": "caduca {{date}}",
   "_dir": "ltr",
   "_language_name": "Español"
 }
