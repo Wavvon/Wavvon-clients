@@ -134,3 +134,15 @@ export {
 export { getNotifPref, setNotifPref } from "./notifPrefs";
 
 export { fetchVoiceRoster } from "./commands/voice";
+
+export {
+  isPasskeySupported,
+  registerPasskey,
+  authenticateWithPasskey,
+  listPasskeys,
+  deletePasskey,
+  renamePasskey,
+  listTrustedDevices,
+  revokeTrustedDevice,
+} from "./webauthn";
+export type { CredentialInfo, DeviceInfo } from "./webauthn";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { BackgroundMode } from "../utils/backgroundProcessor";
@@ -53,6 +53,7 @@ export interface SettingsPageProps {
   skin: WavvonSkin | null;
   onSkinChange: (skin: WavvonSkin) => void;
   hasActiveHub: boolean;
+  activeHubId: string | null;
   activeHubUrl: string;
   publicKey: string | null;
   copiedKey: boolean;
@@ -111,6 +112,209 @@ export interface SettingsPageProps {
   videoInputs: { deviceId: string; label: string }[];
   videoInputDevice: string;
   onVideoInputDeviceChange: (v: string) => void;
+}
+
+// --- Passkey management (view / rename / delete; registration is web-only) ---
+
+interface CredentialInfo {
+  id: string;
+  friendly_name: string | null;
+  aaguid: string | null;
+  created_at: number;
+  last_used_at: number | null;
+}
+
+interface DeviceInfo {
+  id: string;
+  device_name: string | null;
+  created_at: number;
+  expires_at: number;
+  last_used_at: number | null;
+}
+
+function PasskeySection({ hubId }: { hubId: string | null }) {
+  const [passkeys, setPasskeys] = useState<CredentialInfo[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  useEffect(() => {
+    if (!hubId) return;
+    invoke<CredentialInfo[]>("passkey_list", { hubId })
+      .then(setPasskeys)
+      .catch((e: unknown) => setError(String(e)));
+  }, [hubId]);
+
+  async function handleDelete(id: string) {
+    if (!hubId) return;
+    setError(null);
+    try {
+      await invoke("passkey_delete", { hubId, credentialId: id });
+      setPasskeys((prev) => prev?.filter((p) => p.id !== id) ?? null);
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  }
+
+  async function handleRename(id: string) {
+    if (!hubId) return;
+    setError(null);
+    try {
+      await invoke("passkey_rename", { hubId, credentialId: id, friendlyName: renameValue.trim() });
+      setRenamingId(null);
+      setPasskeys(await invoke("passkey_list", { hubId }));
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  }
+
+  if (!hubId) return null;
+
+  return (
+    <div className="settings-section" style={{ marginTop: 20 }}>
+      <label className="settings-label">Passkeys</label>
+      <p className="muted" style={{ marginBottom: 12 }}>
+        Passkeys registered for this hub. To add a new passkey, open the hub in the web client and go to Account → Passkeys.
+      </p>
+      {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
+      {passkeys === null ? (
+        <p className="muted">Loading…</p>
+      ) : passkeys.length === 0 ? (
+        <p className="muted">No passkeys registered.</p>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {passkeys.map((pk) => (
+            <li
+              key={pk.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 6,
+                padding: "8px 10px",
+                background: "var(--bg-elevated)",
+                borderRadius: "var(--r-sm)",
+              }}
+            >
+              {renamingId === pk.id ? (
+                <>
+                  <input
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    style={{ flex: 1, fontSize: "var(--text-sm)" }}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRename(pk.id);
+                      if (e.key === "Escape") setRenamingId(null);
+                    }}
+                  />
+                  <button className="btn-primary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => handleRename(pk.id)}>Save</button>
+                  <button className="btn-secondary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => setRenamingId(null)}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <span style={{ flex: 1, fontSize: "var(--text-sm)" }}>
+                    {pk.friendly_name ?? "Unnamed passkey"}
+                  </span>
+                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                    {pk.last_used_at
+                      ? `Used ${new Date(pk.last_used_at * 1000).toLocaleDateString()}`
+                      : `Added ${new Date(pk.created_at * 1000).toLocaleDateString()}`}
+                  </span>
+                  <button
+                    className="btn-secondary"
+                    style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
+                    onClick={() => { setRenamingId(pk.id); setRenameValue(pk.friendly_name ?? ""); }}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
+                    onClick={() => handleDelete(pk.id)}
+                  >
+                    Remove
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function TrustedDevicesSection({ hubId }: { hubId: string | null }) {
+  const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hubId) return;
+    invoke<DeviceInfo[]>("trusted_device_list", { hubId })
+      .then(setDevices)
+      .catch((e: unknown) => setError(String(e)));
+  }, [hubId]);
+
+  async function handleRevoke(id: string) {
+    if (!hubId) return;
+    setError(null);
+    try {
+      await invoke("trusted_device_revoke", { hubId, deviceId: id });
+      setDevices((prev) => prev?.filter((d) => d.id !== id) ?? null);
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  }
+
+  if (!hubId) return null;
+
+  return (
+    <div className="settings-section" style={{ marginTop: 20 }}>
+      <label className="settings-label">Trusted devices</label>
+      <p className="muted" style={{ marginBottom: 12 }}>
+        Devices granted long-lived access to this hub. Revoke any you no longer recognise.
+      </p>
+      {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
+      {devices === null ? (
+        <p className="muted">Loading…</p>
+      ) : devices.length === 0 ? (
+        <p className="muted">No trusted devices.</p>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {devices.map((d) => (
+            <li
+              key={d.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 6,
+                padding: "8px 10px",
+                background: "var(--bg-elevated)",
+                borderRadius: "var(--r-sm)",
+              }}
+            >
+              <span style={{ flex: 1, fontSize: "var(--text-sm)" }}>
+                {d.device_name ?? "Unnamed device"}
+              </span>
+              <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                Expires {new Date(d.expires_at * 1000).toLocaleDateString()}
+              </span>
+              <button
+                className="btn-secondary"
+                style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
+                onClick={() => handleRevoke(d.id)}
+              >
+                Revoke
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export function SettingsPage(props: SettingsPageProps) {
@@ -518,6 +722,8 @@ export function SettingsPage(props: SettingsPageProps) {
               <RecoveryContactsSection activeHubUrl={props.activeHubUrl} />
             )}
             <IdentityCertificationsSection />
+            <PasskeySection hubId={props.activeHubId} />
+            <TrustedDevicesSection hubId={props.activeHubId} />
             <BlockIgnoreSection
               blocks={props.blocks}
               ignores={props.ignores}

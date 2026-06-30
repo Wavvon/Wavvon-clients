@@ -1901,6 +1901,7 @@ function App() {
             videoInputDevice={video.videoInputDevice}
             onVideoInputDeviceChange={video.setVideoInputDevice}
             hasActiveHub={hasActiveHub}
+            activeHubId={activeHubId}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}
             copiedKey={copiedKey}

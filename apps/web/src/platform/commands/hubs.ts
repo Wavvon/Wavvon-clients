@@ -78,7 +78,7 @@ async function authenticate(
 export async function addHub(
   hub_url: string,
   handlers: WsHandlers,
-  opts?: { invite_code?: string; rememberMe?: boolean },
+  opts?: { invite_code?: string; rememberMe?: boolean; sessionToken?: string },
 ): Promise<Hub> {
   const url = hub_url.replace(/\/$/, "");
 
@@ -86,20 +86,22 @@ export async function addHub(
     (r) => r.json() as Promise<InfoResponse>,
   );
 
-  const identity = await loadIdentity();
-  if (!identity) throw new Error("No identity — generate one first");
+  let token: string;
+  if (opts?.sessionToken) {
+    token = opts.sessionToken;
+  } else {
+    const identity = await loadIdentity();
+    if (!identity) throw new Error("No identity — generate one first");
 
-  const seedHex = identity.seed_hex;
-  const pubkeyHex = publicKeyHex(seedHex);
-
-  const token = await authenticate(
-    authBaseUrl(info, url),
-    pubkeyHex,
-    seedHex,
-    identity.security_nonce,
-    identity.security_level,
-    opts?.invite_code,
-  );
+    token = await authenticate(
+      authBaseUrl(info, url),
+      publicKeyHex(identity.seed_hex),
+      identity.seed_hex,
+      identity.security_nonce,
+      identity.security_level,
+      opts?.invite_code,
+    );
+  }
 
   const rememberMe = opts?.rememberMe ?? false;
   saveToken(info.public_key, token, rememberMe);
