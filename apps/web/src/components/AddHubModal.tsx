@@ -1,5 +1,6 @@
 import React from "react";
 import { FocusTrap } from "@wavvon/ui";
+import { isPasskeySupported } from "@platform";
 
 type HubPreview =
   | { state: "idle" }
@@ -16,10 +17,12 @@ interface Props {
   loading: boolean;
   error: string | null;
   onAdd: () => void;
+  onAddWithPasskey?: () => void;
   onClose: () => void;
 }
 
-export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, onAdd, onClose }: Props) {
+export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, onAdd, onAddWithPasskey, onClose }: Props) {
+  const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && isPasskeySupported();
   return (
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
@@ -73,6 +76,19 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
             {loading ? "Connecting..." : "Connect"}
           </button>
         </div>
+        {showPasskey && (
+          <div style={{ textAlign: "center", marginTop: 10 }}>
+            <span className="muted" style={{ fontSize: "var(--text-xs)", display: "block", marginBottom: 6 }}>or</span>
+            <button
+              className="btn-secondary"
+              style={{ width: "100%" }}
+              onClick={onAddWithPasskey}
+              disabled={loading}
+            >
+              Sign in with passkey
+            </button>
+          </div>
+        )}
         {error && <div className="error">{error}</div>}
       </div>
       </FocusTrap>

@@ -48,7 +48,7 @@ import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
-import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession } from "@platform";
+import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
 import {
   restorePersistedHubs,
   addHub,
@@ -857,6 +857,31 @@ export default function App() {
     setAddHubError(null);
     try {
       const hub = await addHub(hubUrl, stableHandlers, { invite_code: inviteCode || undefined });
+      setHubs(listHubs());
+      setActiveHubIdState(hub.hub_id);
+      setShowAddHub(false);
+      setHubUrl("");
+      setInviteCode("");
+      setHubPreview({ state: "idle" });
+      await loadHubData();
+      publishDhKey().catch(() => {});
+    } catch (e) {
+      setAddHubError(e instanceof HubApiError ? e.message : String(e));
+    } finally {
+      setAddingHub(false);
+    }
+  }
+
+  async function handleAddHubWithPasskey() {
+    if (!publicKey) return;
+    setAddingHub(true);
+    setAddHubError(null);
+    try {
+      const token = await authenticateWithPasskey(hubUrl, publicKey);
+      const hub = await addHub(hubUrl, stableHandlers, {
+        invite_code: inviteCode || undefined,
+        sessionToken: token,
+      });
       setHubs(listHubs());
       setActiveHubIdState(hub.hub_id);
       setShowAddHub(false);
@@ -1767,6 +1792,7 @@ export default function App() {
           loading={addingHub}
           error={addHubError}
           onAdd={handleAddHub}
+          onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
           onClose={() => { setShowAddHub(false); setHubPreview({ state: "idle" }); setAddHubError(null); }}
         />
       )}
