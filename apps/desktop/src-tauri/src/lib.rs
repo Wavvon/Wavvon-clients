@@ -278,6 +278,9 @@ pub fn run() {
             dm::fetch_group_sender_keys,
             dm::encrypt_group_dm,
             dm::decrypt_group_dm,
+            dm::init_dr_session,
+            dm::encrypt_dm_dr,
+            dm::decrypt_dm_dr,
             // Bots / webhooks
             bots::list_bots,
             bots::create_bot,

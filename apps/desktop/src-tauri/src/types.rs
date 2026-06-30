@@ -232,6 +232,9 @@ pub(crate) struct RawDmMessageResponse {
     pub delivery_failed: bool,
     pub encrypted_envelope: Option<serde_json::Value>,
     pub group_encrypted_envelope: Option<serde_json::Value>,
+    /// DR v2 envelope — present when `encrypted_envelope.v == 2`.
+    #[serde(default)]
+    pub dr_envelope: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
