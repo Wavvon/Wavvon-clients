@@ -1,15 +1,20 @@
 import { hexToBytes, bytesToHex } from "@wavvon/core";
 import { hubFetch, rawFetch } from "../http";
-import { activeSession, getSession } from "../session";
+import { activeSession } from "../session";
 import { loadIdentity } from "../../identity/store";
 import {
   dhKeypairFromSeed,
   encryptDm,
   decryptDm,
+  encryptDmDr,
+  decryptDmDr,
+  initDrSession,
   signBytes,
   publicKeyHex,
   dhKeySigningBytes,
   type DmEnvelope,
+  type DRSession,
+  type DrEnvelope,
 } from "@wavvon/core";
 import type { Conversation, DmMessage, DmMessageFull, Attachment } from "@shared/types";
 
@@ -35,9 +40,31 @@ interface RawDmMessage {
   created_at: number;
   attachments?: Attachment[];
   is_encrypted?: boolean;
-  encrypted_envelope?: DmEnvelope;
+  encrypted_envelope?: DmEnvelope | DrEnvelope;
   group_encrypted_envelope?: unknown;
   delivery_failed?: boolean;
+}
+
+function loadDrSession(convId: string): DRSession | null {
+  try {
+    const raw = localStorage.getItem(`wavvon_dr_${convId}`);
+    return raw ? (JSON.parse(raw) as DRSession) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDrSession(convId: string, session: DRSession): void {
+  localStorage.setItem(`wavvon_dr_${convId}`, JSON.stringify(session));
+}
+
+function emptyDrSession(): DRSession {
+  return {
+    rk: "", cks: null, ckr: null,
+    ns: 0, nr: 0, pn: 0,
+    dhsPriv: "", dhsPub: "", dhr: null,
+    mkskipped: {},
+  };
 }
 
 export async function getDmMessages(
@@ -51,22 +78,42 @@ export async function getDmMessages(
   const raw = (await res.json()) as RawDmMessage[];
 
   const identity = await loadIdentity();
+  const identitySeed = identity?.seed_hex ?? null;
   const { dhPriv } = identity
     ? dhKeypairFromSeed(identity.seed_hex)
     : { dhPriv: null };
 
-  return raw.map((m): DmMessageFull => {
+  const results: DmMessageFull[] = [];
+  for (const m of raw) {
     let content = m.content ?? "";
-    if (m.is_encrypted && m.encrypted_envelope && dhPriv) {
-      try {
-        content = decryptDm(conversation_id, m.encrypted_envelope, dhPriv);
-      } catch {
-        content = "[decryption failed]";
+    if (m.is_encrypted && m.encrypted_envelope) {
+      const env = m.encrypted_envelope;
+      if ((env as DrEnvelope).v === 2 && identitySeed) {
+        try {
+          const senderDhPubHex = await fetchDhKey(m.sender) ?? "";
+          const session = loadDrSession(m.conversation_id) ?? emptyDrSession();
+          const { plaintext, updatedSession } = decryptDmDr(
+            env as DrEnvelope,
+            session,
+            identitySeed,
+            senderDhPubHex,
+          );
+          saveDrSession(m.conversation_id, updatedSession);
+          content = plaintext;
+        } catch {
+          content = "[decryption failed]";
+        }
+      } else if (dhPriv) {
+        try {
+          content = decryptDm(m.conversation_id, env as DmEnvelope, dhPriv);
+        } catch {
+          content = "[decryption failed]";
+        }
       }
     } else if (!m.content && m.group_encrypted_envelope) {
       content = "🔒 Encrypted message (upgrade client to read)";
     }
-    return {
+    results.push({
       id: m.id,
       conversation_id: m.conversation_id,
       sender: m.sender,
@@ -76,8 +123,9 @@ export async function getDmMessages(
       attachments: m.attachments,
       is_encrypted: m.is_encrypted,
       delivery_failed: m.delivery_failed,
-    };
-  });
+    });
+  }
+  return results;
 }
 
 export async function sendDm(
@@ -88,13 +136,12 @@ export async function sendDm(
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
 
-  const { dhPriv } = dhKeypairFromSeed(identity.seed_hex);
+  const seedHex = identity.seed_hex;
   const members = await getConversationMembers(conversation_id);
-  const myPubkey = publicKeyHex(identity.seed_hex);
+  const myPubkey = publicKeyHex(seedHex);
   const recipientPubkey = members.find((m) => m !== myPubkey);
 
   if (!recipientPubkey) {
-    // Group DM or self-conversation — send plaintext
     await hubFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
       body: JSON.stringify({ content, attachments }),
@@ -102,9 +149,8 @@ export async function sendDm(
     return;
   }
 
-  const recipientDhHex = await fetchDhKey(recipientPubkey);
-  if (!recipientDhHex) {
-    // Recipient has no DH key — send plaintext
+  const recipientDhPubHex = await fetchDhKey(recipientPubkey);
+  if (!recipientDhPubHex) {
     await hubFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
       body: JSON.stringify({ content, attachments }),
@@ -112,18 +158,21 @@ export async function sendDm(
     return;
   }
 
-  const recipientDhPub = hexToBytes(recipientDhHex);
-  const envelope = encryptDm(
+  let drSession = loadDrSession(conversation_id);
+  if (!drSession) {
+    drSession = initDrSession(conversation_id, seedHex, recipientDhPubHex);
+  }
+  const { envelope: drEnvelope, updatedSession } = encryptDmDr(
     conversation_id,
     content,
-    recipientDhPub,
-    dhPriv,
-    hexToBytes(identity.seed_hex),
+    drSession,
+    seedHex,
   );
+  saveDrSession(conversation_id, updatedSession);
 
   await hubFetch(`/conversations/${conversation_id}/messages`, {
     method: "POST",
-    body: JSON.stringify({ encrypted_envelope: envelope, attachments }),
+    body: JSON.stringify({ encrypted_envelope: drEnvelope, attachments: attachments ?? [] }),
   });
 }
 
@@ -133,8 +182,6 @@ async function getConversationMembers(conversation_id: string): Promise<string[]
   return conv.members;
 }
 
-// Fetch a user's published DH public key from their home hub.
-// Returns null if the user hasn't published one.
 const dhKeyCache = new Map<string, { hex: string; ts: number }>();
 const DH_CACHE_TTL = 24 * 60 * 60 * 1000;
 
@@ -159,7 +206,6 @@ export async function fetchDhKey(
   }
 }
 
-// Publish our own DH public key to the active hub.
 export async function publishDhKey(): Promise<void> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
@@ -177,4 +223,3 @@ export async function publishDhKey(): Promise<void> {
     body: JSON.stringify({ dh_pubkey_hex: dhPubkeyHex, signature_hex: signatureHex }),
   });
 }
-

@@ -183,6 +183,9 @@ export interface DrEnvelope {
   sender_pubkey: string;
   conv_id: string;
   ciphertext_hex: string;
+  /** Empty string for v2 — nonce is derived from the message key, not transmitted.
+   *  Present so the hub's EncryptedDmEnvelope struct round-trips cleanly. */
+  nonce_hex: string;
   dh_pubkey_hex: string;
   signature_hex: string;
   v: 2;
@@ -269,6 +272,7 @@ export function encryptDmDr(
     sender_pubkey: senderPubkey,
     conv_id: convId,
     ciphertext_hex: ciphertextHex,
+    nonce_hex: "",
     dh_pubkey_hex: dhPubkeyHex,
     signature_hex: signatureHex,
     v: 2,
