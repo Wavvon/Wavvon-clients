@@ -686,6 +686,19 @@ export interface WebhookCreatedResult {
 
 // ---- Forum ----
 
+export interface ReactionCount {
+  emoji: string;
+  count: number;
+  me: boolean;
+}
+
+export interface ForumAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
 export interface PostSummary {
   id: string;
   channel_id: string;
@@ -699,6 +712,8 @@ export interface PostSummary {
   last_activity_at: number;
   is_deleted: boolean;
   unread_reply_count?: number | null;
+  reactions?: ReactionCount[];
+  attachments?: ForumAttachment[];
 }
 
 export interface ReplyView {
@@ -710,6 +725,8 @@ export interface ReplyView {
   edited_at: number | null;
   reply_to_id: string | null;
   is_deleted: boolean;
+  reactions?: ReactionCount[];
+  attachments?: ForumAttachment[];
 }
 
 export interface PostDetail extends PostSummary {

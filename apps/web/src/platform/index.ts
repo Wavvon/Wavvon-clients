@@ -111,6 +111,10 @@ export {
   forumPinPost,
   forumLockPost,
   markPostRead,
+  forumAddPostReaction,
+  forumRemovePostReaction,
+  forumAddReplyReaction,
+  forumRemoveReplyReaction,
 } from "./commands/forum";
 
 export { uploadFile } from "./commands/uploads";
