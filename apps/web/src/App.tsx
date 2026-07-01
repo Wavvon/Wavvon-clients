@@ -680,6 +680,35 @@ export default function App() {
       if (hubId !== activeHubIdRef.current) return;
       setUsers((prev) => prev.map((u) => u.public_key === publicKey ? { ...u, online: false } : u));
     },
+    onVoiceZoneState: (raw) => {
+      const m = raw as { channel_id?: string; zones?: import("./platform/voice").VoiceZone[]; _hub_id?: string };
+      if (m._hub_id !== activeHubIdRef.current) return;
+      if (!m.channel_id || !m.zones) return;
+      voiceSessionRef.current?.handleZoneState(m.channel_id, m.zones);
+    },
+    onVoiceZoneCreated: (raw) => {
+      const m = raw as { zone_id?: string; name?: string; coordinate_system?: string; attenuation?: import("./platform/voice").VoiceZoneAttenuation; _hub_id?: string };
+      if (m._hub_id !== activeHubIdRef.current) return;
+      if (!m.zone_id || !m.name || !m.coordinate_system || !m.attenuation) return;
+      voiceSessionRef.current?.handleZoneCreated({
+        zone_id: m.zone_id,
+        name: m.name,
+        coordinate_system: m.coordinate_system,
+        attenuation: m.attenuation,
+      });
+    },
+    onVoiceZoneDestroyed: (raw) => {
+      const m = raw as { zone_id?: string; _hub_id?: string };
+      if (m._hub_id !== activeHubIdRef.current) return;
+      if (!m.zone_id) return;
+      voiceSessionRef.current?.handleZoneDestroyed(m.zone_id);
+    },
+    onVoicePositionUpdated: (raw) => {
+      const m = raw as { zone_id?: string; public_key?: string; position?: number[]; _hub_id?: string };
+      if (m._hub_id !== activeHubIdRef.current) return;
+      if (!m.zone_id || !m.public_key || !m.position) return;
+      voiceSessionRef.current?.handlePositionUpdated(m.zone_id, m.public_key, m.position);
+    },
     onBotApp: (raw) => {
       const m = raw as Record<string, unknown>;
       if (m._hub_id !== activeHubIdRef.current) return;

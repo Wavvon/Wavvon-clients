@@ -1,5 +1,39 @@
 import OpusScript from 'opusscript';
 
+export interface VoiceZoneAttenuation {
+  model: 'linear' | 'inverse_square' | 'step' | 'exponential';
+  max_radius: number;
+  ref_dist: number;
+  rolloff: number;
+}
+
+export interface VoiceZone {
+  zone_id: string;
+  name: string;
+  coordinate_system: string;
+  attenuation: VoiceZoneAttenuation;
+  positions: Record<string, number[]>;
+}
+
+export function computeAttenuation(dist: number, cfg: VoiceZoneAttenuation): number {
+  if (dist >= cfg.max_radius) return 0;
+  const t = dist / cfg.max_radius;
+  switch (cfg.model) {
+    case 'linear':
+      return 1 - t;
+    case 'inverse_square': {
+      const d = Math.max(dist, cfg.ref_dist);
+      return Math.min(1, (cfg.ref_dist / d) ** 2);
+    }
+    case 'step':
+      return dist <= cfg.ref_dist ? 1 : 0;
+    case 'exponential':
+      return Math.exp(-cfg.rolloff * t);
+    default:
+      return 1;
+  }
+}
+
 export interface VoiceSessionHandlers {
   onReady: (senderId: number, participants: unknown[]) => void;
   onClose: () => void;
@@ -43,6 +77,8 @@ export class VoiceWsSession {
   private gainNodes: Map<number, GainNode> = new Map();
   private senderIdToPubkey: Map<number, string> = new Map();
   private savedGains: Record<string, number>;
+  private zones: Map<string, VoiceZone> = new Map();
+  private myPubkey: string;
 
   constructor(
     private hubUrl: string,
@@ -50,7 +86,9 @@ export class VoiceWsSession {
     private channelId: string,
     private handlers: VoiceSessionHandlers,
     private audioConfig?: AudioProfileConfig,
+    myPubkey?: string,
   ) {
+    this.myPubkey = myPubkey ?? "";
     try {
       this.savedGains = JSON.parse(localStorage.getItem(GAINS_STORAGE_KEY) || '{}') as Record<string, number>;
     } catch {
@@ -230,6 +268,57 @@ export class VoiceWsSession {
 
     for (const p of participants) {
       this.senderIdToPubkey.set(p.sender_id, p.public_key);
+    }
+  }
+
+  handleZoneState(_channelId: string, zones: VoiceZone[]): void {
+    this.zones.clear();
+    for (const z of zones) this.zones.set(z.zone_id, z);
+    this.recomputeAllProximityGains();
+  }
+
+  handleZoneCreated(msg: { zone_id: string; name: string; coordinate_system: string; attenuation: VoiceZoneAttenuation }): void {
+    this.zones.set(msg.zone_id, { ...msg, positions: {} });
+  }
+
+  handleZoneDestroyed(zoneId: string): void {
+    this.zones.delete(zoneId);
+    this.recomputeAllProximityGains();
+  }
+
+  handlePositionUpdated(zoneId: string, pubkey: string, position: number[]): void {
+    const z = this.zones.get(zoneId);
+    if (!z) return;
+    z.positions[pubkey] = position;
+    this.recomputeAllProximityGains();
+  }
+
+  setMyPosition(zoneId: string, position: number[]): void {
+    const z = this.zones.get(zoneId);
+    if (!z) return;
+    z.positions[this.myPubkey] = position;
+    this.recomputeAllProximityGains();
+  }
+
+  private recomputeAllProximityGains(): void {
+    for (const [senderId, pubkey] of this.senderIdToPubkey) {
+      let proximityGain = 1.0;
+
+      for (const zone of this.zones.values()) {
+        const senderPos = zone.positions[pubkey];
+        const myPos = zone.positions[this.myPubkey];
+        if (!senderPos || !myPos) continue;
+
+        const dist = Math.sqrt(
+          senderPos.reduce((acc, v, i) => acc + (v - (myPos[i] ?? 0)) ** 2, 0)
+        );
+        proximityGain = Math.min(proximityGain, computeAttenuation(dist, zone.attenuation));
+      }
+
+      const manualGainPct = this.savedGains[pubkey] ?? 100;
+      const effective = Math.min(200, Math.max(0, manualGainPct * proximityGain));
+      const gainNode = this.gainNodes.get(senderId);
+      if (gainNode) gainNode.gain.value = effective / 100;
     }
   }
 

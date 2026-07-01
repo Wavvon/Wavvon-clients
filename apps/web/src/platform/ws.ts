@@ -4,6 +4,10 @@ export interface WsHandlers {
   onDmMemberChanged?: (e: object) => void;
   onTyping?: (e: object) => void;
   onVoiceState?: (e: object) => void;
+  onVoiceZoneCreated?: (e: object) => void;
+  onVoiceZoneDestroyed?: (e: object) => void;
+  onVoicePositionUpdated?: (e: object) => void;
+  onVoiceZoneState?: (e: object) => void;
   onScreenShare?: (e: object) => void;
   onScreenShareChunk?: (streamId: string, isInit: boolean, data: ArrayBuffer) => void;
   onStatusChange?: (connected: boolean, hubId: string) => void;
@@ -134,6 +138,14 @@ export class HubWebSocket {
       this.handlers.onMemberOffline?.(tagged.public_key as string, this.hub_id);
     } else if (type === "bot_app_launch" || type === "bot_app_open" || type === "bot_app_close") {
       this.handlers.onBotApp?.(tagged);
+    } else if (type === "voice_zone_created") {
+      this.handlers.onVoiceZoneCreated?.(tagged);
+    } else if (type === "voice_zone_destroyed") {
+      this.handlers.onVoiceZoneDestroyed?.(tagged);
+    } else if (type === "voice_position_updated") {
+      this.handlers.onVoicePositionUpdated?.(tagged);
+    } else if (type === "voice_zone_state") {
+      this.handlers.onVoiceZoneState?.(tagged);
     }
   }
 
