@@ -18,10 +18,46 @@ import { loadIdentity, seedToPhrase } from "@identity/index";
 import { SkinEditor, makeSeed } from "./SkinEditor";
 import { SkinsGallery } from "./SkinsGallery";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
-import { BlockIgnoreSection } from "@wavvon/ui";
+import { BlockIgnoreSection, AudioProfileSection } from "@wavvon/ui";
 import { IdentityBackupSection } from "./IdentityBackupSection";
 
-export type SettingsTab = "profile" | "notifications" | "appearance" | "account";
+export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
+
+const VOICE_PROFILE_KEY = "wavvon.audio_profile";
+
+interface AudioProfileConfig {
+  profile: "standard" | "music" | "custom";
+  customBitrate: number | null;
+  customApp: "voip" | "audio" | "lowdelay";
+  customNoiseSuppress: boolean;
+  customVad: boolean;
+  customVadThreshold: number;
+  customChannels: 1 | 2;
+  customFrameMs: 20 | 40 | 60;
+  customComplexity: number;
+}
+
+function loadAudioProfile(): AudioProfileConfig {
+  try {
+    const raw = localStorage.getItem(VOICE_PROFILE_KEY);
+    if (raw) return JSON.parse(raw) as AudioProfileConfig;
+  } catch {}
+  return {
+    profile: "standard",
+    customBitrate: null,
+    customApp: "voip",
+    customNoiseSuppress: true,
+    customVad: true,
+    customVadThreshold: 0.02,
+    customChannels: 1,
+    customFrameMs: 20,
+    customComplexity: 9,
+  };
+}
+
+function saveAudioProfile(cfg: AudioProfileConfig) {
+  try { localStorage.setItem(VOICE_PROFILE_KEY, JSON.stringify(cfg)); } catch {}
+}
 
 interface SettingsPageProps {
   tab: SettingsTab;
@@ -303,6 +339,7 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "notifications", label: t("settings.tabs.notifications") },
     { id: "appearance", label: t("settings.tabs.appearance") },
     { id: "account", label: t("settings.tabs.account") },
+    { id: "voice", label: "Voice" },
   ];
   const NOTIF_LEVELS: { value: NotifLevel; label: string }[] = [
     { value: "all", label: t("settings.notifications.level.all") },
@@ -311,6 +348,15 @@ export function SettingsPage(props: SettingsPageProps) {
   ];
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [audioProfile, setAudioProfile] = useState<AudioProfileConfig>(loadAudioProfile);
+
+  function updateAudioProfile(patch: Partial<AudioProfileConfig>) {
+    setAudioProfile((prev) => {
+      const next = { ...prev, ...patch };
+      saveAudioProfile(next);
+      return next;
+    });
+  }
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | string>("idle");
   const [hubNotifPrefs, setHubNotifPrefs] = useState<Record<string, NotifLevel>>(() => {
     const prefs: Record<string, NotifLevel> = {};
@@ -525,6 +571,33 @@ export function SettingsPage(props: SettingsPageProps) {
               )}
             </div>
             <SkinsGallery onImport={props.onImportSkin} />
+          </section>
+        )}
+
+        {props.tab === "voice" && (
+          <section>
+            <h1 style={{ marginBottom: 20 }}>Voice</h1>
+            <AudioProfileSection
+              profile={audioProfile.profile}
+              onProfile={(p) => updateAudioProfile({ profile: p })}
+              customBitrate={audioProfile.customBitrate}
+              onCustomBitrate={(v) => updateAudioProfile({ customBitrate: v })}
+              customApp={audioProfile.customApp}
+              onCustomApp={(v) => updateAudioProfile({ customApp: v })}
+              customNoiseSuppress={audioProfile.customNoiseSuppress}
+              onCustomNoiseSuppress={(v) => updateAudioProfile({ customNoiseSuppress: v })}
+              customVad={audioProfile.customVad}
+              onCustomVad={(v) => updateAudioProfile({ customVad: v })}
+              customVadThreshold={audioProfile.customVadThreshold}
+              onCustomVadThreshold={(v) => updateAudioProfile({ customVadThreshold: v })}
+              customChannels={audioProfile.customChannels}
+              onCustomChannels={(v) => updateAudioProfile({ customChannels: v })}
+              customFrameMs={audioProfile.customFrameMs}
+              onCustomFrameMs={(v) => updateAudioProfile({ customFrameMs: v })}
+              customComplexity={audioProfile.customComplexity}
+              onCustomComplexity={(v) => updateAudioProfile({ customComplexity: v })}
+              inVoice={false}
+            />
           </section>
         )}
 

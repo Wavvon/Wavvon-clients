@@ -1,4 +1,5 @@
 export type { Attachment, Reaction, Message, AllianceSharedChannel, BlockEntry, IgnoreEntry } from "./types";
+export { AudioProfileSection } from "./components/AudioProfileSection";
 export { Avatar } from "./components/Avatar";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
