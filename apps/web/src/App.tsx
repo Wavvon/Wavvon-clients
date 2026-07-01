@@ -249,6 +249,10 @@ export default function App() {
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
   const voiceSessionRef = useRef<VoiceWsSession | null>(null);
+  const [voiceGains, setVoiceGains] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem("wavvon.voice_gains") || "{}") as Record<string, number>; }
+    catch { return {}; }
+  });
   const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
   const [userAlliances, setUserAlliances] = useState<AllianceInfo[]>([]);
   const [allianceChannels, setAllianceChannels] = useState<Record<string, AllianceSharedChannel[]>>({});
@@ -555,10 +559,15 @@ export default function App() {
       }
     },
     onVoiceState: (raw) => {
-      const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; _hub_id?: string };
+      const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; _hub_id?: string; sender_id?: number };
       if (m._hub_id !== activeHubIdRef.current) return;
       if (!m.channel_id) return;
       const channelId = m.channel_id;
+
+      if (m.type === "voice_roster_update" && m.participants) {
+        const rosterParticipants = m.participants as unknown as Array<{ sender_id: number; public_key: string }>;
+        voiceSessionRef.current?.handleRosterUpdate(rosterParticipants);
+      }
 
       if (m.type === "voice_participant_left") {
         if (!m.public_key) return;
@@ -1196,6 +1205,15 @@ export default function App() {
     voiceSessionRef.current?.setDeafened(next);
   }
 
+  const handleSetVoiceGain = useCallback((pk: string, gainPct: number) => {
+    setVoiceGains((prev) => {
+      const next = { ...prev, [pk]: gainPct };
+      try { localStorage.setItem("wavvon.voice_gains", JSON.stringify(next)); } catch {}
+      return next;
+    });
+    voiceSessionRef.current?.setSenderGain(pk, gainPct);
+  }, []);
+
   const channelTypingByKey = useMemo(() => {
     if (!selectedChannel) return {} as Record<string, { name: string; ts: number }>;
     const prefix = `${selectedChannel.id}:`;
@@ -1602,6 +1620,8 @@ export default function App() {
         onToggleSelfDeafen={handleToggleDeafen}
         onOpenSettings={() => setShowSettings(true)}
         onDragEnd={handleChannelDragEnd}
+        voiceGains={voiceGains}
+        onSetVoiceGain={handleSetVoiceGain}
       />
 
       {activeOpenApp && (

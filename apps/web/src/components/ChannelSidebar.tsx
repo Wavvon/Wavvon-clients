@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { VoiceParticipant } from "../types";
 import {
   DndContext,
   DragEndEvent,
@@ -16,7 +17,6 @@ import type {
   Channel,
   Hub,
   NotifyMode,
-  VoiceParticipant,
   User,
   AllianceInfo,
   AllianceSharedChannel,
@@ -28,6 +28,100 @@ import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
 import { HoverSubmenu } from "@wavvon/ui";
 
 const CHANNEL_INDENT_PX = 16;
+
+function gainIcon(gainPct: number): string {
+  if (gainPct === 0) return "🔇";
+  if (gainPct < 100) return "🔉";
+  if (gainPct === 100) return "🔊";
+  return "⬆️";
+}
+
+function VoiceParticipantGainRow({
+  participant,
+  gainPct,
+  onSetGain,
+  isSelf,
+}: {
+  participant: VoiceParticipant;
+  gainPct: number;
+  onSetGain?: (g: number) => void;
+  isSelf: boolean;
+}) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!popoverOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
+        setPopoverOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [popoverOpen]);
+
+  const displayName = participant.display_name || participant.public_key.slice(0, 12);
+
+  return (
+    <div
+      ref={rowRef}
+      style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px", position: "relative" }}
+    >
+      <span
+        style={{ flex: 1, fontSize: "var(--text-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        title={participant.public_key}
+      >
+        {displayName}
+      </span>
+      {!isSelf && onSetGain && (
+        <>
+          <button
+            className="btn-icon-gear"
+            style={{ fontSize: 12, padding: "0 2px" }}
+            title={`Volume: ${gainPct}%`}
+            onClick={() => setPopoverOpen((v) => !v)}
+          >
+            {gainIcon(gainPct)}
+          </button>
+          {popoverOpen && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "100%",
+                right: 0,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--r-sm)",
+                padding: "8px 10px",
+                zIndex: 100,
+                minWidth: 160,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              }}
+            >
+              <div style={{ fontSize: "var(--text-xs)", marginBottom: 6, color: "var(--text-muted)" }}>
+                Volume: {gainPct}%
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={200}
+                value={gainPct}
+                onChange={(e) => onSetGain(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>
+                <span>0%</span>
+                <span>100%</span>
+                <span>200%</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -86,6 +180,8 @@ interface Props {
   onToggleHideSilenced?: () => void;
   sharing?: boolean;
   onScreenShare?: () => void;
+  voiceGains?: Record<string, number>;
+  onSetVoiceGain?: (pk: string, gainPct: number) => void;
 }
 
 export function ChannelSidebar({
@@ -104,6 +200,7 @@ export function ChannelSidebar({
   onSelectAllianceChannel, onSelectConversation,
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
+  voiceGains, onSetVoiceGain,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -557,6 +654,19 @@ export function ChannelSidebar({
                 </button>
               </div>
             </div>
+            {voiceChannelId && (voicePartByChannel[voiceChannelId]?.length ?? 0) > 0 && (
+              <div className="voice-participants-list">
+                {voicePartByChannel[voiceChannelId].map((p) => (
+                  <VoiceParticipantGainRow
+                    key={p.public_key}
+                    participant={p}
+                    gainPct={voiceGains?.[p.public_key] ?? 100}
+                    onSetGain={onSetVoiceGain ? (g) => onSetVoiceGain(p.public_key, g) : undefined}
+                    isSelf={p.public_key === publicKey}
+                  />
+                ))}
+              </div>
+            )}
           </>
         )}
 

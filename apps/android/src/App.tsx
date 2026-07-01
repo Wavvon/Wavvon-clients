@@ -222,6 +222,7 @@ export default function App() {
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
+  const [voiceGains, setVoiceGains] = useState<Record<string, number>>({});
 
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -660,6 +661,11 @@ export default function App() {
     await invoke("voice_set_deafened", { deafened: next }).catch(() => {});
   }
 
+  async function handleSetVoiceGain(pk: string, gainPct: number) {
+    setVoiceGains((prev) => ({ ...prev, [pk]: gainPct }));
+    await invoke("set_voice_gain", { publicKey: pk, gain: gainPct / 100 }).catch(() => {});
+  }
+
   // === Bot mini-apps ===
 
   function sendBotAppJoin(botId: string, channelId: string) {
@@ -800,6 +806,8 @@ export default function App() {
           onDragEnd={() => {}}
           dndEnabled={false}
           onToggleDnd={() => {}}
+          voiceGains={voiceGains}
+          onSetVoiceGain={(pk, gainPct) => void handleSetVoiceGain(pk, gainPct)}
         />
       }
       title={channelMsgs.selectedChannel?.name ?? selectedConversation?.id ?? "Wavvon"}

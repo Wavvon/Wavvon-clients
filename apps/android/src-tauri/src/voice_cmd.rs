@@ -3,6 +3,74 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
+fn voice_gains_path() -> Option<std::path::PathBuf> {
+    dirs::data_dir().map(|d| d.join("wavvon").join("voice_gains.json"))
+}
+
+fn load_voice_gains() -> HashMap<String, f32> {
+    voice_gains_path()
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_voice_gains_to_disk(gains: &HashMap<String, f32>) {
+    if let Some(path) = voice_gains_path() {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(text) = serde_json::to_string(gains) {
+            let _ = std::fs::write(&path, text);
+        }
+    }
+}
+
+fn voice_settings_path() -> Option<std::path::PathBuf> {
+    dirs::data_dir().map(|d| d.join("wavvon").join("voice_settings.json"))
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
+pub(crate) struct StoredVoiceSettings {
+    pub input_device: Option<String>,
+    pub output_device: Option<String>,
+    #[serde(default)]
+    pub audio_profile: Option<String>,
+    #[serde(default)]
+    pub custom_bitrate: Option<u32>,
+    #[serde(default)]
+    pub custom_app: Option<String>,
+    #[serde(default)]
+    pub custom_noise_suppress: Option<bool>,
+    #[serde(default)]
+    pub custom_vad: Option<bool>,
+    #[serde(default)]
+    pub custom_vad_threshold: Option<f32>,
+    #[serde(default)]
+    pub custom_channels: Option<u16>,
+    #[serde(default)]
+    pub custom_frame_ms: Option<u32>,
+    #[serde(default)]
+    pub custom_complexity: Option<u32>,
+}
+
+fn load_voice_settings_from_disk() -> StoredVoiceSettings {
+    voice_settings_path()
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_voice_settings_to_disk(settings: &StoredVoiceSettings) {
+    if let Some(path) = voice_settings_path() {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(text) = serde_json::to_string(settings) {
+            let _ = std::fs::write(&path, text);
+        }
+    }
+}
+
 pub(crate) struct VoiceSession {
     channel_id: String,
     stop_tx: std::sync::mpsc::Sender<()>,
@@ -276,5 +344,52 @@ pub(crate) fn mic_test_stop(state: State<'_, VoiceState>) -> Result<(), String> 
         }
         return Err("No mic test in progress".to_string());
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) fn set_voice_gain(
+    public_key: String,
+    gain: f32,
+    state: State<'_, VoiceState>,
+) -> Result<(), String> {
+    let gain = gain.clamp(0.0, 2.0);
+    let mut stored = load_voice_gains();
+    if (gain - 1.0f32).abs() < 0.001 {
+        stored.remove(&public_key);
+    } else {
+        stored.insert(public_key.clone(), gain);
+    }
+    save_voice_gains_to_disk(&stored);
+
+    let session_data = {
+        let lock = state.session.lock().unwrap();
+        lock.as_ref()
+            .map(|s| (s.roster_map.clone(), s.gain_map.clone()))
+    };
+    if let Some((roster_map, gain_map)) = session_data {
+        let pk = public_key.clone();
+        tokio::spawn(async move {
+            let rm = roster_map.read().await;
+            for (&sid, pubkey) in rm.iter() {
+                if pubkey == &pk {
+                    let mut gm = gain_map.write().await;
+                    gm.insert(sid, gain);
+                    break;
+                }
+            }
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) fn get_voice_settings() -> Result<StoredVoiceSettings, String> {
+    Ok(load_voice_settings_from_disk())
+}
+
+#[tauri::command]
+pub(crate) fn save_voice_settings(settings: StoredVoiceSettings) -> Result<(), String> {
+    save_voice_settings_to_disk(&settings);
     Ok(())
 }

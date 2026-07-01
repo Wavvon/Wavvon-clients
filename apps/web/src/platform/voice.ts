@@ -5,6 +5,18 @@ export interface VoiceSessionHandlers {
   onClose: () => void;
 }
 
+export interface AudioProfileConfig {
+  profile: 'standard' | 'music' | 'custom';
+  customBitrate?: number | null;
+  customApp?: 'voip' | 'audio' | 'lowdelay';
+  customNoiseSuppress?: boolean;
+  customVad?: boolean;
+  customVadThreshold?: number;
+  customChannels?: 1 | 2;
+  customFrameMs?: 20 | 40 | 60;
+  customComplexity?: number;
+}
+
 interface OpusCodec {
   encode(buffer: Uint8Array, frameSize: number): Uint8Array;
   decode(buffer: Uint8Array): Uint8Array;
@@ -12,6 +24,7 @@ interface OpusCodec {
 }
 
 const OPUS_FRAME_SIZE = 960; // 20 ms at 48 kHz
+const GAINS_STORAGE_KEY = 'wavvon.voice_gains';
 
 export class VoiceWsSession {
   private ws: WebSocket | null = null;
@@ -27,16 +40,44 @@ export class VoiceWsSession {
   private closed = false;
   private sampleAccum = new Int16Array(OPUS_FRAME_SIZE);
   private sampleAccumLen = 0;
+  private gainNodes: Map<number, GainNode> = new Map();
+  private senderIdToPubkey: Map<number, string> = new Map();
+  private savedGains: Record<string, number>;
 
   constructor(
     private hubUrl: string,
     private token: string,
     private channelId: string,
     private handlers: VoiceSessionHandlers,
-  ) {}
+    private audioConfig?: AudioProfileConfig,
+  ) {
+    try {
+      this.savedGains = JSON.parse(localStorage.getItem(GAINS_STORAGE_KEY) || '{}') as Record<string, number>;
+    } catch {
+      this.savedGains = {};
+    }
+  }
 
   async start(): Promise<void> {
-    this.encoder = new OpusScript(48000, 1, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
+    let opusApp = OpusScript.Application.VOIP;
+    let channels = 1;
+
+    if (this.audioConfig) {
+      if (this.audioConfig.profile === 'music') {
+        opusApp = OpusScript.Application.AUDIO;
+        channels = 2;
+      } else if (this.audioConfig.profile === 'custom') {
+        const appMap = {
+          voip: OpusScript.Application.VOIP,
+          audio: OpusScript.Application.AUDIO,
+          lowdelay: OpusScript.Application.RESTRICTED_LOWDELAY,
+        };
+        opusApp = appMap[this.audioConfig.customApp ?? 'voip'];
+        channels = this.audioConfig.customChannels ?? 1;
+      }
+    }
+
+    this.encoder = new OpusScript(48000, channels, opusApp, { wasm: false }) as unknown as OpusCodec;
     this.decoder = new OpusScript(48000, 1, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
 
     this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -110,6 +151,10 @@ export class VoiceWsSession {
       try {
         const msg = JSON.parse(ev.data) as Record<string, unknown>;
         if (msg.type === 'voice_ws_ready') {
+          const participants = msg.participants as Array<{ sender_id: number; public_key: string }> | undefined;
+          if (participants) {
+            this.handleRosterUpdate(participants);
+          }
           this.handlers.onReady(
             msg.sender_id as number,
             msg.participants as unknown[],
@@ -123,6 +168,8 @@ export class VoiceWsSession {
 
     const data = new Uint8Array(ev.data as ArrayBuffer);
     if (data.length < 9) return;
+    // Wire format: [sender_id: u16 BE][packet_type: u8][seq: u16 BE][ts: u32 BE][opus...]
+    const senderId = (data[0] << 8) | data[1];
     const packetType = data[2];
     if (packetType !== 0x00) return;
     const opusBytes = data.slice(9);
@@ -134,10 +181,26 @@ export class VoiceWsSession {
       return;
     }
 
-    this.playPcm(new Int16Array(pcm.buffer, pcm.byteOffset, pcm.byteLength / 2));
+    this.playPcm(new Int16Array(pcm.buffer, pcm.byteOffset, pcm.byteLength / 2), senderId);
   }
 
-  private playPcm(pcm: Int16Array): void {
+  private getOrCreateGainNode(senderId: number): GainNode {
+    const existing = this.gainNodes.get(senderId);
+    if (existing) return existing;
+
+    const gainNode = this.audioCtx!.createGain();
+    const pubkey = this.senderIdToPubkey.get(senderId);
+    if (pubkey && this.savedGains[pubkey] !== undefined) {
+      gainNode.gain.value = this.savedGains[pubkey] / 100;
+    } else {
+      gainNode.gain.value = 1.0;
+    }
+    gainNode.connect(this.audioCtx!.destination);
+    this.gainNodes.set(senderId, gainNode);
+    return gainNode;
+  }
+
+  private playPcm(pcm: Int16Array, senderId: number): void {
     if (!this.audioCtx) return;
     const buffer = this.audioCtx.createBuffer(1, pcm.length, 48000);
     const channel = buffer.getChannelData(0);
@@ -146,8 +209,54 @@ export class VoiceWsSession {
     }
     const src = this.audioCtx.createBufferSource();
     src.buffer = buffer;
-    src.connect(this.audioCtx.destination);
+    const gainNode = this.getOrCreateGainNode(senderId);
+    src.connect(gainNode);
     src.start();
+  }
+
+  handleRosterUpdate(participants: { sender_id: number; public_key: string }[]): void {
+    const activeIds = new Set(participants.map((p) => p.sender_id));
+
+    for (const [sid] of this.senderIdToPubkey) {
+      if (!activeIds.has(sid)) {
+        const gainNode = this.gainNodes.get(sid);
+        if (gainNode) {
+          gainNode.disconnect();
+          this.gainNodes.delete(sid);
+        }
+        this.senderIdToPubkey.delete(sid);
+      }
+    }
+
+    for (const p of participants) {
+      this.senderIdToPubkey.set(p.sender_id, p.public_key);
+    }
+  }
+
+  setSenderGain(pubkey: string, gainPct: number): void {
+    const clamped = Math.max(0, Math.min(200, gainPct));
+    const gainValue = clamped / 100;
+
+    const stored = { ...this.savedGains };
+    if (Math.abs(gainValue - 1.0) < 0.001) {
+      delete stored[pubkey];
+    } else {
+      stored[pubkey] = clamped;
+    }
+    this.savedGains = stored;
+    try {
+      localStorage.setItem(GAINS_STORAGE_KEY, JSON.stringify(stored));
+    } catch {}
+
+    for (const [sid, pk] of this.senderIdToPubkey) {
+      if (pk === pubkey) {
+        const gainNode = this.gainNodes.get(sid);
+        if (gainNode) {
+          gainNode.gain.value = gainValue;
+        }
+        break;
+      }
+    }
   }
 
   setMuted(muted: boolean): void {
@@ -166,6 +275,10 @@ export class VoiceWsSession {
     this.processor = null;
     for (const track of this.mediaStream?.getTracks() ?? []) track.stop();
     this.mediaStream = null;
+    for (const [, gainNode] of this.gainNodes) {
+      gainNode.disconnect();
+    }
+    this.gainNodes.clear();
     this.audioCtx?.close().catch(() => {});
     this.audioCtx = null;
     this.ws?.close();

@@ -19,6 +19,9 @@ pub fn run() {
             voice_cmd::list_audio_devices,
             voice_cmd::mic_test_start,
             voice_cmd::mic_test_stop,
+            voice_cmd::set_voice_gain,
+            voice_cmd::get_voice_settings,
+            voice_cmd::save_voice_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Wavvon");
