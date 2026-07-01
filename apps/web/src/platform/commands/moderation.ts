@@ -58,14 +58,14 @@ export async function addBanlistSource(
   url: string,
   policy: "hard-reject" | "soft-flag",
 ): Promise<void> {
-  await hubFetch("/admin/settings/banlist/sources", {
+  await hubFetch("/admin/banlist/sources", {
     method: "POST",
     body: JSON.stringify({ url, policy }),
   });
 }
 
 export async function removeBanlistSource(url: string): Promise<void> {
-  await hubFetch("/admin/settings/banlist/sources", {
+  await hubFetch("/admin/banlist/sources", {
     method: "DELETE",
     body: JSON.stringify({ url }),
   });
@@ -75,7 +75,7 @@ export async function updateBanlistSourcePolicy(
   url: string,
   policy: "hard-reject" | "soft-flag",
 ): Promise<void> {
-  await hubFetch("/admin/settings/banlist/sources", {
+  await hubFetch("/admin/banlist/sources", {
     method: "PATCH",
     body: JSON.stringify({ url, policy }),
   });
@@ -110,7 +110,7 @@ export async function removeBanlistOverride(targetPubkey: string): Promise<void>
 }
 
 export async function setBanlistPublish(publish: boolean): Promise<void> {
-  await hubFetch("/admin/settings/banlist/publish", {
+  await hubFetch("/admin/settings/banlist", {
     method: "PATCH",
     body: JSON.stringify({ publish_banlist: publish }),
   });
