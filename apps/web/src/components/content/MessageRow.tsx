@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
 import {
@@ -18,6 +18,7 @@ import { MessageComponents } from "../MessageComponents";
 import { LinkPreviewInMessage } from "../LinkPreviewInMessage";
 import { PollCard } from "../PollCard";
 import { pinMessage, unpinMessage } from "@platform";
+import { reportMessage } from "../../platform/commands/moderation";
 import { Avatar, MessageAttachments, MessageContent } from "@wavvon/ui";
 
 interface Props {
@@ -108,6 +109,9 @@ export function MessageRow({
   onPollDelete,
 }: Props) {
   const { t } = useTranslation();
+  const [reporting, setReporting] = useState(false);
+  const [reportDraft, setReportDraft] = useState("");
+  const [reported, setReported] = useState(false);
 
   const showSeparator = !prevMessage || dayKey(m.created_at) !== dayKey(prevMessage.created_at);
   const isMine = m.sender === publicKey;
@@ -318,7 +322,58 @@ export function MessageRow({
                   ✕
                 </button>
               )}
+              {!isMine && (
+                reported ? (
+                  <span className="message-action muted" style={{ fontSize: "var(--text-xs)" }}>
+                    Reported
+                  </span>
+                ) : (
+                  <button
+                    className="message-action"
+                    title="Report message"
+                    aria-label="Report message"
+                    onClick={() => setReporting((v) => !v)}
+                  >
+                    ⚑
+                  </button>
+                )
+              )}
             </div>
+            {reporting && !reported && (
+              <div className="settings-row" style={{ marginTop: "var(--space-1)" }}>
+                <input
+                  type="text"
+                  placeholder="Reason for report…"
+                  value={reportDraft}
+                  onChange={(e) => setReportDraft(e.target.value)}
+                  style={{ flex: 1 }}
+                  autoFocus
+                />
+                <button
+                  className="btn-small"
+                  disabled={!reportDraft.trim()}
+                  onClick={async () => {
+                    try {
+                      await reportMessage(m.id, reportDraft.trim());
+                      setReporting(false);
+                      setReportDraft("");
+                      setReported(true);
+                      setTimeout(() => setReported(false), 2000);
+                    } catch (e) {
+                      onError(String(e));
+                    }
+                  }}
+                >
+                  Submit
+                </button>
+                <button
+                  className="btn-small btn-secondary"
+                  onClick={() => { setReporting(false); setReportDraft(""); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
             {m.reactions && m.reactions.length > 0 && (
               <MessageReactions
                 reactions={m.reactions}

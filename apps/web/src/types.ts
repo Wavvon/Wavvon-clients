@@ -928,3 +928,45 @@ export interface WsScreenShareViewerLeft {
   stream_id: string;
   from_pubkey: string;
 }
+
+// ---- Moderation (ME1 / ME2 / ME3) ----
+
+export interface Report {
+  id: string;
+  message_id: string;
+  message_content: string | null;
+  channel_id: string;
+  reporter_pubkey: string;
+  reason: string;
+  reported_at: number;
+  status: string;
+}
+
+export interface ModerationSettings {
+  webhook_url?: string;
+  webhook_secret_set: boolean;
+  circuit_open: boolean;
+  circuit_open_until: number | null;
+}
+
+export interface BanlistSource {
+  url: string;
+  policy: "hard-reject" | "soft-flag";
+  added_at: number;
+  issuer_pubkey?: string;
+}
+
+export interface FederatedBanEntry {
+  source_hub_pubkey: string;
+  target_master_pubkey: string;
+  reason?: string;
+  added_at: number;
+  synced_at: number;
+}
+
+export interface BanlistOverride {
+  target_pubkey: string;
+  override_type: "whitelist" | "blacklist";
+  reason?: string;
+  created_at: number;
+}

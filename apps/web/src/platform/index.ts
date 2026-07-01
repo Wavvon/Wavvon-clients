@@ -140,6 +140,23 @@ export { getNotifPref, setNotifPref } from "./notifPrefs";
 export { fetchVoiceRoster } from "./commands/voice";
 
 export {
+  reportMessage,
+  listReports,
+  reviewReport,
+  getModerationSettings,
+  patchModerationSettings,
+  getBanlistSettings,
+  addBanlistSource,
+  removeBanlistSource,
+  updateBanlistSourcePolicy,
+  getBanlistEntries,
+  getBanlistOverrides,
+  addBanlistOverride,
+  removeBanlistOverride,
+  setBanlistPublish,
+} from "./commands/moderation";
+
+export {
   isPasskeySupported,
   registerPasskey,
   authenticateWithPasskey,

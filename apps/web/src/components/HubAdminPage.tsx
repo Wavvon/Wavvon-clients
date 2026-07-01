@@ -15,6 +15,7 @@ import { RecoveryContactsSection } from "./RecoveryContactsSection";
 import { WebhooksSection } from "./WebhooksSection";
 import { submitToDirectory } from "../platform/commands/hubAdmin";
 import { ExternalBotSection } from "./ExternalBotSection";
+import { ModerationTab } from "./ModerationTab";
 
 export type HubAdminTab =
   | "overview"
@@ -27,7 +28,8 @@ export type HubAdminTab =
   | "invites"
   | "integrations"
   | "certifications"
-  | "recovery";
+  | "recovery"
+  | "moderation";
 
 export interface HubAdminPageProps {
   tab: HubAdminTab;
@@ -116,6 +118,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "external-bots", label: t("admin.tabs.external_bots") },
     { id: "certifications", label: t("admin.tabs.certifications") },
     { id: "recovery", label: t("admin.tabs.recovery") },
+    ...(props.isAdmin ? [{ id: "moderation" as HubAdminTab, label: "Moderation" }] : []),
   ];
 
   return (
@@ -378,6 +381,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
             <h1>{t("admin.tabs.recovery")}</h1>
             <RecoveryContactsSection hubUrl={props.activeHubUrl} isAdmin={props.isAdmin} publicKey={null} />
           </section>
+        )}
+
+        {props.tab === "moderation" && props.isAdmin && (
+          <ModerationTab />
         )}
       </main>
     </div>
