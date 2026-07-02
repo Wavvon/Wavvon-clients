@@ -16,6 +16,7 @@ import { WebhooksSection } from "./WebhooksSection";
 import { submitToDirectory } from "../platform/commands/hubAdmin";
 import { ExternalBotSection } from "./ExternalBotSection";
 import { ModerationTab } from "./ModerationTab";
+import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
 
 export type HubAdminTab =
   | "overview"
@@ -27,6 +28,7 @@ export type HubAdminTab =
   | "external-bots"
   | "invites"
   | "integrations"
+  | "outgoing-webhooks"
   | "certifications"
   | "recovery"
   | "moderation";
@@ -115,6 +117,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "bans", label: t("hub.admin.tabs.bans") },
     { id: "invites", label: t("hub.admin.tabs.invites") },
     { id: "integrations", label: t("hub.admin.tabs.integrations") },
+    { id: "outgoing-webhooks", label: t("hub.admin.tabs.outgoing_webhooks") },
     { id: "external-bots", label: t("admin.tabs.external_bots") },
     { id: "certifications", label: t("admin.tabs.certifications") },
     { id: "recovery", label: t("admin.tabs.recovery") },
@@ -363,6 +366,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "integrations" && (
           <WebhooksSection channels={props.channels} />
+        )}
+
+        {props.tab === "outgoing-webhooks" && (
+          <OutgoingWebhooksSection channels={props.channels} />
         )}
 
         {props.tab === "external-bots" && (

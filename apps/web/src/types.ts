@@ -684,6 +684,47 @@ export interface WebhookCreatedResult {
   webhook_url: string;
 }
 
+// ---- Event subscriptions (shared shape: bots and outgoing webhooks) ----
+
+export interface EventSubscription {
+  event: string;
+  channels?: string[];
+}
+
+// ---- Outgoing webhooks ----
+
+export interface OutgoingWebhookSummary {
+  id: string;
+  url: string;
+  display_name: string | null;
+  active: boolean;
+  failure_count: number;
+  last_delivery_at: number | null;
+  last_failure_at: number | null;
+  created_at: number;
+  created_by_pubkey: string;
+  subscription_count: number;
+}
+
+export interface OutgoingWebhookCreatedResult {
+  id: string;
+  url: string;
+  display_name: string | null;
+  secret: string;
+}
+
+export interface OutgoingWebhookDelivery {
+  id: string;
+  webhook_id: string;
+  event_type: string;
+  event_seq: number | null;
+  attempted_at: number;
+  attempt_number: number;
+  status_code: number | null;
+  success: boolean;
+  error_msg: string | null;
+}
+
 // ---- Forum ----
 
 export interface ReactionCount {

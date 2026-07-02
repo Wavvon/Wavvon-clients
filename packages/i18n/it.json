@@ -286,6 +286,7 @@
   "hub.admin.tabs.icons": "Icone",
   "hub.admin.tabs.bots": "Bot",
   "hub.admin.tabs.integrations": "Integrazioni",
+  "hub.admin.tabs.outgoing_webhooks": "Webhook in uscita",
   "hub.admin.tabs.survey": "Onboarding",
   "hub.admin.tabs.lobby": "Lobby",
   "hub.admin.tabs.challenge": "Sfida",
