@@ -162,6 +162,17 @@ export {
   clearChannelRolePermissions,
 } from "./commands/channelPermissions";
 
+export { listRoles, createRole, updateRole, deleteRole } from "./commands/roles";
+export type { RoleCreateInput, RoleUpdateInput } from "./commands/roles";
+
+export {
+  listRoleCategories,
+  createRoleCategory,
+  updateRoleCategory,
+  deleteRoleCategory,
+} from "./commands/roleCategories";
+export type { RoleCategoryCreateInput, RoleCategoryUpdateInput } from "./commands/roleCategories";
+
 export {
   isPasskeySupported,
   registerPasskey,

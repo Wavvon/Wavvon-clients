@@ -1391,6 +1391,46 @@ select,
   color: var(--text-faint);
 }
 
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 2px var(--space-2);
+  border-radius: var(--r-pill);
+  font-size: var(--text-xs);
+  border: 1px solid transparent;
+}
+
+/* Blends the role's hex color into the theme's own text/border colors
+   (not the raw hex) so contrast stays readable across light and dark
+   themes — see docs/docs/role-categories.md §4. */
+.role-badge-tinted {
+  color: color-mix(in srgb, var(--role-color) 60%, var(--text));
+  border-color: color-mix(in srgb, var(--role-color) 45%, var(--border));
+  background: color-mix(in srgb, var(--role-color) 12%, var(--surface));
+}
+
+.role-category-group {
+  margin-bottom: var(--space-3);
+}
+
+.role-category-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+}
+
+.role-category-header-tinted {
+  color: color-mix(in srgb, var(--role-color) 70%, var(--text-muted));
+}
+
 /* ============================================================
    ALLIANCES (sidebar)
    ============================================================ */

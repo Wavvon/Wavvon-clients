@@ -173,6 +173,18 @@ export interface RoleInfo {
   permissions: string[];
   priority: number;
   display_separately?: boolean;
+  color: string | null;
+  icon: string | null;
+  category_id: string | null;
+}
+
+export interface RoleCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  position: number;
+  created_at: number;
 }
 
 export interface ChannelRoleOverwrites {

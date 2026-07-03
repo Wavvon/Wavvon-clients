@@ -6,7 +6,6 @@ import type {
   InviteInfo,
   MemberAdminInfo,
   PendingUser,
-  RoleInfo,
 } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import { ServerTagsSection } from "./ServerTagsSection";
@@ -17,6 +16,7 @@ import { submitToDirectory } from "../platform/commands/hubAdmin";
 import { ExternalBotSection } from "./ExternalBotSection";
 import { ModerationTab } from "./ModerationTab";
 import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
+import { RolesSection } from "./RolesSection";
 
 export type HubAdminTab =
   | "overview"
@@ -52,7 +52,6 @@ export interface HubAdminPageProps {
   onSave: () => void;
   pendingMembers: PendingUser[];
   onApproveMember: (publicKey: string) => void;
-  roles: RoleInfo[];
   members: MemberAdminInfo[];
   onKickMember: (publicKey: string) => void;
   onBanMember: (publicKey: string) => void;
@@ -351,18 +350,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "roles" && (
-          <section>
-            <h1>{t("hub.admin.roles.title")}</h1>
-            <p className="muted">{t("hub.admin.roles.hint")}</p>
-            {props.roles.map((r) => (
-              <div key={r.id} className="settings-row">
-                <span>{r.name}</span>
-                <span className="muted">{r.permissions.join(", ")}</span>
-              </div>
-            ))}
-          </section>
-        )}
+        {props.tab === "roles" && <RolesSection />}
 
         {props.tab === "integrations" && (
           <WebhooksSection channels={props.channels} />

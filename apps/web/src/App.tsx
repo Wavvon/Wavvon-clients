@@ -1911,7 +1911,6 @@ export default function App() {
             onSave={saveHubAdminSettings}
             pendingMembers={hubAdminPending}
             onApproveMember={(pk) => hubFetch(`/hub/pending/${pk}/approve`, { method: "POST" }).catch(() => {})}
-            roles={meInfo?.roles ?? []}
             members={hubAdminMembers}
             onKickMember={(pk) => hubFetch(`/moderation/kick`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}
             onBanMember={(pk) => hubFetch(`/moderation/bans`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}

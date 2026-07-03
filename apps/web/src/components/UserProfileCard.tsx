@@ -1,24 +1,49 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { UserProfile } from "../types";
-import { getUserProfile } from "@platform";
+import type { RoleCategory, UserProfile } from "../types";
+import { getUserProfile, listRoleCategories, getActiveHubId } from "@platform";
 import { formatRelative } from "@wavvon/core";
 import { Avatar } from "@wavvon/ui";
+import { groupRolesByCategory, roleTintStyle } from "../utils/roleAppearance";
 
 interface Props {
   pubkey: string;
   onClose: () => void;
 }
 
+// Categories rarely change and are shared by every profile card opened
+// against the same hub — cache them here (keyed by hub id) instead of
+// refetching every time a card opens.
+const categoryCache = new Map<string, Promise<RoleCategory[]>>();
+
+function loadRoleCategories(hubId: string): Promise<RoleCategory[]> {
+  let cached = categoryCache.get(hubId);
+  if (!cached) {
+    cached = listRoleCategories().catch((e) => {
+      categoryCache.delete(hubId);
+      throw e;
+    });
+    categoryCache.set(hubId, cached);
+  }
+  return cached;
+}
+
 export function UserProfileCard({ pubkey, onClose }: Props) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [categories, setCategories] = useState<RoleCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getUserProfile(pubkey)
       .then(setProfile)
       .catch((e) => setError(String(e)));
+    const hubId = getActiveHubId();
+    if (hubId) {
+      loadRoleCategories(hubId)
+        .then(setCategories)
+        .catch(() => setCategories([]));
+    }
   }, [pubkey]);
 
   return (
@@ -79,13 +104,28 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
                 >
                   {t("user.profile.roles")}
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {profile.roles.map((r) => (
-                    <span key={r.id} className="role-badge">
-                      {r.name}
-                    </span>
-                  ))}
-                </div>
+                {groupRolesByCategory(profile.roles, categories).map((group) => (
+                  <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
+                    <div
+                      className={`role-category-header ${group.category?.color ? "role-category-header-tinted" : ""}`}
+                      style={roleTintStyle(group.category?.color)}
+                    >
+                      {group.category?.icon && <span>{group.category.icon}</span>}
+                      <span>{group.category?.name ?? t("hub.admin.roles.uncategorized")}</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {group.roles.map((r) => (
+                        <span
+                          key={r.id}
+                          className={`role-badge ${r.color ? "role-badge-tinted" : ""}`}
+                          style={roleTintStyle(r.color)}
+                        >
+                          {r.icon && <span>{r.icon}</span>} {r.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
