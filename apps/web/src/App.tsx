@@ -1268,6 +1268,11 @@ export default function App() {
     [meInfo],
   );
 
+  const canManageRoles = useMemo(
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_roles")) ?? false,
+    [meInfo],
+  );
+
   const myRoles = useMemo(() => meInfo?.roles ?? [], [meInfo]);
 
   const knownDisplayNames = useMemo(
@@ -1864,6 +1869,7 @@ export default function App() {
           saving={channelSettingsSaving}
           deleting={channelSettingsDeleting}
           error={channelSettingsError}
+          canManageRoles={canManageRoles}
           onSave={handleSaveChannelSettings}
           onDelete={handleDeleteChannel}
           onClose={() => { setChannelSettingsCtx(null); setChannelSettingsError(null); }}

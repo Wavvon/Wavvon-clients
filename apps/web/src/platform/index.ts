@@ -157,6 +157,12 @@ export {
 } from "./commands/moderation";
 
 export {
+  getChannelPermissions,
+  setChannelRolePermissions,
+  clearChannelRolePermissions,
+} from "./commands/channelPermissions";
+
+export {
   isPasskeySupported,
   registerPasskey,
   authenticateWithPasskey,

@@ -29,6 +29,20 @@ import { HoverSubmenu } from "@wavvon/ui";
 
 const CHANNEL_INDENT_PX = 16;
 
+// A category can end up with zero visible descendant channels either
+// because it's freshly created and empty (admins build structure
+// top-down) or because the server filtered out every descendant channel
+// for READ_MESSAGES (nested-channels-ux.md §3.5). The two are
+// indistinguishable client-side, so suppression is scoped to non-admins
+// only — admins always need to see the categories they're building.
+export function categoryHasVisibleChannel(node: TreeNode): boolean {
+  for (const child of node.children) {
+    if (!child.node.is_category) return true;
+    if (categoryHasVisibleChannel(child)) return true;
+  }
+  return false;
+}
+
 function gainIcon(gainPct: number): string {
   if (gainPct === 0) return "🔇";
   if (gainPct < 100) return "🔉";
@@ -229,6 +243,7 @@ export function ChannelSidebar({
     const result: FlatNode[] = [];
     function walk(nodes: TreeNode[]) {
       for (const n of nodes) {
+        if (n.node.is_category && !isAdmin && !categoryHasVisibleChannel(n)) continue;
         result.push({
           node: n.node,
           depth: n.depth,
@@ -242,7 +257,7 @@ export function ChannelSidebar({
     walk(channelTree);
     const silenced = silencedChannelIds ?? new Set<string>();
     return result.filter((n) => n.node.is_category || !silenced.has(n.node.id));
-  }, [channelTree, activeHubId, collapsedCategories, silencedChannelIds]);
+  }, [channelTree, activeHubId, collapsedCategories, silencedChannelIds, isAdmin]);
 
   const activeNode = activeId ? flatVisible.find((n) => n.node.id === activeId) : null;
 

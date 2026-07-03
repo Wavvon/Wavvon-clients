@@ -175,6 +175,24 @@ export interface RoleInfo {
   display_separately?: boolean;
 }
 
+export interface ChannelRoleOverwrites {
+  allow: string[];
+  deny: string[];
+}
+
+export interface ChannelRolePermissions {
+  role_id: string;
+  role_name: string;
+  overwrites: ChannelRoleOverwrites;
+  inherited: string[];
+  effective: string[];
+}
+
+export interface ChannelPermissionsResponse {
+  channel_id: string;
+  roles: ChannelRolePermissions[];
+}
+
 export interface NamedProfile {
   id: string;
   label: string;
