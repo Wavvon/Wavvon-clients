@@ -57,6 +57,31 @@ export function computeDepth(channels: Channel[], parentId: string | null): numb
   return 1 + computeDepth(channels, parent.parent_id ?? null);
 }
 
+/**
+ * Root-to-leaf ancestor chain for a channel, including the channel itself.
+ * Powers permalink breadcrumbs, the drill-in back-crumb, and permalink
+ * resolution (see nested-channels-ux.md §1.4 / §2.4) — one tree-walk, three
+ * surfaces. Returns `[]` if `id` isn't in `channels` (deleted / not visible).
+ */
+export function channelPath(channels: Channel[], id: string): Channel[] {
+  const byId = new Map(channels.map((c) => [c.id, c]));
+  const start = byId.get(id);
+  if (!start) return [];
+
+  const path: Channel[] = [start];
+  const seen = new Set<string>([id]);
+  let current = start;
+  while (current.parent_id !== null) {
+    if (seen.has(current.parent_id)) break; // defend against a parent_id cycle
+    const parent = byId.get(current.parent_id);
+    if (!parent) break;
+    path.push(parent);
+    seen.add(parent.id);
+    current = parent;
+  }
+  return path.reverse();
+}
+
 export function descendantIds(tree: TreeNode[], id: string): Set<string> {
   function findNode(nodes: TreeNode[]): TreeNode | null {
     for (const n of nodes) {

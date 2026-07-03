@@ -9,8 +9,9 @@ import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing } from "@wavvon/core";
+import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, channelPath } from "@wavvon/core";
 import { parseHubInput } from "@wavvon/core";
+import type { HubInputResult } from "@wavvon/core";
 import type {
   Channel,
   Attachment,
@@ -437,6 +438,10 @@ export default function App() {
   useEffect(() => { activeHubIdRef.current = activeHubId; }, [activeHubId]);
 
   const hubsRef = useRef<Hub[]>([]);
+  const channelsRef = useRef<Channel[]>([]);
+  useEffect(() => { channelsRef.current = channels; }, [channels]);
+  const pendingDeepLinkTargetRef = useRef<NonNullable<HubInputResult["target"]> | null>(null);
+  const [pendingScrollMessageId, setPendingScrollMessageId] = useState<string | null>(null);
   useEffect(() => { hubsRef.current = hubs; }, [hubs]);
 
   const meInfoRef = useRef<MeInfo | null>(null);
@@ -470,6 +475,35 @@ export default function App() {
     setHubErrorToast(msg);
     hubErrorTimerRef.current = setTimeout(() => setHubErrorToast(null), 5000);
   }
+
+  // Scrolls to and flashes an already-loaded message row (reply-jump,
+  // pinned-message jump, and the tail end of message-permalink navigation
+  // once the target channel's history has loaded — nested-channels-ux.md §1.3).
+  function handleScrollToMessage(id: string) {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 1200);
+  }
+
+  // A channel-permalink message target may point at a channel that wasn't
+  // yet selected, so the message row doesn't exist until its history loads.
+  useEffect(() => {
+    if (!pendingScrollMessageId) return;
+    if (!messages.some((m) => m.id === pendingScrollMessageId)) return;
+    const id = pendingScrollMessageId;
+    setPendingScrollMessageId(null);
+    requestAnimationFrame(() => handleScrollToMessage(id));
+  }, [messages, pendingScrollMessageId]);
+
+  // Give up on a pending message-permalink scroll if the target isn't in
+  // the loaded history window (e.g. it's older than what's fetched).
+  useEffect(() => {
+    if (!pendingScrollMessageId) return;
+    const timer = setTimeout(() => setPendingScrollMessageId(null), 8000);
+    return () => clearTimeout(timer);
+  }, [pendingScrollMessageId]);
 
   const stableHandlersRef = useRef<WsHandlers>({});
 
@@ -852,6 +886,36 @@ export default function App() {
     await loadHubData();
   }
 
+  // Matches a wavvon:// deep-link host against an already-joined hub
+  // (nested-channels-ux.md §1.5).
+  function findHubByUrl(url: string): Hub | undefined {
+    let host: string;
+    try { host = new URL(url).host.toLowerCase(); } catch { return undefined; }
+    return hubsRef.current.find((h) => {
+      try { return new URL(h.hub_url).host.toLowerCase() === host; } catch { return false; }
+    });
+  }
+
+  // Applies a parsed channel/message permalink target once its hub is the
+  // active one: selects the channel and, for a message target, queues the
+  // scroll-to-message once that channel's history has loaded.
+  async function applyDeepLinkTarget(hubId: string, target: NonNullable<HubInputResult["target"]>) {
+    if (getActiveHubId() !== hubId) {
+      await handleSwitchHub(hubId);
+    }
+    let list = channelsRef.current;
+    try {
+      list = await hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>);
+    } catch { /* fall back to whatever is already loaded */ }
+    const ch = list.find((c) => c.id === target.channelId);
+    if (!ch) {
+      showHubError(t("hub.permalink.channel_not_found"));
+      return;
+    }
+    await handleSelectChannel(ch);
+    if (target.kind === "message") setPendingScrollMessageId(target.messageId);
+  }
+
   async function handleRemoveHub(hubId: string) {
     await removeHub(hubId);
     const list = listHubs();
@@ -903,6 +967,11 @@ export default function App() {
       setHubPreview({ state: "idle" });
       await loadHubData();
       publishDhKey().catch(() => {});
+      const target = pendingDeepLinkTargetRef.current;
+      if (target) {
+        pendingDeepLinkTargetRef.current = null;
+        await applyDeepLinkTarget(hub.hub_id, target);
+      }
     } catch (e) {
       setAddHubError(e instanceof HubApiError ? e.message : String(e));
     } finally {
@@ -928,6 +997,11 @@ export default function App() {
       setHubPreview({ state: "idle" });
       await loadHubData();
       publishDhKey().catch(() => {});
+      const target = pendingDeepLinkTargetRef.current;
+      if (target) {
+        pendingDeepLinkTargetRef.current = null;
+        await applyDeepLinkTarget(hub.hub_id, target);
+      }
     } catch (e) {
       setAddHubError(e instanceof HubApiError ? e.message : String(e));
     } finally {
@@ -1027,6 +1101,30 @@ export default function App() {
       setStickToBottom(true);
       setNewWhileScrolledUp(0);
     } catch {}
+  }
+
+  // Expands whatever ancestor categories are collapsed so a breadcrumb
+  // category crumb (nested-channels-ux.md §1.4) becomes visible, then
+  // scrolls the sidebar to it.
+  function handleBreadcrumbCategoryClick(categoryId: string) {
+    const hubId = activeHubId;
+    if (!hubId) return;
+    const ancestorsAbove = channelPath(channels, categoryId).slice(0, -1);
+    if (ancestorsAbove.length > 0) {
+      setCollapsedCategories((prev) => {
+        const m = { ...(prev[hubId] ?? {}) };
+        let changed = false;
+        for (const anc of ancestorsAbove) {
+          if (m[anc.id]) { delete m[anc.id]; changed = true; }
+        }
+        return changed ? { ...prev, [hubId]: m } : prev;
+      });
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById(`sidebar-node-${categoryId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
   }
 
   async function handleChannelDragEnd(event: DragEndEvent) {
@@ -1698,6 +1796,8 @@ export default function App() {
         view={view as "channels" | "dms"}
         activeHubId={activeHubId}
         hubs={hubs}
+        channels={channels}
+        onBreadcrumbCategoryClick={handleBreadcrumbCategoryClick}
         theme={theme}
         selectedChannel={selectedChannel}
         selectedConversation={selectedConversation}
@@ -1753,7 +1853,7 @@ export default function App() {
         onOpenEditDescription={() => {}}
         firstNotifyingMessageId={firstNotifyingMessageId}
         onClearFirstNotify={() => setFirstNotifyingMessageId(null)}
-        onScrollToMessage={() => {}}
+        onScrollToMessage={handleScrollToMessage}
         onSetMemberSidebarHidden={setMemberSidebarHidden}
         onSetSearchOpen={setSearchOpen}
         onSetSearchQuery={setSearchQuery}
@@ -1839,7 +1939,25 @@ export default function App() {
       {showAddHub && (
         <AddHubModal
           hubUrl={hubUrl}
-          onHubUrlChange={(v) => { const p = parseHubInput(v); setHubUrl(p?.hubUrl ?? v); if (p?.inviteCode) setInviteCode(p.inviteCode); setHubPreview({ state: "idle" }); setAddHubError(null); }}
+          onHubUrlChange={(v) => {
+            const p = parseHubInput(v);
+            setHubUrl(p?.hubUrl ?? v);
+            if (p?.inviteCode) setInviteCode(p.inviteCode);
+            setHubPreview({ state: "idle" });
+            setAddHubError(null);
+            if (p?.target) {
+              const existing = findHubByUrl(p.hubUrl);
+              if (existing) {
+                pendingDeepLinkTargetRef.current = null;
+                setShowAddHub(false);
+                void applyDeepLinkTarget(existing.hub_id, p.target);
+                return;
+              }
+              pendingDeepLinkTargetRef.current = p.target;
+            } else {
+              pendingDeepLinkTargetRef.current = null;
+            }
+          }}
           hubPreview={hubPreview}
           inviteCode={inviteCode}
           onInviteCodeChange={setInviteCode}
@@ -1887,6 +2005,29 @@ export default function App() {
             style={{ top: channelCtxMenu.y, left: channelCtxMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
+            {!channelCtxMenu.channel.is_category && (
+              <button
+                className="context-menu-item"
+                onClick={async () => {
+                  const ch = channelCtxMenu.channel;
+                  setChannelCtxMenu(null);
+                  const hub = hubs.find((h) => h.hub_id === activeHubId);
+                  if (!hub) return;
+                  const link = `wavvon://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${ch.id}`;
+                  try {
+                    await navigator.clipboard.writeText(link);
+                    showHubError(t("message.action.link_copied"));
+                  } catch (e) {
+                    showHubError(String(e));
+                  }
+                }}
+              >
+                {t("channel.ctx.copy_link")}
+              </button>
+            )}
+            {!channelCtxMenu.channel.is_category && isAdmin && (
+              <hr style={{ margin: "4px 0", border: "none", borderTop: "1px solid var(--border)" }} />
+            )}
             {isAdmin && channelCtxMenu.channel.is_category && (
               <button className="context-menu-item" onClick={() => { const ch = channelCtxMenu; setChannelCtxMenu(null); setCreateChannelCtx({ parentId: ch.channel.id, isCategory: false }); setCreateChannelError(null); }}>
                 {t("channel.ctx.create_in", { name: channelCtxMenu.channel.name })}

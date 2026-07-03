@@ -1,11 +1,14 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { channelPath } from "@wavvon/core";
 import type { Channel, Message, ActiveStream } from "../../types";
 import { ScreenShareViewer } from "../ScreenShareViewer";
 import type { ScreenShareViewerRef } from "../ScreenShareViewer";
 
 interface Props {
   selectedChannel: Channel;
+  channels: Channel[];
+  activeHubUrl?: string;
   voiceChannelId?: string | null;
   memberSidebarHidden: boolean;
   searchOpen: boolean;
@@ -25,10 +28,15 @@ interface Props {
   onToggleMemberSidebar: () => void;
   onOpenEditDescription: (channel: Channel) => void;
   onStopShare?: () => void;
+  onToast: (msg: string) => void;
+  onError: (msg: string) => void;
+  onBreadcrumbCategoryClick: (categoryId: string) => void;
 }
 
 export function ChannelHeader({
   selectedChannel,
+  channels,
+  activeHubUrl,
   voiceChannelId,
   memberSidebarHidden,
   searchOpen,
@@ -48,12 +56,45 @@ export function ChannelHeader({
   onToggleMemberSidebar,
   onOpenEditDescription,
   onStopShare,
+  onToast,
+  onError,
+  onBreadcrumbCategoryClick,
 }: Props) {
   const { t } = useTranslation();
+  const breadcrumb = channelPath(channels, selectedChannel.id);
+
+  async function copyChannelLink() {
+    if (!activeHubUrl) return;
+    const link = `wavvon://${activeHubUrl.replace(/^https?:\/\//, "")}/channel/${selectedChannel.id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      onToast(t("message.action.link_copied"));
+    } catch (e) {
+      onError(String(e));
+    }
+  }
+
   return (
     <>
       <div className="channel-header">
         <div className="channel-header-info">
+          {breadcrumb.length > 1 && (
+            <nav className="channel-breadcrumb" aria-label={t("channel.breadcrumb.aria")}>
+              {breadcrumb.slice(0, -1).map((crumb) => (
+                <React.Fragment key={crumb.id}>
+                  <button
+                    type="button"
+                    className="channel-breadcrumb-item"
+                    onClick={() => onBreadcrumbCategoryClick(crumb.id)}
+                  >
+                    {crumb.name}
+                  </button>
+                  <span className="channel-breadcrumb-sep" aria-hidden="true">›</span>
+                </React.Fragment>
+              ))}
+              <span className="channel-breadcrumb-item current"># {selectedChannel.name}</span>
+            </nav>
+          )}
           <h3># {selectedChannel.name}</h3>
           {selectedChannel.description ? (
             <p
@@ -92,6 +133,14 @@ export function ChannelHeader({
             </button>
           )
         )}
+        <button
+          onClick={copyChannelLink}
+          className="btn-icon-header"
+          title={t("channel.ctx.copy_link")}
+          aria-label={t("channel.ctx.copy_link")}
+        >
+          🔗
+        </button>
         <button
           onClick={onShowPinned}
           className="btn-icon-header"

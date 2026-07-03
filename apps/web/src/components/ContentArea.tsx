@@ -49,6 +49,8 @@ interface Props {
   view: "channels" | "dms";
   activeHubId: string | null;
   hubs: Hub[];
+  channels: Channel[];
+  onBreadcrumbCategoryClick: (categoryId: string) => void;
   theme: string;
   selectedChannel: Channel | null;
   selectedConversation: Conversation | null;
@@ -131,7 +133,7 @@ interface Props {
 }
 
 export function ContentArea({
-  view, activeHubId, hubs, theme,
+  view, activeHubId, hubs, channels, onBreadcrumbCategoryClick, theme,
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
   dmMessages, allianceMessages,
@@ -443,6 +445,8 @@ export function ContentArea({
           <div className="chat-column">
             <ChannelHeader
               selectedChannel={selectedChannel}
+              channels={channels}
+              activeHubUrl={activeHub?.hub_url}
               voiceChannelId={voiceChannelId}
               memberSidebarHidden={memberSidebarHidden}
               searchOpen={searchOpen}
@@ -462,6 +466,9 @@ export function ContentArea({
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
               onStopShare={onStopShare}
+              onToast={onToast}
+              onError={onError}
+              onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
             <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               {(["messages", "events"] as const).map((tab) => (

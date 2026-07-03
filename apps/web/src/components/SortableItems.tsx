@@ -113,6 +113,7 @@ export function SortableChannelItem({
   return (
     <li
       ref={setNodeRef}
+      id={`sidebar-node-${channel.id}`}
       tabIndex={tabIndex}
       onKeyDown={onKeyDown}
       className={`channel-item-wrap ${isDragging ? "dragging" : ""}`}
@@ -218,6 +219,7 @@ export function SortableCategoryItem({
     <li
       role="group"
       aria-label={channel.name}
+      id={`sidebar-node-${channel.id}`}
       ref={setNodeRef}
       tabIndex={tabIndex}
       onKeyDown={onKeyDown}

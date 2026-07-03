@@ -1,6 +1,27 @@
 export interface HubInputResult {
   hubUrl: string;
   inviteCode: string;
+  target?:
+    | { kind: "channel"; channelId: string }
+    | { kind: "message"; channelId: string; messageId: string };
+}
+
+/**
+ * Parse a `channel/{id}` or `channel/{id}/message/{id}` path tail (the part
+ * of a wavvon:// deep link after the host) into a permalink target.
+ * Anything else — including an empty path — is not a permalink and is left
+ * for the caller to treat as an invite code, preserving backward
+ * compatibility with existing wavvon:// invite links.
+ */
+function parseDeepLinkTarget(codePart: string): HubInputResult["target"] {
+  const segments = codePart.split("/").filter(Boolean);
+  if (segments[0] !== "channel" || !segments[1]) return undefined;
+  const channelId = segments[1];
+  if (segments.length === 2) return { kind: "channel", channelId };
+  if (segments[2] === "message" && segments[3]) {
+    return { kind: "message", channelId, messageId: segments[3] };
+  }
+  return undefined;
 }
 
 /**
@@ -8,6 +29,8 @@ export interface HubInputResult {
  *
  * Accepted forms:
  *   wavvon://host[:port]/[inviteCode][?params]  — deep link (desktop / mobile)
+ *   wavvon://host[:port]/channel/{id}[?params]                — channel permalink
+ *   wavvon://host[:port]/channel/{id}/message/{id}[?params]   — message permalink
  *   https://host[?invite=code]                 — HTTPS URL, optional invite param
  *   https://host[#invite=code]                 — HTTPS URL, invite in hash fragment
  *   host[:port]                                — bare hostname, normalised to https://
@@ -28,9 +51,11 @@ export function parseHubInput(raw: string): HubInputResult | null {
     if (!hostPart) return null;
     const isLocal =
       hostPart.startsWith("localhost") || hostPart.startsWith("127.");
+    const target = parseDeepLinkTarget(codePart);
     return {
       hubUrl: `${isLocal ? "http" : "https"}://${hostPart}`,
-      inviteCode: codePart,
+      inviteCode: target ? "" : codePart,
+      ...(target ? { target } : {}),
     };
   }
 
