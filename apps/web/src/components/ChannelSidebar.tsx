@@ -23,11 +23,15 @@ import type {
   Conversation,
 } from "../types";
 import type { TreeNode, FlatNode } from "@wavvon/core";
+import { channelPath, findTreeNode } from "@wavvon/core";
 import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
 import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
 import { HoverSubmenu } from "@wavvon/ui";
+import { DRILL_DEPTH, computeIndent, resolveDrillInScope } from "./channelSidebarLayout";
 
-const CHANNEL_INDENT_PX = 16;
+interface SidebarFlatNode extends FlatNode {
+  indentDepth: number;
+}
 
 // A category can end up with zero visible descendant channels either
 // because it's freshly created and empty (admins build structure
@@ -222,6 +226,14 @@ export function ChannelSidebar({
   const hubHeaderRef = useRef<HTMLDivElement>(null);
   const [channelFocusIndex, setChannelFocusIndex] = useState(0);
   const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
+  const [focusedSubtreeId, setFocusedSubtreeId] = useState<string | null>(null);
+  const [drillAnnouncement, setDrillAnnouncement] = useState("");
+
+  // Drill-in focus is per-hub session state (not persisted): clear it when
+  // the user switches hubs.
+  useEffect(() => {
+    setFocusedSubtreeId(null);
+  }, [activeHubId]);
 
   useEffect(() => {
     if (!hubDropdownOpen) return;
@@ -239,14 +251,32 @@ export function ChannelSidebar({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const flatVisible = useMemo((): FlatNode[] => {
-    const result: FlatNode[] = [];
+  const drillScope = useMemo(
+    () => resolveDrillInScope(channelTree, focusedSubtreeId),
+    [channelTree, focusedSubtreeId]
+  );
+
+  // The focused category can be deleted, or re-parented out from under
+  // itself, while drilled in. Either way, once it's no longer resolvable
+  // in the current tree we fall back to the full tree — clear the stale
+  // focus id so the back-crumb bar doesn't linger with nothing to show.
+  useEffect(() => {
+    if (focusedSubtreeId && !findTreeNode(channelTree, focusedSubtreeId)) {
+      setFocusedSubtreeId(null);
+    }
+  }, [channelTree, focusedSubtreeId]);
+
+  const focusedRoot = focusedSubtreeId ? findTreeNode(channelTree, focusedSubtreeId) : null;
+
+  const flatVisible = useMemo((): SidebarFlatNode[] => {
+    const result: SidebarFlatNode[] = [];
     function walk(nodes: TreeNode[]) {
       for (const n of nodes) {
         if (n.node.is_category && !isAdmin && !categoryHasVisibleChannel(n)) continue;
         result.push({
           node: n.node,
           depth: n.depth,
+          indentDepth: n.depth - drillScope.depthOffset,
           parentId: n.node.parent_id,
           childrenCount: n.children.length,
         });
@@ -254,14 +284,30 @@ export function ChannelSidebar({
         if (!collapsed) walk(n.children);
       }
     }
-    walk(channelTree);
+    walk(drillScope.roots);
     const silenced = silencedChannelIds ?? new Set<string>();
     return result.filter((n) => n.node.is_category || !silenced.has(n.node.id));
-  }, [channelTree, activeHubId, collapsedCategories, silencedChannelIds, isAdmin]);
+  }, [drillScope, activeHubId, collapsedCategories, silencedChannelIds, isAdmin]);
 
   const activeNode = activeId ? flatVisible.find((n) => n.node.id === activeId) : null;
 
+  function focusFirstVisibleItem() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setChannelFocusIndex(0);
+        channelItemRefs.current[0]?.focus();
+      });
+    });
+  }
+
   const { t } = useTranslation();
+
+  function handleFocusSubtree(node: Channel) {
+    setFocusedSubtreeId(node.id);
+    setDrillAnnouncement(t("channel.sidebar.drill_in.announce", { name: node.name }));
+    focusFirstVisibleItem();
+  }
+
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
   const myDisplayName = users.find((u) => u.public_key === publicKey)?.display_name;
   const activePing = activeHubId ? pingByHub[activeHubId] : undefined;
@@ -409,6 +455,33 @@ export function ChannelSidebar({
       >
         {view !== "dms" ? (
           <>
+            <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+              {drillAnnouncement}
+            </div>
+            {focusedSubtreeId && focusedRoot && (
+              <nav className="sidebar-drill-crumb" aria-label={t("channel.sidebar.drill_back.aria")}>
+                <button
+                  type="button"
+                  className="sidebar-drill-crumb-item"
+                  onClick={() => setFocusedSubtreeId(null)}
+                >
+                  {t("channel.sidebar.drill_back.root")}
+                </button>
+                {channelPath(channels, focusedSubtreeId).map((crumb, i, arr) => (
+                  <React.Fragment key={crumb.id}>
+                    <span className="sidebar-drill-crumb-sep" aria-hidden="true">›</span>
+                    <button
+                      type="button"
+                      className={`sidebar-drill-crumb-item ${i === arr.length - 1 ? "current" : ""}`}
+                      disabled={i === arr.length - 1}
+                      onClick={() => setFocusedSubtreeId(crumb.id)}
+                    >
+                      {crumb.name}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </nav>
+            )}
             <DndContext
               sensors={dndSensors}
               onDragStart={handleDragStart}
@@ -420,16 +493,20 @@ export function ChannelSidebar({
                 strategy={verticalListSortingStrategy}
               >
                 <ul className="channel-list">
-                  {flatVisible.map((n, index) =>
-                    n.node.is_category ? (
+                  {flatVisible.map((n, index) => {
+                    const indent = computeIndent(n.indentDepth);
+                    return n.node.is_category ? (
                       <SortableCategoryItem
                         key={n.node.id}
                         channel={n.node}
                         collapsed={!!activeHubId && !!collapsedCategories[activeHubId]?.[n.node.id]}
                         childCount={n.childrenCount}
-                        style={{ paddingLeft: n.depth * CHANNEL_INDENT_PX }}
+                        style={{ paddingLeft: indent.paddingLeft }}
+                        depth={n.depth}
+                        depthOverflow={indent.overflow}
                         isDragTarget={dragOverId === n.node.id}
                         tabIndex={channelFocusIndex === index ? 0 : -1}
+                        itemRef={(el) => { channelItemRefs.current[index] = el; }}
                         onToggleCollapsed={() => {
                           if (activeHubId) onToggleCategoryCollapsed(activeHubId, n.node.id);
                         }}
@@ -437,6 +514,8 @@ export function ChannelSidebar({
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
                         onAdd={() => onOpenCreateChannel(n.node.id, false)}
                         onSettings={isAdmin && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
+                        onFocusSubtree={n.depth >= DRILL_DEPTH ? () => handleFocusSubtree(n.node) : undefined}
+                        focusSubtreeLabel={t("channel.sidebar.drill_in", { name: n.node.name })}
                       />
                     ) : (
                       <SortableChannelItem
@@ -450,23 +529,26 @@ export function ChannelSidebar({
                         participants={voicePartByChannel[n.node.id] ?? []}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         hubUrl={activeHub?.hub_url}
-                        style={{ paddingLeft: n.depth * CHANNEL_INDENT_PX }}
+                        style={{ paddingLeft: indent.paddingLeft }}
+                        depth={n.depth}
+                        depthOverflow={indent.overflow}
                         tabIndex={channelFocusIndex === index ? 0 : -1}
+                        itemRef={(el) => { channelItemRefs.current[index] = el; }}
                         onClick={() => { setChannelFocusIndex(index); onSelectChannel(n.node); }}
                         onDoubleClick={() => { if (voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
                         onSettings={isAdmin && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
                       />
-                    )
-                  )}
+                    );
+                  })}
                 </ul>
               </SortableContext>
               <DragOverlay>
                 {activeNode && (
                   <div
                     className={`channel-drag-ghost ${activeNode.node.is_category ? "is-category" : ""}`}
-                    style={{ paddingLeft: activeNode.depth * CHANNEL_INDENT_PX }}
+                    style={{ paddingLeft: computeIndent(activeNode.indentDepth).paddingLeft }}
                   >
                     {activeNode.node.is_category
                       ? `▾ ${activeNode.node.name.toUpperCase()}`

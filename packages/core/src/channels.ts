@@ -82,22 +82,28 @@ export function channelPath(channels: Channel[], id: string): Channel[] {
   return path.reverse();
 }
 
-export function descendantIds(tree: TreeNode[], id: string): Set<string> {
-  function findNode(nodes: TreeNode[]): TreeNode | null {
-    for (const n of nodes) {
-      if (n.node.id === id) return n;
-      const found = findNode(n.children);
-      if (found) return found;
-    }
-    return null;
+/**
+ * Finds a node anywhere in the tree by channel id. Shared by
+ * `descendantIds` and the sidebar drill-in re-rooting (nested-channels-ux.md
+ * §2.2) — one tree-walk, multiple callers.
+ */
+export function findTreeNode(tree: TreeNode[], id: string): TreeNode | null {
+  for (const n of tree) {
+    if (n.node.id === id) return n;
+    const found = findTreeNode(n.children, id);
+    if (found) return found;
   }
+  return null;
+}
+
+export function descendantIds(tree: TreeNode[], id: string): Set<string> {
   function collectIds(nodes: TreeNode[], acc: Set<string>) {
     for (const n of nodes) {
       acc.add(n.node.id);
       collectIds(n.children, acc);
     }
   }
-  const root = findNode(tree);
+  const root = findTreeNode(tree, id);
   const ids = new Set<string>();
   if (root) collectIds(root.children, ids);
   return ids;

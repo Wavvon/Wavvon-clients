@@ -43,7 +43,10 @@ export function SortableChannelItem({
   isCurrentVoiceChannel,
   hubUrl,
   style,
+  depth,
+  depthOverflow,
   tabIndex,
+  itemRef,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -61,7 +64,12 @@ export function SortableChannelItem({
   isCurrentVoiceChannel: boolean;
   hubUrl?: string;
   style?: React.CSSProperties;
+  /** True nesting depth, unclamped — powers aria-level (nested-channels-ux.md §2.5). */
+  depth?: number;
+  /** Past the indent cap: show a marker instead of more indent (§2.2). */
+  depthOverflow?: boolean;
   tabIndex?: number;
+  itemRef?: (el: HTMLLIElement | null) => void;
   onClick: () => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -70,6 +78,10 @@ export function SortableChannelItem({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
+  const setRefs = (el: HTMLLIElement | null) => {
+    setNodeRef(el);
+    itemRef?.(el);
+  };
 
   const isBanner = channel.channel_type === "banner";
   const bannerSrc = channel.banner_url
@@ -81,7 +93,7 @@ export function SortableChannelItem({
   if (isBanner) {
     return (
       <li
-        ref={setNodeRef}
+        ref={setRefs}
         className={`channel-item-wrap ${isDragging ? "dragging" : ""}`}
         style={{
           transform: CSS.Transform.toString(transform),
@@ -112,9 +124,10 @@ export function SortableChannelItem({
 
   return (
     <li
-      ref={setNodeRef}
+      ref={setRefs}
       id={`sidebar-node-${channel.id}`}
       tabIndex={tabIndex}
+      aria-level={depth !== undefined ? depth + 1 : undefined}
       onKeyDown={onKeyDown}
       className={`channel-item-wrap ${isDragging ? "dragging" : ""}`}
       style={{
@@ -140,6 +153,9 @@ export function SortableChannelItem({
         {...listeners}
         aria-label={channelAriaLabel}
       >
+        {depthOverflow && (
+          <span className="channel-depth-marker" aria-hidden="true">›</span>
+        )}
         {unread && <span className="channel-unread-dot" aria-hidden="true" />}
         <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
         {" "}{channel.name}
@@ -191,37 +207,55 @@ export function SortableCategoryItem({
   collapsed,
   childCount,
   style,
+  depth,
+  depthOverflow,
   isDragTarget,
   tabIndex,
+  itemRef,
   onToggleCollapsed,
   onContextMenu,
   onKeyDown,
   onAdd,
   onSettings,
+  onFocusSubtree,
+  focusSubtreeLabel,
 }: {
   channel: Channel;
   children?: React.ReactNode;
   collapsed: boolean;
   childCount: number;
   style?: React.CSSProperties;
+  /** True nesting depth, unclamped — powers aria-level (nested-channels-ux.md §2.5). */
+  depth?: number;
+  /** Past the indent cap: show a marker instead of more indent (§2.2). */
+  depthOverflow?: boolean;
   isDragTarget?: boolean;
   tabIndex?: number;
+  itemRef?: (el: HTMLLIElement | null) => void;
   onToggleCollapsed: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onAdd: () => void;
   onSettings?: (e: React.MouseEvent) => void;
+  /** Provided only past DRILL_DEPTH — re-roots the sidebar to this category (§2.2 drill-in). */
+  onFocusSubtree?: () => void;
+  focusSubtreeLabel?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
+  const setRefs = (el: HTMLLIElement | null) => {
+    setNodeRef(el);
+    itemRef?.(el);
+  };
 
   return (
     <li
       role="group"
       aria-label={channel.name}
       id={`sidebar-node-${channel.id}`}
-      ref={setNodeRef}
+      ref={setRefs}
       tabIndex={tabIndex}
+      aria-level={depth !== undefined ? depth + 1 : undefined}
       onKeyDown={onKeyDown}
       className={`category-group ${isDragging ? "dragging" : ""}`}
       style={{
@@ -252,12 +286,25 @@ export function SortableCategoryItem({
         >
           {collapsed ? "▸" : "▾"}
         </button>
+        {depthOverflow && (
+          <span className="channel-depth-marker" aria-hidden="true">›</span>
+        )}
         {(channel.icon || channel.custom_icon_svg) && (
           <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} size={13} />
         )}
         <span className="category-name">{channel.name.toUpperCase()}</span>
         {collapsed && childCount > 0 && (
           <span className="category-count" aria-hidden="true">{childCount}</span>
+        )}
+        {onFocusSubtree && (
+          <button
+            className="btn-icon-small category-focus-btn"
+            onClick={(e) => { e.stopPropagation(); onFocusSubtree(); }}
+            title={focusSubtreeLabel}
+            aria-label={focusSubtreeLabel}
+          >
+            ⤢
+          </button>
         )}
         <button
           className="btn-icon-small"

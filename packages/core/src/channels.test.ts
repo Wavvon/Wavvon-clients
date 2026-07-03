@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { channelPath, type Channel } from "./channels";
+import { channelPath, findTreeNode, buildChannelTree, type Channel } from "./channels";
 
 function makeChannel(id: string, parent_id: string | null, overrides: Partial<Channel> = {}): Channel {
   return {
@@ -50,5 +50,23 @@ describe("channelPath (nested-channels-ux.md §1.4)", () => {
     const selfParent = makeChannel("x", "x");
     const result = channelPath([selfParent], "x");
     expect(result).toEqual([selfParent]);
+  });
+
+  describe("findTreeNode", () => {
+    const tree = buildChannelTree(channels);
+
+    it("finds a node by id anywhere in the tree", () => {
+      const found = findTreeNode(tree, "alliance");
+      expect(found?.node.id).toBe("alliance");
+      expect(found?.depth).toBe(2);
+    });
+
+    it("finds a root-level node", () => {
+      expect(findTreeNode(tree, "games")?.node.id).toBe("games");
+    });
+
+    it("returns null for an unknown id", () => {
+      expect(findTreeNode(tree, "does-not-exist")).toBeNull();
+    });
   });
 });

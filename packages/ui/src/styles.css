@@ -2391,6 +2391,43 @@ select,
   color: var(--text-faint);
 }
 
+.sidebar-drill-crumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-1);
+}
+
+.sidebar-drill-crumb-item {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sidebar-drill-crumb-item:hover {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+.sidebar-drill-crumb-item.current {
+  color: var(--text);
+  cursor: default;
+  text-decoration: none;
+  font-weight: var(--weight-medium);
+}
+
+.sidebar-drill-crumb-sep {
+  color: var(--text-faint);
+}
+
 /* ============================================================
    VOICE
    ============================================================ */
@@ -4156,6 +4193,24 @@ select:focus-visible {
 .category-header:hover .category-settings-btn,
 .category-header .category-settings-btn:focus {
   opacity: 1;
+}
+
+.category-header .category-focus-btn {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.category-header:hover .category-focus-btn,
+.category-header .category-focus-btn:focus {
+  opacity: 1;
+}
+
+/* nested-channels-ux.md §2.2: faint marker shown past the indent cap
+   instead of further indent, so real nesting stays legible without
+   eating sidebar width. */
+.channel-depth-marker {
+  color: var(--text-faint);
+  opacity: 0.6;
+  margin-right: 2px;
 }
 
 .channel-sublist {
