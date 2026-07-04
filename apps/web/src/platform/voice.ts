@@ -269,7 +269,10 @@ export class VoiceWsSession {
     // Wire format: [sender_id: u16 BE][packet_type: u8][seq: u16 BE][ts: u32 BE][opus...]
     const senderId = (data[0] << 8) | data[1];
     const packetType = data[2];
-    if (packetType !== 0x00) return;
+    // 0x00 = normal, 0x01 = whisper (targeted). Play both — the server only
+    // delivers whisper frames to resolved targets, so receiving one means
+    // it's meant for us.
+    if (packetType !== 0x00 && packetType !== 0x01) return;
     const opusBytes = data.slice(9);
 
     let pcm: Uint8Array;

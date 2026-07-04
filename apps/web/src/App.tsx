@@ -34,6 +34,7 @@ import { BotMiniAppFrame } from "@components/BotMiniAppFrame";
 import { HubSidebar } from "@components/HubSidebar";
 import { ChannelSidebar } from "@components/ChannelSidebar";
 import { ContentArea } from "@components/ContentArea";
+import { WhisperBar } from "@components/WhisperBar";
 import { AddHubModal } from "@components/AddHubModal";
 import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
@@ -2011,6 +2012,16 @@ export default function App() {
             </div>
           );
         })()}
+        {voiceChannelId && (
+          <WhisperBar
+            participants={(voicePartByChannel[voiceChannelId] ?? []).filter((p) => p.public_key !== publicKey)}
+            whisperingTo={whisperingTo}
+            whisperingFrom={whisperingFrom}
+            nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
+            onStart={handleStartWhisper}
+            onStop={handleStopWhisper}
+          />
+        )}
         <ContentArea
         view={view as "channels" | "dms"}
         activeHubId={activeHubId}
