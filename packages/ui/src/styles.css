@@ -1979,6 +1979,11 @@ select,
   opacity: 0.55;
 }
 
+.channel-item.channel-item-spawner:not(.selected) {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .channel-muted-icon {
   margin-left: 6px;
   font-size: 0.75em;
@@ -2009,6 +2014,37 @@ select,
 
 .channel-item.selected .channel-type-hash {
   opacity: 0.8;
+}
+
+.channel-type-spawner {
+  font-size: 13px;
+  font-weight: var(--weight-bold);
+  opacity: 0.7;
+  margin-right: 4px;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.channel-item.selected .channel-type-spawner {
+  opacity: 0.9;
+}
+
+.channel-temp-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0 4px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.channel-item.selected .channel-temp-badge {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
 }
 
 .channel-draft-badge {

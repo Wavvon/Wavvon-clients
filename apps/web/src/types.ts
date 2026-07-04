@@ -10,7 +10,7 @@ export interface Channel {
   created_by: string;
   parent_id: string | null;
   is_category: boolean;
-  channel_type?: "text" | "forum" | "banner";
+  channel_type?: "text" | "forum" | "banner" | "spawner";
   banner_url?: string | null;
   banner_file_id?: string | null;
   display_order: number;
@@ -19,6 +19,12 @@ export interface Channel {
   color: string | null;
   custom_icon_svg: string | null;
   created_at: number;
+  /** True for a join-to-create personal room spawned from a spawner channel. */
+  is_temporary?: boolean;
+  /** Set only on temp channels: the joiner who owns (and may rename) it. Absent/null otherwise. */
+  owner_pubkey?: string | null;
+  /** Set only on spawner channels: the name template used for rooms it spawns. Absent/null otherwise. */
+  spawner_name_template?: string | null;
 }
 
 export interface HubIcon {

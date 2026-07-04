@@ -821,7 +821,7 @@ export default function App() {
       if (ch.status === "fulfilled") {
         setChannels(ch.value);
         if (!selectedChannelRef.current) {
-          const first = ch.value.find((c) => !c.is_category && c.channel_type !== "banner");
+          const first = ch.value.find((c) => !c.is_category && c.channel_type !== "banner" && c.channel_type !== "spawner");
           if (first) setSelectedChannel(first);
         }
       }
@@ -1021,7 +1021,7 @@ export default function App() {
 
   // === Channel / messages ===
 
-  async function handleCreateChannel(name: string, channelType: string, isCategory: boolean, description: string) {
+  async function handleCreateChannel(name: string, channelType: string, isCategory: boolean, description: string, spawnerNameTemplate?: string) {
     if (!createChannelCtx) return;
     setCreateChannelLoading(true);
     setCreateChannelError(null);
@@ -1035,6 +1035,7 @@ export default function App() {
           is_category: isCategory,
           channel_type: isCategory ? undefined : channelType,
           description: description || undefined,
+          spawner_name_template: !isCategory && channelType === "spawner" ? spawnerNameTemplate : undefined,
         }),
       });
       setCreateChannelCtx(null);
@@ -1267,19 +1268,25 @@ export default function App() {
     try {
       const sess = activeSession();
       const session = new VoiceWsSession(sess.hub_url, sess.token, ch.id, {
-        onReady: (_senderId, _participants) => {
-          setVoiceChannelId(ch.id);
+        // `channelId` is where the join actually landed — for a spawner
+        // channel the hub creates a personal sibling room and the join
+        // lands there instead, never in the spawner itself.
+        onReady: (_senderId, _participants, channelId) => {
+          setVoiceChannelId(channelId);
           setSelfMuted(false);
           setSelfDeafened(false);
           const me = meInfoRef.current;
           if (me) {
             setVoicePartByChannel((prev) => {
-              const existing = prev[ch.id] ?? [];
+              const existing = prev[channelId] ?? [];
               if (existing.some((p) => p.public_key === me.public_key)) return prev;
-              return { ...prev, [ch.id]: [...existing, { public_key: me.public_key, display_name: me.display_name }] };
+              return { ...prev, [channelId]: [...existing, { public_key: me.public_key, display_name: me.display_name }] };
             });
           }
-          try { activeSession().ws?.watchVoice(ch.id); } catch {}
+          try { activeSession().ws?.watchVoice(channelId); } catch {}
+          if (channelId !== ch.id) {
+            hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
+          }
         },
         onClose: () => {
           voiceSessionRef.current = null;

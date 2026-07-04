@@ -1,4 +1,5 @@
 import OpusScript from 'opusscript';
+import { resolveVoiceChannelId } from './voiceReady';
 
 export interface VoiceZoneAttenuation {
   model: 'linear' | 'inverse_square' | 'step' | 'exponential';
@@ -35,7 +36,10 @@ export function computeAttenuation(dist: number, cfg: VoiceZoneAttenuation): num
 }
 
 export interface VoiceSessionHandlers {
-  onReady: (senderId: number, participants: unknown[]) => void;
+  /** `channelId` is the room the join actually landed in — for a spawner
+   *  join this is the newly-spawned sibling room, not the channel id the
+   *  caller passed to the constructor. */
+  onReady: (senderId: number, participants: unknown[], channelId: string) => void;
   onClose: () => void;
 }
 
@@ -193,9 +197,11 @@ export class VoiceWsSession {
           if (participants) {
             this.handleRosterUpdate(participants);
           }
+          const resolvedChannelId = resolveVoiceChannelId(this.channelId, msg as { channel_id?: string });
           this.handlers.onReady(
             msg.sender_id as number,
             msg.participants as unknown[],
+            resolvedChannelId,
           );
         }
       } catch {}

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "@wavvon/ui";
+import { normalizeSpawnerNameTemplate } from "../utils/spawnerChannels";
 
 interface Props {
   initialIsCategory?: boolean;
@@ -8,23 +9,31 @@ interface Props {
   parentName?: string | null;
   loading: boolean;
   error: string | null;
-  onSubmit: (name: string, channelType: string, isCategory: boolean, description: string) => void;
+  onSubmit: (name: string, channelType: string, isCategory: boolean, description: string, spawnerNameTemplate?: string) => void;
   onClose: () => void;
 }
 
-type ChannelKind = "text" | "forum" | "banner" | "category";
+type ChannelKind = "text" | "forum" | "banner" | "spawner" | "category";
 
 export function CreateChannelModal({ initialIsCategory, parentId, parentName, loading, error, onSubmit, onClose }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<ChannelKind>(initialIsCategory ? "category" : "text");
   const [description, setDescription] = useState("");
+  const [spawnerNameTemplate, setSpawnerNameTemplate] = useState("");
 
   const isCategory = kind === "category";
+  const isSpawner = kind === "spawner";
 
   function handleSubmit() {
     if (!name.trim()) return;
-    onSubmit(name.trim(), isCategory ? "text" : kind, isCategory, description.trim());
+    onSubmit(
+      name.trim(),
+      isCategory ? "text" : kind,
+      isCategory,
+      description.trim(),
+      isSpawner ? normalizeSpawnerNameTemplate(spawnerNameTemplate) : undefined,
+    );
   }
 
   return (
@@ -55,6 +64,7 @@ export function CreateChannelModal({ initialIsCategory, parentId, parentName, lo
               <option value="text">{t("channel.create.type_text")}</option>
               <option value="forum">{t("channel.create.type_forum")}</option>
               <option value="banner">{t("channel.create.type_banner")}</option>
+              <option value="spawner">{t("channel.create.type_spawner")}</option>
               <option value="category">{t("channel.create.type_category")}</option>
             </select>
           </label>
@@ -75,7 +85,27 @@ export function CreateChannelModal({ initialIsCategory, parentId, parentName, lo
             />
           </label>
 
-          {!isCategory && (
+          {isSpawner && (
+            <label style={{ display: "block", marginBottom: "var(--space-3)" }}>
+              <span className="label-text">{t("channel.create.spawner_template_label")}</span>
+              <input
+                type="text"
+                value={spawnerNameTemplate}
+                onChange={(e) => setSpawnerNameTemplate(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSubmit();
+                  if (e.key === "Escape") onClose();
+                }}
+                placeholder={t("channel.create.spawner_template_placeholder", { ph: "{user}" })}
+                style={{ display: "block", width: "100%", marginTop: 4 }}
+              />
+              <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                {t("channel.create.spawner_template_hint", { ph: "{user}", def: "{user}'s room" })}
+              </span>
+            </label>
+          )}
+
+          {!isCategory && !isSpawner && (
             <label style={{ display: "block", marginBottom: "var(--space-3)" }}>
               <span className="label-text">{t("channel.create.description_label")}</span>
               <input

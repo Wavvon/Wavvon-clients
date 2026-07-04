@@ -182,5 +182,8 @@ export function ChannelIcon({
   if (!channelType || channelType === "text") {
     return <span className="channel-type-hash" aria-hidden="true">#</span>;
   }
+  if (channelType === "spawner") {
+    return <span className="channel-type-spawner" aria-hidden="true">+</span>;
+  }
   return null;
 }

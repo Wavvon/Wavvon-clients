@@ -1,9 +1,11 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel, VoiceParticipant } from "../types";
 import { ChannelIcon } from "./Icons";
 import { hasDraft } from "../utils/drafts";
+import { isSpawnerChannel, isTemporaryChannel } from "../utils/spawnerChannels";
 
 /** Hub icon wrapped in dnd-kit's useSortable so the user can drag-reorder
  * the hub sidebar. The drag handle is the whole icon — there's no second
@@ -42,6 +44,7 @@ export function SortableChannelItem({
   participants,
   isCurrentVoiceChannel,
   hubUrl,
+  ownerDisplayName,
   style,
   depth,
   depthOverflow,
@@ -63,6 +66,8 @@ export function SortableChannelItem({
   participants: VoiceParticipant[];
   isCurrentVoiceChannel: boolean;
   hubUrl?: string;
+  /** Resolved display name (or short pubkey) of a temp room's owner, for the tooltip. */
+  ownerDisplayName?: string | null;
   style?: React.CSSProperties;
   /** True nesting depth, unclamped — powers aria-level (nested-channels-ux.md §2.5). */
   depth?: number;
@@ -76,6 +81,7 @@ export function SortableChannelItem({
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onSettings?: (e: React.MouseEvent) => void;
 }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
   const setRefs = (el: HTMLLIElement | null) => {
@@ -84,6 +90,8 @@ export function SortableChannelItem({
   };
 
   const isBanner = channel.channel_type === "banner";
+  const isSpawner = isSpawnerChannel(channel);
+  const isTemporary = isTemporaryChannel(channel);
   const bannerSrc = channel.banner_url
     ? channel.banner_url
     : channel.banner_file_id && hubUrl
@@ -115,12 +123,22 @@ export function SortableChannelItem({
   }
 
   const ariaLabelParts = [channel.name];
-  const uc = unreadCount ?? 0;
-  const mc = mentionCount ?? 0;
-  if (uc > 0) ariaLabelParts.push(`${uc} unread ${uc === 1 ? "message" : "messages"}`);
-  if (mc > 0) ariaLabelParts.push(`${mc} ${mc === 1 ? "mention" : "mentions"}`);
-  if (participants.length > 0) ariaLabelParts.push(`${participants.length} ${participants.length === 1 ? "person" : "people"} in voice`);
+  if (isSpawner) {
+    ariaLabelParts.push(t("channel.spawner.tooltip"));
+  } else {
+    const uc = unreadCount ?? 0;
+    const mc = mentionCount ?? 0;
+    if (uc > 0) ariaLabelParts.push(`${uc} unread ${uc === 1 ? "message" : "messages"}`);
+    if (mc > 0) ariaLabelParts.push(`${mc} ${mc === 1 ? "mention" : "mentions"}`);
+    if (participants.length > 0) ariaLabelParts.push(`${participants.length} ${participants.length === 1 ? "person" : "people"} in voice`);
+  }
   const channelAriaLabel = ariaLabelParts.join(", ");
+
+  const itemTitle = isSpawner
+    ? t("channel.spawner.tooltip")
+    : isTemporary
+      ? t("channel.temp.owner_tooltip", { name: ownerDisplayName || channel.owner_pubkey?.slice(0, 12) || "?" })
+      : "Double-click to join voice";
 
   return (
     <li
@@ -144,11 +162,11 @@ export function SortableChannelItem({
           unread ? "unread" : ""
         } ${muted ? "muted" : ""} ${
           isCurrentVoiceChannel ? "in-voice-here" : ""
-        }`}
+        } ${isSpawner ? "channel-item-spawner" : ""}`}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
-        title="Double-click to join voice"
+        title={itemTitle}
         {...attributes}
         {...listeners}
         aria-label={channelAriaLabel}
@@ -156,14 +174,17 @@ export function SortableChannelItem({
         {depthOverflow && (
           <span className="channel-depth-marker" aria-hidden="true">›</span>
         )}
-        {unread && <span className="channel-unread-dot" aria-hidden="true" />}
+        {!isSpawner && unread && <span className="channel-unread-dot" aria-hidden="true" />}
         <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
         {" "}{channel.name}
-        {activeHubId && hasDraft(`${activeHubId}/${channel.id}`) && (
+        {isTemporary && (
+          <span className="channel-temp-badge">{t("channel.temp.badge")}</span>
+        )}
+        {!isSpawner && activeHubId && hasDraft(`${activeHubId}/${channel.id}`) && (
           <span className="channel-draft-badge" title="Unsent draft">Draft</span>
         )}
-        {muted && <span className="channel-muted-icon" title="Muted" aria-hidden="true">🔕</span>}
-        {participants.length > 0 && (
+        {!isSpawner && muted && <span className="channel-muted-icon" title="Muted" aria-hidden="true">🔕</span>}
+        {!isSpawner && participants.length > 0 && (
           <span
             className="channel-voice-badge"
             title={`${participants.length} in voice`}
@@ -183,7 +204,7 @@ export function SortableChannelItem({
           </button>
         )}
       </div>
-      {participants.length > 0 && (
+      {!isSpawner && participants.length > 0 && (
         <ul className="channel-participants">
           {participants.map((p) => (
             <li

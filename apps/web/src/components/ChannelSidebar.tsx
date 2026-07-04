@@ -28,6 +28,7 @@ import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
 import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
 import { HoverSubmenu } from "@wavvon/ui";
 import { DRILL_DEPTH, computeIndent, resolveDrillInScope } from "./channelSidebarLayout";
+import { isSpawnerChannel, resolveOwnerDisplayName } from "../utils/spawnerChannels";
 
 interface SidebarFlatNode extends FlatNode {
   indentDepth: number;
@@ -370,9 +371,13 @@ export function ChannelSidebar({
       }
     } else if ((e.key === "Enter" || e.key === " ") && !node.node.is_category && node.node.channel_type !== "banner") {
       e.preventDefault();
-      onSelectChannel(node.node);
+      if (isSpawnerChannel(node.node)) {
+        onVoiceJoin(node.node);
+      } else {
+        onSelectChannel(node.node);
+      }
     }
-  }, [flatVisible, activeHubId, collapsedCategories, onToggleCategoryCollapsed, onSelectChannel]);
+  }, [flatVisible, activeHubId, collapsedCategories, onToggleCategoryCollapsed, onSelectChannel, onVoiceJoin]);
 
   return (
     <nav className="sidebar" aria-label={t("channel.sidebar.label")}>
@@ -529,13 +534,21 @@ export function ChannelSidebar({
                         participants={voicePartByChannel[n.node.id] ?? []}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         hubUrl={activeHub?.hub_url}
+                        ownerDisplayName={resolveOwnerDisplayName(n.node.owner_pubkey, users)}
                         style={{ paddingLeft: indent.paddingLeft }}
                         depth={n.depth}
                         depthOverflow={indent.overflow}
                         tabIndex={channelFocusIndex === index ? 0 : -1}
                         itemRef={(el) => { channelItemRefs.current[index] = el; }}
-                        onClick={() => { setChannelFocusIndex(index); onSelectChannel(n.node); }}
-                        onDoubleClick={() => { if (voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
+                        onClick={() => {
+                          setChannelFocusIndex(index);
+                          if (isSpawnerChannel(n.node)) {
+                            onVoiceJoin(n.node);
+                          } else {
+                            onSelectChannel(n.node);
+                          }
+                        }}
+                        onDoubleClick={() => { if (!isSpawnerChannel(n.node) && voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
                         onSettings={isAdmin && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
