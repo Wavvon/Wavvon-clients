@@ -4,6 +4,8 @@ export interface WsHandlers {
   onDmMemberChanged?: (e: object) => void;
   onTyping?: (e: object) => void;
   onVoiceState?: (e: object) => void;
+  onVideo?: (e: object) => void;
+  onWhisper?: (e: object) => void;
   onVoiceZoneCreated?: (e: object) => void;
   onVoiceZoneDestroyed?: (e: object) => void;
   onVoicePositionUpdated?: (e: object) => void;
@@ -105,12 +107,17 @@ export class HubWebSocket {
       this.handlers.onDmMemberChanged?.(tagged);
     } else if (type === "typing" || type === "dm_typing") {
       this.handlers.onTyping?.(tagged);
+    } else if (type === "voice_whisper_started" || type === "voice_whisper_stopped") {
+      // Whisper started/stopped carry only sender_pubkey (no channel_id).
+      this.handlers.onWhisper?.(tagged);
     } else if (
-      type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" ||
-      type === "voice_participant_speaking" || type === "voice_roster_update" ||
-      type === "voice_whisper_started" || type === "voice_whisper_stopped" ||
       type === "video_participant_enabled" || type === "video_participant_disabled" || type === "video_participants" ||
       type === "video_offer_in" || type === "video_answer_in" || type === "video_ice_in"
+    ) {
+      this.handlers.onVideo?.(tagged);
+    } else if (
+      type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" ||
+      type === "voice_participant_speaking" || type === "voice_roster_update"
     ) {
       this.handlers.onVoiceState?.(tagged);
     } else if (type === "screen_share_chunk") {
@@ -190,6 +197,31 @@ export class HubWebSocket {
 
   watchVoice(channelId: string): void {
     this.send({ type: "voice_watch", channel_id: channelId });
+  }
+
+  // --- Camera video signaling (full-mesh WebRTC, main WS) ---
+  sendVideoEnable(channelId: string): void {
+    this.send({ type: "video_enable", channel_id: channelId });
+  }
+  sendVideoDisable(channelId: string): void {
+    this.send({ type: "video_disable", channel_id: channelId });
+  }
+  sendVideoOffer(channelId: string, toPubkey: string, sdp: string): void {
+    this.send({ type: "video_offer", channel_id: channelId, to_pubkey: toPubkey, sdp });
+  }
+  sendVideoAnswer(channelId: string, toPubkey: string, sdp: string): void {
+    this.send({ type: "video_answer", channel_id: channelId, to_pubkey: toPubkey, sdp });
+  }
+  sendVideoIce(channelId: string, toPubkey: string, candidate: string): void {
+    this.send({ type: "video_ice", channel_id: channelId, to_pubkey: toPubkey, candidate });
+  }
+
+  // --- Whisper control (main WS) ---
+  startWhisper(targets: { type: string; id: string }[]): void {
+    this.send({ type: "voice_whisper_start", targets });
+  }
+  stopWhisper(): void {
+    this.send({ type: "voice_whisper_stop" });
   }
 
   unwatchVoice(): void {

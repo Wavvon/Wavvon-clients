@@ -71,6 +71,7 @@ import type { WsHandlers } from "@platform";
 import { getActiveHubId } from "@platform";
 import { VoiceWsSession, type AudioProfileConfig } from "./platform/voice";
 import { WebScreenShareSession } from "./platform/screenShare";
+import { WebVideoSession } from "./platform/video";
 
 // The voice audio profile is persisted by SettingsPage under this key; read
 // it here so the saved profile is actually applied to the live session.
@@ -413,6 +414,14 @@ export default function App() {
   const [sharing, setSharing] = useState(false);
   const [shareKbps, setShareKbps] = useState(0);
   const [showFriends, setShowFriends] = useState(false);
+  // Camera video (full-mesh WebRTC over the main WS).
+  const videoSessionRef = useRef<WebVideoSession | null>(null);
+  const [videoEnabled, setVideoEnabled] = useState(false);
+  const [localVideoStream, setLocalVideoStream] = useState<MediaStream | null>(null);
+  const [remoteVideoStreams, setRemoteVideoStreams] = useState<Map<string, MediaStream>>(new Map());
+  // Whisper: set of pubkeys currently whispering to me + whether I'm whispering.
+  const [whisperingFrom, setWhisperingFrom] = useState<Set<string>>(new Set());
+  const [whisperingTo, setWhisperingTo] = useState<string[]>([]);
 
   const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
@@ -613,6 +622,22 @@ export default function App() {
           setDmMessages((prev) => ({ ...prev, [convId]: asDm }));
         }).catch(() => {});
       }
+    },
+    onVideo: (raw) => {
+      const m = raw as { _hub_id?: string };
+      if (m._hub_id !== activeHubIdRef.current) return;
+      void videoSessionRef.current?.handle(m as Record<string, unknown>);
+    },
+    onWhisper: (raw) => {
+      const m = raw as { type?: string; sender_pubkey?: string; _hub_id?: string };
+      if (m._hub_id !== activeHubIdRef.current || !m.sender_pubkey) return;
+      const sender = m.sender_pubkey;
+      setWhisperingFrom((prev) => {
+        const next = new Set(prev);
+        if (m.type === "voice_whisper_started") next.add(sender);
+        else next.delete(sender);
+        return next;
+      });
     },
     onVoiceState: (raw) => {
       const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; _hub_id?: string; sender_id?: number };
@@ -1314,13 +1339,28 @@ export default function App() {
             });
           }
           try { activeSession().ws?.watchVoice(channelId); } catch {}
+          // Spin up the video session now (camera off) so it catches the
+          // hub's video_participants roster pushed at voice-join.
+          const vws = activeSession().ws;
+          const myPk = publicKeyRef.current;
+          if (vws && myPk) {
+            videoSessionRef.current = new WebVideoSession(vws, channelId, myPk, {
+              onRemoteStream: (pk, s) => setRemoteVideoStreams((prev) => new Map(prev).set(pk, s)),
+              onPeerGone: (pk) => setRemoteVideoStreams((prev) => { const n = new Map(prev); n.delete(pk); return n; }),
+            });
+          }
           if (channelId !== ch.id) {
             hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
           }
         },
         onClose: () => {
           voiceSessionRef.current = null;
+          videoSessionRef.current?.dispose();
+          videoSessionRef.current = null;
           setVoiceChannelId(null);
+          setLocalVideoStream(null);
+          setRemoteVideoStreams(new Map());
+          setVideoEnabled(false);
           setSelfMuted(false);
           setSelfDeafened(false);
           try { activeSession().ws?.unwatchVoice(); } catch {}
@@ -1364,8 +1404,55 @@ export default function App() {
     setShareKbps(0);
   }
 
+  async function handleToggleVideo() {
+    if (videoEnabled) { handleStopVideo(); return; }
+    // Video is scoped to the voice channel you're in; the session was created
+    // on voice-join so it already knows the participant roster.
+    if (!voiceChannelId || !videoSessionRef.current) {
+      showHubError("Join voice first to turn on your camera.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      videoSessionRef.current.enable(stream);
+      setLocalVideoStream(stream);
+      setVideoEnabled(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/denied|not allowed|dismiss/i.test(msg)) showHubError("Camera: " + msg);
+    }
+  }
+
+  function handleStopVideo() {
+    // Keep the session alive (it tracks the roster) — just turn the camera off.
+    videoSessionRef.current?.disable();
+    setLocalVideoStream(null);
+    setRemoteVideoStreams(new Map());
+    setVideoEnabled(false);
+  }
+
+  function handleStartWhisper(targetPubkeys: string[]) {
+    if (!voiceChannelId || targetPubkeys.length === 0) return;
+    const ws = activeSession().ws;
+    if (!ws) { showHubError("Not connected"); return; }
+    ws.startWhisper(targetPubkeys.map((id) => ({ type: "user", id })));
+    setWhisperingTo(targetPubkeys);
+  }
+
+  function handleStopWhisper() {
+    try { activeSession().ws?.stopWhisper(); } catch {}
+    setWhisperingTo([]);
+  }
+
   function handleVoiceLeave() {
     const channelId = voiceChannelId;
+    // Camera + whisper are scoped to the voice session — tear them down too.
+    videoSessionRef.current?.dispose();
+    videoSessionRef.current = null;
+    setLocalVideoStream(null);
+    setRemoteVideoStreams(new Map());
+    setVideoEnabled(false);
+    if (whisperingTo.length > 0) handleStopWhisper();
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
@@ -2022,6 +2109,11 @@ export default function App() {
         shareKbps={shareKbps}
         onStartShare={handleStartShare}
         onStopShare={handleStopShare}
+        videoEnabled={videoEnabled}
+        localVideoStream={localVideoStream}
+        remoteVideoStreams={remoteVideoStreams}
+        onToggleVideo={handleToggleVideo}
+        videoNameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
         assertiveAnnouncement={assertiveAnnouncement}
       /></>}
       </MobileShell>

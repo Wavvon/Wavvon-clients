@@ -4,6 +4,7 @@ import { channelPath } from "@wavvon/core";
 import type { Channel, Message, ActiveStream } from "../../types";
 import { ScreenShareViewer } from "../ScreenShareViewer";
 import type { ScreenShareViewerRef } from "../ScreenShareViewer";
+import { VideoGrid } from "../VideoGrid";
 
 interface Props {
   selectedChannel: Channel;
@@ -29,6 +30,11 @@ interface Props {
   onOpenEditDescription: (channel: Channel) => void;
   onStartShare?: () => void;
   onStopShare?: () => void;
+  videoEnabled?: boolean;
+  localVideoStream?: MediaStream | null;
+  remoteVideoStreams?: Map<string, MediaStream>;
+  onToggleVideo?: () => void;
+  videoNameFor?: (pubkey: string) => string;
   onToast: (msg: string) => void;
   onError: (msg: string) => void;
   onBreadcrumbCategoryClick: (categoryId: string) => void;
@@ -58,6 +64,11 @@ export function ChannelHeader({
   onOpenEditDescription,
   onStartShare,
   onStopShare,
+  videoEnabled,
+  localVideoStream,
+  remoteVideoStreams,
+  onToggleVideo,
+  videoNameFor,
   onToast,
   onError,
   onBreadcrumbCategoryClick,
@@ -145,6 +156,17 @@ export function ChannelHeader({
             🖥
           </button>
         )}
+        {/* Camera toggle — only while in voice in this channel. */}
+        {voiceChannelId === selectedChannel.id && onToggleVideo && (
+          <button
+            onClick={onToggleVideo}
+            className={`btn-icon-header ${videoEnabled ? "active" : ""}`}
+            title={videoEnabled ? "Turn camera off" : "Turn camera on"}
+            aria-label={videoEnabled ? "Turn camera off" : "Turn camera on"}
+          >
+            {videoEnabled ? "📷" : "📹"}
+          </button>
+        )}
         <button
           onClick={copyChannelLink}
           className="btn-icon-header"
@@ -197,6 +219,13 @@ export function ChannelHeader({
         <ScreenShareViewer
           ref={screenShareViewerRef}
           streams={activeScreenShares}
+        />
+      )}
+      {(videoEnabled || (remoteVideoStreams && remoteVideoStreams.size > 0)) && (
+        <VideoGrid
+          localStream={localVideoStream ?? null}
+          remoteStreams={remoteVideoStreams ?? new Map()}
+          nameFor={videoNameFor ?? ((pk) => pk.slice(0, 8))}
         />
       )}
       {sharing && (

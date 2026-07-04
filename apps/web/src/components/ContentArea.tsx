@@ -127,6 +127,11 @@ interface Props {
   shareKbps?: number;
   onStartShare?: () => void;
   onStopShare?: () => void;
+  videoEnabled?: boolean;
+  localVideoStream?: MediaStream | null;
+  remoteVideoStreams?: Map<string, MediaStream>;
+  onToggleVideo?: () => void;
+  videoNameFor?: (pubkey: string) => string;
   assertiveAnnouncement?: string;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
@@ -158,6 +163,7 @@ export function ContentArea({
   slashCommands = [],
   activeScreenShares, screenShareViewerRef,
   sharing, shareKbps, onStartShare, onStopShare,
+  videoEnabled, localVideoStream, remoteVideoStreams, onToggleVideo, videoNameFor,
   assertiveAnnouncement = "",
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
@@ -468,6 +474,11 @@ export function ContentArea({
               onOpenEditDescription={onOpenEditDescription}
               onStartShare={onStartShare}
               onStopShare={onStopShare}
+              videoEnabled={videoEnabled}
+              localVideoStream={localVideoStream}
+              remoteVideoStreams={remoteVideoStreams}
+              onToggleVideo={onToggleVideo}
+              videoNameFor={videoNameFor}
               onToast={onToast}
               onError={onError}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
