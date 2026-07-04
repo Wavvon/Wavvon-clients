@@ -37,6 +37,8 @@ import { ContentArea } from "@components/ContentArea";
 import { WhisperBar } from "@components/WhisperBar";
 import { loadPttConfig } from "@components/PushToTalkSection";
 import { loadProfiles, saveProfiles, newProfileId } from "./utils/profiles";
+import { getCurrentSurvey } from "@platform";
+import { SurveyModal } from "@components/SurveyModal";
 import { AddHubModal } from "@components/AddHubModal";
 import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
@@ -465,6 +467,8 @@ export default function App() {
   const [whisperingFrom, setWhisperingFrom] = useState<Set<string>>(new Set());
   const [whisperingTo, setWhisperingTo] = useState<string[]>([]);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
+  const [surveyToShow, setSurveyToShow] = useState<import("@platform").SurveyAdmin | null>(null);
+  const surveyDismissedRef = useRef<Set<string>>(new Set());
   // Reload PTT config when the settings screen changes it.
   useEffect(() => {
     const reload = () => setPttConfig(loadPttConfig());
@@ -1009,6 +1013,15 @@ export default function App() {
       if (typeof Notification !== "undefined" && Notification.permission === "default") {
         Notification.requestPermission().catch(() => {});
       }
+      // Show the onboarding survey if this hub has an active one we haven't
+      // handled this session.
+      // GET /survey/current only returns a survey when one is enabled (no
+      // `enabled` field on the public shape), so its presence is the signal.
+      getCurrentSurvey().then((s) => {
+        if (s && s.questions.length > 0 && !surveyDismissedRef.current.has(s.id)) {
+          setSurveyToShow(s);
+        }
+      }).catch(() => {});
     } finally {
       loadingHub.current = false;
     }
@@ -1896,6 +1909,14 @@ export default function App() {
 
       {showFriends && (
         <FriendsModal onClose={() => setShowFriends(false)} onToast={(msg) => showHubError(msg)} />
+      )}
+
+      {surveyToShow && (
+        <SurveyModal
+          survey={surveyToShow}
+          onDone={() => { surveyDismissedRef.current.add(surveyToShow.id); setSurveyToShow(null); }}
+          onSkip={() => { surveyDismissedRef.current.add(surveyToShow.id); setSurveyToShow(null); }}
+        />
       )}
 
       {showSettings && (

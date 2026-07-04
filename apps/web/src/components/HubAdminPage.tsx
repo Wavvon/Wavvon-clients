@@ -23,6 +23,7 @@ import { NativeBotsSection } from "./NativeBotsSection";
 import { AlliancesSection } from "./AlliancesSection";
 import { HubIconsSection } from "./HubIconsSection";
 import { OnboardingAdminSection } from "./OnboardingAdminSection";
+import { SurveyAdminSection } from "./SurveyAdminSection";
 
 export type HubAdminTab =
   | "overview"
@@ -43,6 +44,7 @@ export type HubAdminTab =
   | "alliances"
   | "hub-icons"
   | "onboarding"
+  | "survey"
   | "audit-log";
 
 export interface HubAdminPageProps {
@@ -140,6 +142,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
       { id: "alliances" as HubAdminTab, label: "Alliances" },
       { id: "hub-icons" as HubAdminTab, label: "Icons" },
       { id: "onboarding" as HubAdminTab, label: "Onboarding" },
+      { id: "survey" as HubAdminTab, label: "Survey" },
       { id: "audit-log" as HubAdminTab, label: "Audit log" },
     ] : []),
   ];
@@ -411,6 +414,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "alliances" && props.isAdmin && <AlliancesSection activeHubUrl={props.activeHubUrl} channels={props.channels} />}
         {props.tab === "hub-icons" && props.isAdmin && <HubIconsSection />}
         {props.tab === "onboarding" && props.isAdmin && <OnboardingAdminSection />}
+        {props.tab === "survey" && props.isAdmin && <SurveyAdminSection />}
         {props.tab === "audit-log" && props.isAdmin && <AuditLogSection />}
       </main>
     </div>
