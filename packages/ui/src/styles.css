@@ -4121,6 +4121,65 @@ select:focus-visible {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
+/* ── Soundboard popover (voice bar) ── */
+.soundboard-clip-grid {
+  grid-template-columns: repeat(3, 1fr);
+  max-height: 200px;
+}
+
+.soundboard-clip-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 4px;
+  border-radius: var(--r-sm);
+}
+
+.soundboard-clip-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.soundboard-clip-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.soundboard-clip-emoji {
+  font-size: 20px;
+}
+
+.soundboard-clip-name {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Soundboard "played" attribution chip (transient) ── */
+.soundboard-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-3) var(--space-1);
+}
+
+.soundboard-chip {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.15));
+  border-radius: var(--r-sm);
+  padding: 2px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ============================================================
    INPUT AREA
    ============================================================ */

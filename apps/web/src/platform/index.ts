@@ -150,6 +150,15 @@ export { getNotifPref, setNotifPref } from "./notifPrefs";
 export { fetchVoiceRoster } from "./commands/voice";
 
 export {
+  listSoundboardClips,
+  uploadSoundboardClip,
+  deleteSoundboardClip,
+  markSoundboardPlayed,
+  soundboardAudioPath,
+  fetchSoundboardAudioBytes,
+} from "./commands/soundboard";
+
+export {
   reportMessage,
   listReports,
   reviewReport,

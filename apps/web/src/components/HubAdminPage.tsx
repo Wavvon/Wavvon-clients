@@ -17,6 +17,7 @@ import { ExternalBotSection } from "./ExternalBotSection";
 import { ModerationTab } from "./ModerationTab";
 import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
 import { RolesSection } from "./RolesSection";
+import { SoundboardAdminSection } from "./SoundboardAdminSection";
 
 export type HubAdminTab =
   | "overview"
@@ -31,7 +32,8 @@ export type HubAdminTab =
   | "outgoing-webhooks"
   | "certifications"
   | "recovery"
-  | "moderation";
+  | "moderation"
+  | "soundboard";
 
 export interface HubAdminPageProps {
   tab: HubAdminTab;
@@ -61,6 +63,7 @@ export interface HubAdminPageProps {
   activeHubUrl: string;
   myPubkey: string;
   isAdmin: boolean;
+  canManageSoundboard: boolean;
   onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null) => void;
   onRevokeInvite: (code: string) => void;
   channels: Channel[];
@@ -120,6 +123,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "external-bots", label: t("admin.tabs.external_bots") },
     { id: "certifications", label: t("admin.tabs.certifications") },
     { id: "recovery", label: t("admin.tabs.recovery") },
+    ...(props.canManageSoundboard ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard") }] : []),
     ...(props.isAdmin ? [{ id: "moderation" as HubAdminTab, label: "Moderation" }] : []),
   ];
 
@@ -376,6 +380,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
             <h1>{t("admin.tabs.recovery")}</h1>
             <RecoveryContactsSection hubUrl={props.activeHubUrl} isAdmin={props.isAdmin} publicKey={null} />
           </section>
+        )}
+
+        {props.tab === "soundboard" && props.canManageSoundboard && (
+          <SoundboardAdminSection />
         )}
 
         {props.tab === "moderation" && props.isAdmin && (

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { VoiceParticipant } from "../types";
+import type { VoiceParticipant, SoundboardClip } from "../types";
+import type { SoundboardChip } from "../hooks/useSoundboardChips";
 import {
   DndContext,
   DragEndEvent,
@@ -23,9 +24,10 @@ import type {
   Conversation,
 } from "../types";
 import type { TreeNode, FlatNode } from "@wavvon/core";
-import { channelPath, findTreeNode } from "@wavvon/core";
+import { channelPath, findTreeNode, formatPubkey } from "@wavvon/core";
 import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
 import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
+import { SoundboardPopover } from "./SoundboardPopover";
 import { HoverSubmenu } from "@wavvon/ui";
 import { DRILL_DEPTH, computeIndent, resolveDrillInScope } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../utils/spawnerChannels";
@@ -201,6 +203,10 @@ interface Props {
   onScreenShare?: () => void;
   voiceGains?: Record<string, number>;
   onSetVoiceGain?: (pk: string, gainPct: number) => void;
+  canUseSoundboard?: boolean;
+  onTriggerSoundboardClip?: (clip: SoundboardClip) => void;
+  soundboardPlayingClipId?: string | null;
+  soundboardChips?: SoundboardChip[];
 }
 
 export function ChannelSidebar({
@@ -220,6 +226,7 @@ export function ChannelSidebar({
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   voiceGains, onSetVoiceGain,
+  canUseSoundboard, onTriggerSoundboardClip, soundboardPlayingClipId, soundboardChips,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -313,6 +320,16 @@ export function ChannelSidebar({
   const myDisplayName = users.find((u) => u.public_key === publicKey)?.display_name;
   const activePing = activeHubId ? pingByHub[activeHubId] : undefined;
   const voiceChannelName = channels.find((c) => c.id === voiceChannelId)?.name;
+
+  function resolveSoundboardChipName(pubkey: string): string {
+    const known = users.find((u) => u.public_key === pubkey)?.display_name;
+    if (known) return known;
+    const inVoice = voiceChannelId
+      ? voicePartByChannel[voiceChannelId]?.find((p) => p.public_key === pubkey)?.display_name
+      : undefined;
+    if (inVoice) return inVoice;
+    return formatPubkey(pubkey);
+  }
 
   const notifyModeLabels: Record<NotifyMode, string> = {
     all: t("hub.notifications.all"),
@@ -754,6 +771,12 @@ export function ChannelSidebar({
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6l-1 3h6l-1-3h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12z"/></svg>
                   </button>
                 )}
+                {canUseSoundboard && onTriggerSoundboardClip && (
+                  <SoundboardPopover
+                    onTrigger={onTriggerSoundboardClip}
+                    playingClipId={soundboardPlayingClipId ?? null}
+                  />
+                )}
                 <button
                   onClick={onVoiceLeave}
                   className="btn-icon-gear voice-call-btn end"
@@ -774,6 +797,18 @@ export function ChannelSidebar({
                     onSetGain={onSetVoiceGain ? (g) => onSetVoiceGain(p.public_key, g) : undefined}
                     isSelf={p.public_key === publicKey}
                   />
+                ))}
+              </div>
+            )}
+            {soundboardChips && soundboardChips.length > 0 && (
+              <div className="soundboard-chips">
+                {soundboardChips.map((chip) => (
+                  <span key={chip.id} className="soundboard-chip">
+                    {t("voice.soundboard_played", {
+                      name: resolveSoundboardChipName(chip.public_key),
+                      clip: chip.clip_name,
+                    })}
+                  </span>
                 ))}
               </div>
             )}

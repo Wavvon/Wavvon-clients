@@ -158,6 +158,7 @@ export const ALL_PERMISSIONS: { id: string; label: string }[] = [
   { id: "manage_bots", label: "Manage bots (create / delete / rotate token)" },
   { id: "read_messages", label: "Read messages" },
   { id: "send_messages", label: "Send messages" },
+  { id: "manage_soundboard", label: "Manage soundboard (upload / delete clips)" },
 ];
 
 // Permissions eligible for a per-channel role overwrite. Excludes "admin"
@@ -180,6 +181,7 @@ export const CHANNEL_OVERWRITE_PERMISSIONS: { id: string; label: string }[] = [
   { id: "manage_posts", label: "Manage forum posts" },
   { id: "start_game", label: "Start games" },
   { id: "create_events", label: "Create events" },
+  { id: "use_soundboard", label: "Use soundboard" },
 ];
 
 // Small preset palette for role/role-category color pickers. Free hex input

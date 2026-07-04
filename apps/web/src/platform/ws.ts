@@ -13,6 +13,7 @@ export interface WsHandlers {
   onStatusChange?: (connected: boolean, hubId: string) => void;
   onPin?: (e: object) => void;
   onPoll?: (e: object) => void;
+  onSoundboardPlayed?: (e: object) => void;
   onError?: (e: object) => void;
   onReauthNeeded?: (hubId: string) => void;
   onChannelsUpdated?: (hubId: string) => void;
@@ -126,6 +127,8 @@ export class HubWebSocket {
       this.handlers.onPin?.(tagged);
     } else if (type === "poll_vote_updated") {
       this.handlers.onPoll?.(tagged);
+    } else if (type === "soundboard_played") {
+      this.handlers.onSoundboardPlayed?.(tagged);
     } else if (type === "error") {
       this.handlers.onError?.(tagged);
     } else if (type === "lagged") {

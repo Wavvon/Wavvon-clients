@@ -64,6 +64,54 @@ interface OpusCodec {
 const OPUS_FRAME_SIZE = 960; // 20 ms at 48 kHz
 const GAINS_STORAGE_KEY = 'wavvon.voice_gains';
 
+/** Playback cursor into a decoded soundboard clip mid-mix (soundboard.md
+ *  §1: the clip rides the sender's own outgoing stream). */
+export interface ActiveClip {
+  samples: Float32Array;
+  pos: number;
+}
+
+/** Pure sample-add mix of a mic capture frame with whatever's left of an
+ *  in-flight soundboard clip, clamped to the valid float PCM range so a
+ *  loud clip under a loud mic can't wrap around instead of just clipping.
+ *  Called once per `onaudioprocess` frame, ahead of Opus encoding, so the
+ *  clip is baked into the *outgoing* stream rather than played locally. */
+export function mixClipIntoFrame(
+  micFrame: Float32Array,
+  clip: ActiveClip | null,
+): { output: Float32Array; nextClip: ActiveClip | null } {
+  const output = new Float32Array(micFrame.length);
+  const samples = clip?.samples;
+  let pos = clip?.pos ?? 0;
+
+  for (let i = 0; i < micFrame.length; i++) {
+    let sample = micFrame[i];
+    if (samples && pos < samples.length) {
+      sample += samples[pos];
+      pos++;
+    }
+    output[i] = Math.max(-1, Math.min(1, sample));
+  }
+
+  const nextClip = samples && pos < samples.length ? { samples, pos } : null;
+  return { output, nextClip };
+}
+
+/** Averages N channel buffers down to mono. Opus (and this mixer) only
+ *  deals in mono at 48 kHz; a stereo clip is folded down before mixing. */
+export function downmixChannels(channels: Float32Array[]): Float32Array {
+  if (channels.length === 0) return new Float32Array(0);
+  if (channels.length === 1) return channels[0];
+  const length = channels[0].length;
+  const out = new Float32Array(length);
+  for (let i = 0; i < length; i++) {
+    let sum = 0;
+    for (const ch of channels) sum += ch[i];
+    out[i] = sum / channels.length;
+  }
+  return out;
+}
+
 export class VoiceWsSession {
   private ws: WebSocket | null = null;
   private audioCtx: AudioContext | null = null;
@@ -83,6 +131,8 @@ export class VoiceWsSession {
   private savedGains: Record<string, number>;
   private zones: Map<string, VoiceZone> = new Map();
   private myPubkey: string;
+  private activeClip: ActiveClip | null = null;
+  private activeClipId: string | null = null;
 
   constructor(
     private hubUrl: string,
@@ -154,14 +204,18 @@ export class VoiceWsSession {
   private onAudioProcess(e: AudioProcessingEvent): void {
     if (this.muted || !this.ws || this.ws.readyState !== WebSocket.OPEN || !this.encoder) return;
 
-    const float32 = e.inputBuffer.getChannelData(0);
+    const micFrame = e.inputBuffer.getChannelData(0);
+    const { output, nextClip } = mixClipIntoFrame(micFrame, this.activeClip);
+    this.activeClip = nextClip;
+    if (!this.activeClip) this.activeClipId = null;
+
     let offset = 0;
 
-    while (offset < float32.length) {
+    while (offset < output.length) {
       const space = OPUS_FRAME_SIZE - this.sampleAccumLen;
-      const take = Math.min(space, float32.length - offset);
+      const take = Math.min(space, output.length - offset);
       for (let i = 0; i < take; i++) {
-        this.sampleAccum[this.sampleAccumLen + i] = Math.max(-32768, Math.min(32767, float32[offset + i] * 32767));
+        this.sampleAccum[this.sampleAccumLen + i] = Math.max(-32768, Math.min(32767, output[offset + i] * 32767));
       }
       this.sampleAccumLen += take;
       offset += take;
@@ -352,6 +406,34 @@ export class VoiceWsSession {
         break;
       }
     }
+  }
+
+  /** Decodes a soundboard clip's Opus-in-Ogg bytes to mono PCM at this
+   *  session's sample rate via the browser's native Opus decoder, ready to
+   *  hand to `playClip`. Requires the session to be started (needs a live
+   *  AudioContext). */
+  async decodeClipPcm(bytes: ArrayBuffer): Promise<Float32Array> {
+    if (!this.audioCtx) throw new Error('Voice session is not active');
+    const buffer = await this.audioCtx.decodeAudioData(bytes.slice(0));
+    const channels: Float32Array[] = [];
+    for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
+    return downmixChannels(channels);
+  }
+
+  /** Queues decoded clip PCM to be mixed into the next outgoing audio
+   *  frames (soundboard.md §1). Returns false without side effects if a
+   *  clip is already playing — the client-side "one clip at a time" rule
+   *  that keeps a spam-triggered clip from stacking a wall of overlapping
+   *  audio into the caller's own stream. */
+  playClip(clipId: string, samples: Float32Array): boolean {
+    if (this.activeClip) return false;
+    this.activeClip = { samples, pos: 0 };
+    this.activeClipId = clipId;
+    return true;
+  }
+
+  getPlayingClipId(): string | null {
+    return this.activeClipId;
   }
 
   setMuted(muted: boolean): void {

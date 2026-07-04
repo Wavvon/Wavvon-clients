@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useUnreadCounts } from "./hooks/useUnreadCounts";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
+import { useSoundboardChips } from "./hooks/useSoundboardChips";
 import { useHubConnection } from "./hooks/useHubConnection";
 import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
@@ -25,6 +26,7 @@ import type {
   DmMessage,
   AllianceInfo,
   AllianceSharedChannel,
+  SoundboardClip,
 } from "@shared/types";
 import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent } from "./types";
 import { BotAppLaunchCard } from "@components/BotAppLaunchCard";
@@ -50,6 +52,7 @@ import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
+import { markSoundboardPlayed, fetchSoundboardAudioBytes } from "@platform";
 import {
   restorePersistedHubs,
   addHub,
@@ -383,6 +386,8 @@ export default function App() {
     () => selectedConvIdRef.current,
     () => publicKeyRef.current,
   );
+  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips();
+  const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
 
   // === Refs ===
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -694,6 +699,11 @@ export default function App() {
     onPoll: (raw) => {
       const m = raw as Record<string, unknown>;
       if (m._hub_id !== activeHubIdRef.current) return;
+    },
+    onSoundboardPlayed: (raw) => {
+      const m = raw as Record<string, unknown>;
+      if (m._hub_id !== activeHubIdRef.current) return;
+      receiveSoundboardPlayed(raw);
     },
     onReauthNeeded: (hubId) => {
       reauthorizeHub(hubId, stableHandlersRef.current).then(() => {
@@ -1348,6 +1358,31 @@ export default function App() {
     voiceSessionRef.current?.setSenderGain(pk, gainPct);
   }, []);
 
+  // Triggers a soundboard clip (soundboard.md §1): decode it via the same
+  // browser Opus decoder used for playback, mix it into the outgoing voice
+  // stream ahead of Opus encoding, then POST the attribution event. The
+  // session itself is the "one clip at a time" enforcement (playClip
+  // refuses while one is already queued); soundboardPlayingClipId only
+  // drives the popover's disabled state.
+  async function handleTriggerSoundboardClip(clip: SoundboardClip) {
+    const session = voiceSessionRef.current;
+    if (!session || !voiceChannelId) return;
+    if (session.getPlayingClipId()) return;
+    try {
+      const bytes = await fetchSoundboardAudioBytes(clip.id);
+      const pcm = await session.decodeClipPcm(bytes);
+      if (!session.playClip(clip.id, pcm)) return;
+      setSoundboardPlayingClipId(clip.id);
+      const durationMs = (pcm.length / 48000) * 1000;
+      setTimeout(() => {
+        setSoundboardPlayingClipId((cur) => (cur === clip.id ? null : cur));
+      }, durationMs + 200);
+      await markSoundboardPlayed(clip.id, voiceChannelId);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
   const channelTypingByKey = useMemo(() => {
     if (!selectedChannel) return {} as Record<string, { name: string; ts: number }>;
     const prefix = `${selectedChannel.id}:`;
@@ -1375,6 +1410,24 @@ export default function App() {
 
   const canManageRoles = useMemo(
     () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_roles")) ?? false,
+    [meInfo],
+  );
+
+  // Baseline (hub-role) resolution -- there's no self-service endpoint for a
+  // member to read their own channel-scoped effective permissions (the
+  // ancestor-chain overwrite fold lives behind GET /channels/:id/permissions,
+  // which itself requires manage_roles). This mirrors isAdmin/canManageRoles
+  // above rather than being truly channel-scoped; a channel-level deny of
+  // use_soundboard for a non-admin's role still shows the button but the
+  // server's mark_played check (403) is the actual enforcement either way
+  // (soundboard.md §1 Decisions).
+  const canUseSoundboard = useMemo(
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("use_soundboard")) ?? false,
+    [meInfo],
+  );
+
+  const canManageSoundboard = useMemo(
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_soundboard")) ?? false,
     [meInfo],
   );
 
@@ -1761,6 +1814,10 @@ export default function App() {
         onDragEnd={handleChannelDragEnd}
         voiceGains={voiceGains}
         onSetVoiceGain={handleSetVoiceGain}
+        canUseSoundboard={canUseSoundboard}
+        onTriggerSoundboardClip={handleTriggerSoundboardClip}
+        soundboardPlayingClipId={soundboardPlayingClipId}
+        soundboardChips={voiceChannelId ? soundboardChipsByChannel[voiceChannelId] ?? [] : []}
       />
 
       {activeOpenApp && (
@@ -1927,6 +1984,7 @@ export default function App() {
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             myPubkey={publicKey ?? ""}
             isAdmin={isAdmin}
+            canManageSoundboard={canManageSoundboard}
             onCreateInvite={(maxUses, expiresIn) =>
               hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in: expiresIn }) })
                 .then((r) => r.json() as Promise<import("@shared/types").InviteInfo>)

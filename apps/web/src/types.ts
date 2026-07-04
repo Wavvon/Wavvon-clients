@@ -262,6 +262,23 @@ export interface VoiceMuteInfo {
   created_at: number;
 }
 
+export interface SoundboardClip {
+  id: string;
+  name: string;
+  emoji: string | null;
+  uploader: string;
+  size_bytes: number;
+  duration_ms: number;
+  created_at: number;
+}
+
+export interface SoundboardPlayedEvent {
+  channel_id: string;
+  clip_id: string;
+  clip_name: string;
+  public_key: string;
+}
+
 export interface InviteInfo {
   code: string;
   created_by: string;
