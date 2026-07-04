@@ -78,12 +78,15 @@ export async function searchMessages(
   return res.json() as Promise<Message[]>;
 }
 
+// Live-event subscription is a WebSocket frame, not an HTTP endpoint: the
+// hub auto-subscribes each connection to channels readable at connect time,
+// so channels created later deliver no chat events until subscribed.
 export async function subscribeChannel(channel_id: string): Promise<void> {
-  await hubFetch(`/channels/${channel_id}/subscribe`, { method: "POST" });
+  activeSession().ws?.subscribeChannel(channel_id);
 }
 
 export async function unsubscribeChannel(channel_id: string): Promise<void> {
-  await hubFetch(`/channels/${channel_id}/unsubscribe`, { method: "POST" });
+  activeSession().ws?.unsubscribeChannel(channel_id);
 }
 
 export interface UnreadCount {

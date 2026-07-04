@@ -6,7 +6,8 @@ import { reminderOffsetToMinutes, REMINDER_OFFSETS, type ReminderOffset } from "
 import { EventSlotEditor, type SlotRow } from "./EventSlotEditor";
 
 interface Props {
-  onCreated: (event: HubEvent) => void;
+  channelId: string;
+  onCreated: () => void;
   onClose: () => void;
 }
 
@@ -14,7 +15,7 @@ function newSlotRow(): SlotRow {
   return { key: crypto.randomUUID(), name: "", capacity: "" };
 }
 
-export function EventComposer({ onCreated, onClose }: Props) {
+export function EventComposer({ channelId, onCreated, onClose }: Props) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -53,7 +54,8 @@ export function EventComposer({ onCreated, onClose }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const event = await createEvent({
+      await createEvent({
+        channel_id: channelId,
         title: title.trim(),
         description: description.trim() || null,
         location: location.trim() || null,
@@ -65,7 +67,7 @@ export function EventComposer({ onCreated, onClose }: Props) {
           capacity: s.capacity.trim() ? Number(s.capacity) : undefined,
         })),
       });
-      onCreated(event);
+      onCreated();
       onClose();
     } catch (e) {
       setError(String(e));

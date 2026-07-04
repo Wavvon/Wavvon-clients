@@ -79,6 +79,7 @@ import {
   searchMessages,
   getUnreadCounts,
   markChannelRead,
+  subscribeChannel,
 } from "@platform";
 import {
   getDmMessages,
@@ -1106,6 +1107,9 @@ export default function App() {
       setInputText("");
     }
     markChannelRead(ch.id).catch(() => {});
+    // Channels created after the WS connected are not in the hub's
+    // auto-subscribe set; subscribing is idempotent for the rest.
+    subscribeChannel(ch.id).catch(() => {});
     try {
       const msgs = await getMessages(ch.id);
       setMessages(msgs);

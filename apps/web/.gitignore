@@ -6,3 +6,7 @@ build/
 *.key
 *.pem
 *.keystore
+
+e2e/.auth/
+test-results/
+playwright-report/

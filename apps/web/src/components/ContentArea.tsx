@@ -493,7 +493,7 @@ export function ContentArea({
             </div>
 
             {activeContentTab === "events" ? (
-              <EventsPanel myPubkey={publicKey} isAdmin={isAdmin} />
+              <EventsPanel channelId={selectedChannel.id} myPubkey={publicKey} isAdmin={isAdmin} />
             ) : null}
 
             {activeContentTab === "messages" && <><ChannelMessageList

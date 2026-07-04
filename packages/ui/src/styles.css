@@ -2641,6 +2641,10 @@ select,
   border-radius: var(--r-md);
   border: 1px solid var(--border);
   min-width: 360px;
+  /* Never taller than the viewport — tall content (e.g. the channel
+     Permissions tab) scrolls inside instead of clipping the actions row. */
+  max-height: calc(100vh - 2 * var(--space-5));
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
   animation: scale-in var(--transition-base);
 }

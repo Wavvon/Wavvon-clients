@@ -12,6 +12,7 @@ export interface CreateEventSlotInput {
 }
 
 export async function createEvent(data: {
+  channel_id: string;
   title: string;
   description?: string | null;
   location?: string | null;
