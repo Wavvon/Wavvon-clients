@@ -589,6 +589,10 @@ export function SettingsPage(props: SettingsPageProps) {
                       borderRadius: "var(--r-sm)",
                       border: props.theme === t.value ? "2px solid var(--accent)" : "1px solid var(--border)",
                       background: props.theme === t.value ? "var(--accent-subtle, var(--surface))" : "var(--surface)",
+                      // Without an explicit color these inherit the base button's
+                      // var(--accent-text), which is dark in calm and white in
+                      // light — i.e. unreadable on a surface background.
+                      color: "var(--text)",
                       cursor: "pointer",
                       fontWeight: props.theme === t.value ? 600 : 400,
                     }}
@@ -674,7 +678,7 @@ export function SettingsPage(props: SettingsPageProps) {
               )}
             </div>
             <div className="settings-section" style={{ marginTop: 20 }}>
-              <label className="settings-label">{t("settings.account.identity_backup.label")}</label>
+              {/* IdentityBackupSection renders its own "Identity backup" heading. */}
               <IdentityBackupSection publicKey={props.publicKey} />
             </div>
             <FullArchiveSection publicKey={props.publicKey} />

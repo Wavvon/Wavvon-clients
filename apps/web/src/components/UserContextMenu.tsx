@@ -92,7 +92,10 @@ export function UserContextMenu({
   async function handleKick() {
     if (!confirm(`Kick ${displayName ?? pubkey.slice(0, 8)}?`)) return;
     try {
-      await hubFetch(`/admin/members/${pubkey}`, { method: "DELETE" });
+      await hubFetch("/moderation/kick", {
+        method: "POST",
+        body: JSON.stringify({ target_public_key: pubkey }),
+      });
       onToast?.("Kicked");
     } catch (e) {
       onToast?.(`Failed to kick: ${e}`);
@@ -103,7 +106,7 @@ export function UserContextMenu({
   async function handleBan() {
     if (!confirm(`Ban ${displayName ?? pubkey.slice(0, 8)}? They won't be able to rejoin.`)) return;
     try {
-      await hubFetch("/admin/bans", {
+      await hubFetch("/moderation/bans", {
         method: "POST",
         body: JSON.stringify({ target_public_key: pubkey }),
       });
@@ -116,7 +119,10 @@ export function UserContextMenu({
 
   async function handleMute() {
     try {
-      await hubFetch(`/admin/members/${pubkey}/mute`, { method: "POST", body: "{}" });
+      await hubFetch("/moderation/mutes", {
+        method: "POST",
+        body: JSON.stringify({ target_public_key: pubkey }),
+      });
       onToast?.("Muted");
     } catch (e) {
       onToast?.(`Failed to mute: ${e}`);
