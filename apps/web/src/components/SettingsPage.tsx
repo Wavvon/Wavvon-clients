@@ -24,6 +24,7 @@ import { FullArchiveSection } from "./FullArchiveSection";
 import { ImagePicker } from "./ImagePicker";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { MyCertificationsSection } from "./MyCertificationsSection";
+import { PushToTalkSection } from "./PushToTalkSection";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
 
@@ -610,6 +611,7 @@ export function SettingsPage(props: SettingsPageProps) {
               inVoice={false}
             />
             <MicLevelMeter />
+            <PushToTalkSection />
           </section>
         )}
 

@@ -35,6 +35,7 @@ import { HubSidebar } from "@components/HubSidebar";
 import { ChannelSidebar } from "@components/ChannelSidebar";
 import { ContentArea } from "@components/ContentArea";
 import { WhisperBar } from "@components/WhisperBar";
+import { loadPttConfig } from "@components/PushToTalkSection";
 import { AddHubModal } from "@components/AddHubModal";
 import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
@@ -423,6 +424,42 @@ export default function App() {
   // Whisper: set of pubkeys currently whispering to me + whether I'm whispering.
   const [whisperingFrom, setWhisperingFrom] = useState<Set<string>>(new Set());
   const [whisperingTo, setWhisperingTo] = useState<string[]>([]);
+  const [pttConfig, setPttConfig] = useState(loadPttConfig);
+  // Reload PTT config when the settings screen changes it.
+  useEffect(() => {
+    const reload = () => setPttConfig(loadPttConfig());
+    window.addEventListener("wavvon:ptt", reload);
+    return () => window.removeEventListener("wavvon:ptt", reload);
+  }, []);
+  // Push-to-talk: only active when enabled AND in voice. Start muted; the
+  // bound key unmutes while held. When disabled, this effect does nothing,
+  // so non-PTT users are entirely unaffected.
+  useEffect(() => {
+    if (!pttConfig.enabled || !voiceChannelId) return;
+    setSelfMuted(true);
+    voiceSessionRef.current?.setMuted(true);
+    const isTyping = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    };
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== pttConfig.key || e.repeat || isTyping(e.target)) return;
+      e.preventDefault();
+      setSelfMuted(false);
+      voiceSessionRef.current?.setMuted(false);
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== pttConfig.key) return;
+      setSelfMuted(true);
+      voiceSessionRef.current?.setMuted(true);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, [pttConfig.enabled, pttConfig.key, voiceChannelId]);
 
   const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
