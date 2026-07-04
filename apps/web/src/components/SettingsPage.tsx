@@ -25,6 +25,7 @@ import { ImagePicker } from "./ImagePicker";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { MyCertificationsSection } from "./MyCertificationsSection";
 import { PushToTalkSection } from "./PushToTalkSection";
+import { ProfilesSection } from "./ProfilesSection";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
 
@@ -78,6 +79,11 @@ interface SettingsPageProps {
   onSkinChange: (skin: WavvonSkin) => void;
   profiles: NamedProfile[];
   defaultProfileId: string | null;
+  onCreateProfile: (label: string, displayName: string, avatar: string | null) => void;
+  onUpdateProfile: (id: string, patch: Partial<Omit<NamedProfile, "id">>) => void;
+  onDeleteProfile: (id: string) => void;
+  onSetDefaultProfile: (id: string) => void;
+  onApplyProfileToHub: (id: string) => void;
   mentionPingEnabled?: boolean;
   onMentionPingChange?: (v: boolean) => void;
   recoveryPhrase: string | null;
@@ -476,6 +482,17 @@ export function SettingsPage(props: SettingsPageProps) {
                 <span style={{ color: "var(--danger)", fontSize: "var(--text-sm)" }}>{saveStatus}</span>
               )}
             </div>
+
+            <ProfilesSection
+              profiles={props.profiles}
+              defaultProfileId={props.defaultProfileId}
+              hubs={props.hubs}
+              onCreate={props.onCreateProfile}
+              onUpdate={props.onUpdateProfile}
+              onDelete={props.onDeleteProfile}
+              onSetDefault={props.onSetDefaultProfile}
+              onApplyToHub={props.onApplyProfileToHub}
+            />
           </section>
         )}
 

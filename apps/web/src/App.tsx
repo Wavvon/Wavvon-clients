@@ -36,6 +36,7 @@ import { ChannelSidebar } from "@components/ChannelSidebar";
 import { ContentArea } from "@components/ContentArea";
 import { WhisperBar } from "@components/WhisperBar";
 import { loadPttConfig } from "@components/PushToTalkSection";
+import { loadProfiles, saveProfiles, newProfileId } from "./utils/profiles";
 import { AddHubModal } from "@components/AddHubModal";
 import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
@@ -364,9 +365,48 @@ export default function App() {
     removeInvite,
   } = useHubAdmin({ activeHubId });
 
-  // === Profiles ===
-  const namedProfiles: import("@shared/types").NamedProfile[] = [];
-  const defaultProfileId: string | null = null;
+  // === Profiles (client-only named display-name/avatar presets) ===
+  const [profileStore, setProfileStore] = useState(loadProfiles);
+  const namedProfiles = profileStore.profiles;
+  const defaultProfileId = profileStore.defaultProfileId;
+
+  function mutateProfiles(next: ReturnType<typeof loadProfiles>) {
+    setProfileStore(next);
+    saveProfiles(next);
+  }
+  function handleCreateProfile(label: string, displayName: string, avatar: string | null) {
+    const profile = { id: newProfileId(), label, display_name: displayName, avatar };
+    mutateProfiles({
+      profiles: [...profileStore.profiles, profile],
+      defaultProfileId: profileStore.defaultProfileId ?? profile.id,
+    });
+  }
+  function handleUpdateProfile(id: string, patch: Partial<{ label: string; display_name: string; avatar: string | null }>) {
+    mutateProfiles({
+      ...profileStore,
+      profiles: profileStore.profiles.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    });
+  }
+  function handleDeleteProfile(id: string) {
+    mutateProfiles({
+      profiles: profileStore.profiles.filter((p) => p.id !== id),
+      defaultProfileId: profileStore.defaultProfileId === id ? null : profileStore.defaultProfileId,
+    });
+  }
+  function handleSetDefaultProfile(id: string) {
+    mutateProfiles({ ...profileStore, defaultProfileId: id });
+  }
+  async function handleApplyProfileToHub(id: string) {
+    const p = profileStore.profiles.find((x) => x.id === id);
+    if (!p) return;
+    try {
+      await hubFetch("/me", { method: "PATCH", body: JSON.stringify({ display_name: p.display_name, avatar: p.avatar }) });
+      hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
+      hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
 
   // === Farm admin ===
   const {
@@ -1875,6 +1915,11 @@ export default function App() {
             onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
             profiles={namedProfiles}
             defaultProfileId={defaultProfileId}
+            onCreateProfile={handleCreateProfile}
+            onUpdateProfile={handleUpdateProfile}
+            onDeleteProfile={handleDeleteProfile}
+            onSetDefaultProfile={handleSetDefaultProfile}
+            onApplyProfileToHub={handleApplyProfileToHub}
             mentionPingEnabled={mentionPingEnabled}
             onMentionPingChange={(v) => {
               setMentionPingEnabled(v);
