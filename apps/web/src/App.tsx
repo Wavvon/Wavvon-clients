@@ -997,6 +997,21 @@ export default function App() {
       if (hubId !== activeHubIdRef.current) return;
       setUsers((prev) => prev.map((u) => u.public_key === publicKey ? { ...u, online: false } : u));
     },
+    onMemberUpdated: (publicKey, displayName, avatar, hubId) => {
+      if (hubId !== activeHubIdRef.current) return;
+      // Update the member's name/avatar in place so the member list and every
+      // message author (names resolve from this map) refresh live. If we've
+      // never seen them, refetch so they appear.
+      setUsers((prev) => {
+        if (!prev.some((u) => u.public_key === publicKey)) {
+          hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
+          return prev;
+        }
+        return prev.map((u) =>
+          u.public_key === publicKey ? { ...u, display_name: displayName, avatar } : u,
+        );
+      });
+    },
     onVoiceZoneState: (raw) => {
       const m = raw as { channel_id?: string; zones?: import("./platform/voice").VoiceZone[]; _hub_id?: string };
       if (m._hub_id !== activeHubIdRef.current) return;

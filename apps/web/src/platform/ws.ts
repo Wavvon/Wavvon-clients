@@ -21,6 +21,12 @@ export interface WsHandlers {
   onChannelsUpdated?: (hubId: string) => void;
   onMemberOnline?: (publicKey: string, hubId: string) => void;
   onMemberOffline?: (publicKey: string, hubId: string) => void;
+  onMemberUpdated?: (
+    publicKey: string,
+    displayName: string | null,
+    avatar: string | null,
+    hubId: string,
+  ) => void;
   onBotApp?: (e: object) => void;
 }
 
@@ -146,6 +152,13 @@ export class HubWebSocket {
       this.handlers.onMemberOnline?.(tagged.public_key as string, this.hub_id);
     } else if (type === "member_offline") {
       this.handlers.onMemberOffline?.(tagged.public_key as string, this.hub_id);
+    } else if (type === "member_updated") {
+      this.handlers.onMemberUpdated?.(
+        tagged.public_key as string,
+        (tagged.display_name as string | null) ?? null,
+        (tagged.avatar as string | null) ?? null,
+        this.hub_id,
+      );
     } else if (type === "bot_app_launch" || type === "bot_app_open" || type === "bot_app_close") {
       this.handlers.onBotApp?.(tagged);
     } else if (type === "voice_zone_created") {
