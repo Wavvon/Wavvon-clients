@@ -68,7 +68,17 @@ import {
 } from "@platform";
 import type { WsHandlers } from "@platform";
 import { getActiveHubId } from "@platform";
-import { VoiceWsSession } from "./platform/voice";
+import { VoiceWsSession, type AudioProfileConfig } from "./platform/voice";
+
+// The voice audio profile is persisted by SettingsPage under this key; read
+// it here so the saved profile is actually applied to the live session.
+function loadVoiceAudioProfile(): AudioProfileConfig | undefined {
+  try {
+    const raw = localStorage.getItem("wavvon.audio_profile");
+    if (raw) return JSON.parse(raw) as AudioProfileConfig;
+  } catch { /* fall back to session defaults */ }
+  return undefined;
+}
 import {
   getMessages,
   sendMessage,
@@ -1309,7 +1319,7 @@ export default function App() {
           setSelfDeafened(false);
           try { activeSession().ws?.unwatchVoice(); } catch {}
         },
-      });
+      }, loadVoiceAudioProfile());
       await session.start();
       voiceSessionRef.current = session;
     } catch (e) {
@@ -1824,7 +1834,6 @@ export default function App() {
         onVoiceLeave={handleVoiceLeave}
         onSelectAllianceChannel={() => {}}
         onSelectConversation={handleSelectConversation}
-        onOpenFriends={() => {}}
         onToggleSelfMute={handleToggleMute}
         onToggleSelfDeafen={handleToggleDeafen}
         onOpenSettings={() => setShowSettings(true)}

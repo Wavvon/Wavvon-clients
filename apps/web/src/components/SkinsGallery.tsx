@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { fetchWithTimeout } from "@platform";
 import { validateSkin } from "../skinValidation";
 import type { WavvonSkin } from "../skinValidation";
 
@@ -51,7 +52,7 @@ export function SkinsGallery({ onImport }: Props) {
     if (query.trim()) params.set("q", query.trim());
     if (baseFilter) params.set("base", baseFilter);
     params.set("page", String(pageNum));
-    fetch(`${DISCOVERY_URL}/api/skins?${params.toString()}`)
+    fetchWithTimeout(`${DISCOVERY_URL}/api/skins?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<{ skins: SkinListItem[]; total: number }>;
@@ -60,7 +61,7 @@ export function SkinsGallery({ onImport }: Props) {
         setSkins(data.skins);
         setTotal(data.total);
       })
-      .catch((e) => setError(String(e)))
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
   }
 
@@ -86,7 +87,7 @@ export function SkinsGallery({ onImport }: Props) {
   async function handleCardClick(skin: SkinListItem) {
     setImportingId(skin.id);
     try {
-      const res = await fetch(`${DISCOVERY_URL}/api/skins/${skin.id}`);
+      const res = await fetchWithTimeout(`${DISCOVERY_URL}/api/skins/${skin.id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const full = await res.json() as { payload: string };
       const parsed = JSON.parse(full.payload) as unknown;

@@ -170,7 +170,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
         const info = await previewHubInfo(cleanUrl);
         setHubPreview({ state: "ok", url: cleanUrl, name: info.name, icon: info.icon });
       } catch (e) {
-        setHubPreview({ state: "error", message: String(e) });
+        setHubPreview({ state: "error", message: e instanceof Error ? e.message : String(e) });
       }
     }, 600);
     return () => clearTimeout(timer);
@@ -192,7 +192,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
       const hub = await addHub(cleanUrl, wsHandlers, inviteCode ? { invite_code: inviteCode } : undefined);
       onHubAdded(hub);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

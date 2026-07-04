@@ -7,6 +7,46 @@ export class HubApiError extends Error {
   }
 }
 
+// Default ceiling for a single network request. Without this a call to an
+// unreachable host (a mistyped hub address, a down discovery service) hangs
+// indefinitely and the UI is stuck on a spinner; with it the caller gets a
+// clear "unreachable" error to surface.
+export const DEFAULT_FETCH_TIMEOUT_MS = 10000;
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
+// fetch() with a timeout that turns "host unreachable / hung" into a clear,
+// user-presentable Error instead of an indefinite pending promise. If the
+// caller passes its own AbortSignal it is respected (and not overridden).
+export async function fetchWithTimeout(
+  url: string,
+  init?: RequestInit,
+  timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: init?.signal ?? controller.signal });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError" && controller.signal.aborted) {
+      throw new Error(`Timed out reaching ${hostOf(url)} — it may be offline or unreachable.`);
+    }
+    if (e instanceof TypeError) {
+      // Browser network failure (DNS, refused, CORS, offline).
+      throw new Error(`Could not reach ${hostOf(url)} — check the address and your connection.`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function checkResponse(res: Response): Promise<Response> {
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -31,7 +71,7 @@ export async function hubFetch(
   if (init?.body && typeof init.body === "string") {
     headers["Content-Type"] = "application/json";
   }
-  const res = await fetch(`${hub_url}${path}`, { ...init, headers });
+  const res = await fetchWithTimeout(`${hub_url}${path}`, { ...init, headers });
   return checkResponse(res);
 }
 
@@ -43,6 +83,6 @@ export async function rawFetch(url: string, init?: RequestInit): Promise<Respons
   if (init?.body && typeof init.body === "string") {
     headers["Content-Type"] = "application/json";
   }
-  const res = await fetch(url, { ...init, headers });
+  const res = await fetchWithTimeout(url, { ...init, headers });
   return checkResponse(res);
 }

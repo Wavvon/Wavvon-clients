@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { fetchWithTimeout } from "@platform";
 
 interface HubListing {
   hub_pubkey: string;
@@ -44,13 +45,13 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
       if (query.trim()) params.set("q", query.trim());
       if (lang.trim()) params.set("language", lang.trim());
       if (tag.trim()) params.set("tag", tag.trim());
-      const res = await fetch(`${directoryUrl}/api/hubs?${params.toString()}`);
+      const res = await fetchWithTimeout(`${directoryUrl}/api/hubs?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: { hubs: HubListing[]; total: number; page: number; limit: number } = await res.json();
       setHubs((prev) => replace ? data.hubs : [...prev, ...data.hubs]);
       setHasMore(pageNum * PAGE_SIZE < data.total);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

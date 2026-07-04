@@ -193,7 +193,7 @@ interface Props {
   onVoiceLeave: () => void;
   onSelectAllianceChannel: (alliance: AllianceInfo, channel: AllianceSharedChannel) => void;
   onSelectConversation: (conv: Conversation) => void;
-  onOpenFriends: () => void;
+  onOpenFriends?: () => void;
   onToggleSelfMute: () => void;
   onToggleSelfDeafen: () => void;
   onOpenSettings: () => void;
@@ -632,9 +632,14 @@ export function ChannelSidebar({
           <>
             <div className="sidebar-header">
               <h3>{t("dm.header.title")}</h3>
-              <button className="btn-icon" onClick={onOpenFriends} title={t("friends.title")}>
-                👥
-              </button>
+              {/* Friends is not built on web yet — only render the entry
+                  point when a handler is actually wired (avoids a dead
+                  button). Tracked in docs/client-parity.md. */}
+              {onOpenFriends && (
+                <button className="btn-icon" onClick={onOpenFriends} title={t("friends.title")}>
+                  👥
+                </button>
+              )}
             </div>
             <ul className="channel-list">
               {[...conversations]
