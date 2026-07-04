@@ -171,6 +171,15 @@ export class HubWebSocket {
     }
   }
 
+  // Send a raw binary frame (screen-share chunk payload). The hub pairs it
+  // with the immediately-preceding `screen_share_chunk` JSON envelope, so
+  // callers must send() the envelope first, then sendBinary() the bytes.
+  sendBinary(data: ArrayBuffer): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(data);
+    }
+  }
+
   subscribeChannel(channelId: string): void {
     this.send({ type: "subscribe", channel_id: channelId });
   }

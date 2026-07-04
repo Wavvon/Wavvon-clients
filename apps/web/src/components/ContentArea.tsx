@@ -125,6 +125,7 @@ interface Props {
   screenShareViewerRef: React.RefObject<ScreenShareViewerRef | null>;
   sharing?: boolean;
   shareKbps?: number;
+  onStartShare?: () => void;
   onStopShare?: () => void;
   assertiveAnnouncement?: string;
   pinnedMessageIds?: Set<string>;
@@ -156,7 +157,7 @@ export function ContentArea({
   onOpenImage, onToast, onError,
   slashCommands = [],
   activeScreenShares, screenShareViewerRef,
-  sharing, shareKbps, onStopShare,
+  sharing, shareKbps, onStartShare, onStopShare,
   assertiveAnnouncement = "",
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
@@ -465,6 +466,7 @@ export function ContentArea({
               onSetSearchQuery={onSetSearchQuery}
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
+              onStartShare={onStartShare}
               onStopShare={onStopShare}
               onToast={onToast}
               onError={onError}

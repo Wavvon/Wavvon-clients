@@ -21,6 +21,7 @@ import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { BlockIgnoreSection, AudioProfileSection } from "@wavvon/ui";
 import { IdentityBackupSection } from "./IdentityBackupSection";
 import { FullArchiveSection } from "./FullArchiveSection";
+import { ImagePicker } from "./ImagePicker";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
 
@@ -439,10 +440,17 @@ export function SettingsPage(props: SettingsPageProps) {
               <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
                 {t("settings.profile.avatar_url.hint")}
               </p>
+              <ImagePicker
+                onPick={(dataUrl) => setAvatarUrl(dataUrl)}
+                onClear={() => setAvatarUrl("")}
+                hasValue={!!avatarUrl}
+                buttonLabel="Upload image…"
+              />
+              <p className="muted" style={{ fontSize: "var(--text-sm)", margin: "8px 0 4px" }}>or paste an image URL</p>
               <input
                 id="settings-avatar-url"
                 type="url"
-                value={avatarUrl}
+                value={avatarUrl.startsWith("data:") ? "" : avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
                 placeholder="https://example.com/avatar.png"
                 style={{ width: "100%", maxWidth: 320 }}

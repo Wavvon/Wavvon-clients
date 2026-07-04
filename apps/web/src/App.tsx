@@ -69,6 +69,7 @@ import {
 import type { WsHandlers } from "@platform";
 import { getActiveHubId } from "@platform";
 import { VoiceWsSession, type AudioProfileConfig } from "./platform/voice";
+import { WebScreenShareSession } from "./platform/screenShare";
 
 // The voice audio profile is persisted by SettingsPage under this key; read
 // it here so the saved profile is actually applied to the live session.
@@ -407,6 +408,9 @@ export default function App() {
   const messageInputRef = useRef<HTMLInputElement | null>(null);
   const screenShareViewerRef = useRef<ScreenShareViewerRef | null>(null);
   const [activeScreenShares, setActiveScreenShares] = useState<ActiveStream[]>([]);
+  const screenShareSessionRef = useRef<WebScreenShareSession | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareKbps, setShareKbps] = useState(0);
 
   const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
@@ -1327,6 +1331,37 @@ export default function App() {
     }
   }
 
+  async function handleStartShare() {
+    if (!selectedChannel || sharing) return;
+    const ws = activeSession().ws;
+    if (!ws) { showHubError("Not connected"); return; }
+    const session = new WebScreenShareSession(ws, selectedChannel.id, {
+      onBitrate: (kbps) => setShareKbps(kbps),
+      onEnded: () => {
+        screenShareSessionRef.current = null;
+        setSharing(false);
+        setShareKbps(0);
+      },
+      onError: (msg) => showHubError("Screen share: " + msg),
+    });
+    try {
+      await session.start();
+      screenShareSessionRef.current = session;
+      setSharing(true);
+    } catch (e) {
+      // getDisplayMedia rejects when the user cancels the picker — not an error.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/denied|cancel|aborted|not allowed/i.test(msg)) showHubError("Screen share: " + msg);
+    }
+  }
+
+  function handleStopShare() {
+    screenShareSessionRef.current?.stop();
+    screenShareSessionRef.current = null;
+    setSharing(false);
+    setShareKbps(0);
+  }
+
   function handleVoiceLeave() {
     const channelId = voiceChannelId;
     voiceSessionRef.current?.stop();
@@ -1976,6 +2011,10 @@ export default function App() {
         slashCommands={slashCommands}
         activeScreenShares={activeScreenShares}
         screenShareViewerRef={screenShareViewerRef}
+        sharing={sharing}
+        shareKbps={shareKbps}
+        onStartShare={handleStartShare}
+        onStopShare={handleStopShare}
         assertiveAnnouncement={assertiveAnnouncement}
       /></>}
       </MobileShell>

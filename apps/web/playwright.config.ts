@@ -36,6 +36,8 @@ export default defineConfig({
           args: [
             "--use-fake-ui-for-media-stream",
             "--use-fake-device-for-media-stream",
+            // Let getDisplayMedia() resolve to a fake source without a picker.
+            "--auto-select-desktop-capture-source=Entire screen",
             "--autoplay-policy=no-user-gesture-required",
           ],
         },

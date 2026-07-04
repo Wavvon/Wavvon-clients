@@ -27,6 +27,7 @@ interface Props {
   onSetSearchQuery: (v: string) => void;
   onToggleMemberSidebar: () => void;
   onOpenEditDescription: (channel: Channel) => void;
+  onStartShare?: () => void;
   onStopShare?: () => void;
   onToast: (msg: string) => void;
   onError: (msg: string) => void;
@@ -55,6 +56,7 @@ export function ChannelHeader({
   onSetSearchQuery,
   onToggleMemberSidebar,
   onOpenEditDescription,
+  onStartShare,
   onStopShare,
   onToast,
   onError,
@@ -132,6 +134,16 @@ export function ChannelHeader({
               🎙 {t("voice.join.header")}
             </button>
           )
+        )}
+        {!selectedChannel.is_category && onStartShare && !sharing && (
+          <button
+            onClick={onStartShare}
+            className="btn-icon-header"
+            title={t("voice.screen_share")}
+            aria-label={t("voice.screen_share")}
+          >
+            🖥
+          </button>
         )}
         <button
           onClick={copyChannelLink}
