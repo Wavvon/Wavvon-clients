@@ -32,7 +32,7 @@ async function renameChannelRow(page: Page, oldName: string, newName: string) {
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("textbox").first().fill(newName);
-  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await dialog.locator(".modal-actions").getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog).not.toBeVisible();
 }
 
@@ -89,7 +89,7 @@ test("category: create, rename, delete", async ({ page }) => {
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("textbox").first().fill(renamed);
-  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await dialog.locator(".modal-actions").getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(group(renamed)).toBeVisible();
 

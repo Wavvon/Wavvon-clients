@@ -4,6 +4,9 @@ import { FocusTrap } from "@wavvon/ui";
 import type { Channel } from "@shared/types";
 import { ChannelPermissionsTab } from "./ChannelPermissionsTab";
 import { ChannelBansTab } from "./ChannelBansTab";
+import { ColorSwatchPicker } from "./ColorSwatchPicker";
+import { EmojiPicker } from "./EmojiPicker";
+import { safeRoleColor } from "../utils/roleAppearance";
 
 type Tab = "settings" | "permissions" | "bans";
 
@@ -13,7 +16,7 @@ interface Props {
   deleting: boolean;
   error: string | null;
   canManageRoles: boolean;
-  onSave: (name: string, description: string) => void;
+  onSave: (name: string, description: string, color: string | null, icon: string | null) => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -25,9 +28,15 @@ export function ChannelSettingsModal({
   const [tab, setTab] = useState<Tab>("settings");
   const [name, setName] = useState(channel.name);
   const [description, setDescription] = useState(channel.description ?? "");
+  const [color, setColor] = useState<string | null>(channel.color ?? null);
+  const [icon, setIcon] = useState<string | null>(channel.icon ?? null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const dirty = name.trim() !== channel.name || description.trim() !== (channel.description ?? "");
+  const dirty =
+    name.trim() !== channel.name ||
+    description.trim() !== (channel.description ?? "") ||
+    color !== (channel.color ?? null) ||
+    icon !== (channel.icon ?? null);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -100,10 +109,34 @@ export function ChannelSettingsModal({
                 </label>
               )}
 
+              {/* Appearance (requires manage_channel_icons; server enforces). */}
+              <div style={{ marginBottom: "var(--space-3)" }}>
+                <span className="label-text">Appearance</span>
+                <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)", marginTop: 4 }}>
+                  <span style={{ minWidth: 20, textAlign: "center" }}>{icon ?? "—"}</span>
+                  <EmojiPicker onPick={setIcon} />
+                  {icon && (
+                    <button type="button" className="btn-small btn-secondary" onClick={() => setIcon(null)}>
+                      {t("modal.clear")}
+                    </button>
+                  )}
+                  <span style={{ flex: 1 }} />
+                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}>Color</span>
+                </div>
+                <ColorSwatchPicker
+                  value={color}
+                  noColorLabel={t("hub.admin.role_categories.no_color")}
+                  onChange={setColor}
+                />
+                {safeRoleColor(color) && (
+                  <span aria-hidden="true" style={{ display: "inline-block", width: 14, height: 14, borderRadius: 3, background: safeRoleColor(color)!, marginTop: 4 }} />
+                )}
+              </div>
+
               <div className="modal-actions">
                 <button onClick={onClose} className="btn-secondary">Cancel</button>
                 <button
-                  onClick={() => onSave(name.trim(), description.trim())}
+                  onClick={() => onSave(name.trim(), description.trim(), color, icon)}
                   disabled={saving || !name.trim() || !dirty}
                 >
                   {saving ? "Saving…" : "Save"}

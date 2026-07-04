@@ -1100,7 +1100,7 @@ export default function App() {
     }
   }
 
-  async function handleSaveChannelSettings(name: string, description: string) {
+  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null) {
     if (!channelSettingsCtx) return;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
@@ -1108,7 +1108,9 @@ export default function App() {
       await hubFetch(`/channels/${channelSettingsCtx.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description: description || null }),
+        // color/icon are appearance fields (require manage_channel_icons);
+        // only sent when provided so a plain rename doesn't touch them.
+        body: JSON.stringify({ name, description: description || null, color, icon }),
       });
       setChannelSettingsCtx(null);
       hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
