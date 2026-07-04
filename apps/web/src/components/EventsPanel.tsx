@@ -20,7 +20,7 @@ export function EventsPanel({ myPubkey, isAdmin }: Props) {
       .then((list) => {
         const now = Math.floor(Date.now() / 1000);
         const upcoming = list
-          .filter((e) => e.starts_at >= now || (e.end_at !== null && e.end_at >= now))
+          .filter((e) => e.starts_at >= now || (e.ends_at !== null && e.ends_at >= now))
           .sort((a, b) => a.starts_at - b.starts_at);
         setEvents(upcoming);
       })

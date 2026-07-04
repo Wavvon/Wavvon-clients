@@ -88,6 +88,15 @@ export interface EventRsvp {
   status: RsvpStatus;
 }
 
+export interface EventSlot {
+  id: string;
+  name: string;
+  capacity: number | null;
+  position: number;
+  claimed: number;
+  claimants: string[];
+}
+
 export interface HubEvent {
   id: string;
   channel_id?: string;
@@ -95,10 +104,14 @@ export interface HubEvent {
   description: string | null;
   location: string | null;
   starts_at: number;
-  end_at: number | null;
+  // Matches the hub's `ends_at` field name (see hub/src/routes/events.rs).
+  ends_at: number | null;
   creator_pubkey?: string;
   created_at: number;
   rsvp_counts: { going: number; maybe: number; not_going: number };
+  slots: EventSlot[];
+  reminder_minutes: number | null;
+  reminder_sent_at: number | null;
 }
 
 export type NotifLevel = "all" | "mentions" | "none";

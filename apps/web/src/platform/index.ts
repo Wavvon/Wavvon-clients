@@ -133,7 +133,11 @@ export {
   rsvpEvent,
   cancelRsvp,
   deleteEvent,
+  createEventSlot,
+  updateEventSlot,
+  deleteEventSlot,
 } from "./commands/events";
+export type { CreateEventSlotInput } from "./commands/events";
 
 export { getNotifPref, setNotifPref } from "./notifPrefs";
 
