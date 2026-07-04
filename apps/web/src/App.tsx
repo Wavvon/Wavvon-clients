@@ -106,14 +106,17 @@ import {
   sendDm,
   publishDhKey,
 } from "@platform";
+import { postPairingClaim, getPairingStatus } from "@platform";
 import {
   loadIdentity,
   generateIdentity,
+  generateSubkeySeed,
   publicKeyHex,
   seedToPhrase,
   phraseToSeed,
   validatePhrase,
   saveIdentity,
+  buildPairingClaim,
 } from "@identity/index";
 
 // ---- Types ----
@@ -127,13 +130,74 @@ type HubPreview =
 // ---- Identity Setup ----
 
 function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<"choose" | "generated" | "recover">("choose");
+  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair">("choose");
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
   const [showHexBackup, setShowHexBackup] = useState(false);
   const [phrase, setPhrase] = useState("");
   const [hexInput, setHexInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pairCode, setPairCode] = useState("");
+  const [pairLabel, setPairLabel] = useState("");
+  const [pairStatus, setPairStatus] = useState<"idle" | "claiming" | "waiting">("idle");
+
+  // New-device pairing: generate a fresh subkey, claim the offer with it, and
+  // poll until the existing device approves. On completion we persist the seed
+  // plus the master-signed cert so this device authenticates as the shared
+  // identity.
+  async function doPair() {
+    setError(null);
+    const label = pairLabel.trim() || "New device";
+    let decoded: { hub: string; token: string };
+    try {
+      decoded = JSON.parse(atob(pairCode.trim()));
+      if (!decoded.hub || !decoded.token) throw new Error("bad code");
+    } catch {
+      setError("That pairing code isn't valid. Copy it again from your other device.");
+      return;
+    }
+    setPairStatus("claiming");
+    try {
+      const subkeySeed = generateSubkeySeed();
+      const subkeyPubkey = publicKeyHex(subkeySeed);
+      const claim = buildPairingClaim(subkeySeed, decoded.token, subkeyPubkey, label);
+      await postPairingClaim(decoded.hub, claim);
+      setPairStatus("waiting");
+
+      const started = Date.now();
+      const poll = async (): Promise<void> => {
+        if (Date.now() - started > 320_000) {
+          setError("The pairing offer expired before it was approved.");
+          setPairStatus("idle");
+          return;
+        }
+        const status = await getPairingStatus(decoded.hub, decoded.token).catch(() => null);
+        if (status && status.state === "complete") {
+          await saveIdentity({
+            id: "main",
+            seed_hex: subkeySeed,
+            security_nonce: 0,
+            security_level: 0,
+            master_pubkey: status.cert.master_pubkey,
+            device_label: label,
+            subkey_cert: status.cert,
+          });
+          onComplete();
+          return;
+        }
+        if (status && status.state === "expired") {
+          setError("The pairing offer expired.");
+          setPairStatus("idle");
+          return;
+        }
+        setTimeout(() => void poll(), 2000);
+      };
+      void poll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPairStatus("idle");
+    }
+  }
 
   async function doGenerate() {
     const rec = await generateIdentity();
@@ -201,6 +265,47 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
     );
   }
 
+  if (step === "pair") {
+    return (
+      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+        <h2>Pair with an existing device</h2>
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+          On a device you're already signed in on, open Settings → Account → Devices → “Pair a new device”, then paste
+          the code it shows here.
+        </p>
+        <label className="settings-label">Device name</label>
+        <input
+          type="text"
+          value={pairLabel}
+          onChange={(e) => setPairLabel(e.target.value)}
+          placeholder="e.g. Work laptop"
+          aria-label="Device name"
+          style={{ width: "100%", marginBottom: 8 }}
+        />
+        <label className="settings-label">Pairing code</label>
+        <textarea
+          rows={3}
+          value={pairCode}
+          onChange={(e) => setPairCode(e.target.value)}
+          placeholder="Paste the code from your other device"
+          aria-label="Pairing code"
+          style={{ width: "100%", marginBottom: 8, fontFamily: "monospace" }}
+        />
+        <button className="btn-primary" onClick={doPair} disabled={pairStatus !== "idle" || !pairCode.trim()}>
+          {pairStatus === "waiting" ? "Waiting for approval…" : pairStatus === "claiming" ? "Linking…" : "Pair this device"}
+        </button>
+        {pairStatus === "waiting" && (
+          <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
+            Approve this device on your other device to finish.
+          </p>
+        )}
+        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+        <br />
+        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>Back</button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: 400, margin: "120px auto", padding: 32, textAlign: "center" }}>
       <h1>Wavvon</h1>
@@ -208,8 +313,11 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
       <button className="btn-primary" style={{ width: "100%", marginBottom: 12 }} onClick={doGenerate}>
         Create new identity
       </button>
-      <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setStep("recover")}>
+      <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setStep("recover")}>
         Recover existing identity
+      </button>
+      <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setStep("pair")}>
+        Pair with an existing device
       </button>
     </div>
   );
@@ -522,7 +630,7 @@ export default function App() {
   useEffect(() => {
     loadIdentity().then((rec) => {
       if (rec) {
-        setPublicKey(publicKeyHex(rec.seed_hex));
+        setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
         setReady("ok");
       } else {
         setReady("setup");
@@ -532,7 +640,7 @@ export default function App() {
 
   function handleIdentityComplete() {
     loadIdentity().then((rec) => {
-      if (rec) setPublicKey(publicKeyHex(rec.seed_hex));
+      if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
     });
   }

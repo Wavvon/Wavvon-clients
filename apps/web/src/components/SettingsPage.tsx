@@ -26,6 +26,8 @@ import { MicLevelMeter } from "./MicLevelMeter";
 import { MyCertificationsSection } from "./MyCertificationsSection";
 import { PushToTalkSection } from "./PushToTalkSection";
 import { ProfilesSection } from "./ProfilesSection";
+import { HomeHubsSection } from "./HomeHubsSection";
+import { DevicesSection } from "./DevicesSection";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
 
@@ -677,6 +679,8 @@ export function SettingsPage(props: SettingsPageProps) {
             </div>
             <FullArchiveSection publicKey={props.publicKey} />
             <MyCertificationsSection publicKey={props.publicKey} />
+            <HomeHubsSection activeHubUrl={props.hubs.find((h) => h.is_active)?.hub_url} />
+            <DevicesSection activeHubUrl={props.hubs.find((h) => h.is_active)?.hub_url} />
             <PasskeySection publicKey={props.publicKey} />
             <TrustedDevicesSection />
             <BlockIgnoreSection

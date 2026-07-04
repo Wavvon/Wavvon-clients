@@ -18,7 +18,7 @@ import {
   clearToken,
   type SavedHub,
 } from "../storage";
-import { loadIdentity } from "../../identity/store";
+import { loadIdentity, saveIdentity } from "../../identity/store";
 import { signBytes, publicKeyHex } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 
@@ -35,6 +35,7 @@ interface ChallengeResponse {
 
 interface VerifyResponse {
   token: string;
+  canonical_pubkey?: string;
 }
 
 function authBaseUrl(info: InfoResponse, hub_url: string): string {
@@ -48,7 +49,8 @@ async function authenticate(
   security_nonce: number,
   security_level: number,
   invite_code?: string,
-): Promise<string> {
+  subkey_cert?: unknown,
+): Promise<{ token: string; canonicalPubkey?: string }> {
   const challengeRes: ChallengeResponse = await rawFetch(
     `${auth_url}/auth/challenge`,
     { method: "POST", body: JSON.stringify({ public_key: pubkeyHex }) },
@@ -65,13 +67,16 @@ async function authenticate(
     security_level,
   };
   if (invite_code) body["invite_code"] = invite_code;
+  // Multi-device: presenting the cert lets the hub resolve this subkey to the
+  // shared canonical identity (see resolve_canonical_identity in the hub).
+  if (subkey_cert) body["subkey_cert"] = subkey_cert;
 
   const verifyRes: VerifyResponse = await rawFetch(`${auth_url}/auth/verify`, {
     method: "POST",
     body: JSON.stringify(body),
   }).then((r) => r.json() as Promise<VerifyResponse>);
 
-  return verifyRes.token;
+  return { token: verifyRes.token, canonicalPubkey: verifyRes.canonical_pubkey };
 }
 
 
@@ -93,14 +98,28 @@ export async function addHub(
     const identity = await loadIdentity();
     if (!identity) throw new Error("No identity — generate one first");
 
-    token = await authenticate(
+    const res = await authenticate(
       authBaseUrl(info, url),
       publicKeyHex(identity.seed_hex),
       identity.seed_hex,
       identity.security_nonce,
       identity.security_level,
       opts?.invite_code,
+      identity.subkey_cert,
     );
+    token = res.token;
+
+    // Paired device: persist the canonical identity the hub attributes our
+    // actions to, so the UI self-identifies as the shared user rather than
+    // this device's own subkey pubkey.
+    if (
+      identity.subkey_cert &&
+      res.canonicalPubkey &&
+      res.canonicalPubkey !== publicKeyHex(identity.seed_hex) &&
+      identity.canonical_pubkey !== res.canonicalPubkey
+    ) {
+      await saveIdentity({ ...identity, canonical_pubkey: res.canonicalPubkey });
+    }
   }
 
   const rememberMe = opts?.rememberMe ?? false;
@@ -182,6 +201,42 @@ export async function pingHub(hub_id: string): Promise<number> {
   return Date.now() - start;
 }
 
+// Re-authenticate the active hub presenting the stored subkey cert, refreshing
+// the session token in place (the existing WebSocket stays valid). Called right
+// after enabling multi-device so the hub records the master on this user's row
+// immediately — a prerequisite for a newly paired device to resolve to the same
+// canonical identity. No-op if the identity has no cert or no active hub.
+export async function upgradeActiveHubIdentity(): Promise<void> {
+  const identity = await loadIdentity();
+  if (!identity?.subkey_cert) return;
+  const hub_id = getActiveHubId();
+  if (!hub_id) return;
+  const s = getSession(hub_id);
+  if (!s) return;
+
+  const info: InfoResponse = await rawFetch(`${s.hub_url}/info`).then(
+    (r) => r.json() as Promise<InfoResponse>,
+  );
+  const res = await authenticate(
+    authBaseUrl(info, s.hub_url),
+    publicKeyHex(identity.seed_hex),
+    identity.seed_hex,
+    identity.security_nonce,
+    identity.security_level,
+    undefined,
+    identity.subkey_cert,
+  );
+  saveToken(hub_id, res.token, true);
+  setSession(hub_id, { ...s, token: res.token });
+  if (
+    res.canonicalPubkey &&
+    res.canonicalPubkey !== publicKeyHex(identity.seed_hex) &&
+    identity.canonical_pubkey !== res.canonicalPubkey
+  ) {
+    await saveIdentity({ ...identity, canonical_pubkey: res.canonicalPubkey });
+  }
+}
+
 export async function reauthorizeHub(
   hub_id: string,
   handlers: WsHandlers,
@@ -198,12 +253,14 @@ export async function reauthorizeHub(
 
   const seedHex = identity.seed_hex;
   const pubkeyHex = publicKeyHex(seedHex);
-  const token = await authenticate(
+  const { token } = await authenticate(
     authBaseUrl(info, s.hub_url),
     pubkeyHex,
     seedHex,
     identity.security_nonce,
     identity.security_level,
+    undefined,
+    identity.subkey_cert,
   );
 
   s.ws?.close();
@@ -258,13 +315,24 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
         );
-        token = await authenticate(
+        const authRes = await authenticate(
           authBaseUrl(hubInfo, hub.hub_url),
           pubkeyHex,
           seedHex,
           identity.security_nonce,
           identity.security_level,
+          undefined,
+          identity.subkey_cert,
         );
+        token = authRes.token;
+        if (
+          identity.subkey_cert &&
+          authRes.canonicalPubkey &&
+          authRes.canonicalPubkey !== pubkeyHex &&
+          identity.canonical_pubkey !== authRes.canonicalPubkey
+        ) {
+          await saveIdentity({ ...identity, canonical_pubkey: authRes.canonicalPubkey });
+        }
         saveToken(hub.hub_id, token, hub.remember_token);
       }
 

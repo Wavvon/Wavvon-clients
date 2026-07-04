@@ -22,6 +22,7 @@ export {
   removeHub,
   pingHub,
   reauthorizeHub,
+  upgradeActiveHubIdentity,
   getHubInfo,
   previewHubInfo,
   reorderHubs,
@@ -72,8 +73,15 @@ export {
 
 export {
   getHomeHubDesignation,
+  putHomeHubDesignation,
   listDeviceCerts,
+  registerDeviceCert,
   listDeviceRevocations,
+  postDeviceRevocation,
+  postPairingOffer,
+  postPairingClaim,
+  postPairingComplete,
+  getPairingStatus,
 } from "./commands/identity";
 
 export {
