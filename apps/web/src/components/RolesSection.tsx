@@ -196,43 +196,51 @@ export function RolesSection() {
                   {role.permissions.join(", ") || "—"}
                 </span>
 
-                <select
-                  value={role.category_id ?? ""}
-                  onChange={(e) => applyUpdate(role.id, { category_id: e.target.value || null })}
-                  title={t("hub.admin.roles.category_label")}
-                >
-                  <option value="">{t("hub.admin.roles.category_none")}</option>
-                  {categories
-                    .slice()
-                    .sort((a, b) => a.position - b.position)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                </select>
+                {/* Appearance (color/icon/category) is rejected server-side for
+                    built-in roles (require_not_builtin), so only show these for
+                    custom roles. Permissions use a separate endpoint and are
+                    still editable for @everyone below. */}
+                {!isBuiltin(role) && (
+                  <>
+                    <select
+                      value={role.category_id ?? ""}
+                      onChange={(e) => applyUpdate(role.id, { category_id: e.target.value || null })}
+                      title={t("hub.admin.roles.category_label")}
+                    >
+                      <option value="">{t("hub.admin.roles.category_none")}</option>
+                      {categories
+                        .slice()
+                        .sort((a, b) => a.position - b.position)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </select>
 
-                <EmojiPicker onPick={(icon) => applyUpdate(role.id, { icon })} />
-                {role.icon && (
-                  <button
-                    type="button"
-                    className="btn-small btn-secondary"
-                    onClick={() => applyUpdate(role.id, { icon: null })}
-                  >
-                    {t("modal.clear")}
-                  </button>
+                    <EmojiPicker onPick={(icon) => applyUpdate(role.id, { icon })} />
+                    {role.icon && (
+                      <button
+                        type="button"
+                        className="btn-small btn-secondary"
+                        onClick={() => applyUpdate(role.id, { icon: null })}
+                      >
+                        {t("modal.clear")}
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="color-swatch"
+                      style={{
+                        background: safeRoleColor(role.color) ?? "transparent",
+                        border: safeRoleColor(role.color) ? undefined : "1px solid var(--border)",
+                      }}
+                      onClick={() => setColorPickerFor(colorPickerFor === role.id ? null : role.id)}
+                      title={t("hub.admin.roles.color_label")}
+                    />
+                  </>
                 )}
-
-                <button
-                  type="button"
-                  className="color-swatch"
-                  style={{
-                    background: safeRoleColor(role.color) ?? "transparent",
-                    border: safeRoleColor(role.color) ? undefined : "1px solid var(--border)",
-                  }}
-                  onClick={() => setColorPickerFor(colorPickerFor === role.id ? null : role.id)}
-                  title={t("hub.admin.roles.color_label")}
-                />
 
                 {/* Owner's permissions are implicit and can't be edited; @everyone + custom roles can. */}
                 {role.id !== "builtin-owner" && (

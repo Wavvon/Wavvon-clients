@@ -1120,7 +1120,22 @@ export default function App() {
         setChannels(ch.value);
         if (!selectedChannelRef.current) {
           const first = ch.value.find((c) => !c.is_category && c.channel_type !== "banner" && c.channel_type !== "spawner");
-          if (first) setSelectedChannel(first);
+          if (first) {
+            setSelectedChannel(first);
+            // Load the auto-selected channel's history + subscribe. Without
+            // this the message pane stays empty after a hub switch (only
+            // handleSelectChannel fetched messages, and switching bypasses it).
+            subscribeChannel(first.id).catch(() => {});
+            getMessages(first.id)
+              .then((msgs) => {
+                // Guard against a racing manual selection while we awaited.
+                if (selectedChannelRef.current?.id === first.id) {
+                  setMessages(msgs);
+                  setStickToBottom(true);
+                }
+              })
+              .catch(() => {});
+          }
         }
       }
       if (usr.status === "fulfilled") setUsers(usr.value);
