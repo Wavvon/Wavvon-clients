@@ -3,10 +3,13 @@ import type { Page, Route } from "@playwright/test";
 const HUB_URL = "http://localhost:3000";
 const HUB_ID = "test-hub-id";
 const TOKEN = "test-token";
+// Any valid 32-byte seed; the mock API stubs all hub calls, so the derived
+// pubkey is never checked against a real challenge/verify.
+const SEED_HEX = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 
 export async function injectSession(page: Page) {
   await page.addInitScript(
-    ({ hubId, hubUrl, token }) => {
+    ({ hubId, hubUrl, token, seedHex }) => {
       // Saved hubs list
       localStorage.setItem(
         "wavvon:saved_hubs",
@@ -24,8 +27,25 @@ export async function injectSession(page: Page) {
       localStorage.setItem("wavvon:active_hub", hubId);
       // Auth token (remember_token=true → localStorage)
       localStorage.setItem(`wavvon:token:${hubId}`, token);
+
+      // The app now shows the identity-setup screen unless an IndexedDB
+      // identity exists, so seed the same record store.ts writes. Runs before
+      // the app bundle, so it lands well before loadIdentity's effect fires.
+      const open = indexedDB.open("wavvon", 1);
+      open.onupgradeneeded = () => {
+        const db = open.result;
+        if (!db.objectStoreNames.contains("identity")) {
+          db.createObjectStore("identity", { keyPath: "id" });
+        }
+      };
+      open.onsuccess = () => {
+        const db = open.result;
+        db.transaction("identity", "readwrite")
+          .objectStore("identity")
+          .put({ id: "main", seed_hex: seedHex, security_nonce: 0, security_level: 0 });
+      };
     },
-    { hubId: HUB_ID, hubUrl: HUB_URL, token: TOKEN }
+    { hubId: HUB_ID, hubUrl: HUB_URL, token: TOKEN, seedHex: SEED_HEX }
   );
 }
 

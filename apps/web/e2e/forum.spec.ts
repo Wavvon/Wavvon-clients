@@ -105,7 +105,10 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
     if (url.includes("/bots") || url.includes("/voice") || url.includes("/dh-key") || url.includes("/unread")) {
       void route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
     } else {
-      void route.continue();
+      // This catch-all is registered last, so Playwright runs it first. Fall
+      // back to the specific mocks (/channels, /me, …) registered earlier
+      // rather than hitting the network — there is no real hub in this suite.
+      void route.fallback();
     }
   });
 }
@@ -113,7 +116,7 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
 test.describe("Forum post list", () => {
   test("renders two posts from mocked channel endpoint", async ({ page }) => {
     await setupBaseRoutes(page);
-    await mockJson(page, `${HUB_URL}/channels/ch1/posts`, {
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts*`, {
       posts: [POST_1, POST_2],
       cursor: undefined,
     });
@@ -128,7 +131,7 @@ test.describe("Forum post list", () => {
 test.describe("Viewing a post", () => {
   test("renders post title, body, reply count, and reply bodies", async ({ page }) => {
     await setupBaseRoutes(page);
-    await mockJson(page, `${HUB_URL}/channels/ch1/posts`, { posts: [POST_1], cursor: undefined });
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts*`, { posts: [POST_1], cursor: undefined });
 
     const postDetail = {
       ...POST_1,
@@ -153,7 +156,7 @@ test.describe("Viewing a post", () => {
 test.describe("Reactions on a post", () => {
   test("shows reaction chip and calls add-reaction endpoint on click", async ({ page }) => {
     await setupBaseRoutes(page);
-    await mockJson(page, `${HUB_URL}/channels/ch1/posts`, { posts: [POST_1], cursor: undefined });
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts*`, { posts: [POST_1], cursor: undefined });
 
     const postWithReaction = {
       ...POST_1,
@@ -166,20 +169,22 @@ test.describe("Reactions on a post", () => {
     await mockEmpty(page, `${HUB_URL}/channels/ch1/posts/post1/read`, "POST");
 
     let reactionBody: string | null = null;
+    let reacted = false;
     await page.route(`${HUB_URL}/posts/post1/reactions`, (route) => {
       if (route.request().method() === "POST") {
         reactionBody = route.request().postData();
+        reacted = true;
         void route.fulfill({ status: 204, body: "" });
       } else {
         void route.continue();
       }
     });
-    // After adding, return updated post
-    let callCount = 0;
+    // Return the pre-reaction post until the reaction POST lands, then the
+    // updated one. Keyed on the POST (not a call counter) so it's robust to the
+    // detail view fetching more than once, e.g. under React StrictMode.
     await page.route(`${HUB_URL}/posts/post1`, (route) => {
       if (route.request().method() === "GET") {
-        callCount++;
-        const body = callCount === 1 ? postWithReaction : { ...postWithReaction, reactions: [{ emoji: "👍", count: 4, me: true }] };
+        const body = reacted ? { ...postWithReaction, reactions: [{ emoji: "👍", count: 4, me: true }] } : postWithReaction;
         void route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
       } else {
         void route.continue();
@@ -202,7 +207,7 @@ test.describe("Reactions on a post", () => {
 test.describe("Toggling off a reaction", () => {
   test("active reaction chip has active class and calls delete endpoint on click", async ({ page }) => {
     await setupBaseRoutes(page);
-    await mockJson(page, `${HUB_URL}/channels/ch1/posts`, { posts: [POST_1], cursor: undefined });
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts*`, { posts: [POST_1], cursor: undefined });
 
     const postWithMyReaction = {
       ...POST_1,
@@ -241,7 +246,7 @@ test.describe("Toggling off a reaction", () => {
 test.describe("Reactions on a reply", () => {
   test("renders reaction chip on reply row", async ({ page }) => {
     await setupBaseRoutes(page);
-    await mockJson(page, `${HUB_URL}/channels/ch1/posts`, { posts: [POST_1], cursor: undefined });
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts*`, { posts: [POST_1], cursor: undefined });
 
     const replyWithReaction = {
       ...REPLY_1,

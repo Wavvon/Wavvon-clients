@@ -6,6 +6,7 @@ import type { Channel, VoiceParticipant } from "../types";
 import { ChannelIcon } from "./Icons";
 import { hasDraft } from "../utils/drafts";
 import { isSpawnerChannel, isTemporaryChannel } from "../utils/spawnerChannels";
+import { safeRoleColor } from "../utils/roleAppearance";
 
 /** Hub icon wrapped in dnd-kit's useSortable so the user can drag-reorder
  * the hub sidebar. The drag handle is the whole icon — there's no second
@@ -268,6 +269,10 @@ export function SortableCategoryItem({
     setNodeRef(el);
     itemRef?.(el);
   };
+  // Hubs are untrusted: validate the color to a plain 6-digit hex before it
+  // reaches a CSS `background` sink, or a malicious hub could smuggle a
+  // `url(...)` and beacon the viewer's IP/UA when the header renders.
+  const catColor = safeRoleColor(channel.color);
 
   return (
     <li
@@ -287,9 +292,9 @@ export function SortableCategoryItem({
     >
       <div
         className={`category-header ${isDragTarget ? "drag-target" : ""}`}
-        style={channel.color ? {
-          background: `${channel.color}26`,
-          borderLeft: `3px solid ${channel.color}`,
+        style={catColor ? {
+          background: `${catColor}26`,
+          borderLeft: `3px solid ${catColor}`,
           paddingLeft: "6px",
         } : undefined}
         onContextMenu={onContextMenu}
