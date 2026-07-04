@@ -314,6 +314,33 @@ export interface DmMessageFull {
   delivery_failed?: boolean;
 }
 
+// Personal-axis identity envelopes (hub/src/routes/identity.rs). Plaintext,
+// signed — no E2E decryption needed, unlike DMs and the prefs blob.
+export interface HomeHubList {
+  master_pubkey: string;
+  hubs: string[];
+  issued_at: number;
+  sequence: number;
+  signature: string;
+}
+
+export interface SubkeyCert {
+  master_pubkey: string;
+  subkey_pubkey: string;
+  device_label: string;
+  issued_at: number;
+  not_after: number | null;
+  fallback_hubs: string[];
+  signature: string;
+}
+
+export interface RevocationEntry {
+  master_pubkey: string;
+  subkey_pubkey: string;
+  revoked_at: number;
+  signature: string;
+}
+
 export interface AllianceInfo {
   id: string;
   name: string;

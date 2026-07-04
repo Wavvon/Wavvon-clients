@@ -71,6 +71,12 @@ export {
 } from "./commands/dms";
 
 export {
+  getHomeHubDesignation,
+  listDeviceCerts,
+  listDeviceRevocations,
+} from "./commands/identity";
+
+export {
   getDiscoveryTags,
   setDiscoveryTags,
   submitToDirectory,

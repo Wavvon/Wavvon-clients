@@ -24,3 +24,7 @@ export function clearDraft(key: string) {
 export function hasDraft(key: string): boolean {
   return !!load()[key]?.trim();
 }
+
+export function loadAllDrafts(): Record<string, string> {
+  return load();
+}

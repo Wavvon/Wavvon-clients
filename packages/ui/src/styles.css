@@ -2781,6 +2781,30 @@ select:focus-visible {
   resize: vertical;
 }
 
+.error-text {
+  color: var(--danger);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0;
+}
+
+.passphrase-strength {
+  display: inline-block;
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-2);
+}
+
+.passphrase-strength.weak {
+  color: var(--danger);
+}
+
+.passphrase-strength.fair {
+  color: var(--warning);
+}
+
+.passphrase-strength.strong {
+  color: var(--success);
+}
+
 .recovery-input:focus {
   outline: none;
   border-color: var(--accent);

@@ -20,6 +20,7 @@ import { SkinsGallery } from "./SkinsGallery";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { BlockIgnoreSection, AudioProfileSection } from "@wavvon/ui";
 import { IdentityBackupSection } from "./IdentityBackupSection";
+import { FullArchiveSection } from "./FullArchiveSection";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
 
@@ -644,6 +645,7 @@ export function SettingsPage(props: SettingsPageProps) {
               <label className="settings-label">{t("settings.account.identity_backup.label")}</label>
               <IdentityBackupSection publicKey={props.publicKey} />
             </div>
+            <FullArchiveSection publicKey={props.publicKey} />
             <PasskeySection publicKey={props.publicKey} />
             <TrustedDevicesSection />
             <BlockIgnoreSection
