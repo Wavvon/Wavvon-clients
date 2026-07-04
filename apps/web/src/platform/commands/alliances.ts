@@ -65,3 +65,26 @@ export async function acceptAllianceInvite(inviteId: string, ownHubUrl: string):
 export async function declineAllianceInvite(inviteId: string): Promise<void> {
   await hubFetch(`/alliances/pending-invites/${inviteId}`, { method: "DELETE" });
 }
+
+export interface SharedChannel {
+  channel_id: string;
+  channel_name: string;
+  hub_public_key: string;
+  hub_name: string;
+}
+
+export async function listAllianceSharedChannels(allianceId: string): Promise<SharedChannel[]> {
+  const r = await hubFetch(`/alliances/${allianceId}/channels`);
+  return r.json() as Promise<SharedChannel[]>;
+}
+
+export async function shareChannelWithAlliance(allianceId: string, channelId: string): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/channels`, {
+    method: "POST",
+    body: JSON.stringify({ channel_id: channelId }),
+  });
+}
+
+export async function unshareChannelFromAlliance(allianceId: string, channelId: string): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/channels/${channelId}`, { method: "DELETE" });
+}

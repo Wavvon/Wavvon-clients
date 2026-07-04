@@ -2,15 +2,87 @@ import { useEffect, useState } from "react";
 import {
   listAlliances, createAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
+  listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
 } from "@platform";
-import type { Alliance, PendingAllianceInvite } from "@platform";
+import type { Alliance, PendingAllianceInvite, SharedChannel } from "@platform";
+import type { Channel } from "../types";
 import { HubApiError } from "../platform/http";
 
 interface Props {
   activeHubUrl: string;
+  channels: Channel[];
 }
 
-export function AlliancesSection({ activeHubUrl }: Props) {
+// Per-alliance shared-channel manager (expanded on demand).
+function AllianceRow({ alliance, myChannels, busy, onLeave, onError, runGuard }: {
+  alliance: Alliance;
+  myChannels: Channel[];
+  busy: boolean;
+  onLeave: () => void;
+  onError: (m: string) => void;
+  runGuard: (fn: () => Promise<void>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [shared, setShared] = useState<SharedChannel[] | null>(null);
+  const [toShare, setToShare] = useState("");
+
+  async function loadShared() {
+    try { setShared(await listAllianceSharedChannels(alliance.id)); }
+    catch (e) { onError(e instanceof HubApiError ? e.message : String(e)); }
+  }
+
+  useEffect(() => { if (open && shared === null) void loadShared(); }, [open]);
+
+  return (
+    <div className="settings-section alliance-row" style={{ borderLeft: "2px solid var(--border)", paddingLeft: "var(--space-2)" }}>
+      <div className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <button className="btn-ghost" onClick={() => setOpen((v) => !v)} style={{ fontWeight: 600 }}>
+          {open ? "▾" : "▸"} {alliance.name}
+        </button>
+        <button className="btn-small btn-secondary danger" disabled={busy} onClick={onLeave}>Leave</button>
+      </div>
+      {open && (
+        <div style={{ paddingLeft: "var(--space-3)" }}>
+          <label className="settings-label" style={{ fontSize: "var(--text-xs)" }}>Shared channels</label>
+          {shared === null ? (
+            <p className="muted">Loading…</p>
+          ) : shared.length === 0 ? (
+            <p className="muted" style={{ fontSize: "var(--text-sm)" }}>No channels shared yet.</p>
+          ) : (
+            shared.map((s) => (
+              <div key={`${s.hub_public_key}:${s.channel_id}`} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "var(--text-sm)" }}># {s.channel_name} <span className="muted">({s.hub_name})</span></span>
+                <button
+                  className="btn-small btn-secondary"
+                  disabled={busy}
+                  onClick={() => runGuard(async () => { await unshareChannelFromAlliance(alliance.id, s.channel_id); await loadShared(); })}
+                >
+                  Unshare
+                </button>
+              </div>
+            ))
+          )}
+          <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+            <select value={toShare} onChange={(e) => setToShare(e.target.value)}>
+              <option value="">Share a channel…</option>
+              {myChannels.filter((c) => !c.is_category).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <button
+              disabled={busy || !toShare}
+              onClick={() => runGuard(async () => { await shareChannelWithAlliance(alliance.id, toShare); setToShare(""); await loadShared(); })}
+            >
+              Share
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AlliancesSection({ activeHubUrl, channels }: Props) {
   const [alliances, setAlliances] = useState<Alliance[] | null>(null);
   const [invites, setInvites] = useState<PendingAllianceInvite[]>([]);
   const [name, setName] = useState("");
@@ -36,6 +108,12 @@ export function AlliancesSection({ activeHubUrl }: Props) {
     try { await fn(); await load(); }
     catch (e) { setError(e instanceof HubApiError ? e.message : String(e)); }
     finally { setBusy(false); }
+  }
+
+  function runGuard(fn: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    fn().catch((e) => setError(e instanceof HubApiError ? e.message : String(e))).finally(() => setBusy(false));
   }
 
   function handleCreate() {
@@ -85,10 +163,15 @@ export function AlliancesSection({ activeHubUrl }: Props) {
           <p className="muted">No alliances yet.</p>
         ) : (
           alliances.map((a) => (
-            <div key={a.id} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-              <span>{a.name}</span>
-              <button className="btn-small btn-secondary danger" disabled={busy} onClick={() => run(() => leaveAlliance(a.id))}>Leave</button>
-            </div>
+            <AllianceRow
+              key={a.id}
+              alliance={a}
+              myChannels={channels}
+              busy={busy}
+              onLeave={() => run(() => leaveAlliance(a.id))}
+              onError={setError}
+              runGuard={runGuard}
+            />
           ))
         )}
       </div>

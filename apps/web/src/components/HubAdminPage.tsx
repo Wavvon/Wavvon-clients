@@ -408,7 +408,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
         )}
 
         {props.tab === "native-bots" && props.isAdmin && <NativeBotsSection />}
-        {props.tab === "alliances" && props.isAdmin && <AlliancesSection activeHubUrl={props.activeHubUrl} />}
+        {props.tab === "alliances" && props.isAdmin && <AlliancesSection activeHubUrl={props.activeHubUrl} channels={props.channels} />}
         {props.tab === "hub-icons" && props.isAdmin && <HubIconsSection />}
         {props.tab === "onboarding" && props.isAdmin && <OnboardingAdminSection />}
         {props.tab === "audit-log" && props.isAdmin && <AuditLogSection />}

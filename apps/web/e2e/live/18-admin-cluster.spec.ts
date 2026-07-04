@@ -57,9 +57,15 @@ test("create and delete a hub SVG icon", async ({ page }) => {
   await expect(card).toBeHidden({ timeout: 10000 });
 });
 
-test("create and leave an alliance", async ({ page }) => {
+test("alliance: create, share a channel, unshare, leave", async ({ page }) => {
+  test.setTimeout(60000);
   await page.goto("/");
   await expectInHub(page);
+
+  // A channel to share into the alliance.
+  const chan = uniqueName("shared");
+  await createChannel(page, chan);
+
   await openAdminTab(page, "Alliances");
   await expect(page.getByRole("heading", { name: "Alliances" })).toBeVisible();
 
@@ -67,10 +73,22 @@ test("create and leave an alliance", async ({ page }) => {
   await page.getByPlaceholder("Alliance name").fill(name);
   await page.getByRole("button", { name: "Create alliance" }).click();
 
-  const row = page.locator(".settings-row", { hasText: name });
-  await expect(row).toBeVisible({ timeout: 10000 });
-  await row.getByRole("button", { name: "Leave" }).click();
-  await expect(page.locator(".settings-row", { hasText: name })).toBeHidden({ timeout: 10000 });
+  const section = page.locator(".alliance-row", { hasText: name });
+  await expect(section).toBeVisible({ timeout: 10000 });
+
+  // Expand the alliance and share the channel.
+  await section.getByRole("button", { name: new RegExp(name) }).click();
+  await section.locator("select").selectOption({ label: chan });
+  await section.getByRole("button", { name: "Share", exact: true }).click();
+  await expect(section.getByText(`# ${chan}`, { exact: false })).toBeVisible({ timeout: 10000 });
+
+  // Unshare it.
+  await section.getByRole("button", { name: "Unshare" }).click();
+  await expect(section.getByText("No channels shared yet.")).toBeVisible({ timeout: 10000 });
+
+  // Leave the alliance.
+  await section.getByRole("button", { name: "Leave" }).click();
+  await expect(page.locator(".alliance-row", { hasText: name })).toBeHidden({ timeout: 10000 });
 });
 
 test("onboarding: save challenge settings", async ({ page }) => {
