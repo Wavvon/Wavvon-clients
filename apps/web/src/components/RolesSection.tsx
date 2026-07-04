@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { RoleCategory, RoleInfo } from "../types";
 import { listRoles, listRoleCategories, updateRole } from "@platform";
 import { HubApiError } from "../platform/http";
-import { groupRolesByCategory, roleTintStyle } from "../utils/roleAppearance";
+import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../utils/roleAppearance";
 import { RoleCategoryManager } from "./RoleCategoryManager";
 import { ColorSwatchPicker } from "./ColorSwatchPicker";
 import { EmojiPicker } from "./EmojiPicker";
@@ -113,7 +113,10 @@ export function RolesSection() {
               <button
                 type="button"
                 className="color-swatch"
-                style={{ background: role.color ?? "transparent", border: role.color ? undefined : "1px solid var(--border)" }}
+                style={{
+                  background: safeRoleColor(role.color) ?? "transparent",
+                  border: safeRoleColor(role.color) ? undefined : "1px solid var(--border)",
+                }}
                 onClick={() => setColorPickerFor(colorPickerFor === role.id ? null : role.id)}
                 title={t("hub.admin.roles.color_label")}
               />

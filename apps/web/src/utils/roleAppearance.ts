@@ -1,6 +1,16 @@
 import type { CSSProperties } from "react";
 import type { RoleCategory, RoleInfo } from "../types";
 
+// Canonical validator for hub-supplied role/category colors. Hubs are
+// untrusted: a color value that reaches a `background`/style sink unvalidated
+// lets a malicious hub smuggle a `url(...)` and beacon the viewer's IP/UA
+// when the swatch renders. Only a plain 6-digit hex is ever safe there.
+export const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+export function safeRoleColor(color: string | null | undefined): string | null {
+  return typeof color === "string" && HEX_RE.test(color) ? color : null;
+}
+
 export interface RoleCategoryGroup {
   category: RoleCategory | null;
   roles: RoleInfo[];
@@ -50,6 +60,7 @@ export function groupRolesByCategory(
 // blending with `var(--text)`/`var(--border)` rather than the raw hex keeps
 // contrast readable in both light and dark themes.
 export function roleTintStyle(color: string | null | undefined): CSSProperties | undefined {
-  if (!color) return undefined;
-  return { "--role-color": color } as CSSProperties;
+  const safe = safeRoleColor(color);
+  if (!safe) return undefined;
+  return { "--role-color": safe } as CSSProperties;
 }

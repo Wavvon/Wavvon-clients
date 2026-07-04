@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { RoleCategory, RoleInfo } from "../../types";
-import { groupRolesByCategory, roleTintStyle } from "../roleAppearance";
+import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../roleAppearance";
 
 function makeRole(overrides: Partial<RoleInfo> = {}): RoleInfo {
   return {
@@ -95,5 +95,44 @@ describe("roleTintStyle", () => {
 
   it("exposes the color as a --role-color custom property", () => {
     expect(roleTintStyle("#4a8d7a")).toEqual({ "--role-color": "#4a8d7a" });
+  });
+
+  it("drops a malicious non-hex color rather than exposing it", () => {
+    expect(roleTintStyle("url(https://attacker.example/beacon)")).toBeUndefined();
+  });
+});
+
+describe("safeRoleColor", () => {
+  it("accepts a well-formed 6-digit hex color", () => {
+    expect(safeRoleColor("#aabbcc")).toBe("#aabbcc");
+  });
+
+  it("rejects a CSS url() smuggled as a color", () => {
+    expect(safeRoleColor("url(https://attacker.example/beacon)")).toBeNull();
+  });
+
+  it("rejects named colors", () => {
+    expect(safeRoleColor("red")).toBeNull();
+  });
+
+  it("rejects a 3-digit hex shorthand", () => {
+    expect(safeRoleColor("#fff")).toBeNull();
+  });
+
+  it("rejects hex with alpha channel", () => {
+    expect(safeRoleColor("#aabbccdd")).toBeNull();
+  });
+
+  it("rejects a hex value with trailing injected content", () => {
+    expect(safeRoleColor("#aabbcc; x")).toBeNull();
+  });
+
+  it("rejects an empty string", () => {
+    expect(safeRoleColor("")).toBeNull();
+  });
+
+  it("rejects null and undefined", () => {
+    expect(safeRoleColor(null)).toBeNull();
+    expect(safeRoleColor(undefined)).toBeNull();
   });
 });

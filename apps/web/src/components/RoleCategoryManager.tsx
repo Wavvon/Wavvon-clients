@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { RoleCategory } from "../types";
 import { createRoleCategory, updateRoleCategory, deleteRoleCategory } from "@platform";
 import { HubApiError } from "../platform/http";
+import { safeRoleColor } from "../utils/roleAppearance";
 import { EmojiPicker } from "./EmojiPicker";
 import { ColorSwatchPicker } from "./ColorSwatchPicker";
 
@@ -129,7 +130,10 @@ export function RoleCategoryManager({ categories, onChange }: Props) {
           <button
             type="button"
             className="color-swatch"
-            style={{ background: cat.color ?? "transparent", border: cat.color ? undefined : "1px solid var(--border)" }}
+            style={{
+              background: safeRoleColor(cat.color) ?? "transparent",
+              border: safeRoleColor(cat.color) ? undefined : "1px solid var(--border)",
+            }}
             onClick={() => setColorPickerFor(colorPickerFor === cat.id ? null : cat.id)}
             title={t("hub.admin.role_categories.color_label")}
           />

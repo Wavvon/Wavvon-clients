@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ROLE_ACCENT_COLORS } from "../constants";
-
-const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+import { HEX_RE } from "../utils/roleAppearance";
 
 interface Props {
   value: string | null;
