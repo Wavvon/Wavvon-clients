@@ -8,3 +8,6 @@ export * from "./recentEmoji";
 export * from "./useReconnectBackoff";
 export * from "./identity/crypto";
 export * from "./identity/recovery";
+export * from "./identity/master";
+export * from "./identity/wire";
+export * from "./identity/ecies";
