@@ -17,9 +17,14 @@ interface Props {
   onPick: (text: string) => void;
   hubUrl?: string;
   buttonClassName?: string;
+  /** Restrict to unicode emoji, hiding hub custom emoji. Custom emoji are
+   *  returned as `:name:` shortcodes that only render where the shortcode
+   *  resolver runs (messages) — as a role/channel icon they show as literal
+   *  text, so icon pickers pass this. */
+  unicodeOnly?: boolean;
 }
 
-export function EmojiPicker({ onPick, hubUrl, buttonClassName }: Props) {
+export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [popupStyle, setPopupStyle] = useState<CSSProperties>({});
@@ -30,11 +35,12 @@ export function EmojiPicker({ onPick, hubUrl, buttonClassName }: Props) {
 
   useEffect(() => {
     if (!open) return;
+    if (unicodeOnly) return;
     hubFetch("/emojis")
       .then((r) => r.json() as Promise<HubEmoji[]>)
       .then(setHubEmojis)
       .catch(() => setHubEmojis([]));
-  }, [open]);
+  }, [open, unicodeOnly]);
 
   const filteredStandard = useMemo(() => {
     const q = query.trim().toLowerCase();

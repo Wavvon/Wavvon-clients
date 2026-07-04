@@ -106,7 +106,7 @@ export function RoleCategoryManager({ categories, onChange }: Props) {
             ↓
           </button>
           <span style={{ minWidth: 20, textAlign: "center" }}>{cat.icon ?? "—"}</span>
-          <EmojiPicker onPick={(icon) => runMutation(async () => replace(await updateRoleCategory(cat.id, { icon })))} />
+          <EmojiPicker onPick={(icon) => runMutation(async () => replace(await updateRoleCategory(cat.id, { icon })))} unicodeOnly />
           {cat.icon && (
             <button
               type="button"

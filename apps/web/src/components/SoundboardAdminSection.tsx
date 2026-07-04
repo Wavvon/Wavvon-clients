@@ -111,7 +111,7 @@ export function SoundboardAdminSection() {
         <label className="settings-label">{t("hub.admin.soundboard.emoji_label")}</label>
         <div className="settings-row">
           {emoji && <span style={{ fontSize: 20 }}>{emoji}</span>}
-          <EmojiPicker onPick={setEmoji} />
+          <EmojiPicker onPick={setEmoji} unicodeOnly />
           {emoji && (
             <button type="button" className="btn-small btn-secondary" onClick={() => setEmoji(null)}>
               {t("modal.clear")}

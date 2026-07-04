@@ -218,7 +218,7 @@ export function RolesSection() {
                         ))}
                     </select>
 
-                    <EmojiPicker onPick={(icon) => applyUpdate(role.id, { icon })} />
+                    <EmojiPicker onPick={(icon) => applyUpdate(role.id, { icon })} unicodeOnly />
                     {role.icon && (
                       <button
                         type="button"

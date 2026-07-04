@@ -17,9 +17,9 @@ async function clickMenuItem(page: Page, name: string) {
 // - The web ChannelSettingsModal edits name + description only; there's no
 //   banner-image/appearance editor on web (edit_banner/appearance context
 //   items are desktop-only).
-// - Banner channels render as a bare <li> (just the image, or empty when no
-//   image) with NO context menu and NO settings gear, so they can't be
-//   renamed or deleted from the web sidebar at all — create-only.
+// - Banner channels now expose a management row (name + settings gear) to
+//   admins and a right-click context menu, so they can be renamed/deleted from
+//   the web sidebar like other channels.
 
 async function rightClick(locator: import("@playwright/test").Locator) {
   await locator.scrollIntoViewIfNeeded();
@@ -103,7 +103,7 @@ test("category: create, rename, delete", async ({ page }) => {
   await expect(group(renamed)).toHaveCount(0);
 });
 
-test("banner channel: create only (not manageable from the web sidebar)", async ({ page }) => {
+test("banner channel: create, then manage (name + gear) and delete", async ({ page }) => {
   test.setTimeout(60000);
   await page.goto("/");
   await expectInHub(page);
@@ -111,13 +111,22 @@ test("banner channel: create only (not manageable from the web sidebar)", async 
   const name = uniqueName("bnr");
   await createChannel(page, name, "Banner");
 
-  // The channel exists server-side...
   const channels = await hubApi<Array<{ name: string; channel_type: string }>>(page, "/channels");
-  const created = channels.find((c) => c.name === name);
-  expect(created?.channel_type).toBe("banner");
+  expect(channels.find((c) => c.name === name)?.channel_type).toBe("banner");
 
-  // ...but a bannerless banner row renders as an empty <li> with no name,
-  // no context menu, and no settings gear, so there's no sidebar affordance
-  // to rename or delete it (documented gap).
-  await expect(channelButton(page, name)).toHaveCount(0);
+  // Admins get a management row (name + settings gear) even with no image —
+  // previously a bannerless banner was an empty, unmanageable <li>.
+  const row = page.locator(".channel-banner-manage", { hasText: name }).first();
+  await expect(row).toBeVisible({ timeout: 10000 });
+  await expect(row.locator(".channel-settings-btn")).toBeVisible();
+
+  // Delete via the banner's right-click context menu.
+  await rightClick(row);
+  await clickMenuItem(page, `Delete "${name}"`);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Delete channel…" }).click();
+  await dialog.getByRole("button", { name: "Yes, delete" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator(".channel-banner-manage", { hasText: name })).toHaveCount(0);
 });

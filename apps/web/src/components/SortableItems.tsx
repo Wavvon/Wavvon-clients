@@ -103,12 +103,14 @@ export function SortableChannelItem({
     return (
       <li
         ref={setRefs}
+        id={`sidebar-node-${channel.id}`}
         className={`channel-item-wrap ${isDragging ? "dragging" : ""}`}
         style={{
           transform: CSS.Transform.toString(transform),
           transition,
           ...style,
         }}
+        onContextMenu={onContextMenu}
         {...attributes}
         {...listeners}
       >
@@ -118,6 +120,27 @@ export function SortableChannelItem({
             alt=""
             style={{ width: "100%", height: "auto", display: "block", borderRadius: 4 }}
           />
+        )}
+        {/* Management affordance for admins: without this a banner renders as a
+            bare (often empty) row with no way to rename or delete it. Members
+            still see just the image. */}
+        {onSettings && (
+          <div
+            className="channel-banner-manage"
+            style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 4px" }}
+          >
+            <span className="muted" style={{ flex: 1, fontSize: "var(--text-xs)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {channel.name}
+            </span>
+            <button
+              className="channel-settings-btn"
+              onClick={(e) => { e.stopPropagation(); onSettings(e); }}
+              title="Channel settings"
+              aria-label="Channel settings"
+            >
+              ⚙
+            </button>
+          </div>
         )}
       </li>
     );

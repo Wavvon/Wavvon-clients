@@ -114,7 +114,7 @@ export function ChannelSettingsModal({
                 <span className="label-text">Appearance</span>
                 <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)", marginTop: 4 }}>
                   <span style={{ minWidth: 20, textAlign: "center" }}>{icon ?? "—"}</span>
-                  <EmojiPicker onPick={setIcon} />
+                  <EmojiPicker onPick={setIcon} unicodeOnly />
                   {icon && (
                     <button type="button" className="btn-small btn-secondary" onClick={() => setIcon(null)}>
                       {t("modal.clear")}
