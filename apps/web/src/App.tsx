@@ -45,6 +45,7 @@ import { SearchBar } from "@components/SearchBar";
 import { WelcomeScreenContainer } from "@components/WelcomeScreen";
 import { SettingsPage } from "@components/SettingsPage";
 import { UserContextMenu } from "@components/UserContextMenu";
+import { FriendsModal } from "@components/FriendsModal";
 import { MobileShell } from "@components/MobileShell";
 import { DiscoverPage } from "@components/DiscoverPage";
 import { buildChannelTree } from "@wavvon/core";
@@ -411,6 +412,7 @@ export default function App() {
   const screenShareSessionRef = useRef<WebScreenShareSession | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareKbps, setShareKbps] = useState(0);
+  const [showFriends, setShowFriends] = useState(false);
 
   const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
@@ -1715,6 +1717,10 @@ export default function App() {
         />
       )}
 
+      {showFriends && (
+        <FriendsModal onClose={() => setShowFriends(false)} onToast={(msg) => showHubError(msg)} />
+      )}
+
       {showSettings && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg, #1a1a2e)", overflow: "auto", display: "flex" }}>
           <SettingsPage
@@ -1868,6 +1874,7 @@ export default function App() {
         onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
         onVoiceLeave={handleVoiceLeave}
         onSelectAllianceChannel={() => {}}
+        onOpenFriends={() => setShowFriends(true)}
         onSelectConversation={handleSelectConversation}
         onToggleSelfMute={handleToggleMute}
         onToggleSelfDeafen={handleToggleDeafen}

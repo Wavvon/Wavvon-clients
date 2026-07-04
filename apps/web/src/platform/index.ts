@@ -185,6 +185,14 @@ export { listRoles, createRole, updateRole, deleteRole, listUserRoles, assignRol
 export type { RoleCreateInput, RoleUpdateInput } from "./commands/roles";
 
 export {
+  listFriends,
+  listPendingFriendRequests,
+  sendFriendRequest,
+  acceptFriendRequest,
+  removeFriend,
+} from "./commands/friends";
+
+export {
   listRoleCategories,
   createRoleCategory,
   updateRoleCategory,
