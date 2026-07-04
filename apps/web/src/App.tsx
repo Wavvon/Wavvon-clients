@@ -798,7 +798,17 @@ export default function App() {
     },
     onMemberOnline: (publicKey, hubId) => {
       if (hubId !== activeHubIdRef.current) return;
-      setUsers((prev) => prev.map((u) => u.public_key === publicKey ? { ...u, online: true } : u));
+      setUsers((prev) => {
+        const known = prev.some((u) => u.public_key === publicKey);
+        // A member we've never seen (joined after our initial /users load)
+        // isn't in the list yet — refetch so they appear live (and resolve
+        // to their name in the member list, message authors, video tiles).
+        if (!known) {
+          hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
+          return prev;
+        }
+        return prev.map((u) => u.public_key === publicKey ? { ...u, online: true } : u);
+      });
     },
     onMemberOffline: (publicKey, hubId) => {
       if (hubId !== activeHubIdRef.current) return;

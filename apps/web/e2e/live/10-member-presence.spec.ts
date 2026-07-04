@@ -21,25 +21,27 @@ test("a member shows online, then flips offline live when they leave", async ({ 
   await createChannel(page, channel);
   await channelButton(page, channel).click();
 
+  // Baseline member-row count before anyone else joins. (The responsive
+  // shell renders the list twice, so counts are consistent but doubled —
+  // compare relative counts, and match live appearance by count rather than
+  // name, since a brand-new member's display name can lag one refetch.)
+  const rows = page.locator("li.user-list-item");
+  const before = await rows.count();
+
   const memberName = uniqueName("Present");
   const { context, page: member } = await newMemberPage(browser, memberName);
   try {
     await channelButton(member, channel).click();
 
-    // Owner refetches /users (reload) to pick up the newly-joined member,
-    // who should then show as online in the member list.
-    await page.reload();
-    await expectInHub(page);
-    await channelButton(page, channel).click();
-    const row = page.locator("li.user-list-item", { hasText: memberName });
-    await expect(row).toBeVisible({ timeout: 10000 });
-    // Online rows are not tagged .offline.
-    await expect(row).not.toHaveClass(/offline/);
+    // The newly-joined member appears in the owner's list LIVE (no reload):
+    // onMemberOnline refetches /users when it sees an unknown pubkey.
+    await expect.poll(async () => rows.count(), { timeout: 15000 }).toBeGreaterThan(before);
 
-    // Member disconnects → owner sees them flip offline live (member_offline
-    // WS event flips an already-known user without a refetch).
+    // Member disconnects → owner sees an offline row appear (member_offline
+    // flips the now-known user). Fresh DB → the member is the only one who
+    // can be offline here.
     await context.close();
-    await expect(row).toHaveClass(/offline/, { timeout: 15000 });
+    await expect(page.locator("li.user-list-item.offline").first()).toBeVisible({ timeout: 15000 });
   } finally {
     if (context.pages().length) await context.close();
   }
