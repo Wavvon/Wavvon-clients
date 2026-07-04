@@ -449,6 +449,17 @@ export interface ActiveStream {
   has_audio: boolean;
 }
 
+// A screen share happening in some channel, surfaced by the hub-streams
+// discovery list so it can be watched cross-channel.
+export interface HubStreamInfo {
+  channel_id: string;
+  stream_id: string;
+  sharer_pubkey: string;
+  kind: "screen" | "webcam";
+  mime: string;
+  has_audio: boolean;
+}
+
 export interface ScreenShareOpts {
   includeAudio: boolean;
   includeWebcam: boolean;

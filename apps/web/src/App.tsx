@@ -39,6 +39,8 @@ import { loadPttConfig } from "@components/PushToTalkSection";
 import { loadProfiles, saveProfiles, newProfileId } from "./utils/profiles";
 import { getCurrentSurvey } from "@platform";
 import { SurveyModal } from "@components/SurveyModal";
+import { HubStreamsPanel } from "@components/HubStreamsPanel";
+import type { HubStreamInfo } from "./types";
 import { AddHubModal } from "@components/AddHubModal";
 import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
@@ -469,6 +471,10 @@ export default function App() {
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
   const [surveyToShow, setSurveyToShow] = useState<import("@platform").SurveyAdmin | null>(null);
   const surveyDismissedRef = useRef<Set<string>>(new Set());
+  // Hub-streams: cross-channel screen-share discovery + subscriptions.
+  const [hubStreams, setHubStreams] = useState<import("./types").HubStreamInfo[]>([]);
+  const [showHubStreams, setShowHubStreams] = useState(false);
+  const subscribedStreamIds = useRef<Set<string>>(new Set());
   // Reload PTT config when the settings screen changes it.
   useEffect(() => {
     const reload = () => setPttConfig(loadPttConfig());
@@ -781,13 +787,37 @@ export default function App() {
       const m = raw as Record<string, unknown>;
       if (m._hub_id !== activeHubIdRef.current) return;
       if (m.type === "screen_share_started") {
-        const ev = m as unknown as ActiveStream & { _hub_id: string };
+        const ev = m as unknown as ActiveStream & { channel_id: string; _hub_id: string };
         setActiveScreenShares((prev) => {
           if (prev.some((s) => s.stream_id === ev.stream_id)) return prev;
           return [...prev, { stream_id: ev.stream_id, sharer_pubkey: ev.sharer_pubkey, kind: ev.kind, mime: ev.mime, has_audio: ev.has_audio }];
         });
+        // Keep the cross-channel discovery list live.
+        setHubStreams((prev) => prev.some((s) => s.stream_id === ev.stream_id) ? prev : [...prev, {
+          channel_id: ev.channel_id, stream_id: ev.stream_id, sharer_pubkey: ev.sharer_pubkey, kind: ev.kind, mime: ev.mime, has_audio: ev.has_audio,
+        }]);
       } else if (m.type === "screen_share_stopped") {
         const streamId = m.stream_id as string;
+        setActiveScreenShares((prev) => prev.filter((s) => s.stream_id !== streamId));
+        setHubStreams((prev) => prev.filter((s) => s.stream_id !== streamId));
+        screenShareViewerRef.current?.stopStream(streamId);
+      } else if (m.type === "hub_streams") {
+        setHubStreams((m.streams as HubStreamInfo[]) ?? []);
+      } else if (m.type === "stream_subscribed") {
+        // A cross-channel stream we asked to watch — register it so the
+        // viewer builds a MediaSource for its incoming chunks.
+        const streamId = m.stream_id as string;
+        subscribedStreamIds.current.add(streamId);
+        setActiveScreenShares((prev) => prev.some((s) => s.stream_id === streamId) ? prev : [...prev, {
+          stream_id: streamId,
+          sharer_pubkey: m.sharer_pubkey as string,
+          kind: (m.kind as "screen" | "webcam") ?? "screen",
+          mime: m.mime as string,
+          has_audio: !!m.has_audio,
+        }]);
+      } else if (m.type === "stream_subscription_ended") {
+        const streamId = m.stream_id as string;
+        subscribedStreamIds.current.delete(streamId);
         setActiveScreenShares((prev) => prev.filter((s) => s.stream_id !== streamId));
         screenShareViewerRef.current?.stopStream(streamId);
       }
@@ -800,6 +830,7 @@ export default function App() {
       handleStatusChange(hubId, hubName, connected, setAssertiveAnnouncement);
       if (connected && hubId === activeHubIdRef.current) {
         hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
+        try { activeSession().ws?.requestStreamList(); } catch {}
       }
     },
     onError: (raw) => {
@@ -1507,6 +1538,20 @@ export default function App() {
     setShareKbps(0);
   }
 
+  function handleOpenHubStreams() {
+    try { activeSession().ws?.requestStreamList(); } catch {}
+    setShowHubStreams(true);
+  }
+  function handleWatchStream(channelId: string, streamId: string) {
+    try { activeSession().ws?.subscribeStream(channelId, streamId); } catch {}
+  }
+  function handleStopWatchStream(channelId: string, streamId: string) {
+    try { activeSession().ws?.unsubscribeStream(channelId, streamId); } catch {}
+    subscribedStreamIds.current.delete(streamId);
+    setActiveScreenShares((prev) => prev.filter((s) => s.stream_id !== streamId));
+    screenShareViewerRef.current?.stopStream(streamId);
+  }
+
   async function handleToggleVideo() {
     if (videoEnabled) { handleStopVideo(); return; }
     // Video is scoped to the voice channel you're in; the session was created
@@ -1911,6 +1956,19 @@ export default function App() {
         <FriendsModal onClose={() => setShowFriends(false)} onToast={(msg) => showHubError(msg)} />
       )}
 
+      {showHubStreams && (
+        <HubStreamsPanel
+          streams={hubStreams}
+          subscribedIds={subscribedStreamIds.current}
+          currentChannelId={selectedChannel?.id ?? null}
+          channels={channels}
+          nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
+          onWatch={handleWatchStream}
+          onStopWatch={handleStopWatchStream}
+          onClose={() => setShowHubStreams(false)}
+        />
+      )}
+
       {surveyToShow && (
         <SurveyModal
           survey={surveyToShow}
@@ -2240,6 +2298,7 @@ export default function App() {
         remoteVideoStreams={remoteVideoStreams}
         onToggleVideo={handleToggleVideo}
         videoNameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
+        onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
       /></>}
       </MobileShell>

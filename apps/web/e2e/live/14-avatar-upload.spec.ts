@@ -19,7 +19,7 @@ test("upload an avatar image; it saves as a data URL", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
 
   // Pick a file via the ImagePicker's hidden input.
-  await page.locator('.image-picker input[type="file"]').setInputFiles({
+  await page.locator('.image-picker input[type="file"]').first().setInputFiles({
     name: "me.png",
     mimeType: "image/png",
     buffer: PNG_1x1,

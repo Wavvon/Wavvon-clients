@@ -35,6 +35,7 @@ interface Props {
   remoteVideoStreams?: Map<string, MediaStream>;
   onToggleVideo?: () => void;
   videoNameFor?: (pubkey: string) => string;
+  onOpenHubStreams?: () => void;
   onToast: (msg: string) => void;
   onError: (msg: string) => void;
   onBreadcrumbCategoryClick: (categoryId: string) => void;
@@ -69,6 +70,7 @@ export function ChannelHeader({
   remoteVideoStreams,
   onToggleVideo,
   videoNameFor,
+  onOpenHubStreams,
   onToast,
   onError,
   onBreadcrumbCategoryClick,
@@ -175,6 +177,16 @@ export function ChannelHeader({
         >
           🔗
         </button>
+        {onOpenHubStreams && (
+          <button
+            onClick={onOpenHubStreams}
+            className="btn-icon-header"
+            title="Live screen shares"
+            aria-label="Live screen shares"
+          >
+            📡
+          </button>
+        )}
         <button
           onClick={onShowPinned}
           className="btn-icon-header"

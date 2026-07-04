@@ -224,6 +224,17 @@ export class HubWebSocket {
     this.send({ type: "voice_whisper_stop" });
   }
 
+  // --- Hub-streams (cross-channel screen-share discovery/subscribe) ---
+  requestStreamList(): void {
+    this.send({ type: "stream_list" });
+  }
+  subscribeStream(sourceChannelId: string, streamId: string): void {
+    this.send({ type: "stream_subscribe", source_channel_id: sourceChannelId, stream_id: streamId });
+  }
+  unsubscribeStream(sourceChannelId: string, streamId: string): void {
+    this.send({ type: "stream_unsubscribe", source_channel_id: sourceChannelId, stream_id: streamId });
+  }
+
   unwatchVoice(): void {
     this.send({ type: "voice_unwatch" });
   }

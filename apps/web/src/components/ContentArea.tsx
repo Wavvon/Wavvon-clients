@@ -132,6 +132,7 @@ interface Props {
   remoteVideoStreams?: Map<string, MediaStream>;
   onToggleVideo?: () => void;
   videoNameFor?: (pubkey: string) => string;
+  onOpenHubStreams?: () => void;
   assertiveAnnouncement?: string;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
@@ -163,7 +164,7 @@ export function ContentArea({
   slashCommands = [],
   activeScreenShares, screenShareViewerRef,
   sharing, shareKbps, onStartShare, onStopShare,
-  videoEnabled, localVideoStream, remoteVideoStreams, onToggleVideo, videoNameFor,
+  videoEnabled, localVideoStream, remoteVideoStreams, onToggleVideo, videoNameFor, onOpenHubStreams,
   assertiveAnnouncement = "",
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
@@ -479,6 +480,7 @@ export function ContentArea({
               remoteVideoStreams={remoteVideoStreams}
               onToggleVideo={onToggleVideo}
               videoNameFor={videoNameFor}
+              onOpenHubStreams={onOpenHubStreams}
               onToast={onToast}
               onError={onError}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
