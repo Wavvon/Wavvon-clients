@@ -18,6 +18,11 @@ import { ModerationTab } from "./ModerationTab";
 import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
 import { RolesSection } from "./RolesSection";
 import { SoundboardAdminSection } from "./SoundboardAdminSection";
+import { AuditLogSection } from "./AuditLogSection";
+import { NativeBotsSection } from "./NativeBotsSection";
+import { AlliancesSection } from "./AlliancesSection";
+import { HubIconsSection } from "./HubIconsSection";
+import { OnboardingAdminSection } from "./OnboardingAdminSection";
 
 export type HubAdminTab =
   | "overview"
@@ -33,7 +38,12 @@ export type HubAdminTab =
   | "certifications"
   | "recovery"
   | "moderation"
-  | "soundboard";
+  | "soundboard"
+  | "native-bots"
+  | "alliances"
+  | "hub-icons"
+  | "onboarding"
+  | "audit-log";
 
 export interface HubAdminPageProps {
   tab: HubAdminTab;
@@ -125,6 +135,13 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "recovery", label: t("admin.tabs.recovery") },
     ...(props.canManageSoundboard ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard") }] : []),
     ...(props.isAdmin ? [{ id: "moderation" as HubAdminTab, label: "Moderation" }] : []),
+    ...(props.isAdmin ? [
+      { id: "native-bots" as HubAdminTab, label: "Bots" },
+      { id: "alliances" as HubAdminTab, label: "Alliances" },
+      { id: "hub-icons" as HubAdminTab, label: "Icons" },
+      { id: "onboarding" as HubAdminTab, label: "Onboarding" },
+      { id: "audit-log" as HubAdminTab, label: "Audit log" },
+    ] : []),
   ];
 
   return (
@@ -389,6 +406,12 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "moderation" && props.isAdmin && (
           <ModerationTab />
         )}
+
+        {props.tab === "native-bots" && props.isAdmin && <NativeBotsSection />}
+        {props.tab === "alliances" && props.isAdmin && <AlliancesSection activeHubUrl={props.activeHubUrl} />}
+        {props.tab === "hub-icons" && props.isAdmin && <HubIconsSection />}
+        {props.tab === "onboarding" && props.isAdmin && <OnboardingAdminSection />}
+        {props.tab === "audit-log" && props.isAdmin && <AuditLogSection />}
       </main>
     </div>
   );

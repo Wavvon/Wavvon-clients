@@ -22,6 +22,7 @@ import { BlockIgnoreSection, AudioProfileSection } from "@wavvon/ui";
 import { IdentityBackupSection } from "./IdentityBackupSection";
 import { FullArchiveSection } from "./FullArchiveSection";
 import { ImagePicker } from "./ImagePicker";
+import { MicLevelMeter } from "./MicLevelMeter";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
 
@@ -607,6 +608,7 @@ export function SettingsPage(props: SettingsPageProps) {
               onCustomComplexity={(v) => updateAudioProfile({ customComplexity: v })}
               inVoice={false}
             />
+            <MicLevelMeter />
           </section>
         )}
 

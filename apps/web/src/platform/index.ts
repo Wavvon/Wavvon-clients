@@ -192,6 +192,24 @@ export {
   removeFriend,
 } from "./commands/friends";
 
+export { getAuditLog } from "./commands/audit";
+export type { AuditLogEntry, AuditLogPage } from "./commands/audit";
+export { listChannelBans, banFromChannel, unbanFromChannel } from "./commands/channelBans";
+export type { ChannelBan } from "./commands/channelBans";
+export { listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon } from "./commands/hubIcons";
+export type { HubIcon } from "./commands/hubIcons";
+export { listNativeBots, createNativeBot, deleteNativeBot } from "./commands/nativeBots";
+export type { NativeBot, NativeBotCreated } from "./commands/nativeBots";
+export {
+  listAlliances, createAlliance, getAlliance, leaveAlliance,
+  listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
+} from "./commands/alliances";
+export type { Alliance, AllianceDetail, AllianceMember, PendingAllianceInvite } from "./commands/alliances";
+export {
+  setLobbySettings, listPendingUsers, approvePendingUser, setChallengeSettings,
+} from "./commands/onboardingAdmin";
+export type { PendingUser, ChallengeMode, ChallengeDifficulty } from "./commands/onboardingAdmin";
+
 export {
   listRoleCategories,
   createRoleCategory,

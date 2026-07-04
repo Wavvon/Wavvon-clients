@@ -3,8 +3,9 @@ import { useTranslation } from "react-i18next";
 import { FocusTrap } from "@wavvon/ui";
 import type { Channel } from "@shared/types";
 import { ChannelPermissionsTab } from "./ChannelPermissionsTab";
+import { ChannelBansTab } from "./ChannelBansTab";
 
-type Tab = "settings" | "permissions";
+type Tab = "settings" | "permissions" | "bans";
 
 interface Props {
   channel: Channel;
@@ -56,10 +57,20 @@ export function ChannelSettingsModal({
               >
                 {t("channel.settings.tab_permissions")}
               </button>
+              {!channel.is_category && (
+                <button
+                  className={tab === "bans" ? "btn-primary" : "btn-secondary"}
+                  onClick={() => setTab("bans")}
+                >
+                  Bans
+                </button>
+              )}
             </div>
           )}
 
-          {tab === "permissions" && canManageRoles ? (
+          {tab === "bans" && canManageRoles && !channel.is_category ? (
+            <ChannelBansTab channelId={channel.id} />
+          ) : tab === "permissions" && canManageRoles ? (
             <ChannelPermissionsTab channelId={channel.id} />
           ) : (
             <>
