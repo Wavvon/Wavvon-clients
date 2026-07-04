@@ -1592,6 +1592,21 @@ export default function App() {
   // === Voice ===
 
   async function handleVoiceJoin(ch: Channel) {
+    // Already in this exact voice channel — nothing to do.
+    if (voiceChannelId === ch.id) return;
+    // Switching channels: tear down the current session FIRST. Without this,
+    // repeated joins stack independent VoiceWsSessions (joining several rooms
+    // at once) and only the last is tracked, so leaving leaves the earlier
+    // ones connected as stale roster entries that block temp-channel cleanup.
+    // stop() sets closed=true before closing the socket, so the old session's
+    // onClose does not fire and cannot clobber the new session's state.
+    if (voiceSessionRef.current) {
+      videoSessionRef.current?.dispose();
+      videoSessionRef.current = null;
+      voiceSessionRef.current.stop();
+      voiceSessionRef.current = null;
+      try { activeSession().ws?.unwatchVoice(); } catch {}
+    }
     try {
       const sess = activeSession();
       const session = new VoiceWsSession(sess.hub_url, sess.token, ch.id, {

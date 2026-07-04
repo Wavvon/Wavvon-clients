@@ -548,7 +548,7 @@ export function ChannelSidebar({
                         unread={!!activeHubId && !!unreadByChannel[activeHubId]?.[n.node.id]}
                         unreadCount={activeHubId ? Object.keys(unreadByChannel[activeHubId] ?? {}).filter(id => id === n.node.id).length : 0}
                         muted={!!activeHubId && effectiveNotifyMode(activeHubId, n.node.id) === "silent"}
-                        participants={voicePartByChannel[n.node.id] ?? []}
+                        participants={voiceChannelId === n.node.id ? [] : (voicePartByChannel[n.node.id] ?? [])}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         hubUrl={activeHub?.hub_url}
                         ownerDisplayName={resolveOwnerDisplayName(n.node.owner_pubkey, users)}
