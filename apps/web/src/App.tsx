@@ -1437,6 +1437,13 @@ export default function App() {
 
   const myRoles = useMemo(() => meInfo?.roles ?? [], [meInfo]);
 
+  // Highest priority among the viewer's own roles — the hub only lets you
+  // assign/remove roles strictly below your own priority.
+  const myMaxPriority = useMemo(
+    () => myRoles.reduce((m, r) => Math.max(m, r.priority), 0),
+    [myRoles],
+  );
+
   const knownDisplayNames = useMemo(
     () => new Set(users.map((u) => u.display_name).filter(Boolean) as string[]),
     [users],
@@ -1705,8 +1712,14 @@ export default function App() {
           pubkey={userContextMenu.pubkey}
           displayName={userContextMenu.displayName}
           isAdmin={isAdmin}
+          canManageRoles={canManageRoles}
+          myMaxPriority={myMaxPriority}
           position={userContextMenu.position}
           onClose={() => setUserContextMenu(null)}
+          onToast={(msg) => showHubError(msg)}
+          onRolesChanged={() => {
+            hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
+          }}
         />
       )}
 

@@ -56,3 +56,19 @@ export async function updateRole(roleId: string, updates: RoleUpdateInput): Prom
 export async function deleteRole(roleId: string): Promise<void> {
   await hubFetch(`/roles/${roleId}`, { method: "DELETE" });
 }
+
+// --- Per-user role assignment (matches hub PUT/DELETE
+// /users/{public_key}/roles/{role_id}; requires manage_roles) ---
+
+export async function listUserRoles(publicKey: string): Promise<RoleInfo[]> {
+  const r = await hubFetch(`/users/${publicKey}/roles`);
+  return r.json() as Promise<RoleInfo[]>;
+}
+
+export async function assignRoleToUser(publicKey: string, roleId: string): Promise<void> {
+  await hubFetch(`/users/${publicKey}/roles/${roleId}`, { method: "PUT" });
+}
+
+export async function removeRoleFromUser(publicKey: string, roleId: string): Promise<void> {
+  await hubFetch(`/users/${publicKey}/roles/${roleId}`, { method: "DELETE" });
+}
