@@ -23,6 +23,7 @@ import { IdentityBackupSection } from "./IdentityBackupSection";
 import { FullArchiveSection } from "./FullArchiveSection";
 import { ImagePicker } from "./ImagePicker";
 import { MicLevelMeter } from "./MicLevelMeter";
+import { MyCertificationsSection } from "./MyCertificationsSection";
 
 export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
 
@@ -656,6 +657,7 @@ export function SettingsPage(props: SettingsPageProps) {
               <IdentityBackupSection publicKey={props.publicKey} />
             </div>
             <FullArchiveSection publicKey={props.publicKey} />
+            <MyCertificationsSection publicKey={props.publicKey} />
             <PasskeySection publicKey={props.publicKey} />
             <TrustedDevicesSection />
             <BlockIgnoreSection

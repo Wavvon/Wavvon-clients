@@ -209,6 +209,8 @@ export {
   setLobbySettings, listPendingUsers, approvePendingUser, setChallengeSettings,
 } from "./commands/onboardingAdmin";
 export type { PendingUser, ChallengeMode, ChallengeDifficulty } from "./commands/onboardingAdmin";
+export { listMyCertifications } from "./commands/certifications";
+export type { Certification } from "./commands/certifications";
 
 export {
   listRoleCategories,
