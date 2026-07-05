@@ -2504,6 +2504,7 @@ export default function App() {
             onUnban={(pk) => hubFetch(`/moderation/bans/${pk}`, { method: "DELETE" }).catch(() => {})}
             invites={hubAdminInvites}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+            hubSerial={activeHubId ?? ""}
             myPubkey={publicKey ?? ""}
             isAdmin={isAdmin}
             canManageSoundboard={canManageSoundboard}

@@ -7,7 +7,7 @@ import type {
   MemberAdminInfo,
   PendingUser,
 } from "../types";
-import { formatPubkey, formatRelative } from "@wavvon/core";
+import { formatPubkey, formatRelative, buildInviteLink } from "@wavvon/core";
 import { ServerTagsSection } from "./ServerTagsSection";
 import { CertificationsSection } from "./CertificationsSection";
 import { RecoveryContactsSection } from "./RecoveryContactsSection";
@@ -73,6 +73,9 @@ export interface HubAdminPageProps {
   onUnban: (publicKey: string) => void;
   invites: InviteInfo[];
   activeHubUrl: string;
+  /** This hub's stable serial (its public key) — embedded in invite links so a
+   *  farm can route the same domain to different hubs. */
+  hubSerial: string;
   myPubkey: string;
   isAdmin: boolean;
   canManageSoundboard: boolean;
@@ -94,6 +97,7 @@ function hubToWavvonUrl(hubUrl: string): string {
 export function HubAdminPage(props: HubAdminPageProps) {
   const { t } = useTranslation();
   const [copiedShare, setCopiedShare] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
   const [dirBio, setDirBio] = useState("");
@@ -360,16 +364,25 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 </button>
               </div>
             </div>
-            {props.invites.map((inv) => (
-              <div key={inv.code} className="settings-row">
-                <code className="pubkey-display">{inv.code}</code>
-                <span className="muted">
-                  {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
-                  {inv.expires_at ? ` · ${t("admin.invite.expires_relative", { date: formatRelative(inv.expires_at) })}` : ""}
-                </span>
-                <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
-              </div>
-            ))}
+            {props.invites.map((inv) => {
+              const link = buildInviteLink(props.activeHubUrl, props.hubSerial, inv.code);
+              return (
+                <div key={inv.code} className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
+                  <code className="pubkey-display" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={link}>{link}</code>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
+                  >
+                    {copiedInvite === inv.code ? t("modal.copied") : t("modal.copy")}
+                  </button>
+                  <span className="muted">
+                    {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
+                    {inv.expires_at ? ` · ${t("admin.invite.expires_relative", { date: formatRelative(inv.expires_at) })}` : ""}
+                  </span>
+                  <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
+                </div>
+              );
+            })}
           </section>
         )}
 

@@ -1,5 +1,52 @@
 import { describe, it, expect } from "vitest";
-import { parseHubInput } from "./parseHubInput";
+import { parseHubInput, buildInviteLink } from "./parseHubInput";
+
+describe("parseHubInput — farm-ready invite links (hub serial)", () => {
+  it("parses wavvon://host/i/<serial>/<code> into hubUrl + serial + code", () => {
+    const r = parseHubInput("wavvon://farm.example.com/i/abc123serial/joincode99");
+    expect(r).toEqual({
+      hubUrl: "https://farm.example.com",
+      inviteCode: "joincode99",
+      hubSerial: "abc123serial",
+    });
+  });
+
+  it("parses the https form and the ?hub= serial param", () => {
+    expect(parseHubInput("https://farm.example.com/i/hub7/code7")).toEqual({
+      hubUrl: "https://farm.example.com",
+      inviteCode: "code7",
+      hubSerial: "hub7",
+    });
+    expect(parseHubInput("https://farm.example.com?hub=hub7&invite=code7")).toEqual({
+      hubUrl: "https://farm.example.com",
+      inviteCode: "code7",
+      hubSerial: "hub7",
+    });
+  });
+
+  it("localhost invite links stay on http", () => {
+    const r = parseHubInput("wavvon://localhost:3000/i/serialX/codeX");
+    expect(r?.hubUrl).toBe("http://localhost:3000");
+    expect(r?.hubSerial).toBe("serialX");
+    expect(r?.inviteCode).toBe("codeX");
+  });
+
+  it("buildInviteLink round-trips through parseHubInput", () => {
+    const link = buildInviteLink("https://farm.example.com", "serial42", "welcome");
+    expect(link).toBe("wavvon://farm.example.com/i/serial42/welcome");
+    const r = parseHubInput(link);
+    expect(r?.hubUrl).toBe("https://farm.example.com");
+    expect(r?.hubSerial).toBe("serial42");
+    expect(r?.inviteCode).toBe("welcome");
+  });
+
+  it("legacy wavvon://host/code links keep working (no serial)", () => {
+    const r = parseHubInput("wavvon://hub.example.com/legacycode");
+    expect(r?.hubUrl).toBe("https://hub.example.com");
+    expect(r?.inviteCode).toBe("legacycode");
+    expect(r?.hubSerial).toBeUndefined();
+  });
+});
 
 describe("parseHubInput — deep link targets (nested-channels-ux.md §1.3)", () => {
   it("parses a channel permalink", () => {
