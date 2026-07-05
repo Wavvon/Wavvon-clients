@@ -126,28 +126,38 @@ export function HubAdminPage(props: HubAdminPageProps) {
     }
   }
 
-  const TABS: { id: HubAdminTab; label: string }[] = [
-    { id: "overview", label: t("hub.admin.tabs.overview") },
-    { id: "discovery", label: t("hub.admin.tabs.discovery") },
-    { id: "tags", label: t("admin.tabs.tags") },
-    { id: "roles", label: t("hub.admin.tabs.roles") },
-    { id: "members", label: t("hub.admin.tabs.members") },
-    { id: "bans", label: t("hub.admin.tabs.bans") },
-    { id: "invites", label: t("hub.admin.tabs.invites") },
-    { id: "integrations", label: t("hub.admin.tabs.integrations") },
-    { id: "external-bots", label: t("admin.tabs.external_bots") },
-    { id: "certifications", label: t("admin.tabs.certifications") },
-    { id: "recovery", label: t("admin.tabs.recovery") },
-    ...(props.canManageSoundboard ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard") }] : []),
-    ...(props.isAdmin ? [{ id: "moderation" as HubAdminTab, label: "Moderation" }] : []),
-    ...(props.isAdmin ? [
-      { id: "native-bots" as HubAdminTab, label: "Bots" },
-      { id: "alliances" as HubAdminTab, label: "Alliances" },
-      { id: "hub-icons" as HubAdminTab, label: "Icons" },
-      { id: "onboarding" as HubAdminTab, label: "Onboarding" },
-      { id: "survey" as HubAdminTab, label: "Survey" },
-      { id: "audit-log" as HubAdminTab, label: "Audit log" },
+  // Grouped into contiguous sections so the long admin nav reads clearly. Tab
+  // ids and labels are unchanged — only visual grouping is added.
+  const G_GENERAL = "General";
+  const G_MEMBERS = "Members & safety";
+  const G_INTEGRATIONS = "Integrations & bots";
+  const G_CUSTOM = "Customization";
+  const G_ADVANCED = "Advanced";
+  const admin = props.isAdmin;
+  const TABS: { id: HubAdminTab; label: string; group: string }[] = [
+    { id: "overview", label: t("hub.admin.tabs.overview"), group: G_GENERAL },
+    { id: "discovery", label: t("hub.admin.tabs.discovery"), group: G_GENERAL },
+    { id: "tags", label: t("admin.tabs.tags"), group: G_GENERAL },
+    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
+    { id: "members", label: t("hub.admin.tabs.members"), group: G_MEMBERS },
+    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MEMBERS },
+    { id: "invites", label: t("hub.admin.tabs.invites"), group: G_MEMBERS },
+    ...(admin ? [{ id: "moderation" as HubAdminTab, label: "Moderation", group: G_MEMBERS }] : []),
+    ...(admin ? [
+      { id: "onboarding" as HubAdminTab, label: "Onboarding", group: G_MEMBERS },
+      { id: "survey" as HubAdminTab, label: "Survey", group: G_MEMBERS },
     ] : []),
+    { id: "certifications", label: t("admin.tabs.certifications"), group: G_MEMBERS },
+    { id: "integrations", label: t("hub.admin.tabs.integrations"), group: G_INTEGRATIONS },
+    { id: "external-bots", label: t("admin.tabs.external_bots"), group: G_INTEGRATIONS },
+    ...(admin ? [
+      { id: "native-bots" as HubAdminTab, label: "Bots", group: G_INTEGRATIONS },
+      { id: "alliances" as HubAdminTab, label: "Alliances", group: G_INTEGRATIONS },
+    ] : []),
+    ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: "Icons", group: G_CUSTOM }] : []),
+    ...(props.canManageSoundboard ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
+    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: "Audit log", group: G_ADVANCED }] : []),
+    { id: "recovery", label: t("admin.tabs.recovery"), group: G_ADVANCED },
   ];
 
   return (
@@ -155,8 +165,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
       <aside className="settings-nav">
         <h2>{t("hub.admin.title")}</h2>
         <ul>
-          {TABS.map((tab) => (
+          {TABS.map((tab, i) => (
             <li key={tab.id}>
+              {(i === 0 || TABS[i - 1].group !== tab.group) && (
+                <div className="settings-nav-group">{tab.group}</div>
+              )}
               <button
                 className={`settings-nav-item ${props.tab === tab.id ? "active" : ""}`}
                 onClick={() => props.onTab(tab.id)}
