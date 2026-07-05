@@ -2413,6 +2413,15 @@ select,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Space the title from the action buttons and the buttons from each other —
+     the icon buttons were rendering practically glued together. */
+  gap: var(--space-2);
+}
+/* Keep the channel title/breadcrumb taking the free space so the action
+   buttons cluster on the right with consistent spacing. */
+.channel-header .channel-header-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .channel-header h3 {

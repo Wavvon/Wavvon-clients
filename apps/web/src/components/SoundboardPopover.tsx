@@ -42,12 +42,26 @@ export function SoundboardPopover({ onTrigger, playingClipId }: Props) {
       if (rect) {
         const spaceAbove = rect.top;
         const spaceBelow = window.innerHeight - rect.bottom;
+        const POPUP_WIDTH = 320; // matches .reaction-picker-popup width
+        const MARGIN = 8;
+        // Anchor by left edge, clamped so the popup never runs off either side
+        // (the trigger sits in the left sidebar, so right-anchoring pushed a
+        // 320px popup off the left edge).
+        const left = Math.max(
+          MARGIN,
+          Math.min(rect.left, window.innerWidth - POPUP_WIDTH - MARGIN),
+        );
+        // Open toward whichever side has more room, and cap the height to it
+        // with a scroll so a long clip list can't spill past the viewport.
+        const openUp = spaceAbove >= spaceBelow;
         const style: CSSProperties = {
           position: "fixed",
-          right: window.innerWidth - rect.right,
+          left,
           zIndex: 1000,
+          maxHeight: Math.max(120, Math.min(POPUP_HEIGHT, (openUp ? spaceAbove : spaceBelow) - MARGIN * 2)),
+          overflowY: "auto",
         };
-        if (spaceAbove >= POPUP_HEIGHT || spaceAbove >= spaceBelow) {
+        if (openUp) {
           style.bottom = window.innerHeight - rect.top + 4;
         } else {
           style.top = rect.bottom + 4;
