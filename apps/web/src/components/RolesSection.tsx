@@ -8,6 +8,7 @@ import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../utils/rol
 import { RoleCategoryManager } from "./RoleCategoryManager";
 import { ColorSwatchPicker } from "./ColorSwatchPicker";
 import { EmojiPicker } from "./EmojiPicker";
+import { ErrorRetry } from "@wavvon/ui";
 
 // New role-admin controls (create / delete / permission editing) use plain
 // English to match the desktop RoleCreator/RoleEditor this is ported from
@@ -31,21 +32,18 @@ export function RolesSection() {
   const [newHoist, setNewHoist] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([listRoles(), listRoleCategories()])
-      .then(([r, c]) => {
-        if (cancelled) return;
-        setRoles(r);
-        setCategories(c);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof HubApiError ? e.message : String(e));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  async function load() {
+    setError(null);
+    try {
+      const [r, c] = await Promise.all([listRoles(), listRoleCategories()]);
+      setRoles(r);
+      setCategories(c);
+    } catch (e) {
+      setError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
+  useEffect(() => { void load(); }, []);
 
   function replaceRole(updated: RoleInfo) {
     setRoles((prev) => (prev ? prev.map((r) => (r.id === updated.id ? updated : r)) : prev));
@@ -104,6 +102,14 @@ export function RolesSection() {
   }
 
   if (roles === null) {
+    if (error) {
+      return (
+        <section>
+          <h1>{t("hub.admin.roles.title")}</h1>
+          <ErrorRetry message={error} onRetry={load} />
+        </section>
+      );
+    }
     return <p className="muted">{t("modal.loading")}</p>;
   }
 

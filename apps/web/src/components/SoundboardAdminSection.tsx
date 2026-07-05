@@ -10,6 +10,7 @@ import {
 import { HubApiError } from "../platform/http";
 import { formatPubkey } from "@wavvon/core";
 import { EmojiPicker } from "./EmojiPicker";
+import { ErrorRetry } from "@wavvon/ui";
 
 function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
@@ -31,6 +32,7 @@ export function SoundboardAdminSection() {
   const [playingId, setPlayingId] = useState<string | null>(null);
 
   async function load() {
+    setError(null);
     try {
       const list = await listSoundboardClips();
       setClips(list);
@@ -101,7 +103,7 @@ export function SoundboardAdminSection() {
       <h1>{t("hub.admin.soundboard.title")}</h1>
       <p className="muted">{t("hub.admin.soundboard.hint")}</p>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && clips !== null && <p className="error-text">{error}</p>}
 
       <div className="settings-section">
         <label className="settings-label">{t("hub.admin.soundboard.name_label")}</label>
@@ -137,7 +139,7 @@ export function SoundboardAdminSection() {
       </div>
 
       {clips === null ? (
-        <p className="muted">{t("modal.loading")}</p>
+        error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("modal.loading")}</p>
       ) : clips.length === 0 ? (
         <p className="muted">{t("hub.admin.soundboard.empty")}</p>
       ) : (

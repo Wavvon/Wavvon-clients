@@ -2911,6 +2911,18 @@ select:focus-visible {
   margin: var(--space-2) 0;
 }
 
+.error-retry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.error-retry .error-text {
+  margin: 0;
+  flex: 1;
+}
+
 .passphrase-strength {
   display: inline-block;
   font-size: var(--text-xs);

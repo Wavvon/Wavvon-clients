@@ -10,7 +10,7 @@ test("mic test meter renders and toggles", async ({ page }) => {
   await expectInHub(page);
 
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
+  await page.getByRole("button", { name: "Voice & Video", exact: true }).click();
 
   await expect(page.getByText("Microphone test")).toBeVisible();
   const meter = page.getByRole("meter", { name: "Microphone level" });

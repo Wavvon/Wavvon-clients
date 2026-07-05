@@ -9,6 +9,7 @@ import {
   approveRecoveryRequest,
   denyRecoveryRequest,
 } from "../platform/commands/hubAdmin";
+import { ErrorRetry } from "@wavvon/ui";
 
 interface Props {
   hubUrl: string;
@@ -41,6 +42,7 @@ export function RecoveryContactsSection({ hubUrl: _hubUrl, isAdmin, publicKey: _
 
   async function loadRequests() {
     setLoadingRequests(true);
+    setLoadError(null);
     try {
       const reqs = await listAdminRecoveryRequests();
       setRequests(reqs);
@@ -150,8 +152,12 @@ export function RecoveryContactsSection({ hubUrl: _hubUrl, isAdmin, publicKey: _
             Requests that have gathered enough contact attestations and await your decision.
           </p>
           {loadingRequests && <p className="muted">Loading…</p>}
-          {loadError && <p className="error-text">{loadError}</p>}
-          {requests.length === 0 && !loadingRequests && <p className="muted">No pending requests.</p>}
+          {loadError && requests.length > 0 && <p className="error-text">{loadError}</p>}
+          {requests.length === 0 && !loadingRequests && loadError ? (
+            <ErrorRetry message={loadError} onRetry={loadRequests} />
+          ) : requests.length === 0 && !loadingRequests ? (
+            <p className="muted">No pending requests.</p>
+          ) : null}
           {requests.map((req) => (
             <div key={req.id} className="settings-section" style={{ borderLeft: "2px solid var(--border)", paddingLeft: 12 }}>
               <div className="settings-row">

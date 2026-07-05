@@ -6,6 +6,7 @@ import type {
   BanInfo,
   InviteInfo,
   PendingUser,
+  RoleInfo,
 } from "@shared/types";
 import type { HubAdminTab } from "../components/HubAdminPage";
 
@@ -74,6 +75,10 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
     setHubAdminInvites((prev) => prev.filter((i) => i.code !== code));
   }
 
+  function setMemberRoles(publicKey: string, roles: RoleInfo[]) {
+    setHubAdminMembers((prev) => prev.map((m) => (m.public_key === publicKey ? { ...m, roles } : m)));
+  }
+
   return {
     showHubAdmin,
     setShowHubAdmin,
@@ -99,5 +104,6 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
     saveHubAdminSettings,
     addInvite,
     removeInvite,
+    setMemberRoles,
   };
 }

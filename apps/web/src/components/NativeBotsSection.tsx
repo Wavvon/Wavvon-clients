@@ -3,6 +3,7 @@ import { listNativeBots, createNativeBot, deleteNativeBot } from "@platform";
 import type { NativeBot } from "@platform";
 import { HubApiError } from "../platform/http";
 import { formatPubkey } from "@wavvon/core";
+import { ErrorRetry } from "@wavvon/ui";
 
 export function NativeBotsSection() {
   const [bots, setBots] = useState<NativeBot[] | null>(null);
@@ -53,9 +54,9 @@ export function NativeBotsSection() {
 
   return (
     <section>
-      <h1>Bots</h1>
-      <p className="muted">First-party bots that live on this hub. Creating one returns a token — copy it now, it can't be shown again.</p>
-      {error && <p className="error-text">{error}</p>}
+      <h1>Native bots</h1>
+      <p className="muted">First-party bots that live on this hub itself, as opposed to externally-hosted bots. Creating one returns a token — copy it now, it can't be shown again.</p>
+      {error && bots !== null && <p className="error-text">{error}</p>}
 
       <div className="settings-row" style={{ gap: "var(--space-2)" }}>
         <input
@@ -78,7 +79,7 @@ export function NativeBotsSection() {
       )}
 
       {bots === null ? (
-        <p className="muted">Loading…</p>
+        error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">Loading…</p>
       ) : bots.length === 0 ? (
         <p className="muted" style={{ marginTop: "var(--space-3)" }}>No bots yet.</p>
       ) : (

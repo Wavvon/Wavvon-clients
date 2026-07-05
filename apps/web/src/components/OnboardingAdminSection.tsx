@@ -5,6 +5,7 @@ import {
 import type { PendingUser, ChallengeMode, ChallengeDifficulty } from "@platform";
 import { HubApiError } from "../platform/http";
 import { formatPubkey } from "@wavvon/core";
+import { ChallengePreviewModal } from "./ChallengePreviewModal";
 
 // Admission controls: the approval queue, lobby settings, and anti-spam
 // challenge. The hub has no GET for lobby/challenge settings, so those forms
@@ -19,6 +20,7 @@ export function OnboardingAdminSection() {
   const [welcomeMd, setWelcomeMd] = useState("");
   const [challengeMode, setChallengeMode] = useState<ChallengeMode>("off");
   const [challengeDifficulty, setChallengeDifficulty] = useState<ChallengeDifficulty>("easy");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   async function loadPending() {
     try { setPending(await listPendingUsers()); }
@@ -100,8 +102,19 @@ export function OnboardingAdminSection() {
           <button disabled={busy} onClick={() => run(() => setChallengeSettings(challengeMode, challengeDifficulty), "Challenge settings saved")}>
             Save challenge
           </button>
+          <button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}>
+            Preview
+          </button>
         </div>
       </div>
+
+      {previewOpen && (
+        <ChallengePreviewModal
+          mode={challengeMode}
+          difficulty={challengeDifficulty}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </section>
   );
 }

@@ -23,8 +23,8 @@ test("audit log lists administrative events", async ({ page }) => {
 test("create and delete a native bot", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openAdminTab(page, "Bots");
-  await expect(page.getByRole("heading", { name: "Bots" })).toBeVisible();
+  await openAdminTab(page, "Native bots");
+  await expect(page.getByRole("heading", { name: "Native bots" })).toBeVisible();
 
   const botName = uniqueName("Botty");
   await page.getByPlaceholder("Bot name").fill(botName);
@@ -48,6 +48,7 @@ test("create and delete a hub SVG icon", async ({ page }) => {
 
   const iconName = uniqueName("star");
   await page.getByPlaceholder("Icon name").fill(iconName);
+  await page.getByText("Advanced: paste SVG markup").click();
   await page.getByLabel("SVG markup").fill('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>');
   await page.getByRole("button", { name: "Add icon" }).click();
 

@@ -3,6 +3,7 @@ import { getAuditLog } from "@platform";
 import type { AuditLogEntry } from "@platform";
 import { HubApiError } from "../platform/http";
 import { formatPubkey } from "@wavvon/core";
+import { ErrorRetry } from "@wavvon/ui";
 
 export function AuditLogSection() {
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
@@ -32,9 +33,11 @@ export function AuditLogSection() {
     <section>
       <h1>Audit log</h1>
       <p className="muted">Administrative actions on this hub, newest first.</p>
-      {error && <p className="error-text">{error}</p>}
+      {error && entries.length > 0 && <p className="error-text">{error}</p>}
 
-      {entries.length === 0 && !loading ? (
+      {entries.length === 0 && !loading && error ? (
+        <ErrorRetry message={error} onRetry={() => load()} />
+      ) : entries.length === 0 && !loading ? (
         <p className="muted">No audit entries yet.</p>
       ) : (
         <table className="members-table" style={{ marginTop: "var(--space-3)" }}>

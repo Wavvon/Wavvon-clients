@@ -500,6 +500,7 @@ export default function App() {
     saveHubAdminSettings,
     addInvite,
     removeInvite,
+    setMemberRoles,
   } = useHubAdmin({ activeHubId });
 
   // === Profiles (client-only named display-name/avatar presets) ===
@@ -2664,6 +2665,9 @@ export default function App() {
             myPubkey={publicKey ?? ""}
             isAdmin={isAdmin}
             canManageSoundboard={canManageSoundboard}
+            canManageRoles={canManageRoles}
+            myMaxPriority={myMaxPriority}
+            onMemberRolesChanged={setMemberRoles}
             onCreateInvite={(maxUses, expiresIn) =>
               hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in: expiresIn }) })
                 .then((r) => r.json() as Promise<import("@shared/types").InviteInfo>)

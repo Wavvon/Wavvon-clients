@@ -10,7 +10,7 @@ test("enable push-to-talk and bind a key; it persists", async ({ page }) => {
   await expectInHub(page);
 
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
+  await page.getByRole("button", { name: "Voice & Video", exact: true }).click();
 
   await expect(page.getByText("Push-to-talk", { exact: true })).toBeVisible();
   await page.getByRole("checkbox", { name: /Enable push-to-talk/ }).check();
@@ -24,7 +24,7 @@ test("enable push-to-talk and bind a key; it persists", async ({ page }) => {
   await page.reload();
   await expectInHub(page);
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
+  await page.getByRole("button", { name: "Voice & Video", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: /Enable push-to-talk/ })).toBeChecked();
   await expect(page.getByText("Key:", { exact: false })).toContainText("T");
 });

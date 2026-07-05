@@ -9,6 +9,7 @@ import type { Alliance, PendingAllianceInvite, SharedChannel } from "@platform";
 import type { Channel } from "../types";
 import { buildChannelTree, flattenTree } from "@wavvon/core";
 import { HubApiError } from "../platform/http";
+import { ErrorRetry } from "@wavvon/ui";
 
 interface Props {
   activeHubUrl: string;
@@ -37,6 +38,7 @@ function AllianceRow({ alliance, myChannels, busy, onLeave, onError, runGuard }:
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [shared, setShared] = useState<SharedChannel[] | null>(null);
+  const [sharedError, setSharedError] = useState<string | null>(null);
   const [toShare, setToShare] = useState("");
 
   const shareableChannels = useMemo(
@@ -46,8 +48,13 @@ function AllianceRow({ alliance, myChannels, busy, onLeave, onError, runGuard }:
   const selectedToShare = shareableChannels.find((f) => f.node.id === toShare)?.node ?? null;
 
   async function loadShared() {
+    setSharedError(null);
     try { setShared(await listAllianceSharedChannels(alliance.id)); }
-    catch (e) { onError(e instanceof HubApiError ? e.message : String(e)); }
+    catch (e) {
+      const msg = e instanceof HubApiError ? e.message : String(e);
+      setSharedError(msg);
+      onError(msg);
+    }
   }
 
   useEffect(() => { if (open && shared === null) void loadShared(); }, [open]);
@@ -64,7 +71,7 @@ function AllianceRow({ alliance, myChannels, busy, onLeave, onError, runGuard }:
         <div style={{ paddingLeft: "var(--space-3)" }}>
           <label className="settings-label" style={{ fontSize: "var(--text-xs)" }}>Shared channels</label>
           {shared === null ? (
-            <p className="muted">Loading…</p>
+            sharedError ? <ErrorRetry message={sharedError} onRetry={loadShared} /> : <p className="muted">Loading…</p>
           ) : shared.length === 0 ? (
             <p className="muted" style={{ fontSize: "var(--text-sm)" }}>No channels shared yet.</p>
           ) : (
@@ -160,7 +167,7 @@ export function AlliancesSection({ activeHubUrl, channels }: Props) {
     <section>
       <h1>Alliances</h1>
       <p className="muted">Alliances let hubs share channels. Create one, or accept an invite from another hub.</p>
-      {error && <p className="error-text">{error}</p>}
+      {error && alliances !== null && <p className="error-text">{error}</p>}
 
       <div className="settings-row" style={{ gap: "var(--space-2)" }}>
         <input
@@ -192,7 +199,7 @@ export function AlliancesSection({ activeHubUrl, channels }: Props) {
       <div className="settings-section">
         <label className="settings-label">Your alliances</label>
         {alliances === null ? (
-          <p className="muted">Loading…</p>
+          error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">Loading…</p>
         ) : alliances.length === 0 ? (
           <p className="muted">No alliances yet.</p>
         ) : (

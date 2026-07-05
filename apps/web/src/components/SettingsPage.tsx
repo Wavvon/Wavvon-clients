@@ -361,12 +361,19 @@ export function SettingsPage(props: SettingsPageProps) {
     setVoiceSounds(on);
     try { localStorage.setItem("wavvon.voiceSounds", on ? "1" : "0"); } catch { /* ignore */ }
   }
-  const TABS: { id: SettingsTab; label: string }[] = [
-    { id: "profile", label: t("settings.tabs.profile") },
-    { id: "notifications", label: t("settings.tabs.notifications") },
-    { id: "appearance", label: t("settings.tabs.appearance") },
-    { id: "account", label: t("settings.tabs.account") },
-    { id: "voice", label: "Voice" },
+  // Grouped into contiguous sections so the nav reads clearly, mirroring the
+  // HubAdminPage nav pattern. Tab ids and labels are unchanged — only visual
+  // grouping is added.
+  const G_YOU = t("settings.nav_groups.you");
+  const G_APP = t("settings.nav_groups.app");
+  const G_AV = t("settings.nav_groups.audio_video");
+  const G_SECURITY = t("settings.nav_groups.security");
+  const TABS: { id: SettingsTab; label: string; group: string }[] = [
+    { id: "profile", label: t("settings.tabs.profile"), group: G_YOU },
+    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
+    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
+    { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
+    { id: "account", label: t("settings.tabs.account"), group: G_SECURITY },
   ];
   const NOTIF_LEVELS: { value: NotifLevel; label: string }[] = [
     { value: "all", label: t("settings.notifications.level.all") },
@@ -416,8 +423,11 @@ export function SettingsPage(props: SettingsPageProps) {
       <aside className="settings-nav" style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border)", padding: "16px 8px", display: "flex", flexDirection: "column" }}>
         <h2 style={{ padding: "0 8px", marginBottom: 12, fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".05em" }}>{t("settings.title")}</h2>
         <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
-          {TABS.map((tab) => (
+          {TABS.map((tab, i) => (
             <li key={tab.id}>
+              {(i === 0 || TABS[i - 1].group !== tab.group) && (
+                <div className="settings-nav-group">{tab.group}</div>
+              )}
               <button
                 className={`settings-nav-item${props.tab === tab.id ? " active" : ""}`}
                 onClick={() => props.onTab(tab.id)}
@@ -654,7 +664,7 @@ export function SettingsPage(props: SettingsPageProps) {
 
         {props.tab === "voice" && (
           <section>
-            <h1 style={{ marginBottom: 20 }}>Voice</h1>
+            <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.voice")}</h1>
             {/* Devices first: which mic/speaker am I on is the thing people
                 open this tab for; codec profile tuning comes after. */}
             <AudioDevicesSection />

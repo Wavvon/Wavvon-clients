@@ -3,6 +3,7 @@ export { AudioProfileSection } from "./components/AudioProfileSection";
 export { Avatar } from "./components/Avatar";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
+export { ErrorRetry } from "./components/ErrorRetry";
 export { FocusTrap } from "./components/FocusTrap";
 export { HoverSubmenu } from "./components/HoverSubmenu";
 export { KeyboardShortcuts } from "./components/KeyboardShortcuts";

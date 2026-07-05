@@ -6,6 +6,7 @@ import type {
   InviteInfo,
   MemberAdminInfo,
   PendingUser,
+  RoleInfo,
 } from "../types";
 import { formatPubkey, formatRelative, buildInviteLink } from "@wavvon/core";
 import { ServerTagsSection } from "./ServerTagsSection";
@@ -24,6 +25,7 @@ import { AlliancesSection } from "./AlliancesSection";
 import { HubIconsSection } from "./HubIconsSection";
 import { OnboardingAdminSection } from "./OnboardingAdminSection";
 import { SurveyAdminSection } from "./SurveyAdminSection";
+import { MemberRoleManager } from "./MemberRoleManager";
 
 export type HubAdminTab =
   | "overview"
@@ -79,6 +81,11 @@ export interface HubAdminPageProps {
   myPubkey: string;
   isAdmin: boolean;
   canManageSoundboard: boolean;
+  /** Whether the viewer can assign/remove roles (admin or manage_roles). Gates the inline role manager. */
+  canManageRoles: boolean;
+  /** Highest priority among the viewer's own roles; only lower-priority roles are assignable (matches the hub guard). */
+  myMaxPriority: number;
+  onMemberRolesChanged: (publicKey: string, roles: RoleInfo[]) => void;
   onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null) => void;
   onRevokeInvite: (code: string) => void;
   channels: Channel[];
@@ -127,9 +134,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
   }
 
   // Grouped into contiguous sections so the long admin nav reads clearly. Tab
-  // ids and labels are unchanged — only visual grouping is added.
+  // ids are unchanged — only visual grouping (and a couple of confusing
+  // labels) changed.
   const G_GENERAL = "General";
   const G_MEMBERS = "Members & safety";
+  const G_FEDERATION = "Federation";
   const G_INTEGRATIONS = "Integrations & bots";
   const G_CUSTOM = "Customization";
   const G_ADVANCED = "Advanced";
@@ -148,11 +157,15 @@ export function HubAdminPage(props: HubAdminPageProps) {
       { id: "survey" as HubAdminTab, label: "Survey", group: G_MEMBERS },
     ] : []),
     { id: "certifications", label: t("admin.tabs.certifications"), group: G_MEMBERS },
+    // Alliances is cross-hub channel sharing, not a bot/webhook integration —
+    // grouped with other cross-hub features instead. The federated ban list
+    // lives inside the Moderation tab, not its own nav entry, so it doesn't
+    // move here.
+    ...(admin ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_FEDERATION }] : []),
     { id: "integrations", label: t("hub.admin.tabs.integrations"), group: G_INTEGRATIONS },
     { id: "external-bots", label: t("admin.tabs.external_bots"), group: G_INTEGRATIONS },
     ...(admin ? [
-      { id: "native-bots" as HubAdminTab, label: "Bots", group: G_INTEGRATIONS },
-      { id: "alliances" as HubAdminTab, label: "Alliances", group: G_INTEGRATIONS },
+      { id: "native-bots" as HubAdminTab, label: t("hub.admin.tabs.native_bots"), group: G_INTEGRATIONS },
     ] : []),
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: "Icons", group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
@@ -308,7 +321,18 @@ export function HubAdminPage(props: HubAdminPageProps) {
                       <div>{m.display_name || t("hub.admin.members.pending.no_name")}</div>
                       <div className="member-pk" title={m.public_key}>{formatPubkey(m.public_key)}</div>
                     </td>
-                    <td>{m.roles.map((r) => r.name).join(", ") || "—"}</td>
+                    <td>
+                      {props.canManageRoles ? (
+                        <MemberRoleManager
+                          pubkey={m.public_key}
+                          currentRoles={m.roles}
+                          myMaxPriority={props.myMaxPriority}
+                          onChanged={(roles) => props.onMemberRolesChanged(m.public_key, roles)}
+                        />
+                      ) : (
+                        m.roles.map((r) => r.name).join(", ") || "—"
+                      )}
+                    </td>
                     <td>{formatRelative(m.first_seen_at)}</td>
                     <td>
                       <button className="btn-small" onClick={() => props.onKickMember(m.public_key)}>{t("admin.members.kick")}</button>
@@ -422,6 +446,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "recovery" && (
           <section>
             <h1>{t("admin.tabs.recovery")}</h1>
+            <p className="muted">{t("hub.admin.recovery.explainer")}</p>
             <RecoveryContactsSection hubUrl={props.activeHubUrl} isAdmin={props.isAdmin} publicKey={null} />
           </section>
         )}

@@ -9,7 +9,7 @@ import { expectInHub } from "./helpers/live";
 
 async function openVoiceSettings(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
+  await page.getByRole("button", { name: "Voice & Video", exact: true }).click();
 }
 
 test("background picker offers none/blur/image/video and persists the choice", async ({ page }) => {

@@ -9,6 +9,7 @@ import {
   revokeCert,
 } from "../platform/commands/hubAdmin";
 import { grantUserBadge } from "../platform/commands/certifications";
+import { ErrorRetry } from "@wavvon/ui";
 
 interface Props {
   hubUrl: string;
@@ -47,6 +48,7 @@ export function CertificationsSection({ hubUrl: _hubUrl, members }: Props) {
 
   async function load() {
     setLoading(true);
+    setError(null);
     try {
       const [iss, sett] = await Promise.all([listCertIssuances(), getCertSettings()]);
       setIssuances(iss);
@@ -93,7 +95,7 @@ export function CertificationsSection({ hubUrl: _hubUrl, members }: Props) {
   }
 
   if (loading) return <section><p className="muted">Loading…</p></section>;
-  if (error) return <section><p className="error-text">{error}</p></section>;
+  if (error) return <section><h1>Certifications</h1><ErrorRetry message={error} onRetry={load} /></section>;
 
   const goodCerts = issuances.filter((i) => i.standing === "good");
   const revokedCerts = issuances.filter((i) => i.standing === "revoked");

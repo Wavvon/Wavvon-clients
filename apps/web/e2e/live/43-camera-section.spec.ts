@@ -6,7 +6,7 @@ import { expectInHub } from "./helpers/live";
 
 async function openVoiceSettings(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
+  await page.getByRole("button", { name: "Voice & Video", exact: true }).click();
 }
 
 test("camera section shows a device picker and preview control", async ({ page }) => {
