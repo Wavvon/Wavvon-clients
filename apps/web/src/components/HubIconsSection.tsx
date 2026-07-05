@@ -37,7 +37,12 @@ export function HubIconsSection() {
   return (
     <section>
       <h1>Icon library</h1>
-      <p className="muted">Custom SVG icons members can use on channels. Paste SVG markup (≤50 KB).</p>
+      <p className="muted">
+        Build a library of custom vector icons your members can pick for channels and roles.
+        Give each icon a name, then paste its <strong>SVG markup</strong> (the
+        <code style={{ fontSize: "var(--text-xs)" }}>&lt;svg&gt;…&lt;/svg&gt;</code> code —
+        export it from a design tool or copy it from an icon site). Max 50&nbsp;KB.
+      </p>
       {error && <p className="error-text">{error}</p>}
 
       <div className="settings-section">
