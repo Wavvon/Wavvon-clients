@@ -78,6 +78,8 @@
   "channel.spawner.tooltip": "Haz clic para crear tu propia sala de voz",
   "channel.temp.badge": "Temporal",
   "channel.temp.owner_tooltip": "Propietario: {name}",
+  "channel.temp.rename": "Renombrar sala",
+  "channel.temp.rename_title": "Renombrar tu sala",
   "channel.add_description": "Add a description…",
   "channel.ctx.create_here": "Crear aquí…",
   "channel.ctx.edit_banner": "Editar banner…",

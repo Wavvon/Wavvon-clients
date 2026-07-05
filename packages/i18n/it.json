@@ -78,6 +78,8 @@
   "channel.spawner.tooltip": "Clicca per creare la tua stanza vocale",
   "channel.temp.badge": "Temporanea",
   "channel.temp.owner_tooltip": "Proprietario: {name}",
+  "channel.temp.rename": "Rinomina stanza",
+  "channel.temp.rename_title": "Rinomina la tua stanza",
   "channel.add_description": "Aggiungi una descrizione…",
   "channel.ctx.create_here": "Crea qui…",
   "channel.ctx.edit_banner": "Modifica banner…",

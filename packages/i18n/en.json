@@ -78,6 +78,8 @@
   "channel.spawner.tooltip": "Click to create your own voice room",
   "channel.temp.badge": "Temporary",
   "channel.temp.owner_tooltip": "Owner: {name}",
+  "channel.temp.rename": "Rename room",
+  "channel.temp.rename_title": "Rename your room",
   "channel.add_description": "Add a description…",
   "channel.ctx.create_here": "Create here…",
   "channel.ctx.edit_banner": "Edit banner…",

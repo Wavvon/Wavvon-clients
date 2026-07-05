@@ -78,6 +78,8 @@
   "channel.spawner.tooltip": "Klicken, um einen eigenen Sprachraum zu erstellen",
   "channel.temp.badge": "Temporär",
   "channel.temp.owner_tooltip": "Besitzer: {name}",
+  "channel.temp.rename": "Raum umbenennen",
+  "channel.temp.rename_title": "Deinen Raum umbenennen",
   "channel.add_description": "Add a description…",
   "channel.ctx.create_here": "Hier erstellen…",
   "channel.ctx.edit_banner": "Banner bearbeiten…",

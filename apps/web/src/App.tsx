@@ -52,7 +52,7 @@ import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/FarmSettingsPage";
 import { CreateHubWizard } from "@components/CreateHubWizard";
-import { KeyboardShortcuts } from "@wavvon/ui";
+import { FocusTrap, KeyboardShortcuts } from "@wavvon/ui";
 import { HubAdminPage } from "./components/HubAdminPage";
 import { SearchBar } from "@components/SearchBar";
 import { WelcomeScreenContainer } from "@components/WelcomeScreen";
@@ -376,6 +376,12 @@ export default function App() {
   const [createChannelError, setCreateChannelError] = useState<string | null>(null);
   const [channelCtxMenu, setChannelCtxMenu] = useState<{ channel: Channel; x: number; y: number } | null>(null);
   const [channelSettingsCtx, setChannelSettingsCtx] = useState<Channel | null>(null);
+  // Temp-room owner rename (temp-voice-channels.md §3): a non-admin owner
+  // gets a minimal rename modal, not the full channel-settings surface.
+  const [renameRoomCtx, setRenameRoomCtx] = useState<Channel | null>(null);
+  const [renameRoomName, setRenameRoomName] = useState("");
+  const [renameRoomSaving, setRenameRoomSaving] = useState(false);
+  const [renameRoomError, setRenameRoomError] = useState<string | null>(null);
   const [channelSettingsSaving, setChannelSettingsSaving] = useState(false);
   const [channelSettingsDeleting, setChannelSettingsDeleting] = useState(false);
   const [channelSettingsError, setChannelSettingsError] = useState<string | null>(null);
@@ -1403,6 +1409,27 @@ export default function App() {
       setChannelSettingsError(e instanceof HubApiError ? e.message : String(e));
     } finally {
       setChannelSettingsSaving(false);
+    }
+  }
+
+  async function handleRenameRoom() {
+    if (!renameRoomCtx || !renameRoomName.trim()) return;
+    setRenameRoomSaving(true);
+    setRenameRoomError(null);
+    try {
+      await hubFetch(`/channels/${renameRoomCtx.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        // Name ONLY: the server's temp-room owner grant covers exactly a
+        // bare rename; any other field would require manage_channels.
+        body: JSON.stringify({ name: renameRoomName.trim() }),
+      });
+      setRenameRoomCtx(null);
+      hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
+    } catch (e) {
+      setRenameRoomError(e instanceof HubApiError ? e.message : String(e));
+    } finally {
+      setRenameRoomSaving(false);
     }
   }
 
@@ -2680,6 +2707,23 @@ export default function App() {
                 {t("channel.ctx.copy_link")}
               </button>
             )}
+            {!channelCtxMenu.channel.is_category &&
+              channelCtxMenu.channel.is_temporary &&
+              channelCtxMenu.channel.owner_pubkey === publicKey &&
+              !isAdmin && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  const ch = channelCtxMenu!.channel;
+                  setChannelCtxMenu(null);
+                  setRenameRoomCtx(ch);
+                  setRenameRoomName(ch.name);
+                  setRenameRoomError(null);
+                }}
+              >
+                {t("channel.temp.rename")}
+              </button>
+            )}
             {!channelCtxMenu.channel.is_category && isAdmin && (
               <hr style={{ margin: "4px 0", border: "none", borderTop: "1px solid var(--border)" }} />
             )}
@@ -2710,6 +2754,34 @@ export default function App() {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {renameRoomCtx && (
+        <div className="modal-overlay" onClick={() => setRenameRoomCtx(null)}>
+          <FocusTrap>
+            <div className="modal" style={{ maxWidth: 400 }} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <h3>{t("channel.temp.rename_title")}</h3>
+              <input
+                type="text"
+                value={renameRoomName}
+                onChange={(e) => setRenameRoomName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleRenameRoom();
+                  if (e.key === "Escape") setRenameRoomCtx(null);
+                }}
+                autoFocus
+                style={{ display: "block", width: "100%", marginBottom: "var(--space-3)" }}
+              />
+              {renameRoomError && <div className="error" style={{ marginBottom: 8 }}>{renameRoomError}</div>}
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setRenameRoomCtx(null)}>{t("modal.cancel")}</button>
+                <button onClick={() => void handleRenameRoom()} disabled={renameRoomSaving || !renameRoomName.trim()}>
+                  {renameRoomSaving ? "…" : t("modal.save")}
+                </button>
+              </div>
+            </div>
+          </FocusTrap>
         </div>
       )}
 
