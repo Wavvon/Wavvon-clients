@@ -36,10 +36,12 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [unavailable, setUnavailable] = useState(false);
 
   const fetchPage = useCallback(async (query: string, lang: string, tag: string, pageNum: number, replace: boolean) => {
     setLoading(true);
     setError("");
+    setUnavailable(false);
     try {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(pageNum) });
       if (query.trim()) params.set("q", query.trim());
@@ -51,7 +53,16 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
       setHubs((prev) => replace ? data.hubs : [...prev, ...data.hubs]);
       setHasMore(pageNum * PAGE_SIZE < data.total);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      // fetchWithTimeout turns an unreachable/hung host into a friendly
+      // message — treat those as "service unavailable" (the directory is an
+      // optional external service) rather than surfacing a raw error.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/Could not reach|Timed out reaching/i.test(msg)) {
+        setUnavailable(true);
+        setError("");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -117,7 +128,7 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
           onChange={(e) => setTagFilter(e.target.value)}
           className="discover-tag-input"
         />
-        <button type="submit" disabled={loading}>Search</button>
+        <button type="submit" disabled={loading || unavailable}>Search</button>
         {(q || language || tagFilter) && (
           <button type="button" className="btn-secondary" onClick={() => {
             setQ(""); setLanguage(""); setTagFilter("");
@@ -136,9 +147,24 @@ export function DiscoverPage({ onClose, onJoinHub, directoryUrl = DEFAULT_DIR }:
         </label>
       </div>
 
-      {error && <p className="error-text">{error}</p>}
+      {unavailable && (
+        <div
+          className="discover-unavailable"
+          style={{ textAlign: "center", padding: "var(--space-5)", opacity: 0.75 }}
+        >
+          <p style={{ fontSize: "var(--text-lg)" }}>📡 Service not available</p>
+          <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }}>
+            The community directory couldn't be reached. It may be offline — try again later.
+          </p>
+          <button className="btn-secondary" onClick={() => fetchPage(q, language, tagFilter, 1, true)}>
+            Retry
+          </button>
+        </div>
+      )}
 
-      {visibleHubs.length === 0 && !loading && !error && (
+      {error && !unavailable && <p className="error-text">{error}</p>}
+
+      {!unavailable && visibleHubs.length === 0 && !loading && !error && (
         <div className="discover-empty">
           <p className="muted">No communities found.</p>
         </div>
