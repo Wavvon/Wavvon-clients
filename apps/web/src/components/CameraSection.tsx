@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BackgroundProcessor,
   loadBgMode,
@@ -24,12 +25,15 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export function CameraSection() {
+  const { t } = useTranslation();
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [device, setDevice] = useState<string>(() => localStorage.getItem(KEY) ?? "");
   const [mode, setMode] = useState<BackgroundMode>(() => loadBgMode());
   const [source, setSource] = useState<string | null>(() => loadBgSource());
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsPermission, setNeedsPermission] = useState(false);
+  const [justGranted, setJustGranted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const rawRef = useRef<MediaStream | null>(null);
   const procRef = useRef<BackgroundProcessor | null>(null);
@@ -46,8 +50,21 @@ export function CameraSection() {
   async function refresh() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      setCameras(devices.filter((d) => d.kind === "videoinput"));
+      const cams = devices.filter((d) => d.kind === "videoinput");
+      setCameras(cams);
+      // Labels are blank until camera permission is granted at least once.
+      setNeedsPermission(cams.length > 0 && cams.every((d) => !d.label));
     } catch { setCameras([]); }
+  }
+
+  async function grantAndRefresh() {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: true });
+      s.getTracks().forEach((t) => t.stop());
+      await refresh();
+      setJustGranted(true);
+      setTimeout(() => setJustGranted(false), 4000);
+    } catch { /* denied */ }
   }
 
   useEffect(() => {
@@ -117,42 +134,58 @@ export function CameraSection() {
         Choose your camera and a background effect, and preview it. Applies the next time you turn your camera on in voice.
       </p>
 
-      <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
-        <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-device">Camera</label>
-        <select id="camera-device" aria-label="Camera device" value={device} onChange={(e) => pickDevice(e.target.value)} style={{ width: "100%", maxWidth: 360 }}>
-          <option value="">System default</option>
-          {cameras.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>)}
-        </select>
+      <div className="settings-row-2col">
+        <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+          <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-device">Camera</label>
+          <select id="camera-device" aria-label="Camera device" value={device} onChange={(e) => pickDevice(e.target.value)} style={{ width: "100%" }}>
+            <option value="">System default</option>
+            {cameras.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>)}
+          </select>
+        </div>
+
+        <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+          <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-bg">Background</label>
+          <select
+            id="camera-bg"
+            aria-label="Background effect"
+            value={mode}
+            onChange={(e) => {
+              const m = e.target.value as BackgroundMode;
+              // Keep the existing source when switching to image/video; clear otherwise.
+              applyMode(m, m === "image" || m === "video" ? source : null);
+            }}
+            style={{ width: "100%" }}
+          >
+            <option value="none">None</option>
+            <option value="blur">Blur</option>
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+          </select>
+          {mode === "image" && (
+            <input type="file" accept="image/*" aria-label="Background image" onChange={(e) => onBackgroundFile("image", e.target.files?.[0])} />
+          )}
+          {mode === "video" && (
+            <input type="file" accept="video/*" aria-label="Background video" onChange={(e) => onBackgroundFile("video", e.target.files?.[0])} />
+          )}
+          {(mode === "image" || mode === "video") && !source && (
+            <span className="muted" style={{ fontSize: "var(--text-xs)" }}>Pick a {mode} above (until then the background is blurred).</span>
+          )}
+        </div>
       </div>
 
-      <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4, marginTop: "var(--space-2)" }}>
-        <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-bg">Background</label>
-        <select
-          id="camera-bg"
-          aria-label="Background effect"
-          value={mode}
-          onChange={(e) => {
-            const m = e.target.value as BackgroundMode;
-            // Keep the existing source when switching to image/video; clear otherwise.
-            applyMode(m, m === "image" || m === "video" ? source : null);
-          }}
-          style={{ width: "100%", maxWidth: 360 }}
-        >
-          <option value="none">None</option>
-          <option value="blur">Blur</option>
-          <option value="image">Image</option>
-          <option value="video">Video</option>
-        </select>
-        {mode === "image" && (
-          <input type="file" accept="image/*" aria-label="Background image" onChange={(e) => onBackgroundFile("image", e.target.files?.[0])} />
-        )}
-        {mode === "video" && (
-          <input type="file" accept="video/*" aria-label="Background video" onChange={(e) => onBackgroundFile("video", e.target.files?.[0])} />
-        )}
-        {(mode === "image" || mode === "video") && !source && (
-          <span className="muted" style={{ fontSize: "var(--text-xs)" }}>Pick a {mode} above (until then the background is blurred).</span>
-        )}
-      </div>
+      {needsPermission && (
+        <div style={{ marginTop: "var(--space-2)" }}>
+          <button className="btn-secondary" onClick={grantAndRefresh}>
+            {t("settings.voice.camera.permission_button")}
+          </button>
+          <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 4, marginBottom: 0 }}>
+            {t("settings.voice.camera.permission_hint")}
+          </p>
+        </div>
+      )}
+      <span aria-live="polite" className="muted" style={{ display: "block", fontSize: "var(--text-xs)" }}>
+        {justGranted ? t("settings.voice.camera.permission_granted") : ""}
+      </span>
 
       <div style={{ marginTop: "var(--space-2)", display: "flex", gap: "var(--space-2)" }}>
         {previewing ? (

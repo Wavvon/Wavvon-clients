@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, NamedProfile, NotifLevel, BlockEntry, IgnoreEntry } from "@shared/types";
 import {
-  hubFetch,
   getNotifPref,
   setNotifPref,
   isPasskeySupported,
@@ -21,13 +20,13 @@ import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { BlockIgnoreSection, AudioProfileSection } from "@wavvon/ui";
 import { IdentityBackupSection } from "./IdentityBackupSection";
 import { FullArchiveSection } from "./FullArchiveSection";
-import { ImagePicker } from "./ImagePicker";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { AudioDevicesSection } from "./AudioDevicesSection";
 import { CameraSection } from "./CameraSection";
 import { MyCertificationsSection } from "./MyCertificationsSection";
 import { PushToTalkSection } from "./PushToTalkSection";
 import { ProfilesSection } from "./ProfilesSection";
+import { ActiveHubProfileSection } from "./ActiveHubProfileSection";
 import { HomeHubsSection } from "./HomeHubsSection";
 import { DevicesSection } from "./DevicesSection";
 
@@ -83,6 +82,7 @@ interface SettingsPageProps {
   onSkinChange: (skin: WavvonSkin) => void;
   profiles: NamedProfile[];
   defaultProfileId: string | null;
+  activeDisplayName: string | null;
   onCreateProfile: (label: string, displayName: string, avatar: string | null) => void;
   onUpdateProfile: (id: string, patch: Partial<Omit<NamedProfile, "id">>) => void;
   onDeleteProfile: (id: string) => void;
@@ -98,7 +98,6 @@ interface SettingsPageProps {
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
   onImportSkin: (skin: WavvonSkin) => void;
-  onProfileSaved?: () => void;
 }
 
 // --- Passkey management section ---
@@ -380,8 +379,6 @@ export function SettingsPage(props: SettingsPageProps) {
     { value: "mentions", label: t("settings.notifications.level.mentions") },
     { value: "none", label: t("settings.notifications.level.none") },
   ];
-  const [displayName, setDisplayName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
   const [audioProfile, setAudioProfile] = useState<AudioProfileConfig>(loadAudioProfile);
 
   function updateAudioProfile(patch: Partial<AudioProfileConfig>) {
@@ -391,7 +388,6 @@ export function SettingsPage(props: SettingsPageProps) {
       return next;
     });
   }
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | string>("idle");
   const [hubNotifPrefs, setHubNotifPrefs] = useState<Record<string, NotifLevel>>(() => {
     const prefs: Record<string, NotifLevel> = {};
     for (const hub of props.hubs) {
@@ -399,24 +395,6 @@ export function SettingsPage(props: SettingsPageProps) {
     }
     return prefs;
   });
-
-  async function handleSaveProfile() {
-    setSaveStatus("saving");
-    try {
-      await hubFetch("/me", {
-        method: "PATCH",
-        body: JSON.stringify({
-          display_name: displayName.trim() || null,
-          avatar: avatarUrl.trim() || null,
-        }),
-      });
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-      props.onProfileSaved?.();
-    } catch (e) {
-      setSaveStatus(String(e));
-    }
-  }
 
   return (
     <div className="settings-page" style={{ display: "flex", height: "100%", minHeight: 0 }}>
@@ -456,58 +434,14 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "profile" && (
           <section>
             <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.profile")}</h1>
-            <div className="settings-section" style={{ marginBottom: 20 }}>
-              <label className="settings-label" htmlFor="settings-display-name">{t("profile.display_name")}</label>
-              <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-                {t("settings.profile.display_name.hint")}
-              </p>
-              <input
-                id="settings-display-name"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={t("settings.profile.display_name.placeholder")}
-                style={{ width: "100%", maxWidth: 320 }}
-              />
-            </div>
-            <div className="settings-section" style={{ marginBottom: 20 }}>
-              <label className="settings-label" htmlFor="settings-avatar-url">{t("settings.profile.avatar_url.label")}</label>
-              <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-                {t("settings.profile.avatar_url.hint")}
-              </p>
-              <ImagePicker
-                onPick={(dataUrl) => setAvatarUrl(dataUrl)}
-                onClear={() => setAvatarUrl("")}
-                hasValue={!!avatarUrl}
-                buttonLabel="Upload image…"
-              />
-              <p className="muted" style={{ fontSize: "var(--text-sm)", margin: "8px 0 4px" }}>or paste an image URL</p>
-              <input
-                id="settings-avatar-url"
-                type="url"
-                value={avatarUrl.startsWith("data:") ? "" : avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://example.com/avatar.png"
-                style={{ width: "100%", maxWidth: 320 }}
-              />
-              {avatarUrl && (
-                <img
-                  src={avatarUrl}
-                  alt={t("settings.profile.avatar.preview")}
-                  style={{ display: "block", marginTop: 8, width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border)" }}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                />
-              )}
-            </div>
-            <div className="settings-row" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button className="btn-primary" onClick={handleSaveProfile} disabled={saveStatus === "saving"}>
-                {saveStatus === "saving" ? t("modal.saving") : t("settings.profile.save")}
-              </button>
-              {saveStatus === "saved" && <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.public_profile.saved")}</span>}
-              {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
-                <span style={{ color: "var(--danger)", fontSize: "var(--text-sm)" }}>{saveStatus}</span>
-              )}
-            </div>
+
+            <ActiveHubProfileSection
+              hubs={props.hubs}
+              profiles={props.profiles}
+              defaultProfileId={props.defaultProfileId}
+              activeDisplayName={props.activeDisplayName}
+              onApply={props.onApplyProfileToHub}
+            />
 
             <div className="settings-section" style={{ marginTop: 20 }}>
               <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
@@ -665,9 +599,16 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "voice" && (
           <section>
             <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.voice")}</h1>
-            {/* Devices first: which mic/speaker am I on is the thing people
-                open this tab for; codec profile tuning comes after. */}
+
+            <h2 className="settings-subheading">{t("settings.voice.section.audio")}</h2>
             <AudioDevicesSection />
+            <MicLevelMeter />
+            <PushToTalkSection />
+
+            <h2 className="settings-subheading">{t("settings.voice.section.camera")}</h2>
+            <CameraSection />
+
+            {/* Codec/quality tuning is advanced and rarely touched — last. */}
             <AudioProfileSection
               profile={audioProfile.profile}
               onProfile={(p) => updateAudioProfile({ profile: p })}
@@ -689,9 +630,6 @@ export function SettingsPage(props: SettingsPageProps) {
               onCustomComplexity={(v) => updateAudioProfile({ customComplexity: v })}
               inVoice={false}
             />
-            <CameraSection />
-            <MicLevelMeter />
-            <PushToTalkSection />
           </section>
         )}
 

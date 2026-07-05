@@ -666,6 +666,19 @@ select,
   letter-spacing: -0.01em;
 }
 
+/* Groups related sections within a single tab (e.g. Voice & Video's
+   Audio vs. Camera controls) without the weight of another h1. */
+.settings-subheading {
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+.settings-subheading:first-of-type {
+  margin-top: 0;
+}
+
 .settings-close-x {
   position: absolute;
   top: var(--space-5);
@@ -2832,6 +2845,20 @@ select:focus-visible {
 
 .voice-devices-row select {
   width: 100%;
+}
+
+/* Two related short controls side by side (e.g. input/output device
+   pickers), collapsing to one column when the container is too narrow
+   to fit both comfortably — unlike voice-devices-row's fixed grid. */
+.settings-row-2col {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.settings-row-2col > * {
+  flex: 1 1 200px;
+  min-width: 200px;
 }
 
 .voice-mic-test {

@@ -57,11 +57,11 @@ export function PushToTalkSection() {
   return (
     <div className="settings-section" style={{ marginTop: 16 }}>
       <label className="settings-label">Push-to-talk</label>
-      <label className="checkbox-label">
-        <input type="checkbox" checked={cfg.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
-        Enable push-to-talk (hold a key to transmit while in voice)
-      </label>
-      <div className="settings-row" style={{ alignItems: "center", gap: 8, marginTop: 8 }}>
+      <div className="settings-row" style={{ alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <label className="checkbox-label" style={{ margin: 0 }}>
+          <input type="checkbox" checked={cfg.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
+          Enable push-to-talk (hold a key to transmit while in voice)
+        </label>
         <span className="muted" style={{ fontSize: "var(--text-sm)" }}>Key: <strong>{keyLabel(cfg.key)}</strong></span>
         <button type="button" className="btn-small btn-secondary" onClick={() => setBinding(true)} disabled={binding}>
           {binding ? "Press a key…" : "Change key"}

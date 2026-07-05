@@ -722,7 +722,16 @@ export default function App() {
 
   useEffect(() => {
     if (hubs.length === 1 && meInfo !== null && !meInfo.display_name) {
-      setShowDisplayNamePrompt(true);
+      // A default profile means the user already told us who they want to
+      // be — apply it silently instead of asking again. Only fall back to
+      // the prompt when there's truly nothing saved yet (no profiles at
+      // all); if profiles exist but none is marked default, leave it to
+      // the user to pick one in Settings rather than guessing.
+      if (defaultProfileId) {
+        void handleApplyProfileToHub(defaultProfileId);
+      } else if (namedProfiles.length === 0) {
+        setShowDisplayNamePrompt(true);
+      }
     }
   // Only fire once when meInfo first loads on the first hub
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2290,6 +2299,7 @@ export default function App() {
             onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
             profiles={namedProfiles}
             defaultProfileId={defaultProfileId}
+            activeDisplayName={meInfo?.display_name ?? null}
             onCreateProfile={handleCreateProfile}
             onUpdateProfile={handleUpdateProfile}
             onDeleteProfile={handleDeleteProfile}
@@ -2307,10 +2317,6 @@ export default function App() {
             onUnblock={toggleBlockUser}
             onUnignore={toggleIgnoreUser}
             knownNames={pubkeyToName}
-            onProfileSaved={() => {
-              hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
-              hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
-            }}
           />
         </div>
       )}

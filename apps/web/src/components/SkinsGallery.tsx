@@ -41,13 +41,15 @@ export function SkinsGallery({ onImport }: Props) {
   const [skins, setSkins] = useState<SkinListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Self-hosted users who never opted into discovery shouldn't see a loud
+  // connection error here — the whole section just hides itself. Only a
+  // reachable-but-empty response ("no skins") stays visible.
+  const [unreachable, setUnreachable] = useState(false);
   const [importingId, setImportingId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function fetchSkins(query: string, baseFilter: string, pageNum: number) {
     setLoading(true);
-    setError(null);
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (baseFilter) params.set("base", baseFilter);
@@ -60,8 +62,9 @@ export function SkinsGallery({ onImport }: Props) {
       .then((data) => {
         setSkins(data.skins);
         setTotal(data.total);
+        setUnreachable(false);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch(() => setUnreachable(true))
       .finally(() => setLoading(false));
   }
 
@@ -100,6 +103,8 @@ export function SkinsGallery({ onImport }: Props) {
     }
   }
 
+  if (unreachable && !loading) return null;
+
   return (
     <div style={{ marginTop: 24 }}>
       <label className="settings-label">Browse skins</label>
@@ -125,10 +130,7 @@ export function SkinsGallery({ onImport }: Props) {
       {loading && (
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>Loading…</p>
       )}
-      {error && (
-        <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)" }}>{error}</p>
-      )}
-      {!loading && !error && skins.length === 0 && (
+      {!loading && skins.length === 0 && (
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>No skins found.</p>
       )}
 
