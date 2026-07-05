@@ -112,3 +112,23 @@ export function sendDmTypingEvent(conversation_id: string, typing: boolean): voi
   const s = activeSession();
   s.ws?.send({ type: "dm_typing", conversation_id, typing });
 }
+
+export async function getAllianceChannelMessages(
+  allianceId: string,
+  channelId: string,
+): Promise<Message[]> {
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages`);
+  const msgs = await r.json() as Message[];
+  return [...msgs].reverse();
+}
+
+export async function sendAllianceChannelMessage(
+  allianceId: string,
+  channelId: string,
+  content: string,
+): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+}

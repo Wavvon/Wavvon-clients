@@ -43,6 +43,8 @@ export {
   markChannelRead,
   sendTypingEvent,
   sendDmTypingEvent,
+  getAllianceChannelMessages,
+  sendAllianceChannelMessage,
 } from "./commands/messages";
 export type { UnreadCount } from "./commands/messages";
 

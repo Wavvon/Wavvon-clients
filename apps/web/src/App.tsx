@@ -6,6 +6,7 @@ import { useTypingIndicators } from "./hooks/useTypingIndicators";
 import { useSoundboardChips } from "./hooks/useSoundboardChips";
 import { useHubConnection } from "./hooks/useHubConnection";
 import { useHubAdmin } from "./hooks/useHubAdmin";
+import { useAlliances } from "./hooks/useAlliances";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
@@ -393,8 +394,11 @@ export default function App() {
     catch { return {}; }
   });
   const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
-  const [userAlliances, setUserAlliances] = useState<AllianceInfo[]>([]);
-  const [allianceChannels, setAllianceChannels] = useState<Record<string, AllianceSharedChannel[]>>({});
+  const {
+    userAlliances, setUserAlliances, allianceChannels, setAllianceChannels,
+    selectedAllianceChannel, allianceMessages, loadAlliances,
+    selectAllianceChannel, clearSelectedAllianceChannel, sendAllianceMessage,
+  } = useAlliances(showHubError);
   const [pendingApprovalHubs, setPendingApprovalHubs] = useState<Set<string>>(new Set());
 
   // === View ===
@@ -416,7 +420,6 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Message[] | null>(null);
   const [firstNotifyingMessageId, setFirstNotifyingMessageId] = useState<string | null>(null);
-  const [allianceMessages] = useState<Message[]>([]);
 
   // === DMs ===
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -1129,15 +1132,15 @@ export default function App() {
     if (loadingHub.current) return;
     loadingHub.current = true;
     try {
-      const [ch, usr, me, convs, alliances, cmds, voiceRoster] = await Promise.allSettled([
+      const [ch, usr, me, convs, cmds, voiceRoster] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
         hubFetch("/users").then((r) => r.json() as Promise<User[]>),
         hubFetch("/me").then((r) => r.json() as Promise<MeInfo>),
         hubFetch("/conversations").then((r) => r.json() as Promise<Conversation[]>),
-        hubFetch("/alliances").then((r) => r.json() as Promise<AllianceInfo[]>).catch(() => [] as AllianceInfo[]),
         listBotCommands().catch(() => [] as Array<{ command: string; description: string; bot_name: string }>),
         fetchVoiceRoster().catch(() => ({} as Record<string, VoiceParticipant[]>)),
       ]);
+      void loadAlliances();
       if (ch.status === "fulfilled") {
         setChannels(ch.value);
         if (!selectedChannelRef.current) {
@@ -1179,22 +1182,6 @@ export default function App() {
         }
       }
       if (convs.status === "fulfilled") setConversations(convs.value);
-      if (alliances.status === "fulfilled") {
-        const als = alliances.value;
-        setUserAlliances(als);
-        const byId: Record<string, AllianceSharedChannel[]> = {};
-        await Promise.allSettled(
-          als.map(async (a) => {
-            try {
-              const r = await hubFetch(`/alliances/${a.id}/channels`);
-              byId[a.id] = await r.json() as AllianceSharedChannel[];
-            } catch {
-              byId[a.id] = [];
-            }
-          })
-        );
-        setAllianceChannels(byId);
-      }
       if (cmds.status === "fulfilled") setSlashCommands(cmds.value);
       if (voiceRoster.status === "fulfilled") setVoicePartByChannel(voiceRoster.value);
       const hubId = getActiveHubId();
@@ -1225,6 +1212,9 @@ export default function App() {
     setActiveHubIdState(hubId);
     setSelectedChannel(null);
     setSelectedConversation(null);
+    clearSelectedAllianceChannel();
+    setUserAlliances([]);
+    setAllianceChannels({});
     setMessages([]);
     setView("channels");
     await loadHubData();
@@ -1269,6 +1259,9 @@ export default function App() {
       setActiveHubIdState(next);
       setSelectedChannel(null);
       setSelectedConversation(null);
+      clearSelectedAllianceChannel();
+      setUserAlliances([]);
+      setAllianceChannels({});
       if (next) await loadHubData();
     }
   }
@@ -1431,6 +1424,7 @@ export default function App() {
   async function handleSelectChannel(ch: Channel) {
     setSelectedChannel(ch);
     setSelectedConversation(null);
+    clearSelectedAllianceChannel();
     setView("channels");
     setMessages([]);
     setReplyTarget(null);
@@ -1451,6 +1445,23 @@ export default function App() {
       setStickToBottom(true);
       setNewWhileScrolledUp(0);
     } catch {}
+  }
+
+  function handleSelectAllianceChannel(alliance: AllianceInfo, channel: AllianceSharedChannel) {
+    setSelectedChannel(null);
+    setSelectedConversation(null);
+    setView("channels");
+    setInputText("");
+    setReplyTarget(null);
+    setEditingMessageId(null);
+    void selectAllianceChannel(alliance, channel);
+  }
+
+  async function handleSendAllianceMessage() {
+    if (!selectedAllianceChannel || !inputText.trim()) return;
+    const text = inputText;
+    setInputText("");
+    await sendAllianceMessage(text);
   }
 
   // Expands whatever ancestor categories are collapsed so a breadcrumb
@@ -2326,7 +2337,7 @@ export default function App() {
         hubDropdownOpen={hubDropdownOpen}
         userAlliances={userAlliances}
         allianceChannels={allianceChannels}
-        selectedAllianceChannel={null}
+        selectedAllianceChannel={selectedAllianceChannel}
         conversations={conversations}
         selectedConversation={selectedConversation}
         unreadDms={unreadDms}
@@ -2353,7 +2364,7 @@ export default function App() {
         onOpenChannelSettings={(channel) => { setChannelSettingsCtx(channel); setChannelSettingsError(null); }}
         onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
         onVoiceLeave={handleVoiceLeave}
-        onSelectAllianceChannel={() => {}}
+        onSelectAllianceChannel={handleSelectAllianceChannel}
         onOpenFriends={() => setShowFriends(true)}
         onSelectConversation={handleSelectConversation}
         onToggleSelfMute={handleToggleMute}
@@ -2423,7 +2434,7 @@ export default function App() {
         theme={theme}
         selectedChannel={selectedChannel}
         selectedConversation={selectedConversation}
-        selectedAllianceChannel={null}
+        selectedAllianceChannel={selectedAllianceChannel}
         messages={messages}
         searchResults={searchResults}
         searchOpen={searchOpen}
@@ -2467,7 +2478,7 @@ export default function App() {
         onDeleteMessage={handleDeleteMessage}
         onSend={handleSend}
         onSendDm={handleSendDm}
-        onSendAllianceMessage={() => {}}
+        onSendAllianceMessage={() => void handleSendAllianceMessage()}
         onPingTyping={pingTyping}
         onPingDmTyping={pingDmTyping}
         onSetPendingAttachments={setPendingAttachments}

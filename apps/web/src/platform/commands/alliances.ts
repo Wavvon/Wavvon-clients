@@ -71,6 +71,9 @@ export interface SharedChannel {
   channel_name: string;
   hub_public_key: string;
   hub_name: string;
+  channel_type: "text" | "forum" | "banner" | "spawner";
+  parent_id: string | null;
+  is_category: boolean;
 }
 
 export async function listAllianceSharedChannels(allianceId: string): Promise<SharedChannel[]> {
@@ -78,10 +81,14 @@ export async function listAllianceSharedChannels(allianceId: string): Promise<Sh
   return r.json() as Promise<SharedChannel[]>;
 }
 
-export async function shareChannelWithAlliance(allianceId: string, channelId: string): Promise<void> {
+export async function shareChannelWithAlliance(
+  allianceId: string,
+  channelId: string,
+  includeDescendants = false,
+): Promise<void> {
   await hubFetch(`/alliances/${allianceId}/channels`, {
     method: "POST",
-    body: JSON.stringify({ channel_id: channelId }),
+    body: JSON.stringify({ channel_id: channelId, include_descendants: includeDescendants }),
   });
 }
 

@@ -1470,6 +1470,29 @@ select,
   margin-top: 2px;
 }
 
+.channel-item.alliance-category {
+  cursor: default;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.channel-item.alliance-category:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.channel-item.alliance-noninteractive {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.channel-item.alliance-noninteractive:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .alliance-readonly {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border);

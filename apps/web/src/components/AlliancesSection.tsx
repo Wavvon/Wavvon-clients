@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listAlliances, createAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
@@ -6,11 +7,22 @@ import {
 } from "@platform";
 import type { Alliance, PendingAllianceInvite, SharedChannel } from "@platform";
 import type { Channel } from "../types";
+import { buildChannelTree, flattenTree } from "@wavvon/core";
 import { HubApiError } from "../platform/http";
 
 interface Props {
   activeHubUrl: string;
   channels: Channel[];
+}
+
+function sharedChannelIcon(s: SharedChannel): string {
+  if (s.is_category) return "📁";
+  switch (s.channel_type) {
+    case "forum": return "💬";
+    case "banner": return "🖼️";
+    case "spawner": return "🎙️";
+    default: return "#";
+  }
 }
 
 // Per-alliance shared-channel manager (expanded on demand).
@@ -22,9 +34,16 @@ function AllianceRow({ alliance, myChannels, busy, onLeave, onError, runGuard }:
   onError: (m: string) => void;
   runGuard: (fn: () => Promise<void>) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [shared, setShared] = useState<SharedChannel[] | null>(null);
   const [toShare, setToShare] = useState("");
+
+  const shareableChannels = useMemo(
+    () => flattenTree(buildChannelTree(myChannels)),
+    [myChannels]
+  );
+  const selectedToShare = shareableChannels.find((f) => f.node.id === toShare)?.node ?? null;
 
   async function loadShared() {
     try { setShared(await listAllianceSharedChannels(alliance.id)); }
@@ -51,7 +70,13 @@ function AllianceRow({ alliance, myChannels, busy, onLeave, onError, runGuard }:
           ) : (
             shared.map((s) => (
               <div key={`${s.hub_public_key}:${s.channel_id}`} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "var(--text-sm)" }}># {s.channel_name} <span className="muted">({s.hub_name})</span></span>
+                <span style={{ fontSize: "var(--text-sm)" }}>
+                  {sharedChannelIcon(s)} {s.channel_name}
+                  {s.is_category && s.parent_id === null && (
+                    <span className="muted"> {t("alliances.share.recursive_marker")}</span>
+                  )}
+                  {" "}<span className="muted">({s.hub_name})</span>
+                </span>
                 <button
                   className="btn-small btn-secondary"
                   disabled={busy}
@@ -65,17 +90,26 @@ function AllianceRow({ alliance, myChannels, busy, onLeave, onError, runGuard }:
           <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
             <select value={toShare} onChange={(e) => setToShare(e.target.value)}>
               <option value="">Share a channel…</option>
-              {myChannels.filter((c) => !c.is_category).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              {shareableChannels.map(({ node, depth }) => (
+                <option key={node.id} value={node.id}>
+                  {"  ".repeat(depth)}{node.is_category ? "📁" : "#"} {node.name}
+                </option>
               ))}
             </select>
             <button
               disabled={busy || !toShare}
-              onClick={() => runGuard(async () => { await shareChannelWithAlliance(alliance.id, toShare); setToShare(""); await loadShared(); })}
+              onClick={() => runGuard(async () => {
+                await shareChannelWithAlliance(alliance.id, toShare, !!selectedToShare?.is_category);
+                setToShare("");
+                await loadShared();
+              })}
             >
               Share
             </button>
           </div>
+          {selectedToShare?.is_category && (
+            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.share.category_hint")}</p>
+          )}
         </div>
       )}
     </div>

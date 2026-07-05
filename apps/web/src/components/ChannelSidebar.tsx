@@ -29,7 +29,10 @@ import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
 import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
 import { SoundboardPopover } from "./SoundboardPopover";
 import { HoverSubmenu } from "@wavvon/ui";
-import { DRILL_DEPTH, computeIndent, resolveDrillInScope } from "./channelSidebarLayout";
+import {
+  DRILL_DEPTH, computeIndent, resolveDrillInScope,
+  flattenAllianceChannels, allianceChannelIcon,
+} from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../utils/spawnerChannels";
 
 interface SidebarFlatNode extends FlatNode {
@@ -597,24 +600,40 @@ export function ChannelSidebar({
                     (c) => !channels.find((local) => local.id === c.channel_id)
                   );
                   if (remoteOnly.length === 0) return null;
+                  const flat = flattenAllianceChannels(remoteOnly);
                   return (
                     <div key={a.id} className="sidebar-alliance-group">
                       <div className="sidebar-header sidebar-header-alliance">
                         <h3>🤝 {a.name}</h3>
                       </div>
                       <ul className="channel-list">
-                        {remoteOnly.map((c) => {
+                        {flat.map(({ channel: c, depth }) => {
+                          const indentPx = 12 + depth * 14;
+                          if (c.is_category) {
+                            return (
+                              <li
+                                key={c.channel_id}
+                                className="channel-item alliance-category"
+                                style={{ paddingLeft: indentPx }}
+                                title={`Hosted on ${c.hub_name}`}
+                              >
+                                {allianceChannelIcon(c)} {c.channel_name}
+                              </li>
+                            );
+                          }
+                          const clickable = c.channel_type === "text" || c.channel_type === "forum";
                           const isSelected =
                             selectedAllianceChannel?.alliance_id === a.id &&
                             selectedAllianceChannel.channel.channel_id === c.channel_id;
                           return (
                             <li
                               key={c.channel_id}
-                              className={`channel-item ${isSelected ? "selected" : ""}`}
-                              onClick={() => onSelectAllianceChannel(a, c)}
+                              className={`channel-item ${isSelected ? "selected" : ""} ${clickable ? "" : "alliance-noninteractive"}`}
+                              style={{ paddingLeft: indentPx }}
+                              onClick={clickable ? () => onSelectAllianceChannel(a, c) : undefined}
                               title={`Hosted on ${c.hub_name}`}
                             >
-                              # {c.channel_name}
+                              {allianceChannelIcon(c)} {c.channel_name}
                               <span className="alliance-channel-host">{c.hub_name}</span>
                             </li>
                           );

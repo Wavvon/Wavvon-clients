@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildChannelTree, type Channel } from "@wavvon/core";
-import { computeIndent, resolveDrillInScope } from "../channelSidebarLayout";
+import type { AllianceSharedChannel } from "../../types";
+import { computeIndent, resolveDrillInScope, flattenAllianceChannels, allianceChannelIcon } from "../channelSidebarLayout";
 
 function makeChannel(id: string, parent_id: string | null, overrides: Partial<Channel> = {}): Channel {
   return {
@@ -57,5 +58,60 @@ describe("resolveDrillInScope (nested-channels-ux.md §2.2)", () => {
     const scope = resolveDrillInScope(tree, "deleted-category");
     expect(scope.roots).toBe(tree);
     expect(scope.depthOffset).toBe(0);
+  });
+});
+
+function makeShared(
+  channel_id: string,
+  parent_id: string | null,
+  overrides: Partial<AllianceSharedChannel> = {}
+): AllianceSharedChannel {
+  return {
+    channel_id,
+    channel_name: channel_id,
+    hub_public_key: "hub-pk",
+    hub_name: "Other Hub",
+    channel_type: "text",
+    parent_id,
+    is_category: false,
+    ...overrides,
+  };
+}
+
+describe("flattenAllianceChannels (alliance space-sharing v2)", () => {
+  it("orders a flat list of root channels at depth 0", () => {
+    const flat = flattenAllianceChannels([makeShared("a", null), makeShared("b", null)]);
+    expect(flat.map((f) => [f.channel.channel_id, f.depth])).toEqual([["a", 0], ["b", 0]]);
+  });
+
+  it("nests children under a recursively-shared category by parent_id", () => {
+    const category = makeShared("games", null, { is_category: true });
+    const child = makeShared("raid-planning", "games");
+    const grandchild = makeShared("loot", "raid-planning", { is_category: true });
+    const flat = flattenAllianceChannels([category, child, grandchild]);
+    expect(flat.map((f) => [f.channel.channel_id, f.depth])).toEqual([
+      ["games", 0],
+      ["raid-planning", 1],
+      ["loot", 2],
+    ]);
+  });
+
+  it("treats an entry whose parent isn't in the set as a root", () => {
+    const orphan = makeShared("orphan", "not-shared");
+    const flat = flattenAllianceChannels([orphan]);
+    expect(flat).toEqual([{ channel: orphan, depth: 0 }]);
+  });
+});
+
+describe("allianceChannelIcon (alliance space-sharing v2)", () => {
+  it("marks categories with a folder icon regardless of channel_type", () => {
+    expect(allianceChannelIcon(makeShared("c", null, { is_category: true }))).toBe("📁");
+  });
+
+  it("picks a type-specific icon for non-category channels", () => {
+    expect(allianceChannelIcon(makeShared("c", null, { channel_type: "text" }))).toBe("#");
+    expect(allianceChannelIcon(makeShared("c", null, { channel_type: "forum" }))).toBe("💬");
+    expect(allianceChannelIcon(makeShared("c", null, { channel_type: "banner" }))).toBe("🖼️");
+    expect(allianceChannelIcon(makeShared("c", null, { channel_type: "spawner" }))).toBe("🎙️");
   });
 });

@@ -398,6 +398,9 @@ export interface AllianceSharedChannel {
   channel_name: string;
   hub_public_key: string;
   hub_name: string;
+  channel_type: "text" | "forum" | "banner" | "spawner";
+  parent_id: string | null;
+  is_category: boolean;
 }
 
 export interface PublicHubEntry {

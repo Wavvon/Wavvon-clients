@@ -516,6 +516,8 @@
   "alliances.join.hint": "Paste the share code you received from another hub's admin.",
   "alliances.join.placeholder": "Paste share code…",
   "alliances.join.button": "Join",
+  "alliances.share.category_hint": "Das Teilen einer Kategorie gibt ihren gesamten Kategoriebaum für die Allianz frei — einschließlich später hinzugefügter Unterkanäle.",
+  "alliances.share.recursive_marker": "(+ Unterbereiche)",
   "ext_bot.section.title": "External Bots",
   "ext_bot.section.hint": "Add a bot operated externally. Generate an invite token and share it with the bot operator.",
   "ext_bot.pubkey.label": "Bot public key (hex)",

@@ -516,6 +516,8 @@
   "alliances.join.hint": "Incolla il codice di condivisione ricevuto dall'admin di un altro hub.",
   "alliances.join.placeholder": "Incolla codice…",
   "alliances.join.button": "Unisciti",
+  "alliances.share.category_hint": "Condividere una categoria condivide tutto il suo sottoalbero con l'alleanza, inclusi i sotto-canali aggiunti in seguito.",
+  "alliances.share.recursive_marker": "(+ sotto-spazi)",
   "ext_bot.section.title": "Bot esterni",
   "ext_bot.section.hint": "Aggiungi un bot gestito esternamente. Genera un token di invito e condividilo con l'operatore del bot.",
   "ext_bot.pubkey.label": "Chiave pubblica bot (hex)",
