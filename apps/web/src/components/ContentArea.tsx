@@ -649,6 +649,7 @@ export function ContentArea({
           <UserListGrouped
             users={users}
             inVoice={voiceActiveUsers}
+            onUserClick={(pubkey) => handleAuthorClick(pubkey)}
             onContextMenu={(e, u) => {
               e.preventDefault();
               onSetUserContextMenu({ x: e.clientX, y: e.clientY, user: u });

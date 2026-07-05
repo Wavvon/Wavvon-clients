@@ -5,11 +5,13 @@ import { Avatar } from "@wavvon/ui";
 export function UserListGrouped({
   users,
   inVoice,
+  onUserClick,
   onContextMenu,
   onBotClick,
 }: {
   users: User[];
   inVoice?: Set<string>;
+  onUserClick?: (pubkey: string) => void;
   onContextMenu?: (e: React.MouseEvent, user: User) => void;
   onBotClick?: (pubkey: string, e: React.MouseEvent) => void;
 }) {
@@ -86,6 +88,8 @@ export function UserListGrouped({
               <li
                 key={u.public_key}
                 className="user-list-item"
+                style={onUserClick ? { cursor: "pointer" } : undefined}
+                onClick={() => onUserClick?.(u.public_key)}
                 onContextMenu={(e) => onContextMenu?.(e, u)}
               >
                 <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
@@ -119,6 +123,8 @@ export function UserListGrouped({
               <li
                 key={u.public_key}
                 className="user-list-item offline"
+                style={onUserClick ? { cursor: "pointer" } : undefined}
+                onClick={() => onUserClick?.(u.public_key)}
                 onContextMenu={(e) => onContextMenu?.(e, u)}
               >
                 <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
