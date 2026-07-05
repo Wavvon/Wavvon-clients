@@ -84,6 +84,7 @@ import { getActiveHubId } from "@platform";
 import { VoiceWsSession, type AudioProfileConfig } from "./platform/voice";
 import { WebScreenShareSession } from "./platform/screenShare";
 import { WebVideoSession } from "./platform/video";
+import { BackgroundProcessor, loadBgMode, loadBgSource } from "./utils/backgroundProcessor";
 
 // The voice audio profile is persisted by SettingsPage under this key; read
 // it here so the saved profile is actually applied to the live session.
@@ -575,7 +576,10 @@ export default function App() {
   const [showFriends, setShowFriends] = useState(false);
   // Camera video (full-mesh WebRTC over the main WS).
   const videoSessionRef = useRef<WebVideoSession | null>(null);
+  const backgroundProcessorRef = useRef<BackgroundProcessor | null>(null);
   const [videoEnabled, setVideoEnabled] = useState(false);
+  const videoEnabledRef = useRef(videoEnabled);
+  videoEnabledRef.current = videoEnabled;
   const [localVideoStream, setLocalVideoStream] = useState<MediaStream | null>(null);
   const [remoteVideoStreams, setRemoteVideoStreams] = useState<Map<string, MediaStream>>(new Map());
   // Whisper: set of pubkeys currently whispering to me + whether I'm whispering.
@@ -1621,6 +1625,8 @@ export default function App() {
     if (voiceSessionRef.current) {
       videoSessionRef.current?.dispose();
       videoSessionRef.current = null;
+      backgroundProcessorRef.current?.stop();
+      backgroundProcessorRef.current = null;
       voiceSessionRef.current.stop();
       voiceSessionRef.current = null;
       try { activeSession().ws?.unwatchVoice(); } catch {}
@@ -1663,6 +1669,8 @@ export default function App() {
           voiceSessionRef.current = null;
           videoSessionRef.current?.dispose();
           videoSessionRef.current = null;
+          backgroundProcessorRef.current?.stop();
+          backgroundProcessorRef.current = null;
           setVoiceChannelId(null);
           setLocalVideoStream(null);
           setRemoteVideoStreams(new Map());
@@ -1736,10 +1744,24 @@ export default function App() {
       // Honor the camera chosen in Settings → Voice, if any.
       let camId: string | null = null;
       try { camId = localStorage.getItem("wavvon.videoInputDevice"); } catch { /* ignore */ }
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const raw = await navigator.mediaDevices.getUserMedia({
         video: camId ? { deviceId: { exact: camId } } : true,
         audio: false,
       });
+      // Apply the chosen background effect (blur/image/video), if any, by
+      // routing the raw camera through the segmentation compositor and sending
+      // its processed stream instead.
+      let stream = raw;
+      const mode = loadBgMode();
+      if (mode !== "none") {
+        try {
+          const proc = new BackgroundProcessor(raw);
+          stream = await proc.start(mode, loadBgSource());
+          backgroundProcessorRef.current = proc;
+        } catch {
+          stream = raw; // effect failed to init — fall back to the plain camera
+        }
+      }
       videoSessionRef.current.enable(stream);
       setLocalVideoStream(stream);
       setVideoEnabled(true);
@@ -1752,10 +1774,26 @@ export default function App() {
   function handleStopVideo() {
     // Keep the session alive (it tracks the roster) — just turn the camera off.
     videoSessionRef.current?.disable();
+    backgroundProcessorRef.current?.stop();
+    backgroundProcessorRef.current = null;
     setLocalVideoStream(null);
     setRemoteVideoStreams(new Map());
     setVideoEnabled(false);
   }
+
+  // Live background-effect changes from Settings while the camera is on:
+  // re-run the capture pipeline so the new effect (or none) takes hold.
+  useEffect(() => {
+    const onChange = () => {
+      if (videoEnabledRef.current) {
+        handleStopVideo();
+        void handleToggleVideo();
+      }
+    };
+    window.addEventListener("wavvon:bgchange", onChange);
+    return () => window.removeEventListener("wavvon:bgchange", onChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleStartWhisper(targetPubkeys: string[]) {
     if (!voiceChannelId || targetPubkeys.length === 0) return;
@@ -1776,6 +1814,8 @@ export default function App() {
     // Camera + whisper are scoped to the voice session — tear them down too.
     videoSessionRef.current?.dispose();
     videoSessionRef.current = null;
+    backgroundProcessorRef.current?.stop();
+    backgroundProcessorRef.current = null;
     setLocalVideoStream(null);
     setRemoteVideoStreams(new Map());
     setVideoEnabled(false);
