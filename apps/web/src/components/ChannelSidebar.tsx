@@ -169,6 +169,10 @@ interface Props {
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
   isAdmin: boolean;
+  /** Gate for the per-channel settings gear. Wider than isAdmin: a
+   * manage_roles member may open channel settings (Permissions tab).
+   * Falls back to isAdmin when omitted. */
+  canOpenChannelSettings?: boolean;
   hubNotifyMode: Record<string, NotifyMode>;
   hubDropdownOpen: boolean;
   hideSilenced?: boolean;
@@ -216,7 +220,7 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, selfMuted, selfDeafened,
-  users, publicKey, pingByHub, isAdmin, hubNotifyMode, hubDropdownOpen,
+  users, publicKey, pingByHub, isAdmin, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
   conversations, selectedConversation, unreadDms,
@@ -538,7 +542,7 @@ export function ChannelSidebar({
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
                         onAdd={() => onOpenCreateChannel(n.node.id, false)}
-                        onSettings={isAdmin && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
+                        onSettings={(canOpenChannelSettings ?? isAdmin) && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
                         onFocusSubtree={n.depth >= DRILL_DEPTH ? () => handleFocusSubtree(n.node) : undefined}
                         focusSubtreeLabel={t("channel.sidebar.drill_in", { name: n.node.name })}
                       />
@@ -571,7 +575,7 @@ export function ChannelSidebar({
                         onDoubleClick={() => { if (!isSpawnerChannel(n.node) && voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
-                        onSettings={isAdmin && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
+                        onSettings={(canOpenChannelSettings ?? isAdmin) && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
                       />
                     );
                   })}

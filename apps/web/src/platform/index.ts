@@ -187,9 +187,11 @@ export {
 
 export {
   getChannelPermissions,
+  getMyChannelPermissions,
   setChannelRolePermissions,
   clearChannelRolePermissions,
 } from "./commands/channelPermissions";
+export type { MyChannelPermissions } from "./commands/channelPermissions";
 
 export { listRoles, createRole, updateRole, deleteRole, listUserRoles, assignRoleToUser, removeRoleFromUser } from "./commands/roles";
 export type { RoleCreateInput, RoleUpdateInput } from "./commands/roles";

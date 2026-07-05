@@ -66,7 +66,8 @@ import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
-import { markSoundboardPlayed, fetchSoundboardAudioBytes } from "@platform";
+import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions } from "@platform";
+import type { MyChannelPermissions } from "@platform";
 import {
   restorePersistedHubs,
   addHub,
@@ -1929,18 +1930,26 @@ export default function App() {
     [meInfo],
   );
 
-  // Baseline (hub-role) resolution -- there's no self-service endpoint for a
-  // member to read their own channel-scoped effective permissions (the
-  // ancestor-chain overwrite fold lives behind GET /channels/:id/permissions,
-  // which itself requires manage_roles). This mirrors isAdmin/canManageRoles
-  // above rather than being truly channel-scoped; a channel-level deny of
-  // use_soundboard for a non-admin's role still shows the button but the
-  // server's mark_played check (403) is the actual enforcement either way
-  // (soundboard.md §1 Decisions).
-  const canUseSoundboard = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("use_soundboard")) ?? false,
-    [meInfo],
-  );
+  // Channel-scoped effective permissions for the joined voice channel, from
+  // GET /channels/:id/my-permissions (self-service, no manage_roles needed).
+  // Null while unjoined, loading, or on fetch failure — callers fall back to
+  // the hub-wide role baseline then; the server check stays authoritative.
+  const [myVoicePerms, setMyVoicePerms] = useState<MyChannelPermissions | null>(null);
+  useEffect(() => {
+    if (!voiceChannelId) { setMyVoicePerms(null); return; }
+    let cancelled = false;
+    getMyChannelPermissions(voiceChannelId)
+      .then((p) => { if (!cancelled) setMyVoicePerms(p); })
+      .catch(() => { if (!cancelled) setMyVoicePerms(null); });
+    return () => { cancelled = true; };
+  }, [voiceChannelId]);
+
+  const canUseSoundboard = useMemo(() => {
+    if (myVoicePerms && myVoicePerms.channel_id === voiceChannelId) {
+      return myVoicePerms.is_admin || myVoicePerms.permissions.includes("use_soundboard");
+    }
+    return meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("use_soundboard")) ?? false;
+  }, [myVoicePerms, voiceChannelId, meInfo]);
 
   const canManageSoundboard = useMemo(
     () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_soundboard")) ?? false,
@@ -2361,6 +2370,7 @@ export default function App() {
         onOpenCreateChannel={(parentId, isCategory) => { setCreateChannelCtx({ parentId, isCategory }); setCreateChannelError(null); }}
         onSelectChannel={handleSelectChannel}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
+        canOpenChannelSettings={isAdmin || canManageRoles}
         onOpenChannelSettings={(channel) => { setChannelSettingsCtx(channel); setChannelSettingsError(null); }}
         onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
         onVoiceLeave={handleVoiceLeave}
@@ -2632,6 +2642,7 @@ export default function App() {
           deleting={channelSettingsDeleting}
           error={channelSettingsError}
           canManageRoles={canManageRoles}
+          isAdmin={isAdmin}
           onSave={handleSaveChannelSettings}
           onDelete={handleDeleteChannel}
           onClose={() => { setChannelSettingsCtx(null); setChannelSettingsError(null); }}

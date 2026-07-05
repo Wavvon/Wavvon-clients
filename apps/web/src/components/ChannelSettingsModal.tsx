@@ -16,16 +16,20 @@ interface Props {
   deleting: boolean;
   error: string | null;
   canManageRoles: boolean;
+  /** Rename/appearance/delete are admin-only; a manage_roles-only member
+   * opens straight into the Permissions tab and never sees the settings
+   * form (the server rejects those actions for them anyway). */
+  isAdmin: boolean;
   onSave: (name: string, description: string, color: string | null, icon: string | null) => void;
   onDelete: () => void;
   onClose: () => void;
 }
 
 export function ChannelSettingsModal({
-  channel, saving, deleting, error, canManageRoles, onSave, onDelete, onClose,
+  channel, saving, deleting, error, canManageRoles, isAdmin, onSave, onDelete, onClose,
 }: Props) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>("settings");
+  const [tab, setTab] = useState<Tab>(isAdmin ? "settings" : "permissions");
   const [name, setName] = useState(channel.name);
   const [description, setDescription] = useState(channel.description ?? "");
   const [color, setColor] = useState<string | null>(channel.color ?? null);
@@ -54,12 +58,14 @@ export function ChannelSettingsModal({
 
           {canManageRoles && (
             <div style={{ display: "flex", gap: 8, marginBottom: "var(--space-3)" }}>
-              <button
-                className={tab === "settings" ? "btn-primary" : "btn-secondary"}
-                onClick={() => setTab("settings")}
-              >
-                {t("channel.settings.tab_settings")}
-              </button>
+              {isAdmin && (
+                <button
+                  className={tab === "settings" ? "btn-primary" : "btn-secondary"}
+                  onClick={() => setTab("settings")}
+                >
+                  {t("channel.settings.tab_settings")}
+                </button>
+              )}
               <button
                 className={tab === "permissions" ? "btn-primary" : "btn-secondary"}
                 onClick={() => setTab("permissions")}
@@ -79,7 +85,7 @@ export function ChannelSettingsModal({
 
           {tab === "bans" && canManageRoles && !channel.is_category ? (
             <ChannelBansTab channelId={channel.id} />
-          ) : tab === "permissions" && canManageRoles ? (
+          ) : (tab === "permissions" || !isAdmin) && canManageRoles ? (
             <ChannelPermissionsTab channelId={channel.id} />
           ) : (
             <>
