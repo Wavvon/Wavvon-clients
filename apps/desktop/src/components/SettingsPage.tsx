@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { BackgroundMode } from "../utils/backgroundProcessor";
@@ -107,7 +108,8 @@ export interface SettingsPageProps {
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
   backgroundMode: BackgroundMode;
-  onChangeBackground: (mode: BackgroundMode) => void;
+  backgroundSource: string | null;
+  onChangeBackground: (mode: BackgroundMode, source?: string | null) => void;
   onImportSkin: (skin: WavvonSkin) => void;
   videoInputs: { deviceId: string; label: string }[];
   videoInputDevice: string;
@@ -347,6 +349,20 @@ export function SettingsPage(props: SettingsPageProps) {
     } catch (e) {
       setSaveStatus(String(e));
     }
+  }
+
+  function selectBackgroundMode(mode: BackgroundMode) {
+    // Keep the existing source when switching to image/video; clear otherwise.
+    props.onChangeBackground(mode, mode === "image" || mode === "video" ? props.backgroundSource : null);
+  }
+
+  function handleBackgroundFile(mode: "image" | "video", e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => props.onChangeBackground(mode, reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = "";
   }
 
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -640,17 +656,52 @@ export function SettingsPage(props: SettingsPageProps) {
               <div className="settings-row" style={{ gap: "var(--space-2)" }}>
                 <button
                   className={`btn-secondary${props.backgroundMode === "none" ? " active" : ""}`}
-                  onClick={() => props.onChangeBackground("none")}
+                  onClick={() => selectBackgroundMode("none")}
                 >
                   None
                 </button>
                 <button
                   className={`btn-secondary${props.backgroundMode === "blur" ? " active" : ""}`}
-                  onClick={() => props.onChangeBackground("blur")}
+                  onClick={() => selectBackgroundMode("blur")}
                 >
                   Blur
                 </button>
+                <button
+                  className={`btn-secondary${props.backgroundMode === "image" ? " active" : ""}`}
+                  onClick={() => selectBackgroundMode("image")}
+                >
+                  Image
+                </button>
+                <button
+                  className={`btn-secondary${props.backgroundMode === "video" ? " active" : ""}`}
+                  onClick={() => selectBackgroundMode("video")}
+                >
+                  Video
+                </button>
               </div>
+              {props.backgroundMode === "image" && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  aria-label="Background image"
+                  onChange={(e) => handleBackgroundFile("image", e)}
+                  style={{ marginTop: "var(--space-2)" }}
+                />
+              )}
+              {props.backgroundMode === "video" && (
+                <input
+                  type="file"
+                  accept="video/*"
+                  aria-label="Background video"
+                  onChange={(e) => handleBackgroundFile("video", e)}
+                  style={{ marginTop: "var(--space-2)" }}
+                />
+              )}
+              {(props.backgroundMode === "image" || props.backgroundMode === "video") && !props.backgroundSource && (
+                <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: "var(--space-1)" }}>
+                  Pick a {props.backgroundMode} above (until then the background is blurred).
+                </p>
+              )}
             </div>
             <div className="settings-section">
               <label className="settings-label">{t("settings.voice.mode.label")}</label>

@@ -1896,6 +1896,7 @@ function App() {
             onSkinChange={handleSkinChange}
             onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
             backgroundMode={video.backgroundMode}
+            backgroundSource={video.backgroundSource}
             onChangeBackground={video.changeBackground}
             videoInputs={video.videoInputs}
             videoInputDevice={video.videoInputDevice}
