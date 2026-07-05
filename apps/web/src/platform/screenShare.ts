@@ -117,6 +117,10 @@ export class WebScreenShareSession {
     }
   }
 
+  getStream(): MediaStream | null {
+    return this.stream;
+  }
+
   stop(): void {
     if (this.stopped) return;
     this.stopped = true;

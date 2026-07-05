@@ -65,6 +65,7 @@ import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
+import { ScreenShareSelfPreview } from "@components/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
 import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus } from "@platform";
 import type { MyChannelPermissions } from "@platform";
@@ -583,6 +584,7 @@ export default function App() {
   const screenShareSessionRef = useRef<WebScreenShareSession | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareKbps, setShareKbps] = useState(0);
+  const [shareLocalStream, setShareLocalStream] = useState<MediaStream | null>(null);
   const [showFriends, setShowFriends] = useState(false);
   // Camera video (full-mesh WebRTC over the main WS).
   const videoSessionRef = useRef<WebVideoSession | null>(null);
@@ -1744,6 +1746,7 @@ export default function App() {
         screenShareSessionRef.current = null;
         setSharing(false);
         setShareKbps(0);
+        setShareLocalStream(null);
       },
       onError: (msg) => showHubError("Screen share: " + msg),
     });
@@ -1751,6 +1754,7 @@ export default function App() {
       await session.start();
       screenShareSessionRef.current = session;
       setSharing(true);
+      setShareLocalStream(session.getStream());
     } catch (e) {
       // getDisplayMedia rejects when the user cancels the picker — not an error.
       const msg = e instanceof Error ? e.message : String(e);
@@ -1763,6 +1767,7 @@ export default function App() {
     screenShareSessionRef.current = null;
     setSharing(false);
     setShareKbps(0);
+    setShareLocalStream(null);
   }
 
   function handleOpenHubStreams() {
@@ -2180,6 +2185,14 @@ export default function App() {
         </div>
       )}
 
+      {sharing && (
+        <ScreenShareSelfPreview
+          stream={shareLocalStream}
+          kbps={shareKbps}
+          onStop={handleStopShare}
+        />
+      )}
+
       {showKeyboardShortcuts && (
         <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />
       )}
@@ -2586,6 +2599,13 @@ export default function App() {
         videoNameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
         onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
+        selfMuted={selfMuted}
+        selfDeafened={selfDeafened}
+        onToggleSelfMute={handleToggleMute}
+        onToggleSelfDeafen={handleToggleDeafen}
+        canUseSoundboard={canUseSoundboard}
+        onTriggerSoundboardClip={handleTriggerSoundboardClip}
+        soundboardPlayingClipId={soundboardPlayingClipId}
       /></>}
       </MobileShell>
 

@@ -13,6 +13,7 @@ import type {
   VoiceParticipant,
   ActiveStream,
   Poll,
+  SoundboardClip,
 } from "../types";
 import { UserListGrouped } from "./UserListGrouped";
 import { BotCard } from "./BotCard";
@@ -137,6 +138,13 @@ interface Props {
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onOpenUserProfile?: (pubkey: string) => void;
+  selfMuted?: boolean;
+  selfDeafened?: boolean;
+  onToggleSelfMute?: () => void;
+  onToggleSelfDeafen?: () => void;
+  canUseSoundboard?: boolean;
+  onTriggerSoundboardClip?: (clip: SoundboardClip) => void;
+  soundboardPlayingClipId?: string | null;
 }
 
 export function ContentArea({
@@ -169,6 +177,8 @@ export function ContentArea({
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
   onOpenUserProfile,
+  selfMuted, selfDeafened, onToggleSelfMute, onToggleSelfDeafen,
+  canUseSoundboard, onTriggerSoundboardClip, soundboardPlayingClipId,
 }: Props) {
   const { t } = useTranslation();
 
@@ -484,6 +494,13 @@ export function ContentArea({
               onToast={onToast}
               onError={onError}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
+              selfMuted={selfMuted}
+              selfDeafened={selfDeafened}
+              onToggleSelfMute={onToggleSelfMute}
+              onToggleSelfDeafen={onToggleSelfDeafen}
+              canUseSoundboard={canUseSoundboard}
+              onTriggerSoundboardClip={onTriggerSoundboardClip}
+              soundboardPlayingClipId={soundboardPlayingClipId}
             />
             <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               {(["messages", "events"] as const).map((tab) => (

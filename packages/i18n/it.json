@@ -130,6 +130,8 @@
   "voice.whisper": "Sussurro",
   "voice.hub_streams": "Stream hub",
   "voice.sharing": "Stai condividendo",
+  "voice.self_preview.expand": "Espandi anteprima condivisione",
+  "voice.self_preview.collapse": "Comprimi anteprima condivisione",
   "voice.joined.aria": "Entrato in voce in {channel} con {count, plural, one {# partecipante} other {# partecipanti}}",
   "voice.left.aria": "Uscito dalla voce",
   "voice.soundboard": "Tavola sonora",

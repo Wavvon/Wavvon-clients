@@ -130,6 +130,8 @@
   "voice.whisper": "Flüstern",
   "voice.hub_streams": "Hub-Streams",
   "voice.sharing": "You're sharing",
+  "voice.self_preview.expand": "Freigabevorschau einblenden",
+  "voice.self_preview.collapse": "Freigabevorschau ausblenden",
   "voice.joined.aria": "Sprachkanal {channel} beigetreten mit {count, plural, one {# Teilnehmer} other {# Teilnehmern}}",
   "voice.left.aria": "Sprachkanal verlassen",
   "voice.soundboard": "Soundboard",

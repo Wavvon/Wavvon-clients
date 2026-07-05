@@ -50,7 +50,7 @@ export function BotCard({ pubkey, anchorRect, onClose }: Props) {
       ) : (
         <>
           <div className="bot-card-header">
-            <Avatar src={profile.avatar_url} name={profile.name} size={40} />
+            <Avatar src={profile.avatar_url} name={profile.name} pubkey={pubkey} size={40} />
             <div className="bot-card-identity">
               <span className="bot-card-name">{profile.name}</span>
               <span className="bot-badge">BOT</span>

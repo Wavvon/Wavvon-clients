@@ -88,7 +88,7 @@ export function UserListGrouped({
                 className="user-list-item"
                 onContextMenu={(e) => onContextMenu?.(e, u)}
               >
-                <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
+                <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
                 <span
                   className={`status-dot ${u.status === "away" ? "away" : u.status === "dnd" ? "dnd" : "online"}`}
                   title={u.status === "away" ? "Away" : u.status === "dnd" ? "Do Not Disturb" : "Online"}
@@ -121,7 +121,7 @@ export function UserListGrouped({
                 className="user-list-item offline"
                 onContextMenu={(e) => onContextMenu?.(e, u)}
               >
-                <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
+                <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
                 <span className="status-dot offline" />
                 <span className="user-name">
                   {u.display_name || u.public_key.slice(0, 16)}
@@ -151,7 +151,7 @@ export function UserListGrouped({
               style={{ cursor: onBotClick ? "pointer" : undefined }}
               onClick={onBotClick ? (e) => onBotClick(bot.public_key, e) : undefined}
             >
-              <Avatar src={bot.avatar} name={bot.display_name ?? bot.public_key} size={22} />
+              <Avatar src={bot.avatar} name={bot.display_name ?? bot.public_key} pubkey={bot.public_key} size={22} />
               <span className="member-name">{bot.display_name ?? "Bot"}</span>
               <span className="bot-badge">BOT</span>
             </div>

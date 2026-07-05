@@ -200,7 +200,7 @@ export function MessageRow({
           style={{ cursor: senderUser?.is_bot ? "pointer" : undefined }}
           onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : undefined}
         >
-          <Avatar src={senderUser?.avatar} name={senderLabel} size={28} />
+          <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={28} />
         </span>
         <span
           className="message-sender"

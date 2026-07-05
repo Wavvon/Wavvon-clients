@@ -78,7 +78,7 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
         {profile && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} size={48} />
+              <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} pubkey={pubkey} size={48} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>
                   {profile.display_name ?? <span className="muted">{t("profile.no_display_name")}</span>}
