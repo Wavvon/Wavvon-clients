@@ -8,6 +8,7 @@ import {
   issueCertManual,
   revokeCert,
 } from "../platform/commands/hubAdmin";
+import { grantUserBadge } from "../platform/commands/certifications";
 
 interface Props {
   hubUrl: string;
@@ -21,6 +22,26 @@ export function CertificationsSection({ hubUrl: _hubUrl, members }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | string>("idle");
   const [manualTarget, setManualTarget] = useState("");
+  const [badgeTarget, setBadgeTarget] = useState("");
+  const [badgeLabel, setBadgeLabel] = useState("");
+  const [badgeIcon, setBadgeIcon] = useState("");
+  const [badgeStatus, setBadgeStatus] = useState("");
+
+  async function handleGrantBadge() {
+    if (!badgeTarget || !badgeLabel.trim()) return;
+    setBadgeStatus("Granting…");
+    try {
+      await grantUserBadge(badgeTarget, badgeLabel.trim(), undefined, badgeIcon.trim() || undefined);
+      setBadgeStatus(`Granted “${badgeLabel.trim()}” ✓`);
+      setBadgeLabel("");
+      setBadgeIcon("");
+      setBadgeTarget("");
+      await load();
+      setTimeout(() => setBadgeStatus(""), 2500);
+    } catch (e) {
+      setBadgeStatus(String(e));
+    }
+  }
 
   useEffect(() => { void load(); }, []);
 
@@ -161,6 +182,42 @@ export function CertificationsSection({ hubUrl: _hubUrl, members }: Props) {
           </select>
           <button onClick={handleManualIssue} disabled={!manualTarget}>Issue cert</button>
         </div>
+      </div>
+
+      <div className="settings-section">
+        <label className="settings-label">Grant a badge</label>
+        <p className="muted">
+          Award a named achievement badge (e.g. “Raid Leader”, “Top contributor”). It lands in the
+          member’s portfolio and links back to this community.
+        </p>
+        <div className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
+          <select value={badgeTarget} onChange={(e) => setBadgeTarget(e.target.value)} style={{ flex: 1, minWidth: 160 }}>
+            <option value="">— Select member —</option>
+            {members.map((m) => (
+              <option key={m.public_key} value={m.public_key}>
+                {m.display_name || formatPubkey(m.public_key)}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={badgeIcon}
+            onChange={(e) => setBadgeIcon(e.target.value)}
+            placeholder="🏆"
+            aria-label="Badge icon"
+            style={{ width: 56, textAlign: "center" }}
+          />
+          <input
+            type="text"
+            value={badgeLabel}
+            onChange={(e) => setBadgeLabel(e.target.value)}
+            placeholder="Badge name"
+            aria-label="Badge name"
+            style={{ flex: 1, minWidth: 140 }}
+          />
+          <button onClick={handleGrantBadge} disabled={!badgeTarget || !badgeLabel.trim()}>Grant badge</button>
+        </div>
+        {badgeStatus && <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{badgeStatus}</p>}
       </div>
 
       <div className="settings-section">

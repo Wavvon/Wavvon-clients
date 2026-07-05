@@ -77,29 +77,23 @@ export async function listCertIssuances(): Promise<CertIssuance[]> {
 }
 
 export async function getCertSettings(): Promise<CertAdmissionSettings> {
-  const r = await hubFetch("/admin/certs/settings");
+  const r = await hubFetch("/admin/settings/certs");
   return r.json() as Promise<CertAdmissionSettings>;
 }
 
 export async function saveCertSettings(settings: Partial<CertAdmissionSettings>): Promise<void> {
-  await hubFetch("/admin/certs/settings", {
+  await hubFetch("/admin/settings/certs", {
     method: "PATCH",
     body: JSON.stringify(settings),
   });
 }
 
 export async function issueCertManual(subjectPubkey: string): Promise<void> {
-  await hubFetch("/admin/certs/issue", {
-    method: "POST",
-    body: JSON.stringify({ subject_pubkey: subjectPubkey }),
-  });
+  await hubFetch(`/admin/certs/${subjectPubkey}`, { method: "POST" });
 }
 
 export async function revokeCert(subjectPubkey: string): Promise<void> {
-  await hubFetch("/admin/certs/revoke", {
-    method: "POST",
-    body: JSON.stringify({ subject_pubkey: subjectPubkey }),
-  });
+  await hubFetch(`/admin/certs/${subjectPubkey}/revoke`, { method: "POST" });
 }
 
 export async function fetchMyCert(hubUrl: string): Promise<unknown> {

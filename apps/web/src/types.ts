@@ -927,6 +927,11 @@ export interface CertPayload {
   issued_at: number;
   expires_at: number;
   capabilities: string[];
+  // Achievement badge: present → this cert is a named badge granted by the
+  // issuer community. issuer_url links back to that hub.
+  label?: string | null;
+  description?: string | null;
+  icon?: string | null;
 }
 
 export interface HubCertification {

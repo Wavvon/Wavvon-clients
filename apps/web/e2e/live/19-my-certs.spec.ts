@@ -12,6 +12,6 @@ test("my certifications section renders", async ({ page }) => {
   await page.locator(".btn-icon-gear").click();
   await page.getByRole("button", { name: "Account", exact: true }).click();
 
-  await expect(page.getByText("My certifications")).toBeVisible();
-  await expect(page.getByText("No certifications yet.")).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText("Badges & certifications")).toBeVisible();
+  await expect(page.getByText("No badges or certifications yet.")).toBeVisible({ timeout: 10000 });
 });
