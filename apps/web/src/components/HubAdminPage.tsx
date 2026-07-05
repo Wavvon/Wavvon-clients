@@ -131,7 +131,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "bans", label: t("hub.admin.tabs.bans") },
     { id: "invites", label: t("hub.admin.tabs.invites") },
     { id: "integrations", label: t("hub.admin.tabs.integrations") },
-    { id: "outgoing-webhooks", label: t("hub.admin.tabs.outgoing_webhooks") },
     { id: "external-bots", label: t("admin.tabs.external_bots") },
     { id: "certifications", label: t("admin.tabs.certifications") },
     { id: "recovery", label: t("admin.tabs.recovery") },
@@ -377,11 +376,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "roles" && <RolesSection />}
 
         {props.tab === "integrations" && (
-          <WebhooksSection channels={props.channels} />
-        )}
-
-        {props.tab === "outgoing-webhooks" && (
-          <OutgoingWebhooksSection channels={props.channels} />
+          <>
+            <WebhooksSection channels={props.channels} />
+            <OutgoingWebhooksSection channels={props.channels} />
+          </>
         )}
 
         {props.tab === "external-bots" && (

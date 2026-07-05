@@ -268,8 +268,8 @@ export function OutgoingWebhooksSection({ channels }: Props) {
   }
 
   return (
-    <section>
-      <h1>{t("hub.admin.tabs.outgoing_webhooks")}</h1>
+    <section style={{ marginTop: "var(--space-5)" }}>
+      <h2>{t("hub.admin.tabs.outgoing_webhooks")}</h2>
       <p className="muted">
         Register an external HTTPS endpoint to receive a push for selected hub events. No bot identity
         or persistent connection required.
