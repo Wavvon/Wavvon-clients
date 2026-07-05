@@ -10,7 +10,12 @@ import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, channelPath } from "@wavvon/core";
+import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath } from "@wavvon/core";
+
+// Voice join/leave sound cues, gated by a preference (default on).
+function voiceSoundsOn(): boolean {
+  try { return localStorage.getItem("wavvon.voiceSounds") !== "0"; } catch { return true; }
+}
 import { parseHubInput } from "@wavvon/core";
 import type { HubInputResult } from "@wavvon/core";
 import type {
@@ -618,6 +623,19 @@ export default function App() {
       window.removeEventListener("keyup", up);
     };
   }, [pttConfig.enabled, pttConfig.key, voiceChannelId]);
+
+  // Sound cue when someone else joins/leaves the voice channel you're in.
+  // Counts OTHERS only, so it never double-fires with the self join/leave tone.
+  const prevVoiceOthersRef = useRef(0);
+  useEffect(() => {
+    if (!voiceChannelId) { prevVoiceOthersRef.current = 0; return; }
+    const others = (voicePartByChannel[voiceChannelId] ?? []).filter((p) => p.public_key !== publicKey).length;
+    const prev = prevVoiceOthersRef.current;
+    if (voiceSoundsOn() && others !== prev) {
+      try { playVoiceTone(others > prev ? "up" : "down"); } catch { /* audio not ready */ }
+    }
+    prevVoiceOthersRef.current = others;
+  }, [voicePartByChannel, voiceChannelId, publicKey]);
 
   const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
@@ -1615,6 +1633,7 @@ export default function App() {
         // lands there instead, never in the spawner itself.
         onReady: (_senderId, _participants, channelId) => {
           setVoiceChannelId(channelId);
+          if (voiceSoundsOn()) { try { playVoiceTone("up"); } catch { /* audio not ready */ } }
           setSelfMuted(false);
           setSelfDeafened(false);
           const me = meInfoRef.current;
@@ -1746,6 +1765,7 @@ export default function App() {
   }
 
   function handleVoiceLeave() {
+    if (voiceChannelId && voiceSoundsOn()) { try { playVoiceTone("down"); } catch { /* audio not ready */ } }
     const channelId = voiceChannelId;
     // Camera + whisper are scoped to the voice session — tear them down too.
     videoSessionRef.current?.dispose();

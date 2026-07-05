@@ -353,6 +353,13 @@ export function SettingsPage(props: SettingsPageProps) {
     void i18n.changeLanguage(lng);
     try { localStorage.setItem("wavvon_language", lng); } catch { /* ignore */ }
   }
+  const [voiceSounds, setVoiceSounds] = useState(() => {
+    try { return localStorage.getItem("wavvon.voiceSounds") !== "0"; } catch { return true; }
+  });
+  function toggleVoiceSounds(on: boolean) {
+    setVoiceSounds(on);
+    try { localStorage.setItem("wavvon.voiceSounds", on ? "1" : "0"); } catch { /* ignore */ }
+  }
   const TABS: { id: SettingsTab; label: string }[] = [
     { id: "profile", label: t("settings.tabs.profile") },
     { id: "notifications", label: t("settings.tabs.notifications") },
@@ -519,6 +526,20 @@ export function SettingsPage(props: SettingsPageProps) {
                   onChange={(e) => props.onMentionPingChange?.(e.target.checked)}
                 />
                 {t("settings.notifications.mention.enable")}
+              </label>
+            </div>
+            <div className="settings-section" style={{ marginBottom: 20 }}>
+              <label className="settings-label">Voice sounds</label>
+              <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
+                Play a short tone when you or someone else joins or leaves your voice channel.
+              </p>
+              <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={voiceSounds}
+                  onChange={(e) => toggleVoiceSounds(e.target.checked)}
+                />
+                Play voice join/leave sounds
               </label>
             </div>
             <div className="settings-section" style={{ marginBottom: 20 }}>
