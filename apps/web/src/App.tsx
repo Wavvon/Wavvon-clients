@@ -1733,7 +1733,13 @@ export default function App() {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      // Honor the camera chosen in Settings → Voice, if any.
+      let camId: string | null = null;
+      try { camId = localStorage.getItem("wavvon.videoInputDevice"); } catch { /* ignore */ }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: camId ? { deviceId: { exact: camId } } : true,
+        audio: false,
+      });
       videoSessionRef.current.enable(stream);
       setLocalVideoStream(stream);
       setVideoEnabled(true);

@@ -24,6 +24,7 @@ import { FullArchiveSection } from "./FullArchiveSection";
 import { ImagePicker } from "./ImagePicker";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { AudioDevicesSection } from "./AudioDevicesSection";
+import { CameraSection } from "./CameraSection";
 import { MyCertificationsSection } from "./MyCertificationsSection";
 import { PushToTalkSection } from "./PushToTalkSection";
 import { ProfilesSection } from "./ProfilesSection";
@@ -675,6 +676,7 @@ export function SettingsPage(props: SettingsPageProps) {
               inVoice={false}
             />
             <AudioDevicesSection />
+            <CameraSection />
             <MicLevelMeter />
             <PushToTalkSection />
           </section>
