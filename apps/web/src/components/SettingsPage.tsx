@@ -23,6 +23,7 @@ import { IdentityBackupSection } from "./IdentityBackupSection";
 import { FullArchiveSection } from "./FullArchiveSection";
 import { ImagePicker } from "./ImagePicker";
 import { MicLevelMeter } from "./MicLevelMeter";
+import { AudioDevicesSection } from "./AudioDevicesSection";
 import { MyCertificationsSection } from "./MyCertificationsSection";
 import { PushToTalkSection } from "./PushToTalkSection";
 import { ProfilesSection } from "./ProfilesSection";
@@ -652,6 +653,7 @@ export function SettingsPage(props: SettingsPageProps) {
               onCustomComplexity={(v) => updateAudioProfile({ customComplexity: v })}
               inVoice={false}
             />
+            <AudioDevicesSection />
             <MicLevelMeter />
             <PushToTalkSection />
           </section>

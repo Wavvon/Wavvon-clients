@@ -172,9 +172,22 @@ export class VoiceWsSession {
     this.encoder = new OpusScript(48000, channels, opusApp, { wasm: false }) as unknown as OpusCodec;
     this.decoder = new OpusScript(48000, 1, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
 
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Honor the user's chosen input device (Settings → Voice), if any.
+    let inputId: string | null = null;
+    try { inputId = localStorage.getItem("wavvon.audioInputDevice"); } catch { /* ignore */ }
+    this.mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: inputId ? { deviceId: { exact: inputId } } : true,
+    });
 
     this.audioCtx = new AudioContext({ sampleRate: 48000 });
+    // Route playback to the chosen output device where supported (Chrome 110+).
+    try {
+      const outputId = localStorage.getItem("wavvon.audioOutputDevice");
+      const ctx = this.audioCtx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
+      if (outputId && typeof ctx.setSinkId === "function") {
+        await ctx.setSinkId(outputId).catch(() => { /* device gone — fall back to default */ });
+      }
+    } catch { /* setSinkId unsupported */ }
     const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
     this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
     this.processor.onaudioprocess = (e) => this.onAudioProcess(e);
