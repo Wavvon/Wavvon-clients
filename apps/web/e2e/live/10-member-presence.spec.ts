@@ -1,16 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
 
-// P10 — member list refresh + presence. The web client has no
-// online/away/DND/custom status picker (presence is a binary online dot
-// driven by member_online/member_offline WS events), so this covers what
-// exists: a named member showing up online, then flipping to offline live
-// when they disconnect.
-//
-// Known gap (documented, not asserted): a brand-new member does NOT appear
-// in an already-loaded client's list until that client refetches /users
-// (onMemberOnline only flips `online` on users already in the array), so
-// the owner reloads once to pick the new member up.
+// P10 — member list refresh + presence: a named member showing up online
+// LIVE, flipping to offline when they disconnect, and the away/DND/custom
+// status picker (footer identity → status menu; hub-synced over
+// set_status/member_status).
 
 test("a member shows online, then flips offline live when they leave", async ({ page, browser }) => {
   test.setTimeout(90000);
@@ -44,5 +38,41 @@ test("a member shows online, then flips offline live when they leave", async ({ 
     await expect(page.locator("li.user-list-item.offline").first()).toBeVisible({ timeout: 15000 });
   } finally {
     if (context.pages().length) await context.close();
+  }
+});
+
+test("status picker: member goes DND with custom text; others see it live", async ({ page, browser }) => {
+  test.setTimeout(90000);
+  await page.goto("/");
+  await expectInHub(page);
+
+  const memberName = uniqueName("Dnd");
+  const { context, page: member } = await newMemberPage(browser, memberName);
+  try {
+    // Member opens the footer status picker and goes DND with a custom text.
+    await member.locator(".user-identity-details").click();
+    const menu = member.locator(".status-menu");
+    await expect(menu).toBeVisible();
+    const custom = `raiding ${Date.now()}`;
+    await menu.getByPlaceholder("Custom status…").fill(custom);
+    await menu.getByRole("button", { name: "Do Not Disturb" }).click();
+    await expect(menu).not.toBeVisible();
+
+    // Member's own footer reflects it (dot + custom text).
+    await expect(member.locator(".user-identity .user-status-dot.status-dnd")).toBeVisible();
+    await expect(member.locator(".user-identity-custom-status")).toHaveText(custom);
+
+    // The owner's member list shows the DND dot and the custom text live.
+    const memberRow = page.locator("li.user-list-item", { hasText: memberName });
+    await expect(memberRow.locator(".status-dot.dnd")).toBeVisible({ timeout: 15000 });
+    await expect(memberRow).toContainText(custom);
+
+    // Back to online clears both, again live for the owner.
+    await member.locator(".user-identity-details").click();
+    await member.locator(".status-menu").getByRole("button", { name: "Online", exact: true }).click();
+    await expect(memberRow.locator(".status-dot.online")).toBeVisible({ timeout: 15000 });
+    await expect(memberRow).not.toContainText(custom);
+  } finally {
+    await context.close();
   }
 });

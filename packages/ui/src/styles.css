@@ -4652,8 +4652,33 @@ select:focus-visible {
   background: var(--success);
 }
 
+.status-dot.away {
+  background: #faa81a;
+}
+
+.status-dot.dnd {
+  background: var(--danger, #ed4245);
+}
+
 .status-dot.offline {
   background: var(--text-faint);
+}
+
+/* Custom presence text appended after a member's name in the member list. */
+.user-custom-status {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-style: italic;
+}
+
+/* Own custom status under the display name in the sidebar footer. */
+.user-identity-custom-status {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-name {

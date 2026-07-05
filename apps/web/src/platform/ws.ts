@@ -27,6 +27,13 @@ export interface WsHandlers {
     avatar: string | null,
     hubId: string,
   ) => void;
+  /** Presence status changed: status is null (online), "away", or "dnd". */
+  onMemberStatus?: (
+    publicKey: string,
+    status: string | null,
+    custom: string | null,
+    hubId: string,
+  ) => void;
   onBotApp?: (e: object) => void;
 }
 
@@ -157,6 +164,13 @@ export class HubWebSocket {
         tagged.public_key as string,
         (tagged.display_name as string | null) ?? null,
         (tagged.avatar as string | null) ?? null,
+        this.hub_id,
+      );
+    } else if (type === "member_status") {
+      this.handlers.onMemberStatus?.(
+        tagged.public_key as string,
+        (tagged.status as string | null) ?? null,
+        (tagged.custom as string | null) ?? null,
         this.hub_id,
       );
     } else if (type === "bot_app_launch" || type === "bot_app_open" || type === "bot_app_close") {

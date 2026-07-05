@@ -89,9 +89,15 @@ export function UserListGrouped({
                 onContextMenu={(e) => onContextMenu?.(e, u)}
               >
                 <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
-                <span className="status-dot online" />
-                <span className="user-name">
+                <span
+                  className={`status-dot ${u.status === "away" ? "away" : u.status === "dnd" ? "dnd" : "online"}`}
+                  title={u.status === "away" ? "Away" : u.status === "dnd" ? "Do Not Disturb" : "Online"}
+                />
+                <span className="user-name" title={u.status_custom ?? undefined}>
                   {u.display_name || u.public_key.slice(0, 16)}
+                  {u.status_custom && (
+                    <span className="user-custom-status"> — {u.status_custom}</span>
+                  )}
                 </span>
                 {inVoice?.has(u.public_key) && (
                   <span className="user-in-voice" title="In voice">

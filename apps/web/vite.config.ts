@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve, dirname, join } from "path";
@@ -57,5 +58,10 @@ export default defineConfig({
   },
   server: {
     port: 1421,
+  },
+  test: {
+    // Playwright specs live under e2e/ and must not be collected by vitest
+    // (they call @playwright/test's test() which throws outside its runner).
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
   },
 });

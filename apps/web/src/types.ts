@@ -160,6 +160,10 @@ export interface User {
   display_name: string | null;
   avatar: string | null;
   online: boolean;
+  /** Presence while online: absent/null = plain online, "away", "dnd". */
+  status?: string | null;
+  /** Optional short custom status text (only present while online). */
+  status_custom?: string | null;
   group_role: string | null;
   is_bot?: boolean;
   is_webhook?: boolean;

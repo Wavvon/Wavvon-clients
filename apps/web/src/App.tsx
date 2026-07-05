@@ -66,7 +66,7 @@ import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
-import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions } from "@platform";
+import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
   restorePersistedHubs,
@@ -1043,6 +1043,14 @@ export default function App() {
           u.public_key === publicKey ? { ...u, display_name: displayName, avatar } : u,
         );
       });
+    },
+    onMemberStatus: (publicKey, status, custom, hubId) => {
+      if (hubId !== activeHubIdRef.current) return;
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.public_key === publicKey ? { ...u, status, status_custom: custom } : u,
+        ),
+      );
     },
     onVoiceZoneState: (raw) => {
       const m = raw as { channel_id?: string; zones?: import("./platform/voice").VoiceZone[]; _hub_id?: string };
@@ -2398,6 +2406,17 @@ export default function App() {
         onSelectChannel={handleSelectChannel}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         canOpenChannelSettings={isAdmin || canManageRoles}
+        myStatus={users.find((u) => u.public_key === publicKey)?.status ?? null}
+        myStatusCustom={users.find((u) => u.public_key === publicKey)?.status_custom ?? null}
+        onSetStatus={(status, custom) => {
+          try { sendSetStatus(status, custom); } catch { /* ws not ready */ }
+          // Optimistic: the hub's member_status broadcast will confirm.
+          setUsers((prev) => prev.map((u) =>
+            u.public_key === publicKey
+              ? { ...u, status: status === "online" ? null : status, status_custom: custom }
+              : u,
+          ));
+        }}
         onOpenChannelSettings={(channel) => { setChannelSettingsCtx(channel); setChannelSettingsError(null); }}
         onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
         onVoiceLeave={handleVoiceLeave}

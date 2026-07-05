@@ -173,6 +173,12 @@ interface Props {
    * manage_roles member may open channel settings (Permissions tab).
    * Falls back to isAdmin when omitted. */
   canOpenChannelSettings?: boolean;
+  /** Own presence: null/undefined = online, "away", "dnd". */
+  myStatus?: string | null;
+  /** Own custom status text shown under the display name. */
+  myStatusCustom?: string | null;
+  /** Present = footer identity opens the status picker. */
+  onSetStatus?: (status: "online" | "away" | "dnd", custom: string | null) => void;
   hubNotifyMode: Record<string, NotifyMode>;
   hubDropdownOpen: boolean;
   hideSilenced?: boolean;
@@ -220,7 +226,7 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, selfMuted, selfDeafened,
-  users, publicKey, pingByHub, isAdmin, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
+  users, publicKey, pingByHub, isAdmin, canOpenChannelSettings, myStatus, myStatusCustom, onSetStatus, hubNotifyMode, hubDropdownOpen,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
   conversations, selectedConversation, unreadDms,
@@ -238,6 +244,12 @@ export function ChannelSidebar({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [hubCtxMenu, setHubCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [statusCustomDraft, setStatusCustomDraft] = useState(myStatusCustom ?? "");
+  // Re-seed the draft each time the picker opens so it reflects the current text.
+  useEffect(() => {
+    if (showStatusMenu) setStatusCustomDraft(myStatusCustom ?? "");
+  }, [showStatusMenu, myStatusCustom]);
   const hubHeaderRef = useRef<HTMLDivElement>(null);
   const [channelFocusIndex, setChannelFocusIndex] = useState(0);
   const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -844,11 +856,57 @@ export function ChannelSidebar({
         )}
 
         <div className="user-identity">
-          <div className="user-identity-avatar" />
-          <div className="user-identity-details">
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div className="user-identity-avatar" />
+            <span className={`user-status-dot status-${myStatus ?? "online"}`} />
+          </div>
+          <div
+            className="user-identity-details"
+            style={onSetStatus ? { cursor: "pointer" } : undefined}
+            onClick={onSetStatus ? () => setShowStatusMenu((v) => !v) : undefined}
+          >
             <span className="user-identity-name" title={publicKey ?? undefined}>
               {myDisplayName || publicKey?.slice(0, 12) || "You"}
             </span>
+            {myStatusCustom && (
+              <span className="user-identity-custom-status" title={myStatusCustom}>
+                {myStatusCustom}
+              </span>
+            )}
+            {showStatusMenu && onSetStatus && (
+              <div className="status-menu" onClick={(e) => e.stopPropagation()}>
+                {(["online", "away", "dnd"] as const).map((s) => (
+                  <button
+                    key={s}
+                    className={`status-menu-item ${(myStatus ?? "online") === s ? "active" : ""}`}
+                    onClick={() => {
+                      // "Online" means back-to-normal: clear the custom text too.
+                      onSetStatus(s, s === "online" ? null : statusCustomDraft.trim() || null);
+                      setShowStatusMenu(false);
+                    }}
+                  >
+                    <span className={`user-status-dot status-${s}`} style={{ marginRight: 6, position: "static" }} />
+                    {t(`presence.${s}`)}
+                  </button>
+                ))}
+                <input
+                  type="text"
+                  className="status-menu-custom"
+                  placeholder={t("presence.custom_placeholder")}
+                  value={statusCustomDraft}
+                  maxLength={100}
+                  onChange={(e) => setStatusCustomDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      onSetStatus((myStatus as "away" | "dnd" | null) ?? "online", statusCustomDraft.trim() || null);
+                      setShowStatusMenu(false);
+                    }
+                    if (e.key === "Escape") setShowStatusMenu(false);
+                  }}
+                  style={{ margin: "4px 6px", width: "calc(100% - 12px)", fontSize: "var(--text-xs)" }}
+                />
+              </div>
+            )}
           </div>
           <button onClick={onOpenSettings} className="btn-icon-gear" title={t("settings.title")}>
             ⚙

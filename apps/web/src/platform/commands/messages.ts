@@ -113,6 +113,13 @@ export function sendDmTypingEvent(conversation_id: string, typing: boolean): voi
   s.ws?.send({ type: "dm_typing", conversation_id, typing });
 }
 
+/** Set own presence status: "online" clears, "away"/"dnd" set it; custom is
+ * an optional short status text. Persisted hub-side across reconnects. */
+export function sendSetStatus(status: "online" | "away" | "dnd", custom?: string | null): void {
+  const s = activeSession();
+  s.ws?.send({ type: "set_status", status, custom: custom ?? null });
+}
+
 export async function getAllianceChannelMessages(
   allianceId: string,
   channelId: string,
