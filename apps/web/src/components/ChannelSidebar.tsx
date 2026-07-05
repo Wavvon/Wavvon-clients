@@ -579,7 +579,13 @@ export function ChannelSidebar({
                         unread={!!activeHubId && !!unreadByChannel[activeHubId]?.[n.node.id]}
                         unreadCount={activeHubId ? Object.keys(unreadByChannel[activeHubId] ?? {}).filter(id => id === n.node.id).length : 0}
                         muted={!!activeHubId && effectiveNotifyMode(activeHubId, n.node.id) === "silent"}
-                        participants={voiceChannelId === n.node.id ? [] : (voicePartByChannel[n.node.id] ?? [])}
+                        // Full roster for every voice channel INCLUDING the one
+                        // we're in — blanking our own channel (f3ee45e's
+                        // "duplicate self" fix) meant you never saw yourself (or
+                        // anyone) under the channel you joined. The footer voice
+                        // bar duplicating this is fine: it's the controls
+                        // surface (gain sliders); the row is who-is-where.
+                        participants={voicePartByChannel[n.node.id] ?? []}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         hubUrl={activeHub?.hub_url}
                         ownerDisplayName={resolveOwnerDisplayName(n.node.owner_pubkey, users)}
