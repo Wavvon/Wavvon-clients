@@ -2087,6 +2087,24 @@ select,
   gap: 6px;
 }
 
+/* Long channel names must ellipsis-truncate so the row stays within the
+   sidebar and the settings gear / badges remain reachable — otherwise the
+   name pushed them off-screen and the channel couldn't be managed. */
+.channel-item .channel-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.channel-item .channel-settings-btn,
+.channel-item .channel-temp-badge,
+.channel-item .channel-draft-badge,
+.channel-item .channel-voice-badge,
+.channel-item .channel-muted-icon {
+  flex-shrink: 0;
+}
+
 .hub-icon.muted {
   opacity: 0.55;
 }

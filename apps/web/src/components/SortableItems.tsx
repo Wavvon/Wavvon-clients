@@ -200,7 +200,7 @@ export function SortableChannelItem({
         )}
         {!isSpawner && unread && <span className="channel-unread-dot" aria-hidden="true" />}
         <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
-        {" "}{channel.name}
+        <span className="channel-name">{channel.name}</span>
         {isTemporary && (
           <span className="channel-temp-badge">{t("channel.temp.badge")}</span>
         )}
