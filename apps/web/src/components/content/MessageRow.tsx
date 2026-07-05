@@ -57,6 +57,7 @@ interface Props {
   onOpenImage: (src: string, alt: string) => void;
   onOpenBotCard: (pubkey: string, e: React.MouseEvent) => void;
   onAuthorClick: (pubkey: string) => void;
+  onAuthorContextMenu: (e: React.MouseEvent, pubkey: string, fallbackName: string | null) => void;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onMessageKeyDown: (e: React.KeyboardEvent<HTMLLIElement>, index: number, displayedMessages: Message[]) => void;
   onComponentInteract: (messageId: string, customId: string, values: string[]) => void;
@@ -101,6 +102,7 @@ export function MessageRow({
   onOpenImage,
   onOpenBotCard,
   onAuthorClick,
+  onAuthorContextMenu,
   onPinToggle,
   onMessageKeyDown,
   onComponentInteract,
@@ -161,7 +163,11 @@ export function MessageRow({
           className={`message message-action message-row ${isMentioned ? "message-mentioned" : ""}`}
         >
           <span className="action-asterisk" aria-hidden="true">*</span>
-          <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+          <span
+            className="message-sender"
+            style={{ color: colorForKey(m.sender) }}
+            onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
+          >
             {senderLabel}
           </span>
           <span className="action-text">
@@ -199,6 +205,7 @@ export function MessageRow({
         <span
           style={{ cursor: senderUser?.is_bot ? "pointer" : undefined }}
           onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : undefined}
+          onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
         >
           <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={28} />
         </span>
@@ -206,6 +213,7 @@ export function MessageRow({
           className="message-sender"
           style={{ color: colorForKey(m.sender), cursor: "pointer" }}
           onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : () => onAuthorClick(m.sender)}
+          onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
         >
           {senderLabel}
         </span>

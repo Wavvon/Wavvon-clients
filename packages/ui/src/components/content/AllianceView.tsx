@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, AllianceSharedChannel } from "../../types";
 import { formatPubkey, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
@@ -34,6 +34,14 @@ export function AllianceView({
   onOpenImage,
 }: Props) {
   const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleContainerClick(e: React.MouseEvent<HTMLElement>) {
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select")) return;
+    inputRef.current?.focus();
+  }
+
   return (
     <>
       <div className="channel-header">
@@ -72,8 +80,9 @@ export function AllianceView({
           </p>
         )}
       </div>
-      <div className="input-area">
+      <div className="input-area" onClick={handleContainerClick}>
         <input
+          ref={inputRef}
           type="text"
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}

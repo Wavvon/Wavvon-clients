@@ -475,7 +475,7 @@
   "dm.encrypted": "End-to-end encrypted",
   "message.actions.aria": "Message actions",
   "message.action.reply": "Reply",
-  "message.action.copy_link": "Copy link",
+  "message.action.copy_link": "Nachrichten-Link kopieren",
   "message.action.edit": "Edit message",
   "message.action.delete": "Delete message",
   "message.action.link_copied": "Link copied",

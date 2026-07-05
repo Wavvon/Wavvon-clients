@@ -307,6 +307,21 @@ export function ContentArea({
     }
   }
 
+  // Same member menu the sidebar member list opens on right-click. The
+  // sender may have left the hub since posting, so fall back to a minimal
+  // stand-in User built from the message's own denormalised sender fields.
+  function handleAuthorContextMenu(e: React.MouseEvent, pubkey: string, fallbackName: string | null) {
+    e.preventDefault();
+    const user = users.find((u) => u.public_key === pubkey) ?? {
+      public_key: pubkey,
+      display_name: fallbackName,
+      avatar: null,
+      online: false,
+      group_role: null,
+    };
+    onSetUserContextMenu({ x: e.clientX, y: e.clientY, user });
+  }
+
   function handleSlashInputChange(value: string) {
     onInputTextChange(value);
     if (value.startsWith("/") && !value.includes(" ")) {
@@ -574,6 +589,7 @@ export function ContentArea({
               onOpenImage={onOpenImage}
               onOpenBotCard={openBotCard}
               onAuthorClick={handleAuthorClick}
+              onAuthorContextMenu={handleAuthorContextMenu}
               onPinToggle={onPinToggle}
               onMessagesScroll={onMessagesScroll}
               onJumpToBottom={onJumpToBottom}

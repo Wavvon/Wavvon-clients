@@ -973,7 +973,11 @@ select,
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  /* Not overflow:hidden — the hub-dropdown's hover submenus (notifications
+     flyout) are absolutely positioned and intentionally escape this box
+     into the message pane. Vertical channel-list scrolling is scoped to
+     .sidebar-scroll below, which clips its own x/y independently. */
+  overflow: visible;
 }
 
 .sidebar h3 {
@@ -1087,7 +1091,10 @@ select,
   border-radius: var(--r-md);
   box-shadow: var(--shadow-md);
   padding: var(--space-1);
-  z-index: 20;
+  /* Above the message pane's own popovers (mention/slash popups, reaction
+     picker, etc. top out at z-index 1000) so its Notifications flyout
+     never renders underneath the channel content it overlaps into. */
+  z-index: 1050;
   margin-top: var(--space-1);
   animation: scale-in var(--transition-fast);
   transform-origin: top;

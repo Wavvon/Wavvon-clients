@@ -8,6 +8,7 @@ const STORAGE_KEY_HUB = "wavvon.notifyMode.hub";
 const STORAGE_KEY_CHANNEL = "wavvon.notifyMode.channel";
 const STORAGE_KEY_PINNED = "wavvon.pinnedChannels";
 const STORAGE_KEY_COLLAPSED = "wavvon.collapsedCategories";
+const STORAGE_KEY_HIDE_SILENCED = "wavvon.hideSilenced";
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -38,6 +39,9 @@ export function useNotificationPrefs() {
   );
   const [collapsedCategories, setCollapsedCategoriesState] = useState<Record<string, Record<string, boolean>>>(
     () => readJson(STORAGE_KEY_COLLAPSED, {}),
+  );
+  const [hideSilenced, setHideSilencedState] = useState<boolean>(
+    () => readJson(STORAGE_KEY_HIDE_SILENCED, false),
   );
 
   const setHubNotifyMode = useCallback((updater: (prev: HubNotifyMode) => HubNotifyMode) => {
@@ -72,6 +76,14 @@ export function useNotificationPrefs() {
     });
   }, []);
 
+  const toggleHideSilenced = useCallback(() => {
+    setHideSilencedState((prev) => {
+      const next = !prev;
+      writeJson(STORAGE_KEY_HIDE_SILENCED, next);
+      return next;
+    });
+  }, []);
+
   function effectiveNotifyMode(hubId: string, channelId: string): NotifyMode {
     return channelNotifyMode[hubId]?.[channelId] ?? hubNotifyMode[hubId] ?? "all";
   }
@@ -81,10 +93,12 @@ export function useNotificationPrefs() {
     channelNotifyMode,
     pinnedChannels,
     collapsedCategories,
+    hideSilenced,
     setHubNotifyMode,
     setChannelNotifyMode,
     setPinnedChannels,
     setCollapsedCategories,
+    toggleHideSilenced,
     effectiveNotifyMode,
   };
 }

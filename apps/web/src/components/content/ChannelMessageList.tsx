@@ -49,6 +49,7 @@ interface Props {
   onOpenImage: (src: string, alt: string) => void;
   onOpenBotCard: (pubkey: string, e: React.MouseEvent) => void;
   onAuthorClick: (pubkey: string) => void;
+  onAuthorContextMenu: (e: React.MouseEvent, pubkey: string, fallbackName: string | null) => void;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onMessagesScroll: () => void;
   onJumpToBottom: () => void;
@@ -103,6 +104,7 @@ export function ChannelMessageList({
   onOpenImage,
   onOpenBotCard,
   onAuthorClick,
+  onAuthorContextMenu,
   onPinToggle,
   onMessagesScroll,
   onJumpToBottom,
@@ -181,6 +183,7 @@ export function ChannelMessageList({
             onOpenImage={onOpenImage}
             onOpenBotCard={onOpenBotCard}
             onAuthorClick={onAuthorClick}
+            onAuthorContextMenu={onAuthorContextMenu}
             onPinToggle={onPinToggle}
             onMessageKeyDown={onMessageKeyDown}
             onComponentInteract={onComponentInteract}

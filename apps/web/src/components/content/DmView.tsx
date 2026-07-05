@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
 import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
@@ -46,6 +46,13 @@ export function DmView({
   onOpenImage,
 }: Props) {
   const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleContainerClick(e: React.MouseEvent<HTMLElement>) {
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, label")) return;
+    inputRef.current?.focus();
+  }
 
   return (
     <>
@@ -137,6 +144,7 @@ export function DmView({
         className="input-area"
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
         onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
+        onClick={handleContainerClick}
       >
         <label className="btn-attach" title={t("composer.attach")}>
           📎
@@ -148,6 +156,7 @@ export function DmView({
           />
         </label>
         <input
+          ref={inputRef}
           type="text"
           value={inputText}
           onChange={(e) => { onInputTextChange(e.target.value); if (e.target.value.length > 0) onPingDmTyping(); }}

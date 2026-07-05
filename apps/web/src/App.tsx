@@ -52,7 +52,7 @@ import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/FarmSettingsPage";
 import { CreateHubWizard } from "@components/CreateHubWizard";
-import { FocusTrap, KeyboardShortcuts } from "@wavvon/ui";
+import { FocusTrap, KeyboardShortcuts, HoverSubmenu } from "@wavvon/ui";
 import { HubAdminPage } from "./components/HubAdminPage";
 import { SearchBar } from "@components/SearchBar";
 import { WelcomeScreenContainer } from "@components/WelcomeScreen";
@@ -439,9 +439,17 @@ export default function App() {
     bumpUnread, clearUnread, clearHubUnread: clearHubUnreadFn, seedUnreadFromServer,
   } = useUnreadCounts();
   const {
-    hubNotifyMode, channelNotifyMode, pinnedChannels, collapsedCategories,
-    setHubNotifyMode, setCollapsedCategories, effectiveNotifyMode,
+    hubNotifyMode, channelNotifyMode, pinnedChannels, collapsedCategories, hideSilenced,
+    setHubNotifyMode, setChannelNotifyMode, setCollapsedCategories, toggleHideSilenced, effectiveNotifyMode,
   } = useNotificationPrefs();
+  const silencedChannelIds = useMemo(() => {
+    if (!activeHubId) return new Set<string>();
+    return new Set(
+      channels
+        .filter((c) => !c.is_category && effectiveNotifyMode(activeHubId, c.id) === "silent")
+        .map((c) => c.id),
+    );
+  }, [channels, activeHubId, effectiveNotifyMode]);
   const pubkeyToName = useMemo(() => {
     const m: Record<string, string | null> = {};
     for (const u of users) m[u.public_key] = u.display_name ?? null;
@@ -2154,6 +2162,18 @@ export default function App() {
     return <IdentitySetupScreen onComplete={handleIdentityComplete} />;
   }
 
+  // With zero hubs joined, "channels" view has nothing to show — force the
+  // rail into the DM/friends view so the shell chrome (footer identity,
+  // friends button, +add-hub) stays meaningful instead of showing an empty
+  // hub header.
+  const hasNoHubs = hubs.length === 0;
+  const sidebarView = hasNoHubs ? "dms" : view;
+  const notifyModeLabels: Record<NotifyMode, string> = {
+    all: t("hub.notifications.all"),
+    mentions: t("hub.notifications.mentions"),
+    silent: t("hub.notifications.silent"),
+  };
+
   return (
     <div className="main-layout">
       <div
@@ -2195,21 +2215,6 @@ export default function App() {
 
       {showKeyboardShortcuts && (
         <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />
-      )}
-
-      {hubs.length === 0 && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg, #1a1a2e)", overflow: "auto" }}>
-          <WelcomeScreenContainer
-            wsHandlers={stableHandlers}
-            onHubAdded={(hub) => {
-              setHubs(listHubs());
-              setActiveHubIdState(hub.hub_id);
-              void loadHubData();
-            }}
-            initialHubUrl={homeHubUrl}
-            onBrowse={() => setShowDiscover(true)}
-          />
-        </div>
       )}
 
       {showDiscover && (
@@ -2356,7 +2361,7 @@ export default function App() {
       <HubSidebar
         hubs={hubs}
         activeHubId={activeHubId}
-        view={view as "channels" | "dms"}
+        view={sidebarView as "channels" | "dms"}
         showDiscover={true}
         unreadDms={unreadDms}
         unreadByHub={unreadByHub}
@@ -2375,7 +2380,7 @@ export default function App() {
       />
 
       <ChannelSidebar
-        view={view as "channels" | "dms"}
+        view={sidebarView as "channels" | "dms"}
         activeHubId={activeHubId}
         hubs={hubs}
         channels={channels}
@@ -2392,6 +2397,8 @@ export default function App() {
         isAdmin={isAdmin}
         hubNotifyMode={hubNotifyMode}
         hubDropdownOpen={hubDropdownOpen}
+        hideSilenced={hideSilenced}
+        silencedChannelIds={silencedChannelIds}
         userAlliances={userAlliances}
         allianceChannels={allianceChannels}
         selectedAllianceChannel={selectedAllianceChannel}
@@ -2411,6 +2418,7 @@ export default function App() {
         onSetHubMode={(hubId, mode) =>
           setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
         }
+        onToggleHideSilenced={toggleHideSilenced}
         onClearHubUnread={clearHubUnread}
         onRemoveHub={handleRemoveHub}
         onOpenHubAdmin={() => void openHubAdmin()}
@@ -2456,7 +2464,22 @@ export default function App() {
         />
       )}
 
-      {activeHubId && pendingApprovalHubs.has(activeHubId) ? (
+      {hasNoHubs ? (
+        <main className="content" style={{ overflow: "auto" }}>
+          <WelcomeScreenContainer
+            wsHandlers={stableHandlers}
+            onHubAdded={(hub, target) => {
+              setHubs(listHubs());
+              setActiveHubIdState(hub.hub_id);
+              void loadHubData().then(() => {
+                if (target) return applyDeepLinkTarget(hub.hub_id, target);
+              });
+            }}
+            initialHubUrl={homeHubUrl}
+            onBrowse={() => setShowDiscover(true)}
+          />
+        </main>
+      ) : activeHubId && pendingApprovalHubs.has(activeHubId) ? (
         <main className="content" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: 40 }}>⏳</div>
           <h2 style={{ margin: 0 }}>Waiting for approval</h2>
@@ -2726,25 +2749,31 @@ export default function App() {
             style={{ top: channelCtxMenu.y, left: channelCtxMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
-            {!channelCtxMenu.channel.is_category && (
-              <button
-                className="context-menu-item"
-                onClick={async () => {
-                  const ch = channelCtxMenu.channel;
-                  setChannelCtxMenu(null);
-                  const hub = hubs.find((h) => h.hub_id === activeHubId);
-                  if (!hub) return;
-                  const link = `wavvon://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${ch.id}`;
-                  try {
-                    await navigator.clipboard.writeText(link);
-                    showHubError(t("message.action.link_copied"));
-                  } catch (e) {
-                    showHubError(String(e));
-                  }
-                }}
+            {!channelCtxMenu.channel.is_category && activeHubId && (
+              <HoverSubmenu
+                trigger={<button className="context-menu-item context-menu-submenu-trigger">{t("hub.notifications")} ▸</button>}
               >
-                {t("channel.ctx.copy_link")}
-              </button>
+                {(["all", "mentions", "silent"] as NotifyMode[]).map((mode) => {
+                  const cur = channelNotifyMode[activeHubId]?.[channelCtxMenu.channel.id] ?? hubNotifyMode[activeHubId] ?? "all";
+                  return (
+                    <button
+                      key={mode}
+                      className="context-menu-item context-menu-subitem"
+                      onClick={() => {
+                        const chId = channelCtxMenu.channel.id;
+                        setChannelCtxMenu(null);
+                        setChannelNotifyMode((prev) => {
+                          const hubMap = { ...(prev[activeHubId] ?? {}) };
+                          if (mode === "all") delete hubMap[chId]; else hubMap[chId] = mode;
+                          return { ...prev, [activeHubId]: hubMap };
+                        });
+                      }}
+                    >
+                      {cur === mode ? "✓ " : "   "}{notifyModeLabels[mode]}
+                    </button>
+                  );
+                })}
+              </HoverSubmenu>
             )}
             {!channelCtxMenu.channel.is_category &&
               channelCtxMenu.channel.is_temporary &&

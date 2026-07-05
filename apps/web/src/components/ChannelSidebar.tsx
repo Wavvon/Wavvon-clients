@@ -324,9 +324,10 @@ export function ChannelSidebar({
       }
     }
     walk(drillScope.roots);
+    if (!hideSilenced) return result;
     const silenced = silencedChannelIds ?? new Set<string>();
     return result.filter((n) => n.node.is_category || !silenced.has(n.node.id));
-  }, [drillScope, activeHubId, collapsedCategories, silencedChannelIds, isAdmin]);
+  }, [drillScope, activeHubId, collapsedCategories, silencedChannelIds, hideSilenced, isAdmin]);
 
   const activeNode = activeId ? flatVisible.find((n) => n.node.id === activeId) : null;
 

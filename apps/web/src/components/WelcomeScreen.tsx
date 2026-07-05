@@ -4,6 +4,7 @@ import { addHub, previewHubInfo } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
 import { parseHubInput } from "@wavvon/core";
+import type { HubInputResult } from "@wavvon/core";
 
 type HubPreview =
   | { state: "idle" }
@@ -148,7 +149,8 @@ export function WelcomeScreen({
 // Standalone stateful wrapper used when rendered from App.tsx.
 interface WelcomeScreenContainerProps {
   wsHandlers: WsHandlers;
-  onHubAdded: (hub: Hub) => void;
+  /** target is set when hubUrl was pasted from a channel/message permalink. */
+  onHubAdded: (hub: Hub, target?: HubInputResult["target"]) => void;
   initialHubUrl?: string;
   onBrowse?: () => void;
 }
@@ -190,7 +192,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
       const cleanUrl = parsed?.hubUrl ?? hubUrl.trim();
       const inviteCode = parsed?.inviteCode || undefined;
       const hub = await addHub(cleanUrl, wsHandlers, inviteCode ? { invite_code: inviteCode } : undefined);
-      onHubAdded(hub);
+      onHubAdded(hub, parsed?.target);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
