@@ -131,25 +131,28 @@ export function EventComposer({ channelId, onCreated, onClose }: Props) {
             />
           </div>
 
+          {/* minWidth: 0 lets each half shrink below the datetime input's
+              large intrinsic width — without it the row overflows the modal
+              and renders wider than the single-column fields above. */}
           <div className="settings-row" style={{ display: "flex", gap: 12, marginBottom: 10 }}>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="settings-label" htmlFor="event-start">Start</label>
               <input
                 id="event-start"
                 type="datetime-local"
                 value={startAt}
                 onChange={(e) => setStartAt(e.target.value)}
-                style={{ width: "100%" }}
+                style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
               />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label className="settings-label" htmlFor="event-end">End (optional)</label>
               <input
                 id="event-end"
                 type="datetime-local"
                 value={endAt}
                 onChange={(e) => setEndAt(e.target.value)}
-                style={{ width: "100%" }}
+                style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
               />
             </div>
           </div>

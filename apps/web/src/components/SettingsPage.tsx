@@ -655,6 +655,9 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "voice" && (
           <section>
             <h1 style={{ marginBottom: 20 }}>Voice</h1>
+            {/* Devices first: which mic/speaker am I on is the thing people
+                open this tab for; codec profile tuning comes after. */}
+            <AudioDevicesSection />
             <AudioProfileSection
               profile={audioProfile.profile}
               onProfile={(p) => updateAudioProfile({ profile: p })}
@@ -676,7 +679,6 @@ export function SettingsPage(props: SettingsPageProps) {
               onCustomComplexity={(v) => updateAudioProfile({ customComplexity: v })}
               inVoice={false}
             />
-            <AudioDevicesSection />
             <CameraSection />
             <MicLevelMeter />
             <PushToTalkSection />

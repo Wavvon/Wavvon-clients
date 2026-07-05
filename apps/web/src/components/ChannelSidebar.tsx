@@ -246,10 +246,22 @@ export function ChannelSidebar({
   const [hubCtxMenu, setHubCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [statusCustomDraft, setStatusCustomDraft] = useState(myStatusCustom ?? "");
+  const statusMenuRef = useRef<HTMLDivElement>(null);
   // Re-seed the draft each time the picker opens so it reflects the current text.
   useEffect(() => {
     if (showStatusMenu) setStatusCustomDraft(myStatusCustom ?? "");
   }, [showStatusMenu, myStatusCustom]);
+  // Dismiss the status picker on any click outside it.
+  useEffect(() => {
+    if (!showStatusMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showStatusMenu]);
   const hubHeaderRef = useRef<HTMLDivElement>(null);
   const [channelFocusIndex, setChannelFocusIndex] = useState(0);
   const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -861,6 +873,7 @@ export function ChannelSidebar({
             <span className={`user-status-dot status-${myStatus ?? "online"}`} />
           </div>
           <div
+            ref={statusMenuRef}
             className="user-identity-details"
             style={onSetStatus ? { cursor: "pointer" } : undefined}
             onClick={onSetStatus ? () => setShowStatusMenu((v) => !v) : undefined}
