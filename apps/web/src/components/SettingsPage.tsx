@@ -346,7 +346,12 @@ const THEMES: { value: ThemeId; label: string }[] = [
 ];
 
 export function SettingsPage(props: SettingsPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = (i18n.language ?? "en").slice(0, 2);
+  function changeLanguage(lng: string) {
+    void i18n.changeLanguage(lng);
+    try { localStorage.setItem("wavvon_language", lng); } catch { /* ignore */ }
+  }
   const TABS: { id: SettingsTab; label: string }[] = [
     { id: "profile", label: t("settings.tabs.profile") },
     { id: "notifications", label: t("settings.tabs.notifications") },
@@ -604,6 +609,20 @@ export function SettingsPage(props: SettingsPageProps) {
               {props.theme === "custom" && (
                 <SkinEditor skin={props.skin ?? makeSeed("calm")} onChange={props.onSkinChange} />
               )}
+            </div>
+            <div className="settings-section" style={{ marginTop: 20 }}>
+              <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
+              <select
+                id="settings-language"
+                value={currentLang}
+                onChange={(e) => changeLanguage(e.target.value)}
+                style={{ width: "100%", maxWidth: 320 }}
+              >
+                <option value="en">English</option>
+                <option value="it">Italiano</option>
+                <option value="es">Español</option>
+                <option value="de">Deutsch</option>
+              </select>
             </div>
             <SkinsGallery onImport={props.onImportSkin} />
           </section>
