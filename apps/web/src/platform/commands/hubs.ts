@@ -27,6 +27,8 @@ interface InfoResponse {
   name: string;
   icon: string | null;
   farm_url?: string | null;
+  welcome_label?: string | null;
+  welcome_invite_url?: string | null;
 }
 
 interface ChallengeResponse {
@@ -280,10 +282,22 @@ export async function getHubInfo(hub_id: string): Promise<Hub | null> {
   };
 }
 
-export async function previewHubInfo(hub_url: string): Promise<{ name: string; public_key: string; icon: string | null }> {
+export async function previewHubInfo(hub_url: string): Promise<{
+  name: string;
+  public_key: string;
+  icon: string | null;
+  welcome_label: string | null;
+  welcome_invite_url: string | null;
+}> {
   const url = hub_url.replace(/\/$/, "");
   const info: InfoResponse = await rawFetch(`${url}/info`).then((r) => r.json() as Promise<InfoResponse>);
-  return { name: info.name, public_key: info.public_key, icon: info.icon };
+  return {
+    name: info.name,
+    public_key: info.public_key,
+    icon: info.icon,
+    welcome_label: info.welcome_label ?? null,
+    welcome_invite_url: info.welcome_invite_url ?? null,
+  };
 }
 
 export async function reorderHubs(hub_ids: string[]): Promise<void> {

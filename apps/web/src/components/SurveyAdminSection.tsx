@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { getSurveyAdmin, setSurveyAdmin, getSurveyResponses } from "@platform";
+import { getSurveyAdmin, setSurveyAdmin, getSurveyResponses, listRoles } from "@platform";
 import type { SurveyAdmin, SurveyQuestion, SurveyChoice } from "@platform";
+import type { RoleInfo } from "../types";
 import { HubApiError } from "../platform/http";
 
 function uid(): string {
@@ -16,6 +17,7 @@ export function SurveyAdminSection() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [assignableRoles, setAssignableRoles] = useState<RoleInfo[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -28,6 +30,9 @@ export function SurveyAdminSection() {
         setSurvey({ id: uid(), enabled: false, questions: [] });
       }
     })();
+    listRoles()
+      .then((roles) => setAssignableRoles(roles.filter((r) => !r.permissions.includes("admin"))))
+      .catch(() => setAssignableRoles([]));
   }, []);
 
   function patch(next: Partial<SurveyAdmin>) {
@@ -66,6 +71,14 @@ export function SurveyAdminSection() {
       } : q),
     } : s);
   }
+  function patchChoiceRoles(qid: string, cid: string, role_ids: string[]) {
+    setSurvey((s) => s ? {
+      ...s,
+      questions: s.questions.map((q) => q.id === qid ? {
+        ...q, choices: (q.choices ?? []).map((c) => c.id === cid ? { ...c, role_ids } : c),
+      } : q),
+    } : s);
+  }
 
   async function save() {
     if (!survey) return;
@@ -93,6 +106,11 @@ export function SurveyAdminSection() {
         <input type="checkbox" checked={survey.enabled} onChange={(e) => patch({ enabled: e.target.checked })} />
         Enable this survey
       </label>
+      <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+        Roles assigned to choices below are granted automatically on submission, but only when every
+        question the member answered is multiple-choice. Surveys with any free-text answer go to manual
+        review instead.
+      </p>
 
       {survey.questions.map((q, i) => (
         <div key={q.id} className="settings-section" style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "var(--space-2)" }}>
@@ -114,15 +132,31 @@ export function SurveyAdminSection() {
           {q.kind === "choice" && (
             <div style={{ paddingLeft: "var(--space-3)", marginTop: 4 }}>
               {(q.choices ?? []).map((c) => (
-                <input
-                  key={c.id}
-                  type="text"
-                  value={c.label}
-                  onChange={(e) => patchChoice(q.id, c.id, e.target.value)}
-                  placeholder="Choice label"
-                  aria-label="Choice label"
-                  style={{ display: "block", marginBottom: 4, width: "100%", maxWidth: 320 }}
-                />
+                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: 6, flexWrap: "wrap" }}>
+                  <input
+                    type="text"
+                    value={c.label}
+                    onChange={(e) => patchChoice(q.id, c.id, e.target.value)}
+                    placeholder="Choice label"
+                    aria-label="Choice label"
+                    style={{ width: "100%", maxWidth: 320 }}
+                  />
+                  <label className="muted" style={{ fontSize: "var(--text-xs)" }} htmlFor={`choice-roles-${c.id}`}>
+                    Auto-grant roles
+                  </label>
+                  <select
+                    id={`choice-roles-${c.id}`}
+                    multiple
+                    value={c.role_ids}
+                    onChange={(e) => patchChoiceRoles(q.id, c.id, Array.from(e.target.selectedOptions).map((o) => o.value))}
+                    style={{ minWidth: 160, maxWidth: 240 }}
+                    size={Math.min(4, Math.max(2, assignableRoles.length))}
+                  >
+                    {assignableRoles.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
               ))}
               <button className="btn-small btn-secondary" onClick={() => addChoice(q.id)}>+ Add choice</button>
             </div>

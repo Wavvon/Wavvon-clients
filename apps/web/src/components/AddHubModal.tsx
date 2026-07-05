@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FocusTrap } from "@wavvon/ui";
 import { isPasskeySupported } from "@platform";
 
 type HubPreview =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number }
+  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; welcome_label?: string | null; welcome_invite_url?: string | null }
   | { state: "error"; message: string };
 
 interface Props {
@@ -22,6 +23,8 @@ interface Props {
 }
 
 export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, onAdd, onAddWithPasskey, onClose }: Props) {
+  const { t } = useTranslation();
+  const [copiedInvite, setCopiedInvite] = useState(false);
   const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && isPasskeySupported();
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -67,6 +70,32 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
                   ? "Medium (~1 min)"
                   : "Low (<1 sec)"}
               </p>
+            )}
+            {hubPreview.welcome_label && (
+              <div style={{ marginTop: "var(--space-2)" }}>
+                <p className="muted" style={{ margin: 0 }}>
+                  {t("welcome.server_by", { label: hubPreview.welcome_label })}
+                </p>
+                {hubPreview.welcome_invite_url && (
+                  <p className="muted" style={{ margin: "4px 0 0", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span>{t("welcome.invite_line")}</span>
+                    <a href={hubPreview.welcome_invite_url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)", wordBreak: "break-all" }}>
+                      {hubPreview.welcome_invite_url}
+                    </a>
+                    <button
+                      type="button"
+                      className="btn-small btn-secondary"
+                      onClick={() => {
+                        navigator.clipboard.writeText(hubPreview.welcome_invite_url ?? "").catch(() => {});
+                        setCopiedInvite(true);
+                        setTimeout(() => setCopiedInvite(false), 2000);
+                      }}
+                    >
+                      {copiedInvite ? t("modal.copied") : t("modal.copy")}
+                    </button>
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}

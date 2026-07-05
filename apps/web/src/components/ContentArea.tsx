@@ -31,6 +31,7 @@ import { ChannelComposer } from "./content/ChannelComposer";
 import { PollComposer } from "./PollComposer";
 import { EventsPanel } from "./EventsPanel";
 import { AllianceView, ReconnectBanner } from "@wavvon/ui";
+import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -441,6 +442,10 @@ export function ContentArea({
             reconnecting={!!reconnectingHubs[activeHubId]}
             onReconnect={onReconnect}
           />
+        )}
+
+        {view === "channels" && activeHubId && activeHub && (
+          <WelcomeInviteBanner hubId={activeHubId} hubUrl={activeHub.hub_url} />
         )}
 
         {view === "dms" ? (

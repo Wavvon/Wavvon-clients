@@ -9,7 +9,7 @@ import type { HubInputResult } from "@wavvon/core";
 type HubPreview =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; challenge_mode?: string | null }
+  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; challenge_mode?: string | null; welcome_label?: string | null; welcome_invite_url?: string | null }
   | { state: "error"; message: string };
 
 interface WelcomeScreenProps {
@@ -35,6 +35,7 @@ export function WelcomeScreen({
 }: WelcomeScreenProps) {
   const { t } = useTranslation();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   return (
     <div className="empty-state welcome" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "32px 16px" }}>
@@ -108,6 +109,32 @@ export function WelcomeScreen({
                     : t("welcome.pow_low")}
                 </p>
               )}
+              {hubPreview.welcome_label && (
+                <div style={{ marginTop: 6 }}>
+                  <p className="muted" style={{ margin: 0, fontSize: "var(--text-sm)" }}>
+                    {t("welcome.server_by", { label: hubPreview.welcome_label })}
+                  </p>
+                  {hubPreview.welcome_invite_url && (
+                    <p className="muted" style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span>{t("welcome.invite_line")}</span>
+                      <a href={hubPreview.welcome_invite_url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)", wordBreak: "break-all" }}>
+                        {hubPreview.welcome_invite_url}
+                      </a>
+                      <button
+                        type="button"
+                        className="btn-small btn-secondary"
+                        onClick={() => {
+                          navigator.clipboard.writeText(hubPreview.welcome_invite_url ?? "").catch(() => {});
+                          setCopiedInvite(true);
+                          setTimeout(() => setCopiedInvite(false), 2000);
+                        }}
+                      >
+                        {copiedInvite ? t("modal.copied") : t("modal.copy")}
+                      </button>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -170,7 +197,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
         const parsed = parseHubInput(trimmed);
         const cleanUrl = parsed?.hubUrl ?? trimmed;
         const info = await previewHubInfo(cleanUrl);
-        setHubPreview({ state: "ok", url: cleanUrl, name: info.name, icon: info.icon });
+        setHubPreview({ state: "ok", url: cleanUrl, name: info.name, icon: info.icon, welcome_label: info.welcome_label, welcome_invite_url: info.welcome_invite_url });
       } catch (e) {
         setHubPreview({ state: "error", message: e instanceof Error ? e.message : String(e) });
       }

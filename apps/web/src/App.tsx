@@ -133,7 +133,7 @@ type View = "channels" | "dms";
 type HubPreview =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number }
+  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; welcome_label?: string | null; welcome_invite_url?: string | null }
   | { state: "error"; message: string };
 
 // ---- Identity Setup ----
@@ -491,6 +491,9 @@ export default function App() {
     hubAdminIcon, setHubAdminIcon,
     hubAdminRequireApproval, setHubAdminRequireApproval,
     hubAdminMinLevel, setHubAdminMinLevel,
+    hubAdminWelcomeLabel, setHubAdminWelcomeLabel,
+    hubAdminWelcomeInviteUrl, setHubAdminWelcomeInviteUrl,
+    hubAdminSaveError,
     hubAdminMembers,
     hubAdminBans,
     hubAdminInvites,
@@ -1311,7 +1314,7 @@ export default function App() {
     setAddHubError(null);
     try {
       const info = await previewHubInfo(hubUrl);
-      setHubPreview({ state: "ok", url: hubUrl, name: info.name, icon: info.icon });
+      setHubPreview({ state: "ok", url: hubUrl, name: info.name, icon: info.icon, welcome_label: info.welcome_label, welcome_invite_url: info.welcome_invite_url });
     } catch (e) {
       setHubPreview({ state: "error", message: String(e) });
     }
@@ -2651,6 +2654,11 @@ export default function App() {
             onMinSecurityLevelChange={setHubAdminMinLevel}
             maxChannelDepth={maxChannelDepth}
             onMaxChannelDepthChange={setMaxChannelDepth}
+            welcomeLabel={hubAdminWelcomeLabel}
+            onWelcomeLabelChange={setHubAdminWelcomeLabel}
+            welcomeInviteUrl={hubAdminWelcomeInviteUrl}
+            onWelcomeInviteUrlChange={setHubAdminWelcomeInviteUrl}
+            saveError={hubAdminSaveError}
             onSave={saveHubAdminSettings}
             pendingMembers={hubAdminPending}
             onApproveMember={(pk) => hubFetch(`/hub/pending/${pk}/approve`, { method: "POST" }).catch(() => {})}

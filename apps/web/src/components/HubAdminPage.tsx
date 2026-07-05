@@ -65,6 +65,11 @@ export interface HubAdminPageProps {
   onMinSecurityLevelChange: (v: number) => void;
   maxChannelDepth: number;
   onMaxChannelDepthChange: (v: number) => void;
+  welcomeLabel: string;
+  onWelcomeLabelChange: (v: string) => void;
+  welcomeInviteUrl: string;
+  onWelcomeInviteUrlChange: (v: string) => void;
+  saveError: string | null;
   onSave: () => void;
   pendingMembers: PendingUser[];
   onApproveMember: (publicKey: string) => void;
@@ -224,6 +229,32 @@ export function HubAdminPage(props: HubAdminPageProps) {
               <p className="muted">{t("hub.admin.overview.max_depth_hint")}</p>
               <input id="admin-max-depth" type="number" min={0} max={20} value={props.maxChannelDepth} onChange={(e) => props.onMaxChannelDepthChange(Number(e.target.value))} />
             </div>
+            <div className="settings-section">
+              <label className="settings-label" htmlFor="admin-welcome-label">{t("hub.admin.overview.welcome_label")}</label>
+              <input
+                id="admin-welcome-label"
+                type="text"
+                maxLength={100}
+                value={props.welcomeLabel}
+                placeholder={t("hub.admin.overview.welcome_label_placeholder")}
+                onChange={(e) => props.onWelcomeLabelChange(e.target.value)}
+              />
+              <label className="settings-label" htmlFor="admin-welcome-invite" style={{ marginTop: "var(--space-2)" }}>{t("hub.admin.overview.welcome_invite_url")}</label>
+              <input
+                id="admin-welcome-invite"
+                type="text"
+                value={props.welcomeInviteUrl}
+                placeholder={t("hub.admin.overview.welcome_invite_url_placeholder")}
+                onChange={(e) => props.onWelcomeInviteUrlChange(e.target.value)}
+              />
+              <p className="muted">
+                {t("hub.admin.overview.welcome_hint", {
+                  label: props.welcomeLabel.trim() || "{label}",
+                  invite: props.welcomeInviteUrl.trim() || "{invite}",
+                })}
+              </p>
+            </div>
+            {props.saveError && <p className="error-text">{props.saveError}</p>}
             <div className="settings-section">
               <button onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
             </div>

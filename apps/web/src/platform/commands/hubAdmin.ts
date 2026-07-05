@@ -166,6 +166,8 @@ export async function saveHubSettings(settings: {
   require_approval?: boolean;
   min_security_level?: number;
   max_channel_depth?: number;
+  welcome_label?: string;
+  welcome_invite_url?: string;
 }): Promise<void> {
   await hubFetch("/hub", {
     method: "PATCH",
@@ -180,6 +182,8 @@ export async function getHubSettings(): Promise<{
   require_approval: boolean;
   min_security_level: number;
   max_channel_depth: number;
+  welcome_label: string;
+  welcome_invite_url: string;
 }> {
   const [settingsRes, infoRes] = await Promise.all([
     hubFetch("/hub/settings").then((r) => r.json() as Promise<{
@@ -192,6 +196,8 @@ export async function getHubSettings(): Promise<{
       name: string;
       description?: string | null;
       icon?: string | null;
+      welcome_label?: string | null;
+      welcome_invite_url?: string | null;
     }>),
   ]);
   return {
@@ -201,5 +207,7 @@ export async function getHubSettings(): Promise<{
     require_approval: settingsRes.require_approval,
     min_security_level: settingsRes.min_security_level,
     max_channel_depth: settingsRes.max_channel_depth,
+    welcome_label: infoRes.welcome_label ?? "",
+    welcome_invite_url: infoRes.welcome_invite_url ?? "",
   };
 }
