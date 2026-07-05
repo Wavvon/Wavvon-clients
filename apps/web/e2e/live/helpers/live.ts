@@ -135,7 +135,7 @@ export async function hubApi<T = unknown>(
 
 // Create a channel via the hub-name dropdown → "Create…" modal.
 // channelType is the visible label in the type <select> ("Text", "Forum",
-// "Voice Lobby", "Category", ...). Returns the channel name.
+// "Room Creator", "Category", ...). Returns the channel name.
 export async function createChannel(
   page: Page,
   name: string,

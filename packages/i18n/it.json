@@ -64,7 +64,7 @@
   "channel.create.type_banner": "Banner",
   "channel.create.type_channel": "Canale",
   "channel.create.type_forum": "Forum",
-  "channel.create.type_spawner": "Lobby vocale",
+  "channel.create.type_spawner": "Creatore di stanze",
   "channel.create.type_category": "Categoria",
   "channel.create.name_label": "Nome",
   "channel.create.name_placeholder_channel": "nome-canale",

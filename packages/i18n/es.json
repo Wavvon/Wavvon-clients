@@ -64,7 +64,7 @@
   "channel.create.type_banner": "Banner",
   "channel.create.type_channel": "Canal",
   "channel.create.type_forum": "Foro",
-  "channel.create.type_spawner": "Sala de voz",
+  "channel.create.type_spawner": "Creador de salas",
   "channel.create.type_category": "Categoría",
   "channel.create.name_label": "Nombre",
   "channel.create.name_placeholder_channel": "nombre-canal",

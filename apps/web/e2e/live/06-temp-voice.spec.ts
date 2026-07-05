@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
 
 // P6 — join-to-create temp voice channels on web (regression for hub
-// 1fc5aa6). Clicking a spawner ("Voice Lobby") over web's /voice/ws relay
+// 1fc5aa6). Clicking a spawner ("Room Creator") over web's /voice/ws relay
 // must spawn a personal temp room and land the user THERE, not in the
 // spawner row itself. No audio assertions — fake media, UI state only.
 
@@ -11,7 +11,7 @@ test("clicking a spawner creates and joins a temp room, not the spawner", async 
   await expectInHub(page);
 
   const spawner = uniqueName("lobby");
-  await createChannel(page, spawner, "Voice Lobby");
+  await createChannel(page, spawner, "Room Creator");
 
   // Click the spawner → voice join → hub spawns a sibling temp room.
   await channelButton(page, spawner).click();
@@ -40,7 +40,7 @@ test("a non-admin owner can rename their temp room from the context menu", async
   await expectInHub(page);
 
   const spawner = uniqueName("lobby");
-  await createChannel(page, spawner, "Voice Lobby");
+  await createChannel(page, spawner, "Room Creator");
 
   // A plain member (no admin) joins the spawner and owns the spawned room.
   // Unique display name → unique room name ("<name>'s room"), so leftover

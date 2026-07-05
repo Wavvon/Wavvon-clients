@@ -499,6 +499,21 @@ export function SettingsPage(props: SettingsPageProps) {
               )}
             </div>
 
+            <div className="settings-section" style={{ marginTop: 20 }}>
+              <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
+              <select
+                id="settings-language"
+                value={currentLang}
+                onChange={(e) => changeLanguage(e.target.value)}
+                style={{ width: "100%", maxWidth: 320 }}
+              >
+                <option value="en">English</option>
+                <option value="it">Italiano</option>
+                <option value="es">Español</option>
+                <option value="de">Deutsch</option>
+              </select>
+            </div>
+
             <ProfilesSection
               profiles={props.profiles}
               defaultProfileId={props.defaultProfileId}
@@ -632,20 +647,6 @@ export function SettingsPage(props: SettingsPageProps) {
               {props.theme === "custom" && (
                 <SkinEditor skin={props.skin ?? makeSeed("calm")} onChange={props.onSkinChange} />
               )}
-            </div>
-            <div className="settings-section" style={{ marginTop: 20 }}>
-              <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
-              <select
-                id="settings-language"
-                value={currentLang}
-                onChange={(e) => changeLanguage(e.target.value)}
-                style={{ width: "100%", maxWidth: 320 }}
-              >
-                <option value="en">English</option>
-                <option value="it">Italiano</option>
-                <option value="es">Español</option>
-                <option value="de">Deutsch</option>
-              </select>
             </div>
             <SkinsGallery onImport={props.onImportSkin} />
           </section>
