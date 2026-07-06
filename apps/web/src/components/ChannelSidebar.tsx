@@ -792,6 +792,13 @@ export function ChannelSidebar({
               {activePing !== undefined && <PingIcon ping={activePing} />}
             </div>
 
+            {/* The channel header already carries the full voice command row
+                for the channel you're viewing (voice UI consolidation, #25/#28).
+                Only show this footer control set when you've navigated AWAY from
+                your active voice channel — otherwise it's a duplicate. The
+                status strip above stays either way as the "you're in voice"
+                indicator. */}
+            {selectedChannel?.id !== voiceChannelId && (
             <div className="user-actions">
               <div className="user-actions-icons">
                 <button
@@ -837,6 +844,7 @@ export function ChannelSidebar({
                 </button>
               </div>
             </div>
+            )}
             {voiceChannelId && (voicePartByChannel[voiceChannelId]?.length ?? 0) > 0 && (
               <div className="voice-participants-list">
                 {voicePartByChannel[voiceChannelId].map((p) => (
