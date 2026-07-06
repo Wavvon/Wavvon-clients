@@ -1,22 +1,49 @@
 import React, { useEffect, useState } from "react";
-import type { UserProfile } from "../types";
-import { getUserProfile } from "@platform";
-import { formatRelative } from "@voxply/core";
-import { Avatar } from "@voxply/ui";
+import { useTranslation } from "react-i18next";
+import type { RoleCategory, UserProfile } from "../types";
+import { getUserProfile, listRoleCategories, getActiveHubId } from "@platform";
+import { formatRelative } from "@wavvon/core";
+import { Avatar } from "@wavvon/ui";
+import { groupRolesByCategory, roleTintStyle } from "../utils/roleAppearance";
 
 interface Props {
   pubkey: string;
   onClose: () => void;
 }
 
+// Categories rarely change and are shared by every profile card opened
+// against the same hub — cache them here (keyed by hub id) instead of
+// refetching every time a card opens.
+const categoryCache = new Map<string, Promise<RoleCategory[]>>();
+
+function loadRoleCategories(hubId: string): Promise<RoleCategory[]> {
+  let cached = categoryCache.get(hubId);
+  if (!cached) {
+    cached = listRoleCategories().catch((e) => {
+      categoryCache.delete(hubId);
+      throw e;
+    });
+    categoryCache.set(hubId, cached);
+  }
+  return cached;
+}
+
 export function UserProfileCard({ pubkey, onClose }: Props) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [categories, setCategories] = useState<RoleCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getUserProfile(pubkey)
       .then(setProfile)
       .catch((e) => setError(String(e)));
+    const hubId = getActiveHubId();
+    if (hubId) {
+      loadRoleCategories(hubId)
+        .then(setCategories)
+        .catch(() => setCategories([]));
+    }
   }, [pubkey]);
 
   return (
@@ -25,7 +52,7 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="User profile"
+      aria-label={t("user.profile.aria_label")}
     >
       <div
         className="modal-box"
@@ -35,7 +62,7 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
         <button
           className="modal-close"
           onClick={onClose}
-          aria-label="Close profile"
+          aria-label={t("user.profile.close")}
         >
           ×
         </button>
@@ -44,17 +71,17 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
 
         {!profile && !error && (
           <p className="muted" style={{ textAlign: "center", padding: 16 }}>
-            Loading…
+            {t("modal.loading")}
           </p>
         )}
 
         {profile && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} size={48} />
+              <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} pubkey={pubkey} size={48} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>
-                  {profile.display_name ?? <span className="muted">No display name</span>}
+                  {profile.display_name ?? <span className="muted">{t("profile.no_display_name")}</span>}
                 </div>
                 <div
                   className="muted"
@@ -66,7 +93,7 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
             </div>
 
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-              Joined {formatRelative(profile.joined_at)}
+              {t("user.profile.joined", { date: formatRelative(profile.joined_at) })}
             </div>
 
             {profile.roles.length > 0 && (
@@ -75,15 +102,30 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
                   className="muted"
                   style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
                 >
-                  Roles
+                  {t("user.profile.roles")}
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {profile.roles.map((r) => (
-                    <span key={r.id} className="role-badge">
-                      {r.name}
-                    </span>
-                  ))}
-                </div>
+                {groupRolesByCategory(profile.roles, categories).map((group) => (
+                  <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
+                    <div
+                      className={`role-category-header ${group.category?.color ? "role-category-header-tinted" : ""}`}
+                      style={roleTintStyle(group.category?.color)}
+                    >
+                      {group.category?.icon && <span>{group.category.icon}</span>}
+                      <span>{group.category?.name ?? t("hub.admin.roles.uncategorized")}</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {group.roles.map((r) => (
+                        <span
+                          key={r.id}
+                          className={`role-badge ${r.color ? "role-badge-tinted" : ""}`}
+                          style={roleTintStyle(r.color)}
+                        >
+                          {r.icon && <span>{r.icon}</span>} {r.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -93,7 +135,7 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
                   className="muted"
                   style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
                 >
-                  Badges
+                  {t("user.profile.badges")}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {profile.badges.map((b, i) => (

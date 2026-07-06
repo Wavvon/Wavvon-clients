@@ -1,4 +1,4 @@
-// Voxply desktop Tauri shell — composition root.
+// Wavvon desktop Tauri shell — composition root.
 // All domain logic lives in the modules below. This file wires them together.
 
 mod admin;
@@ -12,7 +12,6 @@ mod discovery;
 mod dm;
 mod events_polls;
 mod farm;
-mod games;
 mod home_hub;
 mod hub_session;
 mod identity;
@@ -20,7 +19,9 @@ mod identity_cmd;
 mod lobby;
 mod local_store;
 mod messages;
+mod mini_app;
 mod pairing;
+mod passkey_cmd;
 mod prefs_blob;
 mod screen_share;
 mod state;
@@ -53,12 +54,12 @@ pub fn run() {
             let update_handle = app.handle().clone();
             tauri::async_runtime::spawn(updater::check_for_updates(update_handle));
 
-            let show = MenuItem::with_id(app, "show", "Show Voxply", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "Show Wavvon", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
 
             let _tray = TrayIconBuilder::with_id("main")
-                .tooltip("Voxply")
+                .tooltip("Wavvon")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -112,7 +113,6 @@ pub fn run() {
             hub_session::get_hub_ws_info,
             // Channels
             channels::list_channels,
-            channels::list_games,
             channels::list_hub_emojis,
             channels::create_channel,
             channels::update_channel_description,
@@ -126,6 +126,7 @@ pub fn run() {
             channels::set_typing,
             channels::set_dm_typing,
             channels::patch_channel_banner_file,
+            channels::patch_channel_banner_url,
             // Messages
             messages::get_messages,
             messages::get_thread_replies,
@@ -277,6 +278,9 @@ pub fn run() {
             dm::fetch_group_sender_keys,
             dm::encrypt_group_dm,
             dm::decrypt_group_dm,
+            dm::init_dr_session,
+            dm::encrypt_dm_dr,
+            dm::decrypt_dm_dr,
             // Bots / webhooks
             bots::list_bots,
             bots::create_bot,
@@ -333,30 +337,6 @@ pub fn run() {
             farm::remove_recovery_contact,
             farm::submit_rotation_request,
             farm::list_rotation_requests,
-            // Games
-            games::game_create_session,
-            games::game_join_session,
-            games::game_leave_session,
-            games::game_get_session,
-            games::game_list_sessions,
-            games::game_send_move,
-            games::game_start_session,
-            games::game_snapshot,
-            games::game_end_session,
-            games::game_set_join_policy,
-            games::game_shared_kv_get,
-            games::game_shared_kv_set,
-            games::game_list_channel_users,
-            games::game_post_message,
-            games::game_get_recent_messages,
-            games::game_kv_get,
-            games::game_kv_set,
-            games::list_admin_games,
-            games::fetch_game_manifest,
-            games::install_game,
-            games::uninstall_game,
-            games::set_game_permissions,
-            games::set_game_channels,
             // Events and polls
             events_polls::list_events,
             events_polls::rsvp_event,
@@ -373,6 +353,9 @@ pub fn run() {
             screen_share::list_capture_sources,
             screen_share::open_pip_window,
             screen_share::close_pip_window,
+            // Mini-app windows
+            mini_app::open_mini_app,
+            mini_app::close_mini_app,
             // Certs / audit
             certs::get_cert_settings,
             certs::get_audit_log,
@@ -410,6 +393,12 @@ pub fn run() {
             devices::device_list,
             devices::device_revoke,
             devices::subkey_issue,
+            // Passkeys / trusted devices
+            passkey_cmd::passkey_list,
+            passkey_cmd::passkey_delete,
+            passkey_cmd::passkey_rename,
+            passkey_cmd::trusted_device_list,
+            passkey_cmd::trusted_device_revoke,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

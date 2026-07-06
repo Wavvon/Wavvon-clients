@@ -22,7 +22,7 @@ interface Props {
   directoryUrl?: string;
 }
 
-const DEFAULT_DIR = "https://discovery.voxply.io";
+const DEFAULT_DIR = "https://discovery.wavvon.io";
 const PAGE_SIZE = 20;
 
 const POPULAR_TAGS = ["gaming", "music", "art", "tech", "anime", "sports", "community", "18+", "english", "social"];

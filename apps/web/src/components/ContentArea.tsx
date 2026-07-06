@@ -12,16 +12,13 @@ import type {
   AllianceSharedChannel,
   VoiceParticipant,
   ActiveStream,
-  InstalledGame,
   Poll,
 } from "../types";
-import { GamePicker } from "./GamePicker";
-import { GameModal } from "./GameModal";
 import { UserListGrouped } from "./UserListGrouped";
 import { BotCard } from "./BotCard";
 import { UserProfileCard } from "./UserProfileCard";
 import { PinnedMessagesModal } from "./PinnedMessagesModal";
-import { hubFetch } from "@platform";
+import { hubFetch, getPolls } from "@platform";
 import { activeSession } from "../platform/session";
 import { ScreenShareViewer } from "./ScreenShareViewer";
 import type { ScreenShareViewerRef } from "./ScreenShareViewer";
@@ -32,8 +29,8 @@ import { ChannelMessageList } from "./content/ChannelMessageList";
 import { ChannelComposer } from "./content/ChannelComposer";
 import { PollComposer } from "./PollComposer";
 import { EventsPanel } from "./EventsPanel";
-import { GameSessionPanel } from "./GameSessionPanel";
-import { AllianceView, ReconnectBanner } from "@voxply/ui";
+import { AllianceView, ReconnectBanner } from "@wavvon/ui";
+import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -53,6 +50,8 @@ interface Props {
   view: "channels" | "dms";
   activeHubId: string | null;
   hubs: Hub[];
+  channels: Channel[];
+  onBreadcrumbCategoryClick: (categoryId: string) => void;
   theme: string;
   selectedChannel: Channel | null;
   selectedConversation: Conversation | null;
@@ -80,10 +79,6 @@ interface Props {
   reconnectingHubs: Record<string, boolean>;
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
-  voiceChannelId?: string | null;
-  onVoiceJoin?: () => void;
-  onVoiceLeave?: () => void;
-  installedGames?: InstalledGame[];
   myAvatar?: string | null;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;
@@ -126,9 +121,7 @@ interface Props {
   slashCommands?: SlashCommandEntry[];
   activeScreenShares: ActiveStream[];
   screenShareViewerRef: React.RefObject<ScreenShareViewerRef | null>;
-  sharing?: boolean;
-  shareKbps?: number;
-  onStopShare?: () => void;
+  onOpenHubStreams?: () => void;
   assertiveAnnouncement?: string;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
@@ -136,15 +129,15 @@ interface Props {
 }
 
 export function ContentArea({
-  view, activeHubId, hubs, theme,
+  view, activeHubId, hubs, channels, onBreadcrumbCategoryClick, theme,
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
   dmMessages, allianceMessages,
   users, publicKey, blockedUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
-  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, voiceChannelId, onVoiceJoin, onVoiceLeave,
-  installedGames = [], myAvatar,
+  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers,
+  myAvatar,
   inputText, typingByKey, dmTypingByKey,
   messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
   onReconnect, onToggleReaction, onSetReplyTarget,
@@ -159,7 +152,7 @@ export function ContentArea({
   onOpenImage, onToast, onError,
   slashCommands = [],
   activeScreenShares, screenShareViewerRef,
-  sharing, shareKbps, onStopShare,
+  onOpenHubStreams,
   assertiveAnnouncement = "",
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
@@ -181,8 +174,6 @@ export function ContentArea({
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionSelectedIdx, setMentionSelectedIdx] = useState(0);
   const [botCard, setBotCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [activeGame, setActiveGame] = useState<InstalledGame | null>(null);
   const [focusedMessageIndex, setFocusedMessageIndex] = useState<number>(-1);
   const messageRowRefs = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -193,12 +184,12 @@ export function ContentArea({
   const [profileCardPubkey, setProfileCardPubkey] = useState<string | null>(null);
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [channelPolls, setChannelPolls] = useState<Poll[]>([]);
-  const [activeContentTab, setActiveContentTab] = useState<"messages" | "events" | "games">("messages");
+  const [activeContentTab, setActiveContentTab] = useState<"messages" | "events">("messages");
 
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() => {
     if (!selectedChannel) return new Set();
     try {
-      const raw = localStorage.getItem(`voxply.threads.${selectedChannel.id}`);
+      const raw = localStorage.getItem(`wavvon.threads.${selectedChannel.id}`);
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
   });
@@ -207,7 +198,7 @@ export function ContentArea({
   useEffect(() => {
     if (!selectedChannel) { setExpandedThreads(new Set()); return; }
     try {
-      const raw = localStorage.getItem(`voxply.threads.${selectedChannel.id}`);
+      const raw = localStorage.getItem(`wavvon.threads.${selectedChannel.id}`);
       setExpandedThreads(new Set(raw ? JSON.parse(raw) : []));
     } catch { setExpandedThreads(new Set()); }
     setThreadReplies({});
@@ -216,11 +207,14 @@ export function ContentArea({
   useEffect(() => {
     setChannelPolls([]);
     setActiveContentTab("messages");
-  }, [selectedChannel?.id]);
+    if (selectedChannel) {
+      getPolls(selectedChannel.id).then(setChannelPolls).catch(() => {});
+    }
+  }, [selectedChannel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function persistExpandedThreads(next: Set<string>) {
     if (!selectedChannel) return;
-    localStorage.setItem(`voxply.threads.${selectedChannel.id}`, JSON.stringify([...next]));
+    localStorage.setItem(`wavvon.threads.${selectedChannel.id}`, JSON.stringify([...next]));
   }
 
   async function toggleThread(messageId: string) {
@@ -289,6 +283,21 @@ export function ContentArea({
     } else {
       setProfileCardPubkey(pubkey);
     }
+  }
+
+  // Same member menu the sidebar member list opens on right-click. The
+  // sender may have left the hub since posting, so fall back to a minimal
+  // stand-in User built from the message's own denormalised sender fields.
+  function handleAuthorContextMenu(e: React.MouseEvent, pubkey: string, fallbackName: string | null) {
+    e.preventDefault();
+    const user = users.find((u) => u.public_key === pubkey) ?? {
+      public_key: pubkey,
+      display_name: fallbackName,
+      avatar: null,
+      online: false,
+      group_role: null,
+    };
+    onSetUserContextMenu({ x: e.clientX, y: e.clientY, user });
   }
 
   function handleSlashInputChange(value: string) {
@@ -412,6 +421,10 @@ export function ContentArea({
           />
         )}
 
+        {view === "channels" && activeHubId && activeHub && (
+          <WelcomeInviteBanner hubId={activeHubId} hubUrl={activeHub.hub_url} />
+        )}
+
         {view === "dms" ? (
           selectedConversation ? (
             <DmView
@@ -444,65 +457,50 @@ export function ContentArea({
             isAdmin={isAdmin}
           />
         ) : selectedChannel ? (
-          <>
+          <div className="chat-column">
             <ChannelHeader
               selectedChannel={selectedChannel}
-              voiceChannelId={voiceChannelId}
-              hasInstalledGames={installedGames.length > 0}
+              channels={channels}
               memberSidebarHidden={memberSidebarHidden}
               searchOpen={searchOpen}
               searchQuery={searchQuery}
               searchResults={searchResults}
               activeScreenShares={activeScreenShares}
               screenShareViewerRef={screenShareViewerRef}
-              sharing={sharing}
-              shareKbps={shareKbps}
               isAdmin={isAdmin}
-              onVoiceJoin={onVoiceJoin}
-              onVoiceLeave={onVoiceLeave}
-              onOpenGamePicker={() => setPickerOpen(true)}
               onShowPinned={() => setShowPinsModal(true)}
               onToggleSearch={() => searchOpen ? onCloseSearch() : onSetSearchOpen(true)}
               onCloseSearch={onCloseSearch}
               onSetSearchQuery={onSetSearchQuery}
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
-              onStopShare={onStopShare}
+              onOpenHubStreams={onOpenHubStreams}
+              onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
-            {(installedGames.length > 0) && (
-              <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-                {(["messages", "events", "games"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveContentTab(tab)}
-                    style={{
-                      padding: "6px 12px",
-                      background: "none",
-                      border: "none",
-                      borderBottom: activeContentTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
-                      cursor: "pointer",
-                      fontSize: "var(--text-sm)",
-                      fontWeight: activeContentTab === tab ? 600 : 400,
-                      color: activeContentTab === tab ? "var(--text)" : "var(--text-muted)",
-                      marginBottom: -1,
-                    }}
-                  >
-                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
+              {(["messages", "events"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveContentTab(tab)}
+                  style={{
+                    padding: "6px 12px",
+                    background: "none",
+                    border: "none",
+                    borderBottom: activeContentTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
+                    cursor: "pointer",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: activeContentTab === tab ? 600 : 400,
+                    color: activeContentTab === tab ? "var(--text)" : "var(--text-muted)",
+                    marginBottom: -1,
+                  }}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
 
             {activeContentTab === "events" ? (
-              <EventsPanel myPubkey={publicKey} isAdmin={isAdmin} />
-            ) : activeContentTab === "games" && selectedChannel ? (
-              <GameSessionPanel
-                channelId={selectedChannel.id}
-                installedGames={installedGames}
-                publicKey={publicKey}
-                canStartGame={isAdmin}
-                onLaunchGame={(game) => { setActiveGame(game); }}
-              />
+              <EventsPanel channelId={selectedChannel.id} myPubkey={publicKey} isAdmin={isAdmin} />
             ) : null}
 
             {activeContentTab === "messages" && <><ChannelMessageList
@@ -551,6 +549,7 @@ export function ContentArea({
               onOpenImage={onOpenImage}
               onOpenBotCard={openBotCard}
               onAuthorClick={handleAuthorClick}
+              onAuthorContextMenu={handleAuthorContextMenu}
               onPinToggle={onPinToggle}
               onMessagesScroll={onMessagesScroll}
               onJumpToBottom={onJumpToBottom}
@@ -583,7 +582,7 @@ export function ContentArea({
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
             /></>}
-          </>
+          </div>
         ) : selectedAllianceChannel ? (
           <AllianceView
             selectedAllianceChannel={selectedAllianceChannel}
@@ -605,6 +604,7 @@ export function ContentArea({
           <UserListGrouped
             users={users}
             inVoice={voiceActiveUsers}
+            onUserClick={(pubkey) => handleAuthorClick(pubkey)}
             onContextMenu={(e, u) => {
               e.preventDefault();
               onSetUserContextMenu({ x: e.clientX, y: e.clientY, user: u });
@@ -619,25 +619,6 @@ export function ContentArea({
           pubkey={botCard.pubkey}
           anchorRect={botCard.rect}
           onClose={() => setBotCard(null)}
-        />
-      )}
-
-      {pickerOpen && (
-        <GamePicker
-          games={installedGames}
-          onSelect={(game) => { setPickerOpen(false); setActiveGame(game); }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
-
-      {activeGame && (
-        <GameModal
-          game={activeGame}
-          theme={theme}
-          publicKey={publicKey}
-          displayName={myDisplayName}
-          avatar={myAvatar ?? null}
-          onClose={() => setActiveGame(null)}
         />
       )}
 

@@ -78,12 +78,15 @@ export async function searchMessages(
   return res.json() as Promise<Message[]>;
 }
 
+// Live-event subscription is a WebSocket frame, not an HTTP endpoint: the
+// hub auto-subscribes each connection to channels readable at connect time,
+// so channels created later deliver no chat events until subscribed.
 export async function subscribeChannel(channel_id: string): Promise<void> {
-  await hubFetch(`/channels/${channel_id}/subscribe`, { method: "POST" });
+  activeSession().ws?.subscribeChannel(channel_id);
 }
 
 export async function unsubscribeChannel(channel_id: string): Promise<void> {
-  await hubFetch(`/channels/${channel_id}/unsubscribe`, { method: "POST" });
+  activeSession().ws?.unsubscribeChannel(channel_id);
 }
 
 export interface UnreadCount {
@@ -108,4 +111,31 @@ export function sendTypingEvent(channel_id: string, typing: boolean): void {
 export function sendDmTypingEvent(conversation_id: string, typing: boolean): void {
   const s = activeSession();
   s.ws?.send({ type: "dm_typing", conversation_id, typing });
+}
+
+/** Set own presence status: "online" clears, "away"/"dnd" set it; custom is
+ * an optional short status text. Persisted hub-side across reconnects. */
+export function sendSetStatus(status: "online" | "away" | "dnd", custom?: string | null): void {
+  const s = activeSession();
+  s.ws?.send({ type: "set_status", status, custom: custom ?? null });
+}
+
+export async function getAllianceChannelMessages(
+  allianceId: string,
+  channelId: string,
+): Promise<Message[]> {
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages`);
+  const msgs = await r.json() as Message[];
+  return [...msgs].reverse();
+}
+
+export async function sendAllianceChannelMessage(
+  allianceId: string,
+  channelId: string,
+  content: string,
+): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
 }

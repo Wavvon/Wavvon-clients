@@ -6,7 +6,7 @@ import {
   colorForKey,
   dayKey,
   formatRelative,
-} from "@voxply/core";
+} from "@wavvon/core";
 
 describe("formatPubkey", () => {
   it("returns empty string for null", () => {

@@ -4,8 +4,8 @@ node_modules/
 dist/
 .next/
 build/
-voxply-android/src-tauri/gen/
-voxply-desktop/src-tauri/gen/
+wavvon-android/src-tauri/gen/
+wavvon-desktop/src-tauri/gen/
 *.keystore
 *.keystore.b64
 *.key

@@ -1,9 +1,12 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel, VoiceParticipant } from "../types";
 import { ChannelIcon } from "./Icons";
 import { hasDraft } from "../utils/drafts";
+import { isSpawnerChannel, isTemporaryChannel } from "../utils/spawnerChannels";
+import { safeRoleColor } from "../utils/roleAppearance";
 
 /** Hub icon wrapped in dnd-kit's useSortable so the user can drag-reorder
  * the hub sidebar. The drag handle is the whole icon — there's no second
@@ -42,8 +45,12 @@ export function SortableChannelItem({
   participants,
   isCurrentVoiceChannel,
   hubUrl,
+  ownerDisplayName,
   style,
+  depth,
+  depthOverflow,
   tabIndex,
+  itemRef,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -60,18 +67,32 @@ export function SortableChannelItem({
   participants: VoiceParticipant[];
   isCurrentVoiceChannel: boolean;
   hubUrl?: string;
+  /** Resolved display name (or short pubkey) of a temp room's owner, for the tooltip. */
+  ownerDisplayName?: string | null;
   style?: React.CSSProperties;
+  /** True nesting depth, unclamped — powers aria-level (nested-channels-ux.md §2.5). */
+  depth?: number;
+  /** Past the indent cap: show a marker instead of more indent (§2.2). */
+  depthOverflow?: boolean;
   tabIndex?: number;
+  itemRef?: (el: HTMLLIElement | null) => void;
   onClick: () => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onSettings?: (e: React.MouseEvent) => void;
 }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
+  const setRefs = (el: HTMLLIElement | null) => {
+    setNodeRef(el);
+    itemRef?.(el);
+  };
 
   const isBanner = channel.channel_type === "banner";
+  const isSpawner = isSpawnerChannel(channel);
+  const isTemporary = isTemporaryChannel(channel);
   const bannerSrc = channel.banner_url
     ? channel.banner_url
     : channel.banner_file_id && hubUrl
@@ -81,13 +102,15 @@ export function SortableChannelItem({
   if (isBanner) {
     return (
       <li
-        ref={setNodeRef}
+        ref={setRefs}
+        id={`sidebar-node-${channel.id}`}
         className={`channel-item-wrap ${isDragging ? "dragging" : ""}`}
         style={{
           transform: CSS.Transform.toString(transform),
           transition,
           ...style,
         }}
+        onContextMenu={onContextMenu}
         {...attributes}
         {...listeners}
       >
@@ -98,22 +121,55 @@ export function SortableChannelItem({
             style={{ width: "100%", height: "auto", display: "block", borderRadius: 4 }}
           />
         )}
+        {/* Management affordance for admins: without this a banner renders as a
+            bare (often empty) row with no way to rename or delete it. Members
+            still see just the image. */}
+        {onSettings && (
+          <div
+            className="channel-banner-manage"
+            style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 4px" }}
+          >
+            <span className="muted" style={{ flex: 1, fontSize: "var(--text-xs)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {channel.name}
+            </span>
+            <button
+              className="channel-settings-btn"
+              onClick={(e) => { e.stopPropagation(); onSettings(e); }}
+              title="Channel settings"
+              aria-label="Channel settings"
+            >
+              ⚙
+            </button>
+          </div>
+        )}
       </li>
     );
   }
 
   const ariaLabelParts = [channel.name];
-  const uc = unreadCount ?? 0;
-  const mc = mentionCount ?? 0;
-  if (uc > 0) ariaLabelParts.push(`${uc} unread ${uc === 1 ? "message" : "messages"}`);
-  if (mc > 0) ariaLabelParts.push(`${mc} ${mc === 1 ? "mention" : "mentions"}`);
-  if (participants.length > 0) ariaLabelParts.push(`${participants.length} ${participants.length === 1 ? "person" : "people"} in voice`);
+  if (isSpawner) {
+    ariaLabelParts.push(t("channel.spawner.tooltip"));
+  } else {
+    const uc = unreadCount ?? 0;
+    const mc = mentionCount ?? 0;
+    if (uc > 0) ariaLabelParts.push(`${uc} unread ${uc === 1 ? "message" : "messages"}`);
+    if (mc > 0) ariaLabelParts.push(`${mc} ${mc === 1 ? "mention" : "mentions"}`);
+    if (participants.length > 0) ariaLabelParts.push(`${participants.length} ${participants.length === 1 ? "person" : "people"} in voice`);
+  }
   const channelAriaLabel = ariaLabelParts.join(", ");
+
+  const itemTitle = isSpawner
+    ? t("channel.spawner.tooltip")
+    : isTemporary
+      ? t("channel.temp.owner_tooltip", { name: ownerDisplayName || channel.owner_pubkey?.slice(0, 12) || "?" })
+      : "Double-click to join voice";
 
   return (
     <li
-      ref={setNodeRef}
+      ref={setRefs}
+      id={`sidebar-node-${channel.id}`}
       tabIndex={tabIndex}
+      aria-level={depth !== undefined ? depth + 1 : undefined}
       onKeyDown={onKeyDown}
       className={`channel-item-wrap ${isDragging ? "dragging" : ""}`}
       style={{
@@ -130,23 +186,29 @@ export function SortableChannelItem({
           unread ? "unread" : ""
         } ${muted ? "muted" : ""} ${
           isCurrentVoiceChannel ? "in-voice-here" : ""
-        }`}
+        } ${isSpawner ? "channel-item-spawner" : ""}`}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
-        title="Double-click to join voice"
+        title={itemTitle}
         {...attributes}
         {...listeners}
         aria-label={channelAriaLabel}
       >
-        {unread && <span className="channel-unread-dot" aria-hidden="true" />}
-        <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} />
-        {" "}{channel.name}
-        {activeHubId && hasDraft(`${activeHubId}/${channel.id}`) && (
+        {depthOverflow && (
+          <span className="channel-depth-marker" aria-hidden="true">›</span>
+        )}
+        {!isSpawner && unread && <span className="channel-unread-dot" aria-hidden="true" />}
+        <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
+        <span className="channel-name">{channel.name}</span>
+        {isTemporary && (
+          <span className="channel-temp-badge">{t("channel.temp.badge")}</span>
+        )}
+        {!isSpawner && activeHubId && hasDraft(`${activeHubId}/${channel.id}`) && (
           <span className="channel-draft-badge" title="Unsent draft">Draft</span>
         )}
-        {muted && <span className="channel-muted-icon" title="Muted" aria-hidden="true">🔕</span>}
-        {participants.length > 0 && (
+        {!isSpawner && muted && <span className="channel-muted-icon" title="Muted" aria-hidden="true">🔕</span>}
+        {!isSpawner && participants.length > 0 && (
           <span
             className="channel-voice-badge"
             title={`${participants.length} in voice`}
@@ -166,7 +228,7 @@ export function SortableChannelItem({
           </button>
         )}
       </div>
-      {participants.length > 0 && (
+      {!isSpawner && participants.length > 0 && (
         <ul className="channel-participants">
           {participants.map((p) => (
             <li
@@ -190,36 +252,59 @@ export function SortableCategoryItem({
   collapsed,
   childCount,
   style,
+  depth,
+  depthOverflow,
   isDragTarget,
   tabIndex,
+  itemRef,
   onToggleCollapsed,
   onContextMenu,
   onKeyDown,
   onAdd,
   onSettings,
+  onFocusSubtree,
+  focusSubtreeLabel,
 }: {
   channel: Channel;
   children?: React.ReactNode;
   collapsed: boolean;
   childCount: number;
   style?: React.CSSProperties;
+  /** True nesting depth, unclamped — powers aria-level (nested-channels-ux.md §2.5). */
+  depth?: number;
+  /** Past the indent cap: show a marker instead of more indent (§2.2). */
+  depthOverflow?: boolean;
   isDragTarget?: boolean;
   tabIndex?: number;
+  itemRef?: (el: HTMLLIElement | null) => void;
   onToggleCollapsed: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onAdd: () => void;
   onSettings?: (e: React.MouseEvent) => void;
+  /** Provided only past DRILL_DEPTH — re-roots the sidebar to this category (§2.2 drill-in). */
+  onFocusSubtree?: () => void;
+  focusSubtreeLabel?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
+  const setRefs = (el: HTMLLIElement | null) => {
+    setNodeRef(el);
+    itemRef?.(el);
+  };
+  // Hubs are untrusted: validate the color to a plain 6-digit hex before it
+  // reaches a CSS `background` sink, or a malicious hub could smuggle a
+  // `url(...)` and beacon the viewer's IP/UA when the header renders.
+  const catColor = safeRoleColor(channel.color);
 
   return (
     <li
       role="group"
       aria-label={channel.name}
-      ref={setNodeRef}
+      id={`sidebar-node-${channel.id}`}
+      ref={setRefs}
       tabIndex={tabIndex}
+      aria-level={depth !== undefined ? depth + 1 : undefined}
       onKeyDown={onKeyDown}
       className={`category-group ${isDragging ? "dragging" : ""}`}
       style={{
@@ -230,9 +315,9 @@ export function SortableCategoryItem({
     >
       <div
         className={`category-header ${isDragTarget ? "drag-target" : ""}`}
-        style={channel.color ? {
-          background: `${channel.color}26`,
-          borderLeft: `3px solid ${channel.color}`,
+        style={catColor ? {
+          background: `${catColor}26`,
+          borderLeft: `3px solid ${catColor}`,
           paddingLeft: "6px",
         } : undefined}
         onContextMenu={onContextMenu}
@@ -250,12 +335,25 @@ export function SortableCategoryItem({
         >
           {collapsed ? "▸" : "▾"}
         </button>
+        {depthOverflow && (
+          <span className="channel-depth-marker" aria-hidden="true">›</span>
+        )}
         {(channel.icon || channel.custom_icon_svg) && (
           <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} size={13} />
         )}
         <span className="category-name">{channel.name.toUpperCase()}</span>
         {collapsed && childCount > 0 && (
           <span className="category-count" aria-hidden="true">{childCount}</span>
+        )}
+        {onFocusSubtree && (
+          <button
+            className="btn-icon-small category-focus-btn"
+            onClick={(e) => { e.stopPropagation(); onFocusSubtree(); }}
+            title={focusSubtreeLabel}
+            aria-label={focusSubtreeLabel}
+          >
+            ⤢
+          </button>
         )}
         <button
           className="btn-icon-small"

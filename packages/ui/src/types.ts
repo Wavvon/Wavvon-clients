@@ -27,6 +27,12 @@ export interface AllianceSharedChannel {
   channel_name: string;
   hub_public_key: string;
   hub_name: string;
+  // Optional: desktop's own AllianceSharedChannel (apps/desktop/src/types.ts)
+  // hasn't picked up the v2 alliance-sharing fields yet. Keep these optional
+  // here so AllianceView stays a valid sink for both the old and new shape.
+  channel_type?: "text" | "forum" | "banner" | "spawner";
+  parent_id?: string | null;
+  is_category?: boolean;
 }
 
 export interface BlockEntry {

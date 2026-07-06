@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { RecoveryContact, RotationRequest } from "../types";
-import { formatPubkey, formatRelative } from "@voxply/core";
+import { formatPubkey, formatRelative } from "@wavvon/core";
 
 interface Props {
   activeHubUrl: string;

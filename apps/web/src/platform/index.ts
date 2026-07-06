@@ -1,5 +1,5 @@
 export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId } from "./session";
-export { hubFetch, rawFetch, HubApiError } from "./http";
+export { hubFetch, rawFetch, HubApiError, fetchWithTimeout } from "./http";
 export { HubWebSocket } from "./ws";
 export type { WsHandlers } from "./ws";
 export {
@@ -22,11 +22,16 @@ export {
   removeHub,
   pingHub,
   reauthorizeHub,
+  upgradeActiveHubIdentity,
   getHubInfo,
   previewHubInfo,
   reorderHubs,
   restorePersistedHubs,
+  connectHubWebSocket,
 } from "./commands/hubs";
+
+export { getLobbyStatus, getLobbyWelcome, submitLobbyPow, isLobbyScopeConfined } from "./commands/lobby";
+export type { LobbyStatus, LobbyWelcome, SubmitPowResult } from "./commands/lobby";
 
 export {
   getMessages,
@@ -42,6 +47,9 @@ export {
   markChannelRead,
   sendTypingEvent,
   sendDmTypingEvent,
+  sendSetStatus,
+  getAllianceChannelMessages,
+  sendAllianceChannelMessage,
 } from "./commands/messages";
 export type { UnreadCount } from "./commands/messages";
 
@@ -71,6 +79,19 @@ export {
 } from "./commands/dms";
 
 export {
+  getHomeHubDesignation,
+  putHomeHubDesignation,
+  listDeviceCerts,
+  registerDeviceCert,
+  listDeviceRevocations,
+  postDeviceRevocation,
+  postPairingOffer,
+  postPairingClaim,
+  postPairingComplete,
+  getPairingStatus,
+} from "./commands/identity";
+
+export {
   getDiscoveryTags,
   setDiscoveryTags,
   submitToDirectory,
@@ -80,17 +101,6 @@ export {
   declineBadge,
   removeBadge,
   grantBadge,
-  listGamesAdmin,
-  installGame,
-  installGameFromUrl,
-  uninstallGame,
-  setGameChannelScope,
-  setGamePermissions,
-  listGameSessions,
-  createGameSession,
-  joinGameSession,
-  leaveGameSession,
-  getGameSession,
   listCertIssuances,
   getCertSettings,
   saveCertSettings,
@@ -122,6 +132,10 @@ export {
   forumPinPost,
   forumLockPost,
   markPostRead,
+  forumAddPostReaction,
+  forumRemovePostReaction,
+  forumAddReplyReaction,
+  forumRemoveReplyReaction,
 } from "./commands/forum";
 
 export { uploadFile } from "./commands/uploads";
@@ -140,8 +154,100 @@ export {
   rsvpEvent,
   cancelRsvp,
   deleteEvent,
+  createEventSlot,
+  updateEventSlot,
+  deleteEventSlot,
 } from "./commands/events";
+export type { CreateEventSlotInput } from "./commands/events";
 
 export { getNotifPref, setNotifPref } from "./notifPrefs";
 
 export { fetchVoiceRoster } from "./commands/voice";
+
+export {
+  listSoundboardClips,
+  uploadSoundboardClip,
+  deleteSoundboardClip,
+  markSoundboardPlayed,
+  soundboardAudioPath,
+  fetchSoundboardAudioBytes,
+} from "./commands/soundboard";
+
+export {
+  reportMessage,
+  listReports,
+  reviewReport,
+  getModerationSettings,
+  patchModerationSettings,
+  getBanlistSettings,
+  addBanlistSource,
+  removeBanlistSource,
+  updateBanlistSourcePolicy,
+  getBanlistEntries,
+  getBanlistOverrides,
+  addBanlistOverride,
+  removeBanlistOverride,
+  setBanlistPublish,
+} from "./commands/moderation";
+
+export {
+  getChannelPermissions,
+  getMyChannelPermissions,
+  setChannelRolePermissions,
+  clearChannelRolePermissions,
+} from "./commands/channelPermissions";
+export type { MyChannelPermissions } from "./commands/channelPermissions";
+
+export { listRoles, createRole, updateRole, deleteRole, listUserRoles, assignRoleToUser, removeRoleFromUser } from "./commands/roles";
+export type { RoleCreateInput, RoleUpdateInput } from "./commands/roles";
+
+export {
+  listFriends,
+  listPendingFriendRequests,
+  sendFriendRequest,
+  acceptFriendRequest,
+  removeFriend,
+} from "./commands/friends";
+
+export { getAuditLog } from "./commands/audit";
+export type { AuditLogEntry, AuditLogPage } from "./commands/audit";
+export { listChannelBans, banFromChannel, unbanFromChannel } from "./commands/channelBans";
+export type { ChannelBan } from "./commands/channelBans";
+export { listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon } from "./commands/hubIcons";
+export type { HubIcon } from "./commands/hubIcons";
+export { listNativeBots, createNativeBot, deleteNativeBot } from "./commands/nativeBots";
+export type { NativeBot, NativeBotCreated } from "./commands/nativeBots";
+export {
+  listAlliances, createAlliance, getAlliance, leaveAlliance,
+  listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
+  listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+} from "./commands/alliances";
+export type { Alliance, AllianceDetail, AllianceMember, PendingAllianceInvite, SharedChannel } from "./commands/alliances";
+export {
+  setLobbySettings, listPendingUsers, approvePendingUser, setChallengeSettings,
+} from "./commands/onboardingAdmin";
+export type { PendingUser, ChallengeMode, ChallengeDifficulty } from "./commands/onboardingAdmin";
+export { listMyCertifications, grantUserBadge } from "./commands/certifications";
+export type { Certification } from "./commands/certifications";
+export { getSurveyAdmin, setSurveyAdmin, getSurveyResponses, getCurrentSurvey, submitSurvey } from "./commands/survey";
+export type { SurveyAdmin, SurveyQuestion, SurveyChoice, SurveyResponseView, SurveyAnswerInput } from "./commands/survey";
+
+export {
+  listRoleCategories,
+  createRoleCategory,
+  updateRoleCategory,
+  deleteRoleCategory,
+} from "./commands/roleCategories";
+export type { RoleCategoryCreateInput, RoleCategoryUpdateInput } from "./commands/roleCategories";
+
+export {
+  isPasskeySupported,
+  registerPasskey,
+  authenticateWithPasskey,
+  listPasskeys,
+  deletePasskey,
+  renamePasskey,
+  listTrustedDevices,
+  revokeTrustedDevice,
+} from "./webauthn";
+export type { CredentialInfo, DeviceInfo } from "./webauthn";

@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Voxply Dice</title>
+<title>Wavvon Dice</title>
 <style>
   /* The game iframe is sandboxed; it can't read the parent's CSS variables
    * directly. We do our own theming based on a `?theme=...` query param the
-   * Voxply client appends to the entry_url. Defaults to "calm". */
+   * Wavvon client appends to the entry_url. Defaults to "calm". */
   :root {
     --bg: #1c1a1f;
     --surface: #2c2a31;
@@ -83,7 +83,7 @@
 </style>
 </head>
 <body>
-  <h1>🎲 Voxply Dice</h1>
+  <h1>🎲 Wavvon Dice</h1>
   <div class="greeting" id="greeting">Loading…</div>
   <div class="die" id="die">—</div>
   <button id="roll">Roll</button>
@@ -98,25 +98,25 @@ if (themeParam === "classic" || themeParam === "linear") {
   document.documentElement.dataset.theme = themeParam;
 }
 
-// --- Voxply game SDK v1 ---
+// --- Wavvon game SDK v1 ---
 // The parent client injects an ack postMessage when ready. We ask for user
-// info; it replies with { type: 'voxply:user', data: { ... } }.
-const voxply = {
+// info; it replies with { type: 'wavvon:user', data: { ... } }.
+const wavvon = {
   user: null,
   _resolvers: [],
   getUser() {
     return new Promise((resolve) => {
       if (this.user) return resolve(this.user);
       this._resolvers.push(resolve);
-      window.parent.postMessage({ type: "voxply:getUser" }, "*");
+      window.parent.postMessage({ type: "wavvon:getUser" }, "*");
     });
   },
 };
 window.addEventListener("message", (e) => {
-  if (e.data?.type === "voxply:user") {
-    voxply.user = e.data.data;
-    voxply._resolvers.forEach((r) => r(voxply.user));
-    voxply._resolvers = [];
+  if (e.data?.type === "wavvon:user") {
+    wavvon.user = e.data.data;
+    wavvon._resolvers.forEach((r) => r(wavvon.user));
+    wavvon._resolvers = [];
   }
 });
 
@@ -137,7 +137,7 @@ document.getElementById("roll").addEventListener("click", () => {
 });
 
 (async () => {
-  const user = await voxply.getUser();
+  const user = await wavvon.getUser();
   const name = user?.display_name || "player";
   greetingEl.textContent = `Hello, ${name}`;
 })();

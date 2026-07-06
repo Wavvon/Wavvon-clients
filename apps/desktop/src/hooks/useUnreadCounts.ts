@@ -31,7 +31,7 @@ export function useUnreadCounts(): UnreadCounts {
   useEffect(() => {
     const total = Object.values(unreadByHub).reduce((n, v) => n + v, 0);
     invoke("set_tray_unread", { count: total }).catch(() => {});
-    document.title = total > 0 ? `(${total > 99 ? "99+" : total}) Voxply` : "Voxply";
+    document.title = total > 0 ? `(${total > 99 ? "99+" : total}) Wavvon` : "Wavvon";
   }, [unreadByHub]);
 
   function bumpUnread(hubId: string, channelId: string) {

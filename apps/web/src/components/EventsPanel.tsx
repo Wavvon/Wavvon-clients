@@ -1,32 +1,40 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import type { HubEvent } from "../types";
 import { getEvents, deleteEvent } from "@platform";
 import { EventCard } from "./EventCard";
 import { EventComposer } from "./EventComposer";
 
 interface Props {
+  channelId: string;
   myPubkey: string | null;
   isAdmin: boolean;
 }
 
-export function EventsPanel({ myPubkey, isAdmin }: Props) {
+export function EventsPanel({ channelId, myPubkey, isAdmin }: Props) {
   const [events, setEvents] = useState<HubEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
 
-  useEffect(() => {
-    getEvents()
-      .then((list) => {
-        const now = Math.floor(Date.now() / 1000);
-        const upcoming = list
-          .filter((e) => e.starts_at >= now || (e.end_at !== null && e.end_at >= now))
-          .sort((a, b) => a.starts_at - b.starts_at);
-        setEvents(upcoming);
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+  const reload = useCallback(async () => {
+    try {
+      const list = await getEvents();
+      const now = Math.floor(Date.now() / 1000);
+      setEvents(
+        list
+          .filter((e) => e.starts_at >= now || (e.ends_at !== null && e.ends_at >= now))
+          .sort((a, b) => a.starts_at - b.starts_at),
+      );
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
   async function handleDelete(eventId: string) {
     try {
@@ -41,8 +49,10 @@ export function EventsPanel({ myPubkey, isAdmin }: Props) {
     setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
   }
 
-  function handleCreated(event: HubEvent) {
-    setEvents((prev) => [...prev, event].sort((a, b) => a.starts_at - b.starts_at));
+  function handleCreated() {
+    // The create response is a bare event (no rsvp_counts/slots and no
+    // slot IDs), so refetch to get the full EventWithRsvps the card needs.
+    void reload();
   }
 
   return (
@@ -75,6 +85,7 @@ export function EventsPanel({ myPubkey, isAdmin }: Props) {
 
       {showComposer && (
         <EventComposer
+          channelId={channelId}
           onCreated={handleCreated}
           onClose={() => setShowComposer(false)}
         />

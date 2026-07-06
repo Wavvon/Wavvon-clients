@@ -1,11 +1,11 @@
-// Shared type definitions for the Voxply desktop client.
+// Shared type definitions for the Wavvon desktop client.
 //
 // These map to the JSON shapes returned by Tauri commands and hub
 // HTTP endpoints. Keep them in sync with the Rust side; a renamed
-// field in src-tauri or server/voxply-hub means a rename here too.
+// field in src-tauri or server/wavvon-hub means a rename here too.
 
-// Channel is shared with the channel-tree helpers in @voxply/utils.
-export type { Channel } from "@voxply/core";
+// Channel is shared with the channel-tree helpers in @wavvon/utils.
+export type { Channel } from "@wavvon/core";
 
 export interface HubIcon {
   id: string;
@@ -521,20 +521,6 @@ export interface ExternalBotInviteResult {
   pubkey: string;
 }
 
-// ---- Games ----
-
-export interface InstalledGame {
-  id: string;
-  name: string;
-  entry_url: string;
-  description: string | null;
-  thumbnail_url: string | null;
-  permissions?: string[];
-  channel_ids?: string[];
-  author?: string | null;
-  version?: string | null;
-}
-
 // ---- Farm ----
 
 export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
@@ -586,7 +572,7 @@ export interface FarmUsersResponse {
 }
 
 export interface FarmPublicInfo {
-  kind: "voxply-farm-public";
+  kind: "wavvon-farm-public";
   name: string;
   description: string;
   creation_policy: FarmCreationPolicy;
@@ -601,7 +587,7 @@ export interface FarmPublicInfo {
 }
 
 export interface FarmInfo {
-  kind: "voxply-farm";
+  kind: "wavvon-farm";
   name: string;
   description: string;
   public_key: string;
@@ -705,47 +691,6 @@ export interface HubBadge {
 export interface PendingBadgeOffer extends HubBadge {
   id: string;
   received_at: number;
-}
-
-// ---- Games (admin) ----
-
-export interface GameAdminInfo {
-  id: string;
-  name: string;
-  entry_url: string;
-  description: string | null;
-  thumbnail_url: string | null;
-  author: string | null;
-  version: string | null;
-  permissions: string[];
-  channel_ids: string[];
-}
-
-// ---- Game sessions (Tier 2) ----
-
-export interface GameSession {
-  id: string;
-  game_id: string;
-  channel_id: string;
-  host_pubkey: string;
-  state: Record<string, unknown>;
-  players: string[];
-  created_at: number;
-  ended_at: number | null;
-}
-
-export interface GameSessionPlayer {
-  pubkey: string;
-  display_name: string | null;
-}
-
-export interface GameSessionDetail {
-  id: string;
-  game_id: string;
-  channel_id: string;
-  host_pubkey: string;
-  status: string;
-  players: GameSessionPlayer[];
 }
 
 // ---- Hub certifications ----
@@ -981,4 +926,29 @@ export interface HubEvent {
 
 export interface TauriFile extends File {
   path?: string;
+}
+
+// ---- Bot mini-app events ----
+
+export interface BotAppLaunchEvent {
+  type: 'bot_app_launch';
+  bot_id: string;
+  title: string;
+  description: string;
+  channel_id: string;
+}
+
+export interface BotAppOpenEvent {
+  type: 'bot_app_open';
+  bot_id: string;
+  channel_id: string;
+  mini_app_url: string;
+  session_token: string;
+  requires_camera: boolean;
+}
+
+export interface BotAppCloseEvent {
+  type: 'bot_app_close';
+  bot_id: string;
+  channel_id: string;
 }

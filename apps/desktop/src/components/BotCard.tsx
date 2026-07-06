@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { BotProfile } from "../types";
-import { Avatar, FocusTrap } from "@voxply/ui";
+import { Avatar, FocusTrap } from "@wavvon/ui";
 
 interface Props {
   pubkey: string;

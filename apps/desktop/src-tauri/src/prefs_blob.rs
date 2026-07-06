@@ -20,7 +20,7 @@ pub struct LocalPrefs {
 pub fn derive_blob_key(master: &MasterIdentity) -> [u8; 32] {
     let hk = Hkdf::<Sha256>::new(None, &master.secret_seed());
     let mut key = [0u8; 32];
-    hk.expand(b"voxply/prefs-blob-key/v1", &mut key)
+    hk.expand(b"wavvon/prefs-blob-key/v1", &mut key)
         .expect("HKDF expand");
     key
 }

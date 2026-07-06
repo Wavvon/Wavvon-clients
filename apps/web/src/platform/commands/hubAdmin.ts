@@ -3,9 +3,6 @@ import type {
   HubSelfTagSettings,
   HubBadge,
   PendingBadgeOffer,
-  InstalledGameAdmin,
-  GameManifest,
-  GameSession,
   CertIssuance,
   CertAdmissionSettings,
   RecoverySettings,
@@ -72,73 +69,6 @@ export async function grantBadge(targetHubUrl: string, label: string): Promise<v
   });
 }
 
-// ---- Games admin ----
-
-export async function listGamesAdmin(): Promise<InstalledGameAdmin[]> {
-  const r = await hubFetch("/admin/games");
-  return r.json() as Promise<InstalledGameAdmin[]>;
-}
-
-export async function installGame(manifest: GameManifest): Promise<void> {
-  await hubFetch("/admin/games", {
-    method: "POST",
-    body: JSON.stringify(manifest),
-  });
-}
-
-export async function installGameFromUrl(manifestUrl: string): Promise<void> {
-  await hubFetch("/admin/games", {
-    method: "POST",
-    body: JSON.stringify({ manifest_url: manifestUrl }),
-  });
-}
-
-export async function uninstallGame(gameId: string): Promise<void> {
-  await hubFetch(`/admin/games/${gameId}`, { method: "DELETE" });
-}
-
-export async function setGameChannelScope(gameId: string, channelIds: string[]): Promise<void> {
-  await hubFetch(`/admin/games/${gameId}/channels`, {
-    method: "PUT",
-    body: JSON.stringify({ channel_ids: channelIds }),
-  });
-}
-
-export async function setGamePermissions(gameId: string, permissions: string[]): Promise<void> {
-  await hubFetch(`/admin/games/${gameId}/permissions`, {
-    method: "PUT",
-    body: JSON.stringify({ permissions }),
-  });
-}
-
-// ---- Game sessions (Tier 2) ----
-
-export async function listGameSessions(channelId: string): Promise<GameSession[]> {
-  const r = await hubFetch(`/games/sessions?channel_id=${encodeURIComponent(channelId)}`);
-  return r.json() as Promise<GameSession[]>;
-}
-
-export async function createGameSession(gameId: string, channelId: string): Promise<{ session_id: string }> {
-  const r = await hubFetch(`/games/${gameId}/sessions`, {
-    method: "POST",
-    body: JSON.stringify({ channel_id: channelId }),
-  });
-  return r.json() as Promise<{ session_id: string }>;
-}
-
-export async function joinGameSession(sessionId: string): Promise<void> {
-  await hubFetch(`/games/sessions/${sessionId}/join`, { method: "POST", body: JSON.stringify({}) });
-}
-
-export async function leaveGameSession(sessionId: string): Promise<void> {
-  await hubFetch(`/games/sessions/${sessionId}/leave`, { method: "POST", body: JSON.stringify({}) });
-}
-
-export async function getGameSession(sessionId: string): Promise<GameSession> {
-  const r = await hubFetch(`/games/sessions/${sessionId}`);
-  return r.json() as Promise<GameSession>;
-}
-
 // ---- Hub certifications ----
 
 export async function listCertIssuances(): Promise<CertIssuance[]> {
@@ -147,29 +77,23 @@ export async function listCertIssuances(): Promise<CertIssuance[]> {
 }
 
 export async function getCertSettings(): Promise<CertAdmissionSettings> {
-  const r = await hubFetch("/admin/certs/settings");
+  const r = await hubFetch("/admin/settings/certs");
   return r.json() as Promise<CertAdmissionSettings>;
 }
 
 export async function saveCertSettings(settings: Partial<CertAdmissionSettings>): Promise<void> {
-  await hubFetch("/admin/certs/settings", {
+  await hubFetch("/admin/settings/certs", {
     method: "PATCH",
     body: JSON.stringify(settings),
   });
 }
 
 export async function issueCertManual(subjectPubkey: string): Promise<void> {
-  await hubFetch("/admin/certs/issue", {
-    method: "POST",
-    body: JSON.stringify({ subject_pubkey: subjectPubkey }),
-  });
+  await hubFetch(`/admin/certs/${subjectPubkey}`, { method: "POST" });
 }
 
 export async function revokeCert(subjectPubkey: string): Promise<void> {
-  await hubFetch("/admin/certs/revoke", {
-    method: "POST",
-    body: JSON.stringify({ subject_pubkey: subjectPubkey }),
-  });
+  await hubFetch(`/admin/certs/${subjectPubkey}/revoke`, { method: "POST" });
 }
 
 export async function fetchMyCert(hubUrl: string): Promise<unknown> {
@@ -242,6 +166,8 @@ export async function saveHubSettings(settings: {
   require_approval?: boolean;
   min_security_level?: number;
   max_channel_depth?: number;
+  welcome_label?: string;
+  welcome_invite_url?: string;
 }): Promise<void> {
   await hubFetch("/hub", {
     method: "PATCH",
@@ -256,6 +182,8 @@ export async function getHubSettings(): Promise<{
   require_approval: boolean;
   min_security_level: number;
   max_channel_depth: number;
+  welcome_label: string;
+  welcome_invite_url: string;
 }> {
   const [settingsRes, infoRes] = await Promise.all([
     hubFetch("/hub/settings").then((r) => r.json() as Promise<{
@@ -268,6 +196,8 @@ export async function getHubSettings(): Promise<{
       name: string;
       description?: string | null;
       icon?: string | null;
+      welcome_label?: string | null;
+      welcome_invite_url?: string | null;
     }>),
   ]);
   return {
@@ -277,5 +207,7 @@ export async function getHubSettings(): Promise<{
     require_approval: settingsRes.require_approval,
     min_security_level: settingsRes.min_security_level,
     max_channel_depth: settingsRes.max_channel_depth,
+    welcome_label: infoRes.welcome_label ?? "",
+    welcome_invite_url: infoRes.welcome_invite_url ?? "",
   };
 }

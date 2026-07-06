@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import type { PostDetail, ReplyView } from "../types";
-import { formatRelative } from "@voxply/core";
+import type { PostDetail, ReplyView, ReactionCount, ForumAttachment } from "../types";
+import { formatRelative } from "@wavvon/core";
 import {
   forumGetPost,
   forumCreateReply,
@@ -11,7 +11,13 @@ import {
   forumPinPost,
   forumLockPost,
   markPostRead,
+  forumAddPostReaction,
+  forumRemovePostReaction,
+  forumAddReplyReaction,
+  forumRemoveReplyReaction,
 } from "../platform/commands/forum";
+
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
 interface Props {
   postId: string;
@@ -20,6 +26,80 @@ interface Props {
   isAdmin: boolean;
   canManagePosts: boolean;
   onBack: () => void;
+}
+
+interface ReactionBarProps {
+  reactions: ReactionCount[];
+  onToggle: (emoji: string, me: boolean) => void;
+}
+
+function ReactionBar({ reactions, onToggle }: ReactionBarProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const shown = reactions.filter((r) => r.count > 0);
+
+  return (
+    <div className="reaction-bar">
+      {shown.map((r) => (
+        <button
+          key={r.emoji}
+          className={`reaction-chip${r.me ? " active" : ""}`}
+          onClick={() => onToggle(r.emoji, r.me)}
+          title={r.me ? "Remove reaction" : "Add reaction"}
+        >
+          {r.emoji} {r.count}
+        </button>
+      ))}
+      <div style={{ position: "relative", display: "inline-block" }}>
+        <button
+          className="btn-ghost reaction-add-btn"
+          onClick={() => setPickerOpen((v) => !v)}
+          title="Add reaction"
+        >
+          +
+        </button>
+        {pickerOpen && (
+          <div className="reaction-quick-picker">
+            {QUICK_EMOJIS.map((e) => (
+              <button
+                key={e}
+                className="btn-ghost"
+                onClick={() => {
+                  setPickerOpen(false);
+                  const existing = reactions.find((r) => r.emoji === e);
+                  onToggle(e, existing?.me ?? false);
+                }}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
+  if (!attachments.length) return null;
+  return (
+    <div className="forum-attachments">
+      {attachments.map((a) => (
+        <a
+          key={a.url}
+          href={a.url}
+          target="_blank"
+          rel="noreferrer"
+          className="forum-attachment-link"
+        >
+          {a.name}
+          <span className="muted" style={{ marginLeft: 4, fontSize: "var(--text-sm)" }}>
+            ({(a.size / 1024).toFixed(1)} KB)
+          </span>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canManagePosts, onBack }: Props) {
@@ -46,7 +126,6 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
     setLoading(true);
     reload().finally(() => {
       setLoading(false);
-      // Fire-and-forget: mark this post as read once loaded.
       void markPostRead(channelId, postId).catch(() => undefined);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,6 +210,33 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
     }
   }
 
+  async function handlePostReaction(emoji: string, me: boolean) {
+    if (!post) return;
+    try {
+      if (me) {
+        await forumRemovePostReaction(post.id, emoji);
+      } else {
+        await forumAddPostReaction(post.id, emoji);
+      }
+      await reload();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleReplyReaction(replyId: string, emoji: string, me: boolean) {
+    try {
+      if (me) {
+        await forumRemoveReplyReaction(replyId, emoji);
+      } else {
+        await forumAddReplyReaction(replyId, emoji);
+      }
+      await reload();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   const canModerate = isAdmin || canManagePosts;
 
   if (loading) return <div className="forum-detail"><p className="muted">Loading…</p></div>;
@@ -195,6 +301,16 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
         </div>
       )}
 
+      {!post.is_deleted && (
+        <>
+          <AttachmentList attachments={post.attachments ?? []} />
+          <ReactionBar
+            reactions={post.reactions ?? []}
+            onToggle={(emoji, me) => void handlePostReaction(emoji, me)}
+          />
+        </>
+      )}
+
       <div className="forum-replies">
         <h3 className="forum-replies-title">{post.reply_count} {post.reply_count === 1 ? "reply" : "replies"}</h3>
         {post.replies.map((reply) => (
@@ -213,6 +329,7 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
             onDelete={handleDeleteReply}
             onReplyTo={(id) => setReplyTo(replyTo === id ? undefined : id)}
             replyingTo={replyTo}
+            onReaction={(emoji, me) => void handleReplyReaction(reply.id, emoji, me)}
           />
         ))}
       </div>
@@ -263,12 +380,13 @@ interface ReplyRowProps {
   onEditBodyChange: (v: string) => void;
   onDelete: (id: string) => void;
   onReplyTo: (id: string) => void;
+  onReaction: (emoji: string, me: boolean) => void;
 }
 
 function ForumReplyRow({
   reply, replies, publicKey, canModerate,
   editingId, editingBody, replyingTo,
-  onEditStart, onEditSave, onEditCancel, onEditBodyChange, onDelete, onReplyTo,
+  onEditStart, onEditSave, onEditCancel, onEditBodyChange, onDelete, onReplyTo, onReaction,
 }: ReplyRowProps) {
   const quotedReply = reply.reply_to_id ? replies.find((r) => r.id === reply.reply_to_id) : null;
   const isEditing = editingId === reply.id;
@@ -303,17 +421,24 @@ function ForumReplyRow({
         </div>
       )}
       {!reply.is_deleted && !isEditing && (
-        <div className="forum-reply-actions">
-          <button className="btn-ghost" onClick={() => onReplyTo(reply.id)}>
-            {replyingTo === reply.id ? "Cancel reply" : "Reply"}
-          </button>
-          {(canModerate || reply.author_pubkey === publicKey) && (
-            <>
-              <button className="btn-ghost" onClick={() => onEditStart(reply)}>Edit</button>
-              <button className="btn-ghost danger" onClick={() => onDelete(reply.id)}>Delete</button>
-            </>
-          )}
-        </div>
+        <>
+          <AttachmentList attachments={reply.attachments ?? []} />
+          <ReactionBar
+            reactions={reply.reactions ?? []}
+            onToggle={onReaction}
+          />
+          <div className="forum-reply-actions">
+            <button className="btn-ghost" onClick={() => onReplyTo(reply.id)}>
+              {replyingTo === reply.id ? "Cancel reply" : "Reply"}
+            </button>
+            {(canModerate || reply.author_pubkey === publicKey) && (
+              <>
+                <button className="btn-ghost" onClick={() => onEditStart(reply)}>Edit</button>
+                <button className="btn-ghost danger" onClick={() => onDelete(reply.id)}>Delete</button>
+              </>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

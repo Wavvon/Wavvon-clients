@@ -6,7 +6,7 @@ use crate::pairing::PairedIdentity;
 
 fn paired_identity_path() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("paired_identity.json"))
+    Ok(home.join(".wavvon").join("paired_identity.json"))
 }
 
 fn read_paired_identity() -> Option<PairedIdentity> {

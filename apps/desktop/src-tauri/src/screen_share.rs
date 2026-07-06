@@ -89,7 +89,7 @@ pub(crate) async fn open_pip_window(app: AppHandle) -> Result<(), String> {
         "screen-share-pip",
         tauri::WebviewUrl::App("pip.html".into()),
     )
-    .title("Voxply \u{2014} stream")
+    .title("Wavvon \u{2014} stream")
     .inner_size(320.0, 180.0)
     .min_inner_size(160.0, 90.0)
     .always_on_top(true)

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { InviteInfo } from "../types";
 import { EXPIRY_OPTIONS } from "../constants";
-import { formatRelative } from "@voxply/core";
+import { formatRelative } from "@wavvon/core";
 
 export function InvitesSection({
   invites,

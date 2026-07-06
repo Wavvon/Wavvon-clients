@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import type { User, PublicHubProfile } from "../types";
-import { formatPubkey } from "@voxply/core";
+import type { User, PublicHubProfile, RoleInfo } from "../types";
+import { formatPubkey } from "@wavvon/core";
 
 interface Props {
   menu: { x: number; y: number; user: User };
@@ -18,15 +18,20 @@ interface Props {
   onToggleIgnore: (pubkey: string) => void;
   onToast: (msg: string) => void;
   onJoinHub: (hubUrl: string, inviteCode: string) => void;
+  allRoles?: RoleInfo[];
+  memberRoleIds?: Set<string>;
+  onToggleRole?: (roleId: string, hasRole: boolean) => void;
 }
 
 export function UserContextMenu({
   menu, publicKey, blockedUsers, ignoredUsers, activeHubUrl,
   onClose, onDm, onAddFriend, onCopyKey, onToggleBlock, onToggleIgnore, onToast, onJoinHub,
+  allRoles, memberRoleIds, onToggleRole,
 }: Props) {
   const { t } = useTranslation();
   const { x, y, user } = menu;
   const [profile, setProfile] = useState<PublicHubProfile | null | "loading">("loading");
+  const [showRoles, setShowRoles] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +96,33 @@ export function UserContextMenu({
             >
               {blockedUsers.has(user.public_key) ? t("user.ctx.unblock") : t("user.ctx.block")}
             </button>
+          </>
+        )}
+        {user.public_key !== publicKey && allRoles && allRoles.length > 0 && onToggleRole && (
+          <>
+            <div className="context-menu-separator" />
+            <button className="context-menu-item" onClick={() => setShowRoles((v) => !v)}>
+              Roles {showRoles ? "▴" : "▾"}
+            </button>
+            {showRoles && (
+              <div style={{ paddingLeft: 8 }}>
+                {allRoles
+                  .filter((r) => r.id !== "builtin-owner")
+                  .map((r) => {
+                    const has = memberRoleIds?.has(r.id) ?? false;
+                    return (
+                      <label key={r.id} className="checkbox-label context-menu-subitem">
+                        <input
+                          type="checkbox"
+                          checked={has}
+                          onChange={() => onToggleRole(r.id, has)}
+                        />
+                        {r.name}
+                      </label>
+                    );
+                  })}
+              </div>
+            )}
           </>
         )}
         {profile === "loading" && (

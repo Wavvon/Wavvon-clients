@@ -1,7 +1,7 @@
 import type { NotifLevel } from "@shared/types";
 
 function key(hubUrl: string): string {
-  return `voxply.notif.${hubUrl}`;
+  return `wavvon.notif.${hubUrl}`;
 }
 
 export function getNotifPref(hubUrl: string): NotifLevel {

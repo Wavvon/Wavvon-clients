@@ -1,8 +1,8 @@
-// Shared type definitions for the Voxply desktop client.
+// Shared type definitions for the Wavvon desktop client.
 //
 // These map to the JSON shapes returned by Tauri commands and hub
 // HTTP endpoints. Keep them in sync with the Rust side; a renamed
-// field in src-tauri or server/voxply-hub means a rename here too.
+// field in src-tauri or server/wavvon-hub means a rename here too.
 
 export interface Channel {
   id: string;
@@ -10,7 +10,7 @@ export interface Channel {
   created_by: string;
   parent_id: string | null;
   is_category: boolean;
-  channel_type?: "text" | "forum" | "banner";
+  channel_type?: "text" | "forum" | "banner" | "spawner";
   banner_url?: string | null;
   banner_file_id?: string | null;
   display_order: number;
@@ -19,6 +19,12 @@ export interface Channel {
   color: string | null;
   custom_icon_svg: string | null;
   created_at: number;
+  /** True for a join-to-create personal room spawned from a spawner channel. */
+  is_temporary?: boolean;
+  /** Set only on temp channels: the joiner who owns (and may rename) it. Absent/null otherwise. */
+  owner_pubkey?: string | null;
+  /** Set only on spawner channels: the name template used for rooms it spawns. Absent/null otherwise. */
+  spawner_name_template?: string | null;
 }
 
 export interface HubIcon {
@@ -88,6 +94,15 @@ export interface EventRsvp {
   status: RsvpStatus;
 }
 
+export interface EventSlot {
+  id: string;
+  name: string;
+  capacity: number | null;
+  position: number;
+  claimed: number;
+  claimants: string[];
+}
+
 export interface HubEvent {
   id: string;
   channel_id?: string;
@@ -95,10 +110,14 @@ export interface HubEvent {
   description: string | null;
   location: string | null;
   starts_at: number;
-  end_at: number | null;
+  // Matches the hub's `ends_at` field name (see hub/src/routes/events.rs).
+  ends_at: number | null;
   creator_pubkey?: string;
   created_at: number;
   rsvp_counts: { going: number; maybe: number; not_going: number };
+  slots: EventSlot[];
+  reminder_minutes: number | null;
+  reminder_sent_at: number | null;
 }
 
 export type NotifLevel = "all" | "mentions" | "none";
@@ -141,6 +160,10 @@ export interface User {
   display_name: string | null;
   avatar: string | null;
   online: boolean;
+  /** Presence while online: absent/null = plain online, "away", "dnd". */
+  status?: string | null;
+  /** Optional short custom status text (only present while online). */
+  status_custom?: string | null;
   group_role: string | null;
   is_bot?: boolean;
   is_webhook?: boolean;
@@ -173,6 +196,36 @@ export interface RoleInfo {
   permissions: string[];
   priority: number;
   display_separately?: boolean;
+  color: string | null;
+  icon: string | null;
+  category_id: string | null;
+}
+
+export interface RoleCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  position: number;
+  created_at: number;
+}
+
+export interface ChannelRoleOverwrites {
+  allow: string[];
+  deny: string[];
+}
+
+export interface ChannelRolePermissions {
+  role_id: string;
+  role_name: string;
+  overwrites: ChannelRoleOverwrites;
+  inherited: string[];
+  effective: string[];
+}
+
+export interface ChannelPermissionsResponse {
+  channel_id: string;
+  roles: ChannelRolePermissions[];
 }
 
 export interface NamedProfile {
@@ -211,6 +264,23 @@ export interface VoiceMuteInfo {
   muted_by: string;
   reason: string | null;
   created_at: number;
+}
+
+export interface SoundboardClip {
+  id: string;
+  name: string;
+  emoji: string | null;
+  uploader: string;
+  size_bytes: number;
+  duration_ms: number;
+  created_at: number;
+}
+
+export interface SoundboardPlayedEvent {
+  channel_id: string;
+  clip_id: string;
+  clip_name: string;
+  public_key: string;
 }
 
 export interface InviteInfo {
@@ -271,6 +341,33 @@ export interface DmMessageFull {
   delivery_failed?: boolean;
 }
 
+// Personal-axis identity envelopes (hub/src/routes/identity.rs). Plaintext,
+// signed — no E2E decryption needed, unlike DMs and the prefs blob.
+export interface HomeHubList {
+  master_pubkey: string;
+  hubs: string[];
+  issued_at: number;
+  sequence: number;
+  signature: string;
+}
+
+export interface SubkeyCert {
+  master_pubkey: string;
+  subkey_pubkey: string;
+  device_label: string;
+  issued_at: number;
+  not_after: number | null;
+  fallback_hubs: string[];
+  signature: string;
+}
+
+export interface RevocationEntry {
+  master_pubkey: string;
+  subkey_pubkey: string;
+  revoked_at: number;
+  signature: string;
+}
+
 export interface AllianceInfo {
   id: string;
   name: string;
@@ -305,6 +402,9 @@ export interface AllianceSharedChannel {
   channel_name: string;
   hub_public_key: string;
   hub_name: string;
+  channel_type: "text" | "forum" | "banner" | "spawner";
+  parent_id: string | null;
+  is_category: boolean;
 }
 
 export interface PublicHubEntry {
@@ -349,6 +449,17 @@ export interface WsScreenShareStopped {
 }
 
 export interface ActiveStream {
+  stream_id: string;
+  sharer_pubkey: string;
+  kind: "screen" | "webcam";
+  mime: string;
+  has_audio: boolean;
+}
+
+// A screen share happening in some channel, surfaced by the hub-streams
+// discovery list so it can be watched cross-channel.
+export interface HubStreamInfo {
+  channel_id: string;
   stream_id: string;
   sharer_pubkey: string;
   kind: "screen" | "webcam";
@@ -493,13 +604,6 @@ export interface BotDetailInfo extends BotAdminInfo {
   commands: BotSlashCommandInfo[];
 }
 
-export interface InstalledGame {
-  id: string;
-  name: string;
-  entry_url: string;
-  description: string | null;
-  thumbnail_url: string | null;
-}
 
 // ---- Bot message types ----
 
@@ -627,7 +731,7 @@ export interface FarmUsersResponse {
 }
 
 export interface FarmPublicInfo {
-  kind: "voxply-farm-public";
+  kind: "wavvon-farm-public";
   name: string;
   description: string;
   creation_policy: FarmCreationPolicy;
@@ -642,7 +746,7 @@ export interface FarmPublicInfo {
 }
 
 export interface FarmInfo {
-  kind: "voxply-farm";
+  kind: "wavvon-farm";
   name: string;
   description: string;
   public_key: string;
@@ -691,7 +795,61 @@ export interface WebhookCreatedResult {
   webhook_url: string;
 }
 
+// ---- Event subscriptions (shared shape: bots and outgoing webhooks) ----
+
+export interface EventSubscription {
+  event: string;
+  channels?: string[];
+}
+
+// ---- Outgoing webhooks ----
+
+export interface OutgoingWebhookSummary {
+  id: string;
+  url: string;
+  display_name: string | null;
+  active: boolean;
+  failure_count: number;
+  last_delivery_at: number | null;
+  last_failure_at: number | null;
+  created_at: number;
+  created_by_pubkey: string;
+  subscription_count: number;
+}
+
+export interface OutgoingWebhookCreatedResult {
+  id: string;
+  url: string;
+  display_name: string | null;
+  secret: string;
+}
+
+export interface OutgoingWebhookDelivery {
+  id: string;
+  webhook_id: string;
+  event_type: string;
+  event_seq: number | null;
+  attempted_at: number;
+  attempt_number: number;
+  status_code: number | null;
+  success: boolean;
+  error_msg: string | null;
+}
+
 // ---- Forum ----
+
+export interface ReactionCount {
+  emoji: string;
+  count: number;
+  me: boolean;
+}
+
+export interface ForumAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
 
 export interface PostSummary {
   id: string;
@@ -706,6 +864,8 @@ export interface PostSummary {
   last_activity_at: number;
   is_deleted: boolean;
   unread_reply_count?: number | null;
+  reactions?: ReactionCount[];
+  attachments?: ForumAttachment[];
 }
 
 export interface ReplyView {
@@ -717,6 +877,8 @@ export interface ReplyView {
   edited_at: number | null;
   reply_to_id: string | null;
   is_deleted: boolean;
+  reactions?: ReactionCount[];
+  attachments?: ForumAttachment[];
 }
 
 export interface PostDetail extends PostSummary {
@@ -759,55 +921,6 @@ export interface PendingBadgeOffer {
   received_at: number;
 }
 
-// ---- Gaming (admin / sessions) ----
-
-export interface InstalledGameAdmin {
-  id: string;
-  name: string;
-  entry_url: string;
-  description: string | null;
-  thumbnail_url: string | null;
-  author: string | null;
-  version: string | null;
-  installed_by: string;
-  installed_at: number;
-  permissions: string[];
-  channel_scope: string[];
-}
-
-export interface GameManifest {
-  name: string;
-  entry_url: string;
-  id?: string;
-  version?: string;
-  description?: string | null;
-  thumbnail_url?: string | null;
-  author?: string | null;
-  min_players?: number;
-  max_players?: number;
-}
-
-export interface GamePlayer {
-  pubkey: string;
-  display_name: string | null;
-  joined_at: number;
-  connected: boolean;
-}
-
-export type GameSessionStatus = "lobby" | "in_progress" | "ended" | "abandoned";
-
-export interface GameSession {
-  session_id: string;
-  game_id: string;
-  channel_id: string;
-  host_pubkey: string;
-  status: GameSessionStatus;
-  players: GamePlayer[];
-  max_players: number;
-  created_at: number;
-  last_event_at: number;
-}
-
 // ---- Hub Certifications ----
 
 export interface CertPayload {
@@ -821,6 +934,11 @@ export interface CertPayload {
   issued_at: number;
   expires_at: number;
   capabilities: string[];
+  // Achievement badge: present → this cert is a named badge granted by the
+  // issuer community. issuer_url links back to that hub.
+  label?: string | null;
+  description?: string | null;
+  icon?: string | null;
 }
 
 export interface HubCertification {
@@ -903,6 +1021,31 @@ export interface LinkPreview {
   domain: string;
 }
 
+// ---- Bot mini-app events ----
+
+export interface BotAppLaunchEvent {
+  type: 'bot_app_launch';
+  bot_id: string;
+  title: string;
+  description: string;
+  channel_id: string;
+}
+
+export interface BotAppOpenEvent {
+  type: 'bot_app_open';
+  bot_id: string;
+  channel_id: string;
+  mini_app_url: string;
+  session_token: string;
+  requires_camera: boolean;
+}
+
+export interface BotAppCloseEvent {
+  type: 'bot_app_close';
+  bot_id: string;
+  channel_id: string;
+}
+
 // ---- WebRTC Screen Share v2 ----
 
 export interface WsScreenShareOffer {
@@ -941,4 +1084,46 @@ export interface WsScreenShareViewerLeft {
   channel_id: string;
   stream_id: string;
   from_pubkey: string;
+}
+
+// ---- Moderation (ME1 / ME2 / ME3) ----
+
+export interface Report {
+  id: string;
+  message_id: string;
+  message_content: string | null;
+  channel_id: string;
+  reporter_pubkey: string;
+  reason: string;
+  reported_at: number;
+  status: string;
+}
+
+export interface ModerationSettings {
+  webhook_url?: string;
+  webhook_secret_set: boolean;
+  circuit_open: boolean;
+  circuit_open_until: number | null;
+}
+
+export interface BanlistSource {
+  url: string;
+  policy: "hard-reject" | "soft-flag";
+  added_at: number;
+  issuer_pubkey?: string;
+}
+
+export interface FederatedBanEntry {
+  source_hub_pubkey: string;
+  target_master_pubkey: string;
+  reason?: string;
+  added_at: number;
+  synced_at: number;
+}
+
+export interface BanlistOverride {
+  target_pubkey: string;
+  override_type: "whitelist" | "blacklist";
+  reason?: string;
+  created_at: number;
 }

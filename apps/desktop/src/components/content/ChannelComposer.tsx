@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, Attachment, User } from "../../types";
-import { formatPubkey } from "@voxply/core";
+import { formatPubkey } from "@wavvon/core";
 import { EmojiPicker } from "../EmojiPicker";
-import { PendingAttachments } from "@voxply/ui";
+import { PendingAttachments } from "@wavvon/ui";
 
 interface SlashCommandEntry {
   command: string;
@@ -108,102 +108,118 @@ export function ChannelComposer({
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
         onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
       >
-        <div style={{ position: "relative" }} ref={plusRef}>
-          <button
-            type="button"
-            className="btn-attach"
-            title="More options"
-            aria-label="More options"
-            aria-expanded={plusOpen}
-            onClick={() => setPlusOpen((v) => !v)}
-          >
-            +
-          </button>
-          {plusOpen && (
-            <div className="plus-menu" role="menu">
-              <label className="plus-menu-item" role="menuitem" onClick={() => setPlusOpen(false)}>
-                📎 {t("composer.attach")}
-                <input
-                  type="file"
-                  multiple
-                  style={{ display: "none" }}
-                  onChange={(e) => { onAttachFiles(e.target.files); (e.target as HTMLInputElement).value = ""; }}
-                />
-              </label>
-              {showPollButton && (
-                <button
-                  type="button"
-                  className="plus-menu-item"
-                  role="menuitem"
-                  onClick={() => { setPlusOpen(false); onShowPollComposer(); }}
-                >
-                  📊 Create poll
-                </button>
+        <div className="composer-shell">
+          <div style={{ position: "relative", flex: 1 }}>
+            {slashSuggestions.length > 0 && (
+              <div className="slash-command-popup">
+                {slashSuggestions.map((s, i) => (
+                  <div
+                    key={s.command}
+                    className={`slash-command-item${i === slashSelectedIdx ? " selected" : ""}`}
+                    onMouseDown={(e) => { e.preventDefault(); onFillSlashCommand(s.command); }}
+                  >
+                    <span className="slash-command-name">/{s.command}</span>
+                    <span className="slash-command-desc">{s.description}</span>
+                    <span className="slash-command-bot">{s.bot_name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {mentionSuggestions.length > 0 && (
+              <div className="slash-command-popup mention-popup">
+                {mentionSuggestions.map((u, i) => (
+                  <div
+                    key={u.public_key}
+                    className={`slash-command-item${i === mentionSelectedIdx ? " selected" : ""}`}
+                    onMouseDown={(e) => { e.preventDefault(); onFillMention(u); }}
+                  >
+                    <span className="slash-command-name">@{u.display_name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input
+              ref={messageInputRef}
+              type="text"
+              value={inputText}
+              style={{ width: "100%" }}
+              onChange={(e) => {
+                if (!isComposing.current) {
+                  onInputTextChange(e.target.value);
+                  if (e.target.value.length > 0) onPingTyping();
+                }
+              }}
+              onCompositionStart={() => { isComposing.current = true; }}
+              onCompositionEnd={(e) => {
+                isComposing.current = false;
+                onInputTextChange((e.target as HTMLInputElement).value);
+              }}
+              onKeyDown={onKeyDown}
+              placeholder={
+                replyTarget
+                  ? t("composer.placeholder.reply", { name: users.find((u) => u.public_key === replyTarget.sender)?.display_name ?? "user" })
+                  : t("composer.placeholder", { channel: channelName })
+              }
+            />
+          </div>
+          <div className="composer-actions">
+            <div className="composer-more" ref={plusRef}>
+              <button
+                type="button"
+                className={`composer-btn${plusOpen ? " open" : ""}`}
+                title={t("composer.more_actions")}
+                aria-label={t("composer.more_actions")}
+                aria-expanded={plusOpen}
+                onClick={() => setPlusOpen((v) => !v)}
+              >
+                <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <line x1="10" y1="4" x2="10" y2="16" />
+                  <line x1="4" y1="10" x2="16" y2="10" />
+                </svg>
+              </button>
+              {plusOpen && (
+                <div className="composer-more-menu" role="menu">
+                  <label className="composer-more-item" role="menuitem" onClick={() => setPlusOpen(false)}>
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M16 10l-5 5a4 4 0 0 1-5.66-5.66l6-6a2.5 2.5 0 0 1 3.54 3.54l-6.01 6a1 1 0 0 1-1.41-1.41L13 5.5" />
+                    </svg>
+                    {t("composer.attach")}
+                    <input
+                      type="file"
+                      multiple
+                      style={{ display: "none" }}
+                      onChange={(e) => { onAttachFiles(e.target.files); (e.target as HTMLInputElement).value = ""; }}
+                    />
+                  </label>
+                  {showPollButton && (
+                    <button
+                      type="button"
+                      className="composer-more-item"
+                      role="menuitem"
+                      onClick={() => { setPlusOpen(false); onShowPollComposer(); }}
+                    >
+                      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="2" y="13" width="4" height="5" rx="1" />
+                        <rect x="8" y="8" width="4" height="10" rx="1" />
+                        <rect x="14" y="3" width="4" height="15" rx="1" />
+                      </svg>
+                      {t("composer.create_poll")}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
-          )}
+            <EmojiPicker
+              hubUrl={activeHubUrl}
+              buttonClassName="composer-btn"
+              onPick={(emoji) => {
+                onInputTextChange(inputText + emoji);
+                messageInputRef.current?.focus();
+              }}
+            />
+          </div>
         </div>
-        <EmojiPicker
-          hubUrl={activeHubUrl}
-          onPick={(emoji) => {
-            onInputTextChange(inputText + emoji);
-            messageInputRef.current?.focus();
-          }}
-        />
-        <div style={{ position: "relative", flex: 1 }}>
-          {slashSuggestions.length > 0 && (
-            <div className="slash-command-popup">
-              {slashSuggestions.map((s, i) => (
-                <div
-                  key={s.command}
-                  className={`slash-command-item${i === slashSelectedIdx ? " selected" : ""}`}
-                  onMouseDown={(e) => { e.preventDefault(); onFillSlashCommand(s.command); }}
-                >
-                  <span className="slash-command-name">/{s.command}</span>
-                  <span className="slash-command-desc">{s.description}</span>
-                  <span className="slash-command-bot">{s.bot_name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {mentionSuggestions.length > 0 && (
-            <div className="slash-command-popup mention-popup">
-              {mentionSuggestions.map((u, i) => (
-                <div
-                  key={u.public_key}
-                  className={`slash-command-item${i === mentionSelectedIdx ? " selected" : ""}`}
-                  onMouseDown={(e) => { e.preventDefault(); onFillMention(u); }}
-                >
-                  <span className="slash-command-name">@{u.display_name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <input
-            ref={messageInputRef}
-            type="text"
-            value={inputText}
-            style={{ width: "100%" }}
-            onChange={(e) => {
-              if (!isComposing.current) {
-                onInputTextChange(e.target.value);
-                if (e.target.value.length > 0) onPingTyping();
-              }
-            }}
-            onCompositionStart={() => { isComposing.current = true; }}
-            onCompositionEnd={(e) => {
-              isComposing.current = false;
-              onInputTextChange((e.target as HTMLInputElement).value);
-            }}
-            onKeyDown={onKeyDown}
-            placeholder={
-              replyTarget
-                ? t("composer.placeholder.reply", { name: users.find((u) => u.public_key === replyTarget.sender)?.display_name ?? "user" })
-                : t("composer.placeholder", { channel: channelName })
-            }
-          />
-        </div>
-        <button type="submit" aria-label={t("composer.send.aria")}>{t("composer.send")}</button>
+        <button type="submit" className="composer-send" aria-label={t("composer.send.aria")}>{t("composer.send")}</button>
       </form>
     </>
   );

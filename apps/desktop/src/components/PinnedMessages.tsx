@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PinnedMessage } from "../types";
-import { formatPubkey, formatRelative } from "@voxply/core";
+import { formatPubkey, formatRelative } from "@wavvon/core";
 
 interface Props {
   hubUrl: string;

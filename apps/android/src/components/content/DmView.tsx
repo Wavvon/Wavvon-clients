@@ -1,0 +1,160 @@
+import React from "react";
+import type { DmMessage, Attachment, User, Conversation } from "../../types";
+import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
+import { MessageAttachments, MessageContent, PendingAttachments, TypingIndicator } from "@wavvon/ui";
+
+interface TypingEntry { name: string; ts: number }
+
+interface Props {
+  selectedConversation: Conversation;
+  dmMessages: Record<string, DmMessage[]>;
+  publicKey: string | null;
+  blockedUsers: Set<string>;
+  users: User[];
+  knownDisplayNames: Set<string>;
+  myDisplayName: string | null;
+  pendingAttachments: Attachment[];
+  inputText: string;
+  dmTypingByKey: Record<string, TypingEntry>;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  onSetPendingAttachments: (items: Attachment[]) => void;
+  onAttachFiles: (files: FileList | null) => void;
+  onInputTextChange: (v: string) => void;
+  onPingDmTyping: () => void;
+  onSendDm: () => void;
+  onOpenImage: (src: string, alt: string) => void;
+}
+
+export function DmView({
+  selectedConversation,
+  dmMessages,
+  publicKey,
+  blockedUsers,
+  users,
+  knownDisplayNames,
+  myDisplayName,
+  pendingAttachments,
+  inputText,
+  dmTypingByKey,
+  messagesEndRef,
+  onSetPendingAttachments,
+  onAttachFiles,
+  onInputTextChange,
+  onPingDmTyping,
+  onSendDm,
+  onOpenImage,
+}: Props) {
+  return (
+    <>
+      <div className="channel-header">
+        <h3>
+          @{" "}
+          {selectedConversation.members
+            .filter((m) => m !== publicKey)
+            .map((k) => {
+              const u = users.find((u) => u.public_key === k);
+              return u?.display_name || k.slice(0, 12);
+            })
+            .join(", ")}
+        </h3>
+      </div>
+      {selectedConversation.conv_type === "group" && (
+        <div className="dm-group-banner">
+          Group DMs are not end-to-end encrypted yet.
+        </div>
+      )}
+      <div className="messages">
+        {(dmMessages[selectedConversation.id] || [])
+          .filter((m) => !blockedUsers.has(m.sender))
+          .map((m) => {
+            const senderLabel =
+              users.find((u) => u.public_key === m.sender)?.display_name ||
+              m.sender_name ||
+              formatPubkey(m.sender);
+            const showFailed = m.delivery_failed === true && m.sender === publicKey;
+            const failedBadge = showFailed ? (
+              <span
+                className="dm-delivery-failed"
+                title="The sender's hub couldn't deliver this to one or more recipients after retries."
+              >
+                ⚠ Delivery failed
+              </span>
+            ) : null;
+            const lockIcon = m.is_encrypted
+              ? <span className="dm-lock-icon" title="End-to-end encrypted">🔒</span>
+              : null;
+            const actionText = meAction(m.content);
+            if (actionText !== null) {
+              return (
+                <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message message-action">
+                  <span className="action-asterisk">*</span>
+                  <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                    {senderLabel}
+                  </span>
+                  <span className="action-text">
+                    <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} />
+                  </span>
+                  <span className="message-time" title={formatFullTimestamp(m.timestamp)}>
+                    {formatRelative(m.timestamp)}
+                  </span>
+                  {lockIcon}
+                  {failedBadge}
+                </div>
+              );
+            }
+            return (
+              <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message">
+                <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                  {senderLabel}
+                </span>
+                <span className="message-time" title={formatFullTimestamp(m.timestamp)}>
+                  {formatRelative(m.timestamp)}
+                </span>
+                {lockIcon}
+                <span className="message-content">
+                  <MessageContent content={m.content} knownNames={knownDisplayNames} myName={myDisplayName} />
+                </span>
+                {m.attachments && m.attachments.length > 0 && (
+                  <MessageAttachments items={m.attachments} onImageClick={onOpenImage} />
+                )}
+                {failedBadge}
+              </div>
+            );
+          })}
+        <div ref={messagesEndRef} />
+      </div>
+      <TypingIndicator typers={Object.values(dmTypingByKey)} />
+      {pendingAttachments.length > 0 && (
+        <PendingAttachments
+          items={pendingAttachments}
+          onRemove={(i) => onSetPendingAttachments(pendingAttachments.filter((_, idx) => idx !== i))}
+        />
+      )}
+      <div
+        className="input-area"
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+        onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
+      >
+        <label className="btn-attach" title="Attach file">
+          📎
+          <input
+            type="file"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => { onAttachFiles(e.target.files); (e.target as HTMLInputElement).value = ""; }}
+          />
+        </label>
+        <input
+          type="text"
+          value={inputText}
+          onChange={(e) => { onInputTextChange(e.target.value); if (e.target.value.length > 0) onPingDmTyping(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSendDm(); }
+          }}
+          placeholder="Send a message..."
+        />
+        <button onClick={onSendDm}>Send</button>
+      </div>
+    </>
+  );
+}

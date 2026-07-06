@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Friend } from "../types";
-import { FocusTrap } from "@voxply/ui";
+import { FocusTrap } from "@wavvon/ui";
 
 interface Props {
   friends: Friend[];

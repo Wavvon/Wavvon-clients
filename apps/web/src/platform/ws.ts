@@ -4,13 +4,37 @@ export interface WsHandlers {
   onDmMemberChanged?: (e: object) => void;
   onTyping?: (e: object) => void;
   onVoiceState?: (e: object) => void;
+  onVideo?: (e: object) => void;
+  onWhisper?: (e: object) => void;
+  onVoiceZoneCreated?: (e: object) => void;
+  onVoiceZoneDestroyed?: (e: object) => void;
+  onVoicePositionUpdated?: (e: object) => void;
+  onVoiceZoneState?: (e: object) => void;
   onScreenShare?: (e: object) => void;
   onScreenShareChunk?: (streamId: string, isInit: boolean, data: ArrayBuffer) => void;
   onStatusChange?: (connected: boolean, hubId: string) => void;
   onPin?: (e: object) => void;
   onPoll?: (e: object) => void;
+  onSoundboardPlayed?: (e: object) => void;
   onError?: (e: object) => void;
   onReauthNeeded?: (hubId: string) => void;
+  onChannelsUpdated?: (hubId: string) => void;
+  onMemberOnline?: (publicKey: string, hubId: string) => void;
+  onMemberOffline?: (publicKey: string, hubId: string) => void;
+  onMemberUpdated?: (
+    publicKey: string,
+    displayName: string | null,
+    avatar: string | null,
+    hubId: string,
+  ) => void;
+  /** Presence status changed: status is null (online), "away", or "dnd". */
+  onMemberStatus?: (
+    publicKey: string,
+    status: string | null,
+    custom: string | null,
+    hubId: string,
+  ) => void;
+  onBotApp?: (e: object) => void;
 }
 
 const BACKOFF_INITIAL = 1000;
@@ -88,7 +112,7 @@ export class HubWebSocket {
   private dispatch(msg: Record<string, unknown>): void {
     const tagged: Record<string, unknown> = { ...msg, _hub_id: this.hub_id };
     const type = tagged.type as string | undefined;
-    if (type === "message" || type === "message_edited" || type === "message_deleted" || type === "reactions_updated") {
+    if (type === "message" || type === "message_edited" || type === "message_deleted" || type === "reactions_updated" || type === "forum_event") {
       this.handlers.onMessage?.(tagged);
     } else if (type === "dm") {
       this.handlers.onDm?.(tagged);
@@ -96,19 +120,69 @@ export class HubWebSocket {
       this.handlers.onDmMemberChanged?.(tagged);
     } else if (type === "typing" || type === "dm_typing") {
       this.handlers.onTyping?.(tagged);
-    } else if (type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" || type === "voice_participant_speaking" || type === "voice_roster_update") {
+    } else if (type === "voice_whisper_started" || type === "voice_whisper_stopped") {
+      // Whisper started/stopped carry only sender_pubkey (no channel_id).
+      this.handlers.onWhisper?.(tagged);
+    } else if (
+      type === "video_participant_enabled" || type === "video_participant_disabled" || type === "video_participants" ||
+      type === "video_offer_in" || type === "video_answer_in" || type === "video_ice_in"
+    ) {
+      this.handlers.onVideo?.(tagged);
+    } else if (
+      type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" ||
+      type === "voice_participant_speaking" || type === "voice_roster_update"
+    ) {
       this.handlers.onVoiceState?.(tagged);
     } else if (type === "screen_share_chunk") {
       const env = tagged as unknown as { stream_id: string; is_init: boolean };
       this.pendingChunkEnvelope = { stream_id: env.stream_id, is_init: env.is_init };
-    } else if (type === "screen_share_started" || type === "screen_share_stopped") {
+    } else if (
+      type === "screen_share_started" || type === "screen_share_stopped" ||
+      type === "screen_share_offer_in" || type === "screen_share_answer_in" || type === "screen_share_ice_in" ||
+      type === "screen_share_viewer_joined" || type === "screen_share_viewer_left" ||
+      type === "stream_subscribed" || type === "stream_subscription_ended" || type === "hub_streams"
+    ) {
       this.handlers.onScreenShare?.(tagged);
     } else if (type === "message_pinned" || type === "message_unpinned") {
       this.handlers.onPin?.(tagged);
     } else if (type === "poll_vote_updated") {
       this.handlers.onPoll?.(tagged);
+    } else if (type === "soundboard_played") {
+      this.handlers.onSoundboardPlayed?.(tagged);
     } else if (type === "error") {
       this.handlers.onError?.(tagged);
+    } else if (type === "lagged") {
+      this.handlers.onChannelsUpdated?.(this.hub_id);
+    } else if (type === "channels_updated") {
+      this.handlers.onChannelsUpdated?.(this.hub_id);
+    } else if (type === "member_online") {
+      this.handlers.onMemberOnline?.(tagged.public_key as string, this.hub_id);
+    } else if (type === "member_offline") {
+      this.handlers.onMemberOffline?.(tagged.public_key as string, this.hub_id);
+    } else if (type === "member_updated") {
+      this.handlers.onMemberUpdated?.(
+        tagged.public_key as string,
+        (tagged.display_name as string | null) ?? null,
+        (tagged.avatar as string | null) ?? null,
+        this.hub_id,
+      );
+    } else if (type === "member_status") {
+      this.handlers.onMemberStatus?.(
+        tagged.public_key as string,
+        (tagged.status as string | null) ?? null,
+        (tagged.custom as string | null) ?? null,
+        this.hub_id,
+      );
+    } else if (type === "bot_app_launch" || type === "bot_app_open" || type === "bot_app_close") {
+      this.handlers.onBotApp?.(tagged);
+    } else if (type === "voice_zone_created") {
+      this.handlers.onVoiceZoneCreated?.(tagged);
+    } else if (type === "voice_zone_destroyed") {
+      this.handlers.onVoiceZoneDestroyed?.(tagged);
+    } else if (type === "voice_position_updated") {
+      this.handlers.onVoicePositionUpdated?.(tagged);
+    } else if (type === "voice_zone_state") {
+      this.handlers.onVoiceZoneState?.(tagged);
     }
   }
 
@@ -131,12 +205,65 @@ export class HubWebSocket {
     }
   }
 
+  // Send a raw binary frame (screen-share chunk payload). The hub pairs it
+  // with the immediately-preceding `screen_share_chunk` JSON envelope, so
+  // callers must send() the envelope first, then sendBinary() the bytes.
+  sendBinary(data: ArrayBuffer): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(data);
+    }
+  }
+
   subscribeChannel(channelId: string): void {
     this.send({ type: "subscribe", channel_id: channelId });
   }
 
   unsubscribeChannel(channelId: string): void {
     this.send({ type: "unsubscribe", channel_id: channelId });
+  }
+
+  watchVoice(channelId: string): void {
+    this.send({ type: "voice_watch", channel_id: channelId });
+  }
+
+  // --- Camera video signaling (full-mesh WebRTC, main WS) ---
+  sendVideoEnable(channelId: string): void {
+    this.send({ type: "video_enable", channel_id: channelId });
+  }
+  sendVideoDisable(channelId: string): void {
+    this.send({ type: "video_disable", channel_id: channelId });
+  }
+  sendVideoOffer(channelId: string, toPubkey: string, sdp: string): void {
+    this.send({ type: "video_offer", channel_id: channelId, to_pubkey: toPubkey, sdp });
+  }
+  sendVideoAnswer(channelId: string, toPubkey: string, sdp: string): void {
+    this.send({ type: "video_answer", channel_id: channelId, to_pubkey: toPubkey, sdp });
+  }
+  sendVideoIce(channelId: string, toPubkey: string, candidate: string): void {
+    this.send({ type: "video_ice", channel_id: channelId, to_pubkey: toPubkey, candidate });
+  }
+
+  // --- Whisper control (main WS) ---
+  startWhisper(targets: { type: string; id: string }[]): void {
+    this.send({ type: "voice_whisper_start", targets });
+  }
+  stopWhisper(): void {
+    this.send({ type: "voice_whisper_stop" });
+  }
+
+  // --- Hub-streams (cross-channel screen-share discovery/subscribe) ---
+  requestStreamList(): void {
+    this.send({ type: "stream_list" });
+  }
+  subscribeStream(sourceChannelId: string, streamId: string): void {
+    this.send({ type: "stream_subscribe", source_channel_id: sourceChannelId, stream_id: streamId });
+  }
+  unsubscribeStream(sourceChannelId: string, streamId: string): void {
+    this.send({ type: "stream_unsubscribe", source_channel_id: sourceChannelId, stream_id: streamId });
+  }
+
+  unwatchVoice(): void {
+    this.send({ type: "voice_unwatch" });
   }
 
   close(): void {

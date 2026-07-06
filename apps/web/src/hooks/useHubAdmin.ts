@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { hubFetch } from "@platform";
 import { getHubSettings, saveHubSettings } from "@platform";
+import { HubApiError } from "../platform/http";
 import type {
   MemberAdminInfo,
   BanInfo,
   InviteInfo,
   PendingUser,
+  RoleInfo,
 } from "@shared/types";
 import type { HubAdminTab } from "../components/HubAdminPage";
 
@@ -21,6 +23,9 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
   const [hubAdminIcon, setHubAdminIcon] = useState("");
   const [hubAdminRequireApproval, setHubAdminRequireApproval] = useState(false);
   const [hubAdminMinLevel, setHubAdminMinLevel] = useState(0);
+  const [hubAdminWelcomeLabel, setHubAdminWelcomeLabel] = useState("");
+  const [hubAdminWelcomeInviteUrl, setHubAdminWelcomeInviteUrl] = useState("");
+  const [hubAdminSaveError, setHubAdminSaveError] = useState<string | null>(null);
   const [hubAdminMembers, setHubAdminMembers] = useState<MemberAdminInfo[]>([]);
   const [hubAdminBans, setHubAdminBans] = useState<BanInfo[]>([]);
   const [hubAdminInvites, setHubAdminInvites] = useState<InviteInfo[]>([]);
@@ -30,6 +35,7 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
   async function openHubAdmin() {
     setShowHubAdmin(true);
     setHubAdminTab("overview");
+    setHubAdminSaveError(null);
     try {
       const s = await getHubSettings();
       setHubAdminName(s.hub_name);
@@ -38,6 +44,8 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
       setHubAdminRequireApproval(s.require_approval ?? false);
       setHubAdminMinLevel(s.min_security_level ?? 0);
       setMaxChannelDepth(s.max_channel_depth ?? 0);
+      setHubAdminWelcomeLabel(s.welcome_label ?? "");
+      setHubAdminWelcomeInviteUrl(s.welcome_invite_url ?? "");
     } catch { /* prefill skipped */ }
     try {
       const [members, bans, invites, pending] = await Promise.allSettled([
@@ -54,6 +62,7 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
   }
 
   async function saveHubAdminSettings() {
+    setHubAdminSaveError(null);
     try {
       await saveHubSettings({
         name: hubAdminName,
@@ -62,8 +71,12 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
         require_approval: hubAdminRequireApproval,
         min_security_level: hubAdminMinLevel,
         max_channel_depth: maxChannelDepth,
+        welcome_label: hubAdminWelcomeLabel,
+        welcome_invite_url: hubAdminWelcomeInviteUrl,
       });
-    } catch { /* ignore */ }
+    } catch (e) {
+      setHubAdminSaveError(e instanceof HubApiError ? e.message : String(e));
+    }
   }
 
   function addInvite(inv: InviteInfo) {
@@ -72,6 +85,10 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
 
   function removeInvite(code: string) {
     setHubAdminInvites((prev) => prev.filter((i) => i.code !== code));
+  }
+
+  function setMemberRoles(publicKey: string, roles: RoleInfo[]) {
+    setHubAdminMembers((prev) => prev.map((m) => (m.public_key === publicKey ? { ...m, roles } : m)));
   }
 
   return {
@@ -89,6 +106,11 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
     setHubAdminRequireApproval,
     hubAdminMinLevel,
     setHubAdminMinLevel,
+    hubAdminWelcomeLabel,
+    setHubAdminWelcomeLabel,
+    hubAdminWelcomeInviteUrl,
+    setHubAdminWelcomeInviteUrl,
+    hubAdminSaveError,
     hubAdminMembers,
     hubAdminBans,
     hubAdminInvites,
@@ -99,5 +121,6 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
     saveHubAdminSettings,
     addInvite,
     removeInvite,
+    setMemberRoles,
   };
 }

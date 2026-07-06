@@ -4,7 +4,7 @@ export interface Channel {
   created_by: string;
   parent_id: string | null;
   is_category: boolean;
-  channel_type?: "text" | "forum" | "banner";
+  channel_type?: "text" | "forum" | "banner" | "spawner";
   banner_url?: string | null;
   banner_file_id?: string | null;
   display_order: number;
@@ -13,6 +13,12 @@ export interface Channel {
   color: string | null;
   custom_icon_svg: string | null;
   created_at: number;
+  /** True for a join-to-create personal room spawned from a spawner channel. */
+  is_temporary?: boolean;
+  /** Set only on temp channels: the joiner who owns (and may rename) it. Absent/null otherwise. */
+  owner_pubkey?: string | null;
+  /** Set only on spawner channels: the name template used for rooms it spawns. Absent/null otherwise. */
+  spawner_name_template?: string | null;
 }
 
 export interface TreeNode {
@@ -57,22 +63,53 @@ export function computeDepth(channels: Channel[], parentId: string | null): numb
   return 1 + computeDepth(channels, parent.parent_id ?? null);
 }
 
-export function descendantIds(tree: TreeNode[], id: string): Set<string> {
-  function findNode(nodes: TreeNode[]): TreeNode | null {
-    for (const n of nodes) {
-      if (n.node.id === id) return n;
-      const found = findNode(n.children);
-      if (found) return found;
-    }
-    return null;
+/**
+ * Root-to-leaf ancestor chain for a channel, including the channel itself.
+ * Powers permalink breadcrumbs, the drill-in back-crumb, and permalink
+ * resolution (see nested-channels-ux.md §1.4 / §2.4) — one tree-walk, three
+ * surfaces. Returns `[]` if `id` isn't in `channels` (deleted / not visible).
+ */
+export function channelPath(channels: Channel[], id: string): Channel[] {
+  const byId = new Map(channels.map((c) => [c.id, c]));
+  const start = byId.get(id);
+  if (!start) return [];
+
+  const path: Channel[] = [start];
+  const seen = new Set<string>([id]);
+  let current = start;
+  while (current.parent_id !== null) {
+    if (seen.has(current.parent_id)) break; // defend against a parent_id cycle
+    const parent = byId.get(current.parent_id);
+    if (!parent) break;
+    path.push(parent);
+    seen.add(parent.id);
+    current = parent;
   }
+  return path.reverse();
+}
+
+/**
+ * Finds a node anywhere in the tree by channel id. Shared by
+ * `descendantIds` and the sidebar drill-in re-rooting (nested-channels-ux.md
+ * §2.2) — one tree-walk, multiple callers.
+ */
+export function findTreeNode(tree: TreeNode[], id: string): TreeNode | null {
+  for (const n of tree) {
+    if (n.node.id === id) return n;
+    const found = findTreeNode(n.children, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function descendantIds(tree: TreeNode[], id: string): Set<string> {
   function collectIds(nodes: TreeNode[], acc: Set<string>) {
     for (const n of nodes) {
       acc.add(n.node.id);
       collectIds(n.children, acc);
     }
   }
-  const root = findNode(tree);
+  const root = findTreeNode(tree, id);
   const ids = new Set<string>();
   if (root) collectIds(root.children, ids);
   return ids;

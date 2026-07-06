@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { Hub, FarmPublicInfo, FarmHubQuota, CreatedFarmHub } from "../types";
-import { FocusTrap } from "@voxply/ui";
+import { FocusTrap } from "@wavvon/ui";
 
 type Visibility = "public" | "private";
 

@@ -1,7 +1,11 @@
 export type { Attachment, Reaction, Message, AllianceSharedChannel, BlockEntry, IgnoreEntry } from "./types";
+export { AudioProfileSection } from "./components/AudioProfileSection";
 export { Avatar } from "./components/Avatar";
+export { AvatarPicker } from "./components/AvatarPicker";
+export { generateAvatarDataUrl, randomAvatarSeed } from "./utils/avatarGenerator";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
+export { ErrorRetry } from "./components/ErrorRetry";
 export { FocusTrap } from "./components/FocusTrap";
 export { HoverSubmenu } from "./components/HoverSubmenu";
 export { KeyboardShortcuts } from "./components/KeyboardShortcuts";

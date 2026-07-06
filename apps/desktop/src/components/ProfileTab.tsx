@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, NamedProfile } from "../types";
 import { AvatarEditor } from "./AvatarEditor";
-import { Avatar } from "@voxply/ui";
+import { Avatar } from "@wavvon/ui";
 
-const HUB_PROFILES_KEY = "voxply.hubProfiles";
+const HUB_PROFILES_KEY = "wavvon.hubProfiles";
 
 function loadHubProfiles(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(HUB_PROFILES_KEY) ?? "{}"); } catch { return {}; }

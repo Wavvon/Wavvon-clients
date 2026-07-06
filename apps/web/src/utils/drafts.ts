@@ -1,4 +1,4 @@
-const DRAFTS_KEY = "voxply.drafts";
+const DRAFTS_KEY = "wavvon.drafts";
 
 function load(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}"); } catch { return {}; }
@@ -23,4 +23,8 @@ export function clearDraft(key: string) {
 
 export function hasDraft(key: string): boolean {
   return !!load()[key]?.trim();
+}
+
+export function loadAllDrafts(): Record<string, string> {
+  return load();
 }

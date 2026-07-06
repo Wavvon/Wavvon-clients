@@ -60,31 +60,8 @@ pub(crate) enum WsCommand {
         conversation_id: String,
         typing: bool,
     },
-    GameSend {
-        session_id: String,
-        payload: serde_json::Value,
-        to: Option<String>,
-    },
-    GameSetStatus {
-        session_id: String,
-        status: String,
-    },
-    GameSnapshot {
-        session_id: String,
-        blob: String,
-    },
-    GameEnd {
-        session_id: String,
-        result: Option<serde_json::Value>,
-    },
     Raw(String),
 }
-
-// Implement Send for WsCommand so it can cross thread boundaries in tokio::spawn.
-// The contained types are all Send; this manual impl is needed because
-// `serde_json::Value` is Send but the compiler needs a nudge when it's behind
-// an enum variant inside an unbounded channel.
-unsafe impl Send for WsCommand {}
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]

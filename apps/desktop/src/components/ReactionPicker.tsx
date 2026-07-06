@@ -1,8 +1,8 @@
 import { CSSProperties, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EMOJI_CATALOG } from "../constants";
-import { loadRecentEmojis, pushRecentEmoji } from "@voxply/core";
-import { FocusTrap } from "@voxply/ui";
+import { loadRecentEmojis, pushRecentEmoji } from "@wavvon/core";
+import { FocusTrap } from "@wavvon/ui";
 
 const POPUP_HEIGHT = 300; // estimated max height in px
 

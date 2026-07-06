@@ -15,8 +15,8 @@ import type {
   FarmUserEntry,
   FarmCreationPolicy,
 } from "../types";
-import { formatPubkey, formatRelative } from "@voxply/core";
-import { FocusTrap } from "@voxply/ui";
+import { formatPubkey, formatRelative } from "@wavvon/core";
+import { FocusTrap } from "@wavvon/ui";
 
 export type FarmAdminTab = "general" | "hubs" | "users";
 

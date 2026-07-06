@@ -1,4 +1,4 @@
-import { formatPubkey } from "@voxply/core";
+import { formatPubkey } from "@wavvon/core";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
 interface Props {

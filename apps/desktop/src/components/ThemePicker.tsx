@@ -1,5 +1,5 @@
 import { THEMES } from "../constants";
-import type { ThemeId, VoxplySkin } from "../skinValidation";
+import type { ThemeId, WavvonSkin } from "../skinValidation";
 
 export function ThemePicker({
   value,
@@ -7,7 +7,7 @@ export function ThemePicker({
   onChange,
 }: {
   value: ThemeId;
-  skin: VoxplySkin | null;
+  skin: WavvonSkin | null;
   onChange: (t: ThemeId) => void;
 }) {
   return (

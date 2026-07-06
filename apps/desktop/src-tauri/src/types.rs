@@ -232,6 +232,9 @@ pub(crate) struct RawDmMessageResponse {
     pub delivery_failed: bool,
     pub encrypted_envelope: Option<serde_json::Value>,
     pub group_encrypted_envelope: Option<serde_json::Value>,
+    /// DR v2 envelope — present when `encrypted_envelope.v == 2`.
+    #[serde(default)]
+    pub dr_envelope: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -334,19 +337,6 @@ pub(crate) struct VoiceRosterEntryInfo {
     pub public_key: String,
     #[serde(default)]
     pub display_name: Option<String>,
-}
-
-// ---------------------------------------------------------------------------
-// Game types
-// ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct InstalledGame {
-    pub id: String,
-    pub name: String,
-    pub entry_url: String,
-    pub description: Option<String>,
-    pub thumbnail_url: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -938,41 +928,6 @@ pub(crate) enum WsServerMessage {
         channel_id: String,
         zones: Vec<VoiceZoneSnapshotInfo>,
     },
-    #[serde(rename = "game_session_created")]
-    GameSessionCreated {
-        session_id: String,
-        game_id: String,
-        channel_id: String,
-        host_pubkey: String,
-    },
-    #[serde(rename = "game_player_joined")]
-    GamePlayerJoined {
-        session_id: String,
-        pubkey: String,
-        #[serde(default)]
-        display_name: Option<String>,
-    },
-    #[serde(rename = "game_player_left")]
-    GamePlayerLeft { session_id: String, pubkey: String },
-    #[serde(rename = "game_host_changed")]
-    GameHostChanged {
-        session_id: String,
-        new_host_pubkey: String,
-    },
-    #[serde(rename = "game_event")]
-    GameEventMsg {
-        session_id: String,
-        from_pubkey: String,
-        payload: serde_json::Value,
-    },
-    #[serde(rename = "game_session_ended")]
-    GameSessionEnded {
-        session_id: String,
-        #[serde(default)]
-        reason: Option<String>,
-        #[serde(default)]
-        result: Option<serde_json::Value>,
-    },
     #[serde(rename = "video_participant_enabled")]
     VideoParticipantEnabled { channel_id: String, pubkey: String },
     #[serde(rename = "video_participant_disabled")]
@@ -1013,6 +968,22 @@ pub(crate) enum WsServerMessage {
     VoiceWhisperStarted { sender_pubkey: String },
     #[serde(rename = "voice_whisper_stopped")]
     VoiceWhisperStopped { sender_pubkey: String },
+    #[serde(rename = "bot_app_launch")]
+    BotAppLaunch {
+        bot_id: String,
+        title: String,
+        description: String,
+        channel_id: String,
+    },
+    #[serde(rename = "bot_app_open")]
+    BotAppOpen {
+        bot_id: String,
+        channel_id: String,
+        mini_app_url: String,
+        session_token: String,
+    },
+    #[serde(rename = "bot_app_close")]
+    BotAppClose { bot_id: String, channel_id: String },
     #[serde(other)]
     Other,
 }

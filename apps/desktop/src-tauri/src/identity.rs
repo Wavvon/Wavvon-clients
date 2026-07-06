@@ -1,5 +1,5 @@
 // Local identity primitives — reimplemented directly against standard crypto
-// crates so voxply-desktop has no dependency on any hub-internal crate.
+// crates so wavvon-desktop has no dependency on any hub-internal crate.
 
 #![allow(dead_code)]
 
@@ -97,7 +97,7 @@ impl Identity {
 
     pub fn default_path() -> Result<PathBuf> {
         let home = dirs::home_dir().context("Could not find home directory")?;
-        Ok(home.join(".voxply").join("identity.json"))
+        Ok(home.join(".wavvon").join("identity.json"))
     }
 
     /// Derive the master keypair from this identity's secret bytes.
@@ -172,7 +172,7 @@ impl fmt::Display for Identity {
 // MasterIdentity
 // ---------------------------------------------------------------------------
 
-const MASTER_HKDF_INFO: &[u8] = b"voxply/master/v1";
+const MASTER_HKDF_INFO: &[u8] = b"wavvon/master/v1";
 
 pub struct MasterIdentity {
     signing_key: SigningKey,
@@ -378,7 +378,7 @@ use aes_gcm::{
 use rand::RngCore;
 use sha2::Sha512;
 
-const ECIES_INFO: &[u8] = b"voxply/ecies/v1";
+const ECIES_INFO: &[u8] = b"wavvon/ecies/v1";
 
 /// Wrap a 32-byte blob key for a recipient identified by their Ed25519 pubkey.
 ///
@@ -512,7 +512,7 @@ impl HomeHubList {
         sequence: u64,
     ) -> Vec<u8> {
         let mut buf = Vec::new();
-        buf.extend_from_slice(b"voxply/home-hub-list/v1\0");
+        buf.extend_from_slice(b"wavvon/home-hub-list/v1\0");
         write_str(&mut buf, master_pubkey);
         write_str_vec(&mut buf, hubs);
         write_u64_le(&mut buf, issued_at);
@@ -561,7 +561,7 @@ impl SubkeyCert {
         fallback_hubs: &[String],
     ) -> Vec<u8> {
         let mut buf = Vec::new();
-        buf.extend_from_slice(b"voxply/subkey-cert/v1\0");
+        buf.extend_from_slice(b"wavvon/subkey-cert/v1\0");
         write_str(&mut buf, master_pubkey);
         write_str(&mut buf, subkey_pubkey);
         write_str(&mut buf, device_label);
@@ -608,7 +608,7 @@ pub struct RevocationEntry {
 impl RevocationEntry {
     pub fn signing_bytes(master_pubkey: &str, subkey_pubkey: &str, revoked_at: u64) -> Vec<u8> {
         let mut buf = Vec::new();
-        buf.extend_from_slice(b"voxply/revocation/v1\0");
+        buf.extend_from_slice(b"wavvon/revocation/v1\0");
         write_str(&mut buf, master_pubkey);
         write_str(&mut buf, subkey_pubkey);
         write_u64_le(&mut buf, revoked_at);
@@ -641,7 +641,7 @@ impl SignedPrefsBlob {
     pub fn signing_bytes(master_pubkey: &str, blob_version: u64, ciphertext: &[u8]) -> Vec<u8> {
         let digest = Sha256::digest(ciphertext);
         let mut buf = Vec::new();
-        buf.extend_from_slice(b"voxply/prefs-blob/v1\0");
+        buf.extend_from_slice(b"wavvon/prefs-blob/v1\0");
         write_str(&mut buf, master_pubkey);
         write_u64_le(&mut buf, blob_version);
         buf.extend_from_slice(&digest);
@@ -684,7 +684,7 @@ impl PairingOffer {
         expires_at: u64,
     ) -> Vec<u8> {
         let mut buf = Vec::new();
-        buf.extend_from_slice(b"voxply/pairing-offer/v1\0");
+        buf.extend_from_slice(b"wavvon/pairing-offer/v1\0");
         write_str(&mut buf, master_pubkey);
         write_str_vec(&mut buf, home_hubs);
         write_str(&mut buf, pairing_token);
@@ -724,7 +724,7 @@ pub struct PairingClaim {
 impl PairingClaim {
     pub fn signing_bytes(pairing_token: &str, subkey_pubkey: &str, device_label: &str) -> Vec<u8> {
         let mut buf = Vec::new();
-        buf.extend_from_slice(b"voxply/pairing-claim/v1\0");
+        buf.extend_from_slice(b"wavvon/pairing-claim/v1\0");
         write_str(&mut buf, pairing_token);
         write_str(&mut buf, subkey_pubkey);
         write_str(&mut buf, device_label);
@@ -775,7 +775,7 @@ pub struct DhKeyRecord {
 
 impl DhKeyRecord {
     pub fn signing_bytes(pubkey: &str, dh_pubkey_hex: &str) -> Vec<u8> {
-        let mut out = b"voxply/dh-key/v1\0".to_vec();
+        let mut out = b"wavvon/dh-key/v1\0".to_vec();
         let pk = pubkey.as_bytes();
         out.extend_from_slice(&(pk.len() as u32).to_le_bytes());
         out.extend_from_slice(pk);
@@ -819,7 +819,7 @@ pub struct PublicHubProfile {
 impl PublicHubProfile {
     pub fn signing_bytes(pubkey: &str, public_hubs: &[PublicHubEntry], issued_at: u64) -> Vec<u8> {
         let mut buf = Vec::new();
-        buf.extend_from_slice(b"voxply/public-hub-profile/v1\0");
+        buf.extend_from_slice(b"wavvon/public-hub-profile/v1\0");
         write_str(&mut buf, pubkey);
         write_u64_le(&mut buf, issued_at);
         write_u32_le(&mut buf, public_hubs.len() as u32);

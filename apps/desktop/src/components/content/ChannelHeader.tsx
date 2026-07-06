@@ -1,12 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Channel, Message } from "../../types";
-import { GamepadIcon } from "../Icons";
+import { PhoneOffIcon } from "../Icons";
 
 interface Props {
   selectedChannel: Channel;
   voiceChannelId: string | null;
-  hasInstalledGames: boolean;
   memberSidebarHidden: boolean;
   searchOpen: boolean;
   searchQuery: string;
@@ -16,7 +15,6 @@ interface Props {
   isAdmin: boolean;
   onVoiceJoin: () => void;
   onVoiceLeave: () => void;
-  onOpenGamePicker: () => void;
   onShowPinned: () => void;
   onShowEvents: () => void;
   onToggleSearch: () => void;
@@ -30,7 +28,6 @@ interface Props {
 export function ChannelHeader({
   selectedChannel,
   voiceChannelId,
-  hasInstalledGames,
   memberSidebarHidden,
   searchOpen,
   searchQuery,
@@ -40,7 +37,6 @@ export function ChannelHeader({
   isAdmin,
   onVoiceJoin,
   onVoiceLeave,
-  onOpenGamePicker,
   onShowPinned,
   onShowEvents,
   onToggleSearch,
@@ -81,7 +77,7 @@ export function ChannelHeader({
               className="btn-voice-header btn-voice-leave"
               title={t("voice.leave")}
             >
-              🔴 {t("voice.leave.header")}
+              <PhoneOffIcon /> {t("voice.leave.header")}
             </button>
           ) : (
             <button
@@ -92,15 +88,6 @@ export function ChannelHeader({
               🎙 {t("voice.join.header")}
             </button>
           )
-        )}
-        {hasInstalledGames && (
-          <button
-            onClick={onOpenGamePicker}
-            className="btn-icon-header"
-            title={t("content.activities")}
-          >
-            <GamepadIcon size={16} />
-          </button>
         )}
         <button
           onClick={onShowPinned}

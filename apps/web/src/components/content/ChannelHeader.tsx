@@ -1,64 +1,73 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { channelPath } from "@wavvon/core";
 import type { Channel, Message, ActiveStream } from "../../types";
-import { GamepadIcon } from "../Icons";
 import { ScreenShareViewer } from "../ScreenShareViewer";
 import type { ScreenShareViewerRef } from "../ScreenShareViewer";
 
 interface Props {
   selectedChannel: Channel;
-  voiceChannelId?: string | null;
-  hasInstalledGames: boolean;
+  channels: Channel[];
   memberSidebarHidden: boolean;
   searchOpen: boolean;
   searchQuery: string;
   searchResults: Message[] | null;
   activeScreenShares: ActiveStream[];
   screenShareViewerRef: React.RefObject<ScreenShareViewerRef | null>;
-  sharing?: boolean;
-  shareKbps?: number;
   isAdmin: boolean;
-  onVoiceJoin?: () => void;
-  onVoiceLeave?: () => void;
-  onOpenGamePicker: () => void;
   onShowPinned: () => void;
   onToggleSearch: () => void;
   onCloseSearch: () => void;
   onSetSearchQuery: (v: string) => void;
   onToggleMemberSidebar: () => void;
   onOpenEditDescription: (channel: Channel) => void;
-  onStopShare?: () => void;
+  onOpenHubStreams?: () => void;
+  onBreadcrumbCategoryClick: (categoryId: string) => void;
 }
 
 export function ChannelHeader({
   selectedChannel,
-  voiceChannelId,
-  hasInstalledGames,
+  channels,
   memberSidebarHidden,
   searchOpen,
   searchQuery,
   searchResults,
   activeScreenShares,
   screenShareViewerRef,
-  sharing,
-  shareKbps,
   isAdmin,
-  onVoiceJoin,
-  onVoiceLeave,
-  onOpenGamePicker,
   onShowPinned,
   onToggleSearch,
   onCloseSearch,
   onSetSearchQuery,
   onToggleMemberSidebar,
   onOpenEditDescription,
-  onStopShare,
+  onOpenHubStreams,
+  onBreadcrumbCategoryClick,
 }: Props) {
   const { t } = useTranslation();
+  const breadcrumb = channelPath(channels, selectedChannel.id);
+
   return (
     <>
       <div className="channel-header">
         <div className="channel-header-info">
+          {breadcrumb.length > 1 && (
+            <nav className="channel-breadcrumb" aria-label={t("channel.breadcrumb.aria")}>
+              {breadcrumb.slice(0, -1).map((crumb) => (
+                <React.Fragment key={crumb.id}>
+                  <button
+                    type="button"
+                    className="channel-breadcrumb-item"
+                    onClick={() => onBreadcrumbCategoryClick(crumb.id)}
+                  >
+                    {crumb.name}
+                  </button>
+                  <span className="channel-breadcrumb-sep" aria-hidden="true">›</span>
+                </React.Fragment>
+              ))}
+              <span className="channel-breadcrumb-item current"># {selectedChannel.name}</span>
+            </nav>
+          )}
           <h3># {selectedChannel.name}</h3>
           {selectedChannel.description ? (
             <p
@@ -78,32 +87,14 @@ export function ChannelHeader({
             </p>
           ) : null}
         </div>
-        {!selectedChannel.is_category && (
-          voiceChannelId === selectedChannel.id ? (
-            <button
-              onClick={onVoiceLeave}
-              className="btn-voice-header btn-voice-leave"
-              title={t("voice.leave")}
-            >
-              🔴 {t("voice.leave.header")}
-            </button>
-          ) : (
-            <button
-              onClick={onVoiceJoin}
-              className="btn-voice-header btn-voice-join"
-              title={t("voice.join")}
-            >
-              🎙 {t("voice.join.header")}
-            </button>
-          )
-        )}
-        {hasInstalledGames && (
+        {onOpenHubStreams && (
           <button
-            onClick={onOpenGamePicker}
+            onClick={onOpenHubStreams}
             className="btn-icon-header"
-            title={t("content.activities")}
+            title="Live screen shares"
+            aria-label="Live screen shares"
           >
-            <GamepadIcon size={16} />
+            📡
           </button>
         )}
         <button
@@ -128,6 +119,7 @@ export function ChannelHeader({
           {memberSidebarHidden ? "👥" : "👤"}
         </button>
       </div>
+
       {searchOpen && (
         <div className="search-bar">
           <input
@@ -151,17 +143,6 @@ export function ChannelHeader({
           ref={screenShareViewerRef}
           streams={activeScreenShares}
         />
-      )}
-      {sharing && (
-        <div className="screen-share-active-bar">
-          <span>{t("voice.sharing")}</span>
-          {(shareKbps ?? 0) > 0 && (
-            <span className="muted">{shareKbps} kbps</span>
-          )}
-          <button className="stop-btn" onClick={onStopShare}>
-            {t("voice.screen_share.stop")}
-          </button>
-        </div>
       )}
     </>
   );

@@ -2,7 +2,7 @@ import * as bip39 from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 
 // 32-byte seed hex → 24-word BIP39 mnemonic (256-bit entropy + 8-bit checksum).
-// Same wordlist and entropy format as the desktop's voxply_identity crate.
+// Same wordlist and entropy format as the desktop's wavvon_identity crate.
 export function seedToPhrase(seedHex: string): string {
   if (seedHex.length !== 64) throw new Error("Expected 32-byte (64-char) seed hex");
   const entropy = new Uint8Array(32);

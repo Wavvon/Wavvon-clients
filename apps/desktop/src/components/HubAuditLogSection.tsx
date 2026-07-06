@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { AuditEntry } from "../types";
-import { formatPubkey, formatRelative, formatFullTimestamp } from "@voxply/core";
+import { formatPubkey, formatRelative, formatFullTimestamp } from "@wavvon/core";
 
 interface Props {
   hubUrl: string;

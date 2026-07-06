@@ -1,6 +1,9 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { HubEvent, RsvpStatus } from "../types";
 import { rsvpEvent } from "@platform";
+import { EventSlotList } from "./EventSlotList";
+import { reminderMinutesToOffset } from "../utils/events";
 
 interface Props {
   event: HubEvent;
@@ -17,6 +20,7 @@ const RSVP_LABELS: Record<RsvpStatus, string> = {
 };
 
 export function EventCard({ event, myPubkey, isAdmin, onUpdate, onDelete }: Props) {
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [myStatus, setMyStatus] = useState<RsvpStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +91,19 @@ export function EventCard({ event, myPubkey, isAdmin, onUpdate, onDelete }: Prop
       <div className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>
         {counts.going} going · {counts.maybe} maybe
       </div>
+
+      {event.reminder_minutes !== null && (
+        <div className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 2 }}>
+          {t("events.card.reminder", { value: t(`events.reminder.${reminderMinutesToOffset(event.reminder_minutes)}`) })}
+        </div>
+      )}
+
+      <EventSlotList
+        eventId={event.id}
+        slots={event.slots}
+        myPubkey={myPubkey}
+        onSlotsChange={(slots) => onUpdate({ ...event, slots })}
+      />
 
       {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-xs)", marginTop: 4 }}>{error}</p>}
     </div>

@@ -102,7 +102,7 @@ pub(crate) fn export_identity_backup(passphrase: String) -> Result<String, Strin
     });
 
     let home = dirs::home_dir().ok_or("No home directory")?;
-    let dir = home.join(".voxply");
+    let dir = home.join(".wavvon");
     std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir: {e}"))?;
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -176,7 +176,7 @@ pub(crate) fn import_identity_backup(passphrase: String, src_path: String) -> Re
 
 pub(crate) fn tempfile_identity(json: &str) -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    let path = home.join(".voxply").join(".identity-import-tmp");
+    let path = home.join(".wavvon").join(".identity-import-tmp");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
     }

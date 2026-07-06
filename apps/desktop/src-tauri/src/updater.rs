@@ -67,11 +67,11 @@ pub(crate) async fn install_pending_update(
 pub(crate) fn set_tray_unread(count: u32, app: AppHandle) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("tray missing")?;
     let label = if count == 0 {
-        "Voxply".to_string()
+        "Wavvon".to_string()
     } else if count > 99 {
-        "Voxply \u{2014} 99+ unread".to_string()
+        "Wavvon \u{2014} 99+ unread".to_string()
     } else {
-        format!("Voxply \u{2014} {count} unread")
+        format!("Wavvon \u{2014} {count} unread")
     };
     tray.set_tooltip(Some(&label)).map_err(|e| e.to_string())?;
     Ok(())

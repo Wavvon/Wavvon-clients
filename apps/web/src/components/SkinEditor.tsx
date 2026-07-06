@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
   SKINNABLE_TOKENS,
-  VoxplySkin,
+  WavvonSkin,
   SkinBase,
   applySkinTokens,
   clearSkinTokens,
   downloadSkin,
   parseSkinFromRgba,
+  readBaseToken,
   splitRgba,
   validateSkin,
 } from "../skinValidation";
@@ -20,21 +21,12 @@ const BASE_LABELS: Record<SkinBase, string> = {
 };
 
 interface Props {
-  skin: VoxplySkin;
-  onChange: (skin: VoxplySkin) => void;
+  skin: WavvonSkin;
+  onChange: (skin: WavvonSkin) => void;
 }
 
-function makeSeed(base: SkinBase, name = "My Skin"): VoxplySkin {
-  return { format: "voxply.skin", version: 1, name, base, tokens: {} };
-}
-
-function readBaseToken(token: string, base: SkinBase): string {
-  // Temporarily set the base theme, read the token, then restore custom
-  const prev = document.documentElement.dataset.theme;
-  document.documentElement.dataset.theme = base;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  if (prev !== undefined) document.documentElement.dataset.theme = prev;
-  return v;
+function makeSeed(base: SkinBase, name = "My Skin"): WavvonSkin {
+  return { format: "wavvon.skin", version: 1, name, base, tokens: {} };
 }
 
 function TokenRow({
@@ -258,8 +250,8 @@ export function SkinEditor({ skin, onChange }: Props) {
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn-secondary" onClick={handleExport}>Export .voxplyskin</button>
-          <button className="btn-secondary" onClick={handleImportClick}>Import .voxplyskin</button>
+          <button className="btn-secondary" onClick={handleExport}>Export .wavvonskin</button>
+          <button className="btn-secondary" onClick={handleImportClick}>Import .wavvonskin</button>
           {overrideCount > 0 && (
             <button className="btn-secondary" onClick={resetAll}>Reset all ({overrideCount})</button>
           )}
@@ -267,7 +259,7 @@ export function SkinEditor({ skin, onChange }: Props) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".voxplyskin,application/json"
+          accept=".wavvonskin,application/json"
           style={{ display: "none" }}
           onChange={handleFileChange}
           aria-label="Import skin file"

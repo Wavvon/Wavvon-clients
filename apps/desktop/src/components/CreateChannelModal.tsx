@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FocusTrap } from "@voxply/ui";
+import { FocusTrap } from "@wavvon/ui";
 
 interface Props {
   name: string;

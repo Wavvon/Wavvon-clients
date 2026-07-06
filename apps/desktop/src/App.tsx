@@ -37,26 +37,28 @@ import type {
   SurveySubmitResult,
   BotAdminInfo,
   BotDetailInfo,
-  InstalledGame,
   TauriFile,
+  BotAppLaunchEvent,
+  BotAppOpenEvent,
+  BotAppCloseEvent,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
 import { HubStreamsPanel } from "./components/HubStreamsPanel";
-import { KeyboardShortcuts } from "@voxply/ui";
+import { KeyboardShortcuts } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
-import { type ThemeId, type VoxplySkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
+import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
 import {
   formatPubkey,
   buildChannelTree,
   flattenTree,
   descendantIds,
   computeDepth,
-} from "@voxply/core";
-import { parseHubInput } from "@voxply/core";
+} from "@wavvon/core";
+import { parseHubInput } from "@wavvon/core";
 import { saveDraft } from "./utils/drafts";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts } from "./hooks/useUnreadCounts";
@@ -89,6 +91,7 @@ import { EditDescriptionModal } from "./components/EditDescriptionModal";
 import { ChannelContextMenu } from "./components/ChannelContextMenu";
 import { ChannelSettingsModal } from "./components/ChannelSettingsModal";
 import { ChannelAppearanceModal } from "./components/ChannelAppearanceModal";
+import { BannerEditModal } from "./components/BannerEditModal";
 import { UserContextMenu } from "./components/UserContextMenu";
 import { HubSidebar } from "./components/HubSidebar";
 import { ChannelSidebar } from "./components/ChannelSidebar";
@@ -100,6 +103,7 @@ import { Lobby } from "./components/Lobby";
 import { BotChallenge } from "./components/BotChallenge";
 import { SurveyComponent } from "./components/Survey";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { BotAppLaunchCard } from "./components/BotAppLaunchCard";
 
 function App() {
   // Multi-hub state
@@ -147,7 +151,7 @@ function App() {
     setChannelMode,
   } = useNotificationPrefs();
 
-  // Blocked users: pubkey set. Persisted to ~/.voxply/blocked_users.json so
+  // Blocked users: pubkey set. Persisted to ~/.wavvon/blocked_users.json so
   // the choice carries across sessions. Used to filter out their messages
   // from channel + DM views without involving any hub state.
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
@@ -382,7 +386,6 @@ function App() {
   // Chat state
   const [channels, setChannels] = useState<Channel[]>([]);
   useEffect(() => { channelsRef.current = channels; }, [channels]);
-  const [installedGames, setInstalledGames] = useState<InstalledGame[]>([]);
 
   // Refs kept in App so useTypingIndicators and useChannelMessages can share them.
   const selectedChannelForTypingRef = useRef<Channel | null>(null);
@@ -488,7 +491,7 @@ function App() {
   const [memberSidebarHidden, setMemberSidebarHiddenState] = useState<boolean>(
     () => {
       try {
-        return localStorage.getItem("voxply.memberSidebarHidden") === "1";
+        return localStorage.getItem("wavvon.memberSidebarHidden") === "1";
       } catch {
         return false;
       }
@@ -497,7 +500,7 @@ function App() {
   function setMemberSidebarHidden(v: boolean) {
     setMemberSidebarHiddenState(v);
     try {
-      localStorage.setItem("voxply.memberSidebarHidden", v ? "1" : "0");
+      localStorage.setItem("wavvon.memberSidebarHidden", v ? "1" : "0");
     } catch {}
   }
 
@@ -611,6 +614,7 @@ function App() {
 
   const [appearanceChannel, setAppearanceChannel] = useState<Channel | null>(null);
   const [channelSettingsModal, setChannelSettingsModal] = useState<Channel | null>(null);
+  const [bannerEditChannel, setBannerEditChannel] = useState<Channel | null>(null);
 
   // Channel-bans dialog. Stores the channel we're managing bans for so the
   // modal can fetch + mutate without round-tripping through context menu state.
@@ -638,6 +642,15 @@ function App() {
     bot_name: string;
   }
   const [slashCommands, setSlashCommands] = useState<SlashCommandEntry[]>([]);
+
+  const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
+
+  function sendBotAppJoin(botId: string, channelId: string) {
+    if (!activeHubId) return;
+    invoke("send_hub_ws_raw", {
+      payload: JSON.stringify({ type: "bot_app_join", bot_id: botId, channel_id: channelId }),
+    }).catch(() => {});
+  }
 
   const pubkeyToName = useMemo(() => {
     const m: Record<string, string | null> = {};
@@ -761,7 +774,7 @@ function App() {
   const [showHubBrowser, setShowHubBrowser] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
     try {
-      return localStorage.getItem("voxply.seenWelcome") !== "1";
+      return localStorage.getItem("wavvon.seenWelcome") !== "1";
     } catch {
       return true;
     }
@@ -858,6 +871,33 @@ function App() {
     setVoicePoliteAnnouncement,
     hubs,
     channelsRef,
+    onBotAppLaunch: (ev: BotAppLaunchEvent) => {
+      setActiveBotApps((prev) => {
+        const next = new Map(prev);
+        next.set(ev.bot_id, ev);
+        return next;
+      });
+    },
+    onBotAppOpen: (ev: BotAppOpenEvent, hubUrl: string) => {
+      const label = `mini-app-${ev.bot_id}`;
+      invoke("open_mini_app", {
+        label,
+        url: ev.mini_app_url,
+        hubUrl,
+        token: ev.session_token,
+        channelId: ev.channel_id,
+        botId: ev.bot_id,
+        requiresCamera: ev.requires_camera,
+      }).catch(() => {});
+    },
+    onBotAppClose: (ev: BotAppCloseEvent) => {
+      setActiveBotApps((prev) => {
+        const next = new Map(prev);
+        next.delete(ev.bot_id);
+        return next;
+      });
+      invoke("close_mini_app", { label: `mini-app-${ev.bot_id}` }).catch(() => {});
+    },
   });
 
   async function loadHubData() {
@@ -914,12 +954,6 @@ function App() {
       setUsers(u);
       const c = await invoke<Conversation[]>("list_conversations");
       setConversations(c);
-      try {
-        const games = await invoke<InstalledGame[]>("list_games");
-        setInstalledGames(games);
-      } catch {
-        setInstalledGames([]);
-      }
       // Reset selection when switching hub
       channelMessages.setSelectedAllianceChannel(null);
       channelMessages.setAllianceMessages([]);
@@ -987,7 +1021,7 @@ function App() {
     if (parsed?.inviteCode) setInviteCode(parsed.inviteCode);
   }
 
-  // On mount: check whether the app was launched via a voxply:// deep link,
+  // On mount: check whether the app was launched via a wavvon:// deep link,
   // and listen for deep links opened while the app is already running.
   useEffect(() => {
     invoke<string | null>("get_pending_deep_link").then((url) => {
@@ -1172,7 +1206,7 @@ function App() {
     (async () => {
       // Apply persisted theme/skin as early as possible to avoid a flash.
       try {
-        const appearance = await invoke<{ slot: string; skin?: VoxplySkin | null }>("load_appearance");
+        const appearance = await invoke<{ slot: string; skin?: WavvonSkin | null }>("load_appearance");
         if (appearance.slot === "custom" && appearance.skin) {
           const s = appearance.skin;
           setSkin(s);
@@ -1406,7 +1440,7 @@ function App() {
 
   function dismissWelcome() {
     try {
-      localStorage.setItem("voxply.seenWelcome", "1");
+      localStorage.setItem("wavvon.seenWelcome", "1");
     } catch {}
     setShowWelcome(false);
   }
@@ -1598,6 +1632,17 @@ function App() {
 
   function handleEditAppearance(channel: Channel) {
     setAppearanceChannel(channel);
+  }
+
+  async function handleSaveBannerUrl(channelId: string, bannerUrl: string) {
+    try {
+      await invoke("patch_channel_banner_url", { channelId, bannerUrl });
+      setChannels((prev) =>
+        prev.map((c) => (c.id === channelId ? { ...c, banner_url: bannerUrl, banner_file_id: null } : c))
+      );
+    } catch (e) {
+      setError(String(e));
+    }
   }
 
   async function handleSaveAppearance(channel: Channel, icon: string | null, color: string | null, customIconSvg: string | null) {
@@ -1851,8 +1896,13 @@ function App() {
             onSkinChange={handleSkinChange}
             onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
             backgroundMode={video.backgroundMode}
+            backgroundSource={video.backgroundSource}
             onChangeBackground={video.changeBackground}
+            videoInputs={video.videoInputs}
+            videoInputDevice={video.videoInputDevice}
+            onVideoInputDeviceChange={video.setVideoInputDevice}
             hasActiveHub={hasActiveHub}
+            activeHubId={activeHubId}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}
             copiedKey={copiedKey}
@@ -2136,6 +2186,24 @@ function App() {
                     onUnpin={() => video.setPinnedPubkey(null)}
                   />
                 )}
+                {channelMessages.selectedChannel && (() => {
+                  const channelId = channelMessages.selectedChannel.id;
+                  const cards = Array.from(activeBotApps.values()).filter(
+                    (e) => e.channel_id === channelId
+                  );
+                  if (cards.length === 0) return null;
+                  return (
+                    <div className="bot-app-launch-cards">
+                      {cards.map((ev) => (
+                        <BotAppLaunchCard
+                          key={ev.bot_id}
+                          event={ev}
+                          onJoin={sendBotAppJoin}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
                 <ContentArea
                   view={view}
                   activeHubId={activeHubId}
@@ -2171,7 +2239,6 @@ function App() {
                   voiceChannelId={voice.voiceChannelId}
                   onVoiceJoin={() => voice.handleVoiceJoin()}
                   onVoiceLeave={() => { voice.handleVoiceLeave(); setAssertiveAnnouncement("Left voice"); }}
-                  installedGames={installedGames}
                   myAvatar={myAvatar}
                   inputText={channelMessages.inputText}
                   typingByKey={typingByKey}
@@ -2335,6 +2402,7 @@ function App() {
             onOpenCreateChannel={openCreateChannelUnder}
             onEditAppearance={handleEditAppearance}
             onDelete={handleDeleteChannel}
+            onEditBanner={(ch) => { setContextMenu(null); setBannerEditChannel(ch); }}
           />
         )}
 
@@ -2353,6 +2421,14 @@ function App() {
             channel={appearanceChannel}
             onSave={(icon, color, customIconSvg) => handleSaveAppearance(appearanceChannel, icon, color, customIconSvg)}
             onClose={() => setAppearanceChannel(null)}
+          />
+        )}
+
+        {bannerEditChannel && (
+          <BannerEditModal
+            channel={bannerEditChannel}
+            onSave={handleSaveBannerUrl}
+            onClose={() => setBannerEditChannel(null)}
           />
         )}
 
@@ -2417,6 +2493,17 @@ function App() {
             onToggleIgnore={toggleIgnoreUser}
             onToast={setToast}
             onJoinHub={handleDiscoverJoin}
+            allRoles={isAdmin ? adminRoles : undefined}
+            memberRoleIds={isAdmin
+              ? new Set(
+                  adminMembers
+                    .find((m) => m.public_key === userContextMenu.user.public_key)
+                    ?.roles.map((r) => r.id) ?? []
+                )
+              : undefined}
+            onToggleRole={isAdmin
+              ? (roleId, hasRole) => handleToggleRoleAssignment(userContextMenu.user.public_key, roleId, hasRole)
+              : undefined}
           />
         )}
 

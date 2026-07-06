@@ -5,7 +5,7 @@ import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "
 import { useScreenShare } from "./useScreenShare";
 import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
-import { playVoiceTone } from "@voxply/core";
+import { playVoiceTone } from "@wavvon/core";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -42,7 +42,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   // Browser-enumerated audio output devices (for setSinkId on <video> elements).
   const [mediaOutputDevices, setMediaOutputDevices] = useState<{ deviceId: string; label: string }[]>([]);
   const [mediaOutputDeviceId, setMediaOutputDeviceIdState] = useState<string>(
-    () => localStorage.getItem("voxply.mediaOutputDeviceId") ?? ""
+    () => localStorage.getItem("wavvon.mediaOutputDeviceId") ?? ""
   );
   const [adminVoiceMutes, setAdminVoiceMutes] = useState<VoiceMuteInfo[]>([]);
   const voiceMutedKeys = useMemo(
@@ -53,7 +53,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
 
   const [voiceGains, setVoiceGainsState] = useState<Record<string, number>>(() => {
     try {
-      const stored = localStorage.getItem("voxply.voiceGains");
+      const stored = localStorage.getItem("wavvon.voiceGains");
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -66,7 +66,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     if (gainPct === 100) delete next[publicKey];
     setVoiceGainsState(next);
     try {
-      localStorage.setItem("voxply.voiceGains", JSON.stringify(next));
+      localStorage.setItem("wavvon.voiceGains", JSON.stringify(next));
       await invoke("set_voice_gain", { publicKey, gain });
     } catch (e) {
       console.error("set_voice_gain failed:", e);
@@ -220,7 +220,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
 
   function setMediaOutputDeviceId(id: string) {
     setMediaOutputDeviceIdState(id);
-    localStorage.setItem("voxply.mediaOutputDeviceId", id);
+    localStorage.setItem("wavvon.mediaOutputDeviceId", id);
   }
 
   async function persistVoiceSettings(

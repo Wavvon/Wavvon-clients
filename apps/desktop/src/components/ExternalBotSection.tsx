@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { Channel, ExternalBotRow, ExternalBotInviteResult } from "../types";
-import { formatRelative } from "@voxply/core";
+import { formatRelative } from "@wavvon/core";
 
 interface Props {
   hubUrl: string;

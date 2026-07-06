@@ -1,15 +1,15 @@
-# Voxply Clients
+# Wavvon Clients
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-The client monorepo for [Voxply](https://github.com/Voxply/Voxply) — an
+The client monorepo for [Wavvon](https://github.com/Wavvon/Wavvon-docs) — an
 open-source, federated voice + text platform where communities run
 their own servers and **your identity is a keypair, not an account**.
 
-This one repo holds every Voxply client — desktop, web, and Android —
+This one repo holds every Wavvon client — desktop, web, and Android —
 plus the shared TypeScript packages they have in common. They were
-previously three separate repos (Voxply-desktop, Voxply-web,
-Voxply-android); consolidating them into a single pnpm workspace removed
+previously three separate repos (Wavvon-desktop, Wavvon-web,
+Wavvon-android); consolidating them into a single pnpm workspace removed
 the duplicate-React hazard, the cross-repo Vite aliases, and the
 multi-checkout release dance.
 
@@ -18,19 +18,18 @@ multi-checkout release dance.
 ```
 clients/
 ├── apps/
-│   ├── desktop/        Tauri 2 desktop app — React UI + Rust shell (v0.2.4)
-│   ├── web/            Vite + React browser SPA (v0.2.0)
-│   └── android/
-│       ├── voxply-desktop/   Android (Tauri) build of the desktop client
-│       └── voxply-web/       Android (Tauri) build of the web client
+│   ├── desktop/        Tauri 2 desktop app — React UI + Rust shell
+│   ├── web/            Vite + React browser SPA
+│   └── android/        Tauri 2 Android app — same React UI, packaged as APK
+├── crates/
+│   └── voice/          Rust voice codec library (cpal, Opus, RNNoise)
 ├── packages/
-│   ├── core/           @voxply/core  — shared TS: hub-input/invite parsing, more to come
-│   ├── i18n/           @voxply/i18n  — locale strings + ICU i18n machinery
-│   ├── utils/          @voxply/utils — shared utilities (format, channels, hex, …)
-│   ├── ui/             @voxply/ui    — shared React components (stub, future)
-│   └── platform/       @voxply/platform — platform-adapter interface (stub, future)
-├── voice/              Rust voice codec library (cpal, Opus, RNNoise)
-├── Cargo.toml          Rust workspace: apps/desktop/src-tauri + voice
+│   ├── core/           @wavvon/core     — crypto, hub-input parsing, shared utils
+│   ├── i18n/           @wavvon/i18n     — locale strings + ICU i18n machinery
+│   ├── ui/             @wavvon/ui       — shared React components + canonical CSS
+│   └── platform/       @wavvon/platform — platform-adapter interface
+├── scripts/
+├── Cargo.toml          Rust workspace: apps/desktop/src-tauri + crates/voice
 ├── package.json        pnpm workspace root
 └── pnpm-workspace.yaml
 ```
@@ -43,17 +42,16 @@ The Rust `voice` crate is shared by the desktop and Android Tauri shells.
 
 - **Desktop** (`apps/desktop`) — native app for Windows, macOS, and
   Linux built with Tauri 2 (Rust shell + system WebView) and React.
-  The only client with full live voice: a real native audio pipeline
-  (Opus over UDP, RNNoise denoise, VAD, push-to-talk), video + screen
-  share, and end-to-end-encrypted DMs.
-- **Web** (`apps/web`) — zero-install browser SPA. A deliberate feature
-  subset: full text, forums, E2E DMs, and admin tooling work in the
-  browser; live voice is desktop-only (browsers can't speak the hub's
-  UDP voice protocol). Identity lives in IndexedDB and never leaves the
-  device.
-- **Android** (`apps/android`) — two Tauri 2 wrappers packaged as APKs,
-  mirroring the desktop and web UIs for mobile. Same hub API as every
-  other client.
+  Live voice through a native audio pipeline (Opus over UDP, RNNoise
+  denoise, VAD, push-to-talk), video + screen share, and
+  end-to-end-encrypted DMs.
+- **Web** (`apps/web`) — zero-install browser SPA with the full feature
+  set: text, forums, E2E DMs, admin tooling, and live voice over the
+  hub's WebSocket audio relay, plus webcam video and screen share via
+  WebRTC. Identity lives in IndexedDB and never leaves the device.
+- **Android** (`apps/android`) — Tauri 2 app packaged as an APK, sharing
+  the same React UI, hub API, and native voice pipeline as the desktop
+  client.
 
 All clients share one Ed25519 keypair identity with a 24-word BIP39
 recovery phrase and QR multi-device pairing. No accounts, no telemetry.
@@ -76,18 +74,16 @@ Then run the client you want. `pnpm --filter <app>` targets a single
 workspace package by its `package.json` name:
 
 ```bash
-pnpm --filter voxply-desktop run tauri dev   # desktop app (native window)
-pnpm --filter voxply-web run dev             # web app  → http://localhost:1421
+pnpm --filter wavvon-desktop run tauri dev   # desktop app (native window)
+pnpm --filter wavvon-web run dev             # web app  → http://localhost:1421
 ```
 
 Each client opens with an "Add a hub" prompt. Paste a hub URL
 (`http://localhost:3000` for a local dev hub — see
-[Voxply-server](https://github.com/Voxply/Voxply-server) to run one in
+[Wavvon-server](https://github.com/Wavvon/Wavvon-server) to run one in
 2 minutes) to connect.
 
-> The `apps/desktop` and `apps/android/voxply-desktop` packages share
-> the npm name `voxply-desktop` (likewise `voxply-web`). When a filter is
-> ambiguous, target by path instead, e.g.
+> If a filter name is ambiguous, target by path instead, e.g.
 > `pnpm --filter ./apps/desktop run dev`.
 
 ## Build & checks
@@ -105,10 +101,10 @@ cargo check --workspace   # Rust: voice crate + desktop src-tauri
 Release builds for the native apps go through Tauri:
 
 ```bash
-pnpm --filter voxply-desktop run tauri build
+pnpm --filter wavvon-desktop run tauri build
 # Output: apps/desktop/src-tauri/target/release/bundle/
 
-pnpm --filter voxply-web run build
+pnpm --filter wavvon-web run build
 # Output: apps/web/dist/  (static bundle, serve from any host or CDN)
 ```
 
@@ -126,24 +122,24 @@ project qualifies for an open-source signing program):
   **More info → Run anyway**.
 - **macOS**: not notarized — right-click the app and choose **Open** the
   first time.
-- **Linux**: `chmod +x Voxply*.AppImage`, then run it.
+- **Linux**: `chmod +x Wavvon*.AppImage`, then run it.
 
 On first launch the app generates your identity and shows your recovery
 phrase — write it down.
 
-## The Voxply project
+## The Wavvon project
 
 | Repo | What it is |
 |---|---|
-| **Voxply-client** *(this repo)* | All clients (desktop / web / Android) + shared packages |
-| [Voxply-server](https://github.com/Voxply/Voxply-server) | Hub server, farm tooling, identity crate (Rust) |
-| [Voxply-discovery](https://github.com/Voxply/Voxply-discovery) | Optional public hub directory |
-| [Voxply](https://github.com/Voxply/Voxply) | Architecture wiki, roadmap, API spec |
+| **Wavvon-clients** *(this repo)* | All clients (desktop / web / Android) + shared packages |
+| [Wavvon-server](https://github.com/Wavvon/Wavvon-server) | Hub server, farm tooling, identity crate (Rust) |
+| [Wavvon-discovery](https://github.com/Wavvon/Wavvon-discovery) | Optional public hub directory |
+| [Wavvon-docs](https://github.com/Wavvon/Wavvon-docs) | Architecture wiki, roadmap, API spec |
 
 New here? Start with
-[getting-started.md](https://github.com/Voxply/Voxply/blob/main/docs/getting-started.md)
+[getting-started.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/getting-started.md)
 and the
-[architecture overview](https://github.com/Voxply/Voxply/blob/main/docs/architecture.md).
+[architecture overview](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/architecture.md).
 
 ## Contributing
 

@@ -276,7 +276,7 @@ pub fn fingerprint_pubkey(public_key_hex: String) -> String {
 
 fn paired_identity_path() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("paired_identity.json"))
+    Ok(home.join(".wavvon").join("paired_identity.json"))
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -380,7 +380,7 @@ pub async fn claim_pairing_offer(
 
 /// N side — once `poll_pairing_status` reports Complete with a cert
 /// matching the offer, the UI calls this to persist the new identity
-/// at ~/.voxply/paired_identity.json. The cert's master signature is
+/// at ~/.wavvon/paired_identity.json. The cert's master signature is
 /// verified again here as a final guard.
 /// Also attempts to unwrap the prefs blob key and pull current prefs
 /// from the home hubs.

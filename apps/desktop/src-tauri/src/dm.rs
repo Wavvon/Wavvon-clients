@@ -175,8 +175,19 @@ pub(crate) async fn get_dm_messages(
     let mut result = Vec::with_capacity(raw.len());
     for msg in raw {
         let content = if msg.is_encrypted {
-            if let (Some(env), Some(ref id)) = (&msg.encrypted_envelope, &identity) {
-                decrypt_dm_inner(&conversation_id, env, id)
+            if let Some(ref env) = msg.encrypted_envelope {
+                let is_v2 = env["v"].as_u64().unwrap_or(1) == 2;
+                if is_v2 {
+                    decrypt_dm_dr_inner(&conversation_id, env)
+                        .unwrap_or_else(|_| "[decryption failed]".to_string())
+                } else if let Some(ref id) = identity {
+                    decrypt_dm_inner(&conversation_id, env, id)
+                        .unwrap_or_else(|_| "[decryption failed]".to_string())
+                } else {
+                    "[encrypted]".to_string()
+                }
+            } else if let Some(ref env) = msg.dr_envelope {
+                decrypt_dm_dr_inner(&conversation_id, env)
                     .unwrap_or_else(|_| "[decryption failed]".to_string())
             } else {
                 "[encrypted]".to_string()
@@ -239,7 +250,7 @@ fn decrypt_dm_inner(
 
     let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
     let mut key_bytes = [0u8; 32];
-    hk.expand(b"voxply/dm-key/v1", &mut key_bytes)
+    hk.expand(b"wavvon/dm-key/v1", &mut key_bytes)
         .map_err(|e| e.to_string())?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key_bytes));
@@ -421,7 +432,7 @@ pub(crate) async fn encrypt_dm(
 
     let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
     let mut key_bytes = [0u8; 32];
-    hk.expand(b"voxply/dm-key/v1", &mut key_bytes)
+    hk.expand(b"wavvon/dm-key/v1", &mut key_bytes)
         .map_err(|e| e.to_string())?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key_bytes));
@@ -467,7 +478,7 @@ pub(crate) async fn decrypt_dm(
 
 fn group_sender_keys_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or_else(|| "Could not find home directory".to_string())?;
-    Ok(home.join(".voxply").join("group_sender_keys.json"))
+    Ok(home.join(".wavvon").join("group_sender_keys.json"))
 }
 
 fn load_sender_key_state() -> Result<serde_json::Value, String> {
@@ -494,7 +505,7 @@ pub(crate) fn dm_envelope_signing_bytes(
     nonce_hex: &str,
     dh_pubkey_hex: &str,
 ) -> Vec<u8> {
-    let mut out = b"voxply/dm-ciphertext/v1\0".to_vec();
+    let mut out = b"wavvon/dm-ciphertext/v1\0".to_vec();
     for s in [conv_id, ciphertext_hex, nonce_hex, dh_pubkey_hex] {
         let b = s.as_bytes();
         out.extend_from_slice(&(b.len() as u32).to_le_bytes());
@@ -513,7 +524,7 @@ pub(crate) fn sender_key_dist_signing_bytes(
         out.extend_from_slice(&(b.len() as u32).to_le_bytes());
         out.extend_from_slice(b);
     }
-    let mut out = b"voxply/group-key-dist/v1\0".to_vec();
+    let mut out = b"wavvon/group-key-dist/v1\0".to_vec();
     len_prefixed(&mut out, conv_id);
     len_prefixed(&mut out, &version.to_string());
     let mut sorted = recipients.to_vec();
@@ -537,7 +548,7 @@ pub(crate) fn group_envelope_signing_bytes(
         out.extend_from_slice(&(b.len() as u32).to_le_bytes());
         out.extend_from_slice(b);
     }
-    let mut out = b"voxply/group-dm-ciphertext/v1\0".to_vec();
+    let mut out = b"wavvon/group-dm-ciphertext/v1\0".to_vec();
     len_prefixed(&mut out, conv_id);
     len_prefixed(&mut out, &version.to_string());
     len_prefixed(&mut out, &iteration.to_string());
@@ -562,7 +573,7 @@ fn wrap_chain_key(
     let shared = my_dh_sec.diffie_hellman(recipient_dh_pub);
     let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
     let mut wrap_key = [0u8; 32];
-    hk.expand(b"voxply/group-key-dist/v1", &mut wrap_key)
+    hk.expand(b"wavvon/group-key-dist/v1", &mut wrap_key)
         .map_err(|e| e.to_string())?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
@@ -922,7 +933,7 @@ pub(crate) async fn fetch_group_sender_keys(
         let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
         let mut wrap_key = [0u8; 32];
         if hk
-            .expand(b"voxply/group-key-dist/v1", &mut wrap_key)
+            .expand(b"wavvon/group-key-dist/v1", &mut wrap_key)
             .is_err()
         {
             continue;
@@ -1007,7 +1018,7 @@ pub(crate) async fn encrypt_group_dm(
     let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
     let mut msg_key = [0u8; 32];
     hk_msg
-        .expand(b"voxply/group-msg/v1", &mut msg_key)
+        .expand(b"wavvon/group-msg/v1", &mut msg_key)
         .map_err(|e| e.to_string())?;
 
     let mut nonce_bytes = [0u8; 12];
@@ -1023,7 +1034,7 @@ pub(crate) async fn encrypt_group_dm(
     let hk_chain = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
     let mut new_chain_key = [0u8; 32];
     hk_chain
-        .expand(b"voxply/group-chain/v1", &mut new_chain_key)
+        .expand(b"wavvon/group-chain/v1", &mut new_chain_key)
         .map_err(|e| e.to_string())?;
     let new_iteration = iteration + 1;
 
@@ -1059,6 +1070,451 @@ pub(crate) async fn decrypt_group_dm(
     let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
     let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
     decrypt_group_dm_inner(&conv_id, &envelope, &identity)
+}
+
+// ---------------------------------------------------------------------------
+// Double Ratchet v2 — session state, KDF helpers, Tauri commands
+// ---------------------------------------------------------------------------
+
+/// Persisted Double Ratchet session state for one conversation.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+struct DrSession {
+    /// Root key (hex).
+    rk: String,
+    /// Sending chain key (hex), None before first send.
+    cks: Option<String>,
+    /// Receiving chain key (hex), None before first receive on a new ratchet step.
+    ckr: Option<String>,
+    /// Number of messages sent in current sending chain.
+    ns: u32,
+    /// Number of messages received in current receiving chain.
+    nr: u32,
+    /// Number of messages sent in previous sending chain (carried into next ratchet header).
+    pn: u32,
+    /// Current ratchet DH private key (hex of 32-byte X25519 scalar).
+    dhs_priv: String,
+    /// Current ratchet DH public key (hex).
+    dhs_pub: String,
+    /// Peer's current ratchet DH public key (hex), None until first message received.
+    dhr: Option<String>,
+    /// Cached skipped message keys. Key: `"<dhr_hex>:<n>"`, value: msg_key hex.
+    mkskipped: std::collections::HashMap<String, String>,
+}
+
+/// Wire envelope for a Double Ratchet v2 DM.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct DrDmEnvelope {
+    pub sender_pubkey: String,
+    pub conv_id: String,
+    pub ciphertext_hex: String,
+    /// Sender's current ratchet DH public key.
+    pub dh_pubkey_hex: String,
+    pub signature_hex: String,
+    /// Always 2 for v2 envelopes.
+    pub v: u8,
+    pub message_index: u32,
+    pub prev_count: u32,
+}
+
+fn dr_sessions_path() -> Result<std::path::PathBuf, String> {
+    let home = dirs::home_dir().ok_or_else(|| "Could not find home directory".to_string())?;
+    Ok(home.join(".wavvon").join("dr_sessions.json"))
+}
+
+fn load_dr_sessions() -> Result<std::collections::HashMap<String, DrSession>, String> {
+    let path = dr_sessions_path()?;
+    if !path.exists() {
+        return Ok(std::collections::HashMap::new());
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+fn save_dr_sessions(sessions: &std::collections::HashMap<String, DrSession>) -> Result<(), String> {
+    let path = dr_sessions_path()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(sessions).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// KDF_RK — derive a new root key and chain key from the current root key and a DH output.
+/// `out = HKDF-SHA256(ikm=dh_output, salt=rk, info="wavvon/dr-rk/v2", len=64)`
+fn kdf_rk(rk: &[u8; 32], dh_output: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
+    use hkdf::Hkdf;
+    use sha2::Sha256;
+    let hk = Hkdf::<Sha256>::new(Some(rk), dh_output);
+    let mut out = [0u8; 64];
+    hk.expand(b"wavvon/dr-rk/v2", &mut out)
+        .expect("HKDF expand 64 bytes always succeeds");
+    let mut new_rk = [0u8; 32];
+    let mut new_ck = [0u8; 32];
+    new_rk.copy_from_slice(&out[..32]);
+    new_ck.copy_from_slice(&out[32..]);
+    (new_rk, new_ck)
+}
+
+/// KDF_CK — derive a message key and the next chain key from the current chain key.
+/// `out = HKDF-SHA256(ikm=ck, salt=&[], info="wavvon/dr-ck-step/v2", len=64)`
+fn kdf_ck(ck: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
+    use hkdf::Hkdf;
+    use sha2::Sha256;
+    let hk = Hkdf::<Sha256>::new(None, ck);
+    let mut out = [0u8; 64];
+    hk.expand(b"wavvon/dr-ck-step/v2", &mut out)
+        .expect("HKDF expand 64 bytes always succeeds");
+    let mut msg_key = [0u8; 32];
+    let mut new_ck = [0u8; 32];
+    msg_key.copy_from_slice(&out[..32]);
+    new_ck.copy_from_slice(&out[32..]);
+    (msg_key, new_ck)
+}
+
+/// derive_nonce — produce a 12-byte AES-GCM nonce deterministically from a message key.
+/// `HKDF-SHA256(ikm=msg_key, salt=&[], info="wavvon/dr-nonce/v2", len=12)`
+fn derive_nonce_dr(msg_key: &[u8; 32]) -> [u8; 12] {
+    use hkdf::Hkdf;
+    use sha2::Sha256;
+    let hk = Hkdf::<Sha256>::new(None, msg_key);
+    let mut out = [0u8; 12];
+    hk.expand(b"wavvon/dr-nonce/v2", &mut out)
+        .expect("HKDF expand 12 bytes always succeeds");
+    out
+}
+
+/// Signing bytes for a DR v2 DM envelope.
+/// Tag: `b"wavvon/dm-ciphertext/v2\0"` — matches `wavvon_identity::dr_envelope_signing_bytes`.
+pub(crate) fn dr_envelope_signing_bytes(
+    conv_id: &str,
+    message_index: u32,
+    prev_count: u32,
+    ciphertext_hex: &str,
+    dh_pubkey_hex: &str,
+) -> Vec<u8> {
+    fn len_prefixed(out: &mut Vec<u8>, s: &str) {
+        let b = s.as_bytes();
+        out.extend_from_slice(&(b.len() as u32).to_le_bytes());
+        out.extend_from_slice(b);
+    }
+    let mut out = b"wavvon/dm-ciphertext/v2\0".to_vec();
+    len_prefixed(&mut out, conv_id);
+    out.extend_from_slice(&message_index.to_le_bytes());
+    out.extend_from_slice(&prev_count.to_le_bytes());
+    len_prefixed(&mut out, ciphertext_hex);
+    len_prefixed(&mut out, dh_pubkey_hex);
+    out
+}
+
+/// Generate a fresh X25519 keypair for use as a ratchet DH key.
+/// Returns `(priv_hex, pub_hex)`.
+fn generate_ratchet_keypair() -> (String, String) {
+    use rand::rngs::OsRng;
+    let priv_key = x25519_dalek::StaticSecret::random_from_rng(OsRng);
+    let pub_key = x25519_dalek::PublicKey::from(&priv_key);
+    (
+        hex::encode(priv_key.to_bytes()),
+        hex::encode(pub_key.as_bytes()),
+    )
+}
+
+/// Decode a hex string into a 32-byte X25519 StaticSecret.
+fn static_secret_from_hex(hex_str: &str) -> Result<x25519_dalek::StaticSecret, String> {
+    let bytes = hex::decode(hex_str).map_err(|e| e.to_string())?;
+    let arr: [u8; 32] = bytes
+        .try_into()
+        .map_err(|_| "DH key must be 32 bytes".to_string())?;
+    Ok(x25519_dalek::StaticSecret::from(arr))
+}
+
+/// Decode a hex string into a 32-byte X25519 PublicKey.
+fn public_key_from_hex(hex_str: &str) -> Result<x25519_dalek::PublicKey, String> {
+    let bytes = hex::decode(hex_str).map_err(|e| e.to_string())?;
+    let arr: [u8; 32] = bytes
+        .try_into()
+        .map_err(|_| "DH pubkey must be 32 bytes".to_string())?;
+    Ok(x25519_dalek::PublicKey::from(arr))
+}
+
+/// Initialise a Double Ratchet v2 session as Alice (the initiator).
+///
+/// Idempotent: if the session already exists for `conv_id`, returns Ok immediately.
+#[tauri::command]
+pub(crate) async fn init_dr_session(
+    conv_id: String,
+    their_dh_pub_hex: String,
+) -> Result<(), String> {
+    use hkdf::Hkdf;
+    use sha2::Sha256;
+
+    let mut sessions = load_dr_sessions()?;
+    if sessions.contains_key(&conv_id) {
+        return Ok(());
+    }
+
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
+    let (my_dh_priv, _) = identity.dh_keypair();
+
+    let their_static_pub = public_key_from_hex(&their_dh_pub_hex)?;
+
+    // Step 1: static_shared = X25519(my_static, their_static)
+    let static_shared = my_dh_priv.diffie_hellman(&their_static_pub);
+
+    // Step 2: rk0 = HKDF(ikm=static_shared, salt=conv_id, info="wavvon/dr-init/v2", len=32)
+    let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), static_shared.as_bytes());
+    let mut rk0 = [0u8; 32];
+    hk.expand(b"wavvon/dr-init/v2", &mut rk0)
+        .map_err(|e| e.to_string())?;
+
+    // Step 3: fresh ephemeral ratchet keypair
+    let (eph_priv_hex, eph_pub_hex) = generate_ratchet_keypair();
+    let eph_priv = static_secret_from_hex(&eph_priv_hex)?;
+
+    // Step 4: dh_out = X25519(eph_priv, their_static)
+    let dh_out = eph_priv.diffie_hellman(&their_static_pub);
+
+    // Step 5: (rk, cks) = KDF_RK(rk0, dh_out)
+    let dh_out_arr: [u8; 32] = *dh_out.as_bytes();
+    let (rk, cks) = kdf_rk(&rk0, &dh_out_arr);
+
+    let session = DrSession {
+        rk: hex::encode(rk),
+        cks: Some(hex::encode(cks)),
+        ckr: None,
+        ns: 0,
+        nr: 0,
+        pn: 0,
+        dhs_priv: eph_priv_hex,
+        dhs_pub: eph_pub_hex,
+        dhr: None,
+        mkskipped: std::collections::HashMap::new(),
+    };
+
+    sessions.insert(conv_id, session);
+    save_dr_sessions(&sessions)
+}
+
+/// Encrypt a message using Double Ratchet v2, returning a signed `DrDmEnvelope`.
+#[tauri::command]
+pub(crate) async fn encrypt_dm_dr(
+    conv_id: String,
+    content: String,
+) -> Result<DrDmEnvelope, String> {
+    use aes_gcm::aead::{Aead, KeyInit};
+    use aes_gcm::{Aes256Gcm, Key, Nonce};
+
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
+
+    let mut sessions = load_dr_sessions()?;
+    let session = sessions
+        .get_mut(&conv_id)
+        .ok_or_else(|| "dr_session_not_initialised".to_string())?;
+
+    let cks_hex = session
+        .cks
+        .clone()
+        .ok_or_else(|| "no_sending_chain_key".to_string())?;
+    let cks_bytes = hex::decode(&cks_hex).map_err(|e| e.to_string())?;
+    let cks_arr: [u8; 32] = cks_bytes
+        .try_into()
+        .map_err(|_| "bad chain key length".to_string())?;
+
+    let (mk, new_cks) = kdf_ck(&cks_arr);
+    let nonce_bytes = derive_nonce_dr(&mk);
+
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&mk));
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let plaintext = serde_json::json!({ "content": content }).to_string();
+    let ciphertext = cipher
+        .encrypt(nonce, plaintext.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let ciphertext_hex = hex::encode(&ciphertext);
+
+    let message_index = session.ns;
+    let prev_count = session.pn;
+    let dhs_pub = session.dhs_pub.clone();
+
+    let signing_bytes = dr_envelope_signing_bytes(
+        &conv_id,
+        message_index,
+        prev_count,
+        &ciphertext_hex,
+        &dhs_pub,
+    );
+    let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
+
+    // Advance state
+    session.cks = Some(hex::encode(new_cks));
+    session.ns += 1;
+
+    save_dr_sessions(&sessions)?;
+
+    Ok(DrDmEnvelope {
+        sender_pubkey: identity.public_key_hex(),
+        conv_id,
+        ciphertext_hex,
+        dh_pubkey_hex: dhs_pub,
+        signature_hex,
+        v: 2,
+        message_index,
+        prev_count,
+    })
+}
+
+/// Decrypt a Double Ratchet v2 DM from a JSON-serialised `DrDmEnvelope`.
+///
+/// If the session is not initialised, returns `Err("dr_session_not_initialised")`
+/// so the UI can call `init_dr_session` and retry.
+#[tauri::command]
+pub(crate) async fn decrypt_dm_dr(
+    conv_id: String,
+    envelope_json: String,
+) -> Result<String, String> {
+    let env: DrDmEnvelope =
+        serde_json::from_str(&envelope_json).map_err(|e| format!("bad envelope: {e}"))?;
+    let result = decrypt_dm_dr_inner(
+        &conv_id,
+        &serde_json::to_value(&env).map_err(|e| e.to_string())?,
+    )?;
+    Ok(result)
+}
+
+/// Inner synchronous DR decrypt used both by `decrypt_dm_dr` and `get_dm_messages`.
+fn decrypt_dm_dr_inner(conv_id: &str, envelope: &serde_json::Value) -> Result<String, String> {
+    use aes_gcm::aead::{Aead, KeyInit};
+    use aes_gcm::{Aes256Gcm, Key, Nonce};
+
+    let ciphertext_hex = envelope["ciphertext_hex"]
+        .as_str()
+        .ok_or("missing ciphertext_hex")?;
+    let dh_pubkey_hex = envelope["dh_pubkey_hex"]
+        .as_str()
+        .ok_or("missing dh_pubkey_hex")?;
+    let message_index = envelope["message_index"]
+        .as_u64()
+        .ok_or("missing message_index")? as u32;
+    let prev_count = envelope["prev_count"].as_u64().unwrap_or(0) as u32;
+
+    let mut sessions = load_dr_sessions()?;
+    let session = sessions
+        .get_mut(conv_id)
+        .ok_or_else(|| "dr_session_not_initialised".to_string())?;
+
+    // Check skipped-key cache first
+    let skipped_key_entry = format!("{}:{}", dh_pubkey_hex, message_index);
+    if let Some(mk_hex) = session.mkskipped.remove(&skipped_key_entry) {
+        let mk_bytes = hex::decode(&mk_hex).map_err(|e| e.to_string())?;
+        let mk_arr: [u8; 32] = mk_bytes
+            .try_into()
+            .map_err(|_| "bad msg key length".to_string())?;
+        let nonce_bytes = derive_nonce_dr(&mk_arr);
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&mk_arr));
+        let ct = hex::decode(ciphertext_hex).map_err(|e| e.to_string())?;
+        let plaintext_bytes = cipher
+            .decrypt(Nonce::from_slice(&nonce_bytes), ct.as_slice())
+            .map_err(|_| "decryption failed".to_string())?;
+        let plaintext: serde_json::Value =
+            serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
+        save_dr_sessions(&sessions)?;
+        return Ok(plaintext["content"].as_str().unwrap_or("").to_string());
+    }
+
+    const MAX_SKIP: usize = 1000;
+
+    // Check whether the message uses a new ratchet key
+    let is_new_ratchet = session.dhr.as_deref() != Some(dh_pubkey_hex);
+
+    if is_new_ratchet {
+        // Cache skipped keys in old receiving chain up to prev_count
+        if let Some(ref ckr_hex) = session.ckr.clone() {
+            let old_dhr = session.dhr.clone().unwrap_or_default();
+            let ckr_bytes = hex::decode(ckr_hex).map_err(|e| e.to_string())?;
+            let mut ckr: [u8; 32] = ckr_bytes
+                .try_into()
+                .map_err(|_| "bad chain key length".to_string())?;
+
+            let to_skip = prev_count.saturating_sub(session.nr);
+            if session.mkskipped.len() + to_skip as usize > MAX_SKIP {
+                return Err("too_many_skipped_messages".to_string());
+            }
+            for n in session.nr..prev_count {
+                let (mk, new_ckr) = kdf_ck(&ckr);
+                session
+                    .mkskipped
+                    .insert(format!("{}:{}", old_dhr, n), hex::encode(mk));
+                ckr = new_ckr;
+            }
+        }
+
+        // DH ratchet step
+        let rk_bytes = hex::decode(&session.rk).map_err(|e| e.to_string())?;
+        let rk: [u8; 32] = rk_bytes
+            .try_into()
+            .map_err(|_| "bad root key length".to_string())?;
+        let my_dhs_priv = static_secret_from_hex(&session.dhs_priv)?;
+        let their_new_pub = public_key_from_hex(dh_pubkey_hex)?;
+        let dh_recv = my_dhs_priv.diffie_hellman(&their_new_pub);
+        let dh_recv_arr: [u8; 32] = *dh_recv.as_bytes();
+        let (new_rk, new_ckr) = kdf_rk(&rk, &dh_recv_arr);
+
+        // Generate new sending DH keypair
+        let (new_dhs_priv_hex, new_dhs_pub_hex) = generate_ratchet_keypair();
+        let new_dhs_priv = static_secret_from_hex(&new_dhs_priv_hex)?;
+        let dh_send = new_dhs_priv.diffie_hellman(&their_new_pub);
+        let dh_send_arr: [u8; 32] = *dh_send.as_bytes();
+        let (new_rk2, new_cks) = kdf_rk(&new_rk, &dh_send_arr);
+
+        session.rk = hex::encode(new_rk2);
+        session.cks = Some(hex::encode(new_cks));
+        session.pn = session.ns;
+        session.ns = 0;
+        session.nr = 0;
+        session.dhr = Some(dh_pubkey_hex.to_string());
+        session.ckr = Some(hex::encode(new_ckr));
+        session.dhs_priv = new_dhs_priv_hex;
+        session.dhs_pub = new_dhs_pub_hex;
+    }
+
+    // Advance receiving chain to message_index, caching skipped keys
+    let ckr_hex = session
+        .ckr
+        .clone()
+        .ok_or_else(|| "no_receiving_chain_key".to_string())?;
+    let ckr_bytes = hex::decode(&ckr_hex).map_err(|e| e.to_string())?;
+    let mut ckr: [u8; 32] = ckr_bytes
+        .try_into()
+        .map_err(|_| "bad chain key length".to_string())?;
+
+    let to_skip = message_index.saturating_sub(session.nr);
+    if session.mkskipped.len() + to_skip as usize > MAX_SKIP {
+        return Err("too_many_skipped_messages".to_string());
+    }
+    for n in session.nr..message_index {
+        let (mk, new_ckr) = kdf_ck(&ckr);
+        let cache_key = format!("{}:{}", dh_pubkey_hex, n);
+        session.mkskipped.insert(cache_key, hex::encode(mk));
+        ckr = new_ckr;
+    }
+
+    // Decrypt message at message_index
+    let (mk, new_ckr) = kdf_ck(&ckr);
+    let nonce_bytes = derive_nonce_dr(&mk);
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&mk));
+    let ct = hex::decode(ciphertext_hex).map_err(|e| e.to_string())?;
+    let plaintext_bytes = cipher
+        .decrypt(Nonce::from_slice(&nonce_bytes), ct.as_slice())
+        .map_err(|_| "decryption failed".to_string())?;
+
+    session.ckr = Some(hex::encode(new_ckr));
+    session.nr = message_index + 1;
+
+    save_dr_sessions(&sessions)?;
+
+    let plaintext: serde_json::Value =
+        serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
+    Ok(plaintext["content"].as_str().unwrap_or("").to_string())
 }
 
 fn decrypt_group_dm_inner(
@@ -1119,7 +1575,7 @@ fn decrypt_group_dm_inner(
     for i in stored_iteration..iteration {
         let hk = Hkdf::<Sha256>::new(Some(&i.to_be_bytes()), &chain_key);
         let mut next = [0u8; 32];
-        hk.expand(b"voxply/group-chain/v1", &mut next)
+        hk.expand(b"wavvon/group-chain/v1", &mut next)
             .map_err(|e| e.to_string())?;
         chain_key = next;
     }
@@ -1127,7 +1583,7 @@ fn decrypt_group_dm_inner(
     let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
     let mut msg_key = [0u8; 32];
     hk_msg
-        .expand(b"voxply/group-msg/v1", &mut msg_key)
+        .expand(b"wavvon/group-msg/v1", &mut msg_key)
         .map_err(|e| e.to_string())?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&msg_key));

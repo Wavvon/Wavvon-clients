@@ -157,10 +157,12 @@ export function ChannelIconGlyph({ icon, size = 14 }: { icon: string | null; siz
 export function ChannelIcon({
   icon,
   customIconSvg,
+  channelType,
   size = 14,
 }: {
   icon: string | null;
   customIconSvg: string | null;
+  channelType?: string | null;
   size?: number;
 }) {
   if (customIconSvg) {
@@ -176,5 +178,9 @@ export function ChannelIcon({
       />
     );
   }
-  return <ChannelIconGlyph icon={icon} size={size} />;
+  if (icon) return <ChannelIconGlyph icon={icon} size={size} />;
+  if (!channelType || channelType === "text") {
+    return <span className="channel-type-hash" aria-hidden="true">#</span>;
+  }
+  return null;
 }

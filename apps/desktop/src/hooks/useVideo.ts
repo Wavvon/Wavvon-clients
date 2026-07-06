@@ -28,7 +28,27 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
   const [videoPubkeys, setVideoPubkeys] = useState<Set<string>>(new Set());
   const [pinnedPubkey, setPinnedPubkey] = useState<string | null>(null);
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("none");
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [backgroundSource, setBackgroundSource] = useState<string | null>(null);
+  const [videoInputs, setVideoInputs] = useState<{ deviceId: string; label: string }[]>([]);
+  const [videoInputDevice, setVideoInputDeviceState] = useState<string>(
+    () => localStorage.getItem("wavvon.cameraDevice") ?? ""
+  );
+
+  useEffect(() => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      setVideoInputs(
+        devices
+          .filter((d) => d.kind === "videoinput" && d.deviceId !== "")
+          .map((d) => ({ deviceId: d.deviceId, label: d.label || d.deviceId.slice(0, 8) }))
+      );
+    }).catch(() => {});
+  }, []);
+
+  function setVideoInputDevice(deviceId: string) {
+    setVideoInputDeviceState(deviceId);
+    localStorage.setItem("wavvon.cameraDevice", deviceId);
+  }
 
   const peers = useRef<Map<string, PeerEntry>>(new Map());
   const speakerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -217,13 +237,14 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
 
   async function enableVideo(deviceId?: string) {
     if (!voiceChannelIdRef.current) return;
+    const targetDevice = deviceId ?? (videoInputDevice || undefined);
     try {
-      const videoConstraint = deviceId ? { deviceId: { exact: deviceId } } : true;
+      const videoConstraint = targetDevice ? { deviceId: { exact: targetDevice } } : true;
       const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
       setRawStream(stream);
       const proc = new BackgroundProcessor(stream);
       bgProcessor.current = proc;
-      const out = await proc.start(backgroundMode, backgroundImage);
+      const out = await proc.start(backgroundMode, backgroundSource);
       setProcessedStream(out);
       setVideoEnabled(true);
       sendWs({ type: "video_enable", channel_id: voiceChannelIdRef.current });
@@ -262,7 +283,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
       setRawStream(stream);
       const proc = new BackgroundProcessor(stream);
       bgProcessor.current = proc;
-      const out = await proc.start(backgroundMode, backgroundImage);
+      const out = await proc.start(backgroundMode, backgroundSource);
       setProcessedStream(out);
       for (const [, entry] of peers.current) {
         const sender = entry.conn.getSenders().find(s => s.track?.kind === "video");
@@ -273,11 +294,11 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     }
   }
 
-  async function changeBackground(mode: BackgroundMode, image?: string | null) {
+  async function changeBackground(mode: BackgroundMode, source?: string | null) {
     setBackgroundMode(mode);
-    if (image !== undefined) setBackgroundImage(image);
+    if (source !== undefined) setBackgroundSource(source);
     if (bgProcessor.current) {
-      await bgProcessor.current.setMode(mode, image ?? backgroundImage);
+      await bgProcessor.current.setMode(mode, source ?? backgroundSource);
     }
   }
 
@@ -289,10 +310,13 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     pinnedPubkey,
     setPinnedPubkey,
     backgroundMode,
-    backgroundImage,
+    backgroundSource,
     enableVideo,
     disableVideo,
     switchCamera,
     changeBackground,
+    videoInputs,
+    videoInputDevice,
+    setVideoInputDevice,
   };
 }

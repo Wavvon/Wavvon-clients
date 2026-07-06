@@ -12,12 +12,9 @@ import type {
   Conversation,
   AllianceSharedChannel,
   VoiceParticipant,
-  InstalledGame,
   PostSummary,
   LinkPreview,
 } from "../types";
-import { GamePicker } from "./GamePicker";
-import { GameModal } from "./GameModal";
 import { ForumView } from "./content/ForumView";
 import { UserListGrouped } from "./UserListGrouped";
 import { BotCard } from "./BotCard";
@@ -29,7 +26,7 @@ import { DmView } from "./content/DmView";
 import { ChannelHeader } from "./content/ChannelHeader";
 import { ChannelMessageList } from "./content/ChannelMessageList";
 import { ChannelComposer } from "./content/ChannelComposer";
-import { AllianceView, ReconnectBanner } from "@voxply/ui";
+import { AllianceView, ReconnectBanner } from "@wavvon/ui";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -80,7 +77,6 @@ interface Props {
   voiceChannelId: string | null;
   onVoiceJoin: () => void;
   onVoiceLeave: () => void;
-  installedGames: InstalledGame[];
   myAvatar: string | null;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;
@@ -137,7 +133,7 @@ export function ContentArea({
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, voiceChannelId, onVoiceJoin, onVoiceLeave,
-  installedGames, myAvatar,
+  myAvatar,
   inputText, typingByKey, dmTypingByKey,
   messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
   onReconnect, onToggleReaction, onSetReplyTarget,
@@ -166,9 +162,6 @@ export function ContentArea({
   const [showPinned, setShowPinned] = useState(false);
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [showEventsPanel, setShowEventsPanel] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [activeGame, setActiveGame] = useState<InstalledGame | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [forumSelectedPost, setForumSelectedPost] = useState<PostSummary | null>(null);
   const [forumComposing, setForumComposing] = useState(false);
   // Track IME composition so we don't reset the input value mid-emoji on Windows.
@@ -203,7 +196,7 @@ export function ContentArea({
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() => {
     if (!selectedChannel) return new Set();
     try {
-      const raw = localStorage.getItem(`voxply.threads.${selectedChannel.id}`);
+      const raw = localStorage.getItem(`wavvon.threads.${selectedChannel.id}`);
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
   });
@@ -212,7 +205,7 @@ export function ContentArea({
   useEffect(() => {
     if (!selectedChannel) { setExpandedThreads(new Set()); return; }
     try {
-      const raw = localStorage.getItem(`voxply.threads.${selectedChannel.id}`);
+      const raw = localStorage.getItem(`wavvon.threads.${selectedChannel.id}`);
       setExpandedThreads(new Set(raw ? JSON.parse(raw) : []));
     } catch { setExpandedThreads(new Set()); }
     setThreadReplies({});
@@ -220,7 +213,7 @@ export function ContentArea({
 
   function persistExpandedThreads(next: Set<string>) {
     if (!selectedChannel) return;
-    localStorage.setItem(`voxply.threads.${selectedChannel.id}`, JSON.stringify([...next]));
+    localStorage.setItem(`wavvon.threads.${selectedChannel.id}`, JSON.stringify([...next]));
   }
 
   async function toggleThread(messageId: string) {
@@ -463,11 +456,10 @@ export function ContentArea({
             onSetForumComposing={setForumComposing}
           />
         ) : selectedChannel ? (
-          <>
+          <div className="chat-column">
             <ChannelHeader
               selectedChannel={selectedChannel}
               voiceChannelId={voiceChannelId}
-              hasInstalledGames={installedGames.length > 0}
               memberSidebarHidden={memberSidebarHidden}
               searchOpen={searchOpen}
               searchQuery={searchQuery}
@@ -477,7 +469,6 @@ export function ContentArea({
               isAdmin={isAdmin}
               onVoiceJoin={onVoiceJoin}
               onVoiceLeave={onVoiceLeave}
-              onOpenGamePicker={() => setPickerOpen(true)}
               onShowPinned={() => setShowPinned(true)}
               onShowEvents={() => setShowEventsPanel(true)}
               onToggleSearch={() => searchOpen ? onCloseSearch() : onSetSearchOpen(true)}
@@ -562,7 +553,7 @@ export function ContentArea({
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
             />
-          </>
+          </div>
         ) : selectedAllianceChannel ? (
           <AllianceView
             selectedAllianceChannel={selectedAllianceChannel}
@@ -654,34 +645,6 @@ export function ContentArea({
         />
       )}
 
-      {pickerOpen && (
-        <GamePicker
-          games={installedGames}
-          channelId={selectedChannel?.id ?? null}
-          onSelect={(game, sessionId) => {
-            setPickerOpen(false);
-            setActiveGame(game);
-            setActiveSessionId(sessionId);
-          }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
-
-      {activeGame && (
-        <GameModal
-          game={activeGame}
-          theme={theme}
-          publicKey={publicKey}
-          displayName={myDisplayName}
-          avatar={myAvatar}
-          channelId={selectedChannel?.id ?? null}
-          channelName={selectedChannel?.name ?? null}
-          hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? null}
-          hubPubkey={null}
-          sessionId={activeSessionId}
-          onClose={() => { setActiveGame(null); setActiveSessionId(null); }}
-        />
-      )}
     </>
   );
 }

@@ -5,7 +5,7 @@ import type { Channel, HubIcon } from "../types";
 import { ChannelIcon } from "./Icons";
 import { ChannelIconPicker } from "./ChannelIconPicker";
 import { sanitizeSvg } from "../utils/svgSanitize";
-import { FocusTrap } from "@voxply/ui";
+import { FocusTrap } from "@wavvon/ui";
 
 const ACCENT_COLORS = [
   { id: "red",    hex: "#e74c3c" },

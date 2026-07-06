@@ -1,7 +1,7 @@
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/jetbrains-mono';
 
-/* styles.css — Voxply desktop client
+/* styles.css — Wavvon desktop client
  *
  * Architecture: token-based themes.
  * - Theme-independent tokens (spacing, type, radii, motion) live on :root.
@@ -84,6 +84,9 @@
   --weight-bold: 700;
   --leading-tight: 1.3;
   --leading-normal: 1.5;
+
+  /* Layout */
+  --msg-gutter: 36px; /* avatar(28px) + gap(space-2=8px) */
 
   /* Motion */
   --transition-fast: 120ms ease-out;
@@ -576,6 +579,10 @@ select,
   flex-direction: column;
   gap: var(--space-1);
   border-right: 1px solid var(--border);
+  /* Scroll when the tab list is taller than the viewport, so every tab stays
+     reachable (the admin nav can be long, especially with group headers). */
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .settings-nav h2 {
@@ -605,6 +612,16 @@ select,
   color: var(--text-muted);
   cursor: pointer;
   font-size: var(--text-md);
+}
+
+/* Section header within the admin nav — groups the long tab list. */
+.settings-nav-group {
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
 }
 
 .settings-nav-item:hover {
@@ -647,6 +664,19 @@ select,
   font-weight: var(--weight-bold);
   margin-bottom: var(--space-5);
   letter-spacing: -0.01em;
+}
+
+/* Groups related sections within a single tab (e.g. Voice & Video's
+   Audio vs. Camera controls) without the weight of another h1. */
+.settings-subheading {
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+.settings-subheading:first-of-type {
+  margin-top: 0;
 }
 
 .settings-close-x {
@@ -815,6 +845,86 @@ select,
   gap: var(--space-4);
 }
 
+.avatar-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.avatar-chooser-tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.avatar-chooser-tab {
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: border-color var(--motion-fast), color var(--motion-fast);
+}
+
+.avatar-chooser-tab:hover {
+  color: var(--text);
+}
+
+.avatar-chooser-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.avatar-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.avatar-picker-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.avatar-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: var(--space-2);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.avatar-picker-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: var(--r-md);
+  border: 2px solid transparent;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--motion-fast), transform var(--motion-fast);
+}
+
+.avatar-picker-tile:hover {
+  transform: scale(1.06);
+}
+
+.avatar-picker-tile.selected {
+  border-color: var(--accent);
+}
+
+.avatar-picker-tile img {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  display: block;
+}
+
 /* ============================================================
    MIC LEVEL METER
    ============================================================ */
@@ -949,14 +1059,39 @@ select,
 }
 
 .sidebar {
-  width: 240px;
+  width: 240px; /* default — the web app overrides inline with the user-resized width */
   background: var(--bg-elevated);
   padding: var(--space-4);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   min-height: 0;
-  overflow: hidden;
+  /* Anchors the .sidebar-resize-handle on the right edge. */
+  position: relative;
+  /* Not overflow:hidden — the hub-dropdown's hover submenus (notifications
+     flyout) are absolutely positioned and intentionally escape this box
+     into the message pane. Vertical channel-list scrolling is scoped to
+     .sidebar-scroll below, which clips its own x/y independently. */
+  overflow: visible;
+}
+
+/* Invisible grab strip on the sidebar's right edge for drag-resizing. */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 50;
+  touch-action: none;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--accent);
+  opacity: 0.4;
 }
 
 .sidebar h3 {
@@ -970,11 +1105,22 @@ select,
 
 .content {
   flex: 1;
+  min-width: 0;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
   background: var(--bg);
   position: relative;
+}
+
+.chat-column {
+  max-width: 1300px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .content h3 {
@@ -1059,7 +1205,10 @@ select,
   border-radius: var(--r-md);
   box-shadow: var(--shadow-md);
   padding: var(--space-1);
-  z-index: 20;
+  /* Above the message pane's own popovers (mention/slash popups, reaction
+     picker, etc. top out at z-index 1000) so its Notifications flyout
+     never renders underneath the channel content it overlaps into. */
+  z-index: 1050;
   margin-top: var(--space-1);
   animation: scale-in var(--transition-fast);
   transform-origin: top;
@@ -1377,6 +1526,46 @@ select,
   color: var(--text-faint);
 }
 
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 2px var(--space-2);
+  border-radius: var(--r-pill);
+  font-size: var(--text-xs);
+  border: 1px solid transparent;
+}
+
+/* Blends the role's hex color into the theme's own text/border colors
+   (not the raw hex) so contrast stays readable across light and dark
+   themes — see docs/docs/role-categories.md §4. */
+.role-badge-tinted {
+  color: color-mix(in srgb, var(--role-color) 60%, var(--text));
+  border-color: color-mix(in srgb, var(--role-color) 45%, var(--border));
+  background: color-mix(in srgb, var(--role-color) 12%, var(--surface));
+}
+
+.role-category-group {
+  margin-bottom: var(--space-3);
+}
+
+.role-category-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+}
+
+.role-category-header-tinted {
+  color: color-mix(in srgb, var(--role-color) 70%, var(--text-muted));
+}
+
 /* ============================================================
    ALLIANCES (sidebar)
    ============================================================ */
@@ -1400,6 +1589,29 @@ select,
   font-size: var(--text-xs);
   color: var(--text-faint);
   margin-top: 2px;
+}
+
+.channel-item.alliance-category {
+  cursor: default;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.channel-item.alliance-category:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.channel-item.alliance-noninteractive {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.channel-item.alliance-noninteractive:hover {
+  background: transparent;
+  color: var(--text-muted);
 }
 
 .alliance-readonly {
@@ -1925,6 +2137,11 @@ select,
   opacity: 0.55;
 }
 
+.channel-item.channel-item-spawner:not(.selected) {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .channel-muted-icon {
   margin-left: 6px;
   font-size: 0.75em;
@@ -1943,6 +2160,51 @@ select,
   color: var(--accent-text);
 }
 
+.channel-type-hash {
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  opacity: 0.55;
+  margin-right: 4px;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.channel-item.selected .channel-type-hash {
+  opacity: 0.8;
+}
+
+.channel-type-spawner {
+  font-size: 13px;
+  font-weight: var(--weight-bold);
+  opacity: 0.7;
+  margin-right: 4px;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.channel-item.selected .channel-type-spawner {
+  opacity: 0.9;
+}
+
+.channel-temp-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0 4px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.channel-item.selected .channel-temp-badge {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
 .channel-draft-badge {
   font-size: 10px;
   font-weight: 600;
@@ -1950,6 +2212,11 @@ select,
   margin-left: 4px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+}
+
+.channel-item.selected .channel-draft-badge {
+  color: var(--accent-text);
+  opacity: 0.85;
 }
 
 .channel-settings-btn {
@@ -1976,6 +2243,24 @@ select,
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Long channel names must ellipsis-truncate so the row stays within the
+   sidebar and the settings gear / badges remain reachable — otherwise the
+   name pushed them off-screen and the channel couldn't be managed. */
+.channel-item .channel-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.channel-item .channel-settings-btn,
+.channel-item .channel-temp-badge,
+.channel-item .channel-draft-badge,
+.channel-item .channel-voice-badge,
+.channel-item .channel-muted-icon {
+  flex-shrink: 0;
 }
 
 .hub-icon.muted {
@@ -2058,6 +2343,11 @@ select,
 .user-actions-icons {
   display: flex;
   align-items: center;
+  /* Narrow sidebar: wrap the voice-control buttons onto a second row
+     instead of overflowing past the sidebar edge. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
   gap: var(--space-1);
   margin-left: auto;
 }
@@ -2286,6 +2576,15 @@ select,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Space the title from the action buttons and the buttons from each other —
+     the icon buttons were rendering practically glued together. */
+  gap: var(--space-2);
+}
+/* Keep the channel title/breadcrumb taking the free space so the action
+   buttons cluster on the right with consistent spacing. */
+.channel-header .channel-header-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .channel-header h3 {
@@ -2321,6 +2620,91 @@ select,
 .channel-description.editable:hover {
   background: var(--surface);
   color: var(--text);
+}
+
+.channel-voice-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.channel-voice-row-kbps {
+  font-size: var(--text-xs);
+}
+
+.channel-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.channel-breadcrumb-item {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.channel-breadcrumb-item:hover {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+.channel-breadcrumb-item.current {
+  color: var(--text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
+.channel-breadcrumb-sep {
+  color: var(--text-faint);
+}
+
+.sidebar-drill-crumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-1);
+}
+
+.sidebar-drill-crumb-item {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sidebar-drill-crumb-item:hover {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+.sidebar-drill-crumb-item.current {
+  color: var(--text);
+  cursor: default;
+  text-decoration: none;
+  font-weight: var(--weight-medium);
+}
+
+.sidebar-drill-crumb-sep {
+  color: var(--text-faint);
 }
 
 /* ============================================================
@@ -2460,6 +2844,10 @@ select,
   border-radius: var(--r-md);
   border: 1px solid var(--border);
   min-width: 360px;
+  /* Never taller than the viewport — tall content (e.g. the channel
+     Permissions tab) scrolls inside instead of clipping the actions row. */
+  max-height: calc(100vh - 2 * var(--space-5));
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
   animation: scale-in var(--transition-base);
 }
@@ -2565,6 +2953,20 @@ select:focus-visible {
   width: 100%;
 }
 
+/* Two related short controls side by side (e.g. input/output device
+   pickers), collapsing to one column when the container is too narrow
+   to fit both comfortably — unlike voice-devices-row's fixed grid. */
+.settings-row-2col {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.settings-row-2col > * {
+  flex: 1 1 200px;
+  min-width: 200px;
+}
+
 .voice-mic-test {
   display: flex;
   align-items: center;
@@ -2634,6 +3036,42 @@ select:focus-visible {
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
   resize: vertical;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0;
+}
+
+.error-retry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.error-retry .error-text {
+  margin: 0;
+  flex: 1;
+}
+
+.passphrase-strength {
+  display: inline-block;
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-2);
+}
+
+.passphrase-strength.weak {
+  color: var(--danger);
+}
+
+.passphrase-strength.fair {
+  color: var(--warning);
+}
+
+.passphrase-strength.strong {
+  color: var(--success);
 }
 
 .recovery-input:focus {
@@ -3137,6 +3575,9 @@ select:focus-visible {
 }
 
 .btn-voice-header {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   border: none;
   border-radius: var(--r-sm);
   font-size: var(--text-sm);
@@ -3172,7 +3613,7 @@ select:focus-visible {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-2);
-  margin-left: 36px; /* align with sender label after avatar */
+  margin-left: var(--msg-gutter);
 }
 
 .message-attachment-img {
@@ -3497,10 +3938,11 @@ select:focus-visible {
 }
 
 .message-reply-preview {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-left: 36px;
+  margin-left: var(--msg-gutter);
   margin-bottom: 2px;
   padding: 2px 8px;
   border-left: 2px solid var(--border);
@@ -3508,8 +3950,22 @@ select:focus-visible {
   color: var(--text-muted);
   cursor: pointer;
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
-  max-width: 100%;
+  width: calc(100% - var(--msg-gutter));
   overflow: hidden;
+}
+
+/* S-path connector: L-shape from avatar column to reply preview left edge */
+.message-reply-preview::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--msg-gutter) + 10px);
+  top: 0;
+  width: calc(var(--msg-gutter) - 10px);
+  height: 100%;
+  border-left: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+  border-bottom-left-radius: 6px;
+  pointer-events: none;
 }
 
 .message-reply-preview:hover {
@@ -3518,7 +3974,7 @@ select:focus-visible {
 }
 
 .reply-arrow {
-  color: var(--text-faint);
+  display: none; /* S-path ::before handles the visual connector */
 }
 
 .reply-author {
@@ -3748,10 +4204,10 @@ select:focus-visible {
   flex-wrap: wrap;
   gap: var(--space-1);
   margin-top: var(--space-1);
-  margin-left: 36px;
-  /* Own row regardless of message-actions visibility */
-  width: 100%;
-  flex-basis: 100%;
+  margin-left: var(--msg-gutter);
+  /* Own row aligned to content gutter */
+  width: calc(100% - var(--msg-gutter));
+  flex-basis: calc(100% - var(--msg-gutter));
 }
 
 .reaction-chip {
@@ -3852,17 +4308,17 @@ select:focus-visible {
 
 .reaction-picker-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
-  max-height: 200px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  /* Clip at ~3.5 rows to hint that the grid scrolls */
+  max-height: 148px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-
 .reaction-picker-recents {
   /* Show at most one row of recents (no scroll, no overflow) */
-  max-height: 36px;
+  max-height: 44px;
   overflow: hidden;
   scrollbar-gutter: auto;
 }
@@ -3892,13 +4348,72 @@ select:focus-visible {
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: var(--text-lg);
-  padding: 4px 6px;
+  font-size: 20px;
+  padding: 6px 8px;
   border-radius: var(--r-sm);
 }
 
 .reaction-picker-emoji:hover {
-  background: var(--bg-sunken);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ── Soundboard popover (voice bar) ── */
+.soundboard-clip-grid {
+  grid-template-columns: repeat(3, 1fr);
+  max-height: 200px;
+}
+
+.soundboard-clip-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 4px;
+  border-radius: var(--r-sm);
+}
+
+.soundboard-clip-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.soundboard-clip-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.soundboard-clip-emoji {
+  font-size: 20px;
+}
+
+.soundboard-clip-name {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Soundboard "played" attribution chip (transient) ── */
+.soundboard-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-3) var(--space-1);
+}
+
+.soundboard-chip {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.15));
+  border-radius: var(--r-sm);
+  padding: 2px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ============================================================
@@ -3921,7 +4436,7 @@ select:focus-visible {
   font-size: var(--text-md);
 }
 
-.input-area button {
+.input-area button[type="submit"] {
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--r-md);
@@ -3932,7 +4447,7 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.input-area button:hover {
+.input-area button[type="submit"]:hover {
   background: var(--accent-hover);
 }
 
@@ -4073,6 +4588,24 @@ select:focus-visible {
 .category-header:hover .category-settings-btn,
 .category-header .category-settings-btn:focus {
   opacity: 1;
+}
+
+.category-header .category-focus-btn {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.category-header:hover .category-focus-btn,
+.category-header .category-focus-btn:focus {
+  opacity: 1;
+}
+
+/* nested-channels-ux.md §2.2: faint marker shown past the indent cap
+   instead of further indent, so real nesting stays legible without
+   eating sidebar width. */
+.channel-depth-marker {
+  color: var(--text-faint);
+  opacity: 0.6;
+  margin-right: 2px;
 }
 
 .channel-sublist {
@@ -4287,8 +4820,33 @@ select:focus-visible {
   background: var(--success);
 }
 
+.status-dot.away {
+  background: #faa81a;
+}
+
+.status-dot.dnd {
+  background: var(--danger, #ed4245);
+}
+
 .status-dot.offline {
   background: var(--text-faint);
+}
+
+/* Custom presence text appended after a member's name in the member list. */
+.user-custom-status {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-style: italic;
+}
+
+/* Own custom status under the display name in the sidebar footer. */
+.user-identity-custom-status {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-name {
@@ -4985,9 +5543,11 @@ select:focus-visible {
   padding: var(--space-6);
   width: 560px;
   max-width: 90vw;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  overflow: hidden;
 }
 
 .screen-share-picker h2 {
@@ -5008,6 +5568,46 @@ select:focus-visible {
   gap: var(--space-3);
   max-height: 300px;
   overflow-y: auto;
+}
+
+.screen-share-source-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 2px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--motion-fast);
+}
+
+.screen-share-source-thumb:hover {
+  border-color: var(--accent);
+}
+
+.screen-share-source-thumb.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.screen-share-source-thumb img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+  background: #000;
+}
+
+.screen-share-source-name {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .screen-share-macos-notice {
@@ -5039,6 +5639,62 @@ select:focus-visible {
   padding: 2px var(--space-3);
   cursor: pointer;
   font-size: var(--text-xs);
+}
+
+.screen-share-self-preview {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  z-index: 9500;
+}
+
+.screen-share-self-preview-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  object-fit: contain;
+}
+
+.screen-share-self-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.screen-share-self-preview-label {
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.screen-share-self-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.screen-share-self-preview-badge {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  z-index: 9500;
 }
 
 /* E2E DM encryption UI */
@@ -5494,6 +6150,58 @@ select:focus-visible {
 .bot-token-actions {
   display: flex;
   gap: 8px;
+}
+
+/* ============================================================
+   STATUS BADGE (generic active/failed pill)
+   ============================================================ */
+.status-badge {
+  display: inline-block;
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.status-badge-success {
+  background: var(--success);
+  color: white;
+}
+
+.status-badge-danger {
+  background: var(--danger);
+  color: white;
+  cursor: pointer;
+}
+
+/* ============================================================
+   EVENT SUBSCRIPTION EDITOR (shared by outgoing webhooks, bots)
+   ============================================================ */
+.event-subscription-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--space-3);
+}
+
+.event-subscription-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.event-subscription-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: var(--space-5);
+  padding: var(--space-2);
+  background: var(--bg-sunken);
+  border-radius: var(--r-sm);
 }
 
 /* ============================================================
@@ -6588,7 +7296,7 @@ a.embed-title:hover {
   background: var(--bg-hover, #34373d);
 }
 
-.whisper-panel { position: absolute; bottom: 100%; left: 0; width: 280px; background: var(--bg-secondary, #2b2d31); border: 1px solid var(--border-color, #3a3d44); border-radius: 8px; padding: 0; z-index: 300; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); }
+.whisper-panel { width: 280px; background: var(--bg-secondary, #2b2d31); border: 1px solid var(--border-color, #3a3d44); border-radius: 8px; padding: 0; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); }
 .whisper-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border-color, #3a3d44); }
 .whisper-panel-title { font-size: 13px; font-weight: 700; }
 .whisper-panel-close { background: none; border: none; cursor: pointer; color: var(--text-muted, #96989d); font-size: 14px; }
@@ -6612,6 +7320,49 @@ a.embed-title:hover {
 .whisper-save-form button { padding: 4px 8px; border-radius: 3px; font-size: 12px; cursor: pointer; border: none; background: var(--accent-color, #5865f2); color: #fff; }
 .btn-icon-gear.whisper-active { background: #5865f24d; color: var(--accent-color, #5865f2); }
 .voice-btn-wrap { position: relative; }
+
+.voice-more-wrap {
+  position: relative;
+}
+
+.voice-more-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  background: var(--bg-secondary, #2b2d31);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  z-index: 200;
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,.4));
+}
+
+.voice-more-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text);
+  width: 100%;
+  text-align: left;
+}
+
+.voice-more-item:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.06));
+}
+
+.voice-more-item.active {
+  color: var(--accent);
+}
 .participant-whisper-badge { font-size: 10px; font-weight: 600; color: #faa61a; margin-left: 4px; text-transform: uppercase; }
 
 .missions-panel { padding: 8px 0; }
@@ -7809,3 +8560,110 @@ a.embed-title:hover {
   text-decoration: underline;
 }
 
+.bot-app-launch-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.bot-app-launch-card {
+  max-width: 480px;
+}
+
+.bot-mini-app-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.bot-mini-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bot-mini-app-header button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-lg);
+  color: var(--text-muted);
+  padding: var(--space-1);
+  border-radius: var(--r-sm);
+  line-height: 1;
+}
+
+.bot-mini-app-header button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+
+/* ============================================================
+   FLOATING CAMERA WINDOW (picture-in-picture)
+   Follows the user's voice session, not the selected channel.
+   Dragged by its title bar; resized via the native corner handle.
+   ============================================================ */
+.video-pip {
+  position: fixed;
+  z-index: 700; /* above content, below context menus (9998) and modals */
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  min-height: 150px;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  resize: both;
+}
+
+.video-pip-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none; /* pointer-drag, not scroll, on touch devices */
+  flex-shrink: 0;
+}
+
+.video-pip-header:active {
+  cursor: grabbing;
+}
+
+.video-pip-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-pip-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2);
+  align-content: start;
+}

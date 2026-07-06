@@ -35,8 +35,16 @@ export function colorForKey(pubkey: string | null | undefined): string {
   return `hsl(${hue}, 55%, 65%)`;
 }
 
+/// The hub mixes time units on the wire: channel messages carry
+/// `created_at` in MILLISECONDS (ordering precision), everything else in
+/// seconds. Normalize to seconds — a value with 13+ digits is unambiguously
+/// ms until the year 33658.
+function toUnixSec(v: number): number {
+  return v > 1e12 ? Math.floor(v / 1000) : v;
+}
+
 export function dayKey(unixSec: number): string {
-  const d = new Date(unixSec * 1000);
+  const d = new Date(toUnixSec(unixSec) * 1000);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -44,7 +52,7 @@ export function dayKey(unixSec: number): string {
 }
 
 export function formatDayLabel(unixSec: number): string {
-  const d = new Date(unixSec * 1000);
+  const d = new Date(toUnixSec(unixSec) * 1000);
   const today = new Date();
   const yest = new Date();
   yest.setDate(today.getDate() - 1);
@@ -60,7 +68,7 @@ export function formatDayLabel(unixSec: number): string {
 
 export function formatFullTimestamp(unixSec: number): string {
   if (!unixSec) return "";
-  const d = new Date(unixSec * 1000);
+  const d = new Date(toUnixSec(unixSec) * 1000);
   return d.toLocaleString(undefined, {
     weekday: "short",
     month: "short",
@@ -81,7 +89,7 @@ export function newProfileId(): string {
 export function formatRelative(unixSec: number): string {
   if (!unixSec) return "—";
   const now = Math.floor(Date.now() / 1000);
-  const diff = now - unixSec;
+  const diff = now - toUnixSec(unixSec);
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;

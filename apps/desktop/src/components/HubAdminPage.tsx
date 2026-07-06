@@ -9,7 +9,7 @@ import type {
   PendingUser,
   RoleInfo,
 } from "../types";
-import { formatPubkey, formatRelative } from "@voxply/core";
+import { formatPubkey, formatRelative } from "@wavvon/core";
 import { ImagePicker } from "./ImagePicker";
 import { InvitesSection } from "./InvitesSection";
 import { MemberRow } from "./MemberRow";
@@ -26,7 +26,6 @@ import { LobbySettingsSection } from "./LobbySettingsSection";
 import { ChallengeSettingsSection } from "./ChallengeSettingsSection";
 import { HubTagsSection } from "./HubTagsSection";
 import { HubBadgesSection } from "./HubBadgesSection";
-import { GamesAdminSection } from "./GamesAdminSection";
 import { HubCertificationsAdminSection } from "./HubCertificationsAdminSection";
 import { HubAuditLogSection } from "./HubAuditLogSection";
 
@@ -47,7 +46,6 @@ export type HubAdminTab =
   | "integrations"
   | "tags"
   | "badges"
-  | "games"
   | "certifications"
   | "audit-log";
 
@@ -110,13 +108,13 @@ export interface HubAdminPageProps {
   channels: Channel[];
 }
 
-function hubToVoxplyUrl(hubUrl: string): string {
+function hubToWavvonUrl(hubUrl: string): string {
   try {
     const u = new URL(hubUrl);
     const hostPort = u.port ? `${u.hostname}:${u.port}` : u.hostname;
-    return `voxply://${hostPort}`;
+    return `wavvon://${hostPort}`;
   } catch {
-    return `voxply://${hubUrl}`;
+    return `wavvon://${hubUrl}`;
   }
 }
 
@@ -138,7 +136,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
   const [dirLanguage, setDirLanguage] = useState("en");
   const [dirBio, setDirBio] = useState("");
   const [dirInviteCode, setDirInviteCode] = useState("");
-  const [dirUrl, setDirUrl] = useState("https://discovery.voxply.io");
+  const [dirUrl, setDirUrl] = useState("https://discovery.wavvon.io");
   const [dirStatus, setDirStatus] = useState<"idle" | "submitting" | "ok" | "error">("idle");
   const [dirError, setDirError] = useState("");
   const [listed, setListed] = useState(false);
@@ -201,7 +199,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "challenge", label: t("hub.admin.tabs.challenge") },
     { id: "tags", label: "Tags" },
     { id: "badges", label: "Badges" },
-    { id: "games", label: "Games" },
     { id: "certifications", label: "Certifications" },
     { id: "audit-log", label: "Audit Log" },
   ];
@@ -352,11 +349,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
               </p>
               <div className="settings-row">
                 <code className="pubkey-display">
-                  {hubToVoxplyUrl(props.activeHubUrl)}
+                  {hubToWavvonUrl(props.activeHubUrl)}
                 </code>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(hubToVoxplyUrl(props.activeHubUrl));
+                    navigator.clipboard.writeText(hubToWavvonUrl(props.activeHubUrl));
                     setCopiedShare(true);
                     setTimeout(() => setCopiedShare(false), 2000);
                   }}
@@ -679,12 +676,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <section>
             <h1>Badges</h1>
             <HubBadgesSection />
-          </section>
-        )}
-        {props.tab === "games" && (
-          <section>
-            <h1>Games</h1>
-            <GamesAdminSection hubUrl={props.activeHubUrl} channels={props.channels} />
           </section>
         )}
         {props.tab === "certifications" && (

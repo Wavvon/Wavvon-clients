@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub } from "../../types";
 import { MessageRow } from "./MessageRow";
-import { TypingIndicator } from "@voxply/ui";
+import { TypingIndicator } from "@wavvon/ui";
 
 type HubEmojiEntry = { id: string; name: string; url: string };
 type TypingEntry = { name: string; ts: number };

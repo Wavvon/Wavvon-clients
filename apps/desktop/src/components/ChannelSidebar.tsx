@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { SearchBar } from "./SearchBar";
 import { WhisperPanel } from "./WhisperPanel";
 import type { WhisperTarget, WhisperList } from "../hooks/useWhisper";
@@ -27,10 +28,10 @@ import type {
   AllianceSharedChannel,
   Conversation,
 } from "../types";
-import type { TreeNode, FlatNode } from "@voxply/core";
+import type { TreeNode, FlatNode } from "@wavvon/core";
 import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
-import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
-import { HoverSubmenu } from "@voxply/ui";
+import { SortableBannerItem, SortableCategoryItem, SortableChannelItem } from "./SortableItems";
+import { HoverSubmenu } from "@wavvon/ui";
 
 const CHANNEL_INDENT_PX = 16;
 
@@ -149,6 +150,10 @@ export function ChannelSidebar({
   const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const whisperBtnRef = useRef<HTMLButtonElement>(null);
+  const [whisperPanelPos, setWhisperPanelPos] = useState<{ bottom: number; left: number } | null>(null);
+  const [moreVoiceOpen, setMoreVoiceOpen] = useState(false);
+  const moreVoiceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!hubDropdownOpen) return;
@@ -160,6 +165,23 @@ export function ChannelSidebar({
     document.addEventListener("mousedown", onOutsideClick);
     return () => document.removeEventListener("mousedown", onOutsideClick);
   }, [hubDropdownOpen, onHubDropdownOpenChange]);
+
+  useEffect(() => {
+    if (!showWhisperPanel || !whisperBtnRef.current) return;
+    const rect = whisperBtnRef.current.getBoundingClientRect();
+    setWhisperPanelPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left });
+  }, [showWhisperPanel]);
+
+  useEffect(() => {
+    if (!moreVoiceOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (moreVoiceRef.current && !moreVoiceRef.current.contains(e.target as Node)) {
+        setMoreVoiceOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [moreVoiceOpen]);
 
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -371,14 +393,12 @@ export function ChannelSidebar({
                       const src = n.node.banner_url ?? (n.node.banner_file_id ? `${hubUrl}/uploads/${n.node.banner_file_id}` : null);
                       if (!src) return null;
                       return (
-                        <li key={n.node.id} style={{ padding: "4px 0", listStyle: "none" }}>
-                          <img
-                            src={src}
-                            alt=""
-                            style={{ width: "100%", height: "auto", display: "block", borderRadius: 4 }}
-                            draggable={false}
-                          />
-                        </li>
+                        <SortableBannerItem
+                          key={n.node.id}
+                          channel={n.node}
+                          src={src}
+                          onContextMenu={isAdmin ? (e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); } : undefined}
+                        />
                       );
                     })() : (
                       <SortableChannelItem
@@ -567,6 +587,7 @@ export function ChannelSidebar({
 
             <div className="user-actions">
               <div className="user-actions-icons">
+                {/* Primary voice controls */}
                 <button
                   onClick={onToggleSelfMute}
                   className={`btn-icon-gear ${selfMuted ? "active" : ""}`}
@@ -595,13 +616,6 @@ export function ChannelSidebar({
                   </svg>
                 </button>
                 <button
-                  onClick={onScreenShare}
-                  className={`btn-icon-gear ${sharing ? "active" : ""}`}
-                  title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6l-1 3h6l-1-3h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12z"/></svg>
-                </button>
-                <button
                   onClick={() => {
                     if (videoEnabled) {
                       onVideoToggle();
@@ -614,45 +628,55 @@ export function ChannelSidebar({
                     }
                   }}
                   className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
-                  title={videoEnabled ? "Turn off camera" : "Turn on camera"}
+                  title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12m-3.5 0a3.5 3.5 0 1 0 7 0 3.5 3.5 0 1 0-7 0M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
                 </button>
-                {videoEnabled && videoDevices.length > 1 && (
-                  <select
-                    aria-label="Camera"
-                    className="camera-device-select"
-                    onChange={(e) => onCameraDeviceChange(e.target.value)}
-                  >
-                    {videoDevices.map((d) => (
-                      <option key={d.deviceId} value={d.deviceId}>
-                        {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {hubStreamsCount > 0 && (
+
+                {/* More controls popover */}
+                <div className="voice-more-wrap" ref={moreVoiceRef}>
                   <button
-                    onClick={onToggleHubStreams}
-                    className="btn-icon-gear"
-                    title={`Hub streams (${hubStreamsCount} active)`}
+                    className={`btn-icon-gear ${(sharing || isWhispering || hubStreamsCount > 0) ? "active" : ""}`}
+                    onClick={() => setMoreVoiceOpen((v) => !v)}
+                    title={t("voice.more")}
+                    aria-expanded={moreVoiceOpen}
                   >
-                    📺
-                    {hubStreamsCount > 0 && (
-                      <span className="hub-streams-badge">{hubStreamsCount}</span>
-                    )}
+                    ···
                   </button>
-                )}
-                <div className="voice-btn-wrap">
-                  <button
-                    className={`btn-icon-gear ${isWhispering ? "active whisper-active" : ""}`}
-                    onClick={onToggleWhisperPanel}
-                    title="Whisper"
-                    aria-pressed={isWhispering}
-                  >
-                    🤫
-                  </button>
-                  {showWhisperPanel && (
+                  {moreVoiceOpen && (
+                    <div className="voice-more-menu">
+                      <button
+                        className={`voice-more-item ${sharing ? "active" : ""}`}
+                        onClick={() => { onScreenShare(); setMoreVoiceOpen(false); }}
+                        title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6l-1 3h6l-1-3h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12z"/></svg>
+                        {sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
+                      </button>
+                      {hubStreamsCount > 0 && (
+                        <button
+                          className="voice-more-item"
+                          onClick={() => { onToggleHubStreams(); setMoreVoiceOpen(false); }}
+                          title={`Hub streams (${hubStreamsCount} active)`}
+                        >
+                          📺 {t("voice.hub_streams", "Hub streams")}
+                          <span className="hub-streams-badge" style={{ marginLeft: 4 }}>{hubStreamsCount}</span>
+                        </button>
+                      )}
+                      <button
+                        ref={whisperBtnRef}
+                        className={`voice-more-item ${isWhispering ? "active" : ""}`}
+                        onClick={() => { onToggleWhisperPanel(); setMoreVoiceOpen(false); }}
+                        title="Whisper"
+                        aria-pressed={isWhispering}
+                      >
+                        🤫 {t("voice.whisper", "Whisper")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {showWhisperPanel && whisperPanelPos && createPortal(
+                  <div style={{ position: "fixed", bottom: whisperPanelPos.bottom, left: whisperPanelPos.left, zIndex: 9999 }}>
                     <WhisperPanel
                       voiceParticipants={
                         voiceChannelId
@@ -669,8 +693,9 @@ export function ChannelSidebar({
                       onDeleteList={onDeleteWhisperList}
                       onClose={onCloseWhisperPanel}
                     />
-                  )}
-                </div>
+                  </div>,
+                  document.body
+                )}
                 <button
                   onClick={onVoiceLeave}
                   className="btn-icon-gear voice-call-btn end"

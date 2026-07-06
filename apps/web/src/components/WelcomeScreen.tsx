@@ -1,12 +1,15 @@
-import React, { useState } from "react";
-import { addHub } from "@platform";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { addHub, previewHubInfo } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
+import { parseHubInput } from "@wavvon/core";
+import type { HubInputResult } from "@wavvon/core";
 
 type HubPreview =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; challenge_mode?: string | null }
+  | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; challenge_mode?: string | null; welcome_label?: string | null; welcome_invite_url?: string | null }
   | { state: "error"; message: string };
 
 interface WelcomeScreenProps {
@@ -17,7 +20,6 @@ interface WelcomeScreenProps {
   error: string | null;
   onJoin: () => void;
   onBrowse?: () => void;
-  onDismiss: () => void;
   homeHubHint?: string;
 }
 
@@ -29,16 +31,17 @@ export function WelcomeScreen({
   error,
   onJoin,
   onBrowse,
-  onDismiss,
   homeHubHint,
 }: WelcomeScreenProps) {
+  const { t } = useTranslation();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   return (
     <div className="empty-state welcome" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "32px 16px" }}>
-      <h1 style={{ marginBottom: 8 }}>Voxply</h1>
+      <h1 style={{ marginBottom: 8 }}>Wavvon</h1>
       <p className="welcome-tagline muted" style={{ marginBottom: 32, textAlign: "center" }}>
-        Decentralized voice chat. Your identity, every hub.
+        {t("welcome.tagline")}
       </p>
 
       <section className="welcome-join" style={{ width: "100%", maxWidth: 440, marginBottom: 16 }}>
@@ -48,22 +51,25 @@ export function WelcomeScreen({
             value={hubUrl}
             onChange={(e) => onHubUrlChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") onJoin(); }}
-            placeholder="hub.example.com  or  voxply://…"
+            placeholder="hub.example.com  or  wavvon://…"
             autoFocus
             style={{ flex: 1 }}
           />
           <button onClick={onJoin} disabled={loading} className="btn-primary">
-            {loading ? "Connecting…" : "Join hub"}
+            {loading ? t("hub.connecting") : t("welcome.join")}
           </button>
         </div>
 
         {homeHubHint && (
           <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 4 }}>
-            Served by this hub — {homeHubHint}
+            {t("welcome.hosted_by")}{" "}
+            <a href={homeHubHint} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+              {homeHubHint}
+            </a>
           </p>
         )}
         {hubPreview.state === "loading" && (
-          <p className="muted hub-preview-status" style={{ fontSize: "var(--text-sm)" }}>Looking up hub…</p>
+          <p className="muted hub-preview-status" style={{ fontSize: "var(--text-sm)" }}>{t("welcome.looking_up")}</p>
         )}
         {hubPreview.state === "error" && (
           <p className="hub-preview-error" style={{ color: "var(--danger)", fontSize: "var(--text-sm)" }}>{hubPreview.message}</p>
@@ -82,20 +88,52 @@ export function WelcomeScreen({
               {hubPreview.description && (
                 <p className="muted" style={{ margin: "2px 0 0", fontSize: "var(--text-sm)" }}>{hubPreview.description}</p>
               )}
+              <p className="muted" style={{ margin: "4px 0 0", fontSize: "var(--text-sm)" }}>
+                {t("welcome.hosted_by")}{" "}
+                <a href={hubPreview.url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+                  {hubPreview.url}
+                </a>
+              </p>
               {hubPreview.invite_only && (
                 <p className="muted hub-preview-warn" style={{ margin: "2px 0 0", fontSize: "var(--text-sm)" }}>
-                  Invite-only — paste the full invite link to join
+                  {t("hub.invite_only_hint")}
                 </p>
               )}
               {(hubPreview.min_security_level ?? 0) > 0 && (
                 <p className="muted hub-preview-warn" style={{ margin: "2px 0 0", fontSize: "var(--text-sm)" }}>
-                  Proof-of-work required:{" "}
+                  {t("welcome.pow_required")}{" "}
                   {(hubPreview.min_security_level ?? 0) >= 20
-                    ? "High (~15 min)"
+                    ? t("welcome.pow_high")
                     : (hubPreview.min_security_level ?? 0) >= 15
-                    ? "Medium (~1 min)"
-                    : "Low (<1 sec)"}
+                    ? t("welcome.pow_medium")
+                    : t("welcome.pow_low")}
                 </p>
+              )}
+              {hubPreview.welcome_label && (
+                <div style={{ marginTop: 6 }}>
+                  <p className="muted" style={{ margin: 0, fontSize: "var(--text-sm)" }}>
+                    {t("welcome.server_by", { label: hubPreview.welcome_label })}
+                  </p>
+                  {hubPreview.welcome_invite_url && (
+                    <p className="muted" style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span>{t("welcome.invite_line")}</span>
+                      <a href={hubPreview.welcome_invite_url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)", wordBreak: "break-all" }}>
+                        {hubPreview.welcome_invite_url}
+                      </a>
+                      <button
+                        type="button"
+                        className="btn-small btn-secondary"
+                        onClick={() => {
+                          navigator.clipboard.writeText(hubPreview.welcome_invite_url ?? "").catch(() => {});
+                          setCopiedInvite(true);
+                          setTimeout(() => setCopiedInvite(false), 2000);
+                        }}
+                      >
+                        {copiedInvite ? t("modal.copied") : t("modal.copy")}
+                      </button>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -105,7 +143,7 @@ export function WelcomeScreen({
       <div className="welcome-cta-row" style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         {onBrowse && (
           <button className="btn-secondary" onClick={onBrowse}>
-            Browse public hubs
+            {t("welcome.browse_hubs")}
           </button>
         )}
       </div>
@@ -116,26 +154,19 @@ export function WelcomeScreen({
         onToggle={(e) => setDetailsOpen((e.currentTarget as HTMLDetailsElement).open)}
         style={{ maxWidth: 440, width: "100%", marginBottom: 24 }}
       >
-        <summary style={{ cursor: "pointer", fontWeight: 500, marginBottom: detailsOpen ? 8 : 0 }}>What is Voxply?</summary>
+        <summary style={{ cursor: "pointer", fontWeight: 500, marginBottom: detailsOpen ? 8 : 0 }}>{t("welcome.what_is")}</summary>
         <ul className="welcome-points" style={{ paddingLeft: 20, margin: 0 }}>
           <li style={{ marginBottom: 8 }}>
-            <strong>Hubs</strong> are independently-run servers — pick any one
-            to join, or run your own. The same you works on every hub.
+            <strong>{t("welcome.hubs_label")}</strong> {t("welcome.hubs_desc")}
           </li>
           <li style={{ marginBottom: 8 }}>
-            <strong>Your identity</strong> is a keypair stored on this device,
-            not an account on a service. Nobody can deplatform you.
+            <strong>{t("welcome.identity_label")}</strong> {t("welcome.identity_desc")}
           </li>
           <li>
-            <strong>Alliances</strong> let hubs share channels with each other
-            so communities stay connected without merging.
+            <strong>{t("welcome.alliances_label")}</strong> {t("welcome.alliances_desc")}
           </li>
         </ul>
       </details>
-
-      <button className="welcome-settings-link muted btn-ghost" onClick={onDismiss} style={{ fontSize: "var(--text-sm)" }}>
-        Skip for now
-      </button>
 
       {error && <div className="error" style={{ marginTop: 12, color: "var(--danger)" }}>{error}</div>}
     </div>
@@ -145,20 +176,37 @@ export function WelcomeScreen({
 // Standalone stateful wrapper used when rendered from App.tsx.
 interface WelcomeScreenContainerProps {
   wsHandlers: WsHandlers;
-  onHubAdded: (hub: Hub) => void;
-  onDismiss: () => void;
+  /** target is set when hubUrl was pasted from a channel/message permalink. */
+  onHubAdded: (hub: Hub, target?: HubInputResult["target"]) => void;
   initialHubUrl?: string;
+  onBrowse?: () => void;
 }
 
-export function WelcomeScreenContainer({ wsHandlers, onHubAdded, onDismiss, initialHubUrl }: WelcomeScreenContainerProps) {
+export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, onBrowse }: WelcomeScreenContainerProps) {
   const [hubUrl, setHubUrl] = useState(initialHubUrl ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hubPreview, setHubPreview] = useState<HubPreview>({ state: "idle" });
 
+  useEffect(() => {
+    const trimmed = hubUrl.trim();
+    if (!trimmed) { setHubPreview({ state: "idle" }); return; }
+    setHubPreview({ state: "loading" });
+    const timer = setTimeout(async () => {
+      try {
+        const parsed = parseHubInput(trimmed);
+        const cleanUrl = parsed?.hubUrl ?? trimmed;
+        const info = await previewHubInfo(cleanUrl);
+        setHubPreview({ state: "ok", url: cleanUrl, name: info.name, icon: info.icon, welcome_label: info.welcome_label, welcome_invite_url: info.welcome_invite_url });
+      } catch (e) {
+        setHubPreview({ state: "error", message: e instanceof Error ? e.message : String(e) });
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [hubUrl]);
+
   function handleHubUrlChange(v: string) {
     setHubUrl(v);
-    setHubPreview({ state: "idle" });
     setError(null);
   }
 
@@ -167,10 +215,13 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, onDismiss, init
     setLoading(true);
     setError(null);
     try {
-      const hub = await addHub(hubUrl.trim(), wsHandlers);
-      onHubAdded(hub);
+      const parsed = parseHubInput(hubUrl.trim());
+      const cleanUrl = parsed?.hubUrl ?? hubUrl.trim();
+      const inviteCode = parsed?.inviteCode || undefined;
+      const hub = await addHub(cleanUrl, wsHandlers, inviteCode ? { invite_code: inviteCode } : undefined);
+      onHubAdded(hub, parsed?.target);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -184,7 +235,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, onDismiss, init
       loading={loading}
       error={error}
       onJoin={handleJoin}
-      onDismiss={onDismiss}
+      onBrowse={onBrowse}
       homeHubHint={initialHubUrl}
     />
   );

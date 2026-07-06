@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { fetchWithTimeout } from "@platform";
 import { validateSkin } from "../skinValidation";
-import type { VoxplySkin } from "../skinValidation";
+import type { WavvonSkin } from "../skinValidation";
 
-const DISCOVERY_URL = "https://discovery.voxply.app";
+const DISCOVERY_URL = "https://discovery.wavvon.app";
 
 interface SkinListItem {
   id: string;
@@ -17,7 +18,7 @@ interface SkinListItem {
 }
 
 interface Props {
-  onImport: (skin: VoxplySkin) => void;
+  onImport: (skin: WavvonSkin) => void;
 }
 
 const BASE_OPTIONS = [
@@ -40,18 +41,20 @@ export function SkinsGallery({ onImport }: Props) {
   const [skins, setSkins] = useState<SkinListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Self-hosted users who never opted into discovery shouldn't see a loud
+  // connection error here — the whole section just hides itself. Only a
+  // reachable-but-empty response ("no skins") stays visible.
+  const [unreachable, setUnreachable] = useState(false);
   const [importingId, setImportingId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function fetchSkins(query: string, baseFilter: string, pageNum: number) {
     setLoading(true);
-    setError(null);
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (baseFilter) params.set("base", baseFilter);
     params.set("page", String(pageNum));
-    fetch(`${DISCOVERY_URL}/api/skins?${params.toString()}`)
+    fetchWithTimeout(`${DISCOVERY_URL}/api/skins?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<{ skins: SkinListItem[]; total: number }>;
@@ -59,8 +62,9 @@ export function SkinsGallery({ onImport }: Props) {
       .then((data) => {
         setSkins(data.skins);
         setTotal(data.total);
+        setUnreachable(false);
       })
-      .catch((e) => setError(String(e)))
+      .catch(() => setUnreachable(true))
       .finally(() => setLoading(false));
   }
 
@@ -86,7 +90,7 @@ export function SkinsGallery({ onImport }: Props) {
   async function handleCardClick(skin: SkinListItem) {
     setImportingId(skin.id);
     try {
-      const res = await fetch(`${DISCOVERY_URL}/api/skins/${skin.id}`);
+      const res = await fetchWithTimeout(`${DISCOVERY_URL}/api/skins/${skin.id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const full = await res.json() as { payload: string };
       const parsed = JSON.parse(full.payload) as unknown;
@@ -98,6 +102,8 @@ export function SkinsGallery({ onImport }: Props) {
       setImportingId(null);
     }
   }
+
+  if (unreachable && !loading) return null;
 
   return (
     <div style={{ marginTop: 24 }}>
@@ -124,10 +130,7 @@ export function SkinsGallery({ onImport }: Props) {
       {loading && (
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>Loading…</p>
       )}
-      {error && (
-        <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)" }}>{error}</p>
-      )}
-      {!loading && !error && skins.length === 0 && (
+      {!loading && skins.length === 0 && (
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>No skins found.</p>
       )}
 

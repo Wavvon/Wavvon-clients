@@ -11,13 +11,13 @@ import {
   formatDayLabel,
   formatFullTimestamp,
   formatRelative,
-} from "@voxply/core";
+} from "@wavvon/core";
 import { MessageReactions } from "../MessageReactions";
 import { ReactionPicker } from "../ReactionPicker";
 import { MessageEmbeds } from "../MessageEmbeds";
 import { MessageComponents } from "../MessageComponents";
 import { IgnoredMessagePlaceholder, MessageLinkPreview, URL_RE } from "./MessageHelpers";
-import { Avatar, MessageAttachments, MessageContent } from "@voxply/ui";
+import { Avatar, MessageAttachments, MessageContent } from "@wavvon/ui";
 
 type HubEmojiEntry = { id: string; name: string; url: string };
 
@@ -257,7 +257,7 @@ export function MessageRow({
                 onClick={async () => {
                   const hub = hubs.find((h) => h.hub_id === activeHubId);
                   if (!hub) return;
-                  const link = `voxply://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${m.channel_id}/message/${m.id}`;
+                  const link = `wavvon://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${m.channel_id}/message/${m.id}`;
                   try {
                     await navigator.clipboard.writeText(link);
                     onToast(t("message.action.link_copied"));

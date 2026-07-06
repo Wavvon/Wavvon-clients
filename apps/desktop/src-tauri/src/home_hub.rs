@@ -5,7 +5,7 @@ use crate::identity::{HomeHubList, Identity, MasterIdentity};
 
 fn home_hub_list_path() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("home_hub_list.json"))
+    Ok(home.join(".wavvon").join("home_hub_list.json"))
 }
 
 fn now_secs() -> u64 {
@@ -160,11 +160,11 @@ mod tests {
     use super::*;
 
     /// Designation we just signed must verify. If this breaks, the
-    /// signing-bytes encoding has drifted from voxply-identity.
+    /// signing-bytes encoding has drifted from wavvon-identity.
     #[test]
     fn build_designation_self_verifies_when_identity_exists() {
         // Skipped at runtime if no identity file exists in the test env;
-        // CI usually starts with no ~/.voxply/identity.json.
+        // CI usually starts with no ~/.wavvon/identity.json.
         if Identity::default_path()
             .ok()
             .filter(|p| p.exists())

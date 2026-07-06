@@ -62,3 +62,25 @@ export async function forumLockPost(postId: string, lock: boolean): Promise<void
 export async function markPostRead(channelId: string, postId: string): Promise<void> {
   await hubFetch(`/channels/${channelId}/posts/${postId}/read`, { method: "POST" });
 }
+
+export async function forumAddPostReaction(postId: string, emoji: string): Promise<void> {
+  await hubFetch(`/posts/${postId}/reactions`, {
+    method: "POST",
+    body: JSON.stringify({ emoji }),
+  });
+}
+
+export async function forumRemovePostReaction(postId: string, emoji: string): Promise<void> {
+  await hubFetch(`/posts/${postId}/reactions/${encodeURIComponent(emoji)}`, { method: "DELETE" });
+}
+
+export async function forumAddReplyReaction(replyId: string, emoji: string): Promise<void> {
+  await hubFetch(`/replies/${replyId}/reactions`, {
+    method: "POST",
+    body: JSON.stringify({ emoji }),
+  });
+}
+
+export async function forumRemoveReplyReaction(replyId: string, emoji: string): Promise<void> {
+  await hubFetch(`/replies/${replyId}/reactions/${encodeURIComponent(emoji)}`, { method: "DELETE" });
+}

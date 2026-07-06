@@ -1,8 +1,8 @@
 export type SkinBase = "calm" | "classic" | "linear" | "light";
 export type ThemeId = SkinBase | "custom";
 
-export interface VoxplySkin {
-  format: "voxply.skin";
+export interface WavvonSkin {
+  format: "wavvon.skin";
   version: 1;
   name: string;
   author_pubkey?: string;
@@ -12,7 +12,7 @@ export interface VoxplySkin {
 
 export interface AppearanceState {
   slot: ThemeId;
-  skin: VoxplySkin | null;
+  skin: WavvonSkin | null;
 }
 
 export const SKINNABLE_TOKENS: {
@@ -109,10 +109,10 @@ function isValidShadow(v: string): boolean {
   return /^[\d\s.px%a-zA-Z,()#\-]+$/.test(v);
 }
 
-export function validateSkin(raw: unknown): VoxplySkin {
+export function validateSkin(raw: unknown): WavvonSkin {
   if (typeof raw !== "object" || raw === null) throw new Error("Not an object");
   const s = raw as Record<string, unknown>;
-  if (s.format !== "voxply.skin") throw new Error("Invalid format field");
+  if (s.format !== "wavvon.skin") throw new Error("Invalid format field");
   if (s.version !== 1) throw new Error("Unsupported version");
   if (typeof s.name !== "string" || s.name.trim() === "" || s.name.length > 48)
     throw new Error("Invalid name (must be 1–48 characters)");
@@ -136,7 +136,7 @@ export function validateSkin(raw: unknown): VoxplySkin {
   }
 
   return {
-    format: "voxply.skin",
+    format: "wavvon.skin",
     version: 1,
     name: s.name.trim(),
     ...(typeof s.author_pubkey === "string" ? { author_pubkey: s.author_pubkey } : {}),
@@ -145,7 +145,18 @@ export function validateSkin(raw: unknown): VoxplySkin {
   };
 }
 
-export function applySkinTokens(skin: VoxplySkin): void {
+export function readBaseToken(token: string, base: SkinBase): string {
+  // Temporarily set the base theme, read the token, then restore whatever
+  // theme was active — used to show fallback values for unset tokens.
+  const el = document.documentElement;
+  const prev = el.dataset.theme;
+  el.dataset.theme = base;
+  const v = getComputedStyle(el).getPropertyValue(token).trim();
+  if (prev !== undefined) el.dataset.theme = prev;
+  return v;
+}
+
+export function applySkinTokens(skin: WavvonSkin): void {
   const el = document.documentElement;
   for (const [k, v] of Object.entries(skin.tokens)) {
     el.style.setProperty(k, v);
@@ -157,13 +168,13 @@ export function clearSkinTokens(): void {
   ALL_ALLOWED.forEach((k) => el.style.removeProperty(k));
 }
 
-export function downloadSkin(skin: VoxplySkin): void {
+export function downloadSkin(skin: WavvonSkin): void {
   const json = JSON.stringify(skin, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${skin.name.replace(/[^a-zA-Z0-9\-_]/g, "_")}.voxplyskin`;
+  a.download = `${skin.name.replace(/[^a-zA-Z0-9\-_]/g, "_")}.wavvonskin`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

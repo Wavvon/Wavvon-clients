@@ -1,7 +1,7 @@
 {
-  "productName": "Voxply",
-  "version": "0.2.6",
-  "identifier": "com.voxply.desktop",
+  "productName": "Wavvon",
+  "version": "0.3.0",
+  "identifier": "com.wavvon.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Voxply",
+        "title": "Wavvon",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -50,7 +50,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEM0JBRjIwQTE0MjYyODUKUldTRllrS2hJSzg3alY1dWlPbnJGOWZGNDN6WnE1aS9tV05QcE9FQ0Y3S2tPRnF1U3EzYWRCQkIK",
       "endpoints": [
-        "https://github.com/Voxply/Voxply-desktop/releases/latest/download/latest.json"
+        "https://github.com/Wavvon/Wavvon-desktop/releases/latest/download/latest.json"
       ]
     }
   }

@@ -98,72 +98,72 @@ impl LocalProfile {
 
 pub(crate) fn saved_hubs_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("hubs.json"))
+    Ok(home.join(".wavvon").join("hubs.json"))
 }
 
 pub(crate) fn active_hub_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("active_hub"))
+    Ok(home.join(".wavvon").join("active_hub"))
 }
 
 pub(crate) fn voice_settings_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("voice.json"))
+    Ok(home.join(".wavvon").join("voice.json"))
 }
 
 pub(crate) fn voice_gains_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("voice_gains.json"))
+    Ok(home.join(".wavvon").join("voice_gains.json"))
 }
 
 pub(crate) fn appearance_settings_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("appearance.json"))
+    Ok(home.join(".wavvon").join("appearance.json"))
 }
 
 pub(crate) fn unread_state_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("unread.json"))
+    Ok(home.join(".wavvon").join("unread.json"))
 }
 
 pub(crate) fn notification_mutes_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("notification_mutes.json"))
+    Ok(home.join(".wavvon").join("notification_mutes.json"))
 }
 
 pub(crate) fn pinned_channels_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("pinned_channels.json"))
+    Ok(home.join(".wavvon").join("pinned_channels.json"))
 }
 
 pub(crate) fn collapsed_categories_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("collapsed_categories.json"))
+    Ok(home.join(".wavvon").join("collapsed_categories.json"))
 }
 
 pub(crate) fn blocked_users_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("blocked_users.json"))
+    Ok(home.join(".wavvon").join("blocked_users.json"))
 }
 
 pub(crate) fn ignored_users_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("ignored_users.json"))
+    Ok(home.join(".wavvon").join("ignored_users.json"))
 }
 
 pub(crate) fn dnd_settings_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("dnd_settings.json"))
+    Ok(home.join(".wavvon").join("dnd_settings.json"))
 }
 
 pub(crate) fn profile_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".voxply").join("profile.json"))
+    Ok(home.join(".wavvon").join("profile.json"))
 }
 
 pub(crate) fn notif_prefs_path() -> Result<std::path::PathBuf, String> {
     let base = dirs::data_dir().ok_or("Cannot determine data dir")?;
-    Ok(base.join("voxply").join("notification_prefs.json"))
+    Ok(base.join("wavvon").join("notification_prefs.json"))
 }
 
 // ---------------------------------------------------------------------------

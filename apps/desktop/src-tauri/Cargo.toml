@@ -1,10 +1,10 @@
 [package]
-name = "voxply-desktop"
+name = "wavvon-desktop"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "voxply_desktop_lib"
+name = "wavvon_desktop_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
@@ -31,7 +31,7 @@ aes-gcm = "0.10"
 argon2 = "0.5"
 hkdf = "0.12"
 sha2 = "0.10"
-voxply-voice = { path = "../../../voice" }
+wavvon-voice = { path = "../../../crates/voice" }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
 dirs = "6"

@@ -2,8 +2,8 @@ import React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
-import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@voxply/core";
-import { MessageAttachments, MessageContent, PendingAttachments, TypingIndicator } from "@voxply/ui";
+import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
+import { MessageAttachments, MessageContent, PendingAttachments, TypingIndicator } from "@wavvon/ui";
 
 interface TypingEntry { name: string; ts: number }
 

@@ -1,4 +1,4 @@
-// Shared constants for the Voxply desktop client.
+// Shared constants for the Wavvon desktop client.
 //
 // Pure values with no React or runtime dependencies. Anything that
 // needs hooks or a render context belongs in a component file.
@@ -135,7 +135,7 @@ export const QUICK_REACTIONS = EMOJI_CATALOG.slice(0, 8).map(([e]) => e);
 
 export const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024; // matches the hub cap
 
-export const RECENT_EMOJI_KEY = "voxply.recentEmojis";
+export const RECENT_EMOJI_KEY = "wavvon.recentEmojis";
 export const RECENT_EMOJI_MAX = 8;
 
 export const MIC_METER_MAX = 0.2;
@@ -143,6 +143,16 @@ export const MIC_METER_MAX = 0.2;
 // Set to a hub URL to enable the "Try a demo hub" button on the welcome
 // screen. null means the button is hidden — don't ship a dead button.
 export const DEMO_HUB_URL: string | null = null;
+
+// Discovery's web-based hub creation wizard (docs/docs/hub-creation-wizard.md
+// §3). No client-side config for this yet — same literal host the wizard
+// itself uses everywhere else it's referenced.
+export const DISCOVERY_NEW_HUB_URL = "https://discovery.wavvon.app/new";
+
+// The offline self-host one-liner (hub-creation-wizard.md §4). Interactive:
+// asks name/preset/domain-or-LAN/TLS, emits compose + env, starts the hub,
+// and prints the one-time owner invite link + QR.
+export const HUB_SETUP_COMMAND = "wavvon-hub setup";
 
 export const ALL_PERMISSIONS: { id: string; label: string }[] = [
   { id: "admin", label: "Administrator (grants everything)" },
@@ -158,6 +168,44 @@ export const ALL_PERMISSIONS: { id: string; label: string }[] = [
   { id: "manage_bots", label: "Manage bots (create / delete / rotate token)" },
   { id: "read_messages", label: "Read messages" },
   { id: "send_messages", label: "Send messages" },
+  { id: "manage_soundboard", label: "Manage soundboard (upload / delete clips)" },
+];
+
+// Permissions eligible for a per-channel role overwrite. Excludes "admin"
+// (overwrite-immune server-side — see nested-channels-ux.md §3.2) and
+// hub-only permissions like manage_bots that have no channel dimension.
+export const CHANNEL_OVERWRITE_PERMISSIONS: { id: string; label: string }[] = [
+  { id: "read_messages", label: "Read messages" },
+  { id: "send_messages", label: "Send messages" },
+  { id: "manage_channels", label: "Manage channels" },
+  { id: "manage_messages", label: "Manage messages" },
+  { id: "manage_roles", label: "Manage roles" },
+  { id: "kick_members", label: "Kick members" },
+  { id: "ban_members", label: "Ban members" },
+  { id: "mute_members", label: "Mute members" },
+  { id: "timeout_members", label: "Timeout members" },
+  { id: "manage_games", label: "Manage games" },
+  { id: "manage_hub_icons", label: "Manage hub icon library" },
+  { id: "manage_channel_icons", label: "Set icons and colors on channels" },
+  { id: "create_posts", label: "Create forum posts" },
+  { id: "manage_posts", label: "Manage forum posts" },
+  { id: "start_game", label: "Start games" },
+  { id: "create_events", label: "Create events" },
+  { id: "use_soundboard", label: "Use soundboard" },
+];
+
+// Small preset palette for role/role-category color pickers. Free hex input
+// is offered alongside these for anything more specific.
+export const ROLE_ACCENT_COLORS: string[] = [
+  "#e74c3c",
+  "#e67e22",
+  "#f39c12",
+  "#27ae60",
+  "#16a085",
+  "#2980b9",
+  "#8e44ad",
+  "#e91e63",
+  "#7f8c8d",
 ];
 
 export const EXPIRY_OPTIONS: { label: string; seconds: number | null }[] = [

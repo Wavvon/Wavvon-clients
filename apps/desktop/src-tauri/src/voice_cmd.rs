@@ -74,14 +74,14 @@ pub(crate) async fn voice_join(
 
         rt.block_on(async move {
             let saved = load_voice_settings();
-            let vsettings = voxply_voice::VoiceSettings {
+            let vsettings = wavvon_voice::VoiceSettings {
                 input_device: saved.input_device,
                 output_device: saved.output_device,
                 vad_threshold: saved.vad_threshold,
                 audio_profile: match saved.audio_profile.as_deref() {
-                    Some("music") => voxply_voice::AudioProfile::Music,
-                    Some("custom") => voxply_voice::AudioProfile::Custom,
-                    _ => voxply_voice::AudioProfile::Standard,
+                    Some("music") => wavvon_voice::AudioProfile::Music,
+                    Some("custom") => wavvon_voice::AudioProfile::Custom,
+                    _ => wavvon_voice::AudioProfile::Standard,
                 },
                 custom_bitrate: saved.custom_bitrate,
                 custom_app: saved.custom_app,
@@ -93,7 +93,7 @@ pub(crate) async fn voice_join(
                 custom_complexity: saved.custom_complexity,
             };
             let mut pipeline =
-                match voxply_voice::AudioPipeline::start_p2p_with_settings(0, hub_addr, vsettings)
+                match wavvon_voice::AudioPipeline::start_p2p_with_settings(0, hub_addr, vsettings)
                     .await
                 {
                     Ok(p) => p,
@@ -258,9 +258,9 @@ pub(crate) fn voice_leave(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 pub(crate) fn list_audio_devices() -> Result<AudioDeviceList, String> {
-    let inputs = voxply_voice::devices::list_input_devices().map_err(|e| format!("inputs: {e}"))?;
+    let inputs = wavvon_voice::devices::list_input_devices().map_err(|e| format!("inputs: {e}"))?;
     let outputs =
-        voxply_voice::devices::list_output_devices().map_err(|e| format!("outputs: {e}"))?;
+        wavvon_voice::devices::list_output_devices().map_err(|e| format!("outputs: {e}"))?;
     Ok(AudioDeviceList { inputs, outputs })
 }
 
@@ -357,14 +357,14 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
         };
         rt.block_on(async move {
             let saved = load_voice_settings();
-            let vsettings = voxply_voice::VoiceSettings {
+            let vsettings = wavvon_voice::VoiceSettings {
                 input_device: saved.input_device,
                 output_device: saved.output_device,
                 vad_threshold: saved.vad_threshold,
                 audio_profile: match saved.audio_profile.as_deref() {
-                    Some("music") => voxply_voice::AudioProfile::Music,
-                    Some("custom") => voxply_voice::AudioProfile::Custom,
-                    _ => voxply_voice::AudioProfile::Standard,
+                    Some("music") => wavvon_voice::AudioProfile::Music,
+                    Some("custom") => wavvon_voice::AudioProfile::Custom,
+                    _ => wavvon_voice::AudioProfile::Standard,
                 },
                 custom_bitrate: saved.custom_bitrate,
                 custom_app: saved.custom_app,
@@ -376,7 +376,7 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
                 custom_complexity: saved.custom_complexity,
             };
             let mut pipeline =
-                match voxply_voice::AudioPipeline::start_loopback_with_settings(vsettings).await {
+                match wavvon_voice::AudioPipeline::start_loopback_with_settings(vsettings).await {
                     Ok(p) => p,
                     Err(e) => {
                         let _ = ready_tx.send(Err(format!("Audio: {e}")));
@@ -493,7 +493,7 @@ pub(crate) async fn voice_active_users(state: State<'_, AppState>) -> Result<Vec
 fn whisper_lists_path(hub_id: &str) -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
     Ok(home
-        .join(".voxply")
+        .join(".wavvon")
         .join(format!("whisper_lists_{hub_id}.json")))
 }
 

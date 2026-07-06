@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { mentionsName, playMentionPing } from "@voxply/core";
+import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
@@ -120,14 +120,14 @@ export function useChannelMessages({
   const [allianceMessages, setAllianceMessages] = useState<Message[]>([]);
 
   const [mentionPingEnabled, setMentionPingEnabledState] = useState<boolean>(() => {
-    try { return localStorage.getItem("voxply.mentionPing") !== "0"; } catch { return true; }
+    try { return localStorage.getItem("wavvon.mentionPing") !== "0"; } catch { return true; }
   });
   const mentionPingRef = useRef(mentionPingEnabled);
 
   function setMentionPingEnabled(v: boolean) {
     setMentionPingEnabledState(v);
     mentionPingRef.current = v;
-    try { localStorage.setItem("voxply.mentionPing", v ? "1" : "0"); } catch {}
+    try { localStorage.setItem("wavvon.mentionPing", v ? "1" : "0"); } catch {}
   }
 
   function setInputText(v: string) {

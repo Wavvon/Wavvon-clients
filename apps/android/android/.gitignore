@@ -1,6 +1,0 @@
-node_modules/
-dist/
-.env
-*.keystore
-*.keystore.b64
-src-tauri/gen/

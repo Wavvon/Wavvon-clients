@@ -33,7 +33,7 @@ export function WelcomeScreen({
 
   return (
     <div className="empty-state welcome">
-      <h1>Voxply</h1>
+      <h1>Wavvon</h1>
       <p className="welcome-tagline">
         Decentralized voice chat. Your identity, every hub.
       </p>
@@ -44,7 +44,7 @@ export function WelcomeScreen({
           value={hubUrl}
           onChange={(e) => onHubUrlChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onJoin(); }}
-          placeholder="hub.example.com  or  voxply://…"
+          placeholder="hub.example.com  or  wavvon://…"
           autoFocus
         />
         <button onClick={onJoin} disabled={loading}>
@@ -107,7 +107,7 @@ export function WelcomeScreen({
         open={detailsOpen}
         onToggle={(e) => setDetailsOpen((e.currentTarget as HTMLDetailsElement).open)}
       >
-        <summary>What is Voxply?</summary>
+        <summary>What is Wavvon?</summary>
         <ul className="welcome-points">
           <li>
             <strong>Hubs</strong> are independently-run servers — pick any one

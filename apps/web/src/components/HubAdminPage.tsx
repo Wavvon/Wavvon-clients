@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   BanInfo,
   Channel,
@@ -7,14 +8,24 @@ import type {
   PendingUser,
   RoleInfo,
 } from "../types";
-import { formatPubkey, formatRelative } from "@voxply/core";
+import { formatPubkey, formatRelative, buildInviteLink } from "@wavvon/core";
 import { ServerTagsSection } from "./ServerTagsSection";
-import { GamesAdminSection } from "./GamesAdminSection";
 import { CertificationsSection } from "./CertificationsSection";
 import { RecoveryContactsSection } from "./RecoveryContactsSection";
 import { WebhooksSection } from "./WebhooksSection";
 import { submitToDirectory } from "../platform/commands/hubAdmin";
 import { ExternalBotSection } from "./ExternalBotSection";
+import { ModerationTab } from "./ModerationTab";
+import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
+import { RolesSection } from "./RolesSection";
+import { SoundboardAdminSection } from "./SoundboardAdminSection";
+import { AuditLogSection } from "./AuditLogSection";
+import { NativeBotsSection } from "./NativeBotsSection";
+import { AlliancesSection } from "./AlliancesSection";
+import { HubIconsSection } from "./HubIconsSection";
+import { OnboardingAdminSection } from "./OnboardingAdminSection";
+import { SurveyAdminSection } from "./SurveyAdminSection";
+import { MemberRoleManager } from "./MemberRoleManager";
 
 export type HubAdminTab =
   | "overview"
@@ -26,9 +37,17 @@ export type HubAdminTab =
   | "external-bots"
   | "invites"
   | "integrations"
-  | "games"
+  | "outgoing-webhooks"
   | "certifications"
-  | "recovery";
+  | "recovery"
+  | "moderation"
+  | "soundboard"
+  | "native-bots"
+  | "alliances"
+  | "hub-icons"
+  | "onboarding"
+  | "survey"
+  | "audit-log";
 
 export interface HubAdminPageProps {
   tab: HubAdminTab;
@@ -46,10 +65,14 @@ export interface HubAdminPageProps {
   onMinSecurityLevelChange: (v: number) => void;
   maxChannelDepth: number;
   onMaxChannelDepthChange: (v: number) => void;
+  welcomeLabel: string;
+  onWelcomeLabelChange: (v: string) => void;
+  welcomeInviteUrl: string;
+  onWelcomeInviteUrlChange: (v: string) => void;
+  saveError: string | null;
   onSave: () => void;
   pendingMembers: PendingUser[];
   onApproveMember: (publicKey: string) => void;
-  roles: RoleInfo[];
   members: MemberAdminInfo[];
   onKickMember: (publicKey: string) => void;
   onBanMember: (publicKey: string) => void;
@@ -57,30 +80,41 @@ export interface HubAdminPageProps {
   onUnban: (publicKey: string) => void;
   invites: InviteInfo[];
   activeHubUrl: string;
+  /** This hub's stable serial (its public key) — embedded in invite links so a
+   *  farm can route the same domain to different hubs. */
+  hubSerial: string;
   myPubkey: string;
   isAdmin: boolean;
+  canManageSoundboard: boolean;
+  /** Whether the viewer can assign/remove roles (admin or manage_roles). Gates the inline role manager. */
+  canManageRoles: boolean;
+  /** Highest priority among the viewer's own roles; only lower-priority roles are assignable (matches the hub guard). */
+  myMaxPriority: number;
+  onMemberRolesChanged: (publicKey: string, roles: RoleInfo[]) => void;
   onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null) => void;
   onRevokeInvite: (code: string) => void;
   channels: Channel[];
 }
 
-function hubToVoxplyUrl(hubUrl: string): string {
+function hubToWavvonUrl(hubUrl: string): string {
   try {
     const u = new URL(hubUrl);
     const hostPort = u.port ? `${u.hostname}:${u.port}` : u.hostname;
-    return `voxply://${hostPort}`;
+    return `wavvon://${hostPort}`;
   } catch {
-    return `voxply://${hubUrl}`;
+    return `wavvon://${hubUrl}`;
   }
 }
 
 export function HubAdminPage(props: HubAdminPageProps) {
+  const { t } = useTranslation();
   const [copiedShare, setCopiedShare] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
   const [dirBio, setDirBio] = useState("");
   const [dirInviteCode, setDirInviteCode] = useState("");
-  const [dirUrl, setDirUrl] = useState("https://discovery.voxply.io");
+  const [dirUrl, setDirUrl] = useState("https://discovery.wavvon.io");
   const [dirStatus, setDirStatus] = useState<"idle" | "submitting" | "ok" | "error">("idle");
   const [dirError, setDirError] = useState("");
   const [inviteMaxUses, setInviteMaxUses] = useState("");
@@ -92,7 +126,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     try {
       await submitToDirectory(
         dirUrl,
-        dirTags.split(",").map((t) => t.trim()).filter(Boolean),
+        dirTags.split(",").map((s) => s.trim()).filter(Boolean),
         dirLanguage.trim() || "en",
         dirBio,
         dirInviteCode.trim() || null,
@@ -104,28 +138,56 @@ export function HubAdminPage(props: HubAdminPageProps) {
     }
   }
 
-  const TABS: { id: HubAdminTab; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "discovery", label: "Discovery" },
-    { id: "tags", label: "Tags & Badges" },
-    { id: "roles", label: "Roles" },
-    { id: "members", label: "Members" },
-    { id: "bans", label: "Bans" },
-    { id: "invites", label: "Invites" },
-    { id: "integrations", label: "Integrations" },
-    { id: "external-bots", label: "External Bots" },
-    { id: "games", label: "Games" },
-    { id: "certifications", label: "Certifications" },
-    { id: "recovery", label: "Recovery" },
+  // Grouped into contiguous sections so the long admin nav reads clearly. Tab
+  // ids are unchanged — only visual grouping (and a couple of confusing
+  // labels) changed.
+  const G_GENERAL = "General";
+  const G_MEMBERS = "Members & safety";
+  const G_FEDERATION = "Federation";
+  const G_INTEGRATIONS = "Integrations & bots";
+  const G_CUSTOM = "Customization";
+  const G_ADVANCED = "Advanced";
+  const admin = props.isAdmin;
+  const TABS: { id: HubAdminTab; label: string; group: string }[] = [
+    { id: "overview", label: t("hub.admin.tabs.overview"), group: G_GENERAL },
+    { id: "discovery", label: t("hub.admin.tabs.discovery"), group: G_GENERAL },
+    { id: "tags", label: t("admin.tabs.tags"), group: G_GENERAL },
+    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
+    { id: "members", label: t("hub.admin.tabs.members"), group: G_MEMBERS },
+    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MEMBERS },
+    { id: "invites", label: t("hub.admin.tabs.invites"), group: G_MEMBERS },
+    ...(admin ? [{ id: "moderation" as HubAdminTab, label: "Moderation", group: G_MEMBERS }] : []),
+    ...(admin ? [
+      { id: "onboarding" as HubAdminTab, label: "Onboarding", group: G_MEMBERS },
+      { id: "survey" as HubAdminTab, label: "Survey", group: G_MEMBERS },
+    ] : []),
+    { id: "certifications", label: t("admin.tabs.certifications"), group: G_MEMBERS },
+    // Alliances is cross-hub channel sharing, not a bot/webhook integration —
+    // grouped with other cross-hub features instead. The federated ban list
+    // lives inside the Moderation tab, not its own nav entry, so it doesn't
+    // move here.
+    ...(admin ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_FEDERATION }] : []),
+    { id: "integrations", label: t("hub.admin.tabs.integrations"), group: G_INTEGRATIONS },
+    { id: "external-bots", label: t("admin.tabs.external_bots"), group: G_INTEGRATIONS },
+    ...(admin ? [
+      { id: "native-bots" as HubAdminTab, label: t("hub.admin.tabs.native_bots"), group: G_INTEGRATIONS },
+    ] : []),
+    ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: "Icons", group: G_CUSTOM }] : []),
+    ...(props.canManageSoundboard ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
+    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: "Audit log", group: G_ADVANCED }] : []),
+    { id: "recovery", label: t("admin.tabs.recovery"), group: G_ADVANCED },
   ];
 
   return (
     <div className="settings-page">
       <aside className="settings-nav">
-        <h2>Hub Settings</h2>
+        <h2>{t("hub.admin.title")}</h2>
         <ul>
-          {TABS.map((tab) => (
+          {TABS.map((tab, i) => (
             <li key={tab.id}>
+              {(i === 0 || TABS[i - 1].group !== tab.group) && (
+                <div className="settings-nav-group">{tab.group}</div>
+              )}
               <button
                 className={`settings-nav-item ${props.tab === tab.id ? "active" : ""}`}
                 onClick={() => props.onTab(tab.id)}
@@ -135,83 +197,109 @@ export function HubAdminPage(props: HubAdminPageProps) {
             </li>
           ))}
         </ul>
-        <button className="settings-nav-close" onClick={props.onClose}>Close</button>
+        <button className="settings-nav-close" onClick={props.onClose}>{t("modal.close")}</button>
       </aside>
       <main className="settings-content">
-        <button className="settings-close-x" onClick={props.onClose} title="Close">×</button>
+        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}>×</button>
 
         {props.tab === "overview" && (
           <section>
-            <h1>Hub overview</h1>
+            <h1>{t("hub.admin.overview.title")}</h1>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-hub-name">Hub name</label>
+              <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
               <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => props.onHubNameChange(e.target.value)} />
             </div>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-hub-desc">Description</label>
+              <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
               <textarea id="admin-hub-desc" rows={3} value={props.hubDescription} onChange={(e) => props.onHubDescriptionChange(e.target.value)} />
             </div>
             <div className="settings-section">
-              <label className="settings-label">Membership</label>
+              <label className="settings-label">{t("hub.admin.overview.membership")}</label>
               <label className="checkbox-label">
                 <input type="checkbox" checked={props.requireApproval} onChange={(e) => props.onRequireApprovalChange(e.target.checked)} />
-                Require approval to join
+                {t("admin.overview.require_approval_short")}
               </label>
             </div>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-antispam">Min. security level (anti-spam)</label>
+              <label className="settings-label" htmlFor="admin-antispam">{t("hub.admin.overview.antispam")}</label>
               <input id="admin-antispam" type="number" min={0} max={9999} value={props.minSecurityLevel} onChange={(e) => props.onMinSecurityLevelChange(Number(e.target.value))} />
             </div>
             <div className="settings-section">
-              <label className="settings-label" htmlFor="admin-max-depth">Max channel depth</label>
-              <p className="muted">0 = unlimited. Limits how deeply channels can be nested.</p>
+              <label className="settings-label" htmlFor="admin-max-depth">{t("hub.admin.overview.max_depth")}</label>
+              <p className="muted">{t("hub.admin.overview.max_depth_hint")}</p>
               <input id="admin-max-depth" type="number" min={0} max={20} value={props.maxChannelDepth} onChange={(e) => props.onMaxChannelDepthChange(Number(e.target.value))} />
             </div>
             <div className="settings-section">
-              <button onClick={props.onSave}>Save changes</button>
+              <label className="settings-label" htmlFor="admin-welcome-label">{t("hub.admin.overview.welcome_label")}</label>
+              <input
+                id="admin-welcome-label"
+                type="text"
+                maxLength={100}
+                value={props.welcomeLabel}
+                placeholder={t("hub.admin.overview.welcome_label_placeholder")}
+                onChange={(e) => props.onWelcomeLabelChange(e.target.value)}
+              />
+              <label className="settings-label" htmlFor="admin-welcome-invite" style={{ marginTop: "var(--space-2)" }}>{t("hub.admin.overview.welcome_invite_url")}</label>
+              <input
+                id="admin-welcome-invite"
+                type="text"
+                value={props.welcomeInviteUrl}
+                placeholder={t("hub.admin.overview.welcome_invite_url_placeholder")}
+                onChange={(e) => props.onWelcomeInviteUrlChange(e.target.value)}
+              />
+              <p className="muted">
+                {t("hub.admin.overview.welcome_hint", {
+                  label: props.welcomeLabel.trim() || "{label}",
+                  invite: props.welcomeInviteUrl.trim() || "{invite}",
+                })}
+              </p>
+            </div>
+            {props.saveError && <p className="error-text">{props.saveError}</p>}
+            <div className="settings-section">
+              <button onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
             </div>
           </section>
         )}
 
         {props.tab === "discovery" && (
           <section>
-            <h1>Discovery</h1>
+            <h1>{t("hub.admin.discovery.title")}</h1>
             <div className="settings-section">
-              <label className="settings-label">Hub invite link</label>
+              <label className="settings-label">{t("hub.admin.discovery.share.label")}</label>
               <div className="settings-row">
-                <code className="pubkey-display">{hubToVoxplyUrl(props.activeHubUrl)}</code>
-                <button onClick={() => { navigator.clipboard.writeText(hubToVoxplyUrl(props.activeHubUrl)).catch(() => {}); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }}>
-                  {copiedShare ? "Copied!" : "Copy"}
+                <code className="pubkey-display">{hubToWavvonUrl(props.activeHubUrl)}</code>
+                <button onClick={() => { navigator.clipboard.writeText(hubToWavvonUrl(props.activeHubUrl)).catch(() => {}); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }}>
+                  {copiedShare ? t("hub.admin.discovery.share.copied") : t("hub.admin.discovery.share.copy")}
                 </button>
               </div>
             </div>
             <div className="settings-section">
-              <label className="settings-label">Submit to directory</label>
-              <p className="muted">Make your hub discoverable at <code>{dirUrl}</code>.</p>
+              <label className="settings-label">{t("hub.admin.discovery.directory.label")}</label>
+              <p className="muted">{t("admin.discovery.directory.hint_url", { url: dirUrl })}</p>
               <div className="settings-section">
-                <label className="settings-label">Tags (comma-separated)</label>
-                <input type="text" placeholder="gaming, english, casual" value={dirTags} onChange={(e) => setDirTags(e.target.value)} />
+                <label className="settings-label">{t("hub.admin.discovery.directory.tags")}</label>
+                <input type="text" placeholder={t("hub.admin.discovery.directory.tags_placeholder")} value={dirTags} onChange={(e) => setDirTags(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Language</label>
+                <label className="settings-label">{t("hub.admin.discovery.directory.language")}</label>
                 <input type="text" placeholder="en" value={dirLanguage} onChange={(e) => setDirLanguage(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Bio</label>
-                <textarea rows={3} placeholder="A short description for the directory…" value={dirBio} onChange={(e) => setDirBio(e.target.value)} />
+                <label className="settings-label">{t("hub.admin.discovery.directory.bio")}</label>
+                <textarea rows={3} placeholder={t("hub.admin.discovery.directory.bio_placeholder")} value={dirBio} onChange={(e) => setDirBio(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Invite code (optional)</label>
-                <input type="text" placeholder="Open invite code for the directory" value={dirInviteCode} onChange={(e) => setDirInviteCode(e.target.value)} />
+                <label className="settings-label">{t("hub.admin.discovery.directory.invite_code")}</label>
+                <input type="text" placeholder={t("hub.admin.discovery.directory.invite_code_placeholder")} value={dirInviteCode} onChange={(e) => setDirInviteCode(e.target.value)} />
               </div>
               <div className="settings-section">
-                <label className="settings-label">Directory URL</label>
+                <label className="settings-label">{t("hub.admin.discovery.directory.url")}</label>
                 <input type="text" value={dirUrl} onChange={(e) => setDirUrl(e.target.value)} />
               </div>
-              {dirStatus === "ok" && <p className="muted" style={{ color: "var(--success)" }}>Submitted.</p>}
+              {dirStatus === "ok" && <p className="muted" style={{ color: "var(--success)" }}>{t("hub.admin.discovery.directory.ok")}</p>}
               {dirStatus === "error" && <p className="error-text">{dirError}</p>}
               <button onClick={handleSubmitToDirectory} disabled={dirStatus === "submitting"}>
-                {dirStatus === "submitting" ? "Submitting…" : "Submit to directory"}
+                {dirStatus === "submitting" ? t("hub.admin.discovery.directory.submitting") : t("hub.admin.discovery.directory.submit")}
               </button>
             </div>
           </section>
@@ -225,19 +313,23 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <section>
             {props.pendingMembers.length > 0 && (
               <div className="pending-section">
-                <h2>Pending members ({props.pendingMembers.length})</h2>
+                <h2>{t("hub.admin.members.pending.title", { count: props.pendingMembers.length })}</h2>
                 <table className="members-table">
-                  <thead><tr><th>User</th><th>Since</th><th>Actions</th></tr></thead>
+                  <thead><tr>
+                    <th>{t("hub.admin.members.pending.col.user")}</th>
+                    <th>{t("hub.admin.members.pending.col.signed_up")}</th>
+                    <th>{t("hub.admin.members.pending.col.actions")}</th>
+                  </tr></thead>
                   <tbody>
                     {props.pendingMembers.map((p) => (
                       <tr key={p.public_key}>
                         <td>
-                          <div>{p.display_name || "(no name)"}</div>
+                          <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
                           <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
                         </td>
                         <td>{formatRelative(p.first_seen_at)}</td>
                         <td>
-                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>Approve</button>
+                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
                         </td>
                       </tr>
                     ))}
@@ -245,44 +337,65 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 </table>
               </div>
             )}
-            <h1>Members ({props.members.length})</h1>
+            <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
             <table className="members-table">
-              <thead><tr><th>Name</th><th>Roles</th><th>Joined</th><th>Actions</th></tr></thead>
+              <thead><tr>
+                <th>{t("hub.admin.members.col.name")}</th>
+                <th>{t("hub.admin.members.col.roles")}</th>
+                <th>{t("hub.admin.members.col.joined")}</th>
+                <th>{t("hub.admin.members.col.actions")}</th>
+              </tr></thead>
               <tbody>
                 {props.members.map((m) => (
                   <tr key={m.public_key}>
                     <td>
-                      <div>{m.display_name || "(no name)"}</div>
+                      <div>{m.display_name || t("hub.admin.members.pending.no_name")}</div>
                       <div className="member-pk" title={m.public_key}>{formatPubkey(m.public_key)}</div>
                     </td>
-                    <td>{m.roles.map((r) => r.name).join(", ") || "—"}</td>
+                    <td>
+                      {props.canManageRoles ? (
+                        <MemberRoleManager
+                          pubkey={m.public_key}
+                          currentRoles={m.roles}
+                          myMaxPriority={props.myMaxPriority}
+                          onChanged={(roles) => props.onMemberRolesChanged(m.public_key, roles)}
+                        />
+                      ) : (
+                        m.roles.map((r) => r.name).join(", ") || "—"
+                      )}
+                    </td>
                     <td>{formatRelative(m.first_seen_at)}</td>
                     <td>
-                      <button className="btn-small" onClick={() => props.onKickMember(m.public_key)}>Kick</button>
-                      <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>Ban</button>
+                      <button className="btn-small" onClick={() => props.onKickMember(m.public_key)}>{t("admin.members.kick")}</button>
+                      <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("admin.members.ban")}</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {props.members.length === 0 && <p className="muted">No members.</p>}
+            {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
           </section>
         )}
 
         {props.tab === "bans" && (
           <section>
-            <h1>Bans ({props.bans.length})</h1>
-            {props.bans.length === 0 && <p className="muted">No bans.</p>}
+            <h1>{t("hub.admin.bans.title", { count: props.bans.length })}</h1>
+            {props.bans.length === 0 && <p className="muted">{t("hub.admin.bans.empty")}</p>}
             {props.bans.length > 0 && (
               <table className="members-table">
-                <thead><tr><th>User</th><th>Reason</th><th>When</th><th>Actions</th></tr></thead>
+                <thead><tr>
+                  <th>{t("hub.admin.bans.col.user")}</th>
+                  <th>{t("hub.admin.bans.col.reason")}</th>
+                  <th>{t("hub.admin.bans.col.when")}</th>
+                  <th>{t("hub.admin.bans.col.actions")}</th>
+                </tr></thead>
                 <tbody>
                   {props.bans.map((b) => (
                     <tr key={b.target_public_key}>
                       <td><span className="member-pk">{formatPubkey(b.target_public_key)}</span></td>
                       <td>{b.reason || <span className="muted">—</span>}</td>
                       <td>{formatRelative(b.created_at)}</td>
-                      <td><button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>Unban</button></td>
+                      <td><button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>{t("hub.admin.bans.unban")}</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -293,20 +406,20 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "invites" && (
           <section>
-            <h1>Invites</h1>
+            <h1>{t("hub.admin.tabs.invites")}</h1>
             <div className="settings-section">
-              <label className="settings-label">Create invite</label>
+              <label className="settings-label">{t("invites.create.title")}</label>
               <div className="settings-row">
                 <input
                   type="number"
-                  placeholder="Max uses (blank = unlimited)"
+                  placeholder={t("invites.create.max_uses_placeholder")}
                   value={inviteMaxUses}
                   onChange={(e) => setInviteMaxUses(e.target.value)}
                   style={{ width: 180 }}
                 />
                 <input
                   type="number"
-                  placeholder="Expires in seconds (blank = never)"
+                  placeholder={t("admin.invite.expires_placeholder")}
                   value={inviteExpiry}
                   onChange={(e) => setInviteExpiry(e.target.value)}
                   style={{ width: 220 }}
@@ -315,46 +428,43 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   inviteMaxUses ? Number(inviteMaxUses) : null,
                   inviteExpiry ? Number(inviteExpiry) : null,
                 )}>
-                  Create
+                  {t("invites.create.button")}
                 </button>
               </div>
             </div>
-            {props.invites.map((inv) => (
-              <div key={inv.code} className="settings-row">
-                <code className="pubkey-display">{inv.code}</code>
-                <span className="muted">
-                  {inv.uses}/{inv.max_uses ?? "∞"} uses
-                  {inv.expires_at ? ` · expires ${formatRelative(inv.expires_at)}` : ""}
-                </span>
-                <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>Revoke</button>
-              </div>
-            ))}
+            {props.invites.map((inv) => {
+              const link = buildInviteLink(props.activeHubUrl, props.hubSerial, inv.code);
+              return (
+                <div key={inv.code} className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
+                  <code className="pubkey-display" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={link}>{link}</code>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
+                  >
+                    {copiedInvite === inv.code ? t("modal.copied") : t("modal.copy")}
+                  </button>
+                  <span className="muted">
+                    {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
+                    {inv.expires_at ? ` · ${t("admin.invite.expires_relative", { date: formatRelative(inv.expires_at) })}` : ""}
+                  </span>
+                  <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
+                </div>
+              );
+            })}
           </section>
         )}
 
-        {props.tab === "roles" && (
-          <section>
-            <h1>Roles</h1>
-            <p className="muted">Manage roles and permissions here.</p>
-            {props.roles.map((r) => (
-              <div key={r.id} className="settings-row">
-                <span>{r.name}</span>
-                <span className="muted">{r.permissions.join(", ")}</span>
-              </div>
-            ))}
-          </section>
-        )}
+        {props.tab === "roles" && <RolesSection />}
 
         {props.tab === "integrations" && (
-          <WebhooksSection channels={props.channels} />
+          <>
+            <WebhooksSection channels={props.channels} />
+            <OutgoingWebhooksSection channels={props.channels} />
+          </>
         )}
 
         {props.tab === "external-bots" && (
           <ExternalBotSection channels={props.channels} />
-        )}
-
-        {props.tab === "games" && (
-          <GamesAdminSection hubUrl={props.activeHubUrl} channels={props.channels} />
         )}
 
         {props.tab === "certifications" && (
@@ -366,10 +476,26 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "recovery" && (
           <section>
-            <h1>Recovery</h1>
+            <h1>{t("admin.tabs.recovery")}</h1>
+            <p className="muted">{t("hub.admin.recovery.explainer")}</p>
             <RecoveryContactsSection hubUrl={props.activeHubUrl} isAdmin={props.isAdmin} publicKey={null} />
           </section>
         )}
+
+        {props.tab === "soundboard" && props.canManageSoundboard && (
+          <SoundboardAdminSection />
+        )}
+
+        {props.tab === "moderation" && props.isAdmin && (
+          <ModerationTab />
+        )}
+
+        {props.tab === "native-bots" && props.isAdmin && <NativeBotsSection />}
+        {props.tab === "alliances" && props.isAdmin && <AlliancesSection activeHubUrl={props.activeHubUrl} channels={props.channels} />}
+        {props.tab === "hub-icons" && props.isAdmin && <HubIconsSection />}
+        {props.tab === "onboarding" && props.isAdmin && <OnboardingAdminSection />}
+        {props.tab === "survey" && props.isAdmin && <SurveyAdminSection />}
+        {props.tab === "audit-log" && props.isAdmin && <AuditLogSection />}
       </main>
     </div>
   );

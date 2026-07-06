@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { PostSummary } from "../types";
-import { formatRelative } from "@voxply/core";
+import { formatRelative } from "@wavvon/core";
 import { forumListPosts } from "../platform/commands/forum";
 
 interface Props {

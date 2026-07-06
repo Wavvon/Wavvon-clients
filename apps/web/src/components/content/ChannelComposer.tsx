@@ -1,9 +1,9 @@
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, Attachment, User } from "../../types";
-import { formatPubkey } from "@voxply/core";
+import { formatPubkey } from "@wavvon/core";
 import { EmojiPicker } from "../EmojiPicker";
-import { PendingAttachments } from "@voxply/ui";
+import { PendingAttachments } from "@wavvon/ui";
 
 interface SlashCommandEntry {
   command: string;
@@ -89,6 +89,17 @@ export function ChannelComposer({
     }
   }
 
+  // Clicking any empty area of the composer (padding, the shell background,
+  // the mention/slash popups' gutters) should drop focus into the text
+  // input, like clicking a native single-field form. Interactive
+  // descendants (buttons, the file input, popup items) handle their own
+  // clicks and are excluded so this doesn't fight them.
+  function handleContainerClick(e: React.MouseEvent<HTMLElement>) {
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, [role='menuitem']")) return;
+    messageInputRef.current?.focus();
+  }
+
   return (
     <>
       {replyTarget && (
@@ -118,6 +129,7 @@ export function ChannelComposer({
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
         onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
         onKeyDown={handleShellKeyDown}
+        onClick={handleContainerClick}
       >
         <input
           ref={fileInputRef}

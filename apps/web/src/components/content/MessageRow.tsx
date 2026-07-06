@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
 import {
@@ -10,7 +10,7 @@ import {
   formatDayLabel,
   formatFullTimestamp,
   formatRelative,
-} from "@voxply/core";
+} from "@wavvon/core";
 import { MessageReactions } from "../MessageReactions";
 import { ReactionPicker } from "../ReactionPicker";
 import { MessageEmbeds } from "../MessageEmbeds";
@@ -18,7 +18,9 @@ import { MessageComponents } from "../MessageComponents";
 import { LinkPreviewInMessage } from "../LinkPreviewInMessage";
 import { PollCard } from "../PollCard";
 import { pinMessage, unpinMessage } from "@platform";
-import { Avatar, MessageAttachments, MessageContent } from "@voxply/ui";
+import { reportMessage } from "../../platform/commands/moderation";
+import { Avatar, MessageAttachments, MessageContent } from "@wavvon/ui";
+import { MessageContextMenu } from "./MessageContextMenu";
 
 interface Props {
   message: Message;
@@ -56,6 +58,7 @@ interface Props {
   onOpenImage: (src: string, alt: string) => void;
   onOpenBotCard: (pubkey: string, e: React.MouseEvent) => void;
   onAuthorClick: (pubkey: string) => void;
+  onAuthorContextMenu: (e: React.MouseEvent, pubkey: string, fallbackName: string | null) => void;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onMessageKeyDown: (e: React.KeyboardEvent<HTMLLIElement>, index: number, displayedMessages: Message[]) => void;
   onComponentInteract: (messageId: string, customId: string, values: string[]) => void;
@@ -100,6 +103,7 @@ export function MessageRow({
   onOpenImage,
   onOpenBotCard,
   onAuthorClick,
+  onAuthorContextMenu,
   onPinToggle,
   onMessageKeyDown,
   onComponentInteract,
@@ -108,6 +112,10 @@ export function MessageRow({
   onPollDelete,
 }: Props) {
   const { t } = useTranslation();
+  const [reporting, setReporting] = useState(false);
+  const [reportDraft, setReportDraft] = useState("");
+  const [reported, setReported] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
 
   const showSeparator = !prevMessage || dayKey(m.created_at) !== dayKey(prevMessage.created_at);
   const isMine = m.sender === publicKey;
@@ -120,6 +128,70 @@ export function MessageRow({
   const isMentioned = m.sender !== publicKey && mentionsName(m.content, myDisplayName);
   const isEphemeral = !!m.visible_to_pubkey && m.visible_to_pubkey === publicKey;
   const actionText = meAction(m.content);
+
+  // The author name/avatar already open the user menu on right-click
+  // (their handler calls preventDefault) — only claim the event when it
+  // bubbled from anywhere else on the row.
+  function handleRowContextMenu(e: React.MouseEvent) {
+    if (e.defaultPrevented) return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  async function copyMessageLink() {
+    const hub = hubs.find((h) => h.hub_id === activeHubId);
+    if (!hub) return;
+    const link = `wavvon://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${m.channel_id}/message/${m.id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      onToast(t("message.action.link_copied"));
+    } catch (e) {
+      onError(String(e));
+    }
+  }
+
+  async function copyMessageText() {
+    try {
+      await navigator.clipboard.writeText(m.content);
+      onToast(t("message.action.text_copied"));
+    } catch (e) {
+      onError(String(e));
+    }
+  }
+
+  async function togglePin() {
+    const isPinned = pinnedMessageIds.has(m.id);
+    try {
+      if (isPinned) {
+        await unpinMessage(m.channel_id, m.id);
+      } else {
+        await pinMessage(m.channel_id, m.id);
+      }
+      onPinToggle?.(m.id, !isPinned);
+    } catch { /* pin failed silently */ }
+  }
+
+  const contextMenu = ctxMenu ? (
+    <MessageContextMenu
+      position={ctxMenu}
+      senderLabel={senderLabel}
+      senderPubkey={m.sender}
+      isMine={isMine}
+      canDelete={canDelete}
+      isAdmin={isAdmin}
+      isPinned={pinnedMessageIds.has(m.id)}
+      onClose={() => setCtxMenu(null)}
+      onReply={() => onSetReplyTarget(m)}
+      onCopyText={() => void copyMessageText()}
+      onCopyLink={() => void copyMessageLink()}
+      onPinToggle={() => void togglePin()}
+      onEdit={() => onStartEdit(m)}
+      onDelete={() => onDeleteMessage(m.id)}
+      onReport={() => setReporting(true)}
+      onViewProfile={() => onAuthorClick(m.sender)}
+      onToast={onToast}
+    />
+  ) : null;
 
   const POLL_PREFIX = "**Poll:** ";
   const pollQuestion = m.content.startsWith(POLL_PREFIX) ? m.content.slice(POLL_PREFIX.length) : null;
@@ -153,16 +225,22 @@ export function MessageRow({
           id={`msg-${m.id}`}
           tabIndex={focusedMessageIndex === i ? 0 : -1}
           onKeyDown={(e) => onMessageKeyDown(e, i, displayedMessages)}
+          onContextMenu={handleRowContextMenu}
           aria-label={msgAriaLabel}
           className={`message message-action message-row ${isMentioned ? "message-mentioned" : ""}`}
         >
           <span className="action-asterisk" aria-hidden="true">*</span>
-          <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+          <span
+            className="message-sender"
+            style={{ color: colorForKey(m.sender) }}
+            onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
+          >
             {senderLabel}
           </span>
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} />
           </span>
+          {contextMenu}
         </li>
       </React.Fragment>
     );
@@ -176,6 +254,7 @@ export function MessageRow({
         id={`msg-${m.id}`}
         tabIndex={focusedMessageIndex === i ? 0 : -1}
         onKeyDown={(e) => onMessageKeyDown(e, i, displayedMessages)}
+        onContextMenu={handleRowContextMenu}
         aria-label={msgAriaLabel}
         className={`message message-row ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
       >
@@ -195,13 +274,15 @@ export function MessageRow({
         <span
           style={{ cursor: senderUser?.is_bot ? "pointer" : undefined }}
           onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : undefined}
+          onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
         >
-          <Avatar src={senderUser?.avatar} name={senderLabel} size={28} />
+          <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={28} />
         </span>
         <span
           className="message-sender"
           style={{ color: colorForKey(m.sender), cursor: "pointer" }}
           onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : () => onAuthorClick(m.sender)}
+          onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
         >
           {senderLabel}
         </span>
@@ -267,17 +348,7 @@ export function MessageRow({
               </button>
               <button
                 className="message-action"
-                onClick={async () => {
-                  const hub = hubs.find((h) => h.hub_id === activeHubId);
-                  if (!hub) return;
-                  const link = `voxply://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${m.channel_id}/message/${m.id}`;
-                  try {
-                    await navigator.clipboard.writeText(link);
-                    onToast(t("message.action.link_copied"));
-                  } catch (e) {
-                    onError(String(e));
-                  }
-                }}
+                onClick={() => void copyMessageLink()}
                 title={t("message.action.copy_link")}
                 aria-label={t("message.action.copy_link")}
               >
@@ -286,17 +357,7 @@ export function MessageRow({
               {isAdmin && (
                 <button
                   className="message-action"
-                  onClick={async () => {
-                    const isPinned = pinnedMessageIds.has(m.id);
-                    try {
-                      if (isPinned) {
-                        await unpinMessage(m.channel_id, m.id);
-                      } else {
-                        await pinMessage(m.channel_id, m.id);
-                      }
-                      onPinToggle?.(m.id, !isPinned);
-                    } catch { /* pin failed silently */ }
-                  }}
+                  onClick={() => void togglePin()}
                   title={pinnedMessageIds.has(m.id) ? "Unpin message" : "Pin message"}
                   aria-label={pinnedMessageIds.has(m.id) ? "Unpin message" : "Pin message"}
                 >
@@ -318,7 +379,58 @@ export function MessageRow({
                   ✕
                 </button>
               )}
+              {!isMine && (
+                reported ? (
+                  <span className="message-action muted" style={{ fontSize: "var(--text-xs)" }}>
+                    Reported
+                  </span>
+                ) : (
+                  <button
+                    className="message-action"
+                    title="Report message"
+                    aria-label="Report message"
+                    onClick={() => setReporting((v) => !v)}
+                  >
+                    ⚑
+                  </button>
+                )
+              )}
             </div>
+            {reporting && !reported && (
+              <div className="settings-row" style={{ marginTop: "var(--space-1)" }}>
+                <input
+                  type="text"
+                  placeholder="Reason for report…"
+                  value={reportDraft}
+                  onChange={(e) => setReportDraft(e.target.value)}
+                  style={{ flex: 1 }}
+                  autoFocus
+                />
+                <button
+                  className="btn-small"
+                  disabled={!reportDraft.trim()}
+                  onClick={async () => {
+                    try {
+                      await reportMessage(m.id, reportDraft.trim());
+                      setReporting(false);
+                      setReportDraft("");
+                      setReported(true);
+                      setTimeout(() => setReported(false), 2000);
+                    } catch (e) {
+                      onError(String(e));
+                    }
+                  }}
+                >
+                  Submit
+                </button>
+                <button
+                  className="btn-small btn-secondary"
+                  onClick={() => { setReporting(false); setReportDraft(""); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
             {m.reactions && m.reactions.length > 0 && (
               <MessageReactions
                 reactions={m.reactions}
@@ -373,6 +485,7 @@ export function MessageRow({
             )}
           </>
         )}
+        {contextMenu}
       </li>
     </React.Fragment>
   );

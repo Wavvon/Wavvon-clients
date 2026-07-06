@@ -1,15 +1,17 @@
 import React, { useState } from "react";
 import type { User } from "../types";
-import { Avatar } from "@voxply/ui";
+import { Avatar } from "@wavvon/ui";
 
 export function UserListGrouped({
   users,
   inVoice,
+  onUserClick,
   onContextMenu,
   onBotClick,
 }: {
   users: User[];
   inVoice?: Set<string>;
+  onUserClick?: (pubkey: string) => void;
   onContextMenu?: (e: React.MouseEvent, user: User) => void;
   onBotClick?: (pubkey: string, e: React.MouseEvent) => void;
 }) {
@@ -86,12 +88,20 @@ export function UserListGrouped({
               <li
                 key={u.public_key}
                 className="user-list-item"
+                style={onUserClick ? { cursor: "pointer" } : undefined}
+                onClick={() => onUserClick?.(u.public_key)}
                 onContextMenu={(e) => onContextMenu?.(e, u)}
               >
-                <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
-                <span className="status-dot online" />
-                <span className="user-name">
+                <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
+                <span
+                  className={`status-dot ${u.status === "away" ? "away" : u.status === "dnd" ? "dnd" : "online"}`}
+                  title={u.status === "away" ? "Away" : u.status === "dnd" ? "Do Not Disturb" : "Online"}
+                />
+                <span className="user-name" title={u.status_custom ?? undefined}>
                   {u.display_name || u.public_key.slice(0, 16)}
+                  {u.status_custom && (
+                    <span className="user-custom-status"> — {u.status_custom}</span>
+                  )}
                 </span>
                 {inVoice?.has(u.public_key) && (
                   <span className="user-in-voice" title="In voice">
@@ -113,9 +123,11 @@ export function UserListGrouped({
               <li
                 key={u.public_key}
                 className="user-list-item offline"
+                style={onUserClick ? { cursor: "pointer" } : undefined}
+                onClick={() => onUserClick?.(u.public_key)}
                 onContextMenu={(e) => onContextMenu?.(e, u)}
               >
-                <Avatar src={u.avatar} name={u.display_name || u.public_key} size={24} />
+                <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
                 <span className="status-dot offline" />
                 <span className="user-name">
                   {u.display_name || u.public_key.slice(0, 16)}
@@ -145,7 +157,7 @@ export function UserListGrouped({
               style={{ cursor: onBotClick ? "pointer" : undefined }}
               onClick={onBotClick ? (e) => onBotClick(bot.public_key, e) : undefined}
             >
-              <Avatar src={bot.avatar} name={bot.display_name ?? bot.public_key} size={22} />
+              <Avatar src={bot.avatar} name={bot.display_name ?? bot.public_key} pubkey={bot.public_key} size={22} />
               <span className="member-name">{bot.display_name ?? "Bot"}</span>
               <span className="bot-badge">BOT</span>
             </div>

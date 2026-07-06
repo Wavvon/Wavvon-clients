@@ -30,7 +30,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
     setWorking(true);
     setError(null);
     try {
-      const identityJson = localStorage.getItem("voxply_identity");
+      const identityJson = localStorage.getItem("wavvon_identity");
       if (!identityJson) throw new Error("No identity found.");
 
       const enc = new TextEncoder();
@@ -53,7 +53,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       );
 
       const envelope = {
-        format: "voxply-backup",
+        format: "wavvon-backup",
         version: 1,
         kdf: { alg: "pbkdf2-sha256", salt: bufToBase64(saltArr.buffer as ArrayBuffer), iterations: 100000 },
         cipher: { alg: "aes-256-gcm", nonce: bufToBase64(nonceArr.buffer as ArrayBuffer), ciphertext: bufToBase64(ciphertext) },
@@ -67,7 +67,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       const date = new Date().toISOString().slice(0, 10);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `voxply-identity-${short}-${date}.voxply-backup`;
+      a.download = `wavvon-identity-${short}-${date}.wavvon-backup`;
       a.click();
       URL.revokeObjectURL(url);
 
@@ -105,8 +105,8 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
         kdf: { alg: string; salt: string; iterations: number };
         cipher: { alg: string; nonce: string; ciphertext: string };
       };
-      if (envelope.format !== "voxply-backup") throw new Error("Not a Voxply backup file.");
-      if (envelope.version !== 1) throw new Error("This backup was made by a newer version of Voxply.");
+      if (envelope.format !== "wavvon-backup") throw new Error("Not a Wavvon backup file.");
+      if (envelope.version !== 1) throw new Error("This backup was made by a newer version of Wavvon.");
 
       const enc = new TextEncoder();
       const saltBuf = base64ToBuf(envelope.kdf.salt);
@@ -133,19 +133,19 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       const identity = JSON.parse(identityJson) as { seed_hex?: string };
       if (!identity.seed_hex) throw new Error("Invalid backup content.");
 
-      const existing = localStorage.getItem("voxply_identity");
+      const existing = localStorage.getItem("wavvon_identity");
       if (existing) {
         const existingId = JSON.parse(existing) as { seed_hex?: string };
         if (existingId.seed_hex === identity.seed_hex) {
           setError("This backup is the identity already on this device. Nothing to do.");
           return;
         }
-        if (!confirm(`This device already has a different Voxply identity (${existingId.seed_hex?.slice(0, 8)}…). Replace it?\n\nMake sure that identity is backed up first.`)) {
+        if (!confirm(`This device already has a different Wavvon identity (${existingId.seed_hex?.slice(0, 8)}…). Replace it?\n\nMake sure that identity is backed up first.`)) {
           return;
         }
       }
 
-      localStorage.setItem("voxply_identity", identityJson);
+      localStorage.setItem("wavvon_identity", identityJson);
       setStep("idle");
       setImportPassphrase("");
       setImportFileData(null);
@@ -238,7 +238,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
           <input
             ref={fileInputRef}
             type="file"
-            accept=".voxply-backup,application/json"
+            accept=".wavvon-backup,application/json"
             onChange={handleFileSelect}
             style={{ display: "none" }}
           />

@@ -23,10 +23,10 @@
       "@shared/constants": ["./src/constants"],
       "@platform": ["./src/platform/index"],
       "@identity/*": ["./src/identity/*"],
-      "@voxply/i18n": ["../i18n/index.ts"],
-      "@voxply/core": ["../packages/core/src/index.ts"],
-      "@voxply/ui": ["../packages/ui/src/index.ts"],
-      "@voxply/ui/styles.css": ["../packages/ui/src/styles.css"]
+      "@wavvon/i18n": ["../i18n/index.ts"],
+      "@wavvon/core": ["../packages/core/src/index.ts"],
+      "@wavvon/ui": ["../packages/ui/src/index.ts"],
+      "@wavvon/ui/styles.css": ["../packages/ui/src/styles.css"]
     }
   },
   "include": ["src", "../i18n", "../packages/ui/src"],
