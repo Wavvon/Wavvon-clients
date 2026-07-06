@@ -2,7 +2,7 @@
 
 All notable changes to Wavvon Desktop are documented here.
 
-## [0.3.0] — 2026-07-06
+## [0.3.1] — 2026-07-06
 ### Bug Fixes
 - Drop hardcoded pnpm version 9 — use packageManager field
 - Cargo fmt — reformat voice_cmd.rs
