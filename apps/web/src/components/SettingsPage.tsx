@@ -14,9 +14,11 @@ import {
 } from "@platform";
 import type { CredentialInfo, DeviceInfo } from "@platform";
 import { loadIdentity, seedToPhrase } from "@identity/index";
-import { SkinEditor, makeSeed } from "./SkinEditor";
+import { SkinEditor } from "./SkinEditor";
 import { SkinsGallery } from "./SkinsGallery";
+import { CustomThemesSection } from "./CustomThemesSection";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
+import type { NamedCustomTheme } from "../utils/customThemes";
 import { BlockIgnoreSection, AudioProfileSection } from "@wavvon/ui";
 import { IdentityBackupSection } from "./IdentityBackupSection";
 import { FullArchiveSection } from "./FullArchiveSection";
@@ -80,6 +82,13 @@ interface SettingsPageProps {
   onThemeChange: (t: ThemeId) => void;
   skin: WavvonSkin | null;
   onSkinChange: (skin: WavvonSkin) => void;
+  customThemes: NamedCustomTheme[];
+  activeCustomThemeId: string | null;
+  onApplyCustomTheme: (id: string) => void;
+  onNewCustomTheme: () => void;
+  onRenameCustomTheme: (id: string, name: string) => void;
+  onDuplicateCustomTheme: (id: string) => void;
+  onDeleteCustomTheme: (id: string) => void;
   profiles: NamedProfile[];
   defaultProfileId: string | null;
   activeDisplayName: string | null;
@@ -589,7 +598,18 @@ export function SettingsPage(props: SettingsPageProps) {
                 ))}
               </div>
               {props.theme === "custom" && (
-                <SkinEditor skin={props.skin ?? makeSeed("calm")} onChange={props.onSkinChange} />
+                <>
+                  <CustomThemesSection
+                    themes={props.customThemes}
+                    activeId={props.activeCustomThemeId}
+                    onApply={props.onApplyCustomTheme}
+                    onNew={props.onNewCustomTheme}
+                    onRename={props.onRenameCustomTheme}
+                    onDuplicate={props.onDuplicateCustomTheme}
+                    onDelete={props.onDeleteCustomTheme}
+                  />
+                  {props.skin && <SkinEditor skin={props.skin} onChange={props.onSkinChange} />}
+                </>
               )}
             </div>
             <SkinsGallery onImport={props.onImportSkin} />

@@ -346,11 +346,19 @@ export default function App() {
     settingsTab, setSettingsTab,
     theme,
     skin,
+    customThemes,
+    activeCustomThemeId,
     recoveryPhrase, setRecoveryPhrase,
     copiedKey,
     mentionPingEnabled, setMentionPingEnabled,
     handleSetTheme,
     handleSkinChange,
+    handleApplyCustomTheme,
+    handleNewCustomTheme,
+    handleRenameCustomTheme,
+    handleDuplicateCustomTheme,
+    handleDeleteCustomTheme,
+    handleImportCustomTheme,
     handleShowRecovery,
     handleRecoverIdentity,
     handleCopyKey: handleCopyKeyFn,
@@ -2352,7 +2360,14 @@ export default function App() {
             onThemeChange={handleSetTheme}
             skin={skin}
             onSkinChange={handleSkinChange}
-            onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
+            customThemes={customThemes}
+            activeCustomThemeId={activeCustomThemeId}
+            onApplyCustomTheme={handleApplyCustomTheme}
+            onNewCustomTheme={handleNewCustomTheme}
+            onRenameCustomTheme={handleRenameCustomTheme}
+            onDuplicateCustomTheme={handleDuplicateCustomTheme}
+            onDeleteCustomTheme={handleDeleteCustomTheme}
+            onImportSkin={handleImportCustomTheme}
             profiles={namedProfiles}
             defaultProfileId={defaultProfileId}
             activeDisplayName={meInfo?.display_name ?? null}

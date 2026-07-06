@@ -145,6 +145,17 @@ export function validateSkin(raw: unknown): WavvonSkin {
   };
 }
 
+export function readBaseToken(token: string, base: SkinBase): string {
+  // Temporarily set the base theme, read the token, then restore whatever
+  // theme was active — used to show fallback values for unset tokens.
+  const el = document.documentElement;
+  const prev = el.dataset.theme;
+  el.dataset.theme = base;
+  const v = getComputedStyle(el).getPropertyValue(token).trim();
+  if (prev !== undefined) el.dataset.theme = prev;
+  return v;
+}
+
 export function applySkinTokens(skin: WavvonSkin): void {
   const el = document.documentElement;
   for (const [k, v] of Object.entries(skin.tokens)) {

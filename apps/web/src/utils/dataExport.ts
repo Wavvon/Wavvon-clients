@@ -17,6 +17,7 @@ import {
 import { loadIdentity as platformLoadIdentity, publicKeyHex } from "@identity/index";
 import type { WavvonSkin } from "../skinValidation";
 import { loadAllDrafts } from "./drafts";
+import { loadCustomThemeStore } from "./customThemes";
 
 export const ARCHIVE_KIND = "full-archive" as const;
 export const ARCHIVE_DOCUMENT_VERSION = 1;
@@ -116,16 +117,7 @@ export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platfo
 }
 
 export function buildThemesSection(): WavvonSkin[] {
-  try {
-    const raw = localStorage.getItem("wavvon:appearance");
-    if (raw) {
-      const a = JSON.parse(raw) as { slot?: string; skin?: WavvonSkin | null };
-      if (a.slot === "custom" && a.skin) return [a.skin];
-    }
-  } catch {
-    // ignore malformed local state
-  }
-  return [];
+  return loadCustomThemeStore().themes.map((t) => t.skin);
 }
 
 export interface ArchiveFetchers {

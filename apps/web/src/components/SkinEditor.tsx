@@ -7,6 +7,7 @@ import {
   clearSkinTokens,
   downloadSkin,
   parseSkinFromRgba,
+  readBaseToken,
   splitRgba,
   validateSkin,
 } from "../skinValidation";
@@ -26,15 +27,6 @@ interface Props {
 
 function makeSeed(base: SkinBase, name = "My Skin"): WavvonSkin {
   return { format: "wavvon.skin", version: 1, name, base, tokens: {} };
-}
-
-function readBaseToken(token: string, base: SkinBase): string {
-  // Temporarily set the base theme, read the token, then restore custom
-  const prev = document.documentElement.dataset.theme;
-  document.documentElement.dataset.theme = base;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  if (prev !== undefined) document.documentElement.dataset.theme = prev;
-  return v;
 }
 
 function TokenRow({
