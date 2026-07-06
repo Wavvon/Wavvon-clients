@@ -4,6 +4,7 @@ export * from "./audio";
 export * from "./channels";
 export * from "./format";
 export * from "./hex";
+export * from "./pow";
 export * from "./recentEmoji";
 export * from "./useReconnectBackoff";
 export * from "./identity/crypto";

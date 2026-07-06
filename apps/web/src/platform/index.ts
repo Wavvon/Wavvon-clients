@@ -27,7 +27,11 @@ export {
   previewHubInfo,
   reorderHubs,
   restorePersistedHubs,
+  connectHubWebSocket,
 } from "./commands/hubs";
+
+export { getLobbyStatus, getLobbyWelcome, submitLobbyPow, isLobbyScopeConfined } from "./commands/lobby";
+export type { LobbyStatus, LobbyWelcome, SubmitPowResult } from "./commands/lobby";
 
 export {
   getMessages,

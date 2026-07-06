@@ -43,8 +43,9 @@ import { ContentArea } from "@components/ContentArea";
 import { WhisperBar } from "@components/WhisperBar";
 import { loadPttConfig } from "@components/PushToTalkSection";
 import { loadProfiles, saveProfiles, newProfileId } from "./utils/profiles";
-import { getCurrentSurvey } from "@platform";
+import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket } from "@platform";
 import { SurveyModal } from "@components/SurveyModal";
+import { Lobby } from "@components/Lobby";
 import { HubStreamsPanel } from "@components/HubStreamsPanel";
 import type { HubStreamInfo } from "./types";
 import { AddHubModal } from "@components/AddHubModal";
@@ -408,6 +409,12 @@ export default function App() {
     selectAllianceChannel, clearSelectedAllianceChannel, sendAllianceMessage,
   } = useAlliances(showHubError);
   const [pendingApprovalHubs, setPendingApprovalHubs] = useState<Set<string>>(new Set());
+  // lobby-bot-survey.md Feature 1 — hubs whose session is confined to the
+  // lobby (PoW below the hub's min_security_level). Detected reactively via
+  // the 403 lobby_scope_confined body loadHubData() gets back from
+  // /channels, which covers both the initial join and reconnect-after-close
+  // (requirement: re-detect on reload) with one code path.
+  const [lobbyHubs, setLobbyHubs] = useState<Set<string>>(new Set());
 
   // === View ===
   const [view, setView] = useState<View>("channels");
@@ -1178,6 +1185,34 @@ export default function App() {
         listBotCommands().catch(() => [] as Array<{ command: string; description: string; bot_name: string }>),
         fetchVoiceRoster().catch(() => ({} as Record<string, VoiceParticipant[]>)),
       ]);
+      // A lobby-scoped session (lobby-bot-survey.md Feature 1) 403s every
+      // route outside the lobby allowlist — /channels is always in that
+      // batch, so its rejection reason is the signal. Checked before
+      // touching any other settled promise; the others 403 the same way and
+      // there's nothing useful to salvage from them for a lobby hub.
+      const hubIdForLobbyCheck = getActiveHubId();
+      if (ch.status === "rejected" && isLobbyScopeConfined(ch.reason)) {
+        if (hubIdForLobbyCheck) {
+          setLobbyHubs((prev) => new Set([...prev, hubIdForLobbyCheck]));
+        }
+        // Drop whatever channel/user/conversation data is left over from a
+        // previously active member hub — the lobby screen replaces the main
+        // content area, but the persistent hub sidebar renders straight off
+        // this state and would otherwise show a stale, unrelated hub's data.
+        setChannels([]);
+        setUsers([]);
+        setConversations([]);
+        setSelectedChannel(null);
+        return;
+      }
+      if (hubIdForLobbyCheck) {
+        setLobbyHubs((prev) => {
+          if (!prev.has(hubIdForLobbyCheck)) return prev;
+          const next = new Set(prev);
+          next.delete(hubIdForLobbyCheck);
+          return next;
+        });
+      }
       void loadAlliances();
       if (ch.status === "fulfilled") {
         setChannels(ch.value);
@@ -1241,6 +1276,27 @@ export default function App() {
     } finally {
       loadingHub.current = false;
     }
+  }
+
+  // Lobby -> member transition in place (lobby-bot-survey.md Feature 1):
+  // /lobby/submit-pow already flipped the session's scope server-side on the
+  // same token, so there's no re-auth here — just open the WS the hub had
+  // been rejecting, drop the lobby screen, and pull the now-unlocked hub
+  // data.
+  async function handleLobbyPromoted(hubId: string) {
+    setLobbyHubs((prev) => {
+      if (!prev.has(hubId)) return prev;
+      const next = new Set(prev);
+      next.delete(hubId);
+      return next;
+    });
+    connectHubWebSocket(hubId, stableHandlersRef.current);
+    if (hubId === activeHubIdRef.current) {
+      await loadHubData();
+      publishDhKey().catch(() => {});
+    }
+    const hubName = hubsRef.current.find((h) => h.hub_id === hubId)?.hub_name ?? "the hub";
+    showHubError(t("lobby.welcome", { hub: hubName }));
   }
 
   // === Hub management ===
@@ -2487,6 +2543,16 @@ export default function App() {
             }}
             initialHubUrl={homeHubUrl}
             onBrowse={() => setShowDiscover(true)}
+          />
+        </main>
+      ) : activeHubId && lobbyHubs.has(activeHubId) && publicKey ? (
+        <main className="content" style={{ overflow: "auto" }}>
+          <Lobby
+            key={activeHubId}
+            hubId={activeHubId}
+            hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
+            pubkeyHex={publicKey}
+            onPromoted={() => void handleLobbyPromoted(activeHubId)}
           />
         </main>
       ) : activeHubId && pendingApprovalHubs.has(activeHubId) ? (

@@ -21,6 +21,7 @@ import {
 import { loadIdentity, saveIdentity } from "../../identity/store";
 import { signBytes, publicKeyHex } from "@wavvon/core";
 import type { Hub } from "@shared/types";
+import { probeSessionScope } from "./lobby";
 
 interface InfoResponse {
   public_key: string;
@@ -38,6 +39,10 @@ interface ChallengeResponse {
 interface VerifyResponse {
   token: string;
   canonical_pubkey?: string;
+  // "lobby" when the hub's lobby is enabled and this identity's PoW level
+  // is below min_security_level (lobby-bot-survey.md Feature 1); "member"
+  // (or absent, for hubs predating the lobby) otherwise.
+  scope?: string;
 }
 
 function authBaseUrl(info: InfoResponse, hub_url: string): string {
@@ -52,7 +57,7 @@ async function authenticate(
   security_level: number,
   invite_code?: string,
   subkey_cert?: unknown,
-): Promise<{ token: string; canonicalPubkey?: string }> {
+): Promise<{ token: string; canonicalPubkey?: string; scope: "member" | "lobby" }> {
   const challengeRes: ChallengeResponse = await rawFetch(
     `${auth_url}/auth/challenge`,
     { method: "POST", body: JSON.stringify({ public_key: pubkeyHex }) },
@@ -78,7 +83,11 @@ async function authenticate(
     body: JSON.stringify(body),
   }).then((r) => r.json() as Promise<VerifyResponse>);
 
-  return { token: verifyRes.token, canonicalPubkey: verifyRes.canonical_pubkey };
+  return {
+    token: verifyRes.token,
+    canonicalPubkey: verifyRes.canonical_pubkey,
+    scope: verifyRes.scope === "lobby" ? "lobby" : "member",
+  };
 }
 
 
@@ -94,8 +103,15 @@ export async function addHub(
   );
 
   let token: string;
+  // "member" is the safe default for the sessionToken (webauthn) path below,
+  // where we don't get a scope back directly — a wrong "member" guess just
+  // means the WS handshake gets rejected once and self-corrects via
+  // onReauthNeeded, which re-authenticates through the full identity flow
+  // and does learn the real scope.
+  let scope: "member" | "lobby" = "member";
   if (opts?.sessionToken) {
     token = opts.sessionToken;
+    scope = await probeSessionScope(url, token);
   } else {
     const identity = await loadIdentity();
     if (!identity) throw new Error("No identity — generate one first");
@@ -110,6 +126,7 @@ export async function addHub(
       identity.subkey_cert,
     );
     token = res.token;
+    scope = res.scope;
 
     // Paired device: persist the canonical identity the hub attributes our
     // actions to, so the UI self-identifies as the shared user rather than
@@ -127,7 +144,11 @@ export async function addHub(
   const rememberMe = opts?.rememberMe ?? false;
   saveToken(info.public_key, token, rememberMe);
 
-  const ws = new HubWebSocket(url, token, info.public_key, handlers);
+  // A lobby-scoped token is rejected by the hub's WS handshake (no
+  // channels/voice/presence in the lobby) — opening it here would just spin
+  // the reconnect/reauth loop. The socket is opened later by
+  // connectHubWebSocket() once /lobby/submit-pow reports promotion.
+  const ws = scope === "lobby" ? null : new HubWebSocket(url, token, info.public_key, handlers);
 
   const session: HubSession = {
     hub_id: info.public_key,
@@ -137,6 +158,7 @@ export async function addHub(
     hub_icon: info.icon,
     token,
     ws,
+    scope,
   };
   setSession(info.public_key, session);
 
@@ -255,7 +277,7 @@ export async function reauthorizeHub(
 
   const seedHex = identity.seed_hex;
   const pubkeyHex = publicKeyHex(seedHex);
-  const { token } = await authenticate(
+  const { token, scope } = await authenticate(
     authBaseUrl(info, s.hub_url),
     pubkeyHex,
     seedHex,
@@ -266,8 +288,23 @@ export async function reauthorizeHub(
   );
 
   s.ws?.close();
-  const ws = new HubWebSocket(s.hub_url, token, hub_id, handlers);
-  setSession(hub_id, { ...s, token, ws });
+  // A fresh handshake landing back in "lobby" (e.g. the previous session
+  // was wrongly assumed "member" via the sessionToken path in addHub, or
+  // min_security_level was raised after the original join) must not reopen
+  // the WS — that's exactly the reconnect storm this scope check prevents.
+  const ws = scope === "lobby" ? null : new HubWebSocket(s.hub_url, token, hub_id, handlers);
+  setSession(hub_id, { ...s, token, ws, scope });
+}
+
+// Opens the hub's WebSocket for a session that was deliberately left
+// disconnected because it was lobby-scoped (see addHub/reauthorizeHub).
+// Called once /lobby/submit-pow reports promotion — the same token that was
+// rejected moments ago is now valid for the WS, no re-auth needed.
+export function connectHubWebSocket(hub_id: string, handlers: WsHandlers): void {
+  const s = getSession(hub_id);
+  if (!s || s.ws) return;
+  const ws = new HubWebSocket(s.hub_url, s.token, hub_id, handlers);
+  setSession(hub_id, { ...s, ws, scope: "member" });
 }
 
 export async function getHubInfo(hub_id: string): Promise<Hub | null> {
@@ -325,6 +362,10 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
   for (const hub of saved) {
     try {
       let token = loadToken(hub.hub_id);
+      // Cached tokens don't carry a scope, so it has to be re-probed on
+      // every restore — a stale "member" assumption for a cached lobby
+      // token would open a WS the hub immediately rejects.
+      let scope: "member" | "lobby" = "member";
       if (!token) {
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
@@ -339,6 +380,7 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
           identity.subkey_cert,
         );
         token = authRes.token;
+        scope = authRes.scope;
         if (
           identity.subkey_cert &&
           authRes.canonicalPubkey &&
@@ -348,9 +390,11 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
           await saveIdentity({ ...identity, canonical_pubkey: authRes.canonicalPubkey });
         }
         saveToken(hub.hub_id, token, hub.remember_token);
+      } else {
+        scope = await probeSessionScope(hub.hub_url, token);
       }
 
-      const ws = new HubWebSocket(hub.hub_url, token, hub.hub_id, handlers);
+      const ws = scope === "lobby" ? null : new HubWebSocket(hub.hub_url, token, hub.hub_id, handlers);
       setSession(hub.hub_id, {
         hub_id: hub.hub_id,
         hub_url: hub.hub_url,
@@ -359,6 +403,7 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         hub_icon: hub.hub_icon,
         token,
         ws,
+        scope,
       });
 
       result.push({
