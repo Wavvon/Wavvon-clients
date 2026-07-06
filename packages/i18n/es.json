@@ -756,6 +756,7 @@
   "channel.permissions.inherited_allow": "Permitido (heredado)",
   "channel.permissions.inherited_deny": "Denegado (heredado)",
   "channel.permissions.reset": "Restablecer a heredado",
+  "channel.permissions.locked_rank": "Este rol tiene un rango igual o superior al tuyo, así que sus sobrescrituras son de solo lectura aquí. Los roles con el permiso admin ignoran las sobrescrituras de canal de todos modos.",
   "channel.permissions.saved": "Guardado",
   "admin.tabs.tags": "Etiquetas y distintivos",
   "admin.tabs.external_bots": "Bots externos",

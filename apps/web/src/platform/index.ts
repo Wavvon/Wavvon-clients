@@ -6,6 +6,7 @@ export {
   loadSavedHubs,
   saveSavedHubs,
   upsertSavedHub,
+  renameSavedHub,
   removeSavedHub,
   loadActiveHubId,
   saveActiveHubId,

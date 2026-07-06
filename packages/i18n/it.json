@@ -756,6 +756,7 @@
   "channel.permissions.inherited_allow": "Consentito (ereditato)",
   "channel.permissions.inherited_deny": "Negato (ereditato)",
   "channel.permissions.reset": "Ripristina eredità",
+  "channel.permissions.locked_rank": "Questo ruolo è di rango pari o superiore al tuo, quindi le sue sovrascritture sono in sola lettura. I ruoli con il permesso admin ignorano comunque le sovrascritture di canale.",
   "channel.permissions.saved": "Salvato",
   "admin.tabs.tags": "Tag e badge",
   "admin.tabs.external_bots": "Bot esterni",

@@ -34,6 +34,19 @@ export function removeSavedHub(hubId: string): void {
   clearToken(hubId);
 }
 
+/** Update only the stored display name of a hub. Returns true if it changed.
+ * (Deliberately not upsertSavedHub: callers usually hold the listHubs()
+ * projection, which lacks remember_token — upserting it would strip the
+ * stored flag.) */
+export function renameSavedHub(hubId: string, name: string): boolean {
+  const list = loadSavedHubs();
+  const hub = list.find((h) => h.hub_id === hubId);
+  if (!hub || hub.hub_name === name) return false;
+  hub.hub_name = name;
+  saveSavedHubs(list);
+  return true;
+}
+
 export function loadActiveHubId(): string | null {
   return localStorage.getItem(ACTIVE_HUB_KEY);
 }

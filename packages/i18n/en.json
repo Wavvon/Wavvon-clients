@@ -756,6 +756,7 @@
   "channel.permissions.inherited_allow": "Allow (inherited)",
   "channel.permissions.inherited_deny": "Deny (inherited)",
   "channel.permissions.reset": "Reset to inherit",
+  "channel.permissions.locked_rank": "This role is at or above your own rank, so its overwrites are read-only here. Roles with the admin permission bypass channel overwrites anyway.",
   "channel.permissions.saved": "Saved",
   "admin.tabs.tags": "Tags & Badges",
   "admin.tabs.external_bots": "External Bots",

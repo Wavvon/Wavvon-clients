@@ -756,6 +756,7 @@
   "channel.permissions.inherited_allow": "Erlaubt (geerbt)",
   "channel.permissions.inherited_deny": "Verweigert (geerbt)",
   "channel.permissions.reset": "Auf „Erben“ zurücksetzen",
+  "channel.permissions.locked_rank": "Diese Rolle hat einen Rang auf oder über deinem eigenen — ihre Überschreibungen sind hier schreibgeschützt. Rollen mit Admin-Berechtigung umgehen Kanal-Überschreibungen ohnehin.",
   "channel.permissions.saved": "Gespeichert",
   "admin.tabs.tags": "Tags & Abzeichen",
   "admin.tabs.external_bots": "Externe Bots",

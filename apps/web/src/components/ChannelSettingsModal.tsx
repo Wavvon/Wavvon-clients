@@ -22,13 +22,16 @@ interface Props {
    * opens straight into the Permissions tab and never sees the settings
    * form (the server rejects those actions for them anyway). */
   isAdmin: boolean;
+  /** Viewer's highest role priority — rows at/above it render read-only in
+   * the Permissions tab (the hub rejects those edits). */
+  myMaxPriority?: number;
   onSave: (name: string, description: string, color: string | null, icon: string | null, banner?: BannerSource) => void;
   onDelete: () => void;
   onClose: () => void;
 }
 
 export function ChannelSettingsModal({
-  channel, saving, deleting, error, canManageRoles, isAdmin, onSave, onDelete, onClose,
+  channel, saving, deleting, error, canManageRoles, isAdmin, myMaxPriority, onSave, onDelete, onClose,
 }: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>(isAdmin ? "settings" : "permissions");
@@ -87,7 +90,7 @@ export function ChannelSettingsModal({
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
         <div
-          className="modal"
+          className="modal modal-tabbed"
           role="dialog"
           aria-modal="true"
           aria-labelledby="channel-settings-title"
@@ -127,7 +130,7 @@ export function ChannelSettingsModal({
           {tab === "bans" && canManageRoles && !channel.is_category ? (
             <ChannelBansTab channelId={channel.id} />
           ) : (tab === "permissions" || !isAdmin) && canManageRoles ? (
-            <ChannelPermissionsTab channelId={channel.id} />
+            <ChannelPermissionsTab channelId={channel.id} myMaxPriority={myMaxPriority} />
           ) : (
             <>
               <label style={{ display: "block", marginBottom: "var(--space-2)" }}>

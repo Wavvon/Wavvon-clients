@@ -78,6 +78,7 @@ import {
   removeHub,
   setActiveHub,
   listHubs,
+  renameSavedHub,
   previewHubInfo,
   reorderHubs,
   reauthorizeHub,
@@ -521,7 +522,16 @@ export default function App() {
     addInvite,
     removeInvite,
     setMemberRoles,
-  } = useHubAdmin({ activeHubId });
+  } = useHubAdmin({
+    activeHubId,
+    // The sidebar renders the locally-stored hub list, whose hub_name is
+    // written at add-time — sync it or a rename never shows up there.
+    onSaved: (name) => {
+      if (activeHubId && renameSavedHub(activeHubId, name)) {
+        setHubs(listHubs());
+      }
+    },
+  });
 
   // === Profiles (client-only named display-name/avatar presets) ===
   const [profileStore, setProfileStore] = useState(loadProfiles);
@@ -1186,6 +1196,18 @@ export default function App() {
   async function loadHubData() {
     if (loadingHub.current) return;
     loadingHub.current = true;
+    // Self-heal the locally-cached hub name (stored at add-time): a rename
+    // done in hub admin — possibly on another device — otherwise never
+    // reaches the sidebar, not even across reloads. Fire-and-forget.
+    hubFetch("/info")
+      .then((r) => r.json() as Promise<{ name?: string }>)
+      .then((info) => {
+        const hubId = getActiveHubId();
+        if (hubId && info?.name && renameSavedHub(hubId, info.name)) {
+          setHubs(listHubs());
+        }
+      })
+      .catch(() => { /* cosmetic sync only */ });
     try {
       const [ch, usr, me, convs, cmds, voiceRoster] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
@@ -2877,6 +2899,7 @@ export default function App() {
           error={channelSettingsError}
           canManageRoles={canManageRoles}
           isAdmin={isAdmin}
+          myMaxPriority={myMaxPriority}
           onSave={handleSaveChannelSettings}
           onDelete={handleDeleteChannel}
           onClose={() => { setChannelSettingsCtx(null); setChannelSettingsError(null); }}
