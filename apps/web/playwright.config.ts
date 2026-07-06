@@ -11,11 +11,12 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    // Mock-API tests (no real hub needed).
+    // Mock-API tests (no real hub needed). The capture dir is the
+    // README-asset generator with its own config — never part of a suite.
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: "**/live/**",
+      testIgnore: ["**/live/**", "**/capture/**"],
     },
     // Live tests against a real local hub (see e2e/live/README.md).
     {
