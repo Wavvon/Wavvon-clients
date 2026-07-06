@@ -42,6 +42,8 @@ export interface Attachment {
 }
 
 export interface RemoteAttachment {
+  /** upload_files row id — referenced by e.g. a banner channel's banner_file_id. */
+  id: string;
   url: string;
   filename: string;
   size_bytes: number;

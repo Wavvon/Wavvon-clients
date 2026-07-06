@@ -70,7 +70,7 @@ import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
 import { ScreenShareSelfPreview } from "@components/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
-import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus } from "@platform";
+import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
   restorePersistedHubs,
@@ -1491,12 +1491,12 @@ export default function App() {
 
   // === Channel / messages ===
 
-  async function handleCreateChannel(name: string, channelType: string, isCategory: boolean, description: string, spawnerNameTemplate?: string) {
+  async function handleCreateChannel(name: string, channelType: string, isCategory: boolean, description: string, spawnerNameTemplate?: string, banner?: { url?: string; file?: File | null }) {
     if (!createChannelCtx) return;
     setCreateChannelLoading(true);
     setCreateChannelError(null);
     try {
-      await hubFetch("/channels", {
+      const res = await hubFetch("/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1506,8 +1506,21 @@ export default function App() {
           channel_type: isCategory ? undefined : channelType,
           description: description || undefined,
           spawner_name_template: !isCategory && channelType === "spawner" ? spawnerNameTemplate : undefined,
+          banner_url: channelType === "banner" ? banner?.url : undefined,
         }),
       });
+      // Hub-uploaded banner (banner-channels.md §upload flow): the channel
+      // must exist first, then the image is uploaded to it, then the channel
+      // is patched with the returned file id.
+      if (channelType === "banner" && banner?.file) {
+        const created = (await res.json()) as Channel;
+        const uploaded = await uploadFile(created.id, banner.file);
+        await hubFetch(`/channels/${created.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ banner_file_id: uploaded.id }),
+        });
+      }
       setCreateChannelCtx(null);
       hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
     } catch (e) {
