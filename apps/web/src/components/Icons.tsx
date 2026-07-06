@@ -193,7 +193,21 @@ export function GamepadIcon({ size = 18 }: { size?: number }) {
 export function ChannelIconGlyph({ icon, size = 14 }: { icon: string | null; size?: number }) {
   if (!icon) return null;
   const def = CHANNEL_ICONS.find((d) => d.id === icon);
-  if (!def) return null;
+  if (!def) {
+    // Not a registry id — channel settings stores emoji picked via the
+    // EmojiPicker as the icon value. Render it literally instead of
+    // silently dropping it (which also swallowed the '#' fallback,
+    // leaving the channel with no glyph at all).
+    return (
+      <span
+        className="channel-icon-emoji"
+        style={{ fontSize: size, lineHeight: 1 }}
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+    );
+  }
   return (
     <svg
       viewBox="0 0 24 24"
