@@ -845,6 +845,86 @@ select,
   gap: var(--space-4);
 }
 
+.avatar-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.avatar-chooser-tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.avatar-chooser-tab {
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: border-color var(--motion-fast), color var(--motion-fast);
+}
+
+.avatar-chooser-tab:hover {
+  color: var(--text);
+}
+
+.avatar-chooser-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.avatar-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.avatar-picker-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.avatar-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: var(--space-2);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.avatar-picker-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: var(--r-md);
+  border: 2px solid transparent;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--motion-fast), transform var(--motion-fast);
+}
+
+.avatar-picker-tile:hover {
+  transform: scale(1.06);
+}
+
+.avatar-picker-tile.selected {
+  border-color: var(--accent);
+}
+
+.avatar-picker-tile img {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  display: block;
+}
+
 /* ============================================================
    MIC LEVEL METER
    ============================================================ */

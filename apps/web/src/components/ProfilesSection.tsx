@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Avatar } from "@wavvon/ui";
 import type { Hub, NamedProfile } from "../types";
 import { loadHubProfiles, saveHubProfiles } from "../utils/profiles";
-import { ImagePicker } from "./ImagePicker";
+import { AvatarChooser } from "./AvatarChooser";
 
 interface Props {
   profiles: NamedProfile[];
@@ -18,10 +20,12 @@ interface Props {
 // apply one to the active hub, or set a default. Per-hub assignment is
 // stored locally.
 export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, onUpdate, onDelete, onSetDefault, onApplyToHub }: Props) {
+  const { t } = useTranslation();
   const [newLabel, setNewLabel] = useState("");
   const [newName, setNewName] = useState("");
   const [newAvatar, setNewAvatar] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingAvatarFor, setEditingAvatarFor] = useState<string | null>(null);
   const [hubProfiles, setHubProfiles] = useState<Record<string, string>>(loadHubProfiles);
 
   const activeHub = hubs.find((h) => h.is_active);
@@ -68,14 +72,46 @@ export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, on
                   aria-label="Profile display name"
                   onBlur={(e) => onUpdate(p.id, { display_name: e.target.value.trim() || p.display_name })}
                 />
-                <button className="btn-small" onClick={() => setEditing(null)}>Done</button>
+                <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)" }}>
+                  <Avatar src={p.avatar} name={p.display_name} size={40} />
+                  <button
+                    type="button"
+                    className="btn-small btn-secondary"
+                    onClick={() => setEditingAvatarFor(editingAvatarFor === p.id ? null : p.id)}
+                  >
+                    {t("profile.avatar_chooser.change_avatar")}
+                  </button>
+                </div>
+                {editingAvatarFor === p.id && (
+                  <AvatarChooser
+                    value={p.avatar}
+                    fallbackName={p.display_name}
+                    onChange={(avatar) => {
+                      onUpdate(p.id, { avatar });
+                      setEditingAvatarFor(null);
+                    }}
+                    onClear={() => onUpdate(p.id, { avatar: null })}
+                  />
+                )}
+                <button
+                  className="btn-small"
+                  onClick={() => {
+                    setEditing(null);
+                    setEditingAvatarFor(null);
+                  }}
+                >
+                  Done
+                </button>
               </div>
             ) : (
               <div className="settings-row" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
-                <span>
-                  <strong>{p.label}</strong>
-                  {defaultProfileId === p.id && <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · default</span>}
-                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}> — {p.display_name}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <Avatar src={p.avatar} name={p.display_name} size={28} />
+                  <span>
+                    <strong>{p.label}</strong>
+                    {defaultProfileId === p.id && <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · default</span>}
+                    <span className="muted" style={{ fontSize: "var(--text-xs)" }}> — {p.display_name}</span>
+                  </span>
                 </span>
                 <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   <button className="btn-small" disabled={!activeHub} onClick={() => assignToActiveHub(p.id)}>Apply to hub</button>
@@ -95,7 +131,7 @@ export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, on
           <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (e.g. Gaming)" aria-label="New profile label" />
           <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Display name" aria-label="New profile display name" />
         </div>
-        <ImagePicker onPick={setNewAvatar} onClear={() => setNewAvatar(null)} hasValue={!!newAvatar} buttonLabel="Avatar…" />
+        <AvatarChooser value={newAvatar} fallbackName={newName} onChange={setNewAvatar} onClear={() => setNewAvatar(null)} />
         <div style={{ marginTop: "var(--space-2)" }}>
           <button onClick={create} disabled={!newLabel.trim() || !newName.trim()}>Create profile</button>
         </div>
