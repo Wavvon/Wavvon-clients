@@ -17,6 +17,7 @@ import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing
 function voiceSoundsOn(): boolean {
   try { return localStorage.getItem("wavvon.voiceSounds") !== "0"; } catch { return true; }
 }
+import { DISCOVERY_NEW_HUB_URL, HUB_SETUP_COMMAND } from "./constants";
 import { parseHubInput } from "@wavvon/core";
 import type { HubInputResult } from "@wavvon/core";
 import type {
@@ -52,7 +53,7 @@ import { AddHubModal } from "@components/AddHubModal";
 import { CreateChannelModal } from "@components/CreateChannelModal";
 import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/FarmSettingsPage";
-import { CreateHubWizard } from "@components/CreateHubWizard";
+import { CreateHubFork } from "@components/CreateHubFork";
 import { FocusTrap, KeyboardShortcuts, HoverSubmenu } from "@wavvon/ui";
 import { HubAdminPage } from "./components/HubAdminPage";
 import { SearchBar } from "@components/SearchBar";
@@ -1382,6 +1383,31 @@ export default function App() {
     });
   }
 
+  // Shared by AddHubModal's "join" field and the create-hub self-host
+  // panel's "paste your owner invite" field — both resolve through the
+  // same parseHubInput + handleAddHub path, so a redeemed owner invite
+  // (grant_role_id carrying ownership) lands the user in-hub already
+  // owning it, same as any other invite redemption.
+  function handleHubUrlInput(v: string) {
+    const p = parseHubInput(v);
+    setHubUrl(p?.hubUrl ?? v);
+    if (p?.inviteCode) setInviteCode(p.inviteCode);
+    setHubPreview({ state: "idle" });
+    setAddHubError(null);
+    if (p?.target) {
+      const existing = findHubByUrl(p.hubUrl);
+      if (existing) {
+        pendingDeepLinkTargetRef.current = null;
+        setShowAddHub(false);
+        void applyDeepLinkTarget(existing.hub_id, p.target);
+        return;
+      }
+      pendingDeepLinkTargetRef.current = p.target;
+    } else {
+      pendingDeepLinkTargetRef.current = null;
+    }
+  }
+
   async function handlePreviewHub() {
     setHubPreview({ state: "loading" });
     setAddHubError(null);
@@ -1393,6 +1419,9 @@ export default function App() {
     }
   }
 
+  // Also the join path a redeemed owner invite takes from the "Create a
+  // hub" self-host handoff (docs/docs/hub-creation-wizard.md §4) — no
+  // separate join mechanism for that flow.
   async function handleAddHub() {
     setAddingHub(true);
     setAddHubError(null);
@@ -1401,6 +1430,7 @@ export default function App() {
       setHubs(listHubs());
       setActiveHubIdState(hub.hub_id);
       setShowAddHub(false);
+      setShowCreateHub(false);
       setHubUrl("");
       setInviteCode("");
       setHubPreview({ state: "idle" });
@@ -2418,7 +2448,7 @@ export default function App() {
       )}
 
       {showCreateHub && (
-        <CreateHubWizard
+        <CreateHubFork
           knownFarms={knownFarms}
           wsHandlers={stableHandlers}
           onHubCreated={(hub) => {
@@ -2429,7 +2459,20 @@ export default function App() {
             setActiveHubIdState(hub.hub_id);
             setShowCreateHub(false);
           }}
-          onClose={() => setShowCreateHub(false)}
+          discoveryNewUrl={DISCOVERY_NEW_HUB_URL}
+          setupCommand={HUB_SETUP_COMMAND}
+          inviteValue={hubUrl}
+          onInviteChange={handleHubUrlInput}
+          inviteLoading={addingHub}
+          inviteError={addHubError}
+          onRedeemInvite={handleAddHub}
+          onClose={() => {
+            setShowCreateHub(false);
+            setHubUrl("");
+            setInviteCode("");
+            setHubPreview({ state: "idle" });
+            setAddHubError(null);
+          }}
         />
       )}
 
@@ -2781,25 +2824,7 @@ export default function App() {
       {showAddHub && (
         <AddHubModal
           hubUrl={hubUrl}
-          onHubUrlChange={(v) => {
-            const p = parseHubInput(v);
-            setHubUrl(p?.hubUrl ?? v);
-            if (p?.inviteCode) setInviteCode(p.inviteCode);
-            setHubPreview({ state: "idle" });
-            setAddHubError(null);
-            if (p?.target) {
-              const existing = findHubByUrl(p.hubUrl);
-              if (existing) {
-                pendingDeepLinkTargetRef.current = null;
-                setShowAddHub(false);
-                void applyDeepLinkTarget(existing.hub_id, p.target);
-                return;
-              }
-              pendingDeepLinkTargetRef.current = p.target;
-            } else {
-              pendingDeepLinkTargetRef.current = null;
-            }
-          }}
+          onHubUrlChange={handleHubUrlInput}
           hubPreview={hubPreview}
           inviteCode={inviteCode}
           onInviteCodeChange={setInviteCode}

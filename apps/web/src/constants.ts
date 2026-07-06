@@ -144,6 +144,16 @@ export const MIC_METER_MAX = 0.2;
 // screen. null means the button is hidden — don't ship a dead button.
 export const DEMO_HUB_URL: string | null = null;
 
+// Discovery's web-based hub creation wizard (docs/docs/hub-creation-wizard.md
+// §3). No client-side config for this yet — same literal host the wizard
+// itself uses everywhere else it's referenced.
+export const DISCOVERY_NEW_HUB_URL = "https://discovery.wavvon.app/new";
+
+// The offline self-host one-liner (hub-creation-wizard.md §4). Interactive:
+// asks name/preset/domain-or-LAN/TLS, emits compose + env, starts the hub,
+// and prints the one-time owner invite link + QR.
+export const HUB_SETUP_COMMAND = "wavvon-hub setup";
+
 export const ALL_PERMISSIONS: { id: string; label: string }[] = [
   { id: "admin", label: "Administrator (grants everything)" },
   { id: "manage_channels", label: "Manage channels" },
