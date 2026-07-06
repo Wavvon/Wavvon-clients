@@ -1,6 +1,6 @@
 {
   "productName": "Wavvon",
-  "version": "0.1.0",
+  "version": "0.3.2",
   "identifier": "com.wavvon.android",
   "build": {
     "frontendDist": "../dist",
@@ -28,7 +28,9 @@
       "mobile": [
         {
           "host": "wavvon.io",
-          "pathPrefix": ["/invite"]
+          "pathPrefix": [
+            "/invite"
+          ]
         }
       ]
     }

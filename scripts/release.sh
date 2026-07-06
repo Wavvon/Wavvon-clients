@@ -11,7 +11,17 @@ if [ -z "$VERSION" ]; then
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
-TAURI_CONF="$ROOT/apps/desktop/src-tauri/tauri.conf.json"
+# Every app-level manifest carrying a user-visible version. The desktop
+# tauri.conf.json is the canonical one (auto-tag reads it); the rest are
+# synced so package.json / Android versions stop drifting behind releases.
+# Internal packages/* stay untouched — they're unpublished workspace libs.
+VERSIONED_MANIFESTS=(
+  "apps/desktop/src-tauri/tauri.conf.json"
+  "apps/android/src-tauri/tauri.conf.json"
+  "apps/desktop/package.json"
+  "apps/web/package.json"
+  "apps/android/package.json"
+)
 
 if ! command -v git-cliff >/dev/null 2>&1; then
   echo "git-cliff not found. Install with: cargo install git-cliff" >&2
@@ -22,13 +32,16 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Bumping version to $VERSION in tauri.conf.json"
-node -e "
-  const fs = require('fs');
-  const cfg = JSON.parse(fs.readFileSync('$TAURI_CONF', 'utf8'));
-  cfg.version = '$VERSION';
-  fs.writeFileSync('$TAURI_CONF', JSON.stringify(cfg, null, 2) + '\n');
-"
+echo "==> Bumping version to $VERSION in app manifests"
+for manifest in "${VERSIONED_MANIFESTS[@]}"; do
+  node -e "
+    const fs = require('fs');
+    const path = '$ROOT/$manifest';
+    const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+    cfg.version = '$VERSION';
+    fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  "
+done
 
 echo "==> Updating CHANGELOG.md"
 # Full regeneration. NOT `--unreleased -o`: that combination overwrites the
@@ -37,7 +50,10 @@ echo "==> Updating CHANGELOG.md"
 (cd "$ROOT" && git-cliff --tag "v$VERSION" -o CHANGELOG.md)
 
 echo "==> Committing on develop"
-git -C "$ROOT" add apps/desktop/src-tauri/tauri.conf.json CHANGELOG.md
+git -C "$ROOT" add CHANGELOG.md
+for manifest in "${VERSIONED_MANIFESTS[@]}"; do
+  git -C "$ROOT" add "$manifest"
+done
 git -C "$ROOT" commit -m "chore: release v$VERSION"
 
 echo
