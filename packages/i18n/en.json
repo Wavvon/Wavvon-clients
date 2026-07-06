@@ -279,6 +279,7 @@
   "modal.close": "Close",
   "modal.cancel": "Cancel",
   "modal.save": "Save",
+  "modal.apply": "Apply",
   "modal.clear": "Clear",
   "modal.confirm": "Confirm",
   "modal.delete": "Delete",

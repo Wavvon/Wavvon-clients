@@ -49,7 +49,7 @@ export function ColorSwatchPicker({ value, onChange, noColorLabel }: Props) {
         disabled={!HEX_RE.test(hexDraft)}
         onClick={() => onChange(hexDraft)}
       >
-        {t("modal.save")}
+        {t("modal.apply")}
       </button>
     </div>
   );

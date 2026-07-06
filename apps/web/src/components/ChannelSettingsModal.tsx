@@ -217,7 +217,8 @@ export function ChannelSettingsModal({
               <div style={{ marginBottom: "var(--space-3)" }}>
                 <span className="label-text">Appearance</span>
                 <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)", marginTop: 4 }}>
-                  <span style={{ minWidth: 20, textAlign: "center" }}>{icon ?? "—"}</span>
+                  {/* Currently chosen channel icon; empty (width kept) when none. */}
+                  <span style={{ minWidth: 20, textAlign: "center" }}>{icon ?? ""}</span>
                   <EmojiPicker onPick={setIcon} unicodeOnly />
                   {icon && (
                     <button type="button" className="btn-small btn-secondary" onClick={() => setIcon(null)}>
@@ -237,53 +238,52 @@ export function ChannelSettingsModal({
                 )}
               </div>
 
-              <div className="modal-actions">
-                <button onClick={onClose} className="btn-secondary">Cancel</button>
-                <button
-                  onClick={() =>
-                    onSave(
-                      name.trim(),
-                      description.trim(),
-                      color,
-                      icon,
-                      bannerDirty
-                        ? bannerSourceMode === "url"
-                          ? { url: bannerUrl.trim() }
-                          : { file: bannerFile }
-                        : undefined,
-                    )
-                  }
-                  disabled={saving || !name.trim() || !dirty}
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </div>
-
-              <hr style={{ margin: "var(--space-4) 0 var(--space-3)", border: "none", borderTop: "1px solid var(--border)" }} />
-
-              {!confirmDelete ? (
-                <button
-                  className="btn-danger"
-                  style={{ width: "100%" }}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Delete {channel.is_category ? "category" : "channel"}…
-                </button>
-              ) : (
-                <div>
-                  <p style={{ marginBottom: "var(--space-2)", color: "var(--danger)" }}>
-                    This cannot be undone. Delete <strong>{channel.name}</strong>?
-                  </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setConfirmDelete(false)}>
+              {/* One footer row: destructive action on the left, Cancel/Save
+                  on the right. Confirming delete swaps the row in place. */}
+              <div className="modal-actions" style={{ alignItems: "center" }}>
+                {confirmDelete ? (
+                  <>
+                    <span style={{ marginRight: "auto", color: "var(--danger)", fontSize: "var(--text-sm)" }}>
+                      Delete <strong>{channel.name}</strong>? This cannot be undone.
+                    </span>
+                    <button className="btn-secondary" onClick={() => setConfirmDelete(false)}>
                       Cancel
                     </button>
-                    <button className="btn-danger" style={{ flex: 1 }} disabled={deleting} onClick={onDelete}>
+                    <button className="btn-danger" disabled={deleting} onClick={onDelete}>
                       {deleting ? "Deleting…" : "Yes, delete"}
                     </button>
-                  </div>
-                </div>
-              )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="btn-danger"
+                      style={{ marginRight: "auto" }}
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete {channel.is_category ? "category" : "channel"}…
+                    </button>
+                    <button onClick={onClose} className="btn-secondary">Cancel</button>
+                    <button
+                      onClick={() =>
+                        onSave(
+                          name.trim(),
+                          description.trim(),
+                          color,
+                          icon,
+                          bannerDirty
+                            ? bannerSourceMode === "url"
+                              ? { url: bannerUrl.trim() }
+                              : { file: bannerFile }
+                            : undefined,
+                        )
+                      }
+                      disabled={saving || !name.trim() || !dirty}
+                    >
+                      {saving ? "Saving…" : "Save"}
+                    </button>
+                  </>
+                )}
+              </div>
 
               {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
             </>
