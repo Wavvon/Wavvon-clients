@@ -1,17 +1,16 @@
 # Wavvon Android
 
-The Android client for [Wavvon](https://github.com/Wavvon/Wavvon) — an
+The Android client for [Wavvon](https://github.com/Wavvon/Wavvon-docs) — an
 open-source, federated voice + text platform where communities run
 their own servers and **your identity is a keypair, not an account**.
 A mobile-first UI packaged as a native APK with Tauri 2, speaking the
 same hub API as every other Wavvon client. Distributed as a direct APK
 — no app store, no store account, no middleman.
 
-Like the browser client it is a deliberate **feature subset**: full
-text chat, forums, and DMs on the go; live voice is desktop-only for
-now (see
-[android-client.md](https://github.com/Wavvon/Wavvon/blob/main/docs/android-client.md)
-for the rationale).
+Full text chat, forums, and DMs on the go, plus live voice through the
+same native audio pipeline as the desktop client (see
+[android-client.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/android-client.md)
+for the architecture).
 
 ## Features
 
@@ -35,10 +34,10 @@ latest successful run, or build from source below.
 
 Installing outside an app store requires allowing "unknown sources" and
 dismissing a Play Protect prompt — the step-by-step end-user guide is in
-[install-android.md](https://github.com/Wavvon/Wavvon/blob/main/docs/install-android.md).
+[install-android.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/install-android.md).
 
 The Android client lives in the
-[Wavvon-client](https://github.com/Wavvon/Wavvon-client) monorepo at
+[Wavvon-clients](https://github.com/Wavvon/Wavvon-clients) monorepo at
 `apps/android`. It is two Tauri 2 wrappers — one around the desktop UI
 (`wavvon-desktop/`) and one around the web UI (`wavvon-web/`) — sharing
 the Rust `voice` crate from the monorepo root. JS dependencies and the
@@ -81,13 +80,13 @@ are shared from the monorepo root, not vendored here.
 
 | Repo | What it is |
 |---|---|
-| [Wavvon-client](https://github.com/Wavvon/Wavvon-client) | All clients (desktop / web / Android) + shared packages — **Android is here, in `apps/android`** |
+| [Wavvon-clients](https://github.com/Wavvon/Wavvon-clients) | All clients (desktop / web / Android) + shared packages — **Android is here, in `apps/android`** |
 | [Wavvon-server](https://github.com/Wavvon/Wavvon-server) | Hub server, farm tooling, identity crate (Rust) |
 | [Wavvon-discovery](https://github.com/Wavvon/Wavvon-discovery) | Optional public hub directory |
-| [Wavvon](https://github.com/Wavvon/Wavvon) | Architecture wiki, roadmap, API spec |
+| [Wavvon-docs](https://github.com/Wavvon/Wavvon-docs) | Architecture wiki, roadmap, API spec |
 
 New here? Start with
-[getting-started.md](https://github.com/Wavvon/Wavvon/blob/main/docs/getting-started.md).
+[getting-started.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/getting-started.md).
 
 ## License
 

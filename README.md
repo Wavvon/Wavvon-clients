@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-The client monorepo for [Wavvon](https://github.com/Wavvon/Wavvon) — an
+The client monorepo for [Wavvon](https://github.com/Wavvon/Wavvon-docs) — an
 open-source, federated voice + text platform where communities run
 their own servers and **your identity is a keypair, not an account**.
 
@@ -42,16 +42,16 @@ The Rust `voice` crate is shared by the desktop and Android Tauri shells.
 
 - **Desktop** (`apps/desktop`) — native app for Windows, macOS, and
   Linux built with Tauri 2 (Rust shell + system WebView) and React.
-  The only client with full live voice: a real native audio pipeline
-  (Opus over UDP, RNNoise denoise, VAD, push-to-talk), video + screen
-  share, and end-to-end-encrypted DMs.
-- **Web** (`apps/web`) — zero-install browser SPA. A deliberate feature
-  subset: full text, forums, E2E DMs, and admin tooling work in the
-  browser; live voice is desktop-only (browsers can't speak the hub's
-  UDP voice protocol). Identity lives in IndexedDB and never leaves the
-  device.
+  Live voice through a native audio pipeline (Opus over UDP, RNNoise
+  denoise, VAD, push-to-talk), video + screen share, and
+  end-to-end-encrypted DMs.
+- **Web** (`apps/web`) — zero-install browser SPA with the full feature
+  set: text, forums, E2E DMs, admin tooling, and live voice over the
+  hub's WebSocket audio relay, plus webcam video and screen share via
+  WebRTC. Identity lives in IndexedDB and never leaves the device.
 - **Android** (`apps/android`) — Tauri 2 app packaged as an APK, sharing
-  the same React UI and hub API as every other client.
+  the same React UI, hub API, and native voice pipeline as the desktop
+  client.
 
 All clients share one Ed25519 keypair identity with a 24-word BIP39
 recovery phrase and QR multi-device pairing. No accounts, no telemetry.
@@ -131,15 +131,15 @@ phrase — write it down.
 
 | Repo | What it is |
 |---|---|
-| **Wavvon-client** *(this repo)* | All clients (desktop / web / Android) + shared packages |
+| **Wavvon-clients** *(this repo)* | All clients (desktop / web / Android) + shared packages |
 | [Wavvon-server](https://github.com/Wavvon/Wavvon-server) | Hub server, farm tooling, identity crate (Rust) |
 | [Wavvon-discovery](https://github.com/Wavvon/Wavvon-discovery) | Optional public hub directory |
-| [Wavvon](https://github.com/Wavvon/Wavvon) | Architecture wiki, roadmap, API spec |
+| [Wavvon-docs](https://github.com/Wavvon/Wavvon-docs) | Architecture wiki, roadmap, API spec |
 
 New here? Start with
-[getting-started.md](https://github.com/Wavvon/Wavvon/blob/main/docs/getting-started.md)
+[getting-started.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/getting-started.md)
 and the
-[architecture overview](https://github.com/Wavvon/Wavvon/blob/main/docs/architecture.md).
+[architecture overview](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/architecture.md).
 
 ## Contributing
 

@@ -1,6 +1,6 @@
 # Wavvon Web
 
-The browser client for [Wavvon](https://github.com/Wavvon/Wavvon) — an
+The browser client for [Wavvon](https://github.com/Wavvon/Wavvon-docs) — an
 open-source, federated voice + text platform where communities run
 their own servers and **your identity is a keypair, not an account**.
 Nothing to install: the web client runs entirely in the browser, talks
@@ -8,13 +8,11 @@ to any Wavvon hub over plain HTTP + WebSocket, and keeps your identity
 local (Web Crypto Ed25519 keys stored in IndexedDB — never sent to any
 server).
 
-It is a deliberate **feature subset** of the desktop client: text chat,
-forums, E2E DMs, screen-share viewing, and admin tooling all work in
-the browser; live voice needs the
-[desktop app](https://github.com/Wavvon/Wavvon-desktop) (browsers can't
-speak the hub's UDP voice protocol).
+The full experience, in a tab: text chat, forums, E2E DMs, admin
+tooling, and live voice over the hub's WebSocket audio relay — plus
+webcam video and screen share via WebRTC.
 
-![Creating an identity and joining a hub from the browser - no signup, no install](https://raw.githubusercontent.com/Wavvon/Wavvon/main/assets/join-flow.gif)
+![Creating an identity and joining a hub from the browser - no signup, no install](https://raw.githubusercontent.com/Wavvon/Wavvon-docs/main/assets/join-flow.gif)
 
 ## Features
 
@@ -24,6 +22,9 @@ speak the hub's UDP voice protocol).
   uploads, reactions, replies and threads, pins, polls, events, forum
   channels, custom emojis, search, drafts, typing indicators, unread
   tracking.
+- **Live voice in the browser** — join voice channels over the hub's
+  WebSocket audio relay: push-to-talk, per-participant volume, whisper,
+  soundboard, plus webcam video and screen share via WebRTC.
 - **E2E-encrypted DMs** — 1:1 and group DMs encrypted in the browser
   (X25519 + AES-256-GCM via `@noble` primitives); the hub only ever
   sees ciphertext.
@@ -36,7 +37,7 @@ speak the hub's UDP voice protocol).
   `dist/` from any web server or CDN. Tagged releases are also
   auto-deployed to GitHub Pages from CI.
 
-This app lives in the [Wavvon-client](https://github.com/Wavvon/Wavvon-client)
+This app lives in the [Wavvon-clients](https://github.com/Wavvon/Wavvon-clients)
 monorepo at `apps/web`. Run pnpm commands from the **repo root**, not
 from this directory.
 
@@ -81,15 +82,15 @@ any web server or CDN, or let a hub self-serve it via
 
 | Repo | What it is |
 |---|---|
-| [Wavvon-client](https://github.com/Wavvon/Wavvon-client) | All clients (desktop / web / Android) + shared packages — **web is here, in `apps/web`** |
+| [Wavvon-clients](https://github.com/Wavvon/Wavvon-clients) | All clients (desktop / web / Android) + shared packages — **web is here, in `apps/web`** |
 | [Wavvon-server](https://github.com/Wavvon/Wavvon-server) | Hub server, farm tooling, identity crate (Rust) |
 | [Wavvon-discovery](https://github.com/Wavvon/Wavvon-discovery) | Optional public hub directory |
-| [Wavvon](https://github.com/Wavvon/Wavvon) | Architecture wiki, roadmap, API spec |
+| [Wavvon-docs](https://github.com/Wavvon/Wavvon-docs) | Architecture wiki, roadmap, API spec |
 
 New here? Start with
-[getting-started.md](https://github.com/Wavvon/Wavvon/blob/main/docs/getting-started.md);
+[getting-started.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/getting-started.md);
 the browser client's design rationale is in
-[browser-client.md](https://github.com/Wavvon/Wavvon/blob/main/docs/browser-client.md).
+[browser-client.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/browser-client.md).
 
 ## License
 
