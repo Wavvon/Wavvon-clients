@@ -495,12 +495,12 @@ export function ChannelSidebar({
           {hubDropdownOpen && (
             <div className="hub-dropdown">
               {isAdmin && (
-                <button className="hub-dropdown-item" onClick={onOpenHubAdminInvites}>
+                <button className="hub-dropdown-item" onClick={() => { onHubDropdownOpenChange(false); onOpenHubAdminInvites(); }}>
                   {t("hub.invite_people")}
                 </button>
               )}
               {isAdmin && (
-                <button className="hub-dropdown-item" onClick={onOpenHubAdmin}>
+                <button className="hub-dropdown-item" onClick={() => { onHubDropdownOpenChange(false); onOpenHubAdmin(); }}>
                   {t("hub.settings")}
                 </button>
               )}

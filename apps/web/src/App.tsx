@@ -70,7 +70,7 @@ import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
 import { ScreenShareSelfPreview } from "@components/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
-import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus } from "@platform";
+import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
   restorePersistedHubs,
@@ -78,6 +78,7 @@ import {
   removeHub,
   setActiveHub,
   listHubs,
+  renameSavedHub,
   previewHubInfo,
   reorderHubs,
   reauthorizeHub,
@@ -521,7 +522,16 @@ export default function App() {
     addInvite,
     removeInvite,
     setMemberRoles,
-  } = useHubAdmin({ activeHubId });
+  } = useHubAdmin({
+    activeHubId,
+    // The sidebar renders the locally-stored hub list, whose hub_name is
+    // written at add-time — sync it or a rename never shows up there.
+    onSaved: (name) => {
+      if (activeHubId && renameSavedHub(activeHubId, name)) {
+        setHubs(listHubs());
+      }
+    },
+  });
 
   // === Profiles (client-only named display-name/avatar presets) ===
   const [profileStore, setProfileStore] = useState(loadProfiles);
@@ -1186,6 +1196,18 @@ export default function App() {
   async function loadHubData() {
     if (loadingHub.current) return;
     loadingHub.current = true;
+    // Self-heal the locally-cached hub name (stored at add-time): a rename
+    // done in hub admin — possibly on another device — otherwise never
+    // reaches the sidebar, not even across reloads. Fire-and-forget.
+    hubFetch("/info")
+      .then((r) => r.json() as Promise<{ name?: string }>)
+      .then((info) => {
+        const hubId = getActiveHubId();
+        if (hubId && info?.name && renameSavedHub(hubId, info.name)) {
+          setHubs(listHubs());
+        }
+      })
+      .catch(() => { /* cosmetic sync only */ });
     try {
       const [ch, usr, me, convs, cmds, voiceRoster] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
@@ -1491,12 +1513,12 @@ export default function App() {
 
   // === Channel / messages ===
 
-  async function handleCreateChannel(name: string, channelType: string, isCategory: boolean, description: string, spawnerNameTemplate?: string) {
+  async function handleCreateChannel(name: string, channelType: string, isCategory: boolean, description: string, spawnerNameTemplate?: string, banner?: { url?: string; file?: File | null }) {
     if (!createChannelCtx) return;
     setCreateChannelLoading(true);
     setCreateChannelError(null);
     try {
-      await hubFetch("/channels", {
+      const res = await hubFetch("/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1506,8 +1528,21 @@ export default function App() {
           channel_type: isCategory ? undefined : channelType,
           description: description || undefined,
           spawner_name_template: !isCategory && channelType === "spawner" ? spawnerNameTemplate : undefined,
+          banner_url: channelType === "banner" ? banner?.url : undefined,
         }),
       });
+      // Hub-uploaded banner (banner-channels.md §upload flow): the channel
+      // must exist first, then the image is uploaded to it, then the channel
+      // is patched with the returned file id.
+      if (channelType === "banner" && banner?.file) {
+        const created = (await res.json()) as Channel;
+        const uploaded = await uploadFile(created.id, banner.file);
+        await hubFetch(`/channels/${created.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ banner_file_id: uploaded.id }),
+        });
+      }
       setCreateChannelCtx(null);
       hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
     } catch (e) {
@@ -1517,17 +1552,30 @@ export default function App() {
     }
   }
 
-  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null) {
+  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, banner?: { url?: string; file?: File | null }) {
     if (!channelSettingsCtx) return;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
     try {
+      // A replacement banner image is uploaded first so its file id can ride
+      // the same PATCH as the rest (the hub clears the other source column).
+      let bannerFileId: string | undefined;
+      if (banner?.file) {
+        bannerFileId = (await uploadFile(channelSettingsCtx.id, banner.file)).id;
+      }
       await hubFetch(`/channels/${channelSettingsCtx.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         // color/icon are appearance fields (require manage_channel_icons);
         // only sent when provided so a plain rename doesn't touch them.
-        body: JSON.stringify({ name, description: description || null, color, icon }),
+        body: JSON.stringify({
+          name,
+          description: description || null,
+          color,
+          icon,
+          banner_url: banner?.url,
+          banner_file_id: bannerFileId,
+        }),
       });
       setChannelSettingsCtx(null);
       hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
@@ -2851,6 +2899,7 @@ export default function App() {
           error={channelSettingsError}
           canManageRoles={canManageRoles}
           isAdmin={isAdmin}
+          myMaxPriority={myMaxPriority}
           onSave={handleSaveChannelSettings}
           onDelete={handleDeleteChannel}
           onClose={() => { setChannelSettingsCtx(null); setChannelSettingsError(null); }}

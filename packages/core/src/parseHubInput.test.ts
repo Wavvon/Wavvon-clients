@@ -46,6 +46,20 @@ describe("parseHubInput — farm-ready invite links (hub serial)", () => {
     expect(r?.inviteCode).toBe("legacycode");
     expect(r?.hubSerial).toBeUndefined();
   });
+
+  it("parses the browser-facing https://host/join/<code> form the hub prints", () => {
+    // The first-boot owner invite log line advertises exactly this shape —
+    // pasting it into Add-hub must carry the code (found live 2026-07-06:
+    // the code was dropped and the join 403'd with 'requires an invite code').
+    expect(parseHubInput("https://hub.example.com/join/a9bfb3169454")).toEqual({
+      hubUrl: "https://hub.example.com",
+      inviteCode: "a9bfb3169454",
+    });
+    const r = parseHubInput("wavvon://hub.example.com/join/codeY");
+    expect(r?.hubUrl).toBe("https://hub.example.com");
+    expect(r?.inviteCode).toBe("codeY");
+    expect(r?.hubSerial).toBeUndefined();
+  });
 });
 
 describe("parseHubInput — deep link targets (nested-channels-ux.md §1.3)", () => {

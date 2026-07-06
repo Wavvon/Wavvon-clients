@@ -24,6 +24,17 @@ function parseInvitePath(codePart: string): { hubSerial: string; inviteCode: str
 }
 
 /**
+ * Parse a `join/<inviteCode>` path tail — the browser-facing invite form the
+ * hub prints alongside the wavvon:// link (`https://host/join/<code>`).
+ * Pasting that link into Add-hub must carry the code too.
+ */
+function parseJoinPath(codePart: string): string | null {
+  const segments = codePart.split("/").filter(Boolean);
+  if (segments[0] !== "join" || !segments[1]) return null;
+  return segments[1];
+}
+
+/**
  * Parse a `channel/{id}` or `channel/{id}/message/{id}` path tail (the part
  * of a wavvon:// deep link after the host) into a permalink target.
  * Anything else — including an empty path — is not a permalink and is left
@@ -86,6 +97,10 @@ export function parseHubInput(raw: string): HubInputResult | null {
     if (invite) {
       return { hubUrl, inviteCode: invite.inviteCode, hubSerial: invite.hubSerial };
     }
+    const joinCode = parseJoinPath(codePart);
+    if (joinCode) {
+      return { hubUrl, inviteCode: joinCode };
+    }
     const target = parseDeepLinkTarget(codePart);
     return {
       hubUrl,
@@ -103,6 +118,11 @@ export function parseHubInput(raw: string): HubInputResult | null {
       const invite = parseInvitePath(url.pathname.replace(/^\/+/, ""));
       if (invite) {
         return { hubUrl, inviteCode: invite.inviteCode, hubSerial: invite.hubSerial };
+      }
+      // Browser-facing invite path: https://host/join/<inviteCode>
+      const joinCode = parseJoinPath(url.pathname.replace(/^\/+/, ""));
+      if (joinCode) {
+        return { hubUrl, inviteCode: joinCode };
       }
       const fromQuery = url.searchParams.get("invite") ?? "";
       const fromHash = url.hash.startsWith("#invite=")

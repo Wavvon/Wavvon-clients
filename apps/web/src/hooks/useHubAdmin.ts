@@ -13,9 +13,13 @@ import type { HubAdminTab } from "../components/HubAdminPage";
 
 interface UseHubAdminParams {
   activeHubId: string | null;
+  /** Called after settings save on the hub succeeds, with the saved name —
+   * the caller owns the locally-stored hub list (whose hub_name is written
+   * at add-time and otherwise never refreshed) and must sync it. */
+  onSaved?: (name: string) => void;
 }
 
-export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
+export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
   const [showHubAdmin, setShowHubAdmin] = useState(false);
   const [hubAdminTab, setHubAdminTab] = useState<HubAdminTab>("overview");
   const [hubAdminName, setHubAdminName] = useState("");
@@ -74,6 +78,7 @@ export function useHubAdmin({ activeHubId }: UseHubAdminParams) {
         welcome_label: hubAdminWelcomeLabel,
         welcome_invite_url: hubAdminWelcomeInviteUrl,
       });
+      onSaved?.(hubAdminName);
     } catch (e) {
       setHubAdminSaveError(e instanceof HubApiError ? e.message : String(e));
     }

@@ -2,7 +2,7 @@
 
 All notable changes to Wavvon Desktop are documented here.
 
-## [0.3.1] — 2026-07-06
+## [0.3.2] — 2026-07-06
 ### Bug Fixes
 - Drop hardcoded pnpm version 9 — use packageManager field
 - Cargo fmt — reformat voice_cmd.rs
@@ -25,6 +25,12 @@ All notable changes to Wavvon Desktop are documented here.
 - Align moderation command endpoints with server route registrations
 - Validate hub-supplied role/category color before CSS background
 - Newly-joined members appear in the member list live
+- Parse https://host/join/<code> invite links in Add-hub input
+- Banner channels lost their image controls — restore URL + upload
+- Permissions-tab rank guard UX, stable tabbed modal size, hub rename sync
+- Hub-dropdown stays open after Invite people / Settings
+- Channel-settings footer polish
+- Emoji channel icons render in the sidebar
 
 ### Documentation
 - Fix renamed GitHub URLs and outdated voice claims in READMEs
@@ -66,6 +72,7 @@ All notable changes to Wavvon Desktop are documented here.
 - Focused-window push-to-talk
 - Multi-profile (named display-name/avatar presets)
 - Onboarding survey builder + member survey
+- Edit a banner channel's image from channel settings
 
 ### Refactoring
 - Extract channel-message, alliance, and WS hooks from App.tsx (desktop + android)

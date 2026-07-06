@@ -2852,6 +2852,14 @@ select,
   animation: scale-in var(--transition-base);
 }
 
+/* Tabbed modals keep one fixed size across tab switches — content scrolls
+   inside instead of the dialog jumping around as tabs change height. */
+.modal.modal-tabbed {
+  width: min(640px, 92vw);
+  height: min(680px, 90vh);
+  overflow-y: auto;
+}
+
 .modal h3 {
   color: var(--text);
   font-weight: var(--weight-bold);
