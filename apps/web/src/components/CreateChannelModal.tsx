@@ -21,8 +21,8 @@ interface Props {
 type ChannelKind = "text" | "forum" | "banner" | "spawner" | "category";
 
 // Hub-side banner upload cap (banner-channels.md): 512 KB, image formats only.
-const BANNER_MAX_BYTES = 512 * 1024;
-const BANNER_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+export const BANNER_MAX_BYTES = 512 * 1024;
+export const BANNER_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
 export function CreateChannelModal({ initialIsCategory, parentId, parentName, loading, error, onSubmit, onClose }: Props) {
   const { t } = useTranslation();

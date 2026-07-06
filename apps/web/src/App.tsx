@@ -1530,17 +1530,30 @@ export default function App() {
     }
   }
 
-  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null) {
+  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, banner?: { url?: string; file?: File | null }) {
     if (!channelSettingsCtx) return;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
     try {
+      // A replacement banner image is uploaded first so its file id can ride
+      // the same PATCH as the rest (the hub clears the other source column).
+      let bannerFileId: string | undefined;
+      if (banner?.file) {
+        bannerFileId = (await uploadFile(channelSettingsCtx.id, banner.file)).id;
+      }
       await hubFetch(`/channels/${channelSettingsCtx.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         // color/icon are appearance fields (require manage_channel_icons);
         // only sent when provided so a plain rename doesn't touch them.
-        body: JSON.stringify({ name, description: description || null, color, icon }),
+        body: JSON.stringify({
+          name,
+          description: description || null,
+          color,
+          icon,
+          banner_url: banner?.url,
+          banner_file_id: bannerFileId,
+        }),
       });
       setChannelSettingsCtx(null);
       hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
