@@ -11,7 +11,7 @@ if [ -z "$VERSION" ]; then
 fi
 
 ROOT="$(git rev-parse --show-toplevel)"
-TAURI_CONF="$ROOT/desktop/src-tauri/tauri.conf.json"
+TAURI_CONF="$ROOT/apps/desktop/src-tauri/tauri.conf.json"
 
 if ! command -v git-cliff >/dev/null 2>&1; then
   echo "git-cliff not found. Install with: cargo install git-cliff" >&2
@@ -31,10 +31,13 @@ node -e "
 "
 
 echo "==> Updating CHANGELOG.md"
-(cd "$ROOT" && git-cliff --unreleased --tag "v$VERSION" -o CHANGELOG.md)
+# Full regeneration. NOT `--unreleased -o`: that combination overwrites the
+# file with ONLY the unreleased section, dropping every previous release's
+# notes (same bug bit the server repo's script).
+(cd "$ROOT" && git-cliff --tag "v$VERSION" -o CHANGELOG.md)
 
 echo "==> Committing on develop"
-git -C "$ROOT" add desktop/src-tauri/tauri.conf.json CHANGELOG.md
+git -C "$ROOT" add apps/desktop/src-tauri/tauri.conf.json CHANGELOG.md
 git -C "$ROOT" commit -m "chore: release v$VERSION"
 
 echo
