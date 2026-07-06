@@ -13,7 +13,6 @@ import type {
   VoiceParticipant,
   ActiveStream,
   Poll,
-  SoundboardClip,
 } from "../types";
 import { UserListGrouped } from "./UserListGrouped";
 import { BotCard } from "./BotCard";
@@ -80,9 +79,6 @@ interface Props {
   reconnectingHubs: Record<string, boolean>;
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
-  voiceChannelId?: string | null;
-  onVoiceJoin?: () => void;
-  onVoiceLeave?: () => void;
   myAvatar?: string | null;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;
@@ -125,27 +121,15 @@ interface Props {
   slashCommands?: SlashCommandEntry[];
   activeScreenShares: ActiveStream[];
   screenShareViewerRef: React.RefObject<ScreenShareViewerRef | null>;
-  sharing?: boolean;
-  shareKbps?: number;
-  onStartShare?: () => void;
-  onStopShare?: () => void;
   videoEnabled?: boolean;
   localVideoStream?: MediaStream | null;
   remoteVideoStreams?: Map<string, MediaStream>;
-  onToggleVideo?: () => void;
   videoNameFor?: (pubkey: string) => string;
   onOpenHubStreams?: () => void;
   assertiveAnnouncement?: string;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onOpenUserProfile?: (pubkey: string) => void;
-  selfMuted?: boolean;
-  selfDeafened?: boolean;
-  onToggleSelfMute?: () => void;
-  onToggleSelfDeafen?: () => void;
-  canUseSoundboard?: boolean;
-  onTriggerSoundboardClip?: (clip: SoundboardClip) => void;
-  soundboardPlayingClipId?: string | null;
 }
 
 export function ContentArea({
@@ -156,7 +140,7 @@ export function ContentArea({
   users, publicKey, blockedUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
-  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, voiceChannelId, onVoiceJoin, onVoiceLeave,
+  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers,
   myAvatar,
   inputText, typingByKey, dmTypingByKey,
   messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
@@ -172,14 +156,11 @@ export function ContentArea({
   onOpenImage, onToast, onError,
   slashCommands = [],
   activeScreenShares, screenShareViewerRef,
-  sharing, shareKbps, onStartShare, onStopShare,
-  videoEnabled, localVideoStream, remoteVideoStreams, onToggleVideo, videoNameFor, onOpenHubStreams,
+  videoEnabled, localVideoStream, remoteVideoStreams, videoNameFor, onOpenHubStreams,
   assertiveAnnouncement = "",
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
   onOpenUserProfile,
-  selfMuted, selfDeafened, onToggleSelfMute, onToggleSelfDeafen,
-  canUseSoundboard, onTriggerSoundboardClip, soundboardPlayingClipId,
 }: Props) {
   const { t } = useTranslation();
 
@@ -485,42 +466,27 @@ export function ContentArea({
               selectedChannel={selectedChannel}
               channels={channels}
               activeHubUrl={activeHub?.hub_url}
-              voiceChannelId={voiceChannelId}
               memberSidebarHidden={memberSidebarHidden}
               searchOpen={searchOpen}
               searchQuery={searchQuery}
               searchResults={searchResults}
               activeScreenShares={activeScreenShares}
               screenShareViewerRef={screenShareViewerRef}
-              sharing={sharing}
-              shareKbps={shareKbps}
               isAdmin={isAdmin}
-              onVoiceJoin={onVoiceJoin}
-              onVoiceLeave={onVoiceLeave}
               onShowPinned={() => setShowPinsModal(true)}
               onToggleSearch={() => searchOpen ? onCloseSearch() : onSetSearchOpen(true)}
               onCloseSearch={onCloseSearch}
               onSetSearchQuery={onSetSearchQuery}
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
-              onStartShare={onStartShare}
-              onStopShare={onStopShare}
               videoEnabled={videoEnabled}
               localVideoStream={localVideoStream}
               remoteVideoStreams={remoteVideoStreams}
-              onToggleVideo={onToggleVideo}
               videoNameFor={videoNameFor}
               onOpenHubStreams={onOpenHubStreams}
               onToast={onToast}
               onError={onError}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
-              selfMuted={selfMuted}
-              selfDeafened={selfDeafened}
-              onToggleSelfMute={onToggleSelfMute}
-              onToggleSelfDeafen={onToggleSelfDeafen}
-              canUseSoundboard={canUseSoundboard}
-              onTriggerSoundboardClip={onTriggerSoundboardClip}
-              soundboardPlayingClipId={soundboardPlayingClipId}
             />
             <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               {(["messages", "events"] as const).map((tab) => (

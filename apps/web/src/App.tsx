@@ -2578,6 +2578,10 @@ export default function App() {
         onTriggerSoundboardClip={handleTriggerSoundboardClip}
         soundboardPlayingClipId={soundboardPlayingClipId}
         soundboardChips={voiceChannelId ? soundboardChipsByChannel[voiceChannelId] ?? [] : []}
+        sharing={sharing}
+        onScreenShare={() => (sharing ? handleStopShare() : void handleStartShare())}
+        videoEnabled={videoEnabled}
+        onToggleVideo={handleToggleVideo}
       />
 
       {activeOpenApp && (
@@ -2684,9 +2688,6 @@ export default function App() {
         reconnectingHubs={reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voiceActiveUsers}
-        voiceChannelId={voiceChannelId}
-        onVoiceJoin={() => selectedChannel && void handleVoiceJoin(selectedChannel)}
-        onVoiceLeave={handleVoiceLeave}
         myAvatar={meInfo?.avatar ?? null}
         inputText={inputText}
         typingByKey={channelTypingByKey}
@@ -2745,24 +2746,12 @@ export default function App() {
         slashCommands={slashCommands}
         activeScreenShares={activeScreenShares}
         screenShareViewerRef={screenShareViewerRef}
-        sharing={sharing}
-        shareKbps={shareKbps}
-        onStartShare={handleStartShare}
-        onStopShare={handleStopShare}
         videoEnabled={videoEnabled}
         localVideoStream={localVideoStream}
         remoteVideoStreams={remoteVideoStreams}
-        onToggleVideo={handleToggleVideo}
         videoNameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
         onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
-        selfMuted={selfMuted}
-        selfDeafened={selfDeafened}
-        onToggleSelfMute={handleToggleMute}
-        onToggleSelfDeafen={handleToggleDeafen}
-        canUseSoundboard={canUseSoundboard}
-        onTriggerSoundboardClip={handleTriggerSoundboardClip}
-        soundboardPlayingClipId={soundboardPlayingClipId}
       /></>}
       </MobileShell>
 

@@ -25,7 +25,7 @@ import type {
 } from "../types";
 import type { TreeNode, FlatNode } from "@wavvon/core";
 import { channelPath, findTreeNode, formatPubkey } from "@wavvon/core";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon } from "./Icons";
+import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon } from "./Icons";
 import { SortableCategoryItem, SortableChannelItem } from "./SortableItems";
 import { SoundboardPopover } from "./SoundboardPopover";
 import { HoverSubmenu } from "@wavvon/ui";
@@ -214,6 +214,8 @@ interface Props {
   onToggleHideSilenced?: () => void;
   sharing?: boolean;
   onScreenShare?: () => void;
+  videoEnabled?: boolean;
+  onToggleVideo?: () => void;
   voiceGains?: Record<string, number>;
   onSetVoiceGain?: (pk: string, gainPct: number) => void;
   canUseSoundboard?: boolean;
@@ -238,6 +240,7 @@ export function ChannelSidebar({
   onSelectAllianceChannel, onSelectConversation,
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
+  videoEnabled, onToggleVideo,
   voiceGains, onSetVoiceGain,
   canUseSoundboard, onTriggerSoundboardClip, soundboardPlayingClipId, soundboardChips,
 }: Props) {
@@ -792,13 +795,6 @@ export function ChannelSidebar({
               {activePing !== undefined && <PingIcon ping={activePing} />}
             </div>
 
-            {/* The channel header already carries the full voice command row
-                for the channel you're viewing (voice UI consolidation, #25/#28).
-                Only show this footer control set when you've navigated AWAY from
-                your active voice channel — otherwise it's a duplicate. The
-                status strip above stays either way as the "you're in voice"
-                indicator. */}
-            {selectedChannel?.id !== voiceChannelId && (
             <div className="user-actions">
               <div className="user-actions-icons">
                 <button
@@ -819,6 +815,12 @@ export function ChannelSidebar({
                 >
                   <DeafenIcon muted={selfDeafened} />
                 </button>
+                {canUseSoundboard && onTriggerSoundboardClip && (
+                  <SoundboardPopover
+                    onTrigger={onTriggerSoundboardClip}
+                    playingClipId={soundboardPlayingClipId ?? null}
+                  />
+                )}
                 {onScreenShare && (
                   <button
                     onClick={onScreenShare}
@@ -828,11 +830,15 @@ export function ChannelSidebar({
                     <ScreenShareIcon />
                   </button>
                 )}
-                {canUseSoundboard && onTriggerSoundboardClip && (
-                  <SoundboardPopover
-                    onTrigger={onTriggerSoundboardClip}
-                    playingClipId={soundboardPlayingClipId ?? null}
-                  />
+                {onToggleVideo && (
+                  <button
+                    onClick={onToggleVideo}
+                    className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
+                    title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                    aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                  >
+                    {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
+                  </button>
                 )}
                 <button
                   onClick={onVoiceLeave}
@@ -844,7 +850,6 @@ export function ChannelSidebar({
                 </button>
               </div>
             </div>
-            )}
             {voiceChannelId && (voicePartByChannel[voiceChannelId]?.length ?? 0) > 0 && (
               <div className="voice-participants-list">
                 {voicePartByChannel[voiceChannelId].map((p) => (

@@ -1,102 +1,66 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { channelPath } from "@wavvon/core";
-import type { Channel, Message, ActiveStream, SoundboardClip } from "../../types";
+import type { Channel, Message, ActiveStream } from "../../types";
 import { ScreenShareViewer } from "../ScreenShareViewer";
 import type { ScreenShareViewerRef } from "../ScreenShareViewer";
 import { VideoGrid } from "../VideoGrid";
-import { SoundboardPopover } from "../SoundboardPopover";
-import {
-  PhoneIcon, PhoneOffIcon, MicOnIcon, MicOffIcon, DeafenIcon,
-  ScreenShareIcon, CameraOnIcon, CameraOffIcon,
-} from "../Icons";
 
 interface Props {
   selectedChannel: Channel;
   channels: Channel[];
   activeHubUrl?: string;
-  voiceChannelId?: string | null;
   memberSidebarHidden: boolean;
   searchOpen: boolean;
   searchQuery: string;
   searchResults: Message[] | null;
   activeScreenShares: ActiveStream[];
   screenShareViewerRef: React.RefObject<ScreenShareViewerRef | null>;
-  sharing?: boolean;
-  shareKbps?: number;
   isAdmin: boolean;
-  onVoiceJoin?: () => void;
-  onVoiceLeave?: () => void;
   onShowPinned: () => void;
   onToggleSearch: () => void;
   onCloseSearch: () => void;
   onSetSearchQuery: (v: string) => void;
   onToggleMemberSidebar: () => void;
   onOpenEditDescription: (channel: Channel) => void;
-  onStartShare?: () => void;
-  onStopShare?: () => void;
   videoEnabled?: boolean;
   localVideoStream?: MediaStream | null;
   remoteVideoStreams?: Map<string, MediaStream>;
-  onToggleVideo?: () => void;
   videoNameFor?: (pubkey: string) => string;
   onOpenHubStreams?: () => void;
   onToast: (msg: string) => void;
   onError: (msg: string) => void;
   onBreadcrumbCategoryClick: (categoryId: string) => void;
-  selfMuted?: boolean;
-  selfDeafened?: boolean;
-  onToggleSelfMute?: () => void;
-  onToggleSelfDeafen?: () => void;
-  canUseSoundboard?: boolean;
-  onTriggerSoundboardClip?: (clip: SoundboardClip) => void;
-  soundboardPlayingClipId?: string | null;
 }
 
 export function ChannelHeader({
   selectedChannel,
   channels,
   activeHubUrl,
-  voiceChannelId,
   memberSidebarHidden,
   searchOpen,
   searchQuery,
   searchResults,
   activeScreenShares,
   screenShareViewerRef,
-  sharing,
-  shareKbps,
   isAdmin,
-  onVoiceJoin,
-  onVoiceLeave,
   onShowPinned,
   onToggleSearch,
   onCloseSearch,
   onSetSearchQuery,
   onToggleMemberSidebar,
   onOpenEditDescription,
-  onStartShare,
-  onStopShare,
   videoEnabled,
   localVideoStream,
   remoteVideoStreams,
-  onToggleVideo,
   videoNameFor,
   onOpenHubStreams,
   onToast,
   onError,
   onBreadcrumbCategoryClick,
-  selfMuted,
-  selfDeafened,
-  onToggleSelfMute,
-  onToggleSelfDeafen,
-  canUseSoundboard,
-  onTriggerSoundboardClip,
-  soundboardPlayingClipId,
 }: Props) {
   const { t } = useTranslation();
   const breadcrumb = channelPath(channels, selectedChannel.id);
-  const inVoice = voiceChannelId === selectedChannel.id;
 
   async function copyChannelLink() {
     if (!activeHubUrl) return;
@@ -189,85 +153,6 @@ export function ChannelHeader({
           {memberSidebarHidden ? "👥" : "👤"}
         </button>
       </div>
-
-      {!selectedChannel.is_category && (
-        <div className="channel-voice-row">
-          {!inVoice ? (
-            <button
-              onClick={onVoiceJoin}
-              className="btn-voice-header btn-voice-join"
-              title={t("voice.join")}
-            >
-              <PhoneIcon />
-              {t("voice.join.header")}
-            </button>
-          ) : (
-            <>
-              {onToggleSelfMute && (
-                <button
-                  onClick={onToggleSelfMute}
-                  className={`btn-icon-gear ${selfMuted ? "active" : ""}`}
-                  aria-pressed={selfMuted}
-                  aria-label={selfMuted ? t("voice.unmute") : t("voice.mute")}
-                  title={selfMuted ? t("voice.unmute.short") : t("voice.mute.short")}
-                >
-                  {selfMuted ? <MicOffIcon /> : <MicOnIcon />}
-                </button>
-              )}
-              {onToggleSelfDeafen && (
-                <button
-                  onClick={onToggleSelfDeafen}
-                  className={`btn-icon-gear ${selfDeafened ? "active" : ""}`}
-                  aria-pressed={selfDeafened}
-                  aria-label={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}
-                  title={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}
-                >
-                  <DeafenIcon muted={selfDeafened} />
-                </button>
-              )}
-              {canUseSoundboard && onTriggerSoundboardClip && (
-                <SoundboardPopover
-                  onTrigger={onTriggerSoundboardClip}
-                  playingClipId={soundboardPlayingClipId ?? null}
-                />
-              )}
-              {onStartShare && onStopShare && (
-                <>
-                  <button
-                    onClick={sharing ? onStopShare : onStartShare}
-                    className={`btn-icon-gear ${sharing ? "active" : ""}`}
-                    title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
-                    aria-label={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
-                  >
-                    <ScreenShareIcon />
-                  </button>
-                  {sharing && (shareKbps ?? 0) > 0 && (
-                    <span className="muted channel-voice-row-kbps">{shareKbps} kbps</span>
-                  )}
-                </>
-              )}
-              {onToggleVideo && (
-                <button
-                  onClick={onToggleVideo}
-                  className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
-                  title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                  aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                >
-                  {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
-                </button>
-              )}
-              <button
-                onClick={onVoiceLeave}
-                className="btn-icon-gear voice-call-btn end"
-                title={t("voice.leave")}
-                aria-label={t("voice.leave")}
-              >
-                <PhoneOffIcon />
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {searchOpen && (
         <div className="search-bar">
