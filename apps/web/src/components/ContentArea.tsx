@@ -121,10 +121,6 @@ interface Props {
   slashCommands?: SlashCommandEntry[];
   activeScreenShares: ActiveStream[];
   screenShareViewerRef: React.RefObject<ScreenShareViewerRef | null>;
-  videoEnabled?: boolean;
-  localVideoStream?: MediaStream | null;
-  remoteVideoStreams?: Map<string, MediaStream>;
-  videoNameFor?: (pubkey: string) => string;
   onOpenHubStreams?: () => void;
   assertiveAnnouncement?: string;
   pinnedMessageIds?: Set<string>;
@@ -156,7 +152,7 @@ export function ContentArea({
   onOpenImage, onToast, onError,
   slashCommands = [],
   activeScreenShares, screenShareViewerRef,
-  videoEnabled, localVideoStream, remoteVideoStreams, videoNameFor, onOpenHubStreams,
+  onOpenHubStreams,
   assertiveAnnouncement = "",
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
@@ -465,7 +461,6 @@ export function ContentArea({
             <ChannelHeader
               selectedChannel={selectedChannel}
               channels={channels}
-              activeHubUrl={activeHub?.hub_url}
               memberSidebarHidden={memberSidebarHidden}
               searchOpen={searchOpen}
               searchQuery={searchQuery}
@@ -479,13 +474,7 @@ export function ContentArea({
               onSetSearchQuery={onSetSearchQuery}
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
-              videoEnabled={videoEnabled}
-              localVideoStream={localVideoStream}
-              remoteVideoStreams={remoteVideoStreams}
-              videoNameFor={videoNameFor}
               onOpenHubStreams={onOpenHubStreams}
-              onToast={onToast}
-              onError={onError}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
             <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>

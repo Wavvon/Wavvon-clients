@@ -4,12 +4,10 @@ import { channelPath } from "@wavvon/core";
 import type { Channel, Message, ActiveStream } from "../../types";
 import { ScreenShareViewer } from "../ScreenShareViewer";
 import type { ScreenShareViewerRef } from "../ScreenShareViewer";
-import { VideoGrid } from "../VideoGrid";
 
 interface Props {
   selectedChannel: Channel;
   channels: Channel[];
-  activeHubUrl?: string;
   memberSidebarHidden: boolean;
   searchOpen: boolean;
   searchQuery: string;
@@ -23,20 +21,13 @@ interface Props {
   onSetSearchQuery: (v: string) => void;
   onToggleMemberSidebar: () => void;
   onOpenEditDescription: (channel: Channel) => void;
-  videoEnabled?: boolean;
-  localVideoStream?: MediaStream | null;
-  remoteVideoStreams?: Map<string, MediaStream>;
-  videoNameFor?: (pubkey: string) => string;
   onOpenHubStreams?: () => void;
-  onToast: (msg: string) => void;
-  onError: (msg: string) => void;
   onBreadcrumbCategoryClick: (categoryId: string) => void;
 }
 
 export function ChannelHeader({
   selectedChannel,
   channels,
-  activeHubUrl,
   memberSidebarHidden,
   searchOpen,
   searchQuery,
@@ -50,28 +41,11 @@ export function ChannelHeader({
   onSetSearchQuery,
   onToggleMemberSidebar,
   onOpenEditDescription,
-  videoEnabled,
-  localVideoStream,
-  remoteVideoStreams,
-  videoNameFor,
   onOpenHubStreams,
-  onToast,
-  onError,
   onBreadcrumbCategoryClick,
 }: Props) {
   const { t } = useTranslation();
   const breadcrumb = channelPath(channels, selectedChannel.id);
-
-  async function copyChannelLink() {
-    if (!activeHubUrl) return;
-    const link = `wavvon://${activeHubUrl.replace(/^https?:\/\//, "")}/channel/${selectedChannel.id}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      onToast(t("message.action.link_copied"));
-    } catch (e) {
-      onError(String(e));
-    }
-  }
 
   return (
     <>
@@ -113,14 +87,6 @@ export function ChannelHeader({
             </p>
           ) : null}
         </div>
-        <button
-          onClick={copyChannelLink}
-          className="btn-icon-header"
-          title={t("channel.ctx.copy_link")}
-          aria-label={t("channel.ctx.copy_link")}
-        >
-          🔗
-        </button>
         {onOpenHubStreams && (
           <button
             onClick={onOpenHubStreams}
@@ -176,13 +142,6 @@ export function ChannelHeader({
         <ScreenShareViewer
           ref={screenShareViewerRef}
           streams={activeScreenShares}
-        />
-      )}
-      {(videoEnabled || (remoteVideoStreams && remoteVideoStreams.size > 0)) && (
-        <VideoGrid
-          localStream={localVideoStream ?? null}
-          remoteStreams={remoteVideoStreams ?? new Map()}
-          nameFor={videoNameFor ?? ((pk) => pk.slice(0, 8))}
         />
       )}
     </>

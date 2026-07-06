@@ -53,6 +53,21 @@ export function categoryHasVisibleChannel(node: TreeNode): boolean {
   return false;
 }
 
+// Drag-resize bounds for the channel sidebar. The lower bound keeps the
+// voice-controls footer usable; the upper bound protects the message pane.
+const SIDEBAR_MIN_W = 220;
+const SIDEBAR_MAX_W = 480;
+const SIDEBAR_DEFAULT_W = 260;
+const SIDEBAR_WIDTH_KEY = "wavvon.sidebarWidth";
+
+function loadSidebarWidth(): number {
+  try {
+    const n = parseInt(localStorage.getItem(SIDEBAR_WIDTH_KEY) ?? "", 10);
+    if (Number.isFinite(n)) return Math.min(SIDEBAR_MAX_W, Math.max(SIDEBAR_MIN_W, n));
+  } catch { /* ignore */ }
+  return SIDEBAR_DEFAULT_W;
+}
+
 function gainIcon(gainPct: number): string {
   if (gainPct === 0) return "🔇";
   if (gainPct < 100) return "🔉";
@@ -265,6 +280,27 @@ export function ChannelSidebar({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [showStatusMenu]);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(loadSidebarWidth);
+  const resizeDragRef = useRef<{ startX: number; origW: number } | null>(null);
+
+  function onResizeStart(e: React.PointerEvent) {
+    resizeDragRef.current = { startX: e.clientX, origW: sidebarWidth };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function onResizeMove(e: React.PointerEvent) {
+    const d = resizeDragRef.current;
+    if (!d) return;
+    setSidebarWidth(Math.min(SIDEBAR_MAX_W, Math.max(SIDEBAR_MIN_W, d.origW + (e.clientX - d.startX))));
+  }
+  function onResizeEnd() {
+    if (!resizeDragRef.current) return;
+    resizeDragRef.current = null;
+    setSidebarWidth((w) => {
+      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w)); } catch { /* ignore */ }
+      return w;
+    });
+  }
+
   const hubHeaderRef = useRef<HTMLDivElement>(null);
   const [channelFocusIndex, setChannelFocusIndex] = useState(0);
   const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -432,7 +468,21 @@ export function ChannelSidebar({
   }, [flatVisible, activeHubId, collapsedCategories, onToggleCategoryCollapsed, onSelectChannel, onVoiceJoin]);
 
   return (
-    <nav className="sidebar" aria-label={t("channel.sidebar.label")}>
+    <nav className="sidebar" style={{ width: sidebarWidth }} aria-label={t("channel.sidebar.label")}>
+      <div
+        className="sidebar-resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t("channel.sidebar.resize")}
+        onPointerDown={onResizeStart}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeEnd}
+        onPointerCancel={onResizeEnd}
+        onDoubleClick={() => {
+          setSidebarWidth(SIDEBAR_DEFAULT_W);
+          try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(SIDEBAR_DEFAULT_W)); } catch { /* ignore */ }
+        }}
+      />
       {view === "channels" && (
         <div className="hub-header" ref={hubHeaderRef}>
           <button

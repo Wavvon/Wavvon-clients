@@ -20,6 +20,7 @@ import { PollCard } from "../PollCard";
 import { pinMessage, unpinMessage } from "@platform";
 import { reportMessage } from "../../platform/commands/moderation";
 import { Avatar, MessageAttachments, MessageContent } from "@wavvon/ui";
+import { MessageContextMenu } from "./MessageContextMenu";
 
 interface Props {
   message: Message;
@@ -114,6 +115,7 @@ export function MessageRow({
   const [reporting, setReporting] = useState(false);
   const [reportDraft, setReportDraft] = useState("");
   const [reported, setReported] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
 
   const showSeparator = !prevMessage || dayKey(m.created_at) !== dayKey(prevMessage.created_at);
   const isMine = m.sender === publicKey;
@@ -126,6 +128,70 @@ export function MessageRow({
   const isMentioned = m.sender !== publicKey && mentionsName(m.content, myDisplayName);
   const isEphemeral = !!m.visible_to_pubkey && m.visible_to_pubkey === publicKey;
   const actionText = meAction(m.content);
+
+  // The author name/avatar already open the user menu on right-click
+  // (their handler calls preventDefault) — only claim the event when it
+  // bubbled from anywhere else on the row.
+  function handleRowContextMenu(e: React.MouseEvent) {
+    if (e.defaultPrevented) return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  async function copyMessageLink() {
+    const hub = hubs.find((h) => h.hub_id === activeHubId);
+    if (!hub) return;
+    const link = `wavvon://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${m.channel_id}/message/${m.id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      onToast(t("message.action.link_copied"));
+    } catch (e) {
+      onError(String(e));
+    }
+  }
+
+  async function copyMessageText() {
+    try {
+      await navigator.clipboard.writeText(m.content);
+      onToast(t("message.action.text_copied"));
+    } catch (e) {
+      onError(String(e));
+    }
+  }
+
+  async function togglePin() {
+    const isPinned = pinnedMessageIds.has(m.id);
+    try {
+      if (isPinned) {
+        await unpinMessage(m.channel_id, m.id);
+      } else {
+        await pinMessage(m.channel_id, m.id);
+      }
+      onPinToggle?.(m.id, !isPinned);
+    } catch { /* pin failed silently */ }
+  }
+
+  const contextMenu = ctxMenu ? (
+    <MessageContextMenu
+      position={ctxMenu}
+      senderLabel={senderLabel}
+      senderPubkey={m.sender}
+      isMine={isMine}
+      canDelete={canDelete}
+      isAdmin={isAdmin}
+      isPinned={pinnedMessageIds.has(m.id)}
+      onClose={() => setCtxMenu(null)}
+      onReply={() => onSetReplyTarget(m)}
+      onCopyText={() => void copyMessageText()}
+      onCopyLink={() => void copyMessageLink()}
+      onPinToggle={() => void togglePin()}
+      onEdit={() => onStartEdit(m)}
+      onDelete={() => onDeleteMessage(m.id)}
+      onReport={() => setReporting(true)}
+      onViewProfile={() => onAuthorClick(m.sender)}
+      onToast={onToast}
+    />
+  ) : null;
 
   const POLL_PREFIX = "**Poll:** ";
   const pollQuestion = m.content.startsWith(POLL_PREFIX) ? m.content.slice(POLL_PREFIX.length) : null;
@@ -159,6 +225,7 @@ export function MessageRow({
           id={`msg-${m.id}`}
           tabIndex={focusedMessageIndex === i ? 0 : -1}
           onKeyDown={(e) => onMessageKeyDown(e, i, displayedMessages)}
+          onContextMenu={handleRowContextMenu}
           aria-label={msgAriaLabel}
           className={`message message-action message-row ${isMentioned ? "message-mentioned" : ""}`}
         >
@@ -173,6 +240,7 @@ export function MessageRow({
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} />
           </span>
+          {contextMenu}
         </li>
       </React.Fragment>
     );
@@ -186,6 +254,7 @@ export function MessageRow({
         id={`msg-${m.id}`}
         tabIndex={focusedMessageIndex === i ? 0 : -1}
         onKeyDown={(e) => onMessageKeyDown(e, i, displayedMessages)}
+        onContextMenu={handleRowContextMenu}
         aria-label={msgAriaLabel}
         className={`message message-row ${isMentioned ? "message-mentioned" : ""} ${isEphemeral ? "message-ephemeral" : ""}`}
       >
@@ -279,17 +348,7 @@ export function MessageRow({
               </button>
               <button
                 className="message-action"
-                onClick={async () => {
-                  const hub = hubs.find((h) => h.hub_id === activeHubId);
-                  if (!hub) return;
-                  const link = `wavvon://${hub.hub_url.replace(/^https?:\/\//, "")}/channel/${m.channel_id}/message/${m.id}`;
-                  try {
-                    await navigator.clipboard.writeText(link);
-                    onToast(t("message.action.link_copied"));
-                  } catch (e) {
-                    onError(String(e));
-                  }
-                }}
+                onClick={() => void copyMessageLink()}
                 title={t("message.action.copy_link")}
                 aria-label={t("message.action.copy_link")}
               >
@@ -298,17 +357,7 @@ export function MessageRow({
               {isAdmin && (
                 <button
                   className="message-action"
-                  onClick={async () => {
-                    const isPinned = pinnedMessageIds.has(m.id);
-                    try {
-                      if (isPinned) {
-                        await unpinMessage(m.channel_id, m.id);
-                      } else {
-                        await pinMessage(m.channel_id, m.id);
-                      }
-                      onPinToggle?.(m.id, !isPinned);
-                    } catch { /* pin failed silently */ }
-                  }}
+                  onClick={() => void togglePin()}
                   title={pinnedMessageIds.has(m.id) ? "Unpin message" : "Pin message"}
                   aria-label={pinnedMessageIds.has(m.id) ? "Unpin message" : "Pin message"}
                 >
@@ -436,6 +485,7 @@ export function MessageRow({
             )}
           </>
         )}
+        {contextMenu}
       </li>
     </React.Fragment>
   );

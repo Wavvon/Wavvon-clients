@@ -60,6 +60,7 @@ import { SearchBar } from "@components/SearchBar";
 import { WelcomeScreenContainer } from "@components/WelcomeScreen";
 import { SettingsPage } from "@components/SettingsPage";
 import { UserContextMenu } from "@components/UserContextMenu";
+import { VideoPipWindow } from "@components/VideoPipWindow";
 import { FriendsModal } from "@components/FriendsModal";
 import { MobileShell } from "@components/MobileShell";
 import { DiscoverPage } from "@components/DiscoverPage";
@@ -2438,6 +2439,15 @@ export default function App() {
         />
       )}
 
+      {voiceChannelId && (videoEnabled || remoteVideoStreams.size > 0) && (
+        <VideoPipWindow
+          title={`#${channels.find((c) => c.id === voiceChannelId)?.name ?? "voice"}`}
+          localStream={localVideoStream}
+          remoteStreams={remoteVideoStreams}
+          nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
+        />
+      )}
+
       {showFarmSettings && (
         <FarmSettingsPage
           farmUrl={farmAdminUrl}
@@ -2746,10 +2756,6 @@ export default function App() {
         slashCommands={slashCommands}
         activeScreenShares={activeScreenShares}
         screenShareViewerRef={screenShareViewerRef}
-        videoEnabled={videoEnabled}
-        localVideoStream={localVideoStream}
-        remoteVideoStreams={remoteVideoStreams}
-        videoNameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
         onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
       /></>}
@@ -2887,6 +2893,26 @@ export default function App() {
                   );
                 })}
               </HoverSubmenu>
+            )}
+            {!channelCtxMenu.channel.is_category && activeHubId && (
+              <button
+                className="context-menu-item"
+                onClick={async () => {
+                  const ch = channelCtxMenu.channel;
+                  setChannelCtxMenu(null);
+                  const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+                  if (!hubUrl) return;
+                  const link = `wavvon://${hubUrl.replace(/^https?:\/\//, "")}/channel/${ch.id}`;
+                  try {
+                    await navigator.clipboard.writeText(link);
+                    showHubError(t("message.action.link_copied"));
+                  } catch (e) {
+                    showHubError(String(e));
+                  }
+                }}
+              >
+                {t("channel.ctx.copy_link")}
+              </button>
             )}
             {!channelCtxMenu.channel.is_category &&
               channelCtxMenu.channel.is_temporary &&

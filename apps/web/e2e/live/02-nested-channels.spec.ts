@@ -69,10 +69,12 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
   await allChannels.click();
   await expect(page.getByRole("group", { name: levels[0] })).toBeVisible();
 
-  // Permalink round-trip: copy the channel link, clear the selection by
-  // reloading, then paste the wavvon:// link into the Add Hub modal —
-  // for an already-joined hub it must select the channel directly.
+  // Permalink round-trip: copy the channel link from the channel's
+  // right-click context menu, clear the selection by reloading, then paste
+  // the wavvon:// link into the Add Hub modal — for an already-joined hub
+  // it must select the channel directly.
   await page.getByRole("button", { name: leaf, exact: true }).click();
+  await page.getByRole("button", { name: leaf, exact: true }).click({ button: "right" });
   await page.getByRole("button", { name: "Copy channel link" }).click();
   const link = await page.evaluate(() => navigator.clipboard.readText());
   expect(link).toMatch(new RegExp(`^wavvon://${new URL(HUB_URL).host}/channel/`));
