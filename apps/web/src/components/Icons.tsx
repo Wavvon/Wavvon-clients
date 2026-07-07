@@ -66,11 +66,19 @@ export function DeafenIcon({ size = 16, muted = false }: { size?: number; muted?
 }
 
 export function ScreenShareIcon({ size = 16 }: { size?: number }) {
+  // Feather "monitor": stroke-based like the camera icons next to it. The
+  // previous filled path was corrupted — its outer frame and inner cutout
+  // shared the same right edge, so the monitor had no right bezel and
+  // looked cut off.
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      {/* The path's ink spans x 1..21, y 3..24 — off-center on the 24x24
-          canvas. Recenter instead of redrawing. */}
-      <path transform="translate(1 -1.5)" d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6l-1 3h6l-1-3h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12z" />
+    <svg
+      viewBox="0 0 24 24" width={size} height={size}
+      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
     </svg>
   );
 }
