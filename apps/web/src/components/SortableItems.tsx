@@ -208,15 +208,6 @@ export function SortableChannelItem({
           <span className="channel-draft-badge" title="Unsent draft">Draft</span>
         )}
         {!isSpawner && muted && <span className="channel-muted-icon" title="Muted" aria-hidden="true">🔕</span>}
-        {!isSpawner && participants.length > 0 && (
-          <span
-            className="channel-voice-badge"
-            title={`${participants.length} in voice`}
-            aria-hidden="true"
-          >
-            🎙️ {participants.length}
-          </span>
-        )}
         {onSettings && (
           <button
             className="channel-settings-btn"
