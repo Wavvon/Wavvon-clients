@@ -32,7 +32,7 @@ import { ActiveHubProfileSection } from "./ActiveHubProfileSection";
 import { HomeHubsSection } from "./HomeHubsSection";
 import { DevicesSection } from "./DevicesSection";
 
-export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice";
+export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice" | "camera";
 
 const VOICE_PROFILE_KEY = "wavvon.audio_profile";
 
@@ -381,6 +381,7 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
     { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
     { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
+    { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
     { id: "account", label: t("settings.tabs.account"), group: G_SECURITY },
   ];
   const NOTIF_LEVELS: { value: NotifLevel; label: string }[] = [
@@ -625,9 +626,6 @@ export function SettingsPage(props: SettingsPageProps) {
             <MicLevelMeter />
             <PushToTalkSection />
 
-            <h2 className="settings-subheading">{t("settings.voice.section.camera")}</h2>
-            <CameraSection />
-
             {/* Codec/quality tuning is advanced and rarely touched — last. */}
             <AudioProfileSection
               profile={audioProfile.profile}
@@ -650,6 +648,14 @@ export function SettingsPage(props: SettingsPageProps) {
               onCustomComplexity={(v) => updateAudioProfile({ customComplexity: v })}
               inVoice={false}
             />
+          </section>
+        )}
+        
+        {props.tab === "camera" && (
+          <section>
+            <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.camera")}</h1>
+            <CameraSection />
+
           </section>
         )}
 

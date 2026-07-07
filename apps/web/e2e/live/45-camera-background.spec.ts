@@ -7,15 +7,15 @@ import { expectInHub } from "./helpers/live";
 // still works with an effect selected, and that the model is served locally
 // (self-hosted, no CDN).
 
-async function openVoiceSettings(page: import("@playwright/test").Page) {
+async function openCameraSettings(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice & Video", exact: true }).click();
+  await page.getByRole("button", { name: "Camera", exact: true }).click();
 }
 
 test("background picker offers none/blur/image/video and persists the choice", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openVoiceSettings(page);
+  await openCameraSettings(page);
 
   const select = page.getByLabel("Background effect").first();
   await expect(select).toBeVisible({ timeout: 10000 });
@@ -30,7 +30,7 @@ test("background picker offers none/blur/image/video and persists the choice", a
 test("camera preview still works with blur selected, and the model is self-hosted", async ({ page, baseURL }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openVoiceSettings(page);
+  await openCameraSettings(page);
 
   const section = page
     .locator(".settings-section", { has: page.getByText("Camera", { exact: true }) })

@@ -9,7 +9,7 @@ import {
 } from "../utils/backgroundProcessor";
 
 // Camera device selection, background effects, and a live preview
-// (Settings → Voice). The chosen device is read by App when enabling the
+// (Settings → Camera). The chosen device is read by App when enabling the
 // camera in voice (wavvon.videoInputDevice); the background effect
 // (wavvon.bgMode/bgSource) is applied there too, and live via a
 // "wavvon:bgchange" event.
@@ -129,25 +129,21 @@ export function CameraSection() {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Camera</label>
-      <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        Choose your camera and a background effect, and preview it. Applies the next time you turn your camera on in voice.
-      </p>
 
       <div className="settings-row-2col">
         <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
-          <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-device">Camera</label>
-          <select id="camera-device" aria-label="Camera device" value={device} onChange={(e) => pickDevice(e.target.value)} style={{ width: "100%" }}>
-            <option value="">System default</option>
-            {cameras.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>)}
+          <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-device">{t("settings.camera.device_label")}</label>
+          <select id="camera-device" aria-label={t("settings.camera.device_aria")} value={device} onChange={(e) => pickDevice(e.target.value)} style={{ width: "100%" }}>
+            <option value="">{t("settings.camera.system_default")}</option>
+            {cameras.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || t("settings.camera.fallback_name", { num: i + 1 })}</option>)}
           </select>
         </div>
 
         <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
-          <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-bg">Background</label>
+          <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="camera-bg">{t("settings.camera.background_label")}</label>
           <select
             id="camera-bg"
-            aria-label="Background effect"
+            aria-label={t("settings.camera.background_aria")}
             value={mode}
             onChange={(e) => {
               const m = e.target.value as BackgroundMode;
@@ -156,19 +152,19 @@ export function CameraSection() {
             }}
             style={{ width: "100%" }}
           >
-            <option value="none">None</option>
-            <option value="blur">Blur</option>
-            <option value="image">Image</option>
-            <option value="video">Video</option>
+            <option value="none">{t("settings.camera.bg.none")}</option>
+            <option value="blur">{t("settings.camera.bg.blur")}</option>
+            <option value="image">{t("settings.camera.bg.image")}</option>
+            <option value="video">{t("settings.camera.bg.video")}</option>
           </select>
           {mode === "image" && (
-            <input type="file" accept="image/*" aria-label="Background image" onChange={(e) => onBackgroundFile("image", e.target.files?.[0])} />
+            <input type="file" accept="image/*" aria-label={t("settings.camera.bg.image_file_aria")} onChange={(e) => onBackgroundFile("image", e.target.files?.[0])} />
           )}
           {mode === "video" && (
-            <input type="file" accept="video/*" aria-label="Background video" onChange={(e) => onBackgroundFile("video", e.target.files?.[0])} />
+            <input type="file" accept="video/*" aria-label={t("settings.camera.bg.video_file_aria")} onChange={(e) => onBackgroundFile("video", e.target.files?.[0])} />
           )}
           {(mode === "image" || mode === "video") && !source && (
-            <span className="muted" style={{ fontSize: "var(--text-xs)" }}>Pick a {mode} above (until then the background is blurred).</span>
+            <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t(mode === "image" ? "settings.camera.bg.pick_hint_image" : "settings.camera.bg.pick_hint_video")}</span>
           )}
         </div>
       </div>
@@ -176,22 +172,22 @@ export function CameraSection() {
       {needsPermission && (
         <div style={{ marginTop: "var(--space-2)" }}>
           <button className="btn-secondary" onClick={grantAndRefresh}>
-            {t("settings.voice.camera.permission_button")}
+            {t("settings.camera.permission_button")}
           </button>
           <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 4, marginBottom: 0 }}>
-            {t("settings.voice.camera.permission_hint")}
+            {t("settings.camera.permission_hint")}
           </p>
         </div>
       )}
       <span aria-live="polite" className="muted" style={{ display: "block", fontSize: "var(--text-xs)" }}>
-        {justGranted ? t("settings.voice.camera.permission_granted") : ""}
+        {justGranted ? t("settings.camera.permission_granted") : ""}
       </span>
 
       <div style={{ marginTop: "var(--space-2)", display: "flex", gap: "var(--space-2)" }}>
         {previewing ? (
-          <button className="btn-secondary" onClick={stopPreview}>Stop preview</button>
+          <button className="btn-secondary" onClick={stopPreview}>{t("settings.camera.preview.stop")}</button>
         ) : (
-          <button className="btn-secondary" onClick={() => startPreview(device, mode, source)}>Preview camera</button>
+          <button className="btn-secondary" onClick={() => startPreview(device, mode, source)}>{t("settings.camera.preview.start")}</button>
         )}
       </div>
 
