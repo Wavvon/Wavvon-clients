@@ -840,11 +840,17 @@ export function ChannelSidebar({
         {voiceChannelId && (
           <>
             <div className="voice-status-bar">
-              <span className="status-dot online" />
-              <span className="voice-status-label">#{voiceChannelName}</span>
               {activePing !== undefined && <PingIcon ping={activePing} />}
+              <span className="voice-status-label">#{voiceChannelName}</span>
+              <button
+                onClick={onVoiceLeave}
+                className="btn-icon-gear voice-call-btn end"
+                title={t("voice.leave")}
+                aria-label={t("voice.leave")}
+              >
+                <PhoneOffIcon />
+              </button>
             </div>
-
             <div className="user-actions">
               <div className="user-actions-icons">
                 <button
@@ -865,12 +871,6 @@ export function ChannelSidebar({
                 >
                   <DeafenIcon muted={selfDeafened} />
                 </button>
-                {canUseSoundboard && onTriggerSoundboardClip && (
-                  <SoundboardPopover
-                    onTrigger={onTriggerSoundboardClip}
-                    playingClipId={soundboardPlayingClipId ?? null}
-                  />
-                )}
                 {onScreenShare && (
                   <button
                     onClick={onScreenShare}
@@ -890,14 +890,12 @@ export function ChannelSidebar({
                     {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
                   </button>
                 )}
-                <button
-                  onClick={onVoiceLeave}
-                  className="btn-icon-gear voice-call-btn end"
-                  title={t("voice.leave")}
-                  aria-label={t("voice.leave")}
-                >
-                  <PhoneOffIcon />
-                </button>
+                {canUseSoundboard && onTriggerSoundboardClip && (
+                  <SoundboardPopover
+                    onTrigger={onTriggerSoundboardClip}
+                    playingClipId={soundboardPlayingClipId ?? null}
+                  />
+                )}
               </div>
             </div>
             {soundboardChips && soundboardChips.length > 0 && (
