@@ -650,7 +650,9 @@ export function ChannelSidebar({
                         onClick={() => { onScreenShare(); setMoreVoiceOpen(false); }}
                         title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6l-1 3h6l-1-3h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12z"/></svg>
+                        {/* Feather "monitor" — the old filled path was corrupted
+                            (no right bezel; looked cut off). Matches web's ScreenShareIcon. */}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                         {sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
                       </button>
                       {hubStreamsCount > 0 && (
