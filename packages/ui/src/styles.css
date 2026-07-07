@@ -2448,6 +2448,11 @@ select,
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
+  /* The base `button` reset's 16px horizontal padding exceeds this 28px
+     square, leaving a 0-width content box: SVG children (overflow:hidden
+     flex items) get flex-shrunk to 0 and vanish, while emoji/text merely
+     overflowed and still painted. */
+  padding: 0;
   border: none;
   border-radius: var(--r-sm);
   background: var(--surface);
