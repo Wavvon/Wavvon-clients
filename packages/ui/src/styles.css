@@ -2123,11 +2123,6 @@ select,
   color: var(--text);
 }
 
-.channel-item.selected {
-  background: var(--accent);
-  color: var(--accent-text);
-}
-
 .channel-item.unread:not(.selected) {
   color: var(--text);
   font-weight: var(--weight-medium);
