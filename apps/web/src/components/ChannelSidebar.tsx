@@ -900,19 +900,6 @@ export function ChannelSidebar({
                 </button>
               </div>
             </div>
-            {voiceChannelId && (voicePartByChannel[voiceChannelId]?.length ?? 0) > 0 && (
-              <div className="voice-participants-list">
-                {voicePartByChannel[voiceChannelId].map((p) => (
-                  <VoiceParticipantGainRow
-                    key={p.public_key}
-                    participant={p}
-                    gainPct={voiceGains?.[p.public_key] ?? 100}
-                    onSetGain={onSetVoiceGain ? (g) => onSetVoiceGain(p.public_key, g) : undefined}
-                    isSelf={p.public_key === publicKey}
-                  />
-                ))}
-              </div>
-            )}
             {soundboardChips && soundboardChips.length > 0 && (
               <div className="soundboard-chips">
                 {soundboardChips.map((chip) => (
