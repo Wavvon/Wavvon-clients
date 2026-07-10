@@ -605,6 +605,9 @@ export default function App() {
   publicKeyRef.current = publicKey;
   const mentionPingEnabledRef = useRef(mentionPingEnabled);
   mentionPingEnabledRef.current = mentionPingEnabled;
+  // Own presence, mirrored for the WS handlers: "dnd" gates notifications.
+  const myStatusRef = useRef<string | null>(null);
+  myStatusRef.current = users.find((u) => u.public_key === publicKey)?.status ?? null;
   const { typingByKey, dmTypingByKey, receiveTyping, pingTyping, pingDmTyping } = useTypingIndicators(
     () => selectedChannelIdRef.current,
     () => selectedConvIdRef.current,
@@ -838,7 +841,9 @@ export default function App() {
         const myPk = publicKeyRef.current;
         const isMention = (myName && mentionsName(msg.content, myName)) ||
           (myPk && msg.content.includes(myPk));
-        if (isMention && msg.sender !== myPk) {
+        // Do Not Disturb is a read-time gate: while my presence is "dnd",
+        // mentions still mark unread but never ping or pop a notification.
+        if (isMention && msg.sender !== myPk && myStatusRef.current !== "dnd") {
           if (mentionPingEnabledRef.current) {
             try { playMentionPing(); } catch { /* audio context may not be ready */ }
           }

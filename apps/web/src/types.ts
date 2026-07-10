@@ -1002,17 +1002,6 @@ export interface IgnoreEntry {
   since: number;
 }
 
-export interface DndSchedule {
-  start: string;
-  end: string;
-  tz: string;
-}
-
-export interface DndSettings {
-  enabled: boolean;
-  schedule: DndSchedule | null;
-}
-
 // ---- Link Preview ----
 
 export interface LinkPreview {
