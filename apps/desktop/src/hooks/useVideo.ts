@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { BackgroundProcessor } from "../utils/backgroundProcessor";
+import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "../utils/backgroundProcessor";
 import type { BackgroundMode } from "../utils/backgroundProcessor";
 
 const MAX_ACTIVE = 3;
@@ -27,8 +27,8 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [videoPubkeys, setVideoPubkeys] = useState<Set<string>>(new Set());
   const [pinnedPubkey, setPinnedPubkey] = useState<string | null>(null);
-  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("none");
-  const [backgroundSource, setBackgroundSource] = useState<string | null>(null);
+  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>(() => loadBgMode());
+  const [backgroundSource, setBackgroundSource] = useState<string | null>(() => loadBgSource());
   // null = no effect requested / camera off; true/false = effect requested
   // and running / fell back to raw video (segmentation unavailable).
   const [backgroundActive, setBackgroundActive] = useState<boolean | null>(null);
@@ -303,6 +303,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
   async function changeBackground(mode: BackgroundMode, source?: string | null) {
     setBackgroundMode(mode);
     if (source !== undefined) setBackgroundSource(source);
+    saveBg(mode, source !== undefined ? source : backgroundSource);
     if (bgProcessor.current) {
       await bgProcessor.current.setMode(mode, source ?? backgroundSource);
       setBackgroundActive(mode === "none" ? null : bgProcessor.current.activeMode !== "none");

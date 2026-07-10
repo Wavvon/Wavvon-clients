@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { BackgroundProcessor } from "./backgroundProcessor";
+import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./backgroundProcessor";
 
 // Flip to make the eager initialize() fail, exercising the raw-video fallback.
 let failInitialize = false;
@@ -111,5 +111,30 @@ describe("BackgroundProcessor mode switching", () => {
     proc.stop();
     expect((proc as unknown as { stopped: boolean }).stopped).toBe(true);
     expect(stopTrack).toHaveBeenCalled();
+  });
+});
+
+describe("background choice persistence", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("round-trips mode and source through localStorage", () => {
+    saveBg("image", "data:image/png;base64,x");
+    expect(loadBgMode()).toBe("image");
+    expect(loadBgSource()).toBe("data:image/png;base64,x");
+  });
+
+  it("clears the stored source when switching back to none or blur", () => {
+    saveBg("video", "data:video/mp4;base64,x");
+    saveBg("blur");
+    expect(loadBgMode()).toBe("blur");
+    expect(loadBgSource()).toBeNull();
+  });
+
+  it("defaults to none for missing or garbage stored modes", () => {
+    expect(loadBgMode()).toBe("none");
+    localStorage.setItem("wavvon.bgMode", "sparkles");
+    expect(loadBgMode()).toBe("none");
   });
 });

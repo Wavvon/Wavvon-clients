@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import type { ChangeEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { BackgroundMode } from "../utils/backgroundProcessor";
+import { CameraSection } from "./CameraSection";
 import type { Hub, NamedProfile } from "../types";
 import { formatPubkey } from "@wavvon/core";
 import { AudioProfileSection } from "./AudioProfileSection";
@@ -352,20 +352,6 @@ export function SettingsPage(props: SettingsPageProps) {
     }
   }
 
-  function selectBackgroundMode(mode: BackgroundMode) {
-    // Keep the existing source when switching to image/video; clear otherwise.
-    props.onChangeBackground(mode, mode === "image" || mode === "video" ? props.backgroundSource : null);
-  }
-
-  function handleBackgroundFile(mode: "image" | "video", e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => props.onChangeBackground(mode, reader.result as string);
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }
-
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "profile", label: t("settings.tabs.profile") },
     { id: "account", label: t("settings.tabs.account") },
@@ -652,63 +638,13 @@ export function SettingsPage(props: SettingsPageProps) {
                 </span>
               </div>
             </div>
-            <div className="settings-section">
-              <label className="settings-label">Camera background</label>
-              <div className="settings-row" style={{ gap: "var(--space-2)" }}>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "none" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("none")}
-                >
-                  None
-                </button>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "blur" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("blur")}
-                >
-                  Blur
-                </button>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "image" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("image")}
-                >
-                  Image
-                </button>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "video" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("video")}
-                >
-                  Video
-                </button>
-              </div>
-              {props.backgroundMode === "image" && (
-                <input
-                  type="file"
-                  accept="image/*"
-                  aria-label="Background image"
-                  onChange={(e) => handleBackgroundFile("image", e)}
-                  style={{ marginTop: "var(--space-2)" }}
-                />
-              )}
-              {props.backgroundMode === "video" && (
-                <input
-                  type="file"
-                  accept="video/*"
-                  aria-label="Background video"
-                  onChange={(e) => handleBackgroundFile("video", e)}
-                  style={{ marginTop: "var(--space-2)" }}
-                />
-              )}
-              {(props.backgroundMode === "image" || props.backgroundMode === "video") && !props.backgroundSource && (
-                <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: "var(--space-1)" }}>
-                  Pick a {props.backgroundMode} above (until then the background is blurred).
-                </p>
-              )}
-              {props.backgroundActive !== null && (
-                <p className="muted" aria-live="polite" style={{ fontSize: "var(--text-xs)", marginTop: "var(--space-1)", marginBottom: 0 }}>
-                  {t(props.backgroundActive ? "settings.camera.bg.status_active" : "settings.camera.bg.status_unavailable")}
-                </p>
-              )}
-            </div>
+            <CameraSection
+              backgroundMode={props.backgroundMode}
+              backgroundSource={props.backgroundSource}
+              backgroundActive={props.backgroundActive}
+              onChangeBackground={props.onChangeBackground}
+              videoInputDevice={props.videoInputDevice}
+            />
             <div className="settings-section">
               <label className="settings-label">{t("settings.voice.mode.label")}</label>
               <p className="muted">

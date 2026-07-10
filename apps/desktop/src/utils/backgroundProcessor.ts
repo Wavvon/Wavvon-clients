@@ -1,5 +1,25 @@
 export type BackgroundMode = "none" | "blur" | "image" | "video";
 
+const MODE_KEY = "wavvon.bgMode";
+const SRC_KEY = "wavvon.bgSource";
+
+export function loadBgMode(): BackgroundMode {
+  try {
+    const m = localStorage.getItem(MODE_KEY);
+    return m === "blur" || m === "image" || m === "video" ? m : "none";
+  } catch { return "none"; }
+}
+export function loadBgSource(): string | null {
+  try { return localStorage.getItem(SRC_KEY); } catch { return null; }
+}
+export function saveBg(mode: BackgroundMode, source?: string | null): void {
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+    if (source) localStorage.setItem(SRC_KEY, source);
+    else if (mode === "none" || mode === "blur") localStorage.removeItem(SRC_KEY);
+  } catch { /* quota exceeded (large video) — the choice still applies this session */ }
+}
+
 // Runs the webcam through MediaPipe selfie segmentation and composites the
 // person over a blurred / image / video background, returning a processed
 // MediaStream (canvas.captureStream). The model + WASM are served locally
