@@ -265,6 +265,8 @@
   "settings.camera.bg.video_file_aria": "Vídeo de fondo",
   "settings.camera.bg.pick_hint_image": "Elige una imagen arriba (hasta entonces el fondo se muestra desenfocado).",
   "settings.camera.bg.pick_hint_video": "Elige un vídeo arriba (hasta entonces el fondo se muestra desenfocado).",
+  "settings.camera.bg.status_active": "Efecto de fondo activo",
+  "settings.camera.bg.status_unavailable": "Los efectos de fondo no están disponibles en este navegador — se muestra la cámara sin efectos.",
   "settings.camera.preview.start": "Vista previa de la cámara",
   "settings.camera.preview.stop": "Detener vista previa",
   "settings.camera.permission_button": "Mostrar nombres de cámaras",

@@ -265,6 +265,8 @@
   "settings.camera.bg.video_file_aria": "Video di sfondo",
   "settings.camera.bg.pick_hint_image": "Scegli un'immagine qui sopra (fino ad allora lo sfondo è sfocato).",
   "settings.camera.bg.pick_hint_video": "Scegli un video qui sopra (fino ad allora lo sfondo è sfocato).",
+  "settings.camera.bg.status_active": "Effetto sfondo attivo",
+  "settings.camera.bg.status_unavailable": "Gli effetti di sfondo non sono disponibili in questo browser — la webcam viene mostrata senza effetti.",
   "settings.camera.preview.start": "Anteprima webcam",
   "settings.camera.preview.stop": "Ferma anteprima",
   "settings.camera.permission_button": "Mostra nomi webcam",

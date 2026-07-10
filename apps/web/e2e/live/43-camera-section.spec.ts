@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 import { expectInHub } from "./helpers/live";
 
 // P43 — camera device picker + live preview (Settings → Camera, #6). Background
-// blur is deferred (heavy ML). Fake media is provided by the Playwright flags.
+// effects are covered by P45 and e2e/camera-background.spec.ts. Fake media is
+// provided by the Playwright flags.
 
 async function openCameraSettings(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();

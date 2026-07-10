@@ -265,6 +265,8 @@
   "settings.camera.bg.video_file_aria": "Hintergrundvideo",
   "settings.camera.bg.pick_hint_image": "Wähle oben ein Bild aus (bis dahin wird der Hintergrund weichgezeichnet).",
   "settings.camera.bg.pick_hint_video": "Wähle oben ein Video aus (bis dahin wird der Hintergrund weichgezeichnet).",
+  "settings.camera.bg.status_active": "Hintergrundeffekt aktiv",
+  "settings.camera.bg.status_unavailable": "Hintergrundeffekte sind in diesem Browser nicht verfügbar — die Kamera wird ohne Effekte angezeigt.",
   "settings.camera.preview.start": "Kameravorschau",
   "settings.camera.preview.stop": "Vorschau beenden",
   "settings.camera.permission_button": "Kameranamen anzeigen",

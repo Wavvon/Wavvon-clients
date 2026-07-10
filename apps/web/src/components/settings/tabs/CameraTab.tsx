@@ -31,6 +31,8 @@ export function CameraTab() {
   const [mode, setMode] = useState<BackgroundMode>(() => loadBgMode());
   const [source, setSource] = useState<string | null>(() => loadBgSource());
   const [previewing, setPreviewing] = useState(false);
+  // null = no effect requested; true/false = effect requested and running/fell back.
+  const [bgActive, setBgActive] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
   const [justGranted, setJustGranted] = useState(false);
@@ -45,6 +47,7 @@ export function CameraTab() {
     rawRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setPreviewing(false);
+    setBgActive(null);
   }
 
   async function refresh() {
@@ -90,6 +93,11 @@ export function CameraTab() {
         const proc = new BackgroundProcessor(raw);
         out = await proc.start(m, src);
         procRef.current = proc;
+        // The processor falls back to raw video when segmentation can't
+        // load — tell the user instead of pretending the effect is on.
+        setBgActive(proc.activeMode !== "none");
+      } else {
+        setBgActive(null);
       }
       if (videoRef.current) {
         videoRef.current.srcObject = out;
@@ -192,6 +200,11 @@ export function CameraTab() {
           <button className="btn-secondary" onClick={() => startPreview(device, mode, source)}>{t("settings.camera.preview.start")}</button>
         )}
       </div>
+      {previewing && bgActive !== null && (
+        <p className="muted" aria-live="polite" style={{ fontSize: "var(--text-xs)", marginTop: 6, marginBottom: 0 }}>
+          {t(bgActive ? "settings.camera.bg.status_active" : "settings.camera.bg.status_unavailable")}
+        </p>
+      )}
 
       <video
         ref={videoRef}

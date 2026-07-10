@@ -265,6 +265,8 @@
   "settings.camera.bg.video_file_aria": "Background video",
   "settings.camera.bg.pick_hint_image": "Pick an image above (until then the background is blurred).",
   "settings.camera.bg.pick_hint_video": "Pick a video above (until then the background is blurred).",
+  "settings.camera.bg.status_active": "Background effect active",
+  "settings.camera.bg.status_unavailable": "Background effects are not available in this browser — showing the plain camera.",
   "settings.camera.preview.start": "Preview camera",
   "settings.camera.preview.stop": "Stop preview",
   "settings.camera.permission_button": "Reveal camera names",
