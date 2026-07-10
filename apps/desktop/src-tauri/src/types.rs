@@ -165,6 +165,10 @@ pub(crate) struct UserInfo {
     pub avatar: Option<String>,
     pub online: bool,
     #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub status_custom: Option<String>,
+    #[serde(default)]
     pub group_role: Option<String>,
     #[serde(default)]
     pub is_bot: bool,
@@ -853,6 +857,16 @@ pub(crate) enum WsServerMessage {
         public_key: String,
         display_name: Option<String>,
         typing: bool,
+    },
+    /// A user changed their presence status. `status` is None for plain
+    /// online (away/dnd otherwise); `custom` is optional short status text.
+    #[serde(rename = "member_status")]
+    MemberStatus {
+        public_key: String,
+        #[serde(default)]
+        status: Option<String>,
+        #[serde(default)]
+        custom: Option<String>,
     },
     #[serde(rename = "voice_joined")]
     VoiceJoined {

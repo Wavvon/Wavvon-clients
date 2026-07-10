@@ -180,23 +180,31 @@ function App() {
     });
   }
 
-  const [dndActive, setDndActive] = useState(false);
-  const [userStatus, setUserStatus] = useState<"online" | "away" | "dnd" | "offline">("online");
+  // Own presence — global across hubs, not per-hub. The device is the
+  // source of truth: the picker broadcasts to every session and each hub
+  // gets it re-applied on (re)connect. Distinct from hub mute (notify modes).
+  const [myPresence, setMyPresenceState] = useState<{ status: "online" | "away" | "dnd"; custom: string | null }>(() => {
+    try {
+      const raw = localStorage.getItem("wavvon.presence");
+      if (raw) return JSON.parse(raw) as { status: "online" | "away" | "dnd"; custom: string | null };
+    } catch { /* storage unavailable or corrupt */ }
+    return { status: "online", custom: null };
+  });
+  const myPresenceRef = useRef(myPresence);
+  myPresenceRef.current = myPresence;
 
-  function toggleDnd() {
-    setDndActive((prev) => {
-      invoke("save_dnd_settings", { active: !prev }).catch(() => {});
-      return !prev;
-    });
-  }
-
-  function handleStatusChange(s: "online" | "away" | "dnd" | "offline") {
-    setUserStatus(s);
-    const nextDnd = s === "dnd";
-    if (nextDnd !== dndActive) {
-      setDndActive(nextDnd);
-      invoke("save_dnd_settings", { active: nextDnd }).catch(() => {});
-    }
+  function handleSetStatus(status: "online" | "away" | "dnd", custom: string | null) {
+    setMyPresenceState({ status, custom });
+    try { localStorage.setItem("wavvon.presence", JSON.stringify({ status, custom })); } catch { /* storage unavailable */ }
+    invoke("send_all_hubs_ws_raw", {
+      payload: JSON.stringify({ type: "set_status", status, custom }),
+    }).catch(() => { /* no hub connected */ });
+    // Optimistic: the hubs' member_status broadcasts will confirm.
+    setUsers((prev) => prev.map((u) =>
+      u.public_key === publicKey
+        ? { ...u, status: status === "online" ? null : status, status_custom: custom }
+        : u,
+    ));
   }
 
 
@@ -259,10 +267,6 @@ function App() {
 
     invoke<string[]>("load_ignored_users")
       .then((s) => setIgnoredUsers(new Set(s ?? [])))
-      .catch(() => {});
-
-    invoke<boolean>("load_dnd_settings")
-      .then((active) => { if (active) setDndActive(true); })
       .catch(() => {});
   }, []);
 
@@ -460,6 +464,7 @@ function App() {
     channelsRef,
     hubsRef,
     selectedChannelIdRef,
+    myPresenceRef,
     effectiveNotifyMode,
     bumpUnread,
     clearUnread,
@@ -849,6 +854,8 @@ function App() {
     selectedChannelIdRef,
     selectedConversationIdRef,
     users,
+    setUsers,
+    myPresenceRef,
     setHubConnected,
     setAssertiveAnnouncement,
     setToast,
@@ -2147,10 +2154,9 @@ function App() {
                   onScreenShare={voice.handleScreenShare}
                   hubStreamsCount={voice.hubStreams.filter((s) => s.kind === "screen").length}
                   onToggleHubStreams={() => setShowHubStreams((v) => !v)}
-                  dndActive={userStatus === "dnd"}
-                  onToggleDnd={toggleDnd}
-                  userStatus={userStatus}
-                  onStatusChange={handleStatusChange}
+                  myStatus={myPresence.status === "online" ? null : myPresence.status}
+                  myStatusCustom={myPresence.custom}
+                  onSetStatus={handleSetStatus}
                   voiceGains={voice.voiceGains}
                   onSetVoiceGain={voice.setVoiceGain}
                   inboundWhispers={whisper.inboundWhispers}

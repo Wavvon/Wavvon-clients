@@ -163,6 +163,8 @@ pub fn run() {
             voice_cmd::set_voice_gain,
             voice_cmd::set_voice_position,
             voice_cmd::send_hub_ws_raw,
+            voice_cmd::send_hub_ws_raw_to,
+            voice_cmd::send_all_hubs_ws_raw,
             voice_cmd::mic_test_start,
             voice_cmd::mic_test_stop,
             voice_cmd::start_whisper,

@@ -1,4 +1,5 @@
 import { useEffect, type RefObject } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { formatPubkey } from "@wavvon/core";
 import type { DmMessage, VoiceParticipant, Conversation, User, BotAppLaunchEvent, BotAppOpenEvent, BotAppCloseEvent } from "../types";
@@ -9,6 +10,8 @@ export interface WsHandlersParams {
   selectedChannelIdRef: RefObject<string | null>;
   selectedConversationIdRef: RefObject<string | null>;
   users: User[];
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  myPresenceRef: RefObject<{ status: "online" | "away" | "dnd"; custom: string | null }>;
   setHubConnected: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   setAssertiveAnnouncement: (msg: string) => void;
   setToast: (msg: string) => void;
@@ -47,6 +50,8 @@ export function useWsHandlers({
   selectedChannelIdRef,
   selectedConversationIdRef,
   users,
+  setUsers,
+  myPresenceRef,
   setHubConnected,
   setAssertiveAnnouncement,
   setToast,
@@ -97,10 +102,36 @@ export function useWsHandlers({
               return next;
             });
             if (connected) {
+              // Presence is global: push this device's status to the hub that
+              // just (re)connected, but only if the user ever picked one here —
+              // a fresh device must not stomp a status set elsewhere.
+              const p = myPresenceRef.current;
+              if (p && (p.status !== "online" || p.custom)) {
+                invoke("send_hub_ws_raw_to", {
+                  hubId: hub_id,
+                  payload: JSON.stringify({ type: "set_status", status: p.status, custom: p.custom }),
+                }).catch(() => { /* session raced away */ });
+              }
               onHubReconnected(hub_id);
             } else {
               scheduleReconnect(hub_id);
             }
+          }
+        )
+      );
+
+      unlistens.push(
+        await listen<{ hub_id: string; public_key: string; status: string | null; custom: string | null }>(
+          "member-status",
+          (event) => {
+            if (event.payload.hub_id !== activeHubIdRef.current) return;
+            setUsers((prev) =>
+              prev.map((u) =>
+                u.public_key === event.payload.public_key
+                  ? { ...u, status: event.payload.status, status_custom: event.payload.custom }
+                  : u,
+              ),
+            );
           }
         )
       );

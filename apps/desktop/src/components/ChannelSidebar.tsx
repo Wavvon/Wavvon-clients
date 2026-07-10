@@ -3,8 +3,6 @@ import { createPortal } from "react-dom";
 import { SearchBar } from "./SearchBar";
 import { WhisperPanel } from "./WhisperPanel";
 import type { WhisperTarget, WhisperList } from "../hooks/useWhisper";
-
-type UserStatus = "online" | "away" | "dnd" | "offline";
 import {
   DndContext,
   DragEndEvent,
@@ -94,10 +92,11 @@ interface Props {
   onScreenShare: () => void;
   hubStreamsCount: number;
   onToggleHubStreams: () => void;
-  dndActive: boolean;
-  onToggleDnd: () => void;
-  userStatus: UserStatus;
-  onStatusChange: (s: UserStatus) => void;
+  /** Own presence: null/undefined = online, "away", "dnd". */
+  myStatus?: string | null;
+  /** Own custom status text shown under the display name. */
+  myStatusCustom?: string | null;
+  onSetStatus?: (status: "online" | "away" | "dnd", custom: string | null) => void;
   voiceGains: Record<string, number>;
   onSetVoiceGain: (publicKey: string, gainPct: number) => void;
   inboundWhispers: Set<string>;
@@ -132,8 +131,8 @@ export function ChannelSidebar({
   onVoiceJoin, onVoiceLeave,
   onSelectAllianceChannel, onSelectConversation,
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
-  onDragEnd, onToggleHideSilenced, sharing, onScreenShare, hubStreamsCount, onToggleHubStreams, dndActive, onToggleDnd,
-  userStatus, onStatusChange,
+  onDragEnd, onToggleHideSilenced, sharing, onScreenShare, hubStreamsCount, onToggleHubStreams,
+  myStatus, myStatusCustom, onSetStatus,
   voiceGains, onSetVoiceGain,
   inboundWhispers, isWhispering, whisperTargets, whisperLists,
   showWhisperPanel, onToggleWhisperPanel, onCloseWhisperPanel,
@@ -149,6 +148,23 @@ export function ChannelSidebar({
   const [channelFocusIndex, setChannelFocusIndex] = useState(0);
   const channelItemRefs = useRef<(HTMLElement | null)[]>([]);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [statusCustomDraft, setStatusCustomDraft] = useState(myStatusCustom ?? "");
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  // Re-seed the draft each time the picker opens so it reflects the current text.
+  useEffect(() => {
+    if (showStatusMenu) setStatusCustomDraft(myStatusCustom ?? "");
+  }, [showStatusMenu, myStatusCustom]);
+  // Dismiss the status picker on any click outside it.
+  useEffect(() => {
+    if (!showStatusMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showStatusMenu]);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const whisperBtnRef = useRef<HTMLButtonElement>(null);
   const [whisperPanelPos, setWhisperPanelPos] = useState<{ bottom: number; left: number } | null>(null);
@@ -714,24 +730,54 @@ export function ChannelSidebar({
         <div className="user-identity">
           <div style={{ position: "relative", flexShrink: 0 }}>
             <div className="user-identity-avatar" />
-            <span className={`user-status-dot status-${userStatus}`} />
+            <span className={`user-status-dot status-${myStatus ?? "online"}`} />
           </div>
-          <div className="user-identity-details" style={{ cursor: "pointer" }} onClick={() => setShowStatusMenu((v) => !v)}>
+          <div
+            ref={statusMenuRef}
+            className="user-identity-details"
+            style={onSetStatus ? { cursor: "pointer" } : undefined}
+            onClick={onSetStatus ? () => setShowStatusMenu((v) => !v) : undefined}
+          >
             <span className="user-identity-name" title={publicKey ?? undefined}>
               {myDisplayName || publicKey?.slice(0, 12) || "You"}
             </span>
-            {showStatusMenu && (
-              <div className="status-menu" onMouseLeave={() => setShowStatusMenu(false)}>
-                {(["online", "away", "dnd", "offline"] as const).map((s) => (
+            {myStatusCustom && (
+              <span className="user-identity-custom-status" title={myStatusCustom}>
+                {myStatusCustom}
+              </span>
+            )}
+            {showStatusMenu && onSetStatus && (
+              <div className="status-menu" onClick={(e) => e.stopPropagation()}>
+                {(["online", "away", "dnd"] as const).map((s) => (
                   <button
                     key={s}
-                    className={`status-menu-item ${userStatus === s ? "active" : ""}`}
-                    onClick={(e) => { e.stopPropagation(); onStatusChange(s); setShowStatusMenu(false); }}
+                    className={`status-menu-item ${(myStatus ?? "online") === s ? "active" : ""}`}
+                    onClick={() => {
+                      // "Online" means back-to-normal: clear the custom text too.
+                      onSetStatus(s, s === "online" ? null : statusCustomDraft.trim() || null);
+                      setShowStatusMenu(false);
+                    }}
                   >
                     <span className={`user-status-dot status-${s}`} style={{ marginRight: 6, position: "static" }} />
-                    {s === "online" ? "Online" : s === "away" ? "Away" : s === "dnd" ? "Do Not Disturb" : "Offline"}
+                    {t(`presence.${s}`)}
                   </button>
                 ))}
+                <input
+                  type="text"
+                  className="status-menu-custom"
+                  placeholder={t("presence.custom_placeholder")}
+                  value={statusCustomDraft}
+                  maxLength={100}
+                  onChange={(e) => setStatusCustomDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      onSetStatus((myStatus as "away" | "dnd" | null) ?? "online", statusCustomDraft.trim() || null);
+                      setShowStatusMenu(false);
+                    }
+                    if (e.key === "Escape") setShowStatusMenu(false);
+                  }}
+                  style={{ margin: "4px 6px", width: "calc(100% - 12px)", fontSize: "var(--text-xs)" }}
+                />
               </div>
             )}
           </div>

@@ -14,6 +14,7 @@ export interface ChannelMessagesParams {
   channelsRef: RefObject<Channel[]>;
   hubsRef: RefObject<{ hub_id: string; hub_name: string }[]>;
   selectedChannelIdRef: RefObject<string | null>;
+  myPresenceRef: RefObject<{ status: "online" | "away" | "dnd"; custom: string | null }>;
   effectiveNotifyMode: (hubId: string, channelId: string) => NotifyMode;
   bumpUnread: (hubId: string, channelId: string) => void;
   clearUnread: (hubId: string, channelId: string) => void;
@@ -90,6 +91,7 @@ export function useChannelMessages({
   channelsRef,
   hubsRef,
   selectedChannelIdRef,
+  myPresenceRef,
   effectiveNotifyMode,
   bumpUnread,
   clearUnread,
@@ -257,9 +259,13 @@ export function useChannelMessages({
               bumpUnread(hub_id, channel_id);
               setFirstNotify(hub_id, channel_id, message.id);
             }
+            // Read-time gate: "dnd" presence (global) suppresses the ping
+            // and system notification but unreads still accumulate above.
+            // Hub/channel "silent" notify mode is already covered by allowBump.
             const shouldNotify =
               allowBump &&
               !isActiveChannel &&
+              myPresenceRef.current?.status !== "dnd" &&
               (isMention || (mode === "all" && !document.hasFocus()));
             if (shouldNotify) {
               if (mentionPingRef.current) playMentionPing();

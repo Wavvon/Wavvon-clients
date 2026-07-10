@@ -79,6 +79,14 @@ pub(crate) async fn spawn_ws_task(
                                             "typing": typing,
                                         }));
                                     }
+                                    WsServerMessage::MemberStatus { public_key, status, custom } => {
+                                        let _ = app.emit("member-status", serde_json::json!({
+                                            "hub_id": hub_id_for_task,
+                                            "public_key": public_key,
+                                            "status": status,
+                                            "custom": custom,
+                                        }));
+                                    }
                                     WsServerMessage::VoiceJoined { channel_id, hub_udp_port, participants, udp_register_token } => {
                                         // If the hub sent a registration token, hand it to the
                                         // running pipeline so the VXRG loop can begin. The pipeline

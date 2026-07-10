@@ -59,6 +59,9 @@ export interface User {
   display_name: string | null;
   avatar: string | null;
   online: boolean;
+  /** Presence: null/undefined = plain online; "away" | "dnd" otherwise. */
+  status?: string | null;
+  status_custom?: string | null;
   group_role: string | null;
   is_bot?: boolean;
   is_webhook?: boolean;
