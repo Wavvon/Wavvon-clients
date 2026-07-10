@@ -2,8 +2,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { channelPath } from "@wavvon/core";
 import type { Channel, Message, ActiveStream } from "../../types";
-import { ScreenShareViewer } from "../ScreenShareViewer";
-import type { ScreenShareViewerRef } from "../ScreenShareViewer";
+import { ScreenShareViewer } from "@components/voice/ScreenShareViewer";
+import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
 
 interface Props {
   selectedChannel: Channel;

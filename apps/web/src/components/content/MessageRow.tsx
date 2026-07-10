@@ -11,12 +11,12 @@ import {
   formatFullTimestamp,
   formatRelative,
 } from "@wavvon/core";
-import { MessageReactions } from "../MessageReactions";
-import { ReactionPicker } from "../ReactionPicker";
-import { MessageEmbeds } from "../MessageEmbeds";
-import { MessageComponents } from "../MessageComponents";
-import { LinkPreviewInMessage } from "../LinkPreviewInMessage";
-import { PollCard } from "../PollCard";
+import { MessageReactions } from "./MessageReactions";
+import { ReactionPicker } from "./ReactionPicker";
+import { MessageEmbeds } from "./MessageEmbeds";
+import { MessageComponents } from "./MessageComponents";
+import { LinkPreviewInMessage } from "./LinkPreviewInMessage";
+import { PollCard } from "@components/polls/PollCard";
 import { pinMessage, unpinMessage } from "@platform";
 import { reportMessage } from "../../platform/commands/moderation";
 import { Avatar, MessageAttachments, MessageContent } from "@wavvon/ui";

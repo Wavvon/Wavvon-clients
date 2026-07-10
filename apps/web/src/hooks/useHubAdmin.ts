@@ -9,7 +9,7 @@ import type {
   PendingUser,
   RoleInfo,
 } from "@shared/types";
-import type { HubAdminTab } from "../components/HubAdminPage";
+import type { HubAdminTab } from "@components/admin/HubAdminPage";
 
 interface UseHubAdminParams {
   activeHubId: string | null;

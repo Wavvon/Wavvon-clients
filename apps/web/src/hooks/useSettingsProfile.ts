@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { applySkinTokens, clearSkinTokens } from "../skinValidation";
-import type { SettingsTab } from "../components/SettingsPage";
+import type { SettingsTab } from "@components/settings/SettingsPage";
 import { loadIdentity, seedToPhrase, phraseToSeed, validatePhrase, saveIdentity, publicKeyHex } from "@identity/index";
-import { makeSeed } from "../components/SkinEditor";
+import { makeSeed } from "@components/settings/SkinEditor";
 import type { CustomThemeStore, NamedCustomTheme } from "../utils/customThemes";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "../utils/customThemes";
 

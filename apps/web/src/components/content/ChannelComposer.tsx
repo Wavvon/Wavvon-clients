@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, Attachment, User } from "../../types";
 import { formatPubkey } from "@wavvon/core";
-import { EmojiPicker } from "../EmojiPicker";
+import { EmojiPicker } from "./EmojiPicker";
 import { PendingAttachments } from "@wavvon/ui";
 
 interface SlashCommandEntry {
