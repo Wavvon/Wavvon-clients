@@ -70,7 +70,7 @@ import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
-import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, uploadFile } from "@platform";
+import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, sendSetStatusTo, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
   restorePersistedHubs,
@@ -402,6 +402,20 @@ export default function App() {
   // === Hub data ===
   const [channels, setChannels] = useState<Channel[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  // Own presence — global across hubs, not per-hub. The device is the
+  // source of truth: the picker broadcasts to every session and each hub
+  // gets it re-applied on (re)connect. Distinct from hub mute (notify modes).
+  const [myPresence, setMyPresenceState] = useState<{ status: "online" | "away" | "dnd"; custom: string | null }>(() => {
+    try {
+      const raw = localStorage.getItem("wavvon.presence");
+      if (raw) return JSON.parse(raw) as { status: "online" | "away" | "dnd"; custom: string | null };
+    } catch { /* storage unavailable or corrupt */ }
+    return { status: "online", custom: null };
+  });
+  const setMyPresence = useCallback((p: { status: "online" | "away" | "dnd"; custom: string | null }) => {
+    setMyPresenceState(p);
+    try { localStorage.setItem("wavvon.presence", JSON.stringify(p)); } catch { /* storage unavailable */ }
+  }, []);
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
@@ -605,9 +619,12 @@ export default function App() {
   publicKeyRef.current = publicKey;
   const mentionPingEnabledRef = useRef(mentionPingEnabled);
   mentionPingEnabledRef.current = mentionPingEnabled;
-  // Own presence, mirrored for the WS handlers: "dnd" gates notifications.
-  const myStatusRef = useRef<string | null>(null);
-  myStatusRef.current = users.find((u) => u.public_key === publicKey)?.status ?? null;
+  // Mirrored for the WS handlers: "dnd" presence and "silent" notify
+  // modes both gate notifications.
+  const myPresenceRef = useRef(myPresence);
+  myPresenceRef.current = myPresence;
+  const effectiveNotifyModeRef = useRef(effectiveNotifyMode);
+  effectiveNotifyModeRef.current = effectiveNotifyMode;
   const { typingByKey, dmTypingByKey, receiveTyping, pingTyping, pingDmTyping } = useTypingIndicators(
     () => selectedChannelIdRef.current,
     () => selectedConvIdRef.current,
@@ -841,9 +858,13 @@ export default function App() {
         const myPk = publicKeyRef.current;
         const isMention = (myName && mentionsName(msg.content, myName)) ||
           (myPk && msg.content.includes(myPk));
-        // Do Not Disturb is a read-time gate: while my presence is "dnd",
-        // mentions still mark unread but never ping or pop a notification.
-        if (isMention && msg.sender !== myPk && myStatusRef.current !== "dnd") {
+        // Read-time notification gate, two independent quiets: "dnd"
+        // presence (global) and a "silent" notify mode on this hub or
+        // channel (hub mute). Either way unreads still accumulate.
+        const silenced = myPresenceRef.current.status === "dnd" ||
+          (!!msgHubId && typeof m.channel_id === "string" &&
+            effectiveNotifyModeRef.current(msgHubId, m.channel_id) === "silent");
+        if (isMention && msg.sender !== myPk && !silenced) {
           if (mentionPingEnabledRef.current) {
             try { playMentionPing(); } catch { /* audio context may not be ready */ }
           }
@@ -1023,6 +1044,15 @@ export default function App() {
     onStatusChange: (connected, hubId) => {
       const hubName = hubsRef.current.find((h) => h.hub_id === hubId)?.hub_name ?? "hub";
       handleStatusChange(hubId, hubName, connected, setAssertiveAnnouncement);
+      if (connected) {
+        // Presence is global: push this device's status to the hub that
+        // just (re)connected, but only if the user ever picked one here —
+        // a fresh device must not stomp a status set elsewhere.
+        const p = myPresenceRef.current;
+        if (p.status !== "online" || p.custom) {
+          try { sendSetStatusTo(hubId, p.status, p.custom); } catch { /* ws not ready */ }
+        }
+      }
       if (connected && hubId === activeHubIdRef.current) {
         hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
         try { activeSession().ws?.requestStreamList(); } catch {}
@@ -2614,11 +2644,12 @@ export default function App() {
         onSelectChannel={handleSelectChannel}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         canOpenChannelSettings={isAdmin || canManageRoles}
-        myStatus={users.find((u) => u.public_key === publicKey)?.status ?? null}
-        myStatusCustom={users.find((u) => u.public_key === publicKey)?.status_custom ?? null}
+        myStatus={myPresence.status === "online" ? null : myPresence.status}
+        myStatusCustom={myPresence.custom}
         onSetStatus={(status, custom) => {
+          setMyPresence({ status, custom });
           try { sendSetStatus(status, custom); } catch { /* ws not ready */ }
-          // Optimistic: the hub's member_status broadcast will confirm.
+          // Optimistic: the hubs' member_status broadcasts will confirm.
           setUsers((prev) => prev.map((u) =>
             u.public_key === publicKey
               ? { ...u, status: status === "online" ? null : status, status_custom: custom }

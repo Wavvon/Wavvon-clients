@@ -49,6 +49,7 @@ export {
   sendTypingEvent,
   sendDmTypingEvent,
   sendSetStatus,
+  sendSetStatusTo,
   getAllianceChannelMessages,
   sendAllianceChannelMessage,
 } from "./commands/messages";
