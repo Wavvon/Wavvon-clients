@@ -109,6 +109,7 @@ export interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   backgroundMode: BackgroundMode;
   backgroundSource: string | null;
+  backgroundActive: boolean | null;
   onChangeBackground: (mode: BackgroundMode, source?: string | null) => void;
   onImportSkin: (skin: WavvonSkin) => void;
   videoInputs: { deviceId: string; label: string }[];
@@ -700,6 +701,11 @@ export function SettingsPage(props: SettingsPageProps) {
               {(props.backgroundMode === "image" || props.backgroundMode === "video") && !props.backgroundSource && (
                 <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: "var(--space-1)" }}>
                   Pick a {props.backgroundMode} above (until then the background is blurred).
+                </p>
+              )}
+              {props.backgroundActive !== null && (
+                <p className="muted" aria-live="polite" style={{ fontSize: "var(--text-xs)", marginTop: "var(--space-1)", marginBottom: 0 }}>
+                  {t(props.backgroundActive ? "settings.camera.bg.status_active" : "settings.camera.bg.status_unavailable")}
                 </p>
               )}
             </div>

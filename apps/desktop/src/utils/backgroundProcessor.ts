@@ -16,7 +16,10 @@ export class BackgroundProcessor {
   private bgVideo: HTMLVideoElement | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private segmentation: any = null;
-  private mask: ImageData | null = null;
+  // MediaPipe's segmentationMask is a GpuBuffer (canvas/bitmap) meant for
+  // drawImage compositing — it has no pixel array.
+  private mask: CanvasImageSource | null = null;
+  private sending = false;
   private tempCanvas: HTMLCanvasElement;
   private tempCtx: CanvasRenderingContext2D;
   private stopped = false;
@@ -52,22 +55,38 @@ export class BackgroundProcessor {
   private async ensureSegmentation(): Promise<void> {
     if (this.segmentation) return;
     try {
-      // Lazy-load the model only when effects are turned on.
+      // Lazy-load the model only when effects are turned on. The package is a
+      // Closure-compiled IIFE with no module exports — importing it runs the
+      // script, which registers SelfieSegmentation on globalThis; that global
+      // is the only reliable way to reach the constructor.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mod = (await import("@mediapipe/selfie_segmentation")) as any;
-      const SelfieSegmentation = mod.SelfieSegmentation ?? mod.default?.SelfieSegmentation;
-      this.segmentation = new SelfieSegmentation({
+      const SelfieSegmentation =
+        mod.SelfieSegmentation ??
+        mod.default?.SelfieSegmentation ??
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (globalThis as any).SelfieSegmentation;
+      const seg = new SelfieSegmentation({
         locateFile: (file: string) => `/mediapipe/${file}`,
       });
-      this.segmentation.setOptions({ modelSelection: 1 });
-      this.segmentation.onResults((results: { segmentationMask: ImageData }) => {
+      seg.setOptions({ modelSelection: 1 });
+      seg.onResults((results: { segmentationMask: CanvasImageSource }) => {
         this.mask = results.segmentationMask;
       });
+      // Force the WASM + model load now so a broken environment lands in the
+      // catch (raw-video fallback) instead of silently never producing a mask.
+      await seg.initialize();
+      this.segmentation = seg;
     } catch {
       // Segmentation unavailable (e.g. WASM blocked) — fall back to raw video.
       this.segmentation = null;
       this.mode = "none";
     }
+  }
+
+  /** The mode actually in effect — "none" when segmentation failed to load. */
+  get activeMode(): BackgroundMode {
+    return this.segmentation ? this.mode : "none";
   }
 
   private async setBackgroundSource(mode: BackgroundMode, source?: string | null): Promise<void> {
@@ -101,12 +120,19 @@ export class BackgroundProcessor {
   private drawFrame() {
     const { width, height } = this.canvas;
 
-    // No effect (or segmentation not ready yet): pass the raw frame through,
-    // but keep feeding the segmenter so the mask warms up.
+    // Feed the segmenter with at most one frame in flight — MediaPipe's
+    // send() is async and must not be re-entered while processing.
+    if (this.mode !== "none" && this.segmentation && !this.sending) {
+      this.sending = true;
+      (this.segmentation.send({ image: this.video }) as Promise<void>)
+        .catch(() => {})
+        .finally(() => { this.sending = false; });
+    }
+
+    // No effect (or the first mask hasn't arrived yet): raw passthrough.
     if (this.mode === "none" || !this.segmentation || !this.mask) {
       this.ctx.filter = "none";
       this.ctx.drawImage(this.video, 0, 0, width, height);
-      if (this.segmentation) this.segmentation.send({ image: this.video }).catch(() => {});
       return;
     }
 
@@ -126,19 +152,15 @@ export class BackgroundProcessor {
       this.ctx.filter = "none";
     }
 
-    // Cut out the person using the mask alpha and draw them over the background.
+    // Person cutout: the mask is opaque where the person is, so drawing it
+    // and then the camera frame with source-in keeps only the person pixels;
+    // the result goes over the background layer.
     this.tempCtx.clearRect(0, 0, width, height);
+    this.tempCtx.drawImage(this.mask, 0, 0, width, height);
+    this.tempCtx.globalCompositeOperation = "source-in";
     this.tempCtx.drawImage(this.video, 0, 0, width, height);
-    const frame = this.tempCtx.getImageData(0, 0, width, height);
-    const maskData = this.mask.data;
-    for (let i = 0; i < frame.data.length; i += 4) {
-      const alpha = maskData[(i / 4) * 4 + 3] ?? 0;
-      if (alpha < 128) frame.data[i + 3] = 0;
-    }
-    this.tempCtx.putImageData(frame, 0, 0);
+    this.tempCtx.globalCompositeOperation = "source-over";
     this.ctx.drawImage(this.tempCanvas, 0, 0);
-
-    this.segmentation.send({ image: this.video }).catch(() => {});
   }
 
   /** Change effect live without recreating the stream. */

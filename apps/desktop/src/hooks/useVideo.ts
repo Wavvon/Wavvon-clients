@@ -29,6 +29,9 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
   const [pinnedPubkey, setPinnedPubkey] = useState<string | null>(null);
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("none");
   const [backgroundSource, setBackgroundSource] = useState<string | null>(null);
+  // null = no effect requested / camera off; true/false = effect requested
+  // and running / fell back to raw video (segmentation unavailable).
+  const [backgroundActive, setBackgroundActive] = useState<boolean | null>(null);
   const [videoInputs, setVideoInputs] = useState<{ deviceId: string; label: string }[]>([]);
   const [videoInputDevice, setVideoInputDeviceState] = useState<string>(
     () => localStorage.getItem("wavvon.cameraDevice") ?? ""
@@ -245,6 +248,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
       const proc = new BackgroundProcessor(stream);
       bgProcessor.current = proc;
       const out = await proc.start(backgroundMode, backgroundSource);
+      setBackgroundActive(backgroundMode === "none" ? null : proc.activeMode !== "none");
       setProcessedStream(out);
       setVideoEnabled(true);
       sendWs({ type: "video_enable", channel_id: voiceChannelIdRef.current });
@@ -261,6 +265,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     bgProcessor.current = null;
     setRawStream(null);
     setProcessedStream(null);
+    setBackgroundActive(null);
     setVideoEnabled(false);
     for (const [, entry] of peers.current) entry.conn.close();
     peers.current.clear();
@@ -284,6 +289,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
       const proc = new BackgroundProcessor(stream);
       bgProcessor.current = proc;
       const out = await proc.start(backgroundMode, backgroundSource);
+      setBackgroundActive(backgroundMode === "none" ? null : proc.activeMode !== "none");
       setProcessedStream(out);
       for (const [, entry] of peers.current) {
         const sender = entry.conn.getSenders().find(s => s.track?.kind === "video");
@@ -299,6 +305,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     if (source !== undefined) setBackgroundSource(source);
     if (bgProcessor.current) {
       await bgProcessor.current.setMode(mode, source ?? backgroundSource);
+      setBackgroundActive(mode === "none" ? null : bgProcessor.current.activeMode !== "none");
     }
   }
 
@@ -311,6 +318,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     setPinnedPubkey,
     backgroundMode,
     backgroundSource,
+    backgroundActive,
     enableVideo,
     disableVideo,
     switchCamera,
