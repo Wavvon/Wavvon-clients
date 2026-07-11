@@ -25,6 +25,25 @@ export function isPasskeySupported(): boolean {
   return typeof window !== "undefined" && !!window.PublicKeyCredential;
 }
 
+// Best-effort feature check for the PRF extension (see prfIdentity.ts for the
+// identity-bootstrap ceremony that depends on it). `getClientCapabilities` is
+// the only synchronous-ish signal browsers expose for this; where it's
+// unavailable we can't know in advance, so we let the caller try the
+// ceremony and fall back to the phrase flow on the resulting typed error.
+export async function isPrfLikelySupported(): Promise<boolean> {
+  if (!isPasskeySupported()) return false;
+  const pkc = window.PublicKeyCredential as typeof window.PublicKeyCredential & {
+    getClientCapabilities?: () => Promise<Record<string, boolean>>;
+  };
+  if (typeof pkc.getClientCapabilities !== "function") return true;
+  try {
+    const caps = await pkc.getClientCapabilities();
+    return caps["extension:prf"] !== false;
+  } catch {
+    return true;
+  }
+}
+
 // --- base64url <-> ArrayBuffer ---
 
 function b64urlToBuffer(b64url: string): ArrayBuffer {

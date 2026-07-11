@@ -244,6 +244,7 @@ export type { RoleCategoryCreateInput, RoleCategoryUpdateInput } from "./command
 
 export {
   isPasskeySupported,
+  isPrfLikelySupported,
   registerPasskey,
   authenticateWithPasskey,
   listPasskeys,
@@ -253,3 +254,9 @@ export {
   revokeTrustedDevice,
 } from "./webauthn";
 export type { CredentialInfo, DeviceInfo } from "./webauthn";
+
+export {
+  PrfUnsupportedError,
+  createIdentityWithPasskey,
+  restoreIdentityWithPasskey,
+} from "./prfIdentity";

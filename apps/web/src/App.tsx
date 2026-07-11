@@ -71,6 +71,13 @@ import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
+import {
+  isPasskeySupported,
+  isPrfLikelySupported,
+  createIdentityWithPasskey,
+  restoreIdentityWithPasskey,
+  PrfUnsupportedError,
+} from "@platform";
 import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, sendSetStatusTo, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
@@ -144,7 +151,8 @@ type HubPreview =
 // ---- Identity Setup ----
 
 function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_name: string; avatar: string | null }) => void }) {
-  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile">("choose");
+  const { t } = useTranslation();
+  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile" | "passkey_backup">("choose");
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
   const [showHexBackup, setShowHexBackup] = useState(false);
@@ -154,6 +162,18 @@ function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_
   const [pairCode, setPairCode] = useState("");
   const [pairLabel, setPairLabel] = useState("");
   const [pairStatus, setPairStatus] = useState<"idle" | "claiming" | "waiting">("idle");
+  const [passkeySupported, setPasskeySupported] = useState(() => isPasskeySupported());
+  const [passkeyBusy, setPasskeyBusy] = useState<"idle" | "create" | "signin">("idle");
+  const [showPasskeyPhrase, setShowPasskeyPhrase] = useState(false);
+
+  // Best-effort refinement of the initial sync check — hides the passkey
+  // paths if the browser can tell us upfront it doesn't support PRF. The
+  // ceremony itself still guards with a typed error either way.
+  useEffect(() => {
+    let cancelled = false;
+    isPrfLikelySupported().then((ok) => { if (!cancelled) setPasskeySupported(ok); });
+    return () => { cancelled = true; };
+  }, []);
 
   // New-device pairing: generate a fresh subkey, claim the offer with it, and
   // poll until the existing device approves. On completion we persist the seed
@@ -220,6 +240,41 @@ function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_
     setStep("generated");
   }
 
+  function passkeyErrorMessage(e: unknown): string {
+    if (e instanceof PrfUnsupportedError) return t("identity_setup.passkey.unsupported");
+    return e instanceof Error ? e.message : String(e);
+  }
+
+  async function doCreateWithPasskey() {
+    setError(null);
+    setPasskeyBusy("create");
+    try {
+      const { seedHex } = await createIdentityWithPasskey();
+      await saveIdentity({ id: "main", seed_hex: seedHex, security_nonce: 0, security_level: 0 });
+      setGeneratedSeed(seedHex);
+      setShowPasskeyPhrase(false);
+      setStep("passkey_backup");
+    } catch (e) {
+      setError(passkeyErrorMessage(e));
+    } finally {
+      setPasskeyBusy("idle");
+    }
+  }
+
+  async function doSignInWithPasskey() {
+    setError(null);
+    setPasskeyBusy("signin");
+    try {
+      const seedHex = await restoreIdentityWithPasskey();
+      await saveIdentity({ id: "main", seed_hex: seedHex, security_nonce: 0, security_level: 0 });
+      setStep("profile");
+    } catch (e) {
+      setError(passkeyErrorMessage(e));
+    } finally {
+      setPasskeyBusy("idle");
+    }
+  }
+
   async function doRecoverPhrase() {
     setError(null);
     if (!validatePhrase(phrase)) { setError("Invalid recovery phrase."); return; }
@@ -257,6 +312,31 @@ function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_
         </p>
         <button className="btn-primary" onClick={() => setStep("profile")} style={{ marginTop: 16 }}>
           I saved my phrase — Continue
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "passkey_backup") {
+    return (
+      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+        <h2>{t("identity_setup.passkey.backup_title")}</h2>
+        <p className="muted">{t("identity_setup.passkey.backup_hint")}</p>
+        {showPasskeyPhrase ? (
+          <div style={{ background: "var(--bg-elevated)", padding: 16, borderRadius: "var(--r-md)", fontFamily: "monospace", lineHeight: 1.8, marginBottom: 16 }}>
+            {seedToPhrase(generatedSeed)}
+          </div>
+        ) : (
+          <button
+            className="btn-ghost"
+            style={{ fontSize: "var(--text-sm)", padding: 0, textDecoration: "underline", marginBottom: 16, display: "block" }}
+            onClick={() => setShowPasskeyPhrase(true)}
+          >
+            {t("identity_setup.passkey.reveal_phrase")}
+          </button>
+        )}
+        <button className="btn-primary" onClick={() => setStep("profile")} style={{ marginTop: 8 }}>
+          {t("identity_setup.passkey.continue")}
         </button>
       </div>
     );
@@ -333,7 +413,28 @@ function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_
     <div style={{ maxWidth: 400, margin: "120px auto", padding: 32, textAlign: "center" }}>
       <h1>Wavvon</h1>
       <p className="muted">Create a new identity or recover an existing one.</p>
-      <button className="btn-primary" style={{ width: "100%", marginBottom: 12 }} onClick={doGenerate}>
+      {passkeySupported && (
+        <>
+          <button
+            className="btn-primary"
+            style={{ width: "100%", marginBottom: 12 }}
+            onClick={doCreateWithPasskey}
+            disabled={passkeyBusy !== "idle"}
+          >
+            {passkeyBusy === "create" ? t("identity_setup.passkey.working") : t("identity_setup.passkey.create_cta")}
+          </button>
+          <button
+            className="btn-secondary"
+            style={{ width: "100%", marginBottom: 20 }}
+            onClick={doSignInWithPasskey}
+            disabled={passkeyBusy !== "idle"}
+          >
+            {passkeyBusy === "signin" ? t("identity_setup.passkey.working") : t("identity_setup.passkey.signin_cta")}
+          </button>
+          <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>{t("identity_setup.passkey.divider")}</p>
+        </>
+      )}
+      <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={doGenerate}>
         Create new identity
       </button>
       <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setStep("recover")}>
@@ -342,6 +443,7 @@ function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_
       <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setStep("pair")}>
         Pair with an existing device
       </button>
+      {error && <p style={{ color: "var(--danger)", marginTop: 12 }}>{error}</p>}
     </div>
   );
 }
