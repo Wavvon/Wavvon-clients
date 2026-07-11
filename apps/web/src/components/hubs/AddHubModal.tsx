@@ -30,10 +30,8 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-hub-title" onClick={(e) => e.stopPropagation()}>
-        <h3 id="add-hub-title">Add Hub</h3>
-        <p className="muted" style={{ marginBottom: "var(--space-3)" }}>
-          Paste a hub address or a <code>wavvon://</code> invite link.
-        </p>
+        <h3 id="add-hub-title">{t("hub.add_modal.title")}</h3>
+        <p className="muted" style={{ marginBottom: "var(--space-3)" }} dangerouslySetInnerHTML={{ __html: t("hub.add_modal.intro") }} />
         <input
           type="text"
           value={hubUrl}
@@ -42,11 +40,11 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
             if (e.key === "Enter") onAdd();
             if (e.key === "Escape") onClose();
           }}
-          placeholder="hub.example.com  or  wavvon://hub.example.com/invite"
+          placeholder={t("hub.add_modal.url_placeholder")}
           autoFocus
         />
         {hubPreview.state === "loading" && (
-          <p className="muted hub-preview-status">Looking up hub…</p>
+          <p className="muted hub-preview-status">{t("welcome.looking_up")}</p>
         )}
         {hubPreview.state === "error" && (
           <p className="hub-preview-error">{hubPreview.message}</p>
@@ -54,21 +52,21 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
         {hubPreview.state === "ok" && (
           <div className="hub-preview">
             <p className="muted hub-preview-status" style={{ margin: 0 }}>
-              Hub reachable — ready to connect.
+              {t("hub.reachable")}
             </p>
             {hubPreview.invite_only && (
               <p className="muted hub-preview-warn">
-                🔒 Invite-only — paste the full invite link to join
+                🔒 {t("hub.invite_only_hint")}
               </p>
             )}
             {(hubPreview.min_security_level ?? 0) > 0 && (
               <p className="muted hub-preview-warn">
-                ⚙️ Proof-of-work required:{" "}
+                ⚙️ {t("welcome.pow_required")}{" "}
                 {(hubPreview.min_security_level ?? 0) >= 20
-                  ? "High (~15 min)"
+                  ? t("welcome.pow_high")
                   : (hubPreview.min_security_level ?? 0) >= 15
-                  ? "Medium (~1 min)"
-                  : "Low (<1 sec)"}
+                  ? t("welcome.pow_medium")
+                  : t("welcome.pow_low")}
               </p>
             )}
             {hubPreview.welcome_label && (
@@ -100,21 +98,21 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
           </div>
         )}
         <div className="modal-actions">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={onClose} className="btn-secondary">{t("modal.cancel")}</button>
           <button onClick={onAdd} disabled={loading}>
-            {loading ? "Connecting..." : "Connect"}
+            {loading ? t("hub.connecting") : t("hub.add_modal.connect")}
           </button>
         </div>
         {showPasskey && (
           <div style={{ textAlign: "center", marginTop: 10 }}>
-            <span className="muted" style={{ fontSize: "var(--text-xs)", display: "block", marginBottom: 6 }}>or</span>
+            <span className="muted" style={{ fontSize: "var(--text-xs)", display: "block", marginBottom: 6 }}>{t("hub.add_modal.or_divider")}</span>
             <button
               className="btn-secondary"
               style={{ width: "100%" }}
               onClick={onAddWithPasskey}
               disabled={loading}
             >
-              Sign in with passkey
+              {t("hub.add_modal.passkey_signin")}
             </button>
           </div>
         )}

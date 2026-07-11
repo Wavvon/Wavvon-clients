@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listAccounts,
   getActiveAccountId,
@@ -29,6 +30,7 @@ interface ImportSummary {
 }
 
 export function IdentityBackupSection({ publicKey, onExported, onImported }: Props) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<"idle" | "export-form" | "import-form">("idle");
   const [exportAccounts, setExportAccounts] = useState<IdentityRecord[] | null>(null);
   const [exportSelectedIds, setExportSelectedIds] = useState<Set<string>>(new Set());
@@ -73,12 +75,12 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
   }
 
   async function handleExport() {
-    if (exportPassphrase !== exportConfirm) { setError("Passphrases don't match."); return; }
-    if (!exportPassphrase) { setError("Enter a passphrase."); return; }
+    if (exportPassphrase !== exportConfirm) { setError(t("settings.account.full_archive.error_mismatch")); return; }
+    if (!exportPassphrase) { setError(t("settings.account.full_archive.error_empty")); return; }
     const accounts = exportAccounts ?? [];
     const selected = accounts.length > 1 ? accounts.filter((a) => exportSelectedIds.has(a.id)) : accounts;
     if (selected.length === 0) {
-      setError(accounts.length > 1 ? "Select at least one account to export." : "No identity found.");
+      setError(accounts.length > 1 ? t("settings.account.identity_backup.error_select_account") : t("settings.account.identity_backup.error_no_identity"));
       return;
     }
     setWorking(true);
@@ -148,7 +150,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
   }
 
   async function handleImport() {
-    if (!importFileData || !importPassphrase) { setError("Select a file and enter the passphrase."); return; }
+    if (!importFileData || !importPassphrase) { setError(t("settings.account.identity_backup.error_missing_file")); return; }
     setWorking(true);
     setError(null);
     try {
@@ -176,7 +178,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       try {
         plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonceBuf.buffer as ArrayBuffer }, aesKey, ciphertextBuf.buffer as ArrayBuffer);
       } catch {
-        throw new Error("Couldn't unlock — wrong passphrase or the file is damaged.");
+        throw new Error(t("settings.account.identity_backup.error_decrypt"));
       }
 
       const identityJson = new TextDecoder().decode(plaintext);
@@ -216,9 +218,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       }
       if (
         confirm(
-          `Import added ${added.length} new identit${added.length === 1 ? "y" : "ies"}` +
-            (alreadyPresent > 0 ? ` (${alreadyPresent} already on this device).` : ".") +
-            "\n\nSwitch to the first new identity now?\n\nMake sure the current identity is backed up first.",
+          t("settings.account.identity_backup.import_confirm", { count: added.length, alreadyPresent }),
         )
       ) {
         switchAccount(first.id);
@@ -236,25 +236,24 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
 
   return (
     <div className="settings-section">
-      <label className="settings-label">Identity backup</label>
+      <label className="settings-label">{t("settings.account.identity_backup.label")}</label>
       <p className="muted">
-        Export your identity to an encrypted file. Anyone with the file and passphrase
-        can become you — store it safely and never share the passphrase.
+        {t("settings.account.identity_backup.hint")}
       </p>
 
       {step === "idle" && importSummary && (
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          Import complete: {importSummary.added} added, {importSummary.alreadyPresent} already on this device.
+          {t("settings.account.identity_backup.import_complete", { added: importSummary.added, alreadyPresent: importSummary.alreadyPresent })}
         </p>
       )}
 
       {step === "idle" && (
         <div className="settings-row">
           <button className="btn-secondary" onClick={openExportForm}>
-            Export backup
+            {t("settings.account.identity_backup.export_button")}
           </button>
           <button className="btn-secondary" onClick={() => { setStep("import-form"); setError(null); setImportSummary(null); }}>
-            Restore from backup
+            {t("settings.account.identity_backup.restore_button")}
           </button>
         </div>
       )}
@@ -262,15 +261,14 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       {step === "export-form" && (
         <div>
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-            Create a passphrase-protected backup of your identity. This file plus your
-            passphrase restores your identity on any device.
+            {t("settings.account.identity_backup.export_hint")}
           </p>
           {showExportCheckboxes && (
             <div style={{ marginBottom: 8 }}>
               <div className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-                <span className="muted" style={{ fontSize: "var(--text-xs)" }}>Accounts to include</span>
+                <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("settings.account.identity_backup.accounts_include")}</span>
                 <button type="button" className="btn-small btn-secondary" onClick={selectAllForExport}>
-                  Select all
+                  {t("settings.account.identity_backup.select_all")}
                 </button>
               </div>
               {(exportAccounts ?? []).map((account) => (
@@ -287,34 +285,34 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
           )}
           <input
             type="password"
-            placeholder="Passphrase"
-            aria-label="Export passphrase"
+            placeholder={t("settings.account.full_archive.passphrase")}
+            aria-label={t("settings.account.full_archive.passphrase")}
             value={exportPassphrase}
             onChange={(e) => setExportPassphrase(e.target.value)}
             style={{ width: "100%", marginBottom: 4 }}
           />
           {exportPassphrase && (
             <span className={`passphrase-strength ${passphraseStrength(exportPassphrase)}`}>
-              Strength: {passphraseStrength(exportPassphrase)}
+              {t("settings.account.full_archive.strength", { strength: t(`settings.account.full_archive.strength_${passphraseStrength(exportPassphrase)}`) })}
             </span>
           )}
           {passphraseStrength(exportPassphrase) === "weak" && exportPassphrase && (
             <p className="muted" style={{ color: "var(--warning, orange)", fontSize: "var(--text-xs)" }}>
-              Weak passphrase — a strong passphrase is your primary defense if this file is stolen.
+              {t("settings.account.identity_backup.weak_warning")}
             </p>
           )}
           <input
             type="password"
-            placeholder="Confirm passphrase"
-            aria-label="Confirm export passphrase"
+            placeholder={t("settings.account.full_archive.confirm_passphrase")}
+            aria-label={t("settings.account.full_archive.confirm_passphrase")}
             value={exportConfirm}
             onChange={(e) => setExportConfirm(e.target.value)}
             style={{ width: "100%", margin: "4px 0" }}
           />
           <input
             type="text"
-            placeholder="Label (optional, e.g. laptop backup May 2026)"
-            aria-label="Backup label"
+            placeholder={t("settings.account.identity_backup.label_field_placeholder")}
+            aria-label={t("settings.account.identity_backup.label_field_aria")}
             value={exportLabel}
             onChange={(e) => setExportLabel(e.target.value)}
             style={{ width: "100%", marginBottom: 8 }}
@@ -322,10 +320,10 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
           {error && <p className="error-text">{error}</p>}
           <div className="settings-row">
             <button onClick={handleExport} disabled={working}>
-              {working ? "Exporting…" : "Save backup file"}
+              {working ? t("settings.account.full_archive.exporting") : t("settings.account.identity_backup.save_button")}
             </button>
             <button className="btn-secondary" onClick={() => { setStep("idle"); setError(null); setExportAccounts(null); }}>
-              Cancel
+              {t("modal.cancel")}
             </button>
           </div>
         </div>
@@ -334,8 +332,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       {step === "import-form" && (
         <div>
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-            If you still have a working device, pair it instead of importing a backup.
-            Import only when recovering from total device loss.
+            {t("settings.account.identity_backup.import_hint")}
           </p>
           <input
             ref={fileInputRef}
@@ -346,14 +343,14 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
           />
           <div className="settings-row" style={{ marginBottom: 8 }}>
             <button className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
-              Choose file
+              {t("settings.account.identity_backup.choose_file")}
             </button>
             {importFilename && <span className="muted">{importFilename}</span>}
           </div>
           <input
             type="password"
-            placeholder="Passphrase"
-            aria-label="Import passphrase"
+            placeholder={t("settings.account.full_archive.passphrase")}
+            aria-label={t("settings.account.full_archive.passphrase")}
             value={importPassphrase}
             onChange={(e) => setImportPassphrase(e.target.value)}
             style={{ width: "100%", marginBottom: 8 }}
@@ -361,10 +358,10 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
           {error && <p className="error-text">{error}</p>}
           <div className="settings-row">
             <button onClick={handleImport} disabled={working || !importFileData}>
-              {working ? "Restoring…" : "Restore"}
+              {working ? t("settings.account.identity_backup.restoring") : t("settings.account.identity_backup.restore_now")}
             </button>
             <button className="btn-secondary" onClick={() => { setStep("idle"); setError(null); }}>
-              Cancel
+              {t("modal.cancel")}
             </button>
           </div>
         </div>

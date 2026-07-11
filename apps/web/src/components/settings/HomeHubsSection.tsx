@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { loadIdentity, masterSeedHex, masterPublicKeyHex, buildHomeHubList } from "@identity/index";
 import { getHomeHubDesignation, putHomeHubDesignation } from "@platform";
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function HomeHubsSection({ activeHubUrl }: Props) {
+  const { t } = useTranslation();
   const [hubs, setHubs] = useState<string[]>([]);
   const [sequence, setSequence] = useState(0);
   const [master, setMaster] = useState<{ seedHex: string; pubkey: string } | null>(null);
@@ -84,16 +86,15 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Home hubs</label>
+      <label className="settings-label">{t("settings.account.home_hubs.label")}</label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        The ordered list of hubs where others can reach you. The first is your preferred hub.
-        Publishing signs the list with your master key so any hub can verify it.
+        {t("settings.account.home_hubs.hint")}
       </p>
 
       {status === "loading" ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("modal.loading")}</p>
       ) : hubs.length === 0 ? (
-        <p className="muted">No home hubs published yet.</p>
+        <p className="muted">{t("settings.account.home_hubs.empty")}</p>
       ) : (
         hubs.map((h, i) => (
           <div
@@ -106,9 +107,9 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
               {h}
             </span>
             <span style={{ display: "flex", gap: 4 }}>
-              <button className="btn-small btn-secondary" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</button>
-              <button className="btn-small btn-secondary" disabled={i === hubs.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</button>
-              <button className="btn-small btn-secondary danger" onClick={() => removeHub(i)}>Remove</button>
+              <button className="btn-small btn-secondary" disabled={i === 0} onClick={() => move(i, -1)} aria-label={t("settings.account.home_hubs.move_up_aria")}>↑</button>
+              <button className="btn-small btn-secondary" disabled={i === hubs.length - 1} onClick={() => move(i, 1)} aria-label={t("settings.account.home_hubs.move_down_aria")}>↓</button>
+              <button className="btn-small btn-secondary danger" onClick={() => removeHub(i)}>{t("settings.account.home_hubs.remove_button")}</button>
             </span>
           </div>
         ))
@@ -121,22 +122,22 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
           onChange={(e) => setNewHub(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") addHub(); }}
           placeholder={activeHubUrl ?? "https://hub.example"}
-          aria-label="Home hub URL"
+          aria-label={t("settings.account.home_hubs.url_aria")}
           style={{ flex: 1 }}
         />
-        <button className="btn-secondary" onClick={addHub} disabled={!newHub.trim()}>Add</button>
+        <button className="btn-secondary" onClick={addHub} disabled={!newHub.trim()}>{t("settings.account.home_hubs.add_button")}</button>
         {activeHubUrl && !hubs.includes(activeHubUrl.replace(/\/+$/, "")) && (
           <button className="btn-small btn-secondary" onClick={() => setHubs([...hubs, activeHubUrl.replace(/\/+$/, "")])}>
-            Add this hub
+            {t("settings.account.home_hubs.add_this_hub_button")}
           </button>
         )}
       </div>
 
       <div style={{ marginTop: "var(--space-2)", display: "flex", alignItems: "center", gap: 8 }}>
         <button className="btn-primary" onClick={publish} disabled={status === "saving" || !master}>
-          {status === "saving" ? "Publishing…" : "Publish home hubs"}
+          {status === "saving" ? t("settings.account.home_hubs.publishing") : t("settings.account.home_hubs.publish_button")}
         </button>
-        {status === "saved" && <span className="muted" style={{ fontSize: "var(--text-sm)" }}>Published ✓</span>}
+        {status === "saved" && <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.home_hubs.published")}</span>}
       </div>
       {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
     </div>

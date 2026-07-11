@@ -48,13 +48,13 @@ export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, on
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Saved profiles</label>
+      <label className="settings-label">{t("settings.account.profiles.label")}</label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        Presets you can apply to a hub. Applying one updates your display name &amp; avatar on the active hub.
+        {t("settings.account.profiles.hint")}
       </p>
 
       {profiles.length === 0 ? (
-        <p className="muted">No saved profiles yet.</p>
+        <p className="muted">{t("settings.account.profiles.empty")}</p>
       ) : (
         profiles.map((p) => (
           <div key={p.id} className="settings-section" style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "var(--space-2)" }}>
@@ -63,13 +63,13 @@ export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, on
                 <input
                   type="text"
                   defaultValue={p.label}
-                  aria-label="Profile label"
+                  aria-label={t("settings.account.profiles.label_field_aria")}
                   onBlur={(e) => onUpdate(p.id, { label: e.target.value.trim() || p.label })}
                 />
                 <input
                   type="text"
                   defaultValue={p.display_name}
-                  aria-label="Profile display name"
+                  aria-label={t("settings.account.profiles.name_field_aria")}
                   onBlur={(e) => onUpdate(p.id, { display_name: e.target.value.trim() || p.display_name })}
                 />
                 <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)" }}>
@@ -100,7 +100,7 @@ export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, on
                     setEditingAvatarFor(null);
                   }}
                 >
-                  Done
+                  {t("settings.account.done_button")}
                 </button>
               </div>
             ) : (
@@ -109,15 +109,15 @@ export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, on
                   <Avatar src={p.avatar} name={p.display_name} size={28} />
                   <span>
                     <strong>{p.label}</strong>
-                    {defaultProfileId === p.id && <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · default</span>}
+                    {defaultProfileId === p.id && <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · {t("settings.account.profiles.default_marker")}</span>}
                     <span className="muted" style={{ fontSize: "var(--text-xs)" }}> — {p.display_name}</span>
                   </span>
                 </span>
                 <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  <button className="btn-small" disabled={!activeHub} onClick={() => assignToActiveHub(p.id)}>Apply to hub</button>
-                  <button className="btn-small btn-secondary" onClick={() => onSetDefault(p.id)} disabled={defaultProfileId === p.id}>Set default</button>
-                  <button className="btn-small btn-secondary" onClick={() => setEditing(p.id)}>Edit</button>
-                  <button className="btn-small btn-secondary danger" onClick={() => onDelete(p.id)}>Delete</button>
+                  <button className="btn-small" disabled={!activeHub} onClick={() => assignToActiveHub(p.id)}>{t("settings.account.profiles.apply_button")}</button>
+                  <button className="btn-small btn-secondary" onClick={() => onSetDefault(p.id)} disabled={defaultProfileId === p.id}>{t("settings.account.profiles.set_default_button")}</button>
+                  <button className="btn-small btn-secondary" onClick={() => setEditing(p.id)}>{t("settings.account.profiles.edit_button")}</button>
+                  <button className="btn-small btn-secondary danger" onClick={() => onDelete(p.id)}>{t("modal.delete")}</button>
                 </span>
               </div>
             )}
@@ -126,14 +126,14 @@ export function ProfilesSection({ profiles, defaultProfileId, hubs, onCreate, on
       )}
 
       <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
-        <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>New profile</label>
+        <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.profiles.new_label")}</label>
         <div className="settings-row" style={{ gap: "var(--space-2)", flexWrap: "wrap" }}>
-          <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (e.g. Gaming)" aria-label="New profile label" />
-          <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Display name" aria-label="New profile display name" />
+          <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder={t("settings.account.profiles.new_label_placeholder")} aria-label={t("settings.account.profiles.new_label_aria")} />
+          <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("settings.account.profiles.new_name_placeholder")} aria-label={t("settings.account.profiles.new_name_aria")} />
         </div>
         <AvatarChooser value={newAvatar} fallbackName={newName} onChange={setNewAvatar} onClear={() => setNewAvatar(null)} />
         <div style={{ marginTop: "var(--space-2)" }}>
-          <button onClick={create} disabled={!newLabel.trim() || !newName.trim()}>Create profile</button>
+          <button onClick={create} disabled={!newLabel.trim() || !newName.trim()}>{t("settings.account.profiles.create_button")}</button>
         </div>
       </div>
     </div>

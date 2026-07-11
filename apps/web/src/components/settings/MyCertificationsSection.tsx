@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listMyCertifications } from "@platform";
 import type { Certification } from "@platform";
 import { getScoped, setScoped } from "@shared/utils/accountScope";
@@ -22,6 +23,7 @@ function issuerHost(url: string): string {
 }
 
 export function MyCertificationsSection({ publicKey }: { publicKey: string | null }) {
+  const { t } = useTranslation();
   const [certs, setCerts] = useState<Certification[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(() => loadHidden());
@@ -49,15 +51,14 @@ export function MyCertificationsSection({ publicKey }: { publicKey: string | nul
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Badges &amp; certifications</label>
+      <label className="settings-label">{t("settings.account.certifications.label")}</label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        Achievements and attestations communities have granted your identity. You carry them across
-        hubs — hide any you don’t want shown.
+        {t("settings.account.certifications.hint")}
       </p>
       {error && <p className="error-text">{error}</p>}
 
       {certs === null ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("modal.loading")}</p>
       ) : (
         <>
           {badges.length > 0 && (
@@ -81,7 +82,7 @@ export function MyCertificationsSection({ publicKey }: { publicKey: string | nul
                         const link = c.payload.issuer_url || c.hub_url || "";
                         return link ? (
                           <a className="muted" href={link} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-xs)" }} title={link}>
-                            from {issuerHost(link)}
+                            {t("settings.account.certifications.from_issuer", { host: issuerHost(link) })}
                           </a>
                         ) : null;
                       })()}
@@ -90,7 +91,7 @@ export function MyCertificationsSection({ publicKey }: { publicKey: string | nul
                       )}
                     </span>
                     <button className="btn-small btn-secondary" onClick={() => toggleHidden(c.signature)}>
-                      {isHidden ? "Show" : "Hide"}
+                      {isHidden ? t("settings.account.certifications.show") : t("settings.account.certifications.hide")}
                     </button>
                   </div>
                 );
@@ -99,16 +100,16 @@ export function MyCertificationsSection({ publicKey }: { publicKey: string | nul
           )}
 
           {plainCerts.length === 0 && badges.length === 0 ? (
-            <p className="muted">No badges or certifications yet.</p>
+            <p className="muted">{t("settings.account.certifications.empty")}</p>
           ) : (
             plainCerts.map((c) => (
               <div key={c.signature} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
                 <span>
                   🏅 {issuerHost(c.payload.issuer_url)}
-                  {c.payload.standing === "revoked" && <span className="muted"> · revoked</span>}
+                  {c.payload.standing === "revoked" && <span className="muted"> · {t("settings.account.certifications.revoked_suffix")}</span>}
                 </span>
                 <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                  member since {new Date(c.payload.member_since * 1000).toLocaleDateString()}
+                  {t("settings.account.certifications.member_since", { date: new Date(c.payload.member_since * 1000).toLocaleDateString() })}
                 </span>
               </div>
             ))

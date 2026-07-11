@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { bytesToHex } from "@wavvon/core";
 import {
   loadIdentity,
@@ -50,6 +51,7 @@ function randomToken(): string {
 // pairing, and pair a new device by issuing it a master-signed cert. This
 // device's own key is subkey 0 (its pubkey equals the legacy identity pubkey).
 export function DevicesSection({ activeHubUrl }: Props) {
+  const { t } = useTranslation();
   const [d, setD] = useState<Derived | null>(null);
   const [certs, setCerts] = useState<SubkeyCert[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +179,7 @@ export function DevicesSection({ activeHubUrl }: Props) {
         setOffer({ phase: "claimed", token, hubUrl, subkeyPubkey: status.subkey_pubkey, label: status.device_label });
       } else if (status.state === "expired") {
         if (pollRef.current) clearInterval(pollRef.current);
-        setOffer({ phase: "error", message: "The pairing offer expired. Start again." });
+        setOffer({ phase: "error", message: t("settings.account.devices.error_expired") });
       }
     }, 2000);
   }
@@ -214,26 +216,25 @@ export function DevicesSection({ activeHubUrl }: Props) {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Devices</label>
+      <label className="settings-label">{t("settings.account.devices.label")}</label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        Link more devices to this identity. Each device keeps its own key; a shared master key ties them together so
-        every device is recognised as you.
+        {t("settings.account.devices.hint")}
       </p>
 
       {!d.enabled ? (
         <button className="btn-primary" onClick={enableMultiDevice} disabled={busy}>
-          {busy ? "Enabling…" : "Enable multi-device"}
+          {busy ? t("settings.account.devices.enabling") : t("settings.account.devices.enable_button")}
         </button>
       ) : (
         <>
           <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
             <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-              Master key: {d.masterPubkey.slice(0, 16)}…
+              {t("settings.account.devices.master_key_label", { key: d.masterPubkey.slice(0, 16) })}
             </span>
           </div>
 
           {certs.length === 0 ? (
-            <p className="muted">No linked devices registered on this hub yet.</p>
+            <p className="muted">{t("settings.account.devices.empty")}</p>
           ) : (
             certs.map((c) => (
               <div
@@ -244,13 +245,13 @@ export function DevicesSection({ activeHubUrl }: Props) {
                 <span>
                   <strong>{c.device_label}</strong>
                   {c.subkey_pubkey === d.devicePubkey && (
-                    <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · this device</span>
+                    <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · {t("settings.account.devices.this_device_suffix")}</span>
                   )}
                   <span className="muted" style={{ fontSize: "var(--text-xs)" }}> — {c.subkey_pubkey.slice(0, 12)}…</span>
                 </span>
                 {c.subkey_pubkey !== d.devicePubkey && (
                   <button className="btn-small btn-secondary danger" onClick={() => revoke(c)} disabled={busy}>
-                    Revoke
+                    {t("settings.account.revoke_button")}
                   </button>
                 )}
               </div>
@@ -258,54 +259,54 @@ export function DevicesSection({ activeHubUrl }: Props) {
           )}
 
           <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
-            <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>Pair a new device</label>
+            <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.devices.pair_label")}</label>
             {offer.phase === "idle" && (
               <button className="btn-secondary" onClick={startPairing} disabled={!activeHubUrl}>
-                Start pairing
+                {t("settings.account.devices.start_pairing_button")}
               </button>
             )}
             {offer.phase === "waiting" && pairingCode && (
               <div>
                 <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-                  On your other device, choose “Pair with an existing device” and paste this code. It expires in 5 minutes.
+                  {t("settings.account.devices.pair_code_hint")}
                 </p>
                 <textarea
                   readOnly
-                  aria-label="Pairing code"
+                  aria-label={t("settings.account.devices.pairing_code_aria")}
                   value={pairingCode}
                   onFocus={(e) => e.currentTarget.select()}
                   style={{ width: "100%", fontFamily: "monospace", fontSize: "var(--text-xs)", minHeight: 60 }}
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                   <button className="btn-small btn-secondary" onClick={() => navigator.clipboard.writeText(pairingCode)}>
-                    Copy code
+                    {t("settings.account.devices.copy_code_button")}
                   </button>
-                  <button className="btn-small btn-secondary" onClick={resetOffer}>Cancel</button>
+                  <button className="btn-small btn-secondary" onClick={resetOffer}>{t("modal.cancel")}</button>
                 </div>
-                <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>Waiting for the other device…</p>
+                <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>{t("settings.account.devices.waiting_other")}</p>
               </div>
             )}
             {offer.phase === "claimed" && (
               <div>
                 <p style={{ fontSize: "var(--text-sm)" }}>
-                  <strong>{offer.label}</strong> wants to link (
-                  <span className="muted">{offer.subkeyPubkey.slice(0, 12)}…</span>). Approve only if you started this.
+                  <strong>{offer.label}</strong> {t("settings.account.devices.claim_wants_to_link")} (
+                  <span className="muted">{offer.subkeyPubkey.slice(0, 12)}…</span>{t("settings.account.devices.claim_approve_suffix")}
                 </p>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn-primary" onClick={approve}>Approve</button>
-                  <button className="btn-small btn-secondary" onClick={resetOffer}>Reject</button>
+                  <button className="btn-primary" onClick={approve}>{t("hub.admin.members.pending.approve")}</button>
+                  <button className="btn-small btn-secondary" onClick={resetOffer}>{t("settings.account.devices.reject_button")}</button>
                 </div>
               </div>
             )}
-            {offer.phase === "completing" && <p className="muted">Linking…</p>}
+            {offer.phase === "completing" && <p className="muted">{t("settings.account.devices.linking")}</p>}
             {offer.phase === "done" && (
               <p style={{ fontSize: "var(--text-sm)" }}>
-                Linked <strong>{offer.label}</strong> ✓ <button className="btn-small btn-secondary" onClick={resetOffer}>Done</button>
+                {t("settings.account.devices.linked_prefix")} <strong>{offer.label}</strong> ✓ <button className="btn-small btn-secondary" onClick={resetOffer}>{t("settings.account.done_button")}</button>
               </p>
             )}
             {offer.phase === "error" && (
               <p className="error-text">
-                {offer.message} <button className="btn-small btn-secondary" onClick={resetOffer}>Reset</button>
+                {offer.message} <button className="btn-small btn-secondary" onClick={resetOffer}>{t("settings.account.devices.reset_button")}</button>
               </p>
             )}
           </div>

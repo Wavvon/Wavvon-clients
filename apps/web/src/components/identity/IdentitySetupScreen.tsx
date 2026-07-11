@@ -92,7 +92,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       decoded = JSON.parse(atob(pairCode.trim()));
       if (!decoded.hub || !decoded.token) throw new Error("bad code");
     } catch {
-      setError("That pairing code isn't valid. Copy it again from your other device.");
+      setError(t("identity_setup.pair.error_invalid_code"));
       return;
     }
     setPairStatus("claiming");
@@ -106,7 +106,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       const started = Date.now();
       const poll = async (): Promise<void> => {
         if (Date.now() - started > 320_000) {
-          setError("The pairing offer expired before it was approved.");
+          setError(t("identity_setup.pair.error_expired_unapproved"));
           setPairStatus("idle");
           return;
         }
@@ -121,7 +121,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           return;
         }
         if (status && status.state === "expired") {
-          setError("The pairing offer expired.");
+          setError(t("identity_setup.pair.error_expired"));
           setPairStatus("idle");
           return;
         }
@@ -181,7 +181,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
 
   async function doRecoverPhrase() {
     setError(null);
-    if (!validatePhrase(phrase)) { setError("Invalid recovery phrase."); return; }
+    if (!validatePhrase(phrase)) { setError(t("identity_setup.recover.error_invalid_phrase")); return; }
     try {
       const hex = phraseToSeed(phrase);
       const { account } = await resolveOrCreateAccount(hex);
@@ -191,7 +191,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
 
   async function doRecoverHex() {
     setError(null);
-    if (!/^[0-9a-fA-F]{64}$/.test(hexInput)) { setError("Must be 64 hex chars."); return; }
+    if (!/^[0-9a-fA-F]{64}$/.test(hexInput)) { setError(t("identity_setup.recover.error_invalid_hex")); return; }
     try {
       const { account } = await resolveOrCreateAccount(hexInput.toLowerCase());
       finishWithAccount(account.id);
@@ -201,8 +201,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   if (step === "generated") {
     return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Save your recovery phrase</h2>
-        <p className="muted">Write these 24 words down and store them somewhere safe. Anyone with this phrase can control your identity.</p>
+        <h2>{t("identity_setup.generated.title")}</h2>
+        <p className="muted">{t("identity_setup.generated.hint")}</p>
         <div style={{ background: "var(--bg-elevated)", padding: 16, borderRadius: "var(--r-md)", fontFamily: "monospace", lineHeight: 1.8, marginBottom: 16 }}>{generatedPhrase}</div>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
           <button
@@ -210,7 +210,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
             style={{ fontSize: "inherit", padding: 0, textDecoration: "underline" }}
             onClick={() => setShowHexBackup((v) => !v)}
           >
-            {showHexBackup ? "Hide" : "Show"} seed hex (alternative backup)
+            {showHexBackup ? t("identity_setup.generated.hide_hex") : t("identity_setup.generated.show_hex")}
           </button>
           {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
         </p>
@@ -219,7 +219,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           onClick={() => (variant === "add" ? onComplete({ accountId: generatedAccountId }) : setStep("profile"))}
           style={{ marginTop: 16 }}
         >
-          I saved my phrase — Continue
+          {t("identity_setup.generated.continue")}
         </button>
       </div>
     );
@@ -266,16 +266,16 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   if (step === "recover") {
     return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Recover identity</h2>
-        <label className="settings-label">24-word recovery phrase</label>
-        <textarea rows={3} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder="word1 word2 word3 …" style={{ width: "100%", marginBottom: 8 }} />
-        <button onClick={doRecoverPhrase} style={{ marginBottom: 16 }}>Recover from phrase</button>
-        <label className="settings-label">Or seed hex (64 chars)</label>
-        <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder="a1b2c3d4…" style={{ width: "100%", fontFamily: "monospace", marginBottom: 8 }} />
-        <button onClick={doRecoverHex} style={{ marginBottom: 8 }}>Recover from hex</button>
+        <h2>{t("identity_setup.recover.title")}</h2>
+        <label className="settings-label">{t("identity_setup.recover.phrase_label")}</label>
+        <textarea rows={3} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder={t("identity_setup.recover.phrase_placeholder")} style={{ width: "100%", marginBottom: 8 }} />
+        <button onClick={doRecoverPhrase} style={{ marginBottom: 16 }}>{t("identity_setup.recover.from_phrase")}</button>
+        <label className="settings-label">{t("identity_setup.recover.hex_label")}</label>
+        <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder={t("identity_setup.recover.hex_placeholder")} style={{ width: "100%", fontFamily: "monospace", marginBottom: 8 }} />
+        <button onClick={doRecoverHex} style={{ marginBottom: 8 }}>{t("identity_setup.recover.from_hex")}</button>
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
-        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>Back</button>
+        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>{t("modal.back")}</button>
       </div>
     );
   }
@@ -283,48 +283,47 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   if (step === "pair") {
     return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Pair with an existing device</h2>
+        <h2>{t("identity_setup.pair.title")}</h2>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          On a device you're already signed in on, open Settings → Account → Devices → “Pair a new device”, then paste
-          the code it shows here.
+          {t("identity_setup.pair.hint")}
         </p>
-        <label className="settings-label">Device name</label>
+        <label className="settings-label">{t("identity_setup.pair.device_name_label")}</label>
         <input
           type="text"
           value={pairLabel}
           onChange={(e) => setPairLabel(e.target.value)}
-          placeholder="e.g. Work laptop"
-          aria-label="Device name"
+          placeholder={t("identity_setup.pair.device_name_placeholder")}
+          aria-label={t("identity_setup.pair.device_name_label")}
           style={{ width: "100%", marginBottom: 8 }}
         />
-        <label className="settings-label">Pairing code</label>
+        <label className="settings-label">{t("identity_setup.pair.code_label")}</label>
         <textarea
           rows={3}
           value={pairCode}
           onChange={(e) => setPairCode(e.target.value)}
-          placeholder="Paste the code from your other device"
-          aria-label="Pairing code"
+          placeholder={t("identity_setup.pair.code_placeholder")}
+          aria-label={t("identity_setup.pair.code_label")}
           style={{ width: "100%", marginBottom: 8, fontFamily: "monospace" }}
         />
         <button className="btn-primary" onClick={doPair} disabled={pairStatus !== "idle" || !pairCode.trim()}>
-          {pairStatus === "waiting" ? "Waiting for approval…" : pairStatus === "claiming" ? "Linking…" : "Pair this device"}
+          {pairStatus === "waiting" ? t("identity_setup.pair.waiting") : pairStatus === "claiming" ? t("identity_setup.pair.linking") : t("identity_setup.pair.submit")}
         </button>
         {pairStatus === "waiting" && (
           <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
-            Approve this device on your other device to finish.
+            {t("identity_setup.pair.waiting_hint")}
           </p>
         )}
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
-        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>Back</button>
+        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>{t("modal.back")}</button>
       </div>
     );
   }
 
   return (
     <div style={{ maxWidth: 400, margin: "120px auto", padding: 32, textAlign: "center" }}>
-      <h1>{variant === "add" ? t("identity_setup.add.title") : "Wavvon"}</h1>
-      <p className="muted">{variant === "add" ? t("identity_setup.add.hint") : "Create a new identity or recover an existing one."}</p>
+      <h1>{variant === "add" ? t("identity_setup.add.title") : t("app.title")}</h1>
+      <p className="muted">{variant === "add" ? t("identity_setup.add.hint") : t("identity_setup.choose.hint")}</p>
       {passkeySupported && (
         <>
           <button
@@ -347,13 +346,13 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         </>
       )}
       <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={doGenerate}>
-        Create new identity
+        {t("identity_setup.choose.create")}
       </button>
       <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setStep("recover")}>
-        Recover existing identity
+        {t("identity_setup.choose.recover")}
       </button>
       <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setStep("pair")}>
-        Pair with an existing device
+        {t("identity_setup.pair.title")}
       </button>
       {error && <p style={{ color: "var(--danger)", marginTop: 12 }}>{error}</p>}
       {variant === "add" && onCancel && (
