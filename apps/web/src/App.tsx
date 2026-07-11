@@ -1679,7 +1679,12 @@ export default function App() {
     setInputText("");
     try {
       await sendDm(selectedConversation.id, text);
-    } catch {}
+    } catch (e) {
+      // Losing the message silently is worse than any error: put the text
+      // back in the composer and surface what happened.
+      setInputText(text);
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
   }
 
   // === Voice ===

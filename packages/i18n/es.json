@@ -131,6 +131,7 @@
   "channel.no_selection": "Select a channel to start chatting",
   "composer.placeholder": "Mensaje #{channel}",
   "composer.placeholder.reply": "Reply to {name}",
+  "composer.dm_placeholder": "Escribe un mensaje",
   "composer.send": "Enviar",
   "composer.send.aria": "Enviar mensaje",
   "composer.attach": "Attach file",

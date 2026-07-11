@@ -163,7 +163,7 @@ export function DmView({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSendDm(); }
           }}
-          placeholder={t("composer.send")}
+          placeholder={t("composer.dm_placeholder")}
         />
         <button onClick={onSendDm}>{t("composer.send")}</button>
       </div>

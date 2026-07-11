@@ -64,9 +64,11 @@ export async function listConversations(): Promise<Conversation[]> {
 }
 
 export async function createConversation(member_pubkeys: string[]): Promise<Conversation> {
+  // Server contract (hub routes/dms/conversations.rs CreateConversationRequest)
+  // names the field `members`.
   const res = await hubFetch("/conversations", {
     method: "POST",
-    body: JSON.stringify({ member_pubkeys }),
+    body: JSON.stringify({ members: member_pubkeys }),
   });
   return res.json() as Promise<Conversation>;
 }
