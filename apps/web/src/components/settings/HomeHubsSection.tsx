@@ -15,6 +15,8 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
   const [hubs, setHubs] = useState<string[]>([]);
   const [sequence, setSequence] = useState(0);
   const [master, setMaster] = useState<{ seedHex: string; pubkey: string } | null>(null);
+  const [accountLabel, setAccountLabel] = useState<string | null>(null);
+  const [isPairedDevice, setIsPairedDevice] = useState(false);
   const [newHub, setNewHub] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +26,16 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
     (async () => {
       const rec = await loadIdentity();
       if (!rec || cancelled) return;
-      const seedHex = masterSeedHex(rec.seed_hex);
-      const pubkey = masterPublicKeyHex(rec.seed_hex);
-      setMaster({ seedHex, pubkey });
+      setAccountLabel(rec.account_label ?? null);
+      // A paired device's seed is a *subkey* — deriving a master from it
+      // yields a wrong identity. It knows the real master pubkey from its
+      // cert (read-only view); only an entropy-holding device may publish.
+      const paired = !!rec.subkey_cert;
+      setIsPairedDevice(paired);
+      const pubkey = paired && rec.master_pubkey ? rec.master_pubkey : masterPublicKeyHex(rec.seed_hex);
+      if (!paired) {
+        setMaster({ seedHex: masterSeedHex(rec.seed_hex), pubkey });
+      }
       try {
         const cur = await getHomeHubDesignation(pubkey);
         if (cancelled) return;
@@ -86,10 +95,25 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">{t("settings.account.home_hubs.label")}</label>
+      <label className="settings-label">
+        {t("settings.account.home_hubs.label")}
+        {accountLabel && (
+          <span className="muted" style={{ fontWeight: 400 }}> — {accountLabel}</span>
+        )}
+      </label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
         {t("settings.account.home_hubs.hint")}
       </p>
+      {accountLabel && (
+        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+          {t("settings.account.home_hubs.per_account_hint", { label: accountLabel })}
+        </p>
+      )}
+      {isPairedDevice && (
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+          {t("settings.account.home_hubs.paired_read_only")}
+        </p>
+      )}
 
       {status === "loading" ? (
         <p className="muted">{t("modal.loading")}</p>
@@ -106,39 +130,45 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
               {i === 0 && <span className="muted" style={{ fontSize: "var(--text-xs)" }}>★ </span>}
               {h}
             </span>
-            <span style={{ display: "flex", gap: 4 }}>
-              <button className="btn-small btn-secondary" disabled={i === 0} onClick={() => move(i, -1)} aria-label={t("settings.account.home_hubs.move_up_aria")}>↑</button>
-              <button className="btn-small btn-secondary" disabled={i === hubs.length - 1} onClick={() => move(i, 1)} aria-label={t("settings.account.home_hubs.move_down_aria")}>↓</button>
-              <button className="btn-small btn-secondary danger" onClick={() => removeHub(i)}>{t("settings.account.home_hubs.remove_button")}</button>
-            </span>
+            {!isPairedDevice && (
+              <span style={{ display: "flex", gap: 4 }}>
+                <button className="btn-small btn-secondary" disabled={i === 0} onClick={() => move(i, -1)} aria-label={t("settings.account.home_hubs.move_up_aria")}>↑</button>
+                <button className="btn-small btn-secondary" disabled={i === hubs.length - 1} onClick={() => move(i, 1)} aria-label={t("settings.account.home_hubs.move_down_aria")}>↓</button>
+                <button className="btn-small btn-secondary danger" onClick={() => removeHub(i)}>{t("settings.account.home_hubs.remove_button")}</button>
+              </span>
+            )}
           </div>
         ))
       )}
 
-      <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-        <input
-          type="text"
-          value={newHub}
-          onChange={(e) => setNewHub(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") addHub(); }}
-          placeholder={activeHubUrl ?? "https://hub.example"}
-          aria-label={t("settings.account.home_hubs.url_aria")}
-          style={{ flex: 1 }}
-        />
-        <button className="btn-secondary" onClick={addHub} disabled={!newHub.trim()}>{t("settings.account.home_hubs.add_button")}</button>
-        {activeHubUrl && !hubs.includes(activeHubUrl.replace(/\/+$/, "")) && (
-          <button className="btn-small btn-secondary" onClick={() => setHubs([...hubs, activeHubUrl.replace(/\/+$/, "")])}>
-            {t("settings.account.home_hubs.add_this_hub_button")}
-          </button>
-        )}
-      </div>
+      {!isPairedDevice && (
+        <>
+          <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+            <input
+              type="text"
+              value={newHub}
+              onChange={(e) => setNewHub(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addHub(); }}
+              placeholder={activeHubUrl ?? "https://hub.example"}
+              aria-label={t("settings.account.home_hubs.url_aria")}
+              style={{ flex: 1 }}
+            />
+            <button className="btn-secondary" onClick={addHub} disabled={!newHub.trim()}>{t("settings.account.home_hubs.add_button")}</button>
+            {activeHubUrl && !hubs.includes(activeHubUrl.replace(/\/+$/, "")) && (
+              <button className="btn-small btn-secondary" onClick={() => setHubs([...hubs, activeHubUrl.replace(/\/+$/, "")])}>
+                {t("settings.account.home_hubs.add_this_hub_button")}
+              </button>
+            )}
+          </div>
 
-      <div style={{ marginTop: "var(--space-2)", display: "flex", alignItems: "center", gap: 8 }}>
-        <button className="btn-primary" onClick={publish} disabled={status === "saving" || !master}>
-          {status === "saving" ? t("settings.account.home_hubs.publishing") : t("settings.account.home_hubs.publish_button")}
-        </button>
-        {status === "saved" && <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.home_hubs.published")}</span>}
-      </div>
+          <div style={{ marginTop: "var(--space-2)", display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="btn-primary" onClick={publish} disabled={status === "saving" || !master}>
+              {status === "saving" ? t("settings.account.home_hubs.publishing") : t("settings.account.home_hubs.publish_button")}
+            </button>
+            {status === "saved" && <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.home_hubs.published")}</span>}
+          </div>
+        </>
+      )}
       {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
     </div>
   );

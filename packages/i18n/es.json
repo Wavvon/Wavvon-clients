@@ -957,6 +957,8 @@
   "settings.account.certifications.revoked_suffix": "revocada",
   "settings.account.home_hubs.label": "Hubs principales",
   "settings.account.home_hubs.hint": "La lista ordenada de hubs donde otros pueden contactarte. El primero es tu hub preferido. Publicar firma la lista con tu clave maestra para que cualquier hub pueda verificarla.",
+  "settings.account.home_hubs.per_account_hint": "Estos home hubs pertenecen a {label} — cada cuenta en este dispositivo publica su propia lista separada.",
+  "settings.account.home_hubs.paired_read_only": "Este dispositivo está emparejado y no puede cambiar la lista de home hubs — gestiónala desde el dispositivo que posee la frase de recuperación.",
   "settings.account.home_hubs.empty": "Aún no hay hubs principales publicados.",
   "settings.account.home_hubs.move_up_aria": "Subir",
   "settings.account.home_hubs.move_down_aria": "Bajar",

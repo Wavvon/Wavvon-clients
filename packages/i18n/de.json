@@ -957,6 +957,8 @@
   "settings.account.certifications.revoked_suffix": "widerrufen",
   "settings.account.home_hubs.label": "Heimat-Hubs",
   "settings.account.home_hubs.hint": "Die geordnete Liste der Hubs, über die andere dich erreichen können. Der erste ist dein bevorzugter Hub. Beim Veröffentlichen wird die Liste mit deinem Hauptschlüssel signiert, damit jeder Hub sie prüfen kann.",
+  "settings.account.home_hubs.per_account_hint": "Diese Home-Hubs gehören zu {label} — jedes Konto auf diesem Gerät veröffentlicht seine eigene separate Liste.",
+  "settings.account.home_hubs.paired_read_only": "Dieses Gerät ist gekoppelt und kann die Home-Hub-Liste nicht ändern — verwalte sie auf dem Gerät mit der Wiederherstellungsphrase.",
   "settings.account.home_hubs.empty": "Noch keine Heimat-Hubs veröffentlicht.",
   "settings.account.home_hubs.move_up_aria": "Nach oben verschieben",
   "settings.account.home_hubs.move_down_aria": "Nach unten verschieben",
