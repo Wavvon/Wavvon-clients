@@ -60,6 +60,7 @@ import { SearchBar } from "@components/layout/SearchBar";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
 import { SettingsPage } from "@components/settings/SettingsPage";
 import { UserContextMenu } from "@components/users/UserContextMenu";
+import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
 import { VideoPipWindow } from "@components/voice/VideoPipWindow";
 import { FriendsModal } from "@components/users/FriendsModal";
 import { MobileShell } from "@components/layout/MobileShell";
@@ -142,8 +143,8 @@ type HubPreview =
 
 // ---- Identity Setup ----
 
-function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair">("choose");
+function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_name: string; avatar: string | null }) => void }) {
+  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile">("choose");
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
   const [showHexBackup, setShowHexBackup] = useState(false);
@@ -195,7 +196,7 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
             device_label: label,
             subkey_cert: status.cert,
           });
-          onComplete();
+          setStep("profile");
           return;
         }
         if (status && status.state === "expired") {
@@ -225,7 +226,7 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
     try {
       const hex = phraseToSeed(phrase);
       await saveIdentity({ id: "main", seed_hex: hex, security_nonce: 0, security_level: 0 });
-      onComplete();
+      setStep("profile");
     } catch (e) { setError(String(e)); }
   }
 
@@ -234,7 +235,7 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
     if (!/^[0-9a-fA-F]{64}$/.test(hexInput)) { setError("Must be 64 hex chars."); return; }
     try {
       await saveIdentity({ id: "main", seed_hex: hexInput.toLowerCase(), security_nonce: 0, security_level: 0 });
-      onComplete();
+      setStep("profile");
     } catch (e) { setError(String(e)); }
   }
 
@@ -254,10 +255,19 @@ function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
           </button>
           {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
         </p>
-        <button className="btn-primary" onClick={onComplete} style={{ marginTop: 16 }}>
+        <button className="btn-primary" onClick={() => setStep("profile")} style={{ marginTop: 16 }}>
           I saved my phrase — Continue
         </button>
       </div>
+    );
+  }
+
+  if (step === "profile") {
+    return (
+      <ProfileSetupStep
+        onSave={(display_name, avatar) => onComplete({ display_name, avatar })}
+        onSkip={() => onComplete()}
+      />
     );
   }
 
@@ -731,7 +741,10 @@ export default function App() {
     });
   }, []);
 
-  function handleIdentityComplete() {
+  function handleIdentityComplete(profile?: { display_name: string; avatar: string | null }) {
+    // Nickname + avatar chosen during onboarding become the default profile,
+    // which the first-hub effect below applies automatically via PATCH /me.
+    if (profile) handleCreateProfile(profile.display_name, profile.display_name, profile.avatar);
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
