@@ -292,6 +292,8 @@ export interface InviteInfo {
   uses: number;
   expires_at: number | null;
   created_at: number;
+  /** Role granted to the joining user in addition to `builtin-everyone`, if any. */
+  grant_role_id: string | null;
 }
 
 export interface PendingUser {

@@ -2686,8 +2686,8 @@ export default function App() {
             canManageRoles={canManageRoles}
             myMaxPriority={myMaxPriority}
             onMemberRolesChanged={setMemberRoles}
-            onCreateInvite={(maxUses, expiresIn) =>
-              hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in: expiresIn }) })
+            onCreateInvite={(maxUses, expiresIn, grantRoleId) =>
+              hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in_seconds: expiresIn, grant_role_id: grantRoleId }) })
                 .then((r) => r.json() as Promise<import("@shared/types").InviteInfo>)
                 .then((inv) => addInvite(inv))
                 .catch(() => {})

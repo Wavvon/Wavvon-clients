@@ -8,7 +8,7 @@ import type {
   PendingUser,
   RoleInfo,
 } from "@shared/types";
-import { formatPubkey, formatRelative, buildInviteLink } from "@wavvon/core";
+import { formatPubkey, formatRelative } from "@wavvon/core";
 import { ServerTagsSection } from "./ServerTagsSection";
 import { CertificationsSection } from "./CertificationsSection";
 import { RecoveryContactsSection } from "@components/settings/RecoveryContactsSection";
@@ -26,6 +26,7 @@ import { HubIconsSection } from "./HubIconsSection";
 import { OnboardingAdminSection } from "./OnboardingAdminSection";
 import { SurveyAdminSection } from "./SurveyAdminSection";
 import { MemberRoleManager } from "./MemberRoleManager";
+import { InviteManager } from "./InviteManager";
 
 export type HubAdminTab =
   | "overview"
@@ -91,7 +92,7 @@ export interface HubAdminPageProps {
   /** Highest priority among the viewer's own roles; only lower-priority roles are assignable (matches the hub guard). */
   myMaxPriority: number;
   onMemberRolesChanged: (publicKey: string, roles: RoleInfo[]) => void;
-  onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null) => void;
+  onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null, grantRoleId: string | null) => void;
   onRevokeInvite: (code: string) => void;
   channels: Channel[];
 }
@@ -109,7 +110,6 @@ function hubToWavvonUrl(hubUrl: string): string {
 export function HubAdminPage(props: HubAdminPageProps) {
   const { t } = useTranslation();
   const [copiedShare, setCopiedShare] = useState(false);
-  const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
   const [dirBio, setDirBio] = useState("");
@@ -117,8 +117,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
   const [dirUrl, setDirUrl] = useState("https://discovery.wavvon.io");
   const [dirStatus, setDirStatus] = useState<"idle" | "submitting" | "ok" | "error">("idle");
   const [dirError, setDirError] = useState("");
-  const [inviteMaxUses, setInviteMaxUses] = useState("");
-  const [inviteExpiry, setInviteExpiry] = useState("");
 
   async function handleSubmitToDirectory() {
     setDirStatus("submitting");
@@ -405,53 +403,14 @@ export function HubAdminPage(props: HubAdminPageProps) {
         )}
 
         {props.tab === "invites" && (
-          <section>
-            <h1>{t("hub.admin.tabs.invites")}</h1>
-            <div className="settings-section">
-              <label className="settings-label">{t("invites.create.title")}</label>
-              <div className="settings-row">
-                <input
-                  type="number"
-                  placeholder={t("invites.create.max_uses_placeholder")}
-                  value={inviteMaxUses}
-                  onChange={(e) => setInviteMaxUses(e.target.value)}
-                  style={{ width: 180 }}
-                />
-                <input
-                  type="number"
-                  placeholder={t("admin.invite.expires_placeholder")}
-                  value={inviteExpiry}
-                  onChange={(e) => setInviteExpiry(e.target.value)}
-                  style={{ width: 220 }}
-                />
-                <button onClick={() => props.onCreateInvite(
-                  inviteMaxUses ? Number(inviteMaxUses) : null,
-                  inviteExpiry ? Number(inviteExpiry) : null,
-                )}>
-                  {t("invites.create.button")}
-                </button>
-              </div>
-            </div>
-            {props.invites.map((inv) => {
-              const link = buildInviteLink(props.activeHubUrl, props.hubSerial, inv.code);
-              return (
-                <div key={inv.code} className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
-                  <code className="pubkey-display" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={link}>{link}</code>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
-                  >
-                    {copiedInvite === inv.code ? t("modal.copied") : t("modal.copy")}
-                  </button>
-                  <span className="muted">
-                    {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
-                    {inv.expires_at ? ` · ${t("admin.invite.expires_relative", { date: formatRelative(inv.expires_at) })}` : ""}
-                  </span>
-                  <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
-                </div>
-              );
-            })}
-          </section>
+          <InviteManager
+            invites={props.invites}
+            activeHubUrl={props.activeHubUrl}
+            hubSerial={props.hubSerial}
+            myMaxPriority={props.myMaxPriority}
+            onCreateInvite={props.onCreateInvite}
+            onRevokeInvite={props.onRevokeInvite}
+          />
         )}
 
         {props.tab === "roles" && <RolesSection />}
