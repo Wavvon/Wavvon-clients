@@ -184,6 +184,10 @@ interface Props {
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
   isAdmin: boolean;
+  /** Gate for the "Invite people" entry. Wider than isAdmin: a manage_channels
+   *  member can create invites too, just via the compact quick-invite modal
+   *  rather than the full admin panel. Falls back to isAdmin when omitted. */
+  canCreateInvites?: boolean;
   /** Gate for the per-channel settings gear. Wider than isAdmin: a
    * manage_roles member may open channel settings (Permissions tab).
    * Falls back to isAdmin when omitted. */
@@ -213,6 +217,7 @@ interface Props {
   onRemoveHub: (hubId: string) => void;
   onOpenHubAdmin: () => void;
   onOpenHubAdminInvites: () => void;
+  onOpenQuickInvite: () => void;
   onOpenCreateChannel: (parentId: string | null, isCategory: boolean) => void;
   onSelectChannel: (channel: Channel) => void;
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
@@ -243,13 +248,13 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, selfMuted, selfDeafened,
-  users, publicKey, pingByHub, isAdmin, canOpenChannelSettings, myStatus, myStatusCustom, onSetStatus, hubNotifyMode, hubDropdownOpen,
+  users, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, myStatusCustom, onSetStatus, hubNotifyMode, hubDropdownOpen,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
   conversations, selectedConversation, unreadDms,
   channelTree, effectiveNotifyMode, onToggleCategoryCollapsed,
   onHubDropdownOpenChange, onSetHubMode, onClearHubUnread, onRemoveHub,
-  onOpenHubAdmin, onOpenHubAdminInvites, onOpenCreateChannel,
+  onOpenHubAdmin, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
   onVoiceJoin, onVoiceLeave,
   onSelectAllianceChannel, onSelectConversation,
@@ -494,8 +499,8 @@ export function ChannelSidebar({
           </button>
           {hubDropdownOpen && (
             <div className="hub-dropdown">
-              {isAdmin && (
-                <button className="hub-dropdown-item" onClick={() => { onHubDropdownOpenChange(false); onOpenHubAdminInvites(); }}>
+              {(canCreateInvites ?? isAdmin) && (
+                <button className="hub-dropdown-item" onClick={() => { onHubDropdownOpenChange(false); isAdmin ? onOpenHubAdminInvites() : onOpenQuickInvite(); }}>
                   {t("hub.invite_people")}
                 </button>
               )}
@@ -795,8 +800,8 @@ export function ChannelSidebar({
                 {t("hub.create_channel")}
               </button>
             )}
-            {isAdmin && (
-              <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); onOpenHubAdminInvites(); }}>
+            {(canCreateInvites ?? isAdmin) && (
+              <button className="context-menu-item" onClick={() => { setHubCtxMenu(null); isAdmin ? onOpenHubAdminInvites() : onOpenQuickInvite(); }}>
                 {t("hub.invite_people")}
               </button>
             )}

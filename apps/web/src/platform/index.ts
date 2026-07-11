@@ -120,6 +120,7 @@ export {
   reorderChannels,
   saveHubSettings,
   getHubSettings,
+  createInvite,
 } from "./commands/hubAdmin";
 
 export {

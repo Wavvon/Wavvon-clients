@@ -408,6 +408,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
             activeHubUrl={props.activeHubUrl}
             hubSerial={props.hubSerial}
             myMaxPriority={props.myMaxPriority}
+            isAdmin={props.isAdmin}
             onCreateInvite={props.onCreateInvite}
             onRevokeInvite={props.onRevokeInvite}
           />

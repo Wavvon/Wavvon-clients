@@ -7,6 +7,7 @@ import type {
   CertAdmissionSettings,
   RecoverySettings,
   RecoveryRotationRequest,
+  InviteInfo,
 } from "../../types";
 
 // ---- Discovery / self-tags ----
@@ -168,6 +169,9 @@ export async function saveHubSettings(settings: {
   max_channel_depth?: number;
   welcome_label?: string;
   welcome_invite_url?: string;
+  /** Role auto-granted at invite redemption when the invite carries no
+   *  explicit grant_role_id. null clears it (newcomers get only @everyone). */
+  default_invite_role_id?: string | null;
 }): Promise<void> {
   await hubFetch("/hub", {
     method: "PATCH",
@@ -184,6 +188,7 @@ export async function getHubSettings(): Promise<{
   max_channel_depth: number;
   welcome_label: string;
   welcome_invite_url: string;
+  default_invite_role_id: string | null;
 }> {
   const [settingsRes, infoRes] = await Promise.all([
     hubFetch("/hub/settings").then((r) => r.json() as Promise<{
@@ -191,6 +196,7 @@ export async function getHubSettings(): Promise<{
       invite_only: boolean;
       min_security_level: number;
       max_channel_depth: number;
+      default_invite_role_id?: string | null;
     }>),
     hubFetch("/info").then((r) => r.json() as Promise<{
       name: string;
@@ -209,5 +215,26 @@ export async function getHubSettings(): Promise<{
     max_channel_depth: settingsRes.max_channel_depth,
     welcome_label: infoRes.welcome_label ?? "",
     welcome_invite_url: infoRes.welcome_invite_url ?? "",
+    default_invite_role_id: settingsRes.default_invite_role_id ?? null,
   };
+}
+
+// ---- Invites ----
+
+/** Creates an invite. Self-contained (not routed through the admin invite
+ *  list state) for lightweight callers like the member quick-invite flow. */
+export async function createInvite(
+  maxUses: number | null,
+  expiresInSeconds: number | null,
+  grantRoleId: string | null,
+): Promise<InviteInfo> {
+  const r = await hubFetch("/invites", {
+    method: "POST",
+    body: JSON.stringify({
+      max_uses: maxUses,
+      expires_in_seconds: expiresInSeconds,
+      grant_role_id: grantRoleId,
+    }),
+  });
+  return r.json() as Promise<InviteInfo>;
 }

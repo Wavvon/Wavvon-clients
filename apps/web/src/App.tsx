@@ -52,6 +52,7 @@ import { Lobby } from "@components/layout/Lobby";
 import { HubStreamsPanel } from "@components/voice/HubStreamsPanel";
 import type { HubStreamInfo } from "./types";
 import { AddHubModal } from "@components/hubs/AddHubModal";
+import { QuickInviteModal } from "@components/hubs/QuickInviteModal";
 import { CreateChannelModal } from "@components/channels/CreateChannelModal";
 import { EventComposer } from "@components/events/EventComposer";
 import { PollComposer } from "@components/polls/PollComposer";
@@ -182,6 +183,7 @@ export default function App() {
   const [addingHub, setAddingHub] = useState(false);
   const [addHubError, setAddHubError] = useState<string | null>(null);
   const [showAddHub, setShowAddHub] = useState(false);
+  const [showQuickInvite, setShowQuickInvite] = useState(false);
   const [homeHubUrl, setHomeHubUrl] = useState<string | undefined>(undefined);
   const [createChannelCtx, setCreateChannelCtx] = useState<{ parentId: string | null; isCategory: boolean } | null>(null);
   const [createChannelLoading, setCreateChannelLoading] = useState(false);
@@ -1997,6 +1999,13 @@ export default function App() {
     [meInfo],
   );
 
+  // Same permission the invite endpoints require (routes/invites.rs) — gates
+  // the "Invite people" entry for non-admin members too.
+  const canCreateInvites = useMemo(
+    () => isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes("manage_channels")) ?? false),
+    [isAdmin, meInfo],
+  );
+
   // Same permission the poll-create endpoint requires (SEND_MESSAGES) —
   // gates the "Create poll" context-menu entry the same way the composer's
   // own "+" attach menu is implicitly gated (anyone who can post here).
@@ -2171,13 +2180,14 @@ export default function App() {
         if (showFarmSettings) { setShowFarmSettings(false); return; }
         if (showCreateHub) { setShowCreateHub(false); return; }
         if (showAddHub) { setShowAddHub(false); return; }
+        if (showQuickInvite) { setShowQuickInvite(false); return; }
         if (showSearchBar) { setShowSearchBar(false); return; }
         if (searchOpen) { setSearchOpen(false); return; }
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [hubs, channels, selectedChannel, messageInputRef, unreadByChannel, showKeyboardShortcuts, showSettings, showHubAdmin, showFarmSettings, showCreateHub, showAddHub, showSearchBar, searchOpen]);
+  }, [hubs, channels, selectedChannel, messageInputRef, unreadByChannel, showKeyboardShortcuts, showSettings, showHubAdmin, showFarmSettings, showCreateHub, showAddHub, showQuickInvite, showSearchBar, searchOpen]);
 
   // === Render ===
 
@@ -2449,6 +2459,7 @@ export default function App() {
         publicKey={publicKey}
         pingByHub={pingByHub}
         isAdmin={isAdmin}
+        canCreateInvites={canCreateInvites}
         hubNotifyMode={hubNotifyMode}
         hubDropdownOpen={hubDropdownOpen}
         hideSilenced={hideSilenced}
@@ -2477,6 +2488,7 @@ export default function App() {
         onRemoveHub={handleRemoveHub}
         onOpenHubAdmin={() => void openHubAdmin()}
         onOpenHubAdminInvites={() => { void openHubAdmin(); setHubAdminTab("invites"); }}
+        onOpenQuickInvite={() => setShowQuickInvite(true)}
         onOpenCreateChannel={(parentId, isCategory) => { setCreateChannelCtx({ parentId, isCategory }); setCreateChannelError(null); }}
         onSelectChannel={handleSelectChannel}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
@@ -2750,6 +2762,15 @@ export default function App() {
           onAdd={handleAddHub}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
           onClose={() => { setShowAddHub(false); setHubPreview({ state: "idle" }); setAddHubError(null); }}
+        />
+      )}
+
+      {showQuickInvite && activeHubId && (
+        <QuickInviteModal
+          activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+          hubSerial={activeHubId}
+          myMaxPriority={myMaxPriority}
+          onClose={() => setShowQuickInvite(false)}
         />
       )}
 

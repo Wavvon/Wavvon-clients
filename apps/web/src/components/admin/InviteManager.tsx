@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { InviteInfo, RoleInfo } from "@shared/types";
 import { formatRelativeSigned, buildInviteLink } from "@wavvon/core";
-import { listRoles } from "@platform";
+import { listRoles, getHubSettings, saveHubSettings } from "@platform";
+import { HubApiError } from "../../platform/http";
 import { safeRoleColor } from "@shared/utils/roleAppearance";
+import { grantableRoles, roleGrantsAdmin, defaultInviteRoleOptions } from "@shared/utils/inviteRoles";
 
 // Mirrors hub/src/routes/invites.rs::ADMIN_GRANT_DEFAULT_EXPIRY_SECS — for
 // client-side annotation only, the server remains authoritative and clamps
@@ -18,6 +20,9 @@ interface Props {
   hubSerial: string;
   /** Highest priority among the viewer's own roles; only lower-priority roles can be granted. */
   myMaxPriority: number;
+  /** Gates the "Default role for new members" section — mirrors the Overview
+   *  tab's own gating, since both read/write the same hub-settings surface. */
+  isAdmin: boolean;
   onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null, grantRoleId: string | null) => void;
   onRevokeInvite: (code: string) => void;
 }
@@ -29,6 +34,9 @@ export function InviteManager(props: Props) {
   const [inviteExpiry, setInviteExpiry] = useState("");
   const [grantRoleId, setGrantRoleId] = useState("");
   const [roles, setRoles] = useState<RoleInfo[]>([]);
+  const [defaultRoleId, setDefaultRoleId] = useState("");
+  const [defaultRoleStatus, setDefaultRoleStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [defaultRoleError, setDefaultRoleError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,14 +44,22 @@ export function InviteManager(props: Props) {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (!props.isAdmin) return;
+    let cancelled = false;
+    getHubSettings()
+      .then((s) => { if (!cancelled) setDefaultRoleId(s.default_invite_role_id ?? ""); })
+      .catch(() => { /* prefill skipped */ });
+    return () => { cancelled = true; };
+  }, [props.isAdmin]);
+
   const rolesById = new Map(roles.map((r) => [r.id, r]));
 
   // Same guard the hub enforces server-side (routes/invites.rs::create_invite):
   // can't mint an invite that grants a role at or above your own priority.
   // Mirrored here purely for a usable picker — the server remains authoritative.
-  const grantableRoles = roles
-    .filter((r) => r.id !== "builtin-everyone" && r.priority < props.myMaxPriority)
-    .sort((a, b) => b.priority - a.priority);
+  const grantableRoleOptions = grantableRoles(roles, props.myMaxPriority);
+  const defaultRoleOptions = defaultInviteRoleOptions(roles);
 
   function expiryLabel(expiresAt: number): string | null {
     const rel = formatRelativeSigned(expiresAt);
@@ -54,8 +70,7 @@ export function InviteManager(props: Props) {
   }
 
   const selectedRole = grantRoleId ? rolesById.get(grantRoleId) : undefined;
-  // Mirrors role_grants_admin: builtin-owner carries an explicit "admin" row too.
-  const forcesSingleUse = selectedRole?.permissions.includes("admin") ?? false;
+  const forcesSingleUse = selectedRole ? roleGrantsAdmin(selectedRole) : false;
 
   function handleCreate() {
     props.onCreateInvite(
@@ -65,9 +80,44 @@ export function InviteManager(props: Props) {
     );
   }
 
+  async function handleSaveDefaultRole() {
+    setDefaultRoleStatus("saving");
+    setDefaultRoleError(null);
+    try {
+      // Server convention (PATCH /hub): "" clears the default, omitting the
+      // key leaves it unchanged — and JSON null deserializes as omitted, so
+      // null would silently no-op instead of clearing.
+      await saveHubSettings({ default_invite_role_id: defaultRoleId });
+      setDefaultRoleStatus("saved");
+      setTimeout(() => setDefaultRoleStatus("idle"), 2000);
+    } catch (e) {
+      setDefaultRoleError(e instanceof HubApiError ? e.message : String(e));
+      setDefaultRoleStatus("error");
+    }
+  }
+
   return (
     <section>
       <h1>{t("hub.admin.tabs.invites")}</h1>
+      {props.isAdmin && (
+        <div className="settings-section">
+          <label className="settings-label">{t("invites.default_role.title")}</label>
+          <p className="muted">{t("invites.default_role.hint")}</p>
+          <div className="settings-row">
+            <select value={defaultRoleId} onChange={(e) => setDefaultRoleId(e.target.value)}>
+              <option value="">{t("invites.default_role.none")}</option>
+              {defaultRoleOptions.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+            <button onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
+              {t("invites.default_role.save")}
+            </button>
+            {defaultRoleStatus === "saved" && <span className="muted" style={{ color: "var(--success)" }}>{t("invites.default_role.saved")}</span>}
+          </div>
+          {defaultRoleError && <p className="error-text">{defaultRoleError}</p>}
+        </div>
+      )}
       <div className="settings-section">
         <label className="settings-label">{t("invites.create.title")}</label>
         <div className="settings-row">
@@ -93,7 +143,7 @@ export function InviteManager(props: Props) {
             title={t("invites.create.grant_role_label")}
           >
             <option value="">{t("invites.create.grant_role_none")}</option>
-            {grantableRoles.map((r) => (
+            {grantableRoleOptions.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
