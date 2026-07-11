@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { InviteInfo, RoleInfo } from "@shared/types";
-import { formatRelative, buildInviteLink } from "@wavvon/core";
+import { formatRelativeSigned, buildInviteLink } from "@wavvon/core";
 import { listRoles } from "@platform";
 import { safeRoleColor } from "@shared/utils/roleAppearance";
 
@@ -44,6 +44,14 @@ export function InviteManager(props: Props) {
   const grantableRoles = roles
     .filter((r) => r.id !== "builtin-everyone" && r.priority < props.myMaxPriority)
     .sort((a, b) => b.priority - a.priority);
+
+  function expiryLabel(expiresAt: number): string | null {
+    const rel = formatRelativeSigned(expiresAt);
+    if (!rel) return null;
+    return rel.future
+      ? t("admin.invite.expires_in", { duration: rel.duration })
+      : t("admin.invite.expired_ago", { duration: rel.duration });
+  }
 
   const selectedRole = grantRoleId ? rolesById.get(grantRoleId) : undefined;
   // Mirrors role_grants_admin: builtin-owner carries an explicit "admin" row too.
@@ -117,7 +125,7 @@ export function InviteManager(props: Props) {
             )}
             <span className="muted">
               {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
-              {inv.expires_at ? ` · ${t("admin.invite.expires_relative", { date: formatRelative(inv.expires_at) })}` : ""}
+              {inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}
             </span>
             <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
           </div>

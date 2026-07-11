@@ -122,6 +122,7 @@ import {
   getDmMessages,
   sendDm,
   publishDhKey,
+  createConversation,
 } from "@platform";
 import { loadIdentity, publicKeyHex } from "@identity/index";
 import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
@@ -1657,6 +1658,21 @@ export default function App() {
     }
   }
 
+  // The hub dedupes 1:1 DMs server-side (create_conversation returns the
+  // existing conversation instead of a duplicate), so this is safe to call
+  // even if a conversation with this member already exists locally.
+  async function handleStartConversation(pubkey: string) {
+    try {
+      const conv = await createConversation([pubkey]);
+      setConversations((prev) => prev.some((c) => c.id === conv.id)
+        ? prev.map((c) => c.id === conv.id ? conv : c)
+        : [conv, ...prev]);
+      await handleSelectConversation(conv);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
   async function handleSendDm() {
     if (!selectedConversation || !inputText.trim()) return;
     const text = inputText.trim();
@@ -2658,6 +2674,7 @@ export default function App() {
         screenShareViewerRef={screenShareViewerRef}
         onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
+        onStartConversation={handleStartConversation}
       /></>}
       </MobileShell>
 

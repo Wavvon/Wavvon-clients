@@ -127,6 +127,7 @@ interface Props {
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onOpenUserProfile?: (pubkey: string) => void;
+  onStartConversation?: (pubkey: string) => void;
 }
 
 export function ContentArea({
@@ -158,6 +159,7 @@ export function ContentArea({
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
   onOpenUserProfile,
+  onStartConversation,
 }: Props) {
   const { t } = useTranslation();
 
@@ -635,7 +637,12 @@ export function ContentArea({
       {profileCardPubkey && (
         <UserProfileCard
           pubkey={profileCardPubkey}
+          myPubkey={publicKey}
           onClose={() => setProfileCardPubkey(null)}
+          onStartConversation={onStartConversation ? (pubkey) => {
+            setProfileCardPubkey(null);
+            onStartConversation(pubkey);
+          } : undefined}
         />
       )}
 

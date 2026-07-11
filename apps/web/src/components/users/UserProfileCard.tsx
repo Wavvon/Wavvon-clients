@@ -8,7 +8,10 @@ import { groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearanc
 
 interface Props {
   pubkey: string;
+  /** The active account's own pubkey — used to hide the Message action on your own profile. */
+  myPubkey?: string | null;
   onClose: () => void;
+  onStartConversation?: (pubkey: string) => void;
 }
 
 // Categories rarely change and are shared by every profile card opened
@@ -28,7 +31,7 @@ function loadRoleCategories(hubId: string): Promise<RoleCategory[]> {
   return cached;
 }
 
-export function UserProfileCard({ pubkey, onClose }: Props) {
+export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation }: Props) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
@@ -91,6 +94,15 @@ export function UserProfileCard({ pubkey, onClose }: Props) {
                 </div>
               </div>
             </div>
+
+            {onStartConversation && myPubkey !== pubkey && (
+              <button
+                className="btn-primary"
+                onClick={() => onStartConversation(pubkey)}
+              >
+                {t("user.profile.message")}
+              </button>
+            )}
 
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {t("user.profile.joined", { date: formatRelative(profile.joined_at) })}
