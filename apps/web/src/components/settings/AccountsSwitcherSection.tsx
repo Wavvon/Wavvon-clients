@@ -35,7 +35,7 @@ export function AccountsSwitcherSection() {
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const handleRefs = useRef(new Map<string, HTMLSpanElement>());
+  const handleRefs = useRef(new Map<string, HTMLTableRowElement>());
 
   function refresh() {
     listAccountsOrdered().then(setAccounts);
@@ -109,6 +109,9 @@ export function AccountsSwitcherSection() {
 
   function handleHandleKeyDown(e: React.KeyboardEvent, id: string) {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    // Only reorder when the row itself is focused — arrows inside the rename
+    // input (cursor movement) or on buttons must behave normally.
+    if (e.target !== e.currentTarget) return;
     e.preventDefault();
     if (!accounts) return;
     const direction = e.key === "ArrowUp" ? -1 : 1;
@@ -163,9 +166,23 @@ export function AccountsSwitcherSection() {
               <Fragment key={account.id}>
                 <tr
                   className={[
+                    "account-row-draggable",
                     dragId === account.id ? "account-row-dragging" : "",
                     dragOverId === account.id && dragId && dragId !== account.id ? "account-drop-target" : "",
                   ].filter(Boolean).join(" ")}
+                  ref={(el) => {
+                    if (el) handleRefs.current.set(account.id, el);
+                    else handleRefs.current.delete(account.id);
+                  }}
+                  // The whole row drags — except while renaming, where a drag
+                  // would fight text selection inside the input.
+                  draggable={renamingId !== account.id}
+                  tabIndex={0}
+                  onDragStart={() => setDragId(account.id)}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDragOverId(null);
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
                     if (dragOverId !== account.id) setDragOverId(account.id);
@@ -174,29 +191,12 @@ export function AccountsSwitcherSection() {
                     e.preventDefault();
                     handleDrop(account.id);
                   }}
+                  onKeyDown={(e) => handleHandleKeyDown(e, account.id)}
+                  aria-label={t("settings.account.accounts.reorder_handle", { label })}
+                  title={t("settings.account.accounts.reorder_hint")}
                 >
                   <td className="account-order-cell">
                     <span className="account-order-number">{index + 1}</span>
-                    <span
-                      ref={(el) => {
-                        if (el) handleRefs.current.set(account.id, el);
-                        else handleRefs.current.delete(account.id);
-                      }}
-                      className={`account-drag-handle ${dragId === account.id ? "dragging" : ""}`}
-                      role="button"
-                      tabIndex={0}
-                      draggable
-                      onDragStart={() => setDragId(account.id)}
-                      onDragEnd={() => {
-                        setDragId(null);
-                        setDragOverId(null);
-                      }}
-                      onKeyDown={(e) => handleHandleKeyDown(e, account.id)}
-                      aria-label={t("settings.account.accounts.reorder_handle", { label })}
-                      title={t("settings.account.accounts.reorder_hint")}
-                    >
-                      ⠿
-                    </span>
                   </td>
                   <td>
                     {renamingId === account.id ? (
