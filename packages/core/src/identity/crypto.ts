@@ -4,6 +4,7 @@ import { sha256 } from "@noble/hashes/sha256";
 import { gcm } from "@noble/ciphers/aes";
 import { ed25519, x25519 } from "@noble/curves/ed25519";
 import { hexToBytes, bytesToHex } from "../hex";
+import { subkeyCertSigningBytes, type SubkeyCert } from "./wire";
 
 export interface DmEnvelope {
   sender_pubkey: string;
@@ -12,6 +13,13 @@ export interface DmEnvelope {
   nonce_hex: string;
   dh_pubkey_hex: string;
   signature_hex: string;
+  // Present when this envelope was signed by a paired device's subkey
+  // rather than the canonical (subkey-0/entropy) key — see
+  // decisions.md "Paired-device DMs attribute to canonical via
+  // cert-chained envelopes". `sender_pubkey` above stays the canonical
+  // pubkey either way. Absent (and omitted from the wire) for a
+  // primary/legacy device — byte-identical to today.
+  signer_cert?: SubkeyCert;
 }
 
 // Ed25519 seed → X25519 scalar (SHA-512 + clamp).
@@ -87,12 +95,22 @@ export function publicKeyHex(seedHex: string): string {
 
 // Encrypt a DM. Produces a signed envelope byte-identical to the Rust
 // encrypt_dm Tauri command in wavvon-desktop/src-tauri/src/lib.rs.
+//
+// `canonicalPubkey`/`signerCert` implement cert-chained attribution
+// (decisions.md "Paired-device DMs attribute to canonical via cert-chained
+// envelopes"): `sender_pubkey` is always the canonical identity — when
+// omitted it defaults to the signing key's own pubkey (today's behavior,
+// byte-identical envelope, no signer_cert). `signerCert` is only embedded
+// when the signing key differs from the canonical pubkey (a paired
+// device signing with its own subkey).
 export function encryptDm(
   convId: string,
   plaintext: string,
   recipientDhPub: Uint8Array,
   myDhPriv: Uint8Array,
   mySigningSeed: Uint8Array,
+  canonicalPubkey?: string,
+  signerCert?: SubkeyCert,
 ): DmEnvelope {
   const shared = x25519.scalarMult(myDhPriv, recipientDhPub);
   const keyBytes = hkdf(
@@ -114,11 +132,12 @@ export function encryptDm(
   const myDhPub = x25519.scalarMultBase(myDhPriv);
   const dhPubkeyHex = bytesToHex(myDhPub);
   const seedHex = bytesToHex(mySigningSeed);
-  const senderPubkey = publicKeyHex(seedHex);
+  const signingPubkey = publicKeyHex(seedHex);
+  const senderPubkey = canonicalPubkey ?? signingPubkey;
 
   const sigMsg = dmEnvelopeSigningBytes(convId, ciphertextHex, nonceHex, dhPubkeyHex);
 
-  return {
+  const envelope: DmEnvelope = {
     sender_pubkey: senderPubkey,
     conv_id: convId,
     ciphertext_hex: ciphertextHex,
@@ -126,6 +145,10 @@ export function encryptDm(
     dh_pubkey_hex: dhPubkeyHex,
     signature_hex: signBytes(sigMsg, seedHex),
   };
+  if (signerCert && signingPubkey !== senderPubkey) {
+    envelope.signer_cert = signerCert;
+  }
+  return envelope;
 }
 
 // Decrypt a DM envelope. Symmetric to encryptDm.
@@ -191,6 +214,9 @@ export interface DrEnvelope {
   v: 2;
   message_index: number;
   prev_count: number;
+  // See DmEnvelope.signer_cert — same cert-chained attribution mechanism,
+  // same "omitted for a primary/legacy device" byte-identical guarantee.
+  signer_cert?: SubkeyCert;
 }
 
 export function drEnvelopeSigningBytes(
@@ -215,12 +241,19 @@ export function drEnvelopeSigningBytes(
   );
 }
 
+// `myStaticDhPrivOverride`: a paired device passes its unwrapped canonical
+// DH scalar (stored at pairing time — see decisions.md "DH capability via a
+// wrapped canonical scalar") instead of deriving it from `myStaticSeedHex`,
+// since a paired device's own signing seed does not correspond to the
+// published canonical DH key. The primary device omits it (derives from
+// seed, today's behavior).
 export function initDrSession(
   convId: string,
   myStaticSeedHex: string,
   theirStaticDhPubHex: string,
+  myStaticDhPrivOverride?: Uint8Array,
 ): DRSession {
-  const { dhPriv: myStaticPriv } = dhKeypairFromSeed(myStaticSeedHex);
+  const myStaticPriv = myStaticDhPrivOverride ?? dhKeypairFromSeed(myStaticSeedHex).dhPriv;
   const theirStaticPub = hexToBytes(theirStaticDhPubHex);
 
   const staticShared = x25519.scalarMult(myStaticPriv, theirStaticPub);
@@ -247,11 +280,14 @@ export function initDrSession(
   };
 }
 
+// See `encryptDm` for `canonicalPubkey`/`signerCert` semantics.
 export function encryptDmDr(
   convId: string,
   plaintext: string,
   session: DRSession,
   mySigningSeedHex: string,
+  canonicalPubkey?: string,
+  signerCert?: SubkeyCert,
 ): { envelope: DrEnvelope; updatedSession: DRSession } {
   if (!session.cks) throw new Error("DR session not initialised for sending");
 
@@ -265,7 +301,8 @@ export function encryptDmDr(
   const dhPubkeyHex = session.dhsPub;
 
   const sigMsg = drEnvelopeSigningBytes(convId, session.ns, session.pn, ciphertextHex, dhPubkeyHex);
-  const senderPubkey = publicKeyHex(mySigningSeedHex);
+  const signingPubkey = publicKeyHex(mySigningSeedHex);
+  const senderPubkey = canonicalPubkey ?? signingPubkey;
   const signatureHex = signBytes(sigMsg, mySigningSeedHex);
 
   const envelope: DrEnvelope = {
@@ -279,6 +316,9 @@ export function encryptDmDr(
     message_index: session.ns,
     prev_count: session.pn,
   };
+  if (signerCert && signingPubkey !== senderPubkey) {
+    envelope.signer_cert = signerCert;
+  }
 
   const updatedSession: DRSession = {
     ...session,
@@ -289,11 +329,15 @@ export function encryptDmDr(
   return { envelope, updatedSession };
 }
 
+// `myStaticDhPrivOverride`: see `initDrSession` — a paired device passes its
+// unwrapped canonical DH scalar instead of deriving it from its own
+// (non-canonical) signing seed.
 export function decryptDmDr(
   envelope: DrEnvelope,
   session: DRSession,
   myStaticSeedHex: string,
   theirStaticDhPubHex: string,
+  myStaticDhPrivOverride?: Uint8Array,
 ): { plaintext: string; updatedSession: DRSession } {
   const state = { ...session, mkskipped: { ...session.mkskipped } };
   const { dh_pubkey_hex: incomingDhr, message_index: n, prev_count: pn } = envelope;
@@ -309,7 +353,7 @@ export function decryptDmDr(
   }
 
   if (!state.ckr) {
-    const { dhPriv: myStaticPriv } = dhKeypairFromSeed(myStaticSeedHex);
+    const myStaticPriv = myStaticDhPrivOverride ?? dhKeypairFromSeed(myStaticSeedHex).dhPriv;
     const theirStaticPub = hexToBytes(theirStaticDhPubHex);
     const staticShared = x25519.scalarMult(myStaticPriv, theirStaticPub);
     const rk0 = hkdf(sha256, staticShared, new TextEncoder().encode(envelope.conv_id),
@@ -373,5 +417,63 @@ function skipMessageKeys(state: DRSession, until: number): void {
     state.ckr = bytesToHex(newCkr);
     state.nr += 1;
     count++;
+  }
+}
+
+// --- Cert-chained receive-side verification (decisions.md "Paired-device
+// DMs attribute to canonical via cert-chained envelopes") ---
+
+/** Verify a SubkeyCert's master→subkey signature. */
+export function verifySubkeyCert(cert: SubkeyCert): boolean {
+  try {
+    const sb = subkeyCertSigningBytes(
+      cert.master_pubkey,
+      cert.subkey_pubkey,
+      cert.device_label,
+      cert.issued_at,
+      cert.not_after,
+      cert.fallback_hubs,
+    );
+    return ed25519.verify(hexToBytes(cert.signature), sb, hexToBytes(cert.master_pubkey));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify a 1:1 encrypted DM envelope's signature, tiered by whether a
+ * `signer_cert` is attached — mirrors the hub's `verify_envelope_sender`.
+ *
+ * - No `signer_cert`: verifies `signature_hex` against `sender_pubkey`
+ *   directly (today's behavior).
+ * - `signer_cert` present: verifies the cert (master→subkey) and the
+ *   envelope signature against `cert.subkey_pubkey`.
+ *
+ * Does NOT itself bind `sender_pubkey` to `signer_cert.master_pubkey` —
+ * the client has no session/device-registry resolver, so the caller binds
+ * `sender_pubkey` to whatever it already trusts (e.g. the conversation's
+ * other canonical member) before treating the message as authenticated.
+ */
+export function verifyDmEnvelopeSigner(env: DmEnvelope | DrEnvelope): boolean {
+  try {
+    const sigMsg =
+      "v" in env && env.v === 2
+        ? drEnvelopeSigningBytes(
+            env.conv_id,
+            env.message_index,
+            env.prev_count,
+            env.ciphertext_hex,
+            env.dh_pubkey_hex,
+          )
+        : dmEnvelopeSigningBytes(env.conv_id, env.ciphertext_hex, env.nonce_hex, env.dh_pubkey_hex);
+    const sigBytes = hexToBytes(env.signature_hex);
+
+    if (!env.signer_cert) {
+      return ed25519.verify(sigBytes, sigMsg, hexToBytes(env.sender_pubkey));
+    }
+    if (!verifySubkeyCert(env.signer_cert)) return false;
+    return ed25519.verify(sigBytes, sigMsg, hexToBytes(env.signer_cert.subkey_pubkey));
+  } catch {
+    return false;
   }
 }

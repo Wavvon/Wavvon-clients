@@ -9,6 +9,9 @@ import {
   pairingClaimSigningBytes,
   buildHomeHubList,
   buildPairingClaim,
+  type PairingComplete,
+  type PairingStatus,
+  type SubkeyCert,
 } from "./wire";
 import { masterPublicKeyHex } from "./master";
 import { wrapBlobKey, unwrapBlobKey } from "./ecies";
@@ -99,6 +102,68 @@ describe("wire signing-bytes vectors", () => {
 
   it("master derivation (HKDF) matches Rust", () => {
     expect(masterPublicKeyHex(MASTER_SEED)).toBe(MASTER_FROM_ENTROPY_PUB);
+  });
+});
+
+// PairingComplete.wrapped_dh_seed_hex / PairingStatus.Complete — DM
+// attribution fix (decisions.md "Paired-device DMs attribute to canonical
+// via cert-chained envelopes; DH capability is a wrapped canonical scalar").
+// PairingComplete carries no signing bytes of its own (only the nested
+// `cert` is signed), so these are serde/JSON-shape checks mirroring
+// server/crates/identity/tests/wire_vectors.rs's equivalents, not signature
+// vectors.
+describe("PairingComplete.wrapped_dh_seed_hex", () => {
+  const sampleCert: SubkeyCert = {
+    master_pubkey: MASTER_PUB,
+    subkey_pubkey: SUBKEY_PUB,
+    device_label: "laptop",
+    issued_at: TS,
+    not_after: null,
+    fallback_hubs: [],
+    signature: SUBKEY_CERT_SIG,
+  };
+
+  it("is optional — old JSON shape (no field) still parses as undefined", () => {
+    const json = JSON.stringify({
+      pairing_token: "tok123",
+      cert: sampleCert,
+      wrapped_blob_key_hex: "deadbeef",
+    });
+    const complete = JSON.parse(json) as PairingComplete;
+    expect(complete.wrapped_dh_seed_hex).toBeUndefined();
+  });
+
+  it("round-trips through JSON when present", () => {
+    const complete: PairingComplete = {
+      pairing_token: "tok123",
+      cert: sampleCert,
+      wrapped_blob_key_hex: "deadbeef",
+      wrapped_dh_seed_hex: "cafef00d",
+    };
+    const roundTripped = JSON.parse(JSON.stringify(complete)) as PairingComplete;
+    expect(roundTripped.wrapped_dh_seed_hex).toBe("cafef00d");
+  });
+
+  it("PairingStatus Complete round-trips wrapped_dh_seed_hex through JSON", () => {
+    const status: PairingStatus = {
+      state: "complete",
+      cert: sampleCert,
+      wrapped_blob_key_hex: "deadbeef",
+      wrapped_dh_seed_hex: "cafef00d",
+    };
+    const roundTripped = JSON.parse(JSON.stringify(status)) as PairingStatus;
+    expect(roundTripped).toMatchObject({ wrapped_dh_seed_hex: "cafef00d" });
+  });
+
+  it("wraps and unwraps the canonical DH scalar with the existing ECIES primitive", () => {
+    // Mirrors identity/tests/wire_vectors.rs's
+    // wrapped_dh_scalar_round_trips_through_existing_ecies_primitive: the
+    // enrolling device wraps the canonical X25519 scalar (not the Ed25519
+    // seed) for the claiming subkey; the claiming device unwraps with its
+    // own seed.
+    const masterDhScalar = new Uint8Array(32).map((_, i) => (i * 13 + 5) & 0xff);
+    const wrapped = wrapBlobKey(masterDhScalar, SUBKEY_PUB);
+    expect(Array.from(unwrapBlobKey(wrapped, SUBKEY_SEED))).toEqual(Array.from(masterDhScalar));
   });
 });
 

@@ -14,7 +14,14 @@ import {
   dhKeySigningBytes,
   dmEnvelopeSigningBytes,
   publicKeyHex,
+  encryptDm,
+  encryptDmDr,
+  decryptDmDr,
+  initDrSession,
+  verifyDmEnvelopeSigner,
+  verifySubkeyCert,
 } from "./crypto";
+import { buildSubkeyCert, type SubkeyCert } from "./wire";
 
 const masterSeed = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
 
@@ -84,5 +91,110 @@ describe("dmEnvelopeSigningBytes (EncryptedDmEnvelope)", () => {
       MASTER_DH_PUB,
     );
     expect(bytesToHex(ed25519.sign(sb, masterSeed))).toBe(DM_ENVELOPE_SIG);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cert-chained DM attribution (decisions.md "Paired-device DMs attribute to
+// canonical via cert-chained envelopes; DH capability is a wrapped canonical
+// scalar"). masterSeed above stands in for the canonical (subkey-0/entropy)
+// identity; subkeySeed stands in for a paired device's own (non-canonical)
+// signing key.
+// ---------------------------------------------------------------------------
+
+const subkeySeed = new Uint8Array(32).fill(7);
+const subkeySeedHex = bytesToHex(subkeySeed);
+const subkeyPubHex = publicKeyHex(subkeySeedHex);
+const masterSeedHex = bytesToHex(masterSeed);
+
+function buildTestCert(): SubkeyCert {
+  return buildSubkeyCert(masterSeedHex, MASTER_PUB, subkeyPubHex, "phone", 1_700_000_000, null, []);
+}
+
+describe("encryptDm cert-chained attribution", () => {
+  const recipientSeedHex = bytesToHex(new Uint8Array(32).fill(9));
+  const { dhPub: recipientDhPub } = dhKeypairFromSeed(recipientSeedHex);
+  const { dhPriv: canonicalDhPriv } = dhKeypairFromSeed(masterSeedHex);
+
+  it("omits sender/cert args entirely — byte-shape identical to the legacy call", () => {
+    const env = encryptDm("conv1", "hi", recipientDhPub, canonicalDhPriv, masterSeed);
+    expect(env.sender_pubkey).toBe(MASTER_PUB);
+    expect(env.signer_cert).toBeUndefined();
+  });
+
+  it("does not attach signer_cert when the signing key already IS canonical", () => {
+    const cert = buildTestCert();
+    const env = encryptDm("conv1", "hi", recipientDhPub, canonicalDhPriv, masterSeed, MASTER_PUB, cert);
+    expect(env.sender_pubkey).toBe(MASTER_PUB);
+    expect(env.signer_cert).toBeUndefined();
+  });
+
+  it("attaches signer_cert when a paired device signs with its own subkey", () => {
+    const cert = buildTestCert();
+    const env = encryptDm("conv1", "hi", recipientDhPub, canonicalDhPriv, subkeySeed, MASTER_PUB, cert);
+    expect(env.sender_pubkey).toBe(MASTER_PUB);
+    expect(env.signer_cert).toEqual(cert);
+    expect(verifyDmEnvelopeSigner(env)).toBe(true);
+  });
+});
+
+describe("verifySubkeyCert / verifyDmEnvelopeSigner", () => {
+  it("verifies a validly-signed cert", () => {
+    expect(verifySubkeyCert(buildTestCert())).toBe(true);
+  });
+
+  it("rejects a cert with a tampered field (signature no longer matches)", () => {
+    const cert = buildTestCert();
+    expect(verifySubkeyCert({ ...cert, device_label: "tampered" })).toBe(false);
+  });
+
+  it("rejects an envelope whose cert doesn't verify", () => {
+    const recipientSeedHex = bytesToHex(new Uint8Array(32).fill(9));
+    const { dhPub: recipientDhPub } = dhKeypairFromSeed(recipientSeedHex);
+    const { dhPriv: canonicalDhPriv } = dhKeypairFromSeed(masterSeedHex);
+    const cert = buildTestCert();
+    const env = encryptDm("conv1", "hi", recipientDhPub, canonicalDhPriv, subkeySeed, MASTER_PUB, cert);
+    const tampered = { ...env, signer_cert: { ...cert, device_label: "tampered" } };
+    expect(verifyDmEnvelopeSigner(tampered)).toBe(false);
+  });
+
+  it("accepts a legacy (no-cert) envelope, verifying against sender_pubkey directly", () => {
+    const recipientSeedHex = bytesToHex(new Uint8Array(32).fill(9));
+    const { dhPub: recipientDhPub } = dhKeypairFromSeed(recipientSeedHex);
+    const { dhPriv: canonicalDhPriv } = dhKeypairFromSeed(masterSeedHex);
+    const env = encryptDm("conv1", "hi", recipientDhPub, canonicalDhPriv, masterSeed);
+    expect(verifyDmEnvelopeSigner(env)).toBe(true);
+  });
+});
+
+describe("paired-device DR round trip via the wrapped canonical DH scalar", () => {
+  it("a message signed by a subkey (cert attached) decrypts using the canonical DH keypair", () => {
+    const bobSeedHex = bytesToHex(new Uint8Array(32).fill(3));
+    const { dhPub: bobDhPub } = dhKeypairFromSeed(bobSeedHex);
+    const { dhPriv: aliceCanonicalDhPriv, dhPub: aliceCanonicalDhPub } = dhKeypairFromSeed(masterSeedHex);
+
+    // Alice's phone (subkeySeed) initiates the DR session with the
+    // *unwrapped canonical* scalar override — exactly what a paired device
+    // does after pairing hands it wrapped_dh_seed_hex.
+    const session = initDrSession("conv1", subkeySeedHex, bytesToHex(bobDhPub), aliceCanonicalDhPriv);
+    const cert = buildTestCert();
+    const { envelope } = encryptDmDr("conv1", "hello bob", session, subkeySeedHex, MASTER_PUB, cert);
+
+    expect(envelope.sender_pubkey).toBe(MASTER_PUB);
+    expect(envelope.signer_cert).toEqual(cert);
+    expect(verifyDmEnvelopeSigner(envelope)).toBe(true);
+
+    // Bob decrypts against Alice's canonical DH pubkey (what's actually
+    // published at /identity/{canonical}/dh-key) — succeeds because both
+    // sides key off the same canonical scalar regardless of which device
+    // signed.
+    const bobSession = {
+      rk: "", cks: null, ckr: null,
+      ns: 0, nr: 0, pn: 0,
+      dhsPriv: "", dhsPub: "", dhr: null,
+      mkskipped: {},
+    };
+    const { plaintext } = decryptDmDr(envelope, bobSession, bobSeedHex, bytesToHex(aliceCanonicalDhPub));
+    expect(plaintext).toBe("hello bob");
   });
 });

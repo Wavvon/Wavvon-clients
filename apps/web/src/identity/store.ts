@@ -26,6 +26,12 @@ export interface IdentityRecord {
   // paired device this differs from publicKeyHex(seed_hex); the UI uses it to
   // self-identify. Learned from the auth/verify response.
   canonical_pubkey?: string;
+  // Paired device only: the canonical (subkey-0/entropy) DM DH X25519
+  // *private scalar*, unwrapped at pairing completion from
+  // `PairingComplete.wrapped_dh_seed_hex` (decisions.md "DH capability via a
+  // wrapped canonical scalar"). Lets this device agree on E2E DM keys as the
+  // canonical identity without ever holding a signing seed. Hex-encoded.
+  canonical_dh_priv_hex?: string;
   // Purely local nickname shown in the account switcher so multiple accounts
   // on one device are easy to tell apart. Never sent to a hub.
   account_label?: string;

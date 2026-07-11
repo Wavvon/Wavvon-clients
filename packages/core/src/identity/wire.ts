@@ -94,12 +94,23 @@ export interface PairingComplete {
   pairing_token: string;
   cert: SubkeyCert;
   wrapped_blob_key_hex: string;
+  // The canonical (subkey-0/entropy) DM DH X25519 *scalar* (not the Ed25519
+  // seed), ECIES-wrapped for the claiming subkey with the same wrapBlobKey
+  // primitive as wrapped_blob_key_hex — see decisions.md "Paired-device DMs
+  // attribute to canonical via cert-chained envelopes; DH capability is a
+  // wrapped canonical scalar". Absent for hubs/clients predating this field.
+  wrapped_dh_seed_hex?: string;
 }
 
 export type PairingStatus =
   | { state: "pending" }
   | { state: "claimed"; subkey_pubkey: string; device_label: string }
-  | { state: "complete"; cert: SubkeyCert; wrapped_blob_key_hex: string }
+  | {
+      state: "complete";
+      cert: SubkeyCert;
+      wrapped_blob_key_hex: string;
+      wrapped_dh_seed_hex?: string;
+    }
   | { state: "expired" };
 
 // --- HomeHubList ---

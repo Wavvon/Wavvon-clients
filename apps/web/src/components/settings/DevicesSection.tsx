@@ -10,6 +10,8 @@ import {
   buildSubkeyCert,
   buildRevocation,
   buildPairingOffer,
+  dhKeypairFromSeed,
+  wrapBlobKey,
   type SubkeyCert,
   type PairingStatus,
 } from "@identity/index";
@@ -185,6 +187,12 @@ export function DevicesSection({ activeHubUrl }: Props) {
   }
 
   // Existing device: approve the claim by issuing the new device a cert.
+  // Also wraps this device's canonical DM DH scalar for the claiming
+  // subkey (decisions.md "DH capability via a wrapped canonical scalar") so
+  // the paired device can agree on E2E DM keys as the canonical identity
+  // without ever holding a signing seed. Only the device that holds the
+  // entropy (this device, since it derived d.masterSeed) can do this wrap —
+  // d.seedHex IS that entropy.
   async function approve() {
     if (!d || offer.phase !== "claimed") return;
     const { hubUrl, token, subkeyPubkey, label } = offer;
@@ -192,9 +200,16 @@ export function DevicesSection({ activeHubUrl }: Props) {
     try {
       const issuedAt = Math.floor(Date.now() / 1000);
       const cert = buildSubkeyCert(d.masterSeed, d.masterPubkey, subkeyPubkey, label, issuedAt, null, [hubUrl]);
+      const { dhPriv: canonicalDhPriv } = dhKeypairFromSeed(d.seedHex);
+      const wrappedDhSeedHex = wrapBlobKey(canonicalDhPriv, subkeyPubkey);
       // No prefs-blob handoff yet — the new device joins fresh. When the web
       // gains a synced prefs blob, wrap its key for subkeyPubkey here.
-      await postPairingComplete(hubUrl, { pairing_token: token, cert, wrapped_blob_key_hex: "" });
+      await postPairingComplete(hubUrl, {
+        pairing_token: token,
+        cert,
+        wrapped_blob_key_hex: "",
+        wrapped_dh_seed_hex: wrappedDhSeedHex,
+      });
       setOffer({ phase: "done", label });
       await refreshCerts(d.masterPubkey);
     } catch (e) {

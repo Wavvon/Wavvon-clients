@@ -17,6 +17,8 @@ import {
   buildPairingClaim,
   resolveOrCreateAccount,
   setActiveAccountId,
+  unwrapBlobKey,
+  bytesToHex,
 } from "@identity/index";
 import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
 
@@ -112,10 +114,25 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         }
         const status = await getPairingStatus(decoded.hub, decoded.token).catch(() => null);
         if (status && status.state === "complete") {
+          // Unwrap the canonical DM DH scalar (decisions.md "DH capability
+          // via a wrapped canonical scalar") so this device can agree on
+          // E2E DM keys as the canonical identity — it never holds the
+          // canonical Ed25519 signing seed, only this derived scalar.
+          let canonicalDhPrivHex: string | undefined;
+          if (status.wrapped_dh_seed_hex) {
+            try {
+              canonicalDhPrivHex = bytesToHex(unwrapBlobKey(status.wrapped_dh_seed_hex, subkeySeed));
+            } catch {
+              // Missing/corrupt wrap from an older hub — DM E2E degrades to
+              // "no DH key available" for this device rather than blocking
+              // pairing entirely.
+            }
+          }
           const { account } = await resolveOrCreateAccount(subkeySeed, {
             master_pubkey: status.cert.master_pubkey,
             device_label: label,
             subkey_cert: status.cert,
+            canonical_dh_priv_hex: canonicalDhPrivHex,
           });
           finishWithAccount(account.id);
           return;
