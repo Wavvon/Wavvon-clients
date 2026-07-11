@@ -266,6 +266,7 @@
   "settings.account.accounts.col_order": "#",
   "settings.account.accounts.col_label": "Etichetta",
   "settings.account.accounts.col_key": "Chiave pubblica",
+  "settings.account.accounts.key_click_to_copy": "Clicca per copiare la chiave completa",
   "settings.account.accounts.col_actions": "Azioni",
   "settings.account.accounts.reorder_handle": "Riordina {label}",
   "settings.account.accounts.reorder_hint": "Trascina per riordinare. Porta il focus qui e usa le frecce su/giù per spostare senza mouse.",

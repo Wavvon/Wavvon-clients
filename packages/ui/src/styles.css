@@ -2080,6 +2080,28 @@ tr.account-row-dragging {
   opacity: 0.4;
 }
 
+/* Full public key shown in the account table; the text itself copies. */
+.account-key-copy {
+  font-family: monospace;
+  font-size: var(--text-xs);
+  word-break: break-all;
+  cursor: copy;
+  border-radius: var(--r-sm);
+  padding: 1px 3px;
+}
+
+.account-key-copy:hover,
+.account-key-copy:focus-visible {
+  background: var(--surface);
+  outline: none;
+}
+
+.account-key-copied {
+  color: var(--success, var(--accent));
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
 tr.account-drop-target td {
   box-shadow: inset 0 2px 0 0 var(--accent);
 }

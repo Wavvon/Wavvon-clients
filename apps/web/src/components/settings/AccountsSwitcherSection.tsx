@@ -232,8 +232,23 @@ export function AccountsSwitcherSection() {
                     )}
                   </td>
                   <td>
-                    <code style={{ fontFamily: "monospace", fontSize: "var(--text-xs)" }} title={account.id}>
-                      {formatPubkey(account.id)}
+                    <code
+                      className="account-key-copy"
+                      role="button"
+                      tabIndex={0}
+                      title={t("settings.account.accounts.key_click_to_copy")}
+                      onClick={() => copyKey(account)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          copyKey(account);
+                        }
+                      }}
+                    >
+                      {account.canonical_pubkey ?? account.id}
+                      {copiedKeyId === account.id && (
+                        <span className="account-key-copied">✓ {t("settings.account.pubkey.copied")}</span>
+                      )}
                     </code>
                   </td>
                   <td>
@@ -247,14 +262,6 @@ export function AccountsSwitcherSection() {
                           onClick={() => switchAccount(account.id)}
                         >
                           {isActive ? t("settings.account.accounts.active_button") : t("settings.account.accounts.switch")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-small btn-secondary"
-                          onClick={() => copyKey(account)}
-                          title={account.canonical_pubkey ?? account.id}
-                        >
-                          {copiedKeyId === account.id ? t("settings.account.pubkey.copied") : t("settings.account.pubkey.copy")}
                         </button>
                         <button type="button" className="btn-small btn-secondary" onClick={() => startRemove(account.id)}>
                           {t("settings.account.accounts.remove")}
