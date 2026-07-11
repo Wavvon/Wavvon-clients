@@ -1,4 +1,18 @@
-export { loadIdentity, saveIdentity, generateIdentity, generateSubkeySeed, bytesToHex, hexToBytes } from "./store";
+export {
+  loadIdentity,
+  saveIdentity,
+  generateIdentity,
+  generateSubkeySeed,
+  bytesToHex,
+  hexToBytes,
+  listAccounts,
+  getActiveAccountId,
+  setActiveAccountId,
+  findAccountByPubkey,
+  resolveOrCreateAccount,
+  removeAccount,
+  switchAccount,
+} from "./store";
 export type { IdentityRecord } from "./store";
 export { dhKeypairFromSeed, encryptDm, decryptDm, signBytes, publicKeyHex, dhKeySigningBytes } from "@wavvon/core";
 export type { DmEnvelope } from "@wavvon/core";

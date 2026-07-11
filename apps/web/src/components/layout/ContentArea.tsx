@@ -31,6 +31,7 @@ import { PollComposer } from "@components/polls/PollComposer";
 import { EventsPanel } from "@components/events/EventsPanel";
 import { AllianceView, ReconnectBanner } from "@wavvon/ui";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
+import { getScoped, setScoped } from "@shared/utils/accountScope";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -189,7 +190,7 @@ export function ContentArea({
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() => {
     if (!selectedChannel) return new Set();
     try {
-      const raw = localStorage.getItem(`wavvon.threads.${selectedChannel.id}`);
+      const raw = getScoped(`wavvon.threads.${selectedChannel.id}`);
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
   });
@@ -198,7 +199,7 @@ export function ContentArea({
   useEffect(() => {
     if (!selectedChannel) { setExpandedThreads(new Set()); return; }
     try {
-      const raw = localStorage.getItem(`wavvon.threads.${selectedChannel.id}`);
+      const raw = getScoped(`wavvon.threads.${selectedChannel.id}`);
       setExpandedThreads(new Set(raw ? JSON.parse(raw) : []));
     } catch { setExpandedThreads(new Set()); }
     setThreadReplies({});
@@ -214,7 +215,7 @@ export function ContentArea({
 
   function persistExpandedThreads(next: Set<string>) {
     if (!selectedChannel) return;
-    localStorage.setItem(`wavvon.threads.${selectedChannel.id}`, JSON.stringify([...next]));
+    setScoped(`wavvon.threads.${selectedChannel.id}`, JSON.stringify([...next]));
   }
 
   async function toggleThread(messageId: string) {

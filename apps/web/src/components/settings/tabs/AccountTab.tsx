@@ -8,6 +8,7 @@ import { HomeHubsSection } from "../HomeHubsSection";
 import { DevicesSection } from "../DevicesSection";
 import { PasskeySection } from "../PasskeySection";
 import { TrustedDevicesSection } from "../TrustedDevicesSection";
+import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
 
 interface Props {
   hubs: Hub[];
@@ -29,6 +30,7 @@ export function AccountTab(props: Props) {
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.account")}</h1>
+      <AccountsSwitcherSection />
       <div className="settings-section" style={{ marginBottom: 20 }}>
         <label className="settings-label">{t("settings.account.pubkey.label")}</label>
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>

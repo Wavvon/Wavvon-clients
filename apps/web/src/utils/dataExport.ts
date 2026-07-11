@@ -18,6 +18,7 @@ import { loadIdentity as platformLoadIdentity, publicKeyHex } from "@identity/in
 import type { WavvonSkin } from "../skinValidation";
 import { loadAllDrafts } from "./drafts";
 import { loadCustomThemeStore } from "./customThemes";
+import { getScoped } from "./accountScope";
 
 export const ARCHIVE_KIND = "full-archive" as const;
 export const ARCHIVE_DOCUMENT_VERSION = 1;
@@ -82,6 +83,9 @@ export function buildDmArchiveConversation(
 }
 
 export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platformLoadSavedHubs): LocalPrefsSnapshot {
+  // Theme is device-level (shared across every account on this device), so
+  // it's read unscoped; the rest are per-account preferences of the
+  // identity being archived.
   let theme = "calm";
   try {
     const raw = localStorage.getItem("wavvon:appearance");
@@ -92,14 +96,14 @@ export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platfo
 
   let ignored_users: string[] = [];
   try {
-    ignored_users = JSON.parse(localStorage.getItem("wavvon.ignoredUsers") ?? "[]") as string[];
+    ignored_users = JSON.parse(getScoped("wavvon.ignoredUsers") ?? "[]") as string[];
   } catch {
     // ignore malformed local state
   }
 
   let voice_gains: Record<string, number> = {};
   try {
-    voice_gains = JSON.parse(localStorage.getItem("wavvon.voice_gains") ?? "{}") as Record<string, number>;
+    voice_gains = JSON.parse(getScoped("wavvon.voice_gains") ?? "{}") as Record<string, number>;
   } catch {
     // ignore malformed local state
   }
@@ -109,7 +113,7 @@ export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platfo
     theme,
     ignored_users,
     voice_gains,
-    mention_ping_enabled: localStorage.getItem("wavvon.mentionPing") !== "0",
+    mention_ping_enabled: getScoped("wavvon.mentionPing") !== "0",
     gap_note:
       "Hub-synced encrypted preferences (blocked users, cross-device settings) are not yet " +
       "decrypted by the web client; only preferences held locally on this device are included.",

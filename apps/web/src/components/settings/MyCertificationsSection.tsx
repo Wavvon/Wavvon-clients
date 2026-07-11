@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import { listMyCertifications } from "@platform";
 import type { Certification } from "@platform";
+import { getScoped, setScoped } from "@shared/utils/accountScope";
 
 // A member's own earned hub certifications + achievement badges (read-only,
 // aggregated from every hub they're on). Badges (certs with a `label`) render
 // distinctly, link back to the granting community, and can be hidden/shown by
-// the user (client-side curation, persisted locally).
+// the user (client-side curation, persisted locally per account — these are
+// the active identity's own certs).
 const HIDDEN_KEY = "wavvon.hiddenBadges";
 
 function loadHidden(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? "[]")); } catch { return new Set(); }
+  try { return new Set(JSON.parse(getScoped(HIDDEN_KEY) ?? "[]")); } catch { return new Set(); }
 }
 function saveHidden(s: Set<string>) {
-  try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...s])); } catch { /* ignore */ }
+  try { setScoped(HIDDEN_KEY, JSON.stringify([...s])); } catch { /* ignore */ }
 }
 
 function issuerHost(url: string): string {

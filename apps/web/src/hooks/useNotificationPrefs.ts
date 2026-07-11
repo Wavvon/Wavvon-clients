@@ -1,9 +1,12 @@
 import { useState, useCallback } from "react";
 import type { NotifyMode } from "../types";
+import { getScoped, setScoped } from "../utils/accountScope";
 
 type HubNotifyMode = Record<string, NotifyMode>;
 type ChannelNotifyMode = Record<string, Record<string, NotifyMode>>;
 
+// Keyed by hub/channel id, which only mean anything within the active
+// account's own hub list — per-account.
 const STORAGE_KEY_HUB = "wavvon.notifyMode.hub";
 const STORAGE_KEY_CHANNEL = "wavvon.notifyMode.channel";
 const STORAGE_KEY_PINNED = "wavvon.pinnedChannels";
@@ -12,7 +15,7 @@ const STORAGE_KEY_HIDE_SILENCED = "wavvon.hideSilenced";
 
 function readJson<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = getScoped(key);
     return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
     return fallback;
@@ -21,7 +24,7 @@ function readJson<T>(key: string, fallback: T): T {
 
 function writeJson(key: string, value: unknown): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    setScoped(key, JSON.stringify(value));
   } catch {
     // storage unavailable
   }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { previewHubInfo } from "@platform";
+import { getScoped, setScoped } from "@shared/utils/accountScope";
 
 interface Props {
   hubId: string;
@@ -24,7 +25,7 @@ export function WelcomeInviteBanner({ hubId, hubUrl }: Props) {
     setWelcome(null);
     setCopied(false);
     try {
-      setDismissed(localStorage.getItem(dismissKey(hubId)) === "1");
+      setDismissed(getScoped(dismissKey(hubId)) === "1");
     } catch {
       setDismissed(false);
     }
@@ -42,7 +43,7 @@ export function WelcomeInviteBanner({ hubId, hubUrl }: Props) {
 
   function dismiss() {
     setDismissed(true);
-    try { localStorage.setItem(dismissKey(hubId), "1"); } catch { /* ignore */ }
+    try { setScoped(dismissKey(hubId), "1"); } catch { /* ignore */ }
   }
 
   return (

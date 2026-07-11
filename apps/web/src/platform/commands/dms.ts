@@ -2,6 +2,7 @@ import { hexToBytes, bytesToHex } from "@wavvon/core";
 import { hubFetch, rawFetch } from "../http";
 import { activeSession } from "../session";
 import { loadIdentity } from "../../identity/store";
+import { getScoped, setScoped } from "../../utils/accountScope";
 import {
   dhKeypairFromSeed,
   encryptDm,
@@ -47,7 +48,7 @@ interface RawDmMessage {
 
 function loadDrSession(convId: string): DRSession | null {
   try {
-    const raw = localStorage.getItem(`wavvon_dr_${convId}`);
+    const raw = getScoped(`wavvon_dr_${convId}`);
     return raw ? (JSON.parse(raw) as DRSession) : null;
   } catch {
     return null;
@@ -55,7 +56,7 @@ function loadDrSession(convId: string): DRSession | null {
 }
 
 function saveDrSession(convId: string, session: DRSession): void {
-  localStorage.setItem(`wavvon_dr_${convId}`, JSON.stringify(session));
+  setScoped(`wavvon_dr_${convId}`, JSON.stringify(session));
 }
 
 function emptyDrSession(): DRSession {

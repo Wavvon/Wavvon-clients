@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { applySkinTokens, clearSkinTokens } from "../skinValidation";
 import type { SettingsTab } from "@components/settings/SettingsPage";
-import { loadIdentity, seedToPhrase, phraseToSeed, validatePhrase, saveIdentity, publicKeyHex } from "@identity/index";
+import { loadIdentity, seedToPhrase, phraseToSeed, validatePhrase, resolveOrCreateAccount, switchAccount } from "@identity/index";
 import { makeSeed } from "@components/settings/SkinEditor";
 import type { CustomThemeStore, NamedCustomTheme } from "../utils/customThemes";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "../utils/customThemes";
+import { getScoped } from "../utils/accountScope";
 
 const APPEARANCE_KEY = "wavvon:appearance";
 
@@ -29,7 +30,7 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [mentionPingEnabled, setMentionPingEnabled] = useState<boolean>(() => {
-    try { return localStorage.getItem("wavvon.mentionPing") !== "0"; } catch { return true; }
+    try { return getScoped("wavvon.mentionPing") !== "0"; } catch { return true; }
   });
 
   useEffect(() => {
@@ -129,12 +130,16 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     });
   }
 
+  // Recovering a different phrase here means bringing another account onto
+  // this device (or switching to it, if it's already here) — never silently
+  // overwriting the active identity. Reloads via switchAccount when it
+  // differs from the currently active one.
   async function handleRecoverIdentity(ph: string) {
     if (!validatePhrase(ph)) throw new Error("Invalid phrase");
     const hex = phraseToSeed(ph);
-    await saveIdentity({ id: "main", seed_hex: hex, security_nonce: 0, security_level: 0 });
-    setPublicKey(publicKeyHex(hex));
+    const { account } = await resolveOrCreateAccount(hex);
     setRecoveryPhrase(null);
+    switchAccount(account.id);
   }
 
   function handleCopyKey(publicKey: string | null) {

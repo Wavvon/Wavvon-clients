@@ -1,5 +1,6 @@
 import OpusScript from 'opusscript';
 import { resolveVoiceChannelId } from './voiceReady';
+import { getScoped, setScoped } from '../utils/accountScope';
 
 export interface VoiceZoneAttenuation {
   model: 'linear' | 'inverse_square' | 'step' | 'exponential';
@@ -144,7 +145,7 @@ export class VoiceWsSession {
   ) {
     this.myPubkey = myPubkey ?? "";
     try {
-      this.savedGains = JSON.parse(localStorage.getItem(GAINS_STORAGE_KEY) || '{}') as Record<string, number>;
+      this.savedGains = JSON.parse(getScoped(GAINS_STORAGE_KEY) || '{}') as Record<string, number>;
     } catch {
       this.savedGains = {};
     }
@@ -410,7 +411,7 @@ export class VoiceWsSession {
     }
     this.savedGains = stored;
     try {
-      localStorage.setItem(GAINS_STORAGE_KEY, JSON.stringify(stored));
+      setScoped(GAINS_STORAGE_KEY, JSON.stringify(stored));
     } catch {}
 
     for (const [sid, pk] of this.senderIdToPubkey) {

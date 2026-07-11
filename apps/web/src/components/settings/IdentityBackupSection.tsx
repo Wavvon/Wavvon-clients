@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { loadIdentity, resolveOrCreateAccount, switchAccount, type IdentityRecord } from "@identity/index";
 
 interface Props {
   publicKey: string | null;
@@ -30,8 +31,9 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
     setWorking(true);
     setError(null);
     try {
-      const identityJson = localStorage.getItem("wavvon_identity");
-      if (!identityJson) throw new Error("No identity found.");
+      const rec = await loadIdentity();
+      if (!rec) throw new Error("No identity found.");
+      const identityJson = JSON.stringify(rec);
 
       const enc = new TextEncoder();
       const saltArr = crypto.getRandomValues(new Uint8Array(16));
@@ -130,27 +132,36 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       }
 
       const identityJson = new TextDecoder().decode(plaintext);
-      const identity = JSON.parse(identityJson) as { seed_hex?: string };
+      const identity = JSON.parse(identityJson) as Partial<IdentityRecord>;
       if (!identity.seed_hex) throw new Error("Invalid backup content.");
 
-      const existing = localStorage.getItem("wavvon_identity");
-      if (existing) {
-        const existingId = JSON.parse(existing) as { seed_hex?: string };
-        if (existingId.seed_hex === identity.seed_hex) {
-          setError("This backup is the identity already on this device. Nothing to do.");
-          return;
-        }
-        if (!confirm(`This device already has a different Wavvon identity (${existingId.seed_hex?.slice(0, 8)}…). Replace it?\n\nMake sure that identity is backed up first.`)) {
-          return;
-        }
+      const current = await loadIdentity();
+      if (current && current.seed_hex === identity.seed_hex) {
+        setError("This backup is the identity already active on this device. Nothing to do.");
+        return;
+      }
+      if (
+        current &&
+        !confirm(
+          "This device already has a different Wavvon identity active. Import this backup as an " +
+            "additional account and switch to it?\n\nMake sure the current identity is backed up first.",
+        )
+      ) {
+        return;
       }
 
-      localStorage.setItem("wavvon_identity", identityJson);
+      const { account } = await resolveOrCreateAccount(identity.seed_hex, {
+        master_pubkey: identity.master_pubkey,
+        device_label: identity.device_label,
+        subkey_cert: identity.subkey_cert,
+        account_label: identity.account_label,
+      });
       setStep("idle");
       setImportPassphrase("");
       setImportFileData(null);
       setImportFilename("");
       onImported?.();
+      switchAccount(account.id);
     } catch (e) {
       setError(String(e));
     } finally {

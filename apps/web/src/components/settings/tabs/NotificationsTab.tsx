@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, NotifLevel } from "@shared/types";
 import { getNotifPref, setNotifPref } from "@platform";
+import { getScoped, setScoped } from "@shared/utils/accountScope";
 
 interface Props {
   hubs: Hub[];
@@ -17,11 +18,11 @@ export function NotificationsTab(props: Props) {
     { value: "none", label: t("settings.notifications.level.none") },
   ];
   const [voiceSounds, setVoiceSounds] = useState(() => {
-    try { return localStorage.getItem("wavvon.voiceSounds") !== "0"; } catch { return true; }
+    try { return getScoped("wavvon.voiceSounds") !== "0"; } catch { return true; }
   });
   function toggleVoiceSounds(on: boolean) {
     setVoiceSounds(on);
-    try { localStorage.setItem("wavvon.voiceSounds", on ? "1" : "0"); } catch { /* ignore */ }
+    try { setScoped("wavvon.voiceSounds", on ? "1" : "0"); } catch { /* ignore */ }
   }
   const [hubNotifPrefs, setHubNotifPrefs] = useState<Record<string, NotifLevel>>(() => {
     const prefs: Record<string, NotifLevel> = {};

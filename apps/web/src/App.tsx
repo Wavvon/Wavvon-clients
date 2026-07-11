@@ -12,10 +12,12 @@ import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath } from "@wavvon/core";
+import { getScoped, setScoped } from "./utils/accountScope";
 
-// Voice join/leave sound cues, gated by a preference (default on).
+// Voice join/leave sound cues, gated by a preference (default on). Per
+// account — it's a notification-style preference, like the mention ping.
 function voiceSoundsOn(): boolean {
-  try { return localStorage.getItem("wavvon.voiceSounds") !== "0"; } catch { return true; }
+  try { return getScoped("wavvon.voiceSounds") !== "0"; } catch { return true; }
 }
 import { DISCOVERY_NEW_HUB_URL, HUB_SETUP_COMMAND } from "./constants";
 import { parseHubInput } from "@wavvon/core";
@@ -60,7 +62,6 @@ import { SearchBar } from "@components/layout/SearchBar";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
 import { SettingsPage } from "@components/settings/SettingsPage";
 import { UserContextMenu } from "@components/users/UserContextMenu";
-import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
 import { VideoPipWindow } from "@components/voice/VideoPipWindow";
 import { FriendsModal } from "@components/users/FriendsModal";
 import { MobileShell } from "@components/layout/MobileShell";
@@ -71,13 +72,6 @@ import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
-import {
-  isPasskeySupported,
-  isPrfLikelySupported,
-  createIdentityWithPasskey,
-  restoreIdentityWithPasskey,
-  PrfUnsupportedError,
-} from "@platform";
 import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, sendSetStatusTo, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
@@ -127,18 +121,8 @@ import {
   sendDm,
   publishDhKey,
 } from "@platform";
-import { postPairingClaim, getPairingStatus } from "@platform";
-import {
-  loadIdentity,
-  generateIdentity,
-  generateSubkeySeed,
-  publicKeyHex,
-  seedToPhrase,
-  phraseToSeed,
-  validatePhrase,
-  saveIdentity,
-  buildPairingClaim,
-} from "@identity/index";
+import { loadIdentity, publicKeyHex } from "@identity/index";
+import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
 
 // ---- Types ----
 type View = "channels" | "dms";
@@ -147,306 +131,6 @@ type HubPreview =
   | { state: "loading" }
   | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; welcome_label?: string | null; welcome_invite_url?: string | null }
   | { state: "error"; message: string };
-
-// ---- Identity Setup ----
-
-function IdentitySetupScreen({ onComplete }: { onComplete: (profile?: { display_name: string; avatar: string | null }) => void }) {
-  const { t } = useTranslation();
-  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile" | "passkey_backup">("choose");
-  const [generatedPhrase, setGeneratedPhrase] = useState("");
-  const [generatedSeed, setGeneratedSeed] = useState("");
-  const [showHexBackup, setShowHexBackup] = useState(false);
-  const [phrase, setPhrase] = useState("");
-  const [hexInput, setHexInput] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pairCode, setPairCode] = useState("");
-  const [pairLabel, setPairLabel] = useState("");
-  const [pairStatus, setPairStatus] = useState<"idle" | "claiming" | "waiting">("idle");
-  const [passkeySupported, setPasskeySupported] = useState(() => isPasskeySupported());
-  const [passkeyBusy, setPasskeyBusy] = useState<"idle" | "create" | "signin">("idle");
-  const [showPasskeyPhrase, setShowPasskeyPhrase] = useState(false);
-
-  // Best-effort refinement of the initial sync check — hides the passkey
-  // paths if the browser can tell us upfront it doesn't support PRF. The
-  // ceremony itself still guards with a typed error either way.
-  useEffect(() => {
-    let cancelled = false;
-    isPrfLikelySupported().then((ok) => { if (!cancelled) setPasskeySupported(ok); });
-    return () => { cancelled = true; };
-  }, []);
-
-  // New-device pairing: generate a fresh subkey, claim the offer with it, and
-  // poll until the existing device approves. On completion we persist the seed
-  // plus the master-signed cert so this device authenticates as the shared
-  // identity.
-  async function doPair() {
-    setError(null);
-    const label = pairLabel.trim() || "New device";
-    let decoded: { hub: string; token: string };
-    try {
-      decoded = JSON.parse(atob(pairCode.trim()));
-      if (!decoded.hub || !decoded.token) throw new Error("bad code");
-    } catch {
-      setError("That pairing code isn't valid. Copy it again from your other device.");
-      return;
-    }
-    setPairStatus("claiming");
-    try {
-      const subkeySeed = generateSubkeySeed();
-      const subkeyPubkey = publicKeyHex(subkeySeed);
-      const claim = buildPairingClaim(subkeySeed, decoded.token, subkeyPubkey, label);
-      await postPairingClaim(decoded.hub, claim);
-      setPairStatus("waiting");
-
-      const started = Date.now();
-      const poll = async (): Promise<void> => {
-        if (Date.now() - started > 320_000) {
-          setError("The pairing offer expired before it was approved.");
-          setPairStatus("idle");
-          return;
-        }
-        const status = await getPairingStatus(decoded.hub, decoded.token).catch(() => null);
-        if (status && status.state === "complete") {
-          await saveIdentity({
-            id: "main",
-            seed_hex: subkeySeed,
-            security_nonce: 0,
-            security_level: 0,
-            master_pubkey: status.cert.master_pubkey,
-            device_label: label,
-            subkey_cert: status.cert,
-          });
-          setStep("profile");
-          return;
-        }
-        if (status && status.state === "expired") {
-          setError("The pairing offer expired.");
-          setPairStatus("idle");
-          return;
-        }
-        setTimeout(() => void poll(), 2000);
-      };
-      void poll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setPairStatus("idle");
-    }
-  }
-
-  async function doGenerate() {
-    const rec = await generateIdentity();
-    setGeneratedSeed(rec.seed_hex);
-    setGeneratedPhrase(seedToPhrase(rec.seed_hex));
-    setStep("generated");
-  }
-
-  function passkeyErrorMessage(e: unknown): string {
-    if (e instanceof PrfUnsupportedError) return t("identity_setup.passkey.unsupported");
-    return e instanceof Error ? e.message : String(e);
-  }
-
-  async function doCreateWithPasskey() {
-    setError(null);
-    setPasskeyBusy("create");
-    try {
-      const { seedHex } = await createIdentityWithPasskey();
-      await saveIdentity({ id: "main", seed_hex: seedHex, security_nonce: 0, security_level: 0 });
-      setGeneratedSeed(seedHex);
-      setShowPasskeyPhrase(false);
-      setStep("passkey_backup");
-    } catch (e) {
-      setError(passkeyErrorMessage(e));
-    } finally {
-      setPasskeyBusy("idle");
-    }
-  }
-
-  async function doSignInWithPasskey() {
-    setError(null);
-    setPasskeyBusy("signin");
-    try {
-      const seedHex = await restoreIdentityWithPasskey();
-      await saveIdentity({ id: "main", seed_hex: seedHex, security_nonce: 0, security_level: 0 });
-      setStep("profile");
-    } catch (e) {
-      setError(passkeyErrorMessage(e));
-    } finally {
-      setPasskeyBusy("idle");
-    }
-  }
-
-  async function doRecoverPhrase() {
-    setError(null);
-    if (!validatePhrase(phrase)) { setError("Invalid recovery phrase."); return; }
-    try {
-      const hex = phraseToSeed(phrase);
-      await saveIdentity({ id: "main", seed_hex: hex, security_nonce: 0, security_level: 0 });
-      setStep("profile");
-    } catch (e) { setError(String(e)); }
-  }
-
-  async function doRecoverHex() {
-    setError(null);
-    if (!/^[0-9a-fA-F]{64}$/.test(hexInput)) { setError("Must be 64 hex chars."); return; }
-    try {
-      await saveIdentity({ id: "main", seed_hex: hexInput.toLowerCase(), security_nonce: 0, security_level: 0 });
-      setStep("profile");
-    } catch (e) { setError(String(e)); }
-  }
-
-  if (step === "generated") {
-    return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Save your recovery phrase</h2>
-        <p className="muted">Write these 24 words down and store them somewhere safe. Anyone with this phrase can control your identity.</p>
-        <div style={{ background: "var(--bg-elevated)", padding: 16, borderRadius: "var(--r-md)", fontFamily: "monospace", lineHeight: 1.8, marginBottom: 16 }}>{generatedPhrase}</div>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          <button
-            className="btn-ghost"
-            style={{ fontSize: "inherit", padding: 0, textDecoration: "underline" }}
-            onClick={() => setShowHexBackup((v) => !v)}
-          >
-            {showHexBackup ? "Hide" : "Show"} seed hex (alternative backup)
-          </button>
-          {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
-        </p>
-        <button className="btn-primary" onClick={() => setStep("profile")} style={{ marginTop: 16 }}>
-          I saved my phrase — Continue
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "passkey_backup") {
-    return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>{t("identity_setup.passkey.backup_title")}</h2>
-        <p className="muted">{t("identity_setup.passkey.backup_hint")}</p>
-        {showPasskeyPhrase ? (
-          <div style={{ background: "var(--bg-elevated)", padding: 16, borderRadius: "var(--r-md)", fontFamily: "monospace", lineHeight: 1.8, marginBottom: 16 }}>
-            {seedToPhrase(generatedSeed)}
-          </div>
-        ) : (
-          <button
-            className="btn-ghost"
-            style={{ fontSize: "var(--text-sm)", padding: 0, textDecoration: "underline", marginBottom: 16, display: "block" }}
-            onClick={() => setShowPasskeyPhrase(true)}
-          >
-            {t("identity_setup.passkey.reveal_phrase")}
-          </button>
-        )}
-        <button className="btn-primary" onClick={() => setStep("profile")} style={{ marginTop: 8 }}>
-          {t("identity_setup.passkey.continue")}
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "profile") {
-    return (
-      <ProfileSetupStep
-        onSave={(display_name, avatar) => onComplete({ display_name, avatar })}
-        onSkip={() => onComplete()}
-      />
-    );
-  }
-
-  if (step === "recover") {
-    return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Recover identity</h2>
-        <label className="settings-label">24-word recovery phrase</label>
-        <textarea rows={3} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder="word1 word2 word3 …" style={{ width: "100%", marginBottom: 8 }} />
-        <button onClick={doRecoverPhrase} style={{ marginBottom: 16 }}>Recover from phrase</button>
-        <label className="settings-label">Or seed hex (64 chars)</label>
-        <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder="a1b2c3d4…" style={{ width: "100%", fontFamily: "monospace", marginBottom: 8 }} />
-        <button onClick={doRecoverHex} style={{ marginBottom: 8 }}>Recover from hex</button>
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-        <br />
-        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>Back</button>
-      </div>
-    );
-  }
-
-  if (step === "pair") {
-    return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Pair with an existing device</h2>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          On a device you're already signed in on, open Settings → Account → Devices → “Pair a new device”, then paste
-          the code it shows here.
-        </p>
-        <label className="settings-label">Device name</label>
-        <input
-          type="text"
-          value={pairLabel}
-          onChange={(e) => setPairLabel(e.target.value)}
-          placeholder="e.g. Work laptop"
-          aria-label="Device name"
-          style={{ width: "100%", marginBottom: 8 }}
-        />
-        <label className="settings-label">Pairing code</label>
-        <textarea
-          rows={3}
-          value={pairCode}
-          onChange={(e) => setPairCode(e.target.value)}
-          placeholder="Paste the code from your other device"
-          aria-label="Pairing code"
-          style={{ width: "100%", marginBottom: 8, fontFamily: "monospace" }}
-        />
-        <button className="btn-primary" onClick={doPair} disabled={pairStatus !== "idle" || !pairCode.trim()}>
-          {pairStatus === "waiting" ? "Waiting for approval…" : pairStatus === "claiming" ? "Linking…" : "Pair this device"}
-        </button>
-        {pairStatus === "waiting" && (
-          <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
-            Approve this device on your other device to finish.
-          </p>
-        )}
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-        <br />
-        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>Back</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ maxWidth: 400, margin: "120px auto", padding: 32, textAlign: "center" }}>
-      <h1>Wavvon</h1>
-      <p className="muted">Create a new identity or recover an existing one.</p>
-      {passkeySupported && (
-        <>
-          <button
-            className="btn-primary"
-            style={{ width: "100%", marginBottom: 12 }}
-            onClick={doCreateWithPasskey}
-            disabled={passkeyBusy !== "idle"}
-          >
-            {passkeyBusy === "create" ? t("identity_setup.passkey.working") : t("identity_setup.passkey.create_cta")}
-          </button>
-          <button
-            className="btn-secondary"
-            style={{ width: "100%", marginBottom: 20 }}
-            onClick={doSignInWithPasskey}
-            disabled={passkeyBusy !== "idle"}
-          >
-            {passkeyBusy === "signin" ? t("identity_setup.passkey.working") : t("identity_setup.passkey.signin_cta")}
-          </button>
-          <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>{t("identity_setup.passkey.divider")}</p>
-        </>
-      )}
-      <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={doGenerate}>
-        Create new identity
-      </button>
-      <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setStep("recover")}>
-        Recover existing identity
-      </button>
-      <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setStep("pair")}>
-        Pair with an existing device
-      </button>
-      {error && <p style={{ color: "var(--danger)", marginTop: 12 }}>{error}</p>}
-    </div>
-  );
-}
 
 // ---- App ----
 
@@ -514,19 +198,20 @@ export default function App() {
   // === Hub data ===
   const [channels, setChannels] = useState<Channel[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  // Own presence — global across hubs, not per-hub. The device is the
-  // source of truth: the picker broadcasts to every session and each hub
-  // gets it re-applied on (re)connect. Distinct from hub mute (notify modes).
+  // Own presence — shared across every hub this account is on, not per-hub;
+  // the client is the source of truth and broadcasts it to every session,
+  // re-applying on (re)connect. Distinct from hub mute (notify modes). It's
+  // an account-level preference (per-account storage), not a device-global one.
   const [myPresence, setMyPresenceState] = useState<{ status: "online" | "away" | "dnd"; custom: string | null }>(() => {
     try {
-      const raw = localStorage.getItem("wavvon.presence");
+      const raw = getScoped("wavvon.presence");
       if (raw) return JSON.parse(raw) as { status: "online" | "away" | "dnd"; custom: string | null };
     } catch { /* storage unavailable or corrupt */ }
     return { status: "online", custom: null };
   });
   const setMyPresence = useCallback((p: { status: "online" | "away" | "dnd"; custom: string | null }) => {
     setMyPresenceState(p);
-    try { localStorage.setItem("wavvon.presence", JSON.stringify(p)); } catch { /* storage unavailable */ }
+    try { setScoped("wavvon.presence", JSON.stringify(p)); } catch { /* storage unavailable */ }
   }, []);
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
@@ -536,7 +221,7 @@ export default function App() {
   const [selfDeafened, setSelfDeafened] = useState(false);
   const voiceSessionRef = useRef<VoiceWsSession | null>(null);
   const [voiceGains, setVoiceGains] = useState<Record<string, number>>(() => {
-    try { return JSON.parse(localStorage.getItem("wavvon.voice_gains") || "{}") as Record<string, number>; }
+    try { return JSON.parse(getScoped("wavvon.voice_gains") || "{}") as Record<string, number>; }
     catch { return {}; }
   });
   const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
@@ -602,7 +287,7 @@ export default function App() {
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const [ignoredUsers, setIgnoredUsers] = useState<Set<string>>(() => {
     try {
-      const raw = localStorage.getItem("wavvon.ignoredUsers");
+      const raw = getScoped("wavvon.ignoredUsers");
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch { return new Set(); }
   });
@@ -622,7 +307,7 @@ export default function App() {
       const next = new Set(prev);
       if (next.has(pubkey)) next.delete(pubkey);
       else next.add(pubkey);
-      try { localStorage.setItem("wavvon.ignoredUsers", JSON.stringify(Array.from(next))); } catch {}
+      try { setScoped("wavvon.ignoredUsers", JSON.stringify(Array.from(next))); } catch {}
       return next;
     });
   }
@@ -843,10 +528,10 @@ export default function App() {
     });
   }, []);
 
-  function handleIdentityComplete(profile?: { display_name: string; avatar: string | null }) {
+  function handleIdentityComplete(result: IdentitySetupCompletion) {
     // Nickname + avatar chosen during onboarding become the default profile,
     // which the first-hub effect below applies automatically via PATCH /me.
-    if (profile) handleCreateProfile(profile.display_name, profile.display_name, profile.avatar);
+    if (result.profile) handleCreateProfile(result.profile.display_name, result.profile.display_name, result.profile.avatar);
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
@@ -2223,7 +1908,7 @@ export default function App() {
   const handleSetVoiceGain = useCallback((pk: string, gainPct: number) => {
     setVoiceGains((prev) => {
       const next = { ...prev, [pk]: gainPct };
-      try { localStorage.setItem("wavvon.voice_gains", JSON.stringify(next)); } catch {}
+      try { setScoped("wavvon.voice_gains", JSON.stringify(next)); } catch {}
       return next;
     });
     voiceSessionRef.current?.setSenderGain(pk, gainPct);
@@ -2608,7 +2293,7 @@ export default function App() {
             mentionPingEnabled={mentionPingEnabled}
             onMentionPingChange={(v) => {
               setMentionPingEnabled(v);
-              try { localStorage.setItem("wavvon.mentionPing", v ? "1" : "0"); } catch {}
+              try { setScoped("wavvon.mentionPing", v ? "1" : "0"); } catch {}
             }}
             recoveryPhrase={recoveryPhrase}
             onShowRecovery={handleShowRecovery}
