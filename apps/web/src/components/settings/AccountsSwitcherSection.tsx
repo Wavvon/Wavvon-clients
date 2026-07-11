@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import {
@@ -49,8 +49,12 @@ export function AccountsSwitcherSection() {
   async function commitRename(account: IdentityRecord) {
     const label = renameDraft.trim().slice(0, 48);
     setRenamingId(null);
+    // Labels are mandatory going forward — clearing the field reverts to the
+    // previous label instead of wiping it. Accounts created before this rule
+    // existed can still be unlabeled and just keep showing their fingerprint.
+    if (!label) return;
     if (label === (account.account_label ?? "")) return;
-    await saveIdentity({ ...account, account_label: label || undefined });
+    await saveIdentity({ ...account, account_label: label });
     refresh();
   }
 
@@ -87,7 +91,13 @@ export function AccountsSwitcherSection() {
         <IdentitySetupScreen
           variant="add"
           onCancel={() => setShowAdd(false)}
-          onComplete={({ accountId }) => switchAccount(accountId)}
+          onComplete={() => {
+            // Adding an account no longer switches to it automatically — it
+            // just lands in the list below, unswitched, until the user picks
+            // Switch on its row.
+            setShowAdd(false);
+            refresh();
+          }}
         />
       </div>
     );
@@ -103,102 +113,121 @@ export function AccountsSwitcherSection() {
         {t("settings.account.accounts.pubkey_hint")}
       </p>
 
-      {(accounts ?? []).map((account) => {
-        const isActive = account.id === activeId;
-        const fp = shortFingerprint(account.id);
-        return (
-          <div
-            key={account.id}
-            className="settings-row"
-            style={{ alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              {renamingId === account.id ? (
-                <input
-                  type="text"
-                  autoFocus
-                  value={renameDraft}
-                  placeholder={t("settings.account.accounts.rename_placeholder")}
-                  onChange={(e) => setRenameDraft(e.target.value)}
-                  onBlur={() => void commitRename(account)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void commitRename(account);
-                    if (e.key === "Escape") setRenamingId(null);
-                  }}
-                  style={{ fontSize: "var(--text-sm)" }}
-                />
-              ) : (
-                <>
-                  <span style={{ fontWeight: isActive ? 600 : 400 }} title={account.id}>
-                    {account.account_label || formatPubkey(account.id)}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={() => startRename(account)}
-                    title={t("settings.account.accounts.rename_button")}
-                    aria-label={t("settings.account.accounts.rename_button")}
-                    style={{ padding: "2px 4px", fontSize: "var(--text-sm)", lineHeight: 1 }}
-                  >
-                    ✎
-                  </button>
-                </>
-              )}
-              {isActive && <span className="muted" style={{ fontSize: "var(--text-xs)" }}>({t("settings.account.accounts.active_badge")})</span>}
-              {account.account_label && (
-                <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{formatPubkey(account.id)}</span>
-              )}
-            </span>
-
-            {removingId === account.id ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
-                <p className="error-text" style={{ margin: 0 }}>
-                  {t("settings.account.accounts.remove_confirm_hint")}
-                </p>
-                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  <input
-                    type="text"
-                    value={removeConfirmText}
-                    onChange={(e) => setRemoveConfirmText(e.target.value)}
-                    placeholder={t("settings.account.accounts.remove_confirm_placeholder", { fingerprint: fp })}
-                    style={{ fontFamily: "monospace" }}
-                  />
-                  <button
-                    type="button"
-                    className="btn-small btn-secondary"
-                    disabled={removeConfirmText.trim().toLowerCase() !== fp}
-                    onClick={() => void confirmRemove(account)}
-                  >
-                    {t("settings.account.accounts.remove_confirm_button")}
-                  </button>
-                  <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
-                    {t("settings.account.accounts.remove_cancel")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  type="button"
-                  className="btn-small btn-secondary"
-                  onClick={() => copyKey(account)}
-                  title={account.canonical_pubkey ?? account.id}
-                >
-                  {copiedKeyId === account.id ? t("settings.account.pubkey.copied") : t("settings.account.pubkey.copy")}
-                </button>
-                {!isActive && (
-                  <button type="button" className="btn-small btn-secondary" onClick={() => switchAccount(account.id)}>
-                    {t("settings.account.accounts.switch")}
-                  </button>
+      <table className="members-table" style={{ marginTop: 4 }}>
+        <thead>
+          <tr>
+            <th>{t("settings.account.accounts.col_label")}</th>
+            <th>{t("settings.account.accounts.col_key")}</th>
+            <th>{t("settings.account.accounts.col_actions")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(accounts ?? []).map((account) => {
+            const isActive = account.id === activeId;
+            const fp = shortFingerprint(account.id);
+            const isRemoving = removingId === account.id;
+            return (
+              <Fragment key={account.id}>
+                <tr>
+                  <td>
+                    {renamingId === account.id ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        value={renameDraft}
+                        placeholder={t("settings.account.accounts.rename_placeholder")}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        onBlur={() => void commitRename(account)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void commitRename(account);
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        style={{ fontSize: "var(--text-sm)" }}
+                      />
+                    ) : (
+                      <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                        <span style={{ fontWeight: isActive ? 600 : 400 }} title={account.id}>
+                          {account.account_label || formatPubkey(account.id)}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => startRename(account)}
+                          title={t("settings.account.accounts.rename_button")}
+                          aria-label={t("settings.account.accounts.rename_button")}
+                          style={{ padding: "2px 4px", fontSize: "var(--text-sm)", lineHeight: 1 }}
+                        >
+                          ✎
+                        </button>
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <code style={{ fontFamily: "monospace", fontSize: "var(--text-xs)" }} title={account.id}>
+                      {formatPubkey(account.id)}
+                    </code>
+                  </td>
+                  <td>
+                    {!isRemoving && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-small btn-secondary"
+                          disabled={isActive}
+                          title={isActive ? t("settings.account.accounts.active_hint") : undefined}
+                          onClick={() => switchAccount(account.id)}
+                        >
+                          {isActive ? t("settings.account.accounts.active_button") : t("settings.account.accounts.switch")}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-small btn-secondary"
+                          onClick={() => copyKey(account)}
+                          title={account.canonical_pubkey ?? account.id}
+                        >
+                          {copiedKeyId === account.id ? t("settings.account.pubkey.copied") : t("settings.account.pubkey.copy")}
+                        </button>
+                        <button type="button" className="btn-small btn-secondary" onClick={() => startRemove(account.id)}>
+                          {t("settings.account.accounts.remove")}
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                {isRemoving && (
+                  <tr>
+                    <td colSpan={3}>
+                      <p className="error-text" style={{ margin: 0 }}>
+                        {t("settings.account.accounts.remove_confirm_hint")}
+                      </p>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+                        <input
+                          type="text"
+                          value={removeConfirmText}
+                          onChange={(e) => setRemoveConfirmText(e.target.value)}
+                          placeholder={t("settings.account.accounts.remove_confirm_placeholder", { fingerprint: fp })}
+                          style={{ fontFamily: "monospace" }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-small btn-secondary"
+                          disabled={removeConfirmText.trim().toLowerCase() !== fp}
+                          onClick={() => void confirmRemove(account)}
+                        >
+                          {t("settings.account.accounts.remove_confirm_button")}
+                        </button>
+                        <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
+                          {t("settings.account.accounts.remove_cancel")}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 )}
-                <button type="button" className="btn-small btn-secondary" onClick={() => startRemove(account.id)}>
-                  {t("settings.account.accounts.remove")}
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      })}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
 
       <div className="settings-row" style={{ marginTop: 8 }}>
         <button type="button" className="btn-secondary" onClick={() => setShowAdd(true)}>

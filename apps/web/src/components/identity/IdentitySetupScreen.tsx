@@ -19,7 +19,10 @@ import {
   setActiveAccountId,
   unwrapBlobKey,
   bytesToHex,
+  saveIdentity,
+  listAccounts,
 } from "@identity/index";
+import type { IdentityRecord } from "@identity/index";
 import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
 
 export interface IdentitySetupCompletion {
@@ -44,7 +47,7 @@ interface Props {
 // by AccountsSwitcherSection).
 export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel }: Props) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile" | "passkey_backup">("choose");
+  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile" | "passkey_backup" | "label">("choose");
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
   const [generatedAccountId, setGeneratedAccountId] = useState("");
@@ -58,6 +61,9 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [passkeySupported, setPasskeySupported] = useState(() => isPasskeySupported());
   const [passkeyBusy, setPasskeyBusy] = useState<"idle" | "create" | "signin">("idle");
   const [showPasskeyPhrase, setShowPasskeyPhrase] = useState(false);
+  const [pendingAccount, setPendingAccount] = useState<IdentityRecord | null>(null);
+  const [labelDraft, setLabelDraft] = useState("");
+  const [existingAccountCount, setExistingAccountCount] = useState(0);
 
   // Best-effort refinement of the initial sync check — hides the passkey
   // paths if the browser can tell us upfront it doesn't support PRF. The
@@ -67,6 +73,17 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     isPrfLikelySupported().then((ok) => { if (!cancelled) setPasskeySupported(ok); });
     return () => { cancelled = true; };
   }, []);
+
+  // Snapshot the device's account count once, before this flow adds a row —
+  // it feeds the "Account N" label suggestion without counting the very
+  // account this screen is about to create.
+  useEffect(() => {
+    listAccounts().then((accts) => setExistingAccountCount(accts.length));
+  }, []);
+
+  function suggestedLabel(): string {
+    return t("identity_setup.label.suggestion", { n: existingAccountCount + 1 });
+  }
 
   function finishWithAccount(accountId: string) {
     if (variant === "add") {
@@ -80,6 +97,28 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       setStep("profile");
       setGeneratedAccountId(accountId);
     }
+  }
+
+  // Every "bring an identity onto this device" path (recover, passkey
+  // sign-in, pair) funnels through here: a dedupe hit (isNew=false) skips
+  // straight to finishing and keeps that account's existing label untouched
+  // — only a genuinely new row requires labeling first.
+  function proceedAfterResolve(account: IdentityRecord, isNew: boolean) {
+    if (!isNew) {
+      finishWithAccount(account.id);
+      return;
+    }
+    setPendingAccount(account);
+    setLabelDraft(suggestedLabel());
+    setStep("label");
+  }
+
+  async function finalizeNewAccountLabel() {
+    if (!pendingAccount) return;
+    const label = labelDraft.trim().slice(0, 48);
+    if (!label) return;
+    await saveIdentity({ ...pendingAccount, account_label: label });
+    finishWithAccount(pendingAccount.id);
   }
 
   // New-device pairing: generate a fresh subkey, claim the offer with it, and
@@ -128,13 +167,13 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
               // pairing entirely.
             }
           }
-          const { account } = await resolveOrCreateAccount(subkeySeed, {
+          const { account, isNew } = await resolveOrCreateAccount(subkeySeed, {
             master_pubkey: status.cert.master_pubkey,
             device_label: label,
             subkey_cert: status.cert,
             canonical_dh_priv_hex: canonicalDhPrivHex,
           });
-          finishWithAccount(account.id);
+          proceedAfterResolve(account, isNew);
           return;
         }
         if (status && status.state === "expired") {
@@ -157,6 +196,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     setGeneratedSeed(account.seed_hex);
     setGeneratedPhrase(seedToPhrase(account.seed_hex));
     setGeneratedAccountId(account.id);
+    setPendingAccount(account);
+    setLabelDraft(suggestedLabel());
     setStep("generated");
   }
 
@@ -173,6 +214,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       const { account } = await resolveOrCreateAccount(seedHex);
       setGeneratedSeed(seedHex);
       setGeneratedAccountId(account.id);
+      setPendingAccount(account);
+      setLabelDraft(suggestedLabel());
       setShowPasskeyPhrase(false);
       setStep("passkey_backup");
     } catch (e) {
@@ -187,8 +230,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     setPasskeyBusy("signin");
     try {
       const seedHex = await restoreIdentityWithPasskey();
-      const { account } = await resolveOrCreateAccount(seedHex);
-      finishWithAccount(account.id);
+      const { account, isNew } = await resolveOrCreateAccount(seedHex);
+      proceedAfterResolve(account, isNew);
     } catch (e) {
       setError(passkeyErrorMessage(e));
     } finally {
@@ -201,8 +244,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     if (!validatePhrase(phrase)) { setError(t("identity_setup.recover.error_invalid_phrase")); return; }
     try {
       const hex = phraseToSeed(phrase);
-      const { account } = await resolveOrCreateAccount(hex);
-      finishWithAccount(account.id);
+      const { account, isNew } = await resolveOrCreateAccount(hex);
+      proceedAfterResolve(account, isNew);
     } catch (e) { setError(String(e)); }
   }
 
@@ -210,8 +253,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     setError(null);
     if (!/^[0-9a-fA-F]{64}$/.test(hexInput)) { setError(t("identity_setup.recover.error_invalid_hex")); return; }
     try {
-      const { account } = await resolveOrCreateAccount(hexInput.toLowerCase());
-      finishWithAccount(account.id);
+      const { account, isNew } = await resolveOrCreateAccount(hexInput.toLowerCase());
+      proceedAfterResolve(account, isNew);
     } catch (e) { setError(String(e)); }
   }
 
@@ -231,10 +274,21 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           </button>
           {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
         </p>
+        <label className="settings-label">{t("identity_setup.label.field_label")}</label>
+        <input
+          type="text"
+          value={labelDraft}
+          onChange={(e) => setLabelDraft(e.target.value)}
+          placeholder={t("identity_setup.label.placeholder")}
+          aria-label={t("identity_setup.label.field_label")}
+          maxLength={48}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
         <button
           className="btn-primary"
-          onClick={() => (variant === "add" ? onComplete({ accountId: generatedAccountId }) : setStep("profile"))}
-          style={{ marginTop: 16 }}
+          onClick={() => void finalizeNewAccountLabel()}
+          disabled={!labelDraft.trim()}
+          style={{ marginTop: 4 }}
         >
           {t("identity_setup.generated.continue")}
         </button>
@@ -260,12 +314,47 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
             {t("identity_setup.passkey.reveal_phrase")}
           </button>
         )}
+        <label className="settings-label">{t("identity_setup.label.field_label")}</label>
+        <input
+          type="text"
+          value={labelDraft}
+          onChange={(e) => setLabelDraft(e.target.value)}
+          placeholder={t("identity_setup.label.placeholder")}
+          aria-label={t("identity_setup.label.field_label")}
+          maxLength={48}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
         <button
           className="btn-primary"
-          onClick={() => (variant === "add" ? onComplete({ accountId: generatedAccountId }) : setStep("profile"))}
-          style={{ marginTop: 8 }}
+          onClick={() => void finalizeNewAccountLabel()}
+          disabled={!labelDraft.trim()}
+          style={{ marginTop: 4 }}
         >
           {t("identity_setup.passkey.continue")}
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "label" && pendingAccount) {
+    return (
+      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+        <h2>{t("identity_setup.label.title")}</h2>
+        <p className="muted">{t("identity_setup.label.hint")}</p>
+        <label className="settings-label">{t("identity_setup.label.field_label")}</label>
+        <input
+          type="text"
+          autoFocus
+          value={labelDraft}
+          onChange={(e) => setLabelDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && labelDraft.trim()) void finalizeNewAccountLabel(); }}
+          placeholder={t("identity_setup.label.placeholder")}
+          aria-label={t("identity_setup.label.field_label")}
+          maxLength={48}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
+        <button className="btn-primary" onClick={() => void finalizeNewAccountLabel()} disabled={!labelDraft.trim()}>
+          {t("identity_setup.label.continue")}
         </button>
       </div>
     );
