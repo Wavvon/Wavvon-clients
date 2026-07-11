@@ -2111,6 +2111,11 @@ tr.account-row-dragging {
   margin-left: 4px;
 }
 
+/* The copy glyph needs more breathing room from the dense hex key. */
+.account-key-copy .account-hover-icon {
+  margin-left: 10px;
+}
+
 td:hover .account-hover-icon,
 .account-key-copy:focus-visible .account-hover-icon,
 .account-hover-icon:focus-visible {
