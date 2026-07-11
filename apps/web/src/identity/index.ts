@@ -6,6 +6,8 @@ export {
   bytesToHex,
   hexToBytes,
   listAccounts,
+  listAccountsOrdered,
+  setAccountOrder,
   getActiveAccountId,
   setActiveAccountId,
   findAccountByPubkey,

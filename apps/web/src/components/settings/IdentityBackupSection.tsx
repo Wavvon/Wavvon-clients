@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   listAccounts,
+  listAccountsOrdered,
   getActiveAccountId,
   resolveOrCreateAccount,
   switchAccount,
@@ -54,7 +55,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
   function openExportForm() {
     setStep("export-form");
     setError(null);
-    listAccounts().then((accounts) => {
+    listAccountsOrdered().then((accounts) => {
       setExportAccounts(accounts);
       const activeId = getActiveAccountId();
       setExportSelectedIds(new Set(activeId ? [activeId] : accounts.map((a) => a.id).slice(0, 1)));

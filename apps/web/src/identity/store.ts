@@ -1,6 +1,7 @@
 import { openDB, type IDBPDatabase } from "idb";
 import { ed25519 } from "@noble/curves/ed25519";
 import { bytesToHex, hexToBytes, publicKeyHex, type SubkeyCert } from "@wavvon/core";
+import { sortAccountsByOrder, renumberAccountOrder, nextAccountOrder } from "./accountOrder";
 
 // Accounts are device-local: this file is the only place that reads/writes
 // the "identity" object store and the active-account pointer. Nothing here
@@ -35,6 +36,12 @@ export interface IdentityRecord {
   // Purely local nickname shown in the account switcher so multiple accounts
   // on one device are easy to tell apart. Never sent to a hub.
   account_label?: string;
+  // Purely local display position in the account switcher/backup lists.
+  // Same nature as account_label: device-local, never synced to a hub.
+  // Missing on accounts created before this field existed — those sort last
+  // (see accountOrder.ts) until the user drags them or a new account bumps
+  // past them.
+  account_order?: number;
 }
 
 // Single source of truth for "which account is active" — deliberately plain
@@ -90,6 +97,28 @@ export async function listAccounts(): Promise<IdentityRecord[]> {
   return db.getAll("identity");
 }
 
+// Same rows as listAccounts, in the user's chosen display order (see
+// accountOrder.ts). Every place that lists accounts for a human — the
+// switcher table, backup export's account picker — should use this instead
+// of the raw, effectively-arbitrary IndexedDB enumeration order.
+export async function listAccountsOrdered(): Promise<IdentityRecord[]> {
+  return sortAccountsByOrder(await listAccounts());
+}
+
+// Persists a full reorder pass: writes sequential account_order values
+// matching idsInOrder's position in one pass over the store.
+export async function setAccountOrder(idsInOrder: string[]): Promise<void> {
+  const db = await getDb();
+  const positions = renumberAccountOrder(idsInOrder);
+  const all = await db.getAll("identity");
+  for (const record of all) {
+    const position = positions.get(record.id);
+    if (position != null && record.account_order !== position) {
+      await db.put("identity", { ...record, account_order: position });
+    }
+  }
+}
+
 export async function loadIdentity(): Promise<IdentityRecord | null> {
   const db = await getDb();
   const activeId = getActiveAccountId();
@@ -136,6 +165,7 @@ export async function resolveOrCreateAccount(
     seed_hex: seedHex,
     security_nonce: 0,
     security_level: 0,
+    account_order: nextAccountOrder(await listAccounts()),
     ...extra,
   };
   await saveIdentity(account);

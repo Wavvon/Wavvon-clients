@@ -1,14 +1,16 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import {
-  listAccounts,
+  listAccountsOrdered,
   getActiveAccountId,
   saveIdentity,
   removeAccount,
   switchAccount,
+  setAccountOrder,
   type IdentityRecord,
 } from "@identity/index";
+import { reorderByDrop, moveByStep } from "@identity/accountOrder";
 import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
 
 // Short, typeable identifier for the "type to confirm" removal guard — the
@@ -31,9 +33,12 @@ export function AccountsSwitcherSection() {
   const [removeConfirmText, setRemoveConfirmText] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const handleRefs = useRef(new Map<string, HTMLSpanElement>());
 
   function refresh() {
-    listAccounts().then(setAccounts);
+    listAccountsOrdered().then(setAccounts);
     setActiveId(getActiveAccountId());
   }
 
@@ -85,6 +90,32 @@ export function AccountsSwitcherSection() {
     }
   }
 
+  // Reorders the in-memory list immediately (so the drop/keystroke feels
+  // instant) and writes the new positions to IndexedDB in the background.
+  async function persistOrder(newIds: string[]) {
+    const byId = new Map((accounts ?? []).map((a) => [a.id, a]));
+    const reordered = newIds.map((id) => byId.get(id)).filter((a): a is IdentityRecord => !!a);
+    setAccounts(reordered);
+    await setAccountOrder(newIds);
+  }
+
+  function handleDrop(targetId: string) {
+    const sourceId = dragId;
+    setDragId(null);
+    setDragOverId(null);
+    if (!sourceId || !accounts) return;
+    void persistOrder(reorderByDrop(accounts.map((a) => a.id), sourceId, targetId));
+  }
+
+  function handleHandleKeyDown(e: React.KeyboardEvent, id: string) {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    if (!accounts) return;
+    const direction = e.key === "ArrowUp" ? -1 : 1;
+    const newIds = moveByStep(accounts.map((a) => a.id), id, direction);
+    void persistOrder(newIds).then(() => handleRefs.current.get(id)?.focus());
+  }
+
   if (showAdd) {
     return (
       <div className="settings-section">
@@ -116,19 +147,57 @@ export function AccountsSwitcherSection() {
       <table className="members-table" style={{ marginTop: 4 }}>
         <thead>
           <tr>
+            <th className="account-order-col">{t("settings.account.accounts.col_order")}</th>
             <th>{t("settings.account.accounts.col_label")}</th>
             <th>{t("settings.account.accounts.col_key")}</th>
             <th>{t("settings.account.accounts.col_actions")}</th>
           </tr>
         </thead>
         <tbody>
-          {(accounts ?? []).map((account) => {
+          {(accounts ?? []).map((account, index) => {
             const isActive = account.id === activeId;
             const fp = shortFingerprint(account.id);
             const isRemoving = removingId === account.id;
+            const label = account.account_label || formatPubkey(account.id);
             return (
               <Fragment key={account.id}>
-                <tr>
+                <tr
+                  className={[
+                    dragId === account.id ? "account-row-dragging" : "",
+                    dragOverId === account.id && dragId && dragId !== account.id ? "account-drop-target" : "",
+                  ].filter(Boolean).join(" ")}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOverId !== account.id) setDragOverId(account.id);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDrop(account.id);
+                  }}
+                >
+                  <td className="account-order-cell">
+                    <span className="account-order-number">{index + 1}</span>
+                    <span
+                      ref={(el) => {
+                        if (el) handleRefs.current.set(account.id, el);
+                        else handleRefs.current.delete(account.id);
+                      }}
+                      className={`account-drag-handle ${dragId === account.id ? "dragging" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      draggable
+                      onDragStart={() => setDragId(account.id)}
+                      onDragEnd={() => {
+                        setDragId(null);
+                        setDragOverId(null);
+                      }}
+                      onKeyDown={(e) => handleHandleKeyDown(e, account.id)}
+                      aria-label={t("settings.account.accounts.reorder_handle", { label })}
+                      title={t("settings.account.accounts.reorder_hint")}
+                    >
+                      ⠿
+                    </span>
+                  </td>
                   <td>
                     {renamingId === account.id ? (
                       <input
@@ -196,7 +265,7 @@ export function AccountsSwitcherSection() {
                 </tr>
                 {isRemoving && (
                   <tr>
-                    <td colSpan={3}>
+                    <td colSpan={4}>
                       <p className="error-text" style={{ margin: 0 }}>
                         {t("settings.account.accounts.remove_confirm_hint")}
                       </p>
