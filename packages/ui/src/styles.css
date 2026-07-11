@@ -2102,6 +2102,21 @@ tr.account-row-dragging {
   white-space: nowrap;
 }
 
+/* Hover-revealed affordances in the account table: the copy glyph on the
+   key and the rename pencil on the label appear on cell hover (or keyboard
+   focus) instead of cluttering the resting state. */
+.account-hover-icon {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  margin-left: 4px;
+}
+
+td:hover .account-hover-icon,
+.account-key-copy:focus-visible .account-hover-icon,
+.account-hover-icon:focus-visible {
+  opacity: 1;
+}
+
 tr.account-drop-target td {
   box-shadow: inset 0 2px 0 0 var(--accent);
 }

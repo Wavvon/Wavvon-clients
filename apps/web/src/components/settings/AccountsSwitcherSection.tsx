@@ -220,7 +220,7 @@ export function AccountsSwitcherSection() {
                         </span>
                         <button
                           type="button"
-                          className="btn-ghost"
+                          className="btn-ghost account-hover-icon"
                           onClick={() => startRename(account)}
                           title={t("settings.account.accounts.rename_button")}
                           aria-label={t("settings.account.accounts.rename_button")}
@@ -246,8 +246,10 @@ export function AccountsSwitcherSection() {
                       }}
                     >
                       {account.canonical_pubkey ?? account.id}
-                      {copiedKeyId === account.id && (
+                      {copiedKeyId === account.id ? (
                         <span className="account-key-copied">✓ {t("settings.account.pubkey.copied")}</span>
+                      ) : (
+                        <span className="account-hover-icon" aria-hidden="true">⧉</span>
                       )}
                     </code>
                   </td>
