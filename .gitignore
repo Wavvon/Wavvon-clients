@@ -14,3 +14,4 @@ wavvon-desktop/src-tauri/gen/
 *.pem
 hub_identity.json
 hub.search/
+.dev-server.log
