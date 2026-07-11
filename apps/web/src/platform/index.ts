@@ -116,6 +116,7 @@ export {
   approveRecoveryRequest,
   denyRecoveryRequest,
   updateDmBlocks,
+  getDmBlocks,
   moveChannel,
   reorderChannels,
   saveHubSettings,

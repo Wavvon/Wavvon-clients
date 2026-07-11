@@ -74,7 +74,7 @@ import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
-import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
+import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
 import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, sendSetStatusTo, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
@@ -301,12 +301,16 @@ export default function App() {
   });
 
   function toggleBlockUser(pubkey: string) {
-    setBlockedUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(pubkey)) next.delete(pubkey);
-      else next.add(pubkey);
-      updateDmBlocks(Array.from(next)).catch(() => {});
-      return next;
+    const prev = blockedUsers;
+    const next = new Set(prev);
+    if (next.has(pubkey)) next.delete(pubkey);
+    else next.add(pubkey);
+    setBlockedUsers(next);
+    // Optimistic update; on failure revert and say so — a silently
+    // unpersisted block is a safety problem, not a cosmetic one.
+    updateDmBlocks(Array.from(next)).catch((e) => {
+      setBlockedUsers(prev);
+      showHubError(e instanceof HubApiError ? e.message : String(e));
     });
   }
 
@@ -1052,13 +1056,14 @@ export default function App() {
       })
       .catch(() => { /* cosmetic sync only */ });
     try {
-      const [ch, usr, me, convs, cmds, voiceRoster] = await Promise.allSettled([
+      const [ch, usr, me, convs, cmds, voiceRoster, dmBlocks] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
         hubFetch("/users").then((r) => r.json() as Promise<User[]>),
         hubFetch("/me").then((r) => r.json() as Promise<MeInfo>),
         hubFetch("/conversations").then((r) => r.json() as Promise<Conversation[]>),
         listBotCommands().catch(() => [] as Array<{ command: string; description: string; bot_name: string }>),
         fetchVoiceRoster().catch(() => ({} as Record<string, VoiceParticipant[]>)),
+        getDmBlocks().catch(() => null),
       ]);
       // A lobby-scoped session (lobby-bot-survey.md Feature 1) 403s every
       // route outside the lobby allowlist — /channels is always in that
@@ -1132,6 +1137,9 @@ export default function App() {
       if (convs.status === "fulfilled") setConversations(convs.value);
       if (cmds.status === "fulfilled") setSlashCommands(cmds.value);
       if (voiceRoster.status === "fulfilled") setVoicePartByChannel(voiceRoster.value);
+      // The hub is the source of truth for DM blocks; without this seed the
+      // list silently reset to empty on every reload.
+      if (dmBlocks.status === "fulfilled" && dmBlocks.value) setBlockedUsers(new Set(dmBlocks.value));
       const hubId = getActiveHubId();
       if (hubId) {
         getUnreadCounts().then((counts) => seedUnreadFromServer(hubId, counts)).catch(() => {});

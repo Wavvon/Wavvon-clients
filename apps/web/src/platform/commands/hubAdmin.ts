@@ -136,10 +136,19 @@ export async function denyRecoveryRequest(requestId: string): Promise<void> {
 // ---- Block / DM-blocks ----
 
 export async function updateDmBlocks(blockedPubkeys: string[]): Promise<void> {
+  // Server contract (identity.rs DmBlocksRequest) names the field `pubkeys`;
+  // the old `blocked_pubkeys` body 422'd on every block and the caller's
+  // empty catch hid it — blocks never persisted.
   await hubFetch("/identity/dm-blocks", {
     method: "PUT",
-    body: JSON.stringify({ blocked_pubkeys: blockedPubkeys }),
+    body: JSON.stringify({ pubkeys: blockedPubkeys }),
   });
+}
+
+export async function getDmBlocks(): Promise<string[]> {
+  const res = await hubFetch("/identity/dm-blocks");
+  const body = (await res.json()) as { pubkeys: string[] };
+  return body.pubkeys;
 }
 
 // ---- Channel reorder / reparent ----
