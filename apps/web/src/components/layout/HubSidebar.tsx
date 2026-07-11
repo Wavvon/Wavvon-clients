@@ -8,6 +8,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useTranslation } from "react-i18next";
 import type { Hub, NotifyMode } from "@shared/types";
 import { SortableHubIcon } from "@components/common/SortableItems";
 
@@ -20,6 +21,11 @@ interface Props {
   unreadByHub: Record<string, number>;
   pingByHub: Record<string, number | null>;
   hubNotifyMode: Record<string, NotifyMode>;
+  /** Hubs whose session is confined to the lobby (lobby-bot-survey.md
+   * Feature 1) — rendered with a small persistent badge that disappears
+   * once the background PoW promotes the session, even for hubs the user
+   * has navigated away from. */
+  lobbyHubIds: Set<string>;
   hasActiveHub: boolean;
   isFarmAdmin: boolean;
   onSwitchToDms: () => void;
@@ -34,10 +40,11 @@ interface Props {
 
 export function HubSidebar({
   hubs, activeHubId, view, showDiscover, unreadDms, unreadByHub, pingByHub,
-  hubNotifyMode, hasActiveHub, isFarmAdmin,
+  hubNotifyMode, lobbyHubIds, hasActiveHub, isFarmAdmin,
   onSwitchToDms, onSwitchHub, onRemoveHub,
   onHubReorder, onAddHub, onCreateHub, onDiscover, onFarmSettings,
 }: Props) {
+  const { t } = useTranslation();
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -145,6 +152,9 @@ export function HubSidebar({
                     </button>
                     {unread > 0 && hubNotifyMode[h.hub_id] !== "silent" && (
                       <span className="hub-unread-badge" aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
+                    )}
+                    {lobbyHubIds.has(h.hub_id) && (
+                      <span className="hub-muted-badge" title={t("lobby.sidebar_hint")}>🕒</span>
                     )}
                     {hubNotifyMode[h.hub_id] === "silent" && (
                       <span className="hub-muted-badge" title="Silenced" aria-hidden="true">🔕</span>

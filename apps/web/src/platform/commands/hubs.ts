@@ -22,6 +22,7 @@ import { loadIdentity, saveIdentity } from "../../identity/store";
 import { signBytes, publicKeyHex } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
+import { resolveSessionScope } from "../../utils/lobbyDecision";
 
 interface InfoResponse {
   public_key: string;
@@ -86,7 +87,7 @@ async function authenticate(
   return {
     token: verifyRes.token,
     canonicalPubkey: verifyRes.canonical_pubkey,
-    scope: verifyRes.scope === "lobby" ? "lobby" : "member",
+    scope: resolveSessionScope(verifyRes.scope),
   };
 }
 

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getLobbyStatus, getLobbyWelcome, submitLobbyPow } from "@platform";
 import { powProofString } from "@wavvon/core";
 import type { PowOutMessage } from "../../workers/powWorker";
+import { decideLobbyView, applyPowSubmitResult, computeLobbyProgress } from "../../utils/lobbyDecision";
 
 export interface LobbyProps {
   hubId: string;
@@ -45,7 +46,7 @@ export function Lobby({ hubId, hubName, pubkeyHex, onPromoted }: LobbyProps) {
         setWelcomeMd(welcome?.welcome_md || null);
         setRequiredLevel(status.required_level);
         setCurrentLevel(status.current_level);
-        if (status.status === "member" || (status.required_level > 0 && status.current_level >= status.required_level)) {
+        if (decideLobbyView(status) === "promoted") {
           setViewState("promoted");
           setTimeout(onPromoted, 800);
           return;
@@ -68,8 +69,9 @@ export function Lobby({ hubId, hubName, pubkeyHex, onPromoted }: LobbyProps) {
     pendingProofRef.current = null;
     try {
       const result = await submitLobbyPow(powProofString(BigInt(proof.nonce), proof.level));
-      setCurrentLevel((prev) => Math.max(prev, result.new_level));
-      if (result.promoted) {
+      const { level, promoted } = applyPowSubmitResult(currentLevelRef.current, result);
+      setCurrentLevel(level);
+      if (promoted) {
         workerRef.current?.postMessage({ type: "stop" });
         setViewState("promoted");
         setTimeout(onPromoted, 800);
@@ -135,8 +137,7 @@ export function Lobby({ hubId, hubName, pubkeyHex, onPromoted }: LobbyProps) {
     );
   }
 
-  const pct = requiredLevel > 0 ? Math.min(100, (currentLevel / requiredLevel) * 100) : 100;
-  const etaMin = requiredLevel > 0 ? Math.max(0, (requiredLevel - currentLevel) * 2) : 0;
+  const { pct, etaMinutes: etaMin } = computeLobbyProgress(currentLevel, requiredLevel);
 
   return (
     <div className="lobby-view">

@@ -2384,6 +2384,7 @@ export default function App() {
         unreadByHub={unreadByHub}
         pingByHub={pingByHub}
         hubNotifyMode={hubNotifyMode}
+        lobbyHubIds={lobbyHubs}
         hasActiveHub={!!activeHubId}
         isFarmAdmin={isFarmAdmin}
         onSwitchToDms={() => setView("dms")}

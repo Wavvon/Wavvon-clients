@@ -774,6 +774,7 @@
   "lobby.resume": "Reanudar",
   "lobby.pause": "Pausa",
   "lobby.waiting": "Esperando aprobación…",
+  "lobby.sidebar_hint": "Verificando tu dispositivo — acceso completo pronto",
   "bot.wizard.title_create": "Crear Bot",
   "bot.wizard.title_created": "Bot Creado",
   "bot.wizard.name_label": "Nombre del bot",
