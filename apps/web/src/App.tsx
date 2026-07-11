@@ -152,7 +152,6 @@ export default function App() {
     customThemes,
     activeCustomThemeId,
     recoveryPhrase, setRecoveryPhrase,
-    copiedKey,
     mentionPingEnabled, setMentionPingEnabled,
     handleSetTheme,
     handleSkinChange,
@@ -164,7 +163,6 @@ export default function App() {
     handleImportCustomTheme,
     handleShowRecovery,
     handleRecoverIdentity,
-    handleCopyKey: handleCopyKeyFn,
   } = useSettingsProfile(setPublicKey);
 
   // === Hubs ===
@@ -2314,8 +2312,6 @@ export default function App() {
             onClose={() => setShowSettings(false)}
             hubs={hubs}
             publicKey={publicKey}
-            copiedKey={copiedKey}
-            onCopyKey={() => handleCopyKeyFn(publicKey)}
             theme={theme}
             onThemeChange={handleSetTheme}
             skin={skin}

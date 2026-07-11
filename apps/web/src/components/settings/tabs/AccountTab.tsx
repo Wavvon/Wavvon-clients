@@ -13,8 +13,6 @@ import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
 interface Props {
   hubs: Hub[];
   publicKey: string | null;
-  copiedKey: boolean;
-  onCopyKey: () => void;
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
   blocks: BlockEntry[];
@@ -31,24 +29,6 @@ export function AccountTab(props: Props) {
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.account")}</h1>
       <AccountsSwitcherSection />
-      <div className="settings-section" style={{ marginBottom: 20 }}>
-        <label className="settings-label">{t("settings.account.pubkey.label")}</label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          {t("settings.account.pubkey.hint")}
-        </p>
-        <div className="settings-row" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <code
-            className="pubkey-display"
-            title={props.publicKey ?? ""}
-            style={{ fontFamily: "monospace", fontSize: "var(--text-sm)", background: "var(--bg-elevated)", padding: "4px 8px", borderRadius: "var(--r-sm)", flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}
-          >
-            {props.publicKey ? props.publicKey.slice(0, 16) + "…" + props.publicKey.slice(-8) : "—"}
-          </code>
-          <button className="btn-secondary" onClick={props.onCopyKey}>
-            {props.copiedKey ? t("modal.copied") : t("modal.copy")}
-          </button>
-        </div>
-      </div>
       <div className="settings-section">
         <label className="settings-label">{t("settings.security.recovery.label")}</label>
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>

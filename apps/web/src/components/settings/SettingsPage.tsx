@@ -17,8 +17,6 @@ interface SettingsPageProps {
   onClose: () => void;
   hubs: Hub[];
   publicKey: string | null;
-  copiedKey: boolean;
-  onCopyKey: () => void;
   theme: ThemeId;
   onThemeChange: (t: ThemeId) => void;
   skin: WavvonSkin | null;
@@ -150,8 +148,6 @@ export function SettingsPage(props: SettingsPageProps) {
           <AccountTab
             hubs={props.hubs}
             publicKey={props.publicKey}
-            copiedKey={props.copiedKey}
-            onCopyKey={props.onCopyKey}
             recoveryPhrase={props.recoveryPhrase}
             onShowRecovery={props.onShowRecovery}
             blocks={props.blocks}

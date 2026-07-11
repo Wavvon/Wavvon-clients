@@ -30,6 +30,7 @@ export function AccountsSwitcherSection() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeConfirmText, setRemoveConfirmText] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
 
   function refresh() {
     listAccounts().then(setAccounts);
@@ -56,6 +57,16 @@ export function AccountsSwitcherSection() {
   function startRemove(id: string) {
     setRemovingId(id);
     setRemoveConfirmText("");
+  }
+
+  // Same value the old standalone "Your public key" section copied: the
+  // canonical identity the hub attributes actions to, falling back to the
+  // account's own pubkey for devices that were never paired.
+  function copyKey(account: IdentityRecord) {
+    const key = account.canonical_pubkey ?? account.id;
+    navigator.clipboard.writeText(key).catch(() => {});
+    setCopiedKeyId(account.id);
+    setTimeout(() => setCopiedKeyId(null), 2000);
   }
 
   async function confirmRemove(account: IdentityRecord) {
@@ -85,8 +96,11 @@ export function AccountsSwitcherSection() {
   return (
     <div className="settings-section">
       <label className="settings-label">{t("settings.account.accounts.label")}</label>
-      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
+      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 4 }}>
         {t("settings.account.accounts.hint")}
+      </p>
+      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
+        {t("settings.account.accounts.pubkey_hint")}
       </p>
 
       {(accounts ?? []).map((account) => {
@@ -114,15 +128,21 @@ export function AccountsSwitcherSection() {
                   style={{ fontSize: "var(--text-sm)" }}
                 />
               ) : (
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  onClick={() => startRename(account)}
-                  style={{ padding: 0, fontWeight: isActive ? 600 : 400, textAlign: "left" }}
-                  title={account.id}
-                >
-                  {account.account_label || formatPubkey(account.id)}
-                </button>
+                <>
+                  <span style={{ fontWeight: isActive ? 600 : 400 }} title={account.id}>
+                    {account.account_label || formatPubkey(account.id)}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => startRename(account)}
+                    title={t("settings.account.accounts.rename_button")}
+                    aria-label={t("settings.account.accounts.rename_button")}
+                    style={{ padding: "2px 4px", fontSize: "var(--text-sm)", lineHeight: 1 }}
+                  >
+                    ✎
+                  </button>
+                </>
               )}
               {isActive && <span className="muted" style={{ fontSize: "var(--text-xs)" }}>({t("settings.account.accounts.active_badge")})</span>}
               {account.account_label && (
@@ -158,6 +178,14 @@ export function AccountsSwitcherSection() {
               </div>
             ) : (
               <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  className="btn-small btn-secondary"
+                  onClick={() => copyKey(account)}
+                  title={account.canonical_pubkey ?? account.id}
+                >
+                  {copiedKeyId === account.id ? t("settings.account.pubkey.copied") : t("settings.account.pubkey.copy")}
+                </button>
                 {!isActive && (
                   <button type="button" className="btn-small btn-secondary" onClick={() => switchAccount(account.id)}>
                     {t("settings.account.accounts.switch")}

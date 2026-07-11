@@ -28,7 +28,6 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
   const skin: WavvonSkin | null = theme === "custom" ? activeCustomTheme?.skin ?? null : null;
 
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
   const [mentionPingEnabled, setMentionPingEnabled] = useState<boolean>(() => {
     try { return getScoped("wavvon.mentionPing") !== "0"; } catch { return true; }
   });
@@ -142,13 +141,6 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     switchAccount(account.id);
   }
 
-  function handleCopyKey(publicKey: string | null) {
-    if (!publicKey) return;
-    navigator.clipboard.writeText(publicKey).catch(() => {});
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
-  }
-
   return {
     showSettings,
     setShowSettings,
@@ -160,7 +152,6 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     activeCustomThemeId: customThemeStore.activeId,
     recoveryPhrase,
     setRecoveryPhrase,
-    copiedKey,
     mentionPingEnabled,
     setMentionPingEnabled,
     handleSetTheme,
@@ -173,6 +164,5 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     handleImportCustomTheme,
     handleShowRecovery,
     handleRecoverIdentity,
-    handleCopyKey,
   };
 }
