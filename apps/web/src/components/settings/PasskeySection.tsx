@@ -8,11 +8,17 @@ import {
   renamePasskey,
 } from "@platform";
 import type { CredentialInfo } from "@platform";
+import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
+import { useActiveAccountLabel } from "@shared/hooks/useActiveAccountLabel";
 
 // Passkey management (Settings → Account): list, register, rename, remove.
 // Passkeys are tied to a specific hub — registration targets the active one.
+// The list itself comes from the active hub session, which is per-account
+// (activeSession() reads an account-scoped token), so it's already scoped
+// correctly; the label here is just so the section says whose it is.
 export function PasskeySection({ publicKey }: { publicKey: string | null }) {
   const { t } = useTranslation();
+  const accountLabel = useActiveAccountLabel();
   const [passkeys, setPasskeys] = useState<CredentialInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [noActiveHub, setNoActiveHub] = useState(false);
@@ -75,7 +81,10 @@ export function PasskeySection({ publicKey }: { publicKey: string | null }) {
   if (!supported) {
     return (
       <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">{t("settings.account.passkeys.label")}</label>
+        <label className="settings-label">
+          {t("settings.account.passkeys.label")}
+          <AccountLabelSuffix label={accountLabel} />
+        </label>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
           {t("settings.account.passkeys.unsupported")}
         </p>
@@ -86,7 +95,10 @@ export function PasskeySection({ publicKey }: { publicKey: string | null }) {
   if (noActiveHub) {
     return (
       <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">{t("settings.account.passkeys.label")}</label>
+        <label className="settings-label">
+          {t("settings.account.passkeys.label")}
+          <AccountLabelSuffix label={accountLabel} />
+        </label>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
           {t("settings.account.passkeys.no_active_hub")}
         </p>
@@ -96,7 +108,11 @@ export function PasskeySection({ publicKey }: { publicKey: string | null }) {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">{t("settings.account.passkeys.label")}</label>
+      <label className="settings-label">
+        {t("settings.account.passkeys.label")}
+        <AccountLabelSuffix label={accountLabel} />
+      </label>
+      <PerAccountHint label={accountLabel} />
       <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>
         {t("settings.account.passkeys.hint")}
       </p>

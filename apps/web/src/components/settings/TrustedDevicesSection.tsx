@@ -2,11 +2,16 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { listTrustedDevices, revokeTrustedDevice } from "@platform";
 import type { DeviceInfo } from "@platform";
+import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
+import { useActiveAccountLabel } from "@shared/hooks/useActiveAccountLabel";
 
 // Trusted-device list (Settings → Account): devices holding long-lived
-// access to the active hub, with per-device revoke.
+// access to the active hub, with per-device revoke. The list comes from the
+// active hub session, which is per-account (activeSession() reads an
+// account-scoped token), so it's already scoped correctly.
 export function TrustedDevicesSection() {
   const { t } = useTranslation();
+  const accountLabel = useActiveAccountLabel();
   const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [noActiveHub, setNoActiveHub] = useState(false);
@@ -36,7 +41,10 @@ export function TrustedDevicesSection() {
   if (noActiveHub) {
     return (
       <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">{t("settings.account.trusted_devices.label")}</label>
+        <label className="settings-label">
+          {t("settings.account.trusted_devices.label")}
+          <AccountLabelSuffix label={accountLabel} />
+        </label>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
           {t("settings.account.trusted_devices.no_active_hub")}
         </p>
@@ -46,7 +54,11 @@ export function TrustedDevicesSection() {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">{t("settings.account.trusted_devices.label")}</label>
+      <label className="settings-label">
+        {t("settings.account.trusted_devices.label")}
+        <AccountLabelSuffix label={accountLabel} />
+      </label>
+      <PerAccountHint label={accountLabel} />
       <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>
         {t("settings.account.trusted_devices.hint")}
       </p>

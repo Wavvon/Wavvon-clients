@@ -24,6 +24,7 @@ import {
   postPairingComplete,
   upgradeActiveHubIdentity,
 } from "@platform";
+import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
 
 interface Props {
   activeHubUrl?: string;
@@ -55,6 +56,7 @@ function randomToken(): string {
 export function DevicesSection({ activeHubUrl }: Props) {
   const { t } = useTranslation();
   const [d, setD] = useState<Derived | null>(null);
+  const [accountLabel, setAccountLabel] = useState<string | null>(null);
   const [certs, setCerts] = useState<SubkeyCert[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,6 +76,7 @@ export function DevicesSection({ activeHubUrl }: Props) {
     (async () => {
       const rec = await loadIdentity();
       if (!rec || cancelled) return;
+      setAccountLabel(rec.account_label ?? null);
       const derived: Derived = {
         seedHex: rec.seed_hex,
         devicePubkey: publicKeyHex(rec.seed_hex),
@@ -231,10 +234,14 @@ export function DevicesSection({ activeHubUrl }: Props) {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">{t("settings.account.devices.label")}</label>
+      <label className="settings-label">
+        {t("settings.account.devices.label")}
+        <AccountLabelSuffix label={accountLabel} />
+      </label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
         {t("settings.account.devices.hint")}
       </p>
+      <PerAccountHint label={accountLabel} />
 
       {!d.enabled ? (
         <button className="btn-primary" onClick={enableMultiDevice} disabled={busy}>

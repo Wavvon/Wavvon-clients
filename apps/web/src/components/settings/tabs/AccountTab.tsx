@@ -9,6 +9,7 @@ import { DevicesSection } from "../DevicesSection";
 import { PasskeySection } from "../PasskeySection";
 import { TrustedDevicesSection } from "../TrustedDevicesSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
+import { useActiveAccountLabel } from "@shared/hooks/useActiveAccountLabel";
 
 interface Props {
   hubs: Hub[];
@@ -25,6 +26,7 @@ interface Props {
 export function AccountTab(props: Props) {
   const { t } = useTranslation();
   const activeHubUrl = props.hubs.find((h) => h.is_active)?.hub_url;
+  const accountLabel = useActiveAccountLabel();
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.account")}</h1>
@@ -63,6 +65,7 @@ export function AccountTab(props: Props) {
         onUnblock={props.onUnblock}
         onUnignore={props.onUnignore}
         knownNames={props.knownNames}
+        accountLabel={accountLabel}
       />
     </section>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { loadIdentity, masterSeedHex, masterPublicKeyHex, buildHomeHubList } from "@identity/index";
 import { getHomeHubDesignation, putHomeHubDesignation } from "@platform";
+import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
 
 // Personal-axis home-hub list (a master-signed HomeHubList). This is the
 // ordered set of hubs that other users and hubs consult to deliver DMs to you —
@@ -97,21 +98,17 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
     <div className="settings-section" style={{ marginTop: 20 }}>
       <label className="settings-label">
         {t("settings.account.home_hubs.label")}
-        {accountLabel && (
-          <span className="muted" style={{ fontWeight: 400 }}> — {accountLabel}</span>
-        )}
+        <AccountLabelSuffix label={accountLabel} />
       </label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
         {t("settings.account.home_hubs.hint")}
       </p>
-      {accountLabel && (
-        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-          {t("settings.account.home_hubs.per_account_hint", { label: accountLabel })}
-        </p>
-      )}
+      <PerAccountHint label={accountLabel} hintKey="settings.account.home_hubs.per_account_hint" />
       {isPairedDevice && (
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.account.home_hubs.paired_read_only")}
+          {t("settings.account.home_hubs.paired_read_only", {
+            label: accountLabel ?? t("settings.account.this_account_label"),
+          })}
         </p>
       )}
 
