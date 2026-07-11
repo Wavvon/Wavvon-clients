@@ -120,6 +120,8 @@
   "channel.ctx.edit_name": "\"{name}\" bearbeiten",
   "channel.ctx.delete_name": "\"{name}\" löschen",
   "channel.ctx.copy_link": "Kanal-Link kopieren",
+  "channel.ctx.create_event": "Termin erstellen",
+  "channel.ctx.create_poll": "Umfrage erstellen",
   "channel.breadcrumb.aria": "Kanalpfad",
   "channel.description.click_edit": "Click to edit",
   "channel.description.click_add": "Click to add a description",

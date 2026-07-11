@@ -156,6 +156,8 @@
   "channel.ctx.edit_name": "Edit \"{name}\"",
   "channel.ctx.delete_name": "Delete \"{name}\"",
   "channel.ctx.copy_link": "Copy channel link",
+  "channel.ctx.create_event": "Create event",
+  "channel.ctx.create_poll": "Create poll",
   "channel.breadcrumb.aria": "Channel location",
   "channel.description.click_edit": "Click to edit",
   "channel.description.click_add": "Click to add a description",

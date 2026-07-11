@@ -53,6 +53,8 @@ import { HubStreamsPanel } from "@components/voice/HubStreamsPanel";
 import type { HubStreamInfo } from "./types";
 import { AddHubModal } from "@components/hubs/AddHubModal";
 import { CreateChannelModal } from "@components/channels/CreateChannelModal";
+import { EventComposer } from "@components/events/EventComposer";
+import { PollComposer } from "@components/polls/PollComposer";
 import { ChannelSettingsModal } from "@components/channels/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/admin/FarmSettingsPage";
 import { CreateHubFork } from "@components/hubs/CreateHubFork";
@@ -185,6 +187,11 @@ export default function App() {
   const [createChannelError, setCreateChannelError] = useState<string | null>(null);
   const [channelCtxMenu, setChannelCtxMenu] = useState<{ channel: Channel; x: number; y: number } | null>(null);
   const [channelSettingsCtx, setChannelSettingsCtx] = useState<Channel | null>(null);
+  // "Create event"/"create poll" from the channel context menu (create-anything
+  // task): both composers are self-contained modals that only need a target
+  // channel id, so they can be opened without switching to that channel first.
+  const [eventComposerChannelId, setEventComposerChannelId] = useState<string | null>(null);
+  const [pollComposerChannelId, setPollComposerChannelId] = useState<string | null>(null);
   // Temp-room owner rename (temp-voice-channels.md §3): a non-admin owner
   // gets a minimal rename modal, not the full channel-settings surface.
   const [renameRoomCtx, setRenameRoomCtx] = useState<Channel | null>(null);
@@ -1969,6 +1976,14 @@ export default function App() {
     [meInfo],
   );
 
+  // Same permission the poll-create endpoint requires (SEND_MESSAGES) —
+  // gates the "Create poll" context-menu entry the same way the composer's
+  // own "+" attach menu is implicitly gated (anyone who can post here).
+  const canSendMessages = useMemo(
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("send_messages")) ?? false,
+    [meInfo],
+  );
+
   // Channel-scoped effective permissions for the joined voice channel, from
   // GET /channels/:id/my-permissions (self-service, no manage_roles needed).
   // Null while unjoined, loading, or on fetch failure — callers fall back to
@@ -2728,6 +2743,22 @@ export default function App() {
         />
       )}
 
+      {eventComposerChannelId && (
+        <EventComposer
+          channelId={eventComposerChannelId}
+          onCreated={() => {}}
+          onClose={() => setEventComposerChannelId(null)}
+        />
+      )}
+
+      {pollComposerChannelId && (
+        <PollComposer
+          channelId={pollComposerChannelId}
+          onCreated={() => {}}
+          onClose={() => setPollComposerChannelId(null)}
+        />
+      )}
+
       {channelSettingsCtx && (
         <ChannelSettingsModal
           channel={channelSettingsCtx}
@@ -2798,6 +2829,34 @@ export default function App() {
                 }}
               >
                 {t("channel.ctx.copy_link")}
+              </button>
+            )}
+            {!channelCtxMenu.channel.is_category &&
+              channelCtxMenu.channel.channel_type !== "forum" &&
+              isAdmin && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  const ch = channelCtxMenu.channel;
+                  setChannelCtxMenu(null);
+                  setEventComposerChannelId(ch.id);
+                }}
+              >
+                {t("channel.ctx.create_event")}
+              </button>
+            )}
+            {!channelCtxMenu.channel.is_category &&
+              channelCtxMenu.channel.channel_type !== "forum" &&
+              canSendMessages && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  const ch = channelCtxMenu.channel;
+                  setChannelCtxMenu(null);
+                  setPollComposerChannelId(ch.id);
+                }}
+              >
+                {t("channel.ctx.create_poll")}
               </button>
             )}
             {!channelCtxMenu.channel.is_category &&

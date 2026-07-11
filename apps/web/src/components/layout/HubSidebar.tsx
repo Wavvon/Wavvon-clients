@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -50,21 +50,21 @@ export function HubSidebar({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Fixed-position popover (matches the channel-list context-menu pattern):
+  // .hub-sidebar clips overflow-x, so a plain position:absolute popover
+  // anchored inside it gets silently clipped and never paints.
   const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const addMenuRef = useRef<HTMLDivElement>(null);
+  const [addMenuPos, setAddMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const plusButtonRef = useRef<HTMLButtonElement>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const hubButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  useEffect(() => {
-    if (!addMenuOpen) return;
-    function onClickOutside(e: MouseEvent) {
-      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
-        setAddMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [addMenuOpen]);
+  function toggleAddMenu() {
+    if (addMenuOpen) { setAddMenuOpen(false); return; }
+    const rect = plusButtonRef.current?.getBoundingClientRect();
+    if (rect) setAddMenuPos({ x: rect.right + 8, y: rect.top });
+    setAddMenuOpen(true);
+  }
 
   const handleHubKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
     if (e.key === "ArrowDown") {
@@ -171,62 +171,34 @@ export function HubSidebar({
         </SortableContext>
       </DndContext>
 
-      <div ref={addMenuRef} style={{ position: "relative" }}>
-        <button
-          className="hub-icon add"
-          onClick={() => setAddMenuOpen((v) => !v)}
-          title="Add or create hub"
+      <button
+        ref={plusButtonRef}
+        className="hub-icon add"
+        onClick={toggleAddMenu}
+        title={t("hub.add_or_create")}
+      >
+        +
+      </button>
+      {addMenuOpen && addMenuPos && (
+        <div
+          className="context-menu-overlay"
+          onClick={() => setAddMenuOpen(false)}
+          onContextMenu={(e) => { e.preventDefault(); setAddMenuOpen(false); }}
         >
-          +
-        </button>
-        {addMenuOpen && (
           <div
-            style={{
-              position: "absolute",
-              left: "calc(100% + 8px)",
-              top: 0,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--r-md)",
-              padding: "4px 0",
-              minWidth: 160,
-              zIndex: 200,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-            }}
+            className="context-menu"
+            style={{ top: addMenuPos.y, left: addMenuPos.x }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <button
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "8px 16px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--text)",
-              }}
-              onClick={() => { setAddMenuOpen(false); onAddHub(); }}
-            >
-              Join a hub
+            <button className="context-menu-item" onClick={() => { setAddMenuOpen(false); onAddHub(); }}>
+              {t("hub.join")}
             </button>
-            <button
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "8px 16px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--text)",
-              }}
-              onClick={() => { setAddMenuOpen(false); onCreateHub(); }}
-            >
-              Create a hub
+            <button className="context-menu-item" onClick={() => { setAddMenuOpen(false); onCreateHub(); }}>
+              {t("hub.create")}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="hub-sidebar-divider" />
       <button
