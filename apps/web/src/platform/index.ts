@@ -151,7 +151,7 @@ export { pinMessage, unpinMessage, getPins } from "./commands/pins";
 
 export { getUserProfile } from "./commands/profiles";
 
-export { getMyProfileOnHub, updateMyProfileOnHub, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
+export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
 
 export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 

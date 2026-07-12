@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RoleCategory, UserProfile } from "@shared/types";
-import { getUserProfile, listRoleCategories, getActiveHubId } from "@platform";
+import { getUserProfile, listRoleCategories, getActiveHubId, patchMyProfileOnHub } from "@platform";
 import { formatRelative } from "@wavvon/core";
 import { Avatar } from "@wavvon/ui";
 import { groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearance";
 import { identityGradient } from "@shared/utils/identityColor";
+import { loadFollowsDefault, loadDefaultProfile, saveDefaultProfile } from "@shared/utils/profiles";
+
+const trimToNull = (s: string) => {
+  const v = s.trim();
+  return v ? v : null;
+};
 
 interface Props {
   pubkey: string;
@@ -38,6 +44,63 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
   const [categories, setCategories] = useState<RoleCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"bio" | "activities" | "hubs">("bio");
+  const isOwn = !!myPubkey && myPubkey === pubkey;
+  // Own card is directly editable (WYSIWYG) for the free-text fields —
+  // status / bio / activities are live inputs, seeded from the loaded
+  // profile, with a Save that appears only when something changed.
+  // Name/avatar/pronouns/cosmetics/hubs stay in the full Settings editor.
+  const [draft, setDraft] = useState({ status_message: "", bio: "", activities: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setDraft({
+        status_message: profile.status_message ?? "",
+        bio: profile.bio ?? "",
+        activities: profile.activities ?? "",
+      });
+    }
+  }, [profile]);
+
+  const dirty =
+    isOwn &&
+    !!profile &&
+    (draft.status_message !== (profile.status_message ?? "") ||
+      draft.bio !== (profile.bio ?? "") ||
+      draft.activities !== (profile.activities ?? ""));
+
+  async function saveEdit() {
+    const hubId = getActiveHubId();
+    if (!hubId) return;
+    setSaving(true);
+    const fields = {
+      status_message: trimToNull(draft.status_message),
+      bio: trimToNull(draft.bio),
+      activities: trimToNull(draft.activities),
+    };
+    try {
+      // Always update this hub's profile.
+      await patchMyProfileOnHub(hubId, fields);
+      // Default-propagation: if this hub follows the default profile, the
+      // edit belongs to the default — update it and push to every other hub
+      // following it, so "using the default" stays in sync (per the design).
+      const follows = loadFollowsDefault();
+      if (follows.includes(hubId)) {
+        const def = loadDefaultProfile();
+        if (def) saveDefaultProfile({ ...def, ...fields });
+        for (const hid of follows) {
+          if (hid !== hubId) {
+            try { await patchMyProfileOnHub(hid, fields); } catch { /* offline hub catches up later */ }
+          }
+        }
+      }
+      setProfile((p) => (p ? { ...p, ...fields } : p));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     getUserProfile(pubkey)
@@ -101,10 +164,25 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
             {/* Avatar + status thought bubble — the avatar "thinking". */}
             <div style={{ marginTop: -28, display: "flex", gap: 12, alignItems: "flex-start" }}>
               <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} pubkey={pubkey} size={56} />
-              {profile.status_message && (
-                <div className="thought-bubble" style={{ marginTop: 20 }}>
-                  <span style={{ fontSize: "var(--text-sm)" }}>{profile.status_message}</span>
+              {isOwn ? (
+                <div className="thought-bubble" style={{ marginTop: 16, flex: 1 }}>
+                  <input
+                    type="text"
+                    className="profile-inline-input"
+                    value={draft.status_message}
+                    maxLength={140}
+                    onChange={(e) => setDraft((d) => ({ ...d, status_message: e.target.value }))}
+                    placeholder={t("settings.profile.fields.status_placeholder")}
+                    aria-label={t("settings.profile.fields.status_label")}
+                    style={{ fontSize: "var(--text-sm)", width: "100%" }}
+                  />
                 </div>
+              ) : (
+                profile.status_message && (
+                  <div className="thought-bubble" style={{ marginTop: 20 }}>
+                    <span style={{ fontSize: "var(--text-sm)" }}>{profile.status_message}</span>
+                  </div>
+                )
               )}
             </div>
             <div>
@@ -130,13 +208,13 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
                 {t("user.profile.message")}
               </button>
             )}
-
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {t("user.profile.joined", { date: formatRelative(profile.joined_at) })}
             </div>
 
             {/* Tabbed, mirroring the profile editor so what you edit is what
-                others see. */}
+                others see. On your own card the Bio/Activities fields are
+                directly editable (WYSIWYG); Save appears only when dirty. */}
             <div className="profile-tabs" role="tablist">
               <button type="button" role="tab" aria-selected={tab === "bio"} className={`profile-tab${tab === "bio" ? " active" : ""}`} onClick={() => setTab("bio")}>
                 {t("settings.profile.tabs.bio")}
@@ -152,7 +230,18 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
             <div style={{ minHeight: 150, display: "flex", flexDirection: "column", gap: 12, paddingTop: 4 }}>
               {tab === "bio" && (
                 <>
-                  {profile.bio ? (
+                  {isOwn ? (
+                    <textarea
+                      className="profile-inline-input"
+                      value={draft.bio}
+                      maxLength={500}
+                      rows={3}
+                      onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))}
+                      placeholder={t("settings.profile.fields.bio_placeholder")}
+                      aria-label={t("settings.profile.fields.bio_label")}
+                      style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 60 }}
+                    />
+                  ) : profile.bio ? (
                     <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.bio}</p>
                   ) : (
                     <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("user.profile.no_bio")}</span>
@@ -194,7 +283,18 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               )}
 
               {tab === "activities" && (
-                profile.activities ? (
+                isOwn ? (
+                  <textarea
+                    className="profile-inline-input"
+                    value={draft.activities}
+                    maxLength={500}
+                    rows={5}
+                    onChange={(e) => setDraft((d) => ({ ...d, activities: e.target.value }))}
+                    placeholder={t("settings.profile.fields.activities_placeholder")}
+                    aria-label={t("settings.profile.fields.activities_label")}
+                    style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 100 }}
+                  />
+                ) : profile.activities ? (
                   <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.activities}</p>
                 ) : (
                   <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("user.profile.no_activities")}</span>
@@ -224,6 +324,12 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
                 )
               )}
             </div>
+
+            {dirty && (
+              <div className="settings-row" style={{ gap: "var(--space-2)", alignItems: "center" }}>
+                <button onClick={saveEdit} disabled={saving}>{t("settings.profile.save_all")}</button>
+              </div>
+            )}
           </div>
           </>
         )}

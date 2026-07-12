@@ -80,6 +80,20 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
   };
 }
 
+// Partial update of my profile on a hub — only the given fields, with the
+// hub's absent=unchanged / empty=clear semantics (null → "" to clear). Used
+// by quick inline edits (e.g. the member-card edit) where we don't want to
+// resend the whole profile.
+export async function patchMyProfileOnHub(
+  hubId: string,
+  fields: Partial<Record<"display_name" | "bio" | "pronouns" | "status_message" | "activities", string | null>>,
+): Promise<void> {
+  const s = sessionOf(hubId);
+  const body: Record<string, string> = {};
+  for (const [k, v] of Object.entries(fields)) body[k] = v ?? "";
+  await hubFetchWithToken(s.hub_url, s.token, "/me", { method: "PATCH", body: JSON.stringify(body) });
+}
+
 export async function updateMyProfileOnHub(hubId: string, profile: MyProfileUpdate): Promise<void> {
   const s = sessionOf(hubId);
   // PATCH semantics on the hub: absent = unchanged, "" = clear. Map null to
