@@ -35,7 +35,7 @@ const DEFAULT_CONTEXT = "__default__";
 const BIO_MAX = 500;
 const PRONOUNS_MAX = 40;
 const STATUS_MAX = 140;
-const ACTIVITIES_MAX = 1000;
+const ACTIVITIES_MAX = 500;
 
 type CardTab = "bio" | "activities" | "hubs";
 
