@@ -11,6 +11,17 @@ export function safeRoleColor(color: string | null | undefined): string | null {
   return typeof color === "string" && HEX_RE.test(color) ? color : null;
 }
 
+// @everyone and Owner are implicit, structural roles — every member carries
+// @everyone, and Owner reads as authority beside the name rather than as a
+// labelled tag. The profile card only lists a member's *distinguishing* roles,
+// so these are filtered out there (otherwise they'd sit alone under an odd
+// "Uncategorized" header). Admin role management still shows them — it edits them.
+export const IMPLICIT_ROLE_IDS = ["builtin-owner", "builtin-everyone"];
+
+export function distinguishingRoles(roles: RoleInfo[]): RoleInfo[] {
+  return roles.filter((r) => !IMPLICIT_ROLE_IDS.includes(r.id));
+}
+
 export interface RoleCategoryGroup {
   category: RoleCategory | null;
   roles: RoleInfo[];

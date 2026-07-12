@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { RoleCategory, RoleInfo } from "../../types";
-import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../roleAppearance";
+import { distinguishingRoles, groupRolesByCategory, roleTintStyle, safeRoleColor } from "../roleAppearance";
 
 function makeRole(overrides: Partial<RoleInfo> = {}): RoleInfo {
   return {
@@ -84,6 +84,25 @@ describe("groupRolesByCategory", () => {
     const roles = [makeRole({ category_id: "staff" })];
     const groups = groupRolesByCategory(roles, [staff]);
     expect(groups.some((g) => g.category === null)).toBe(false);
+  });
+});
+
+describe("distinguishingRoles", () => {
+  it("hides the implicit Owner and @everyone roles", () => {
+    const roles = [
+      makeRole({ id: "builtin-owner", name: "Owner" }),
+      makeRole({ id: "builtin-everyone", name: "@everyone" }),
+      makeRole({ id: "mod", name: "Moderator" }),
+    ];
+    expect(distinguishingRoles(roles).map((r) => r.id)).toEqual(["mod"]);
+  });
+
+  it("returns an empty list when a member has only implicit roles", () => {
+    const roles = [
+      makeRole({ id: "builtin-owner" }),
+      makeRole({ id: "builtin-everyone" }),
+    ];
+    expect(distinguishingRoles(roles)).toEqual([]);
   });
 });
 

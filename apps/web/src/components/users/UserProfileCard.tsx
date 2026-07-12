@@ -4,7 +4,7 @@ import type { RoleCategory, UserProfile } from "@shared/types";
 import { getUserProfile, listRoleCategories, getActiveHubId, patchMyProfileOnHub } from "@platform";
 import { formatRelative } from "@wavvon/core";
 import { Avatar } from "@wavvon/ui";
-import { groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearance";
+import { distinguishingRoles, groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearance";
 import { profileBannerStyle } from "@shared/utils/identityColor";
 import { loadFollowsDefault, loadDefaultProfile, saveDefaultProfile } from "@shared/utils/profiles";
 import { AutoGrowTextarea } from "@components/profile/AutoGrowTextarea";
@@ -234,10 +234,10 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
                   ) : (
                     <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("user.profile.no_bio")}</span>
                   )}
-                  {profile.roles.length > 0 && (
+                  {distinguishingRoles(profile.roles).length > 0 && (
                     <div>
                       <div className="profile-section-label">{t("user.profile.roles")}</div>
-                      {groupRolesByCategory(profile.roles, categories).map((group) => (
+                      {groupRolesByCategory(distinguishingRoles(profile.roles), categories).map((group) => (
                         <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
                           <div
                             className={`role-category-header ${group.category?.color ? "role-category-header-tinted" : ""}`}
