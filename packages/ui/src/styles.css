@@ -919,7 +919,36 @@ select,
 
 .profile-card-banner {
   height: 96px;
-  /* gradient set inline from the pubkey */
+  /* gradient/image set inline (identity gradient, accent, or cover) */
+}
+
+/* Editable banner: a full-width button showing a pencil on hover/focus. */
+.profile-card-banner-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.profile-card-banner-btn .avatar-edit-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-size: var(--text-lg);
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.profile-card-banner-btn:hover .avatar-edit-overlay,
+.profile-card-banner-btn:focus-visible .avatar-edit-overlay {
+  opacity: 1;
 }
 
 .profile-card-body {

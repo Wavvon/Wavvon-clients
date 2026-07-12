@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
-import type { Hub } from "@shared/types";
+import type { Hub, InterestEntry, InterestKind } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
+import { ImagePicker } from "@components/common/ImagePicker";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { getScoped } from "@shared/utils/accountScope";
 import { identityGradient } from "@shared/utils/identityColor";
@@ -38,10 +39,23 @@ interface Draft {
   avatar: string | null;
   bio: string;
   pronouns: string;
+  interests: InterestEntry[];
+  accent_color: string | null;
+  cover: string | null;
 }
 
+const INTEREST_KINDS: InterestKind[] = ["playing", "want", "lfg", "into"];
+const MAX_INTERESTS = 6;
+const INTEREST_TEXT_MAX = 80;
+
 const sameDraft = (a: Draft, b: Draft) =>
-  a.display_name === b.display_name && a.avatar === b.avatar && a.bio === b.bio && a.pronouns === b.pronouns;
+  a.display_name === b.display_name &&
+  a.avatar === b.avatar &&
+  a.bio === b.bio &&
+  a.pronouns === b.pronouns &&
+  a.accent_color === b.accent_color &&
+  a.cover === b.cover &&
+  JSON.stringify(a.interests) === JSON.stringify(b.interests);
 
 const trimToNull = (s: string) => {
   const v = s.trim();
@@ -65,6 +79,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   // context, honoring the hide/show curation from the section below.
   const [identityBadges, setIdentityBadges] = useState<string[]>([]);
   const [choosingAvatar, setChoosingAvatar] = useState(false);
+  const [editingBanner, setEditingBanner] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved">("idle");
   const [error, setError] = useState<"no_session" | "name_required" | string | null>(null);
   const [hasDefault, setHasDefault] = useState(false);
@@ -117,6 +132,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
             avatar: p.avatar,
             bio: p.bio ?? "",
             pronouns: p.pronouns ?? "",
+            interests: p.interests,
+            accent_color: p.accent_color,
+            cover: p.cover,
           };
           setBaselines((b) => (b[id] ? b : { ...b, [id]: d }));
           setDrafts((ds) => (ds[id] ? ds : { ...ds, [id]: d }));
@@ -166,6 +184,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
         avatar: p?.avatar ?? null,
         bio: p?.bio ?? "",
         pronouns: p?.pronouns ?? "",
+        interests: p?.interests ?? [],
+        accent_color: p?.accent_color ?? null,
+        cover: p?.cover ?? null,
       };
       setBaselines((b) => ({ ...b, [context]: d }));
       setDrafts((ds) => ({ ...ds, [context]: d }));
@@ -182,6 +203,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
           avatar: p.avatar,
           bio: p.bio ?? "",
           pronouns: p.pronouns ?? "",
+          interests: p.interests,
+          accent_color: p.accent_color,
+          cover: p.cover,
         };
         setBaselines((b) => ({ ...b, [context]: d }));
         setDrafts((ds) => ({ ...ds, [context]: d }));
@@ -253,6 +277,13 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
           avatar: d.avatar,
           bio: trimToNull(d.bio),
           pronouns: trimToNull(d.pronouns),
+          // Drop entries the user left blank; the hub rejects empty text.
+          interests: d.interests
+            .map((e) => ({ kind: e.kind, text: e.text.trim() }))
+            .filter((e) => e.text.length > 0)
+            .slice(0, MAX_INTERESTS),
+          accent_color: d.accent_color,
+          cover: d.cover,
         };
         if (c === DEFAULT_CONTEXT) {
           saveDefaultProfile(profile, account.id);
@@ -278,6 +309,28 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
 
   const contextLabel = (id: string, label: string) =>
     dirtyContexts.includes(id) ? `${label} •` : label;
+
+  // Banner precedence: an uploaded cover wins, then a chosen accent color
+  // (rendered as a soft gradient), then the key-derived identity gradient.
+  function bannerStyle(d: Draft): CSSProperties {
+    if (d.cover) return { backgroundImage: `url(${d.cover})`, backgroundSize: "cover", backgroundPosition: "center" };
+    if (d.accent_color) return { background: `linear-gradient(120deg, ${d.accent_color}, ${d.accent_color}99)` };
+    return { background: identityGradient(account.id) };
+  }
+
+  // Interest-row helpers, operating on the current context's draft.
+  function addInterest() {
+    if (!draft || draft.interests.length >= MAX_INTERESTS) return;
+    update({ interests: [...draft.interests, { kind: "playing", text: "" }] });
+  }
+  function updateInterest(i: number, patch: Partial<InterestEntry>) {
+    if (!draft) return;
+    update({ interests: draft.interests.map((e, j) => (j === i ? { ...e, ...patch } : e)) });
+  }
+  function removeInterest(i: number) {
+    if (!draft) return;
+    update({ interests: draft.interests.filter((_, j) => j !== i) });
+  }
 
   // The bio grows with its content (no manual resize handle): height is
   // re-derived from scrollHeight on every content or context change, with a
@@ -384,11 +437,16 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
               banner + overlapping avatar), where every piece of text is the
               input itself. Nothing is persisted until the explicit save. */}
           <div className="profile-card" style={{ maxWidth: 560 }}>
-            <div
-              className="profile-card-banner"
-              style={{ background: identityGradient(account.id) }}
-              aria-hidden="true"
-            />
+            <button
+              type="button"
+              className="profile-card-banner profile-card-banner-btn"
+              style={bannerStyle(draft)}
+              onClick={() => setEditingBanner(true)}
+              aria-label={t("settings.profile.banner.edit")}
+              title={t("settings.profile.banner.edit")}
+            >
+              <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
+            </button>
             <div className="profile-card-body">
               <div className="profile-card-avatar-wrap">
                 <button
@@ -455,6 +513,61 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
                 <div
                   className="muted"
+                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}
+                >
+                  {t("settings.profile.interests.label")}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {draft.interests.map((entry, i) => (
+                    <div key={i} className="settings-row" style={{ gap: "var(--space-2)", alignItems: "center", flexWrap: "nowrap" }}>
+                      <select
+                        value={entry.kind}
+                        onChange={(e) => updateInterest(i, { kind: e.target.value as InterestKind })}
+                        aria-label={t("settings.profile.interests.kind_label")}
+                        style={{ flexShrink: 0 }}
+                      >
+                        {INTEREST_KINDS.map((k) => (
+                          <option key={k} value={k}>
+                            {t(`settings.profile.interests.kind.${k}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={entry.text}
+                        maxLength={INTEREST_TEXT_MAX}
+                        onChange={(e) => updateInterest(i, { text: e.target.value })}
+                        placeholder={t("settings.profile.interests.text_placeholder")}
+                        aria-label={t("settings.profile.interests.text_placeholder")}
+                        style={{ flex: 1, minWidth: 0 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-small btn-secondary"
+                        onClick={() => removeInterest(i)}
+                        aria-label={t("modal.delete")}
+                        title={t("modal.delete")}
+                        style={{ flexShrink: 0 }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {draft.interests.length < MAX_INTERESTS ? (
+                    <button type="button" className="btn-small btn-secondary" onClick={addInterest} style={{ alignSelf: "flex-start" }}>
+                      + {t("settings.profile.interests.add")}
+                    </button>
+                  ) : (
+                    <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                      {t("settings.profile.interests.max", { max: MAX_INTERESTS })}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
+                <div
+                  className="muted"
                   style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
                 >
                   {t("user.profile.badges")}
@@ -506,6 +619,67 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                   }}
                   onClear={() => update({ avatar: null })}
                 />
+              </div>
+            </div>
+          )}
+          {editingBanner && (
+            <div
+              className="modal-overlay"
+              onClick={() => setEditingBanner(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("settings.profile.banner.edit")}
+            >
+              <div className="modal" style={{ maxWidth: 480, position: "relative" }} onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={() => setEditingBanner(false)}
+                  aria-label={t("modal.close")}
+                  style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}
+                >
+                  ×
+                </button>
+                <label className="settings-label" style={{ marginBottom: 8, display: "block" }}>
+                  {t("settings.profile.banner.edit")}
+                </label>
+                {/* Live preview of the current banner choice. */}
+                <div className="profile-card-banner" style={{ ...bannerStyle(draft), borderRadius: "var(--r-md)", marginBottom: "var(--space-3)" }} aria-hidden="true" />
+
+                <div className="settings-label" style={{ fontSize: "var(--text-sm)", marginBottom: 4 }}>
+                  {t("settings.profile.banner.cover_label")}
+                </div>
+                <ImagePicker
+                  onPick={(dataUrl) => update({ cover: dataUrl })}
+                  onClear={() => update({ cover: null })}
+                  hasValue={!!draft.cover}
+                  buttonLabel={t("settings.profile.banner.cover_button")}
+                  width={960}
+                  height={240}
+                  quality={0.82}
+                />
+
+                <div className="settings-label" style={{ fontSize: "var(--text-sm)", margin: "var(--space-3) 0 4px" }}>
+                  {t("settings.profile.banner.accent_label")}
+                </div>
+                <div className="settings-row" style={{ gap: "var(--space-2)", alignItems: "center" }}>
+                  <input
+                    type="color"
+                    value={draft.accent_color ?? "#7c5cff"}
+                    onChange={(e) => update({ accent_color: e.target.value, cover: null })}
+                    aria-label={t("settings.profile.banner.accent_label")}
+                    style={{ width: 44, height: 32, padding: 0, border: "1px solid var(--border)", borderRadius: "var(--r-sm)", background: "none", cursor: "pointer" }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-small btn-secondary"
+                    onClick={() => update({ accent_color: null, cover: null })}
+                    disabled={!draft.accent_color && !draft.cover}
+                  >
+                    {t("settings.profile.banner.reset")}
+                  </button>
+                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                    {t("settings.profile.banner.reset_hint")}
+                  </span>
+                </div>
               </div>
             </div>
           )}

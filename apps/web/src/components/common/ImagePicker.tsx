@@ -1,21 +1,28 @@
 import { useState } from "react";
 
 /**
- * Drop-zone + button file picker. Resizes the chosen image to 128×128 JPEG
- * (center-crop, quality 0.85) before handing back a data URL, so the payload
- * stays small regardless of what the user drags in. Ported from the desktop
- * client's ImagePicker so web reaches avatar-upload parity.
+ * Drop-zone + button file picker. Resizes the chosen image (center-crop) to
+ * a JPEG data URL before handing it back, so the payload stays small
+ * regardless of what the user drags in. Defaults to 128×128 (avatars); pass
+ * width/height for other aspects (e.g. a wide profile cover). Ported from the
+ * desktop client's ImagePicker so web reaches avatar-upload parity.
  */
 export function ImagePicker({
   onPick,
   onClear,
   hasValue,
   buttonLabel,
+  width = 128,
+  height = 128,
+  quality = 0.85,
 }: {
   onPick: (dataUrl: string) => void;
   onClear: () => void;
   hasValue: boolean;
   buttonLabel: string;
+  width?: number;
+  height?: number;
+  quality?: number;
 }) {
   const [dragOver, setDragOver] = useState(false);
 
@@ -31,17 +38,16 @@ export function ImagePicker({
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const SIZE = 128;
       const canvas = document.createElement("canvas");
-      canvas.width = SIZE;
-      canvas.height = SIZE;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d")!;
-      // Center-crop: scale so the shorter side fills the square.
-      const scale = Math.max(SIZE / img.naturalWidth, SIZE / img.naturalHeight);
+      // Center-crop: scale so the image covers the target box, then center.
+      const scale = Math.max(width / img.naturalWidth, height / img.naturalHeight);
       const w = img.naturalWidth * scale;
       const h = img.naturalHeight * scale;
-      ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
-      onPick(canvas.toDataURL("image/jpeg", 0.85));
+      ctx.drawImage(img, (width - w) / 2, (height - h) / 2, w, h);
+      onPick(canvas.toDataURL("image/jpeg", quality));
       URL.revokeObjectURL(objectUrl);
     };
     img.onerror = () => {

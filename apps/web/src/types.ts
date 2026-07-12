@@ -66,12 +66,25 @@ export interface BadgeSummary {
   label: string;
 }
 
+// Self-authored, opt-in profile signals ("Playing X", "Looking for Y"). The
+// four kinds are fixed so hubs can group members by them; text is free.
+// Must match the hub's validation (kind enum, text <= 80, <= 6 entries).
+export type InterestKind = "playing" | "want" | "lfg" | "into";
+
+export interface InterestEntry {
+  kind: InterestKind;
+  text: string;
+}
+
 export interface UserProfile {
   pubkey: string;
   display_name: string | null;
   avatar: string | null;
   bio: string | null;
   pronouns: string | null;
+  interests: InterestEntry[];
+  accent_color: string | null;
+  cover: string | null;
   joined_at: number;
   roles: RoleInfo[];
   // The hub serializes badges as {id, label} objects (BadgeSummary in
@@ -245,6 +258,9 @@ export interface MeInfo {
   avatar: string | null;
   bio: string | null;
   pronouns: string | null;
+  interests: InterestEntry[];
+  accent_color: string | null;
+  cover: string | null;
   approval_status: "approved" | "pending";
   roles: RoleInfo[];
 }

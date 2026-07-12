@@ -5,6 +5,14 @@ import { getUserProfile, listRoleCategories, getActiveHubId } from "@platform";
 import { formatRelative } from "@wavvon/core";
 import { Avatar } from "@wavvon/ui";
 import { groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearance";
+import { identityGradient } from "@shared/utils/identityColor";
+
+const INTEREST_KIND_KEY: Record<string, string> = {
+  playing: "settings.profile.interests.kind.playing",
+  want: "settings.profile.interests.kind.want",
+  lfg: "settings.profile.interests.kind.lfg",
+  into: "settings.profile.interests.kind.into",
+};
 
 interface Props {
   pubkey: string;
@@ -61,42 +69,56 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
           a transparent background. */}
       <div
         className="modal"
-        style={{ maxWidth: 360, position: "relative" }}
+        style={{ maxWidth: 360, position: "relative", padding: 0, overflow: "hidden" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label={t("user.profile.close")}
-          style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}
+          style={{ position: "absolute", top: 10, right: 12, zIndex: 2, background: "rgba(0,0,0,0.3)", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, color: "#fff", borderRadius: "var(--r-pill)", width: 26, height: 26 }}
         >
           ×
         </button>
 
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+        {error && <p style={{ color: "var(--danger)", padding: 24 }}>{error}</p>}
 
         {!profile && !error && (
-          <p className="muted" style={{ textAlign: "center", padding: 16 }}>
+          <p className="muted" style={{ textAlign: "center", padding: 24 }}>
             {t("modal.loading")}
           </p>
         )}
 
         {profile && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} pubkey={pubkey} size={48} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>
-                  {profile.display_name ?? <span className="muted">{t("profile.no_display_name")}</span>}
-                </div>
-                {profile.pronouns && (
-                  <div className="muted" style={{ fontSize: "var(--text-sm)" }}>{profile.pronouns}</div>
-                )}
-                <div
-                  className="muted"
-                  style={{ fontFamily: "monospace", fontSize: "var(--text-sm)" }}
-                >
-                  {pubkey.slice(0, 16)}…{pubkey.slice(-8)}
-                </div>
+          <>
+            {/* Banner: the member's cover / accent / key-derived colors —
+                the payoff for the profile cosmetics. */}
+            <div
+              className="profile-card-banner"
+              style={
+                profile.cover
+                  ? { backgroundImage: `url(${profile.cover})`, backgroundSize: "cover", backgroundPosition: "center" }
+                  : profile.accent_color
+                    ? { background: `linear-gradient(120deg, ${profile.accent_color}, ${profile.accent_color}99)` }
+                    : { background: identityGradient(pubkey) }
+              }
+              aria-hidden="true"
+            />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 24px 24px" }}>
+            <div style={{ marginTop: -28 }}>
+              <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} pubkey={pubkey} size={56} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>
+                {profile.display_name ?? <span className="muted">{t("profile.no_display_name")}</span>}
+              </div>
+              {profile.pronouns && (
+                <div className="muted" style={{ fontSize: "var(--text-sm)" }}>{profile.pronouns}</div>
+              )}
+              <div
+                className="muted"
+                style={{ fontFamily: "monospace", fontSize: "var(--text-sm)" }}
+              >
+                {pubkey.slice(0, 16)}…{pubkey.slice(-8)}
               </div>
             </div>
 
@@ -111,6 +133,19 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
 
             {profile.bio && (
               <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.bio}</p>
+            )}
+
+            {profile.interests.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {profile.interests.map((e, i) => (
+                  <div key={i} style={{ fontSize: "var(--text-sm)" }}>
+                    <span className="muted" style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".04em", marginRight: 6 }}>
+                      {t(INTEREST_KIND_KEY[e.kind] ?? e.kind)}
+                    </span>
+                    {e.text}
+                  </div>
+                ))}
+              </div>
             )}
 
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
@@ -168,6 +203,7 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               </div>
             )}
           </div>
+          </>
         )}
       </div>
     </div>
