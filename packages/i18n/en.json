@@ -1053,5 +1053,11 @@
   "_language_name": "English",
   "user.profile.no_bio": "No bio yet.",
   "user.profile.no_activities": "Nothing here yet.",
-  "settings.profile.hubs.viewer_empty": "This member doesn't show their hubs."
+  "settings.profile.hubs.viewer_empty": "This member doesn't show their hubs.",
+  "presence.invisible": "Invisible",
+  "presence.clear_after": "Clear after",
+  "presence.ttl.off": "Don't clear",
+  "presence.ttl.30m": "30 minutes",
+  "presence.ttl.1h": "1 hour",
+  "presence.ttl.3h": "3 hours"
 }

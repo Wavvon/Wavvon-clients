@@ -37,7 +37,7 @@ import type {
   AllianceSharedChannel,
   SoundboardClip,
 } from "@shared/types";
-import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent } from "./types";
+import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus } from "./types";
 import { BotAppLaunchCard } from "@components/bots/BotAppLaunchCard";
 import { BotMiniAppFrame } from "@components/bots/BotMiniAppFrame";
 import { HubSidebar } from "@components/layout/HubSidebar";
@@ -217,17 +217,25 @@ export default function App({ initialView }: AppProps = {}) {
   // the client is the source of truth and broadcasts it to every session,
   // re-applying on (re)connect. Distinct from hub mute (notify modes). It's
   // an account-level preference (per-account storage), not a device-global one.
-  const [myPresence, setMyPresenceState] = useState<{ status: "online" | "away" | "dnd"; custom: string | null }>(() => {
+  const [myPresence, setMyPresenceState] = useState<{ status: PresenceStatus }>(() => {
     try {
       const raw = getScoped("wavvon.presence");
-      if (raw) return JSON.parse(raw) as { status: "online" | "away" | "dnd"; custom: string | null };
+      if (raw) {
+        const p = JSON.parse(raw) as { status?: string };
+        const s = p.status;
+        if (s === "away" || s === "dnd" || s === "invisible") return { status: s };
+      }
     } catch { /* storage unavailable or corrupt */ }
-    return { status: "online", custom: null };
+    return { status: "online" };
   });
-  const setMyPresence = useCallback((p: { status: "online" | "away" | "dnd"; custom: string | null }) => {
+  const setMyPresence = useCallback((p: { status: PresenceStatus }) => {
     setMyPresenceState(p);
     try { setScoped("wavvon.presence", JSON.stringify(p)); } catch { /* storage unavailable */ }
   }, []);
+  // Timer backing the presence "clear after" (TTL): while connected, reverts
+  // to Online when it fires. Presence is online-only anyway, so disconnecting
+  // also naturally resets it; this just handles the still-online case.
+  const presenceTtlRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
@@ -881,8 +889,8 @@ export default function App({ initialView }: AppProps = {}) {
         // just (re)connected, but only if the user ever picked one here —
         // a fresh device must not stomp a status set elsewhere.
         const p = myPresenceRef.current;
-        if (p.status !== "online" || p.custom) {
-          try { sendSetStatusTo(hubId, p.status, p.custom); } catch { /* ws not ready */ }
+        if (p.status !== "online") {
+          try { sendSetStatusTo(hubId, p.status, null); } catch { /* ws not ready */ }
         }
       }
       if (connected && hubId === activeHubIdRef.current) {
@@ -2512,16 +2520,27 @@ export default function App({ initialView }: AppProps = {}) {
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         canOpenChannelSettings={isAdmin || canManageRoles}
         myStatus={myPresence.status === "online" ? null : myPresence.status}
-        myStatusCustom={myPresence.custom}
-        onSetStatus={(status, custom) => {
-          setMyPresence({ status, custom });
-          try { sendSetStatus(status, custom); } catch { /* ws not ready */ }
-          // Optimistic: the hubs' member_status broadcasts will confirm.
-          setUsers((prev) => prev.map((u) =>
-            u.public_key === publicKey
-              ? { ...u, status: status === "online" ? null : status, status_custom: custom }
-              : u,
-          ));
+        onSetStatus={(status, ttlMinutes) => {
+          if (presenceTtlRef.current) { clearTimeout(presenceTtlRef.current); presenceTtlRef.current = null; }
+          const apply = (s: PresenceStatus) => {
+            setMyPresence({ status: s });
+            try { sendSetStatus(s, null); } catch { /* ws not ready */ }
+            // Optimistic: the hubs' member_status broadcasts will confirm.
+            // Invisible shows the user offline (to everyone, incl. their own
+            // roster view); the footer picker still reflects "invisible".
+            setUsers((prev) => prev.map((u) =>
+              u.public_key === publicKey
+                ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: null }
+                : u,
+            ));
+          };
+          apply(status);
+          if (status !== "online" && ttlMinutes) {
+            presenceTtlRef.current = setTimeout(() => {
+              presenceTtlRef.current = null;
+              apply("online");
+            }, ttlMinutes * 60_000);
+          }
         }}
         onOpenChannelSettings={(channel) => { setChannelSettingsCtx(channel); setChannelSettingsError(null); }}
         onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}

@@ -66,6 +66,9 @@ export interface BadgeSummary {
   label: string;
 }
 
+// Own presence state. "invisible" = connected but shown offline to others.
+export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
+
 // A hub the user chose to feature on their profile (opt-in, draggable order).
 export interface FavoriteHub {
   url: string;

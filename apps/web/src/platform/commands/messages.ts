@@ -114,17 +114,20 @@ export function sendDmTypingEvent(conversation_id: string, typing: boolean): voi
 }
 
 /** Set own presence status on every connected hub — presence is global,
- * not per-hub. "online" clears, "away"/"dnd" set it; custom is an
- * optional short status text. Each hub persists it across reconnects;
- * sendSetStatusTo covers hubs that (re)connect later. */
-export function sendSetStatus(status: "online" | "away" | "dnd", custom?: string | null): void {
+ * not per-hub. "online" clears; "away"/"dnd"/"invisible" set it ("invisible"
+ * shows offline to others). `custom` is a legacy optional status text kept
+ * for wire compatibility; the web client no longer sets it. Each hub
+ * persists presence across reconnects; sendSetStatusTo covers hubs that
+ * (re)connect later. */
+type PresenceWire = "online" | "away" | "dnd" | "invisible";
+export function sendSetStatus(status: PresenceWire, custom?: string | null): void {
   for (const s of allSessions()) {
     s.ws?.send({ type: "set_status", status, custom: custom ?? null });
   }
 }
 
 /** Re-apply the device's presence to a single hub on (re)connect. */
-export function sendSetStatusTo(hubId: string, status: "online" | "away" | "dnd", custom?: string | null): void {
+export function sendSetStatusTo(hubId: string, status: PresenceWire, custom?: string | null): void {
   getSession(hubId)?.ws?.send({ type: "set_status", status, custom: custom ?? null });
 }
 
