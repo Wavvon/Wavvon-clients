@@ -1,4 +1,5 @@
 import { getScoped, setScoped, removeScoped } from "./accountScope";
+import type { FavoriteHub } from "../types";
 
 // One default profile per account: the display name + avatar prefilled and
 // auto-applied when the account joins a hub. The per-hub identity itself is
@@ -16,6 +17,8 @@ export interface DefaultProfile {
   activities: string | null;
   accent_color: string | null;
   cover: string | null;
+  favorite_hubs: FavoriteHub[];
+  show_hubs: boolean;
 }
 
 const DEFAULT_PROFILE_KEY = "wavvon.defaultProfile";
@@ -35,6 +38,8 @@ export function loadDefaultProfile(accountId?: string | null): DefaultProfile | 
           activities: p.activities ?? null,
           accent_color: p.accent_color ?? null,
           cover: p.cover ?? null,
+          favorite_hubs: Array.isArray(p.favorite_hubs) ? p.favorite_hubs : [],
+          show_hubs: p.show_hubs ?? false,
         };
       }
     }

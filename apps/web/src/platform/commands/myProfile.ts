@@ -1,5 +1,6 @@
 import { hubFetchWithToken } from "../http";
 import { getSession } from "../session";
+import type { FavoriteHub } from "@shared/types";
 
 // My member profile on a specific hub — not necessarily the active one. The
 // app holds a live session (token) for every connected hub, so reading and
@@ -15,6 +16,8 @@ export interface MyHubProfile {
   activities: string | null;
   accent_color: string | null;
   cover: string | null;
+  favorite_hubs: FavoriteHub[];
+  show_hubs: boolean;
   // Earned on that hub, read-only — shown in the editor card as members
   // would see them (labels only).
   badges: string[];
@@ -30,6 +33,8 @@ export interface MyProfileUpdate {
   activities: string | null;
   accent_color: string | null;
   cover: string | null;
+  favorite_hubs: FavoriteHub[];
+  show_hubs: boolean;
 }
 
 // Thrown when the hub has no live session this run (saved but never
@@ -56,6 +61,8 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
     activities?: string | null;
     accent_color?: string | null;
     cover?: string | null;
+    favorite_hubs?: FavoriteHub[];
+    show_hubs?: boolean;
     badges?: { id: string; label: string }[];
   };
   return {
@@ -67,6 +74,8 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
     activities: p.activities ?? null,
     accent_color: p.accent_color ?? null,
     cover: p.cover ?? null,
+    favorite_hubs: p.favorite_hubs ?? [],
+    show_hubs: p.show_hubs ?? false,
     badges: (p.badges ?? []).map((b) => b.label),
   };
 }
@@ -86,6 +95,8 @@ export async function updateMyProfileOnHub(hubId: string, profile: MyProfileUpda
       activities: profile.activities ?? "",
       accent_color: profile.accent_color ?? "",
       cover: profile.cover ?? "",
+      favorite_hubs: profile.favorite_hubs,
+      show_hubs: profile.show_hubs,
     }),
   });
 }

@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
-import type { Hub } from "@shared/types";
+import type { Hub, FavoriteHub } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
 import { ImagePicker } from "@components/common/ImagePicker";
+import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { getScoped } from "@shared/utils/accountScope";
 import { identityGradient } from "@shared/utils/identityColor";
@@ -36,7 +37,7 @@ const PRONOUNS_MAX = 40;
 const STATUS_MAX = 140;
 const ACTIVITIES_MAX = 1000;
 
-type CardTab = "bio" | "activities";
+type CardTab = "bio" | "activities" | "hubs";
 
 interface Draft {
   display_name: string;
@@ -47,6 +48,8 @@ interface Draft {
   activities: string;
   accent_color: string | null;
   cover: string | null;
+  favorite_hubs: FavoriteHub[];
+  show_hubs: boolean;
 }
 
 const sameDraft = (a: Draft, b: Draft) =>
@@ -57,12 +60,31 @@ const sameDraft = (a: Draft, b: Draft) =>
   a.status_message === b.status_message &&
   a.activities === b.activities &&
   a.accent_color === b.accent_color &&
-  a.cover === b.cover;
+  a.cover === b.cover &&
+  a.show_hubs === b.show_hubs &&
+  JSON.stringify(a.favorite_hubs) === JSON.stringify(b.favorite_hubs);
 
 const trimToNull = (s: string) => {
   const v = s.trim();
   return v ? v : null;
 };
+
+// The default-profile draft for an account, read from scoped storage.
+function buildDefaultDraft(accountId: string): Draft {
+  const p = loadDefaultProfile(accountId);
+  return {
+    display_name: p?.display_name ?? "",
+    avatar: p?.avatar ?? null,
+    bio: p?.bio ?? "",
+    pronouns: p?.pronouns ?? "",
+    status_message: p?.status_message ?? "",
+    activities: p?.activities ?? "",
+    accent_color: p?.accent_color ?? null,
+    cover: p?.cover ?? null,
+    favorite_hubs: p?.favorite_hubs ?? [],
+    show_hubs: p?.show_hubs ?? false,
+  };
+}
 
 // One WYSIWYG editor over many contexts (the Discord server-profiles
 // pattern): the dropdown picks the default profile or any joined hub, and
@@ -105,11 +127,16 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     following.has(c) ? drafts[DEFAULT_CONTEXT] : drafts[c];
   const draft = effectiveOf(context);
 
-  // A different account means different profiles everywhere: drop all
-  // drafts/baselines and start over from its default profile.
+  // A different account means different profiles everywhere: reset to just
+  // its default context. We seed the default draft HERE rather than leaving
+  // it to the context-loader effect below — that effect is keyed on
+  // [context, account.id], so when the context was already DEFAULT before the
+  // switch it wouldn't re-run, and the card would render with no draft (it
+  // vanished). Seeding synchronously keeps the card populated across a switch.
   useEffect(() => {
-    setDrafts({});
-    setBaselines({});
+    const d = buildDefaultDraft(account.id);
+    setDrafts({ [DEFAULT_CONTEXT]: d });
+    setBaselines({ [DEFAULT_CONTEXT]: d });
     setBadgesByCtx({});
     setContext(DEFAULT_CONTEXT);
     setHasDefault(loadDefaultProfile(account.id) !== null);
@@ -130,6 +157,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
       activities: p.activities ?? "",
       accent_color: p.accent_color,
       cover: p.cover,
+      favorite_hubs: p.favorite_hubs,
+      show_hubs: p.show_hubs,
     };
   }
 
@@ -187,17 +216,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     if (error === "no_session" || (error && error !== "name_required")) setError(null);
     if (baselines[context]) return;
     if (context === DEFAULT_CONTEXT) {
-      const p = loadDefaultProfile(account.id);
-      const d: Draft = {
-        display_name: p?.display_name ?? "",
-        avatar: p?.avatar ?? null,
-        bio: p?.bio ?? "",
-        pronouns: p?.pronouns ?? "",
-        status_message: p?.status_message ?? "",
-        activities: p?.activities ?? "",
-        accent_color: p?.accent_color ?? null,
-        cover: p?.cover ?? null,
-      };
+      // Usually already seeded by the account-reset effect; this covers a
+      // direct switch back to Default that somehow finds no baseline.
+      const d = buildDefaultDraft(account.id);
       setBaselines((b) => ({ ...b, [context]: d }));
       setDrafts((ds) => ({ ...ds, [context]: d }));
       return;
@@ -283,6 +304,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
           activities: trimToNull(d.activities),
           accent_color: d.accent_color,
           cover: d.cover,
+          favorite_hubs: d.favorite_hubs,
+          show_hubs: d.show_hubs,
         };
         if (c === DEFAULT_CONTEXT) {
           saveDefaultProfile(profile, account.id);
@@ -494,6 +517,15 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                 >
                   {t("settings.profile.tabs.activities")}
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "hubs"}
+                  className={`profile-tab${tab === "hubs" ? " active" : ""}`}
+                  onClick={() => setTab("hubs")}
+                >
+                  {t("settings.profile.tabs.hubs")}
+                </button>
               </div>
 
               {tab === "bio" && (
@@ -568,6 +600,16 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     </div>
                   </div>
                 </>
+              )}
+
+              {tab === "hubs" && (
+                <FavoriteHubsEditor
+                  hubs={hubs}
+                  favorites={draft.favorite_hubs}
+                  show={draft.show_hubs}
+                  onToggleShow={(show) => update({ show_hubs: show })}
+                  onChange={(favorite_hubs) => update({ favorite_hubs })}
+                />
               )}
             </div>
           </div>

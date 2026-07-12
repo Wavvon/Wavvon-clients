@@ -66,6 +66,13 @@ export interface BadgeSummary {
   label: string;
 }
 
+// A hub the user chose to feature on their profile (opt-in, draggable order).
+export interface FavoriteHub {
+  url: string;
+  name: string;
+  icon: string | null;
+}
+
 
 export interface UserProfile {
   pubkey: string;
@@ -77,6 +84,8 @@ export interface UserProfile {
   activities: string | null;
   accent_color: string | null;
   cover: string | null;
+  favorite_hubs: FavoriteHub[];
+  show_hubs: boolean;
   joined_at: number;
   roles: RoleInfo[];
   // The hub serializes badges as {id, label} objects (BadgeSummary in
@@ -254,6 +263,8 @@ export interface MeInfo {
   activities: string | null;
   accent_color: string | null;
   cover: string | null;
+  favorite_hubs: FavoriteHub[];
+  show_hubs: boolean;
   approval_status: "approved" | "pending";
   roles: RoleInfo[];
 }

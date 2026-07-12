@@ -143,6 +143,34 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               </div>
             )}
 
+            {/* Featured hubs — the hub already gates this to empty when the
+                member has it hidden, so a non-empty list means they chose to
+                show it. */}
+            {profile.favorite_hubs.length > 0 && (
+              <div>
+                <div
+                  className="muted"
+                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
+                >
+                  {t("settings.profile.tabs.hubs")}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {profile.favorite_hubs.map((h) => (
+                    <div key={h.url} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)" }}>
+                      {h.icon ? (
+                        <img src={h.icon} alt="" width={18} height={18} style={{ borderRadius: 4, objectFit: "cover" }} />
+                      ) : (
+                        <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: 4, background: "var(--bg-elevated)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)" }}>
+                          {(h.name || "?").charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name || h.url}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {t("user.profile.joined", { date: formatRelative(profile.joined_at) })}
             </div>
