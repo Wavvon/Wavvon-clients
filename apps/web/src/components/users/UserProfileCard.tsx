@@ -37,6 +37,7 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"bio" | "activities" | "hubs">("bio");
 
   useEffect(() => {
     getUserProfile(pubkey)
@@ -130,104 +131,99 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               </button>
             )}
 
-            {profile.bio && (
-              <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.bio}</p>
-            )}
-
-            {profile.activities && (
-              <div>
-                <div
-                  className="muted"
-                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
-                >
-                  {t("settings.profile.fields.activities_label")}
-                </div>
-                <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.activities}</p>
-              </div>
-            )}
-
-            {/* Featured hubs — the hub already gates this to empty when the
-                member has it hidden, so a non-empty list means they chose to
-                show it. */}
-            {profile.favorite_hubs.length > 0 && (
-              <div>
-                <div
-                  className="muted"
-                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
-                >
-                  {t("settings.profile.tabs.hubs")}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {profile.favorite_hubs.map((h) => (
-                    <div key={h.url} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)" }}>
-                      {h.icon ? (
-                        <img src={h.icon} alt="" width={18} height={18} style={{ borderRadius: 4, objectFit: "cover" }} />
-                      ) : (
-                        <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: 4, background: "var(--bg-elevated)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)" }}>
-                          {(h.name || "?").charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name || h.url}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {t("user.profile.joined", { date: formatRelative(profile.joined_at) })}
             </div>
 
-            {profile.roles.length > 0 && (
-              <div>
-                <div
-                  className="muted"
-                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
-                >
-                  {t("user.profile.roles")}
-                </div>
-                {groupRolesByCategory(profile.roles, categories).map((group) => (
-                  <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
-                    <div
-                      className={`role-category-header ${group.category?.color ? "role-category-header-tinted" : ""}`}
-                      style={roleTintStyle(group.category?.color)}
-                    >
-                      {group.category?.icon && <span>{group.category.icon}</span>}
-                      <span>{group.category?.name ?? t("hub.admin.roles.uncategorized")}</span>
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {group.roles.map((r) => (
-                        <span
-                          key={r.id}
-                          className={`role-badge ${r.color ? "role-badge-tinted" : ""}`}
-                          style={roleTintStyle(r.color)}
-                        >
-                          {r.icon && <span>{r.icon}</span>} {r.name}
-                        </span>
+            {/* Tabbed, mirroring the profile editor so what you edit is what
+                others see. */}
+            <div className="profile-tabs" role="tablist">
+              <button type="button" role="tab" aria-selected={tab === "bio"} className={`profile-tab${tab === "bio" ? " active" : ""}`} onClick={() => setTab("bio")}>
+                {t("settings.profile.tabs.bio")}
+              </button>
+              <button type="button" role="tab" aria-selected={tab === "activities"} className={`profile-tab${tab === "activities" ? " active" : ""}`} onClick={() => setTab("activities")}>
+                {t("settings.profile.tabs.activities")}
+              </button>
+              <button type="button" role="tab" aria-selected={tab === "hubs"} className={`profile-tab${tab === "hubs" ? " active" : ""}`} onClick={() => setTab("hubs")}>
+                {t("settings.profile.tabs.hubs")}
+              </button>
+            </div>
+
+            <div style={{ minHeight: 150, display: "flex", flexDirection: "column", gap: 12, paddingTop: 4 }}>
+              {tab === "bio" && (
+                <>
+                  {profile.bio ? (
+                    <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.bio}</p>
+                  ) : (
+                    <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("user.profile.no_bio")}</span>
+                  )}
+                  {profile.roles.length > 0 && (
+                    <div>
+                      <div className="profile-section-label">{t("user.profile.roles")}</div>
+                      {groupRolesByCategory(profile.roles, categories).map((group) => (
+                        <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
+                          <div
+                            className={`role-category-header ${group.category?.color ? "role-category-header-tinted" : ""}`}
+                            style={roleTintStyle(group.category?.color)}
+                          >
+                            {group.category?.icon && <span>{group.category.icon}</span>}
+                            <span>{group.category?.name ?? t("hub.admin.roles.uncategorized")}</span>
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {group.roles.map((r) => (
+                              <span key={r.id} className={`role-badge ${r.color ? "role-badge-tinted" : ""}`} style={roleTintStyle(r.color)}>
+                                {r.icon && <span>{r.icon}</span>} {r.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  )}
+                  {profile.badges.length > 0 && (
+                    <div>
+                      <div className="profile-section-label">{t("user.profile.badges")}</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {profile.badges.map((b) => (
+                          <span key={b.id} className="role-badge">{b.label}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
-            {profile.badges.length > 0 && (
-              <div>
-                <div
-                  className="muted"
-                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
-                >
-                  {t("user.profile.badges")}
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {profile.badges.map((b) => (
-                    <span key={b.id} className="role-badge">
-                      {b.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+              {tab === "activities" && (
+                profile.activities ? (
+                  <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.activities}</p>
+                ) : (
+                  <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("user.profile.no_activities")}</span>
+                )
+              )}
+
+              {tab === "hubs" && (
+                // The hub gates this to empty when the member hides it, so a
+                // non-empty list means they chose to show it.
+                profile.favorite_hubs.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {profile.favorite_hubs.map((h) => (
+                      <div key={h.url} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-sm)" }}>
+                        {h.icon ? (
+                          <img src={h.icon} alt="" width={18} height={18} style={{ borderRadius: 4, objectFit: "cover" }} />
+                        ) : (
+                          <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: 4, background: "var(--bg-elevated)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)" }}>
+                            {(h.name || "?").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name || h.url}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.profile.hubs.viewer_empty")}</span>
+                )
+              )}
+            </div>
           </div>
           </>
         )}

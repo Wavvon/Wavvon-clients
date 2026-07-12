@@ -737,7 +737,6 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
           <div className="settings-row" style={{ maxWidth: 560, gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
             <button onClick={saveAll} disabled={dirtyContexts.length === 0 || status === "saving"}>
               {t("settings.profile.save_all")}
-              {dirtyContexts.length > 1 ? ` (${dirtyContexts.length})` : ""}
             </button>
             {status === "saved" && (
               <span className="muted" style={{ fontSize: "var(--text-sm)" }}>

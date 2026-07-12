@@ -1050,5 +1050,8 @@
   "settings.account.ignored_users.since": "ignorato il {date}",
   "settings.account.ignored_users.unignore_button": "Non ignorare più",
   "_dir": "ltr",
-  "_language_name": "Italiano"
+  "_language_name": "Italiano",
+  "user.profile.no_bio": "Ancora nessuna bio.",
+  "user.profile.no_activities": "Ancora niente qui.",
+  "settings.profile.hubs.viewer_empty": "Questo membro non mostra i suoi hub."
 }

@@ -1050,5 +1050,8 @@
   "events.slots.fill": "{claimed}/{capacity}",
   "events.slots.fill_unlimited": "{claimed} signed up",
   "_dir": "ltr",
-  "_language_name": "English"
+  "_language_name": "English",
+  "user.profile.no_bio": "No bio yet.",
+  "user.profile.no_activities": "Nothing here yet.",
+  "settings.profile.hubs.viewer_empty": "This member doesn't show their hubs."
 }
