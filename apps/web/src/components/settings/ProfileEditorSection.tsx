@@ -122,6 +122,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   const contextHub = hubs.find((h) => h.hub_id === context);
   const isFollowing = following.has(context);
   const bioRef = useRef<HTMLTextAreaElement>(null);
+  const activitiesRef = useRef<HTMLTextAreaElement>(null);
   // What a context actually shows/saves: the default draft when following.
   const effectiveOf = (c: string): Draft | undefined =>
     following.has(c) ? drafts[DEFAULT_CONTEXT] : drafts[c];
@@ -340,9 +341,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     return { background: identityGradient(account.id) };
   }
 
-  // The bio grows with its content (no manual resize handle): height is
-  // re-derived from scrollHeight whenever it's visible and its content or
-  // the context changes, with a 200px floor.
+  // Bio and Activities both grow with their content (no manual resize
+  // handle): height re-derived from scrollHeight whenever the field is
+  // visible and its content or the context changes, with a 200px floor.
   const bioText = draft?.bio;
   useEffect(() => {
     const el = bioRef.current;
@@ -350,6 +351,14 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     el.style.height = "auto";
     el.style.height = `${Math.max(el.scrollHeight, 200)}px`;
   }, [bioText, context, tab]);
+
+  const activitiesText = draft?.activities;
+  useEffect(() => {
+    const el = activitiesRef.current;
+    if (!el || tab !== "activities") return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, 220)}px`;
+  }, [activitiesText, context, tab]);
 
   const badges = isDefault ? identityBadges : badgesByCtx[context] ?? [];
 
@@ -590,14 +599,14 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     <div className="profile-section-label">{t("settings.profile.fields.activities_label")}</div>
                     <textarea
                       id="profile-editor-activities"
+                      ref={activitiesRef}
                       className="profile-inline-input"
                       value={draft.activities}
                       maxLength={ACTIVITIES_MAX}
-                      rows={9}
                       onChange={(e) => update({ activities: e.target.value })}
                       placeholder={t("settings.profile.fields.activities_placeholder")}
                       aria-label={t("settings.profile.fields.activities_label")}
-                      style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 220 }}
+                      style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 220 }}
                     />
                     <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
                       {draft.activities.length}/{ACTIVITIES_MAX}
