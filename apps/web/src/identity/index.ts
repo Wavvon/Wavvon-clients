@@ -14,6 +14,7 @@ export {
   resolveOrCreateAccount,
   removeAccount,
   switchAccount,
+  getPostSwitchReturn,
   showAccountSwitchOverlay,
   removeAccountSwitchOverlay,
 } from "./store";

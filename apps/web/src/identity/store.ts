@@ -218,6 +218,25 @@ export function switchAccount(id: string, returnTo?: "settings-account", overlay
   window.location.reload();
 }
 
+// One-shot post-switch destination, consumed exactly once per page load at
+// module init. Never read+remove this during a component render: React
+// StrictMode double-invokes render bodies, so a render-time consumer races
+// itself — the first invocation eats the flag and the second sees nothing,
+// which intermittently dropped the user on the home view after switching.
+const postSwitchReturnValue: string | null = (() => {
+  try {
+    const v = sessionStorage.getItem("wavvon:post_switch_return");
+    if (v) sessionStorage.removeItem("wavvon:post_switch_return");
+    return v;
+  } catch {
+    return null;
+  }
+})();
+
+export function getPostSwitchReturn(): string | null {
+  return postSwitchReturnValue;
+}
+
 // Paints a full-screen overlay synchronously (plain DOM — must work both
 // before the reload and before React mounts on the next boot). Removed by
 // App's mount effect once the new account's UI is rendering.

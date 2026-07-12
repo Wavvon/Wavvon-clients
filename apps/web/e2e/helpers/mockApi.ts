@@ -17,7 +17,12 @@ export async function injectSession(page: Page) {
       // (utils/accountScope.ts) and the identity store is DB version 2 with
       // the pubkey as the record id. Keep this in lockstep with store.ts.
       const scoped = (key: string) => `wavvon:acct:${pubkey}:${key}`;
-      localStorage.setItem("wavvon:active_account_id", pubkey);
+      // Init scripts re-run after every navigation, including the reload an
+      // account switch performs — only seed the pointer when absent so the
+      // re-run can't undo a switch made by the test.
+      if (!localStorage.getItem("wavvon:active_account_id")) {
+        localStorage.setItem("wavvon:active_account_id", pubkey);
+      }
       // Saved hubs list
       localStorage.setItem(
         scoped("wavvon:saved_hubs"),
@@ -50,10 +55,51 @@ export async function injectSession(page: Page) {
         const db = open.result;
         db.transaction("identity", "readwrite")
           .objectStore("identity")
-          .put({ id: pubkey, seed_hex: seedHex, security_nonce: 0, security_level: 0, account_label: "Test" });
+          .put({ id: pubkey, seed_hex: seedHex, security_nonce: 0, security_level: 0, account_label: "Primary", account_order: 1 });
       };
     },
     { hubId: HUB_ID, hubUrl: HUB_URL, token: TOKEN, seedHex: SEED_HEX, pubkey: PUBKEY }
+  );
+}
+
+// A second on-device account for multi-account specs.
+const SEED2_HEX = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100";
+const PUBKEY2 = "2e4e83fdb2d88f88c5f03e663c39ea3f9c7536312b62a2b09a95712dccf11a40";
+export const ACCOUNT1 = { pubkey: PUBKEY, label: "Primary" };
+export const ACCOUNT2 = { pubkey: PUBKEY2, label: "Secondary" };
+
+// Seeds TWO accounts. The init script re-runs after every navigation
+// (including the reload switchAccount performs), so the active-account
+// pointer is only seeded when absent — otherwise the re-run would undo the
+// switch under test.
+export async function injectTwoAccountSession(page: Page) {
+  await injectSession(page);
+  await page.addInitScript(
+    ({ hubId, hubUrl, token, seed2, pubkey2 }) => {
+      const scoped = (key: string) => `wavvon:acct:${pubkey2}:${key}`;
+      localStorage.setItem(
+        scoped("wavvon:saved_hubs"),
+        JSON.stringify([
+          { hub_id: hubId, hub_name: "Test Hub", hub_url: hubUrl, hub_icon: null, remember_token: true },
+        ])
+      );
+      localStorage.setItem(scoped("wavvon:active_hub"), hubId);
+      localStorage.setItem(scoped(`wavvon:token:${hubId}`), token);
+      const open = indexedDB.open("wavvon", 2);
+      open.onupgradeneeded = () => {
+        const db = open.result;
+        if (!db.objectStoreNames.contains("identity")) {
+          db.createObjectStore("identity", { keyPath: "id" });
+        }
+      };
+      open.onsuccess = () => {
+        open.result
+          .transaction("identity", "readwrite")
+          .objectStore("identity")
+          .put({ id: pubkey2, seed_hex: seed2, security_nonce: 0, security_level: 0, account_label: "Secondary", account_order: 2 });
+      };
+    },
+    { hubId: HUB_ID, hubUrl: HUB_URL, token: TOKEN, seed2: SEED2_HEX, pubkey2: PUBKEY2 }
   );
 }
 

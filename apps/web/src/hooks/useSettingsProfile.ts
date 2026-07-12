@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { applySkinTokens, clearSkinTokens } from "../skinValidation";
 import type { SettingsTab } from "@components/settings/SettingsPage";
-import { loadIdentity, seedToPhrase, phraseToSeed, validatePhrase, resolveOrCreateAccount, switchAccount } from "@identity/index";
+import { loadIdentity, seedToPhrase, phraseToSeed, validatePhrase, resolveOrCreateAccount, switchAccount, getPostSwitchReturn } from "@identity/index";
 import { makeSeed } from "@components/settings/SkinEditor";
 import type { CustomThemeStore, NamedCustomTheme } from "../utils/customThemes";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "../utils/customThemes";
@@ -15,15 +15,9 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
   const { t } = useTranslation();
   // One-shot return destination written by switchAccount just before its
   // reload: switching from Settings → Account lands the user back there.
-  const postSwitchReturn = (() => {
-    try {
-      const v = sessionStorage.getItem("wavvon:post_switch_return");
-      if (v) sessionStorage.removeItem("wavvon:post_switch_return");
-      return v;
-    } catch {
-      return null;
-    }
-  })();
+  // Consumed at module init (getPostSwitchReturn), NOT here — a render-time
+  // read+remove races StrictMode's double render.
+  const postSwitchReturn = getPostSwitchReturn();
   const [showSettings, setShowSettings] = useState(postSwitchReturn === "settings-account");
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(
     postSwitchReturn === "settings-account" ? "account" : "profile",
