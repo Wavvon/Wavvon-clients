@@ -7,13 +7,6 @@ import { Avatar } from "@wavvon/ui";
 import { groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearance";
 import { identityGradient } from "@shared/utils/identityColor";
 
-const INTEREST_KIND_KEY: Record<string, string> = {
-  playing: "settings.profile.interests.kind.playing",
-  want: "settings.profile.interests.kind.want",
-  lfg: "settings.profile.interests.kind.lfg",
-  into: "settings.profile.interests.kind.into",
-};
-
 interface Props {
   pubkey: string;
   /** The active account's own pubkey — used to hide the Message action on your own profile. */
@@ -114,6 +107,9 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               {profile.pronouns && (
                 <div className="muted" style={{ fontSize: "var(--text-sm)" }}>{profile.pronouns}</div>
               )}
+              {profile.status_message && (
+                <div style={{ fontSize: "var(--text-sm)", marginTop: 2 }}>💬 {profile.status_message}</div>
+              )}
               <div
                 className="muted"
                 style={{ fontFamily: "monospace", fontSize: "var(--text-sm)" }}
@@ -135,16 +131,15 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.bio}</p>
             )}
 
-            {profile.interests.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {profile.interests.map((e, i) => (
-                  <div key={i} style={{ fontSize: "var(--text-sm)" }}>
-                    <span className="muted" style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".04em", marginRight: 6 }}>
-                      {t(INTEREST_KIND_KEY[e.kind] ?? e.kind)}
-                    </span>
-                    {e.text}
-                  </div>
-                ))}
+            {profile.activities && (
+              <div>
+                <div
+                  className="muted"
+                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
+                >
+                  {t("settings.profile.fields.activities_label")}
+                </div>
+                <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.activities}</p>
               </div>
             )}
 

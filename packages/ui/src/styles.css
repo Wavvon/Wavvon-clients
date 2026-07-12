@@ -976,6 +976,45 @@ select,
   color: var(--text-muted);
 }
 
+/* Tab bar inside the profile card: Bio / Activities (and later Hubs). */
+.profile-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+  margin-top: var(--space-1);
+}
+
+.profile-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 10px;
+  margin-bottom: -1px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium, 500);
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+
+.profile-tab:hover {
+  color: var(--text);
+}
+
+.profile-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* Small uppercase caption above a field/section inside the profile card. */
+.profile-section-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
 /* Profile tab layout: the editor card and the badges/certifications panel
    sit side by side on wide screens (using the pane's horizontal space) and
    stack on narrow ones. Each column keeps a readable width rather than

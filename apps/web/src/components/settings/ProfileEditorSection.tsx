@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
-import type { Hub, InterestEntry, InterestKind } from "@shared/types";
+import type { Hub } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
 import { ImagePicker } from "@components/common/ImagePicker";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
@@ -33,29 +33,31 @@ interface Props {
 const DEFAULT_CONTEXT = "__default__";
 const BIO_MAX = 500;
 const PRONOUNS_MAX = 40;
+const STATUS_MAX = 140;
+const ACTIVITIES_MAX = 1000;
+
+type CardTab = "bio" | "activities";
 
 interface Draft {
   display_name: string;
   avatar: string | null;
   bio: string;
   pronouns: string;
-  interests: InterestEntry[];
+  status_message: string;
+  activities: string;
   accent_color: string | null;
   cover: string | null;
 }
-
-const INTEREST_KINDS: InterestKind[] = ["playing", "want", "lfg", "into"];
-const MAX_INTERESTS = 6;
-const INTEREST_TEXT_MAX = 80;
 
 const sameDraft = (a: Draft, b: Draft) =>
   a.display_name === b.display_name &&
   a.avatar === b.avatar &&
   a.bio === b.bio &&
   a.pronouns === b.pronouns &&
+  a.status_message === b.status_message &&
+  a.activities === b.activities &&
   a.accent_color === b.accent_color &&
-  a.cover === b.cover &&
-  JSON.stringify(a.interests) === JSON.stringify(b.interests);
+  a.cover === b.cover;
 
 const trimToNull = (s: string) => {
   const v = s.trim();
@@ -64,13 +66,15 @@ const trimToNull = (s: string) => {
 
 // One WYSIWYG editor over many contexts (the Discord server-profiles
 // pattern): the dropdown picks the default profile or any joined hub, and
-// the card below IS the profile — every text is its own input, the avatar
-// edits on click. Edits are kept as per-context drafts (dirty contexts get a
-// • in the dropdown) and a single "Save changes" persists all of them:
-// default → local scoped storage, each hub → its own session (PATCH /me).
+// the card below IS the profile. The card is tabbed — Bio (about me +
+// badges) and Activities (a status line + a free-text "what I'm up to").
+// Edits are kept as per-context drafts (dirty contexts get a • in the
+// dropdown) and a single "Save changes" persists all of them: default →
+// local scoped storage, each hub → its own session (PATCH /me).
 export function ProfileEditorSection({ hubs, account, isActive, publicKey, accounts, activeId, onManagingChange, onHubProfileSaved }: Props) {
   const { t } = useTranslation();
   const [context, setContext] = useState<string>(DEFAULT_CONTEXT);
+  const [tab, setTab] = useState<CardTab>("bio");
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [baselines, setBaselines] = useState<Record<string, Draft>>({});
   // Read-only: badges earned on each hub, shown as members see them.
@@ -116,6 +120,19 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account.id]);
 
+  function draftFromHub(p: Awaited<ReturnType<typeof getMyProfileOnHub>>): Draft {
+    return {
+      display_name: p.display_name ?? "",
+      avatar: p.avatar,
+      bio: p.bio ?? "",
+      pronouns: p.pronouns ?? "",
+      status_message: p.status_message ?? "",
+      activities: p.activities ?? "",
+      accent_color: p.accent_color,
+      cover: p.cover,
+    };
+  }
+
   // Followed hubs need their baseline even if never opened this session —
   // otherwise a default edit couldn't mark them dirty and Save would skip
   // them. Hubs without a live session are silently left out: they can't be
@@ -127,15 +144,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
       if (baselines[id]) continue;
       getMyProfileOnHub(id, publicKey)
         .then((p) => {
-          const d: Draft = {
-            display_name: p.display_name ?? "",
-            avatar: p.avatar,
-            bio: p.bio ?? "",
-            pronouns: p.pronouns ?? "",
-            interests: p.interests,
-            accent_color: p.accent_color,
-            cover: p.cover,
-          };
+          const d = draftFromHub(p);
           setBaselines((b) => (b[id] ? b : { ...b, [id]: d }));
           setDrafts((ds) => (ds[id] ? ds : { ...ds, [id]: d }));
           setBadgesByCtx((m) => ({ ...m, [id]: p.badges }));
@@ -184,7 +193,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
         avatar: p?.avatar ?? null,
         bio: p?.bio ?? "",
         pronouns: p?.pronouns ?? "",
-        interests: p?.interests ?? [],
+        status_message: p?.status_message ?? "",
+        activities: p?.activities ?? "",
         accent_color: p?.accent_color ?? null,
         cover: p?.cover ?? null,
       };
@@ -198,15 +208,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     getMyProfileOnHub(context, publicKey)
       .then((p) => {
         if (cancelled) return;
-        const d: Draft = {
-          display_name: p.display_name ?? "",
-          avatar: p.avatar,
-          bio: p.bio ?? "",
-          pronouns: p.pronouns ?? "",
-          interests: p.interests,
-          accent_color: p.accent_color,
-          cover: p.cover,
-        };
+        const d = draftFromHub(p);
         setBaselines((b) => ({ ...b, [context]: d }));
         setDrafts((ds) => ({ ...ds, [context]: d }));
         setBadgesByCtx((m) => ({ ...m, [context]: p.badges }));
@@ -277,11 +279,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
           avatar: d.avatar,
           bio: trimToNull(d.bio),
           pronouns: trimToNull(d.pronouns),
-          // Drop entries the user left blank; the hub rejects empty text.
-          interests: d.interests
-            .map((e) => ({ kind: e.kind, text: e.text.trim() }))
-            .filter((e) => e.text.length > 0)
-            .slice(0, MAX_INTERESTS),
+          status_message: trimToNull(d.status_message),
+          activities: trimToNull(d.activities),
           accent_color: d.accent_color,
           cover: d.cover,
         };
@@ -318,30 +317,18 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     return { background: identityGradient(account.id) };
   }
 
-  // Interest-row helpers, operating on the current context's draft.
-  function addInterest() {
-    if (!draft || draft.interests.length >= MAX_INTERESTS) return;
-    update({ interests: [...draft.interests, { kind: "playing", text: "" }] });
-  }
-  function updateInterest(i: number, patch: Partial<InterestEntry>) {
-    if (!draft) return;
-    update({ interests: draft.interests.map((e, j) => (j === i ? { ...e, ...patch } : e)) });
-  }
-  function removeInterest(i: number) {
-    if (!draft) return;
-    update({ interests: draft.interests.filter((_, j) => j !== i) });
-  }
-
   // The bio grows with its content (no manual resize handle): height is
-  // re-derived from scrollHeight on every content or context change, with a
-  // 200px floor.
+  // re-derived from scrollHeight whenever it's visible and its content or
+  // the context changes, with a 200px floor.
   const bioText = draft?.bio;
   useEffect(() => {
     const el = bioRef.current;
-    if (!el) return;
+    if (!el || tab !== "bio") return;
     el.style.height = "auto";
     el.style.height = `${Math.max(el.scrollHeight, 200)}px`;
-  }, [bioText, context]);
+  }, [bioText, context, tab]);
+
+  const badges = isDefault ? identityBadges : badgesByCtx[context] ?? [];
 
   return (
     <div className="settings-section">
@@ -433,9 +420,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
 
       {draft && status !== "loading" && error !== "no_session" && (
         <>
-          {/* WYSIWYG profile card: a real profile header (identity-colored
-              banner + overlapping avatar), where every piece of text is the
-              input itself. Nothing is persisted until the explicit save. */}
+          {/* WYSIWYG profile card: an identity-colored banner + overlapping
+              avatar header, then tabbed content. Nothing is persisted until
+              the explicit save. */}
           <div className="profile-card" style={{ maxWidth: 560 }}>
             <button
               type="button"
@@ -487,108 +474,101 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                 {account.id.slice(0, 16)}…{account.id.slice(-8)}
               </div>
 
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
-                <div
-                  className="muted"
-                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
+              {/* Tabs */}
+              <div className="profile-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "bio"}
+                  className={`profile-tab${tab === "bio" ? " active" : ""}`}
+                  onClick={() => setTab("bio")}
                 >
-                  {t("settings.profile.fields.bio_label")}
-                </div>
-                <textarea
-                  id="profile-editor-bio"
-                  ref={bioRef}
-                  className="profile-inline-input"
-                  value={draft.bio}
-                  maxLength={BIO_MAX}
-                  onChange={(e) => update({ bio: e.target.value })}
-                  placeholder={t("settings.profile.fields.bio_placeholder")}
-                  aria-label={t("settings.profile.fields.bio_label")}
-                  style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 200 }}
-                />
-                <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
-                  {draft.bio.length}/{BIO_MAX}
-                </div>
+                  {t("settings.profile.tabs.bio")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "activities"}
+                  className={`profile-tab${tab === "activities" ? " active" : ""}`}
+                  onClick={() => setTab("activities")}
+                >
+                  {t("settings.profile.tabs.activities")}
+                </button>
               </div>
 
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
-                <div
-                  className="muted"
-                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}
-                >
-                  {t("settings.profile.interests.label")}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {draft.interests.map((entry, i) => (
-                    <div key={i} className="settings-row" style={{ gap: "var(--space-2)", alignItems: "center", flexWrap: "nowrap" }}>
-                      <select
-                        value={entry.kind}
-                        onChange={(e) => updateInterest(i, { kind: e.target.value as InterestKind })}
-                        aria-label={t("settings.profile.interests.kind_label")}
-                        style={{ flexShrink: 0 }}
-                      >
-                        {INTEREST_KINDS.map((k) => (
-                          <option key={k} value={k}>
-                            {t(`settings.profile.interests.kind.${k}`)}
-                          </option>
+              {tab === "bio" && (
+                <>
+                  <div>
+                    <div className="profile-section-label">{t("settings.profile.fields.bio_label")}</div>
+                    <textarea
+                      id="profile-editor-bio"
+                      ref={bioRef}
+                      className="profile-inline-input"
+                      value={draft.bio}
+                      maxLength={BIO_MAX}
+                      onChange={(e) => update({ bio: e.target.value })}
+                      placeholder={t("settings.profile.fields.bio_placeholder")}
+                      aria-label={t("settings.profile.fields.bio_label")}
+                      style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 160 }}
+                    />
+                    <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
+                      {draft.bio.length}/{BIO_MAX}
+                    </div>
+                  </div>
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
+                    <div className="profile-section-label">{t("user.profile.badges")}</div>
+                    {badges.length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {badges.map((label, i) => (
+                          <span key={i} className="role-badge">
+                            {label}
+                          </span>
                         ))}
-                      </select>
-                      <input
-                        type="text"
-                        value={entry.text}
-                        maxLength={INTEREST_TEXT_MAX}
-                        onChange={(e) => updateInterest(i, { text: e.target.value })}
-                        placeholder={t("settings.profile.interests.text_placeholder")}
-                        aria-label={t("settings.profile.interests.text_placeholder")}
-                        style={{ flex: 1, minWidth: 0 }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-small btn-secondary"
-                        onClick={() => removeInterest(i)}
-                        aria-label={t("modal.delete")}
-                        title={t("modal.delete")}
-                        style={{ flexShrink: 0 }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  {draft.interests.length < MAX_INTERESTS ? (
-                    <button type="button" className="btn-small btn-secondary" onClick={addInterest} style={{ alignSelf: "flex-start" }}>
-                      + {t("settings.profile.interests.add")}
-                    </button>
-                  ) : (
-                    <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                      {t("settings.profile.interests.max", { max: MAX_INTERESTS })}
-                    </span>
-                  )}
-                </div>
-              </div>
+                      </div>
+                    ) : (
+                      <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
+                        {t("settings.profile.card.no_badges")}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
 
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
-                <div
-                  className="muted"
-                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
-                >
-                  {t("user.profile.badges")}
-                </div>
-                {(() => {
-                  const badges = isDefault ? identityBadges : badgesByCtx[context] ?? [];
-                  return badges.length > 0 ? (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {badges.map((label, i) => (
-                        <span key={i} className="role-badge">
-                          {label}
-                        </span>
-                      ))}
+              {tab === "activities" && (
+                <>
+                  <div>
+                    <div className="profile-section-label">{t("settings.profile.fields.status_label")}</div>
+                    <input
+                      id="profile-editor-status"
+                      type="text"
+                      className="profile-inline-input"
+                      value={draft.status_message}
+                      maxLength={STATUS_MAX}
+                      onChange={(e) => update({ status_message: e.target.value })}
+                      placeholder={t("settings.profile.fields.status_placeholder")}
+                      aria-label={t("settings.profile.fields.status_label")}
+                      style={{ fontSize: "var(--text-md)" }}
+                    />
+                  </div>
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
+                    <div className="profile-section-label">{t("settings.profile.fields.activities_label")}</div>
+                    <textarea
+                      id="profile-editor-activities"
+                      className="profile-inline-input"
+                      value={draft.activities}
+                      maxLength={ACTIVITIES_MAX}
+                      rows={7}
+                      onChange={(e) => update({ activities: e.target.value })}
+                      placeholder={t("settings.profile.fields.activities_placeholder")}
+                      aria-label={t("settings.profile.fields.activities_label")}
+                      style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 140 }}
+                    />
+                    <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
+                      {draft.activities.length}/{ACTIVITIES_MAX}
                     </div>
-                  ) : (
-                    <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
-                      {t("settings.profile.card.no_badges")}
-                    </span>
-                  );
-                })()}
-              </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           {choosingAvatar && (

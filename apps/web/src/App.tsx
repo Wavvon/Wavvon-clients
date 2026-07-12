@@ -375,7 +375,8 @@ export default function App({ initialView }: AppProps = {}) {
           avatar: profile.avatar ?? "",
           bio: profile.bio ?? "",
           pronouns: profile.pronouns ?? "",
-          interests: profile.interests,
+          status_message: profile.status_message ?? "",
+          activities: profile.activities ?? "",
           accent_color: profile.accent_color ?? "",
           cover: profile.cover ?? "",
         }),
@@ -561,7 +562,7 @@ export default function App({ initialView }: AppProps = {}) {
   function handleIdentityComplete(result: IdentitySetupCompletion) {
     // Nickname + avatar chosen during onboarding become the default profile,
     // which the first-hub effect below applies automatically via PATCH /me.
-    if (result.profile) saveDefaultProfile({ display_name: result.profile.display_name, avatar: result.profile.avatar, bio: null, pronouns: null, interests: [], accent_color: null, cover: null });
+    if (result.profile) saveDefaultProfile({ display_name: result.profile.display_name, avatar: result.profile.avatar, bio: null, pronouns: null, status_message: null, activities: null, accent_color: null, cover: null });
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");

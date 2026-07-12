@@ -1,6 +1,5 @@
 import { hubFetchWithToken } from "../http";
 import { getSession } from "../session";
-import type { InterestEntry } from "@shared/types";
 
 // My member profile on a specific hub — not necessarily the active one. The
 // app holds a live session (token) for every connected hub, so reading and
@@ -12,7 +11,8 @@ export interface MyHubProfile {
   avatar: string | null;
   bio: string | null;
   pronouns: string | null;
-  interests: InterestEntry[];
+  status_message: string | null;
+  activities: string | null;
   accent_color: string | null;
   cover: string | null;
   // Earned on that hub, read-only — shown in the editor card as members
@@ -26,7 +26,8 @@ export interface MyProfileUpdate {
   avatar: string | null;
   bio: string | null;
   pronouns: string | null;
-  interests: InterestEntry[];
+  status_message: string | null;
+  activities: string | null;
   accent_color: string | null;
   cover: string | null;
 }
@@ -51,7 +52,8 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
     avatar?: string | null;
     bio?: string | null;
     pronouns?: string | null;
-    interests?: InterestEntry[];
+    status_message?: string | null;
+    activities?: string | null;
     accent_color?: string | null;
     cover?: string | null;
     badges?: { id: string; label: string }[];
@@ -61,7 +63,8 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
     avatar: p.avatar ?? null,
     bio: p.bio ?? null,
     pronouns: p.pronouns ?? null,
-    interests: p.interests ?? [],
+    status_message: p.status_message ?? null,
+    activities: p.activities ?? null,
     accent_color: p.accent_color ?? null,
     cover: p.cover ?? null,
     badges: (p.badges ?? []).map((b) => b.label),
@@ -70,8 +73,8 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
 
 export async function updateMyProfileOnHub(hubId: string, profile: MyProfileUpdate): Promise<void> {
   const s = sessionOf(hubId);
-  // PATCH semantics on the hub: absent = unchanged, "" / [] = clear. Map null
-  // to "" so emptying a field in the editor actually clears it hub-side.
+  // PATCH semantics on the hub: absent = unchanged, "" = clear. Map null to
+  // "" so emptying a field in the editor actually clears it hub-side.
   await hubFetchWithToken(s.hub_url, s.token, "/me", {
     method: "PATCH",
     body: JSON.stringify({
@@ -79,7 +82,8 @@ export async function updateMyProfileOnHub(hubId: string, profile: MyProfileUpda
       avatar: profile.avatar ?? "",
       bio: profile.bio ?? "",
       pronouns: profile.pronouns ?? "",
-      interests: profile.interests,
+      status_message: profile.status_message ?? "",
+      activities: profile.activities ?? "",
       accent_color: profile.accent_color ?? "",
       cover: profile.cover ?? "",
     }),
