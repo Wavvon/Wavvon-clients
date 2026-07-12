@@ -6,6 +6,7 @@ import {
   getActiveAccountId,
   resolveOrCreateAccount,
   switchAccount,
+  SWITCH_BLOCKED_COOLDOWN,
   type IdentityRecord,
 } from "@identity/index";
 import { formatPubkey } from "@wavvon/core";
@@ -50,6 +51,15 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
     if (p.length < 8) return "weak";
     if (p.length < 14) return "fair";
     return "strong";
+  }
+
+  // switchAccount refuses (voice guard, switch cooldown) rather than always
+  // succeeding — surface that the same way every other failure here does.
+  function switchOrShowError(accountId: string) {
+    const refused = switchAccount(accountId, "settings-account");
+    if (refused) {
+      setError(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+    }
   }
 
   function openExportForm() {
@@ -214,7 +224,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
 
       const first = added[0];
       if (!hadAnyAccountBefore) {
-        switchAccount(first.id, "settings-account", t("settings.account.accounts.switching"));
+        switchOrShowError(first.id);
         return;
       }
       if (
@@ -222,7 +232,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
           t("settings.account.identity_backup.import_confirm", { count: added.length, alreadyPresent }),
         )
       ) {
-        switchAccount(first.id, "settings-account", t("settings.account.accounts.switching"));
+        switchOrShowError(first.id);
       } else {
         setImportSummary({ added: added.length, alreadyPresent });
       }

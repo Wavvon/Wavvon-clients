@@ -194,28 +194,83 @@ export async function removeAccount(id: string): Promise<void> {
   }
 }
 
-// Switching accounts swaps the active pointer and reloads the whole app —
-// the simplest way to guarantee every live WebSocket/voice/session object
-// tears down cleanly. Isolated here so a future in-place switch can replace
-// just this function without touching call sites.
+// In-place switch: AccountRoot registers this on mount so switchAccount can
+// key-remount <App> instead of reloading the whole page (every piece of
+// React state resets by construction on remount — the same teardown
+// guarantee a reload gave us, without the white flash). If nothing has
+// registered a handler yet (e.g. a call landing before AccountRoot mounts),
+// switchAccount falls back to the old reload path as a safety net.
+interface InPlaceSwitchArgs {
+  id: string;
+  returnTo?: "settings-account";
+}
+type InPlaceSwitchHandler = (args: InPlaceSwitchArgs) => void;
+let inPlaceSwitchHandler: InPlaceSwitchHandler | null = null;
+
+export function setInPlaceSwitchHandler(fn: InPlaceSwitchHandler | null): void {
+  inPlaceSwitchHandler = fn;
+}
+
+// Registered by App: checks live app state (currently: voice) and returns a
+// human-readable refusal reason, or null to allow the switch. Defense in
+// depth — the UI also disables the Switch button in the same situations, but
+// this is the one place every switchAccount call actually goes through.
+type SwitchGuard = () => string | null;
+let switchGuard: SwitchGuard | null = null;
+
+export function setSwitchGuard(fn: SwitchGuard | null): void {
+  switchGuard = fn;
+}
+
+// Protects the remount + hub-reconnect window: AccountRoot's key-remount and
+// the new account's restorePersistedHubs() need a moment to settle before
+// another switch tears it down mid-flight. Chosen to comfortably cover a
+// slow hub reconnect without making the device feel locked.
+export const SWITCH_COOLDOWN_MS = 4000;
+let lastSwitchAt = 0;
+
+export function switchCooldownRemainingMs(now: number = Date.now()): number {
+  return Math.max(0, SWITCH_COOLDOWN_MS - (now - lastSwitchAt));
+}
+
+// Sentinel returned by switchAccount when the cooldown (and only the
+// cooldown) refused the switch — store.ts has no i18n access, so callers map
+// this to their own translated message. A guard refusal, by contrast, is
+// already a human-readable string (the caller-registered guard produces it).
+export const SWITCH_BLOCKED_COOLDOWN = "cooldown";
+
+// Switching accounts swaps the active pointer and hands off to whichever
+// switch mechanism is registered (see setInPlaceSwitchHandler above).
 //
-// returnTo: one-shot post-reload destination (sessionStorage, same tab only).
-// Every switch initiated from Settings passes "settings-account" so the user
-// lands back where they were — managing per-account sections means switching,
-// and bouncing to the main view each time made that needlessly tedious.
-export function switchAccount(id: string, returnTo?: "settings-account", overlayText?: string): void {
+// returnTo: post-switch destination. Every switch initiated from Settings
+// passes "settings-account" so the user lands back where they were —
+// managing per-account sections means switching, and bouncing to the main
+// view each time made that needlessly tedious.
+//
+// `now` is only ever overridden by tests (injectable clock for the cooldown
+// math); every real call site uses the default.
+export function switchAccount(
+  id: string,
+  returnTo?: "settings-account",
+  now: number = Date.now(),
+): string | null {
+  if (switchCooldownRemainingMs(now) > 0) return SWITCH_BLOCKED_COOLDOWN;
+  const guardReason = switchGuard?.();
+  if (guardReason) return guardReason;
+
+  lastSwitchAt = now;
   setActiveAccountId(id);
+  if (inPlaceSwitchHandler) {
+    inPlaceSwitchHandler({ id, returnTo });
+    return null;
+  }
   try {
     if (returnTo) sessionStorage.setItem("wavvon:post_switch_return", returnTo);
-    // Persist the overlay text so the boot side (main.tsx) re-paints the
-    // same overlay after the reload — one continuous transition instead of
-    // a white flash. Consumed by showAccountSwitchOverlay on boot.
-    if (overlayText) sessionStorage.setItem("wavvon:switch_overlay_text", overlayText);
   } catch {
     // storage unavailable — switch still works, just lands on the main view
   }
-  if (overlayText) showAccountSwitchOverlay(overlayText);
   window.location.reload();
+  return null;
 }
 
 // One-shot post-switch destination, consumed exactly once per page load at
@@ -235,30 +290,6 @@ const postSwitchReturnValue: string | null = (() => {
 
 export function getPostSwitchReturn(): string | null {
   return postSwitchReturnValue;
-}
-
-// Paints a full-screen overlay synchronously (plain DOM — must work both
-// before the reload and before React mounts on the next boot). Removed by
-// App's mount effect once the new account's UI is rendering.
-export function showAccountSwitchOverlay(text: string): void {
-  if (typeof document === "undefined" || document.getElementById("account-switch-overlay")) return;
-  const el = document.createElement("div");
-  el.id = "account-switch-overlay";
-  el.setAttribute("role", "status");
-  el.style.cssText =
-    "position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;" +
-    "background:var(--bg, #14161a);color:var(--text-muted, #9aa2ad);font-size:15px;";
-  el.textContent = text;
-  document.body.appendChild(el);
-}
-
-export function removeAccountSwitchOverlay(): void {
-  try {
-    sessionStorage.removeItem("wavvon:switch_overlay_text");
-  } catch {
-    // storage unavailable
-  }
-  document.getElementById("account-switch-overlay")?.remove();
 }
 
 export async function generateIdentity(): Promise<IdentityRecord> {

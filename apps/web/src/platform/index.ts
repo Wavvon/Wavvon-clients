@@ -1,4 +1,4 @@
-export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId } from "./session";
+export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId, resetHubSessions } from "./session";
 export { hubFetch, rawFetch, HubApiError, fetchWithTimeout } from "./http";
 export { HubWebSocket } from "./ws";
 export type { WsHandlers } from "./ws";

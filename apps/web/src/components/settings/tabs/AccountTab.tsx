@@ -21,6 +21,7 @@ interface Props {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
+  inVoice: boolean;
 }
 
 export function AccountTab(props: Props) {
@@ -30,7 +31,7 @@ export function AccountTab(props: Props) {
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.account")}</h1>
-      <AccountsSwitcherSection />
+      <AccountsSwitcherSection inVoice={props.inVoice} />
       <div className="settings-section">
         <label className="settings-label">{t("settings.security.recovery.label")}</label>
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>

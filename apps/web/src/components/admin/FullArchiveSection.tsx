@@ -12,7 +12,7 @@ import {
   type ArchiveIdentityInput,
   type RestoreSummary,
 } from "@shared/utils/archiveRestore";
-import { listAccounts, resolveOrCreateAccount, switchAccount, type SubkeyCert } from "@identity/index";
+import { listAccounts, resolveOrCreateAccount, switchAccount, SWITCH_BLOCKED_COOLDOWN, type SubkeyCert } from "@identity/index";
 
 interface Props {
   publicKey: string | null;
@@ -42,6 +42,16 @@ export function FullArchiveSection({ publicKey }: Props) {
   const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
   const open = mode === "export";
+
+  // switchAccount refuses (voice guard, switch cooldown) rather than always
+  // succeeding — surface that the same way every other failure in this
+  // section does.
+  function switchOrShowError(accountId: string) {
+    const refused = switchAccount(accountId, "settings-account");
+    if (refused) {
+      setError(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+    }
+  }
 
   async function handleExport() {
     if (passphrase !== confirm) {
@@ -126,7 +136,7 @@ export function FullArchiveSection({ publicKey }: Props) {
       setRestoreSummary(plan.summary);
 
       if (!hadAnyAccountBefore) {
-        switchAccount(account.id, "settings-account", t("settings.account.accounts.switching"));
+        switchOrShowError(account.id);
         return;
       }
       if (
@@ -137,7 +147,7 @@ export function FullArchiveSection({ publicKey }: Props) {
           }),
         )
       ) {
-        switchAccount(account.id, "settings-account", t("settings.account.accounts.switching"));
+        switchOrShowError(account.id);
       }
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));

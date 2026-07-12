@@ -46,6 +46,7 @@ interface SettingsPageProps {
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
   onImportSkin: (skin: WavvonSkin) => void;
+  inVoice: boolean;
 }
 
 export function SettingsPage(props: SettingsPageProps) {
@@ -155,6 +156,7 @@ export function SettingsPage(props: SettingsPageProps) {
             onUnblock={props.onUnblock}
             onUnignore={props.onUnignore}
             knownNames={props.knownNames}
+            inVoice={props.inVoice}
           />
         )}
       </main>

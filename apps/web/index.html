@@ -6,27 +6,6 @@
     <title>Wavvon</title>
   </head>
   <body>
-    <script>
-      // Mid-account-switch: paint the transition overlay at HTML parse time,
-      // before the module graph loads (in dev that's seconds) — otherwise the
-      // reload flashes the unstyled white document. Must stay inline and
-      // dependency-free; removed by App once the new account's UI renders.
-      (function () {
-        try {
-          var t = sessionStorage.getItem("wavvon:switch_overlay_text");
-          if (!t) return;
-          document.documentElement.style.background = "#14161a";
-          var el = document.createElement("div");
-          el.id = "account-switch-overlay";
-          el.setAttribute("role", "status");
-          el.style.cssText =
-            "position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;" +
-            "background:#14161a;color:#9aa2ad;font-size:15px;font-family:system-ui,sans-serif;";
-          el.textContent = t;
-          document.body.appendChild(el);
-        } catch (e) {}
-      })();
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -36,6 +36,21 @@ export function allSessions(): HubSession[] {
   return Array.from(sessions.values());
 }
 
+// `sessions` and `activeHubId` are module-level singletons — they outlive a
+// React remount (unlike component state, which resets by construction). An
+// in-place account switch must close out every hub WebSocket the outgoing
+// account had open and clear the pointer itself, or the incoming account's
+// restorePersistedHubs() would layer new sessions on top of live ones nobody
+// ever closed. Called once by AccountRoot's switch handler, before the new
+// account's App instance mounts.
+export function resetHubSessions(): void {
+  for (const s of sessions.values()) {
+    s.ws?.close();
+  }
+  sessions.clear();
+  activeHubId = null;
+}
+
 export function getActiveHubId(): string | null {
   return activeHubId;
 }

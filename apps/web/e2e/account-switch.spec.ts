@@ -1,11 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { injectTwoAccountSession, mockJson, HUB_URL, ACCOUNT1, ACCOUNT2 } from "./helpers/mockApi";
 
-// Account switching regression (found in live testing 2026-07-12):
-// 1. the reload must show the transition overlay, not a white flash —
-//    painted pre-reload and repainted by index.html's inline script;
-// 2. a switch initiated from Settings must land back in Settings → Account
-//    (the one-shot return flag raced StrictMode when consumed during render).
+// Account switching is an in-place key-remount, not a page reload (see
+// AccountRoot.tsx / identity/store.ts switchAccount): no white flash to
+// paper over, so there's no overlay, and the tab never navigates.
 
 const ME_INFO = {
   public_key: ACCOUNT1.pubkey,
@@ -44,7 +42,7 @@ async function openAccountTab(page: import("@playwright/test").Page) {
   await page.locator(".settings-nav").getByRole("button", { name: "Account", exact: true }).click();
 }
 
-test("switching accounts shows the overlay and returns to Settings → Account", async ({ page }) => {
+test("switching accounts happens in place — no overlay, no reload, lands back on Settings → Account", async ({ page }) => {
   await setupBaseRoutes(page);
   await page.goto("/");
   await openAccountTab(page);
@@ -57,27 +55,34 @@ test("switching accounts shows the overlay and returns to Settings → Account",
   const row2 = table.locator("tr", { hasText: ACCOUNT2.label });
   await expect(row1.getByRole("button", { name: "Active" })).toBeDisabled();
 
-  // Switch to account 2. The overlay must paint synchronously before the
-  // reload navigation begins.
-  await row2.getByRole("button", { name: "Switch", exact: true }).click();
-  await expect(page.locator("#account-switch-overlay")).toBeVisible();
+  // Proves no navigation happens: a real reload would wipe this.
+  await page.evaluate(() => { (window as unknown as { __noReloadMarker?: number }).__noReloadMarker = 42; });
 
-  // After the reload: no re-navigation by the test — the app must come back
-  // on its own, land in Settings → Account, and show account 2 as active.
+  await row2.getByRole("button", { name: "Switch", exact: true }).click();
+
+  // The switch is a synchronous key-remount — no transition overlay ever
+  // gets attached, at any point.
+  await expect(page.locator("#account-switch-overlay")).toHaveCount(0);
+
+  // Settings → Account for the new account, account 2 now shows as active.
   await expect(page.locator(".settings-nav")).toBeVisible({ timeout: 15000 });
   const tableAfter = page.locator(".members-table");
   await expect(tableAfter).toBeVisible();
   const row2After = tableAfter.locator("tr", { hasText: ACCOUNT2.label });
   await expect(row2After.getByRole("button", { name: "Active" })).toBeDisabled();
+
   const activeId = await page.evaluate(() => localStorage.getItem("wavvon:active_account_id"));
   expect(activeId).toBe(ACCOUNT2.pubkey);
 
-  // The overlay must be gone once the UI is up, and the one-shot flags
-  // consumed (a leftover flag would replay the redirect on the next reload).
-  await expect(page.locator("#account-switch-overlay")).toHaveCount(0);
-  const leftoverFlags = await page.evaluate(() => [
-    sessionStorage.getItem("wavvon:post_switch_return"),
-    sessionStorage.getItem("wavvon:switch_overlay_text"),
-  ]);
-  expect(leftoverFlags).toEqual([null, null]);
+  // No navigation occurred — the marker set before the switch survived it.
+  const marker = await page.evaluate(() => (window as unknown as { __noReloadMarker?: number }).__noReloadMarker);
+  expect(marker).toBe(42);
+
+  // Switch cooldown: immediately after a switch, every row's Switch button
+  // (including the now-inactive account 1's) is disabled for a few seconds
+  // to protect the remount + hub-reconnect window. Not asserting
+  // re-enablement here — that's covered by the cooldown unit tests without
+  // a time-based wait.
+  const row1After = tableAfter.locator("tr", { hasText: ACCOUNT1.label });
+  await expect(row1After.getByRole("button", { name: "Switch", exact: true })).toBeDisabled();
 });

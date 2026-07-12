@@ -3,7 +3,16 @@ import { useTranslation } from "react-i18next";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { applySkinTokens, clearSkinTokens } from "../skinValidation";
 import type { SettingsTab } from "@components/settings/SettingsPage";
-import { loadIdentity, seedToPhrase, phraseToSeed, validatePhrase, resolveOrCreateAccount, switchAccount, getPostSwitchReturn } from "@identity/index";
+import {
+  loadIdentity,
+  seedToPhrase,
+  phraseToSeed,
+  validatePhrase,
+  resolveOrCreateAccount,
+  switchAccount,
+  getPostSwitchReturn,
+  SWITCH_BLOCKED_COOLDOWN,
+} from "@identity/index";
 import { makeSeed } from "@components/settings/SkinEditor";
 import type { CustomThemeStore, NamedCustomTheme } from "../utils/customThemes";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "../utils/customThemes";
@@ -11,16 +20,19 @@ import { getScoped } from "../utils/accountScope";
 
 const APPEARANCE_KEY = "wavvon:appearance";
 
-export function useSettingsProfile(setPublicKey: (key: string) => void) {
+export function useSettingsProfile(setPublicKey: (key: string) => void, initialView?: "settings-account") {
   const { t } = useTranslation();
-  // One-shot return destination written by switchAccount just before its
-  // reload: switching from Settings → Account lands the user back there.
-  // Consumed at module init (getPostSwitchReturn), NOT here — a render-time
-  // read+remove races StrictMode's double render.
+  // Two ways to land back on Settings → Account after a switch: `initialView`
+  // (the in-place path — AccountRoot forwards it as a prop, set in memory,
+  // no storage involved) or the one-shot `getPostSwitchReturn()` flag (the
+  // reload-fallback path only, written to sessionStorage just before the
+  // reload). Consumed at module init, NOT here — a render-time read+remove
+  // races StrictMode's double render.
   const postSwitchReturn = getPostSwitchReturn();
-  const [showSettings, setShowSettings] = useState(postSwitchReturn === "settings-account");
+  const effectiveInitialView = initialView ?? (postSwitchReturn === "settings-account" ? "settings-account" : undefined);
+  const [showSettings, setShowSettings] = useState(effectiveInitialView === "settings-account");
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(
-    postSwitchReturn === "settings-account" ? "account" : "profile",
+    effectiveInitialView === "settings-account" ? "account" : "profile",
   );
   const [theme, setTheme] = useState<ThemeId>(() => {
     try {
@@ -140,14 +152,17 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
 
   // Recovering a different phrase here means bringing another account onto
   // this device (or switching to it, if it's already here) — never silently
-  // overwriting the active identity. Reloads via switchAccount when it
+  // overwriting the active identity. Switches to it (in place) when it
   // differs from the currently active one.
   async function handleRecoverIdentity(ph: string) {
     if (!validatePhrase(ph)) throw new Error("Invalid phrase");
     const hex = phraseToSeed(ph);
     const { account } = await resolveOrCreateAccount(hex);
     setRecoveryPhrase(null);
-    switchAccount(account.id, "settings-account", t("settings.account.accounts.switching"));
+    const refused = switchAccount(account.id, "settings-account");
+    if (refused) {
+      throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+    }
   }
 
   return {

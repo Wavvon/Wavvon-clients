@@ -7,6 +7,8 @@ import {
   saveIdentity,
   removeAccount,
   switchAccount,
+  switchCooldownRemainingMs,
+  SWITCH_BLOCKED_COOLDOWN,
   setAccountOrder,
   type IdentityRecord,
 } from "@identity/index";
@@ -20,10 +22,16 @@ function shortFingerprint(id: string): string {
   return id.slice(0, 8);
 }
 
+interface Props {
+  // Whether this device's active account is currently joined to a voice
+  // channel — switching is blocked outright while true (not auto-left).
+  inVoice?: boolean;
+}
+
 // Accounts are device-local: this list is just every row in the identity
 // store (see identity/store.ts) — there is no server-side account registry
 // and nothing here is ever synced to a hub.
-export function AccountsSwitcherSection() {
+export function AccountsSwitcherSection({ inVoice = false }: Props) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<IdentityRecord[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -35,6 +43,12 @@ export function AccountsSwitcherSection() {
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  // No countdown UI — this just re-renders often enough that the Switch
+  // buttons re-enable themselves once the cooldown (switchCooldownRemainingMs)
+  // actually expires, without polling a fixed timeout tied to the cooldown
+  // constant itself.
+  const [, forceCooldownTick] = useState(0);
   const handleRefs = useRef(new Map<string, HTMLTableRowElement>());
 
   function refresh() {
@@ -45,6 +59,21 @@ export function AccountsSwitcherSection() {
   useEffect(() => {
     refresh();
   }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => forceCooldownTick((n) => n + 1), 500);
+    return () => clearInterval(id);
+  }, []);
+
+  const cooldownActive = switchCooldownRemainingMs() > 0;
+
+  function handleSwitchClick(accountId: string) {
+    setSwitchError(null);
+    const refused = switchAccount(accountId, "settings-account");
+    if (refused) {
+      setSwitchError(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+    }
+  }
 
   function startRename(account: IdentityRecord) {
     setRenamingId(account.id);
@@ -146,6 +175,7 @@ export function AccountsSwitcherSection() {
       <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
         {t("settings.account.accounts.pubkey_hint")}
       </p>
+      {switchError && <p className="error-text" style={{ marginBottom: 8 }}>{switchError}</p>}
 
       <table className="members-table" style={{ marginTop: 4 }}>
         <thead>
@@ -259,9 +289,15 @@ export function AccountsSwitcherSection() {
                         <button
                           type="button"
                           className="btn-small btn-secondary"
-                          disabled={isActive}
-                          title={isActive ? t("settings.account.accounts.active_hint") : undefined}
-                          onClick={() => switchAccount(account.id, "settings-account", t("settings.account.accounts.switching"))}
+                          disabled={isActive || inVoice || cooldownActive}
+                          title={
+                            isActive
+                              ? t("settings.account.accounts.active_hint")
+                              : inVoice
+                                ? t("settings.account.accounts.switch_blocked_voice")
+                                : undefined
+                          }
+                          onClick={() => handleSwitchClick(account.id)}
                         >
                           {isActive ? t("settings.account.accounts.active_button") : t("settings.account.accounts.switch")}
                         </button>

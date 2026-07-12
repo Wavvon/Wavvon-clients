@@ -125,7 +125,7 @@ import {
   publishDhKey,
   createConversation,
 } from "@platform";
-import { loadIdentity, publicKeyHex, removeAccountSwitchOverlay } from "@identity/index";
+import { loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
 import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
 
 // ---- Types ----
@@ -138,7 +138,14 @@ type HubPreview =
 
 // ---- App ----
 
-export default function App() {
+export interface AppProps {
+  // Set by AccountRoot right after an in-place account switch initiated from
+  // Settings → Account, so the user lands back there on the new account
+  // instead of the main view.
+  initialView?: "settings-account";
+}
+
+export default function App({ initialView }: AppProps = {}) {
   const { t } = useTranslation();
   // === Identity ===
   const [ready, setReady] = useState<"checking" | "setup" | "ok">("checking");
@@ -163,7 +170,7 @@ export default function App() {
     handleImportCustomTheme,
     handleShowRecovery,
     handleRecoverIdentity,
-  } = useSettingsProfile(setPublicKey);
+  } = useSettingsProfile(setPublicKey, initialView);
 
   // === Hubs ===
   const [hubs, setHubs] = useState<Hub[]>([]);
@@ -472,10 +479,27 @@ export default function App() {
   const [hubStreams, setHubStreams] = useState<import("./types").HubStreamInfo[]>([]);
   const [showHubStreams, setShowHubStreams] = useState(false);
   const subscribedStreamIds = useRef<Set<string>>(new Set());
-  // Mid-account-switch overlay (painted pre-reload and re-painted by
-  // main.tsx on boot): drop it once the new account's UI has rendered.
+  // Registered so switchAccount can refuse a mid-voice switch at the source
+  // (defense in depth alongside the disabled Switch button in Settings →
+  // Account) — switching accounts while joined to a voice channel is blocked
+  // outright, not auto-left on the caller's behalf.
   useEffect(() => {
-    removeAccountSwitchOverlay();
+    setSwitchGuard(() => (voiceChannelId ? t("settings.account.accounts.switch_blocked_voice") : null));
+    return () => setSwitchGuard(null);
+  }, [voiceChannelId, t]);
+
+  // Per-instance resources this App holds that any unmount (a key-remounted
+  // account switch, or otherwise) must tear down explicitly. Module-level
+  // singletons like the hub WebSocket sessions are reset separately, by
+  // AccountRoot's switch handler (platform/session.ts resetHubSessions) —
+  // that reset runs regardless of whether this cleanup does.
+  useEffect(() => {
+    return () => {
+      voiceSessionRef.current?.stop();
+      videoSessionRef.current?.dispose();
+      screenShareSessionRef.current?.stop();
+      backgroundProcessorRef.current?.stop();
+    };
   }, []);
   // Reload PTT config when the settings screen changes it.
   useEffect(() => {
@@ -2357,6 +2381,7 @@ export default function App() {
             onUnblock={toggleBlockUser}
             onUnignore={toggleIgnoreUser}
             knownNames={pubkeyToName}
+            inVoice={voiceChannelId !== null}
           />
         </div>
       )}

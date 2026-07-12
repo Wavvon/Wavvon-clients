@@ -15,8 +15,10 @@ export {
   removeAccount,
   switchAccount,
   getPostSwitchReturn,
-  showAccountSwitchOverlay,
-  removeAccountSwitchOverlay,
+  setInPlaceSwitchHandler,
+  setSwitchGuard,
+  switchCooldownRemainingMs,
+  SWITCH_BLOCKED_COOLDOWN,
 } from "./store";
 export type { IdentityRecord } from "./store";
 export { dhKeypairFromSeed, encryptDm, decryptDm, signBytes, publicKeyHex, dhKeySigningBytes } from "@wavvon/core";
