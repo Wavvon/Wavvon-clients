@@ -45,7 +45,7 @@ import { ChannelSidebar } from "@components/layout/ChannelSidebar";
 import { ContentArea } from "@components/layout/ContentArea";
 import { WhisperBar } from "@components/voice/WhisperBar";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
-import { loadProfiles, saveProfiles, newProfileId } from "./utils/profiles";
+import { loadDefaultProfile, saveDefaultProfile, type DefaultProfile } from "./utils/profiles";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
 import { Lobby } from "@components/layout/Lobby";
@@ -363,47 +363,33 @@ export default function App({ initialView }: AppProps = {}) {
     },
   });
 
-  // === Profiles (client-only named display-name/avatar presets) ===
-  const [profileStore, setProfileStore] = useState(loadProfiles);
-  const namedProfiles = profileStore.profiles;
-  const defaultProfileId = profileStore.defaultProfileId;
-
-  function mutateProfiles(next: ReturnType<typeof loadProfiles>) {
-    setProfileStore(next);
-    saveProfiles(next);
-  }
-  function handleCreateProfile(label: string, displayName: string, avatar: string | null) {
-    const profile = { id: newProfileId(), label, display_name: displayName, avatar };
-    mutateProfiles({
-      profiles: [...profileStore.profiles, profile],
-      defaultProfileId: profileStore.defaultProfileId ?? profile.id,
-    });
-  }
-  function handleUpdateProfile(id: string, patch: Partial<{ label: string; display_name: string; avatar: string | null }>) {
-    mutateProfiles({
-      ...profileStore,
-      profiles: profileStore.profiles.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-    });
-  }
-  function handleDeleteProfile(id: string) {
-    mutateProfiles({
-      profiles: profileStore.profiles.filter((p) => p.id !== id),
-      defaultProfileId: profileStore.defaultProfileId === id ? null : profileStore.defaultProfileId,
-    });
-  }
-  function handleSetDefaultProfile(id: string) {
-    mutateProfiles({ ...profileStore, defaultProfileId: id });
-  }
-  async function handleApplyProfileToHub(id: string) {
-    const p = profileStore.profiles.find((x) => x.id === id);
-    if (!p) return;
+  // === Profile on the active hub (community-axis; the hub is the source of
+  // truth, PATCH /me writes it). The per-account default profile is read from
+  // scoped storage at use time — no App state to go stale.
+  async function handleUpdateHubProfile(profile: DefaultProfile) {
     try {
-      await hubFetch("/me", { method: "PATCH", body: JSON.stringify({ display_name: p.display_name, avatar: p.avatar }) });
+      await hubFetch("/me", {
+        method: "PATCH",
+        body: JSON.stringify({
+          display_name: profile.display_name,
+          avatar: profile.avatar ?? "",
+          bio: profile.bio ?? "",
+          pronouns: profile.pronouns ?? "",
+        }),
+      });
       hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
       hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
     } catch (e) {
       showHubError(e instanceof HubApiError ? e.message : String(e));
     }
+  }
+
+  // The settings profile editor PATCHes any hub itself (via that hub's own
+  // session); App only needs to refresh its active-hub mirrors afterwards.
+  function handleHubProfileSaved(hubId: string) {
+    if (hubId !== activeHubId) return;
+    hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
+    hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
   }
 
   // === Farm admin ===
@@ -572,7 +558,7 @@ export default function App({ initialView }: AppProps = {}) {
   function handleIdentityComplete(result: IdentitySetupCompletion) {
     // Nickname + avatar chosen during onboarding become the default profile,
     // which the first-hub effect below applies automatically via PATCH /me.
-    if (result.profile) handleCreateProfile(result.profile.display_name, result.profile.display_name, result.profile.avatar);
+    if (result.profile) saveDefaultProfile({ display_name: result.profile.display_name, avatar: result.profile.avatar, bio: null, pronouns: null });
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
@@ -611,13 +597,12 @@ export default function App({ initialView }: AppProps = {}) {
   useEffect(() => {
     if (hubs.length === 1 && meInfo !== null && !meInfo.display_name) {
       // A default profile means the user already told us who they want to
-      // be — apply it silently instead of asking again. Only fall back to
-      // the prompt when there's truly nothing saved yet (no profiles at
-      // all); if profiles exist but none is marked default, leave it to
-      // the user to pick one in Settings rather than guessing.
-      if (defaultProfileId) {
-        void handleApplyProfileToHub(defaultProfileId);
-      } else if (namedProfiles.length === 0) {
+      // be — apply it silently instead of asking again. Read at fire time so
+      // edits made in Settings since mount are honored.
+      const def = loadDefaultProfile();
+      if (def) {
+        void handleUpdateHubProfile(def);
+      } else {
         setShowDisplayNamePrompt(true);
       }
     }
@@ -2361,14 +2346,7 @@ export default function App({ initialView }: AppProps = {}) {
             onDuplicateCustomTheme={handleDuplicateCustomTheme}
             onDeleteCustomTheme={handleDeleteCustomTheme}
             onImportSkin={handleImportCustomTheme}
-            profiles={namedProfiles}
-            defaultProfileId={defaultProfileId}
-            activeDisplayName={meInfo?.display_name ?? null}
-            onCreateProfile={handleCreateProfile}
-            onUpdateProfile={handleUpdateProfile}
-            onDeleteProfile={handleDeleteProfile}
-            onSetDefaultProfile={handleSetDefaultProfile}
-            onApplyProfileToHub={handleApplyProfileToHub}
+            onHubProfileSaved={handleHubProfileSaved}
             mentionPingEnabled={mentionPingEnabled}
             onMentionPingChange={(v) => {
               setMentionPingEnabled(v);

@@ -846,6 +846,64 @@ select,
   padding-top: 10px;
 }
 
+/* Avatar that edits itself: hover/focus darkens it and shows a pencil.
+   Wraps an <Avatar> inside a real <button> for keyboard access. */
+.avatar-edit-btn {
+  position: relative;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.avatar-edit-btn .avatar-edit-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: var(--text-md);
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.avatar-edit-btn:hover .avatar-edit-overlay,
+.avatar-edit-btn:focus-visible .avatar-edit-overlay {
+  opacity: 1;
+}
+
+/* Inline profile fields: read as card text at rest, reveal an editing
+   underline on hover/focus (the WYSIWYG profile editor). */
+.profile-inline-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  border-radius: 0;
+  padding: 0 2px;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  transition: border-color var(--motion-fast);
+}
+
+.profile-inline-input:hover,
+.profile-inline-input:focus {
+  border-bottom-color: var(--border);
+  outline: none;
+  box-shadow: none;
+}
+
+.profile-inline-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
 .avatar-chooser {
   display: flex;
   flex-direction: column;

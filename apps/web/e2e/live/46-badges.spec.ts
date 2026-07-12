@@ -59,7 +59,7 @@ test("a granted badge shows in the member's portfolio and can be hidden", async 
     });
 
     await member.locator(".btn-icon-gear").click();
-    await member.getByRole("button", { name: "Account", exact: true }).click();
+    await member.getByRole("button", { name: "Profile", exact: true }).click();
     const section = member
       .locator(".settings-section", { has: member.getByText("Badges & certifications") })
       .first();

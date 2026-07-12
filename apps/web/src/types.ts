@@ -61,13 +61,22 @@ export interface PinnedMessage {
   pinned_by: string;
 }
 
+export interface BadgeSummary {
+  id: string;
+  label: string;
+}
+
 export interface UserProfile {
   pubkey: string;
   display_name: string | null;
   avatar: string | null;
+  bio: string | null;
+  pronouns: string | null;
   joined_at: number;
   roles: RoleInfo[];
-  badges: string[];
+  // The hub serializes badges as {id, label} objects (BadgeSummary in
+  // routes/users.rs) — typing them as strings crashed the card render.
+  badges: BadgeSummary[];
 }
 
 export interface PollOption {
@@ -230,17 +239,12 @@ export interface ChannelPermissionsResponse {
   roles: ChannelRolePermissions[];
 }
 
-export interface NamedProfile {
-  id: string;
-  label: string;
-  display_name: string;
-  avatar: string | null;
-}
-
 export interface MeInfo {
   public_key: string;
   display_name: string | null;
   avatar: string | null;
+  bio: string | null;
+  pronouns: string | null;
   approval_status: "approved" | "pending";
   roles: RoleInfo[];
 }

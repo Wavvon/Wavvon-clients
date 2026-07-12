@@ -32,7 +32,7 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
   const effectiveInitialView = initialView ?? (postSwitchReturn === "settings-account" ? "settings-account" : undefined);
   const [showSettings, setShowSettings] = useState(effectiveInitialView === "settings-account");
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(
-    effectiveInitialView === "settings-account" ? "account" : "profile",
+    effectiveInitialView === "settings-account" ? "accounts" : "profile",
   );
   const [theme, setTheme] = useState<ThemeId>(() => {
     try {

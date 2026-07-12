@@ -29,10 +29,30 @@ interface Props {
 }
 
 export function AppearanceTab(props: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = (i18n.language ?? "en").slice(0, 2);
+  function changeLanguage(lng: string) {
+    void i18n.changeLanguage(lng);
+    try { localStorage.setItem("wavvon_language", lng); } catch { /* ignore */ }
+  }
+
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.appearance")}</h1>
+      <div className="settings-section">
+        <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
+        <select
+          id="settings-language"
+          value={currentLang}
+          onChange={(e) => changeLanguage(e.target.value)}
+          style={{ width: "100%", maxWidth: 320 }}
+        >
+          <option value="en">English</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </div>
       <div className="settings-section">
         <label className="settings-label">{t("settings.theme.label")}</label>
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>

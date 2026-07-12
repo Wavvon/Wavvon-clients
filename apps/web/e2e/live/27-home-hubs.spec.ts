@@ -7,7 +7,7 @@ import { expectInHub, HUB_URL } from "./helpers/live";
 
 async function openHomeHubs(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: "Manage accounts", exact: true }).click();
   const section = page
     .locator(".settings-section", { has: page.getByText("Home hubs", { exact: true }) })
     .first();

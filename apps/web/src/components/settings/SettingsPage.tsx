@@ -1,15 +1,28 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Hub, NamedProfile, BlockEntry, IgnoreEntry } from "@shared/types";
+import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
 import type { ThemeId, WavvonSkin } from "../../skinValidation";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
+import { listAccountsOrdered, getActiveAccountId, type IdentityRecord } from "@identity/index";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { NotificationsTab } from "./tabs/NotificationsTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { VoiceTab } from "./tabs/VoiceTab";
 import { CameraTab } from "./tabs/CameraTab";
-import { AccountTab } from "./tabs/AccountTab";
+import { ManageAccountsTab } from "./tabs/ManageAccountsTab";
+import { DevicesTab } from "./tabs/DevicesTab";
+import { PrivacyTab } from "./tabs/PrivacyTab";
+import { resolveManagingAccount } from "./tabs/resolveManagingAccount";
 
-export type SettingsTab = "profile" | "notifications" | "appearance" | "account" | "voice" | "camera";
+export type SettingsTab =
+  | "profile"
+  | "accounts"
+  | "devices"
+  | "privacy"
+  | "notifications"
+  | "appearance"
+  | "voice"
+  | "camera";
 
 interface SettingsPageProps {
   tab: SettingsTab;
@@ -28,14 +41,7 @@ interface SettingsPageProps {
   onRenameCustomTheme: (id: string, name: string) => void;
   onDuplicateCustomTheme: (id: string) => void;
   onDeleteCustomTheme: (id: string) => void;
-  profiles: NamedProfile[];
-  defaultProfileId: string | null;
-  activeDisplayName: string | null;
-  onCreateProfile: (label: string, displayName: string, avatar: string | null) => void;
-  onUpdateProfile: (id: string, patch: Partial<Omit<NamedProfile, "id">>) => void;
-  onDeleteProfile: (id: string) => void;
-  onSetDefaultProfile: (id: string) => void;
-  onApplyProfileToHub: (id: string) => void;
+  onHubProfileSaved?: (hubId: string) => void;
   mentionPingEnabled?: boolean;
   onMentionPingChange?: (v: boolean) => void;
   recoveryPhrase: string | null;
@@ -51,20 +57,47 @@ interface SettingsPageProps {
 
 export function SettingsPage(props: SettingsPageProps) {
   const { t } = useTranslation();
+  // Managing-account state is owned here, not per tab, so picking an account
+  // in Profile carries over to Devices/Privacy instead of resetting on every
+  // tab change. Ephemeral by design: remounts (and re-defaults to the active
+  // account) whenever the account actually switches, since App keys off the
+  // account id (AccountRoot.tsx).
+  const activeId = getActiveAccountId();
+  const [accounts, setAccounts] = useState<IdentityRecord[] | null>(null);
+  const [managingId, setManagingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listAccountsOrdered().then((list) => {
+      if (cancelled) return;
+      setAccounts(list);
+      setManagingId((prev) => prev ?? activeId ?? list[0]?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const managing = resolveManagingAccount(accounts, managingId, activeId);
+  const perAccount = { accounts, activeId, managing, onManagingChange: setManagingId };
+
   // Grouped into contiguous sections so the nav reads clearly, mirroring the
-  // HubAdminPage nav pattern. Tab ids and labels are unchanged — only visual
-  // grouping is added.
-  const G_YOU = t("settings.nav_groups.you");
+  // HubAdminPage nav pattern. "Accounts" holds everything identity-shaped:
+  // who you are (profile), which accounts live on this device, what can act
+  // as them (devices), and who they've blocked (privacy).
+  const G_ACCOUNTS = t("settings.nav_groups.accounts");
   const G_APP = t("settings.nav_groups.app");
   const G_AV = t("settings.nav_groups.audio_video");
-  const G_SECURITY = t("settings.nav_groups.security");
   const TABS: { id: SettingsTab; label: string; group: string }[] = [
-    { id: "profile", label: t("settings.tabs.profile"), group: G_YOU },
+    { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
+    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS },
+    { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
+    { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
     { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
     { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
     { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
     { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
-    { id: "account", label: t("settings.tabs.account"), group: G_SECURITY },
   ];
 
   return (
@@ -105,14 +138,35 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "profile" && (
           <ProfileTab
             hubs={props.hubs}
-            profiles={props.profiles}
-            defaultProfileId={props.defaultProfileId}
-            activeDisplayName={props.activeDisplayName}
-            onCreateProfile={props.onCreateProfile}
-            onUpdateProfile={props.onUpdateProfile}
-            onDeleteProfile={props.onDeleteProfile}
-            onSetDefaultProfile={props.onSetDefaultProfile}
-            onApplyProfileToHub={props.onApplyProfileToHub}
+            publicKey={props.publicKey}
+            onHubProfileSaved={props.onHubProfileSaved}
+            {...perAccount}
+          />
+        )}
+
+        {props.tab === "accounts" && (
+          <ManageAccountsTab
+            hubs={props.hubs}
+            publicKey={props.publicKey}
+            recoveryPhrase={props.recoveryPhrase}
+            onShowRecovery={props.onShowRecovery}
+            inVoice={props.inVoice}
+            {...perAccount}
+          />
+        )}
+
+        {props.tab === "devices" && (
+          <DevicesTab hubs={props.hubs} publicKey={props.publicKey} {...perAccount} />
+        )}
+
+        {props.tab === "privacy" && (
+          <PrivacyTab
+            blocks={props.blocks}
+            ignores={props.ignores}
+            onUnblock={props.onUnblock}
+            onUnignore={props.onUnignore}
+            knownNames={props.knownNames}
+            {...perAccount}
           />
         )}
 
@@ -144,21 +198,6 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "voice" && <VoiceTab />}
 
         {props.tab === "camera" && <CameraTab />}
-
-        {props.tab === "account" && (
-          <AccountTab
-            hubs={props.hubs}
-            publicKey={props.publicKey}
-            recoveryPhrase={props.recoveryPhrase}
-            onShowRecovery={props.onShowRecovery}
-            blocks={props.blocks}
-            ignores={props.ignores}
-            onUnblock={props.onUnblock}
-            onUnignore={props.onUnignore}
-            knownNames={props.knownNames}
-            inVoice={props.inVoice}
-          />
-        )}
       </main>
     </div>
   );

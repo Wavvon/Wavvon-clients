@@ -57,15 +57,17 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
       aria-modal="true"
       aria-label={t("user.profile.aria_label")}
     >
+      {/* .modal, not the undefined .modal-box — the card was rendering with
+          a transparent background. */}
       <div
-        className="modal-box"
-        style={{ maxWidth: 360, padding: 24 }}
+        className="modal"
+        style={{ maxWidth: 360, position: "relative" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="modal-close"
           onClick={onClose}
           aria-label={t("user.profile.close")}
+          style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}
         >
           ×
         </button>
@@ -86,6 +88,9 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
                 <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>
                   {profile.display_name ?? <span className="muted">{t("profile.no_display_name")}</span>}
                 </div>
+                {profile.pronouns && (
+                  <div className="muted" style={{ fontSize: "var(--text-sm)" }}>{profile.pronouns}</div>
+                )}
                 <div
                   className="muted"
                   style={{ fontFamily: "monospace", fontSize: "var(--text-sm)" }}
@@ -102,6 +107,10 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               >
                 {t("user.profile.message")}
               </button>
+            )}
+
+            {profile.bio && (
+              <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.bio}</p>
             )}
 
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
@@ -150,9 +159,9 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
                   {t("user.profile.badges")}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {profile.badges.map((b, i) => (
-                    <span key={i} className="role-badge">
-                      {b}
+                  {profile.badges.map((b) => (
+                    <span key={b.id} className="role-badge">
+                      {b.label}
                     </span>
                   ))}
                 </div>

@@ -39,10 +39,10 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
 
 async function openAccountTab(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").first().click({ timeout: 10000 });
-  await page.locator(".settings-nav").getByRole("button", { name: "Account", exact: true }).click();
+  await page.locator(".settings-nav").getByRole("button", { name: "Manage accounts", exact: true }).click();
 }
 
-test("switching accounts happens in place — no overlay, no reload, lands back on Settings → Account", async ({ page }) => {
+test("switching accounts happens in place — no overlay, no reload, lands back on Settings → Manage accounts", async ({ page }) => {
   await setupBaseRoutes(page);
   await page.goto("/");
   await openAccountTab(page);

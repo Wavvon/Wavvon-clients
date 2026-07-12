@@ -15,7 +15,7 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
   // Owner: Settings → Account → Devices → enable multi-device (self-cert +
   // re-auth so the hub records the master on the owner's row).
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: "Devices", exact: true }).click();
   const devices = page
     .locator(".settings-section", { has: page.getByText("Devices", { exact: true }) })
     .first();

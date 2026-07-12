@@ -1,52 +1,64 @@
-import type { NamedProfile } from "../types";
-import { getScoped, setScoped } from "./accountScope";
+import { getScoped, setScoped, removeScoped } from "./accountScope";
 
-// Multi-profile is a client-only, personal-axis feature: named
-// display-name/avatar presets you can apply to a hub. Stored locally (like
-// the desktop client's ~/.wavvon/profile.json); per-hub assignment lives in
-// a separate map keyed by hub id. Both are per-account — each identity keeps
-// its own set of named profiles.
+// One default profile per account: the display name + avatar prefilled and
+// auto-applied when the account joins a hub. The per-hub identity itself is
+// community-axis state — each hub stores it as member state (PATCH /me) and
+// is the source of truth; nothing per-hub is mirrored locally. The old named
+// preset pool + hub-assignment map were deleted (see decisions.md); alpha, no
+// migration — orphaned "wavvon.profiles"/"wavvon.hubProfiles" keys are ignored.
 
-const PROFILES_KEY = "wavvon.profiles";
-const HUB_PROFILES_KEY = "wavvon.hubProfiles";
-
-export interface ProfileStore {
-  profiles: NamedProfile[];
-  defaultProfileId: string | null;
+export interface DefaultProfile {
+  display_name: string;
+  avatar: string | null;
+  bio: string | null;
+  pronouns: string | null;
 }
 
-export function loadProfiles(): ProfileStore {
+const DEFAULT_PROFILE_KEY = "wavvon.defaultProfile";
+
+export function loadDefaultProfile(accountId?: string | null): DefaultProfile | null {
   try {
-    const raw = getScoped(PROFILES_KEY);
-    if (raw) return JSON.parse(raw) as ProfileStore;
+    const raw = getScoped(DEFAULT_PROFILE_KEY, accountId);
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<DefaultProfile>;
+      if (typeof p.display_name === "string") {
+        return {
+          display_name: p.display_name,
+          avatar: p.avatar ?? null,
+          bio: p.bio ?? null,
+          pronouns: p.pronouns ?? null,
+        };
+      }
+    }
   } catch { /* fall through */ }
-  return { profiles: [], defaultProfileId: null };
+  return null;
 }
 
-export function saveProfiles(store: ProfileStore): void {
-  try {
-    setScoped(PROFILES_KEY, JSON.stringify(store));
-  } catch { /* ignore */ }
-}
-
-export function loadHubProfiles(): Record<string, string> {
-  try {
-    const raw = getScoped(HUB_PROFILES_KEY);
-    if (raw) return JSON.parse(raw) as Record<string, string>;
-  } catch { /* fall through */ }
-  return {};
-}
-
-export function saveHubProfiles(map: Record<string, string>): void {
-  try {
-    setScoped(HUB_PROFILES_KEY, JSON.stringify(map));
-  } catch { /* ignore */ }
-}
-
-export function newProfileId(): string {
-  try {
-    return crypto.randomUUID();
-  } catch {
-    return `p-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+export function saveDefaultProfile(profile: DefaultProfile | null, accountId?: string | null): void {
+  if (profile === null) {
+    removeScoped(DEFAULT_PROFILE_KEY, accountId);
+  } else {
+    setScoped(DEFAULT_PROFILE_KEY, JSON.stringify(profile), accountId);
   }
+}
+
+// Hubs whose profile follows the default: linked once via "Use default" in
+// the profile editor, they keep mirroring the default profile (each save of
+// the default also updates them) until a field is edited there. Stored as a
+// per-account list of hub ids.
+const FOLLOWS_DEFAULT_KEY = "wavvon.profileFollowsDefault";
+
+export function loadFollowsDefault(accountId?: string | null): string[] {
+  try {
+    const raw = getScoped(FOLLOWS_DEFAULT_KEY, accountId);
+    if (raw) {
+      const list = JSON.parse(raw) as unknown;
+      if (Array.isArray(list)) return list.filter((x): x is string => typeof x === "string");
+    }
+  } catch { /* fall through */ }
+  return [];
+}
+
+export function saveFollowsDefault(hubIds: string[], accountId?: string | null): void {
+  setScoped(FOLLOWS_DEFAULT_KEY, JSON.stringify(hubIds), accountId);
 }
