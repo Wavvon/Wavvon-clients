@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { ThemeId, WavvonSkin } from "../skinValidation";
 import { applySkinTokens, clearSkinTokens } from "../skinValidation";
 import type { SettingsTab } from "@components/settings/SettingsPage";
@@ -11,6 +12,7 @@ import { getScoped } from "../utils/accountScope";
 const APPEARANCE_KEY = "wavvon:appearance";
 
 export function useSettingsProfile(setPublicKey: (key: string) => void) {
+  const { t } = useTranslation();
   // One-shot return destination written by switchAccount just before its
   // reload: switching from Settings → Account lands the user back there.
   const postSwitchReturn = (() => {
@@ -151,7 +153,7 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     const hex = phraseToSeed(ph);
     const { account } = await resolveOrCreateAccount(hex);
     setRecoveryPhrase(null);
-    switchAccount(account.id, "settings-account");
+    switchAccount(account.id, "settings-account", t("settings.account.accounts.switching"));
   }
 
   return {

@@ -266,6 +266,7 @@
   "settings.account.accounts.col_order": "#",
   "settings.account.accounts.col_label": "Bezeichnung",
   "settings.account.accounts.col_key": "Öffentlicher Schlüssel",
+  "settings.account.accounts.switching": "Konto wird gewechselt…",
   "settings.account.accounts.key_click_to_copy": "Klicken, um den vollständigen Schlüssel zu kopieren",
   "settings.account.accounts.col_actions": "Aktionen",
   "settings.account.accounts.reorder_handle": "{label} neu anordnen",

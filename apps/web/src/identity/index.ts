@@ -14,6 +14,8 @@ export {
   resolveOrCreateAccount,
   removeAccount,
   switchAccount,
+  showAccountSwitchOverlay,
+  removeAccountSwitchOverlay,
 } from "./store";
 export type { IdentityRecord } from "./store";
 export { dhKeypairFromSeed, encryptDm, decryptDm, signBytes, publicKeyHex, dhKeySigningBytes } from "@wavvon/core";

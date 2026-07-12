@@ -125,7 +125,7 @@ import {
   publishDhKey,
   createConversation,
 } from "@platform";
-import { loadIdentity, publicKeyHex } from "@identity/index";
+import { loadIdentity, publicKeyHex, removeAccountSwitchOverlay } from "@identity/index";
 import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
 
 // ---- Types ----
@@ -472,6 +472,11 @@ export default function App() {
   const [hubStreams, setHubStreams] = useState<import("./types").HubStreamInfo[]>([]);
   const [showHubStreams, setShowHubStreams] = useState(false);
   const subscribedStreamIds = useRef<Set<string>>(new Set());
+  // Mid-account-switch overlay (painted pre-reload and re-painted by
+  // main.tsx on boot): drop it once the new account's UI has rendered.
+  useEffect(() => {
+    removeAccountSwitchOverlay();
+  }, []);
   // Reload PTT config when the settings screen changes it.
   useEffect(() => {
     const reload = () => setPttConfig(loadPttConfig());

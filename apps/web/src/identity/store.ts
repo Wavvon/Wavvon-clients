@@ -203,16 +203,43 @@ export async function removeAccount(id: string): Promise<void> {
 // Every switch initiated from Settings passes "settings-account" so the user
 // lands back where they were — managing per-account sections means switching,
 // and bouncing to the main view each time made that needlessly tedious.
-export function switchAccount(id: string, returnTo?: "settings-account"): void {
+export function switchAccount(id: string, returnTo?: "settings-account", overlayText?: string): void {
   setActiveAccountId(id);
-  if (returnTo) {
-    try {
-      sessionStorage.setItem("wavvon:post_switch_return", returnTo);
-    } catch {
-      // storage unavailable — switch still works, just lands on the main view
-    }
+  try {
+    if (returnTo) sessionStorage.setItem("wavvon:post_switch_return", returnTo);
+    // Persist the overlay text so the boot side (main.tsx) re-paints the
+    // same overlay after the reload — one continuous transition instead of
+    // a white flash. Consumed by showAccountSwitchOverlay on boot.
+    if (overlayText) sessionStorage.setItem("wavvon:switch_overlay_text", overlayText);
+  } catch {
+    // storage unavailable — switch still works, just lands on the main view
   }
+  if (overlayText) showAccountSwitchOverlay(overlayText);
   window.location.reload();
+}
+
+// Paints a full-screen overlay synchronously (plain DOM — must work both
+// before the reload and before React mounts on the next boot). Removed by
+// App's mount effect once the new account's UI is rendering.
+export function showAccountSwitchOverlay(text: string): void {
+  if (typeof document === "undefined" || document.getElementById("account-switch-overlay")) return;
+  const el = document.createElement("div");
+  el.id = "account-switch-overlay";
+  el.setAttribute("role", "status");
+  el.style.cssText =
+    "position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;" +
+    "background:var(--bg, #14161a);color:var(--text-muted, #9aa2ad);font-size:15px;";
+  el.textContent = text;
+  document.body.appendChild(el);
+}
+
+export function removeAccountSwitchOverlay(): void {
+  try {
+    sessionStorage.removeItem("wavvon:switch_overlay_text");
+  } catch {
+    // storage unavailable
+  }
+  document.getElementById("account-switch-overlay")?.remove();
 }
 
 export async function generateIdentity(): Promise<IdentityRecord> {

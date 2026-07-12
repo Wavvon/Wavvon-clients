@@ -322,6 +322,7 @@
   "settings.account.accounts.col_order": "#",
   "settings.account.accounts.col_label": "Label",
   "settings.account.accounts.col_key": "Public key",
+  "settings.account.accounts.switching": "Switching account…",
   "settings.account.accounts.key_click_to_copy": "Click to copy the full key",
   "settings.account.accounts.col_actions": "Actions",
   "settings.account.accounts.reorder_handle": "Reorder {label}",

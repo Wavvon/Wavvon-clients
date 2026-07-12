@@ -261,7 +261,7 @@ export function AccountsSwitcherSection() {
                           className="btn-small btn-secondary"
                           disabled={isActive}
                           title={isActive ? t("settings.account.accounts.active_hint") : undefined}
-                          onClick={() => switchAccount(account.id, "settings-account")}
+                          onClick={() => switchAccount(account.id, "settings-account", t("settings.account.accounts.switching"))}
                         >
                           {isActive ? t("settings.account.accounts.active_button") : t("settings.account.accounts.switch")}
                         </button>

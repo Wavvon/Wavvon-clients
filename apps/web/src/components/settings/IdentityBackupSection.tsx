@@ -214,7 +214,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
 
       const first = added[0];
       if (!hadAnyAccountBefore) {
-        switchAccount(first.id, "settings-account");
+        switchAccount(first.id, "settings-account", t("settings.account.accounts.switching"));
         return;
       }
       if (
@@ -222,7 +222,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
           t("settings.account.identity_backup.import_confirm", { count: added.length, alreadyPresent }),
         )
       ) {
-        switchAccount(first.id, "settings-account");
+        switchAccount(first.id, "settings-account", t("settings.account.accounts.switching"));
       } else {
         setImportSummary({ added: added.length, alreadyPresent });
       }
