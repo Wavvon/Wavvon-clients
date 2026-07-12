@@ -904,6 +904,85 @@ select,
   opacity: 0.7;
 }
 
+/* Rich profile card: a colored identity banner with the avatar overlapping
+   its lower edge (the familiar profile-header shape). The banner gradient is
+   derived from the account's public key — see identityGradient() — so every
+   identity has its own consistent colors, true to Wavvon's key-is-identity
+   model. Used as the WYSIWYG editor and, read-only, as the member card. */
+.profile-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.profile-card-banner {
+  height: 96px;
+  /* gradient set inline from the pubkey */
+}
+
+.profile-card-body {
+  padding: 0 var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Avatar sits half over the banner, half over the body. */
+.profile-card-avatar-wrap {
+  margin-top: -36px;
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+.profile-card .avatar-edit-btn {
+  border: 3px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+}
+
+.profile-card-idline {
+  font-family: monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Profile tab layout: the editor card and the badges/certifications panel
+   sit side by side on wide screens (using the pane's horizontal space) and
+   stack on narrow ones. Each column keeps a readable width rather than
+   stretching one card across the whole pane. */
+.profile-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 560px);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .profile-two-col {
+    grid-template-columns: minmax(0, 560px) minmax(280px, 1fr);
+  }
+}
+
+/* Scope line: "[profile ▾] for [account ▾] [Use default]" on one row. */
+.profile-scope-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+/* The columns are side by side, so the section-separator chrome
+   (bottom border + spacing meant for stacked sections) is spurious here —
+   it would draw a divider under one column with nothing beneath it. The
+   grid gap provides the separation instead. */
+.profile-two-col > .settings-section {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .avatar-chooser {
   display: flex;
   flex-direction: column;

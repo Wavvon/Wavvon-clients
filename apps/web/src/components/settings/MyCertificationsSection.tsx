@@ -50,7 +50,7 @@ export function MyCertificationsSection({ publicKey }: { publicKey: string | nul
   const plainCerts = (certs ?? []).filter((c) => !c.payload.label);
 
   return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
+    <div className="settings-section">
       <label className="settings-label">{t("settings.account.certifications.label")}</label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
         {t("settings.account.certifications.hint")}

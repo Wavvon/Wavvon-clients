@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "@wavvon/ui";
+import { formatPubkey } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { getScoped } from "@shared/utils/accountScope";
+import { identityGradient } from "@shared/utils/identityColor";
 import { getMyProfileOnHub, updateMyProfileOnHub, listMyCertifications, NO_HUB_SESSION } from "@platform";
 import { AvatarChooser } from "@components/users/AvatarChooser";
 
@@ -17,6 +19,12 @@ interface Props {
   // Active account's pubkey — hub profiles (incl. badges) are read via the
   // public profile endpoint, which is keyed by it.
   publicKey: string | null;
+  // All on-device accounts + the active one, so the scope line can offer
+  // "[profile] for [account]" when there's more than one. The account choice
+  // flows back through onManagingChange (owned by SettingsPage).
+  accounts: IdentityRecord[] | null;
+  activeId: string | null;
+  onManagingChange: (id: string) => void;
   // Lets App refresh meInfo/users when a saved hub is the active one.
   onHubProfileSaved?: (hubId: string) => void;
 }
@@ -46,7 +54,7 @@ const trimToNull = (s: string) => {
 // edits on click. Edits are kept as per-context drafts (dirty contexts get a
 // • in the dropdown) and a single "Save changes" persists all of them:
 // default → local scoped storage, each hub → its own session (PATCH /me).
-export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHubProfileSaved }: Props) {
+export function ProfileEditorSection({ hubs, account, isActive, publicKey, accounts, activeId, onManagingChange, onHubProfileSaved }: Props) {
   const { t } = useTranslation();
   const [context, setContext] = useState<string>(DEFAULT_CONTEXT);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -287,17 +295,15 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
       <label className="settings-label" htmlFor="profile-context-select">
         {t("settings.profile.context.label")}
       </label>
-      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-        {isDefault
-          ? t("settings.profile.default.hint")
-          : t("settings.profile.current_hub.hint", { hub: contextHub?.hub_name || contextHub?.hub_url || "" })}
-      </p>
-      <div className="settings-row" style={{ gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+      {/* Scope line reads as a phrase: "[profile] for [account]". The account
+          half only appears with more than one on-device account — with one,
+          "who" is unambiguous and the extra control is just noise. */}
+      <div className="profile-scope-bar">
         <select
           id="profile-context-select"
           value={context}
           onChange={(e) => setContext(e.target.value)}
-          style={{ maxWidth: 320 }}
+          style={{ maxWidth: 260 }}
         >
           <option value={DEFAULT_CONTEXT}>
             {contextLabel(DEFAULT_CONTEXT, t("settings.profile.context.default_option"))}
@@ -309,7 +315,29 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
               </option>
             ))}
         </select>
-        {/* Fixed home next to the dropdown — never hidden, disabled when it
+        {accounts && accounts.length > 1 && (
+          <>
+            <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
+              {t("settings.profile.scope.for")}
+            </span>
+            <select
+              id="profile-account-select"
+              value={account.id}
+              onChange={(e) => onManagingChange(e.target.value)}
+              style={{ maxWidth: 220 }}
+            >
+              {accounts.map((a) => {
+                const label = a.account_label || formatPubkey(a.id);
+                return (
+                  <option key={a.id} value={a.id}>
+                    {a.id === activeId ? t("settings.account.managing.active_option", { label }) : label}
+                  </option>
+                );
+              })}
+            </select>
+          </>
+        )}
+        {/* Fixed home next to the dropdowns — never hidden, disabled when it
             can't apply (default context, already following, or no default). */}
         <button
           type="button"
@@ -321,6 +349,11 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
           {t("settings.profile.context.apply_default")}
         </button>
       </div>
+      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
+        {isDefault
+          ? t("settings.profile.default.hint")
+          : t("settings.profile.current_hub.hint", { hub: contextHub?.hub_name || contextHub?.hub_url || "" })}
+      </p>
       {!isDefault && isFollowing && (
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
           {t("settings.profile.context.following")}
@@ -347,33 +380,29 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
 
       {draft && status !== "loading" && error !== "no_session" && (
         <>
-          {/* WYSIWYG card: laid out exactly like the member profile card,
-              but every piece of text is the input itself. Nothing is
-              persisted until the explicit save below. */}
-          <div
-            style={{
-              maxWidth: 420,
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--r-md)",
-              padding: 18,
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button
-                type="button"
-                className="avatar-edit-btn"
-                onClick={() => setChoosingAvatar((v) => !v)}
-                aria-label={t("profile.avatar_chooser.change_avatar")}
-                title={t("profile.avatar_chooser.change_avatar")}
-              >
-                <Avatar src={draft.avatar} name={draft.display_name} size={56} />
-                <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
-              </button>
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* WYSIWYG profile card: a real profile header (identity-colored
+              banner + overlapping avatar), where every piece of text is the
+              input itself. Nothing is persisted until the explicit save. */}
+          <div className="profile-card" style={{ maxWidth: 560 }}>
+            <div
+              className="profile-card-banner"
+              style={{ background: identityGradient(account.id) }}
+              aria-hidden="true"
+            />
+            <div className="profile-card-body">
+              <div className="profile-card-avatar-wrap">
+                <button
+                  type="button"
+                  className="avatar-edit-btn"
+                  onClick={() => setChoosingAvatar((v) => !v)}
+                  aria-label={t("profile.avatar_chooser.change_avatar")}
+                  title={t("profile.avatar_chooser.change_avatar")}
+                >
+                  <Avatar src={draft.avatar} name={draft.display_name} size={80} />
+                  <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <input
                   id="profile-editor-name"
                   type="text"
@@ -382,7 +411,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
                   onChange={(e) => update({ display_name: e.target.value })}
                   placeholder={t("settings.profile.default.name_placeholder")}
                   aria-label={t("settings.profile.default.name_placeholder")}
-                  style={{ fontWeight: 600, fontSize: "var(--text-md)" }}
+                  style={{ fontWeight: 700, fontSize: "var(--text-xl)" }}
                 />
                 <input
                   id="profile-editor-pronouns"
@@ -396,44 +425,57 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
                   style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}
                 />
               </div>
-            </div>
-            <textarea
-              id="profile-editor-bio"
-              ref={bioRef}
-              className="profile-inline-input"
-              value={draft.bio}
-              maxLength={BIO_MAX}
-              onChange={(e) => update({ bio: e.target.value })}
-              placeholder={t("settings.profile.fields.bio_placeholder")}
-              aria-label={t("settings.profile.fields.bio_label")}
-              style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 200 }}
-            />
-            <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
-              {draft.bio.length}/{BIO_MAX}
-            </div>
-            <div>
-              <div
-                className="muted"
-                style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
-              >
-                {t("user.profile.badges")}
+              <div className="profile-card-idline">
+                {account.id.slice(0, 16)}…{account.id.slice(-8)}
               </div>
-              {(() => {
-                const badges = isDefault ? identityBadges : badgesByCtx[context] ?? [];
-                return badges.length > 0 ? (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {badges.map((label, i) => (
-                      <span key={i} className="role-badge">
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
-                    {t("settings.profile.card.no_badges")}
-                  </span>
-                );
-              })()}
+
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
+                <div
+                  className="muted"
+                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
+                >
+                  {t("settings.profile.fields.bio_label")}
+                </div>
+                <textarea
+                  id="profile-editor-bio"
+                  ref={bioRef}
+                  className="profile-inline-input"
+                  value={draft.bio}
+                  maxLength={BIO_MAX}
+                  onChange={(e) => update({ bio: e.target.value })}
+                  placeholder={t("settings.profile.fields.bio_placeholder")}
+                  aria-label={t("settings.profile.fields.bio_label")}
+                  style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 200 }}
+                />
+                <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
+                  {draft.bio.length}/{BIO_MAX}
+                </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
+                <div
+                  className="muted"
+                  style={{ fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}
+                >
+                  {t("user.profile.badges")}
+                </div>
+                {(() => {
+                  const badges = isDefault ? identityBadges : badgesByCtx[context] ?? [];
+                  return badges.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {badges.map((label, i) => (
+                        <span key={i} className="role-badge">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
+                      {t("settings.profile.card.no_badges")}
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
           </div>
           {choosingAvatar && (
@@ -467,7 +509,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
               </div>
             </div>
           )}
-          <div className="settings-row" style={{ gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+          <div className="settings-row" style={{ maxWidth: 560, gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
             <button onClick={saveAll} disabled={dirtyContexts.length === 0 || status === "saving"}>
               {t("settings.profile.save_all")}
               {dirtyContexts.length > 1 ? ` (${dirtyContexts.length})` : ""}
