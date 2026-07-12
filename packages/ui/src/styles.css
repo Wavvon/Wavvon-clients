@@ -1015,6 +1015,53 @@ select,
   margin-bottom: 4px;
 }
 
+/* Tab content area: a consistent floor so the card doesn't resize as you
+   switch tabs (short tabs no longer collapse the card). Taller content
+   still grows, but the jarring per-tab height change is gone. */
+.profile-tab-panel {
+  min-height: 330px;
+  padding-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Status as a thought bubble beside the avatar — the avatar "thinking". */
+.thought-bubble {
+  position: relative;
+  align-self: flex-start;
+  margin-top: 8px;
+  max-width: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 7px 12px;
+}
+
+/* Two trailing dots from the bubble down toward the avatar (to its left). */
+.thought-bubble::before,
+.thought-bubble::after {
+  content: "";
+  position: absolute;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.thought-bubble::before {
+  width: 10px;
+  height: 10px;
+  left: -7px;
+  bottom: 8px;
+}
+
+.thought-bubble::after {
+  width: 6px;
+  height: 6px;
+  left: -13px;
+  bottom: 1px;
+}
+
 /* Profile tab layout: the editor card and the badges/certifications panel
    sit side by side on wide screens (using the pane's horizontal space) and
    stack on narrow ones. Each column keeps a readable width rather than

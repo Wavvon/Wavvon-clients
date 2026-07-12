@@ -458,17 +458,34 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
               <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
             </button>
             <div className="profile-card-body">
-              <div className="profile-card-avatar-wrap">
-                <button
-                  type="button"
-                  className="avatar-edit-btn"
-                  onClick={() => setChoosingAvatar((v) => !v)}
-                  aria-label={t("profile.avatar_chooser.change_avatar")}
-                  title={t("profile.avatar_chooser.change_avatar")}
-                >
-                  <Avatar src={draft.avatar} name={draft.display_name} size={80} />
-                  <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
-                </button>
+              {/* Avatar + a thought bubble carrying the status — the avatar
+                  "thinking". Editable inline here; static on the member card. */}
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div className="profile-card-avatar-wrap">
+                  <button
+                    type="button"
+                    className="avatar-edit-btn"
+                    onClick={() => setChoosingAvatar((v) => !v)}
+                    aria-label={t("profile.avatar_chooser.change_avatar")}
+                    title={t("profile.avatar_chooser.change_avatar")}
+                  >
+                    <Avatar src={draft.avatar} name={draft.display_name} size={80} />
+                    <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
+                  </button>
+                </div>
+                <div className="thought-bubble" style={{ flex: 1 }}>
+                  <input
+                    id="profile-editor-status"
+                    type="text"
+                    className="profile-inline-input"
+                    value={draft.status_message}
+                    maxLength={STATUS_MAX}
+                    onChange={(e) => update({ status_message: e.target.value })}
+                    placeholder={t("settings.profile.fields.status_placeholder")}
+                    aria-label={t("settings.profile.fields.status_label")}
+                    style={{ fontSize: "var(--text-sm)" }}
+                  />
+                </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <input
@@ -528,89 +545,76 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                 </button>
               </div>
 
-              {tab === "bio" && (
-                <>
-                  <div>
-                    <div className="profile-section-label">{t("settings.profile.fields.bio_label")}</div>
-                    <textarea
-                      id="profile-editor-bio"
-                      ref={bioRef}
-                      className="profile-inline-input"
-                      value={draft.bio}
-                      maxLength={BIO_MAX}
-                      onChange={(e) => update({ bio: e.target.value })}
-                      placeholder={t("settings.profile.fields.bio_placeholder")}
-                      aria-label={t("settings.profile.fields.bio_label")}
-                      style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 160 }}
-                    />
-                    <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
-                      {draft.bio.length}/{BIO_MAX}
-                    </div>
-                  </div>
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
-                    <div className="profile-section-label">{t("user.profile.badges")}</div>
-                    {badges.length > 0 ? (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {badges.map((label, i) => (
-                          <span key={i} className="role-badge">
-                            {label}
-                          </span>
-                        ))}
+              {/* Fixed-height panel so the card doesn't resize between tabs. */}
+              <div className="profile-tab-panel">
+                {tab === "bio" && (
+                  <>
+                    <div>
+                      <div className="profile-section-label">{t("settings.profile.fields.bio_label")}</div>
+                      <textarea
+                        id="profile-editor-bio"
+                        ref={bioRef}
+                        className="profile-inline-input"
+                        value={draft.bio}
+                        maxLength={BIO_MAX}
+                        onChange={(e) => update({ bio: e.target.value })}
+                        placeholder={t("settings.profile.fields.bio_placeholder")}
+                        aria-label={t("settings.profile.fields.bio_label")}
+                        style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 120 }}
+                      />
+                      <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
+                        {draft.bio.length}/{BIO_MAX}
                       </div>
-                    ) : (
-                      <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
-                        {t("settings.profile.card.no_badges")}
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
+                    </div>
+                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
+                      <div className="profile-section-label">{t("user.profile.badges")}</div>
+                      {badges.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {badges.map((label, i) => (
+                            <span key={i} className="role-badge">
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
+                          {t("settings.profile.card.no_badges")}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
 
-              {tab === "activities" && (
-                <>
+                {tab === "activities" && (
                   <div>
-                    <div className="profile-section-label">{t("settings.profile.fields.status_label")}</div>
-                    <input
-                      id="profile-editor-status"
-                      type="text"
-                      className="profile-inline-input"
-                      value={draft.status_message}
-                      maxLength={STATUS_MAX}
-                      onChange={(e) => update({ status_message: e.target.value })}
-                      placeholder={t("settings.profile.fields.status_placeholder")}
-                      aria-label={t("settings.profile.fields.status_label")}
-                      style={{ fontSize: "var(--text-md)" }}
-                    />
-                  </div>
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
                     <div className="profile-section-label">{t("settings.profile.fields.activities_label")}</div>
                     <textarea
                       id="profile-editor-activities"
                       className="profile-inline-input"
                       value={draft.activities}
                       maxLength={ACTIVITIES_MAX}
-                      rows={7}
+                      rows={9}
                       onChange={(e) => update({ activities: e.target.value })}
                       placeholder={t("settings.profile.fields.activities_placeholder")}
                       aria-label={t("settings.profile.fields.activities_label")}
-                      style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 140 }}
+                      style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 220 }}
                     />
                     <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
                       {draft.activities.length}/{ACTIVITIES_MAX}
                     </div>
                   </div>
-                </>
-              )}
+                )}
 
-              {tab === "hubs" && (
-                <FavoriteHubsEditor
-                  hubs={hubs}
-                  favorites={draft.favorite_hubs}
-                  show={draft.show_hubs}
-                  onToggleShow={(show) => update({ show_hubs: show })}
-                  onChange={(favorite_hubs) => update({ favorite_hubs })}
-                />
-              )}
+                {tab === "hubs" && (
+                  <FavoriteHubsEditor
+                    hubs={hubs}
+                    favorites={draft.favorite_hubs}
+                    show={draft.show_hubs}
+                    onToggleShow={(show) => update({ show_hubs: show })}
+                    onChange={(favorite_hubs) => update({ favorite_hubs })}
+                  />
+                )}
+              </div>
             </div>
           </div>
           {choosingAvatar && (

@@ -97,8 +97,14 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               aria-hidden="true"
             />
           <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 24px 24px" }}>
-            <div style={{ marginTop: -28 }}>
+            {/* Avatar + status thought bubble — the avatar "thinking". */}
+            <div style={{ marginTop: -28, display: "flex", gap: 12, alignItems: "flex-start" }}>
               <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} pubkey={pubkey} size={56} />
+              {profile.status_message && (
+                <div className="thought-bubble" style={{ marginTop: 20 }}>
+                  <span style={{ fontSize: "var(--text-sm)" }}>{profile.status_message}</span>
+                </div>
+              )}
             </div>
             <div>
               <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>
@@ -106,9 +112,6 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               </div>
               {profile.pronouns && (
                 <div className="muted" style={{ fontSize: "var(--text-sm)" }}>{profile.pronouns}</div>
-              )}
-              {profile.status_message && (
-                <div style={{ fontSize: "var(--text-sm)", marginTop: 2 }}>💬 {profile.status_message}</div>
               )}
               <div
                 className="muted"
