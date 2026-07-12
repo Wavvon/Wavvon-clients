@@ -904,6 +904,26 @@ select,
   opacity: 0.7;
 }
 
+/* The member profile card renders inside .modal, whose `.modal input/
+   textarea` rule would otherwise box these inline inputs (border, sunken
+   bg, padding, resize handle). Re-assert the transparent inline look with
+   higher specificity so the card's editor matches the settings editor. */
+.modal .profile-inline-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  border-radius: 0;
+  padding: 0 2px;
+  margin: 0;
+  resize: none;
+}
+.modal .profile-inline-input:hover,
+.modal .profile-inline-input:focus {
+  border-bottom-color: var(--border);
+  outline: none;
+  box-shadow: none;
+}
+
 /* Rich profile card: a colored identity banner with the avatar overlapping
    its lower edge (the familiar profile-header shape). The banner gradient is
    derived from the account's public key — see identityGradient() — so every

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
@@ -6,10 +6,12 @@ import type { Hub, FavoriteHub } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
 import { ImagePicker } from "@components/common/ImagePicker";
 import { EmojiPicker } from "@components/content/EmojiPicker";
+import { AutoGrowTextarea } from "@components/profile/AutoGrowTextarea";
+import { StatusBubble } from "@components/profile/StatusBubble";
+import { profileBannerStyle } from "@shared/utils/identityColor";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { getScoped } from "@shared/utils/accountScope";
-import { identityGradient } from "@shared/utils/identityColor";
 import { getMyProfileOnHub, updateMyProfileOnHub, listMyCertifications, NO_HUB_SESSION } from "@platform";
 import { AvatarChooser } from "@components/users/AvatarChooser";
 
@@ -122,8 +124,6 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   const isDefault = context === DEFAULT_CONTEXT;
   const contextHub = hubs.find((h) => h.hub_id === context);
   const isFollowing = following.has(context);
-  const bioRef = useRef<HTMLTextAreaElement>(null);
-  const activitiesRef = useRef<HTMLTextAreaElement>(null);
   // What a context actually shows/saves: the default draft when following.
   const effectiveOf = (c: string): Draft | undefined =>
     following.has(c) ? drafts[DEFAULT_CONTEXT] : drafts[c];
@@ -342,32 +342,12 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   const contextLabel = (id: string, label: string) =>
     dirtyContexts.includes(id) ? `${label} •` : label;
 
-  // Banner precedence: an uploaded cover wins, then a chosen accent color
-  // (rendered as a soft gradient), then the key-derived identity gradient.
-  function bannerStyle(d: Draft): CSSProperties {
-    if (d.cover) return { backgroundImage: `url(${d.cover})`, backgroundSize: "cover", backgroundPosition: "center" };
-    if (d.accent_color) return { background: `linear-gradient(120deg, ${d.accent_color}, ${d.accent_color}99)` };
-    return { background: identityGradient(account.id) };
-  }
-
-  // Bio and Activities both grow with their content (no manual resize
-  // handle): height re-derived from scrollHeight whenever the field is
-  // visible and its content or the context changes, with a 200px floor.
-  const bioText = draft?.bio;
-  useEffect(() => {
-    const el = bioRef.current;
-    if (!el || tab !== "bio") return;
-    el.style.height = "auto";
-    el.style.height = `${Math.max(el.scrollHeight, 200)}px`;
-  }, [bioText, context, tab]);
-
-  const activitiesText = draft?.activities;
-  useEffect(() => {
-    const el = activitiesRef.current;
-    if (!el || tab !== "activities") return;
-    el.style.height = "auto";
-    el.style.height = `${Math.max(el.scrollHeight, 220)}px`;
-  }, [activitiesText, context, tab]);
+  // Banner + auto-grow fields come from shared profile components so the
+  // settings preview and the member card stay identical (see
+  // profileBannerStyle / AutoGrowTextarea / StatusBubble).
+  const banner = draft
+    ? profileBannerStyle({ pubkey: account.id, cover: draft.cover, accentColor: draft.accent_color })
+    : {};
 
   const badges = isDefault ? identityBadges : badgesByCtx[context] ?? [];
 
@@ -468,7 +448,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
             <button
               type="button"
               className="profile-card-banner profile-card-banner-btn"
-              style={bannerStyle(draft)}
+              style={banner}
               onClick={() => setEditingBanner(true)}
               aria-label={t("settings.profile.banner.edit")}
               title={t("settings.profile.banner.edit")}
@@ -491,20 +471,16 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
                   </button>
                 </div>
-                <div className="thought-bubble" style={{ flex: 1, display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
-                    id="profile-editor-status"
-                    type="text"
-                    className="profile-inline-input"
-                    value={draft.status_message}
-                    maxLength={STATUS_MAX}
-                    onChange={(e) => update({ status_message: e.target.value })}
-                    placeholder={t("settings.profile.fields.status_placeholder")}
-                    aria-label={t("settings.profile.fields.status_label")}
-                    style={{ fontSize: "var(--text-sm)", flex: 1, minWidth: 0 }}
-                  />
-                  <EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("status_message", e, STATUS_MAX)} />
-                </div>
+                <StatusBubble
+                  value={draft.status_message}
+                  editable
+                  onChange={(v) => update({ status_message: v })}
+                  placeholder={t("settings.profile.fields.status_placeholder")}
+                  ariaLabel={t("settings.profile.fields.status_label")}
+                  maxLength={STATUS_MAX}
+                  style={{ flex: 1 }}
+                  trailing={<EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("status_message", e, STATUS_MAX)} />}
+                />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <input
@@ -573,16 +549,13 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                         <div className="profile-section-label">{t("settings.profile.fields.bio_label")}</div>
                         <EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("bio", e, BIO_MAX)} />
                       </div>
-                      <textarea
-                        id="profile-editor-bio"
-                        ref={bioRef}
-                        className="profile-inline-input"
+                      <AutoGrowTextarea
                         value={draft.bio}
                         maxLength={BIO_MAX}
-                        onChange={(e) => update({ bio: e.target.value })}
+                        onChange={(v) => update({ bio: v })}
                         placeholder={t("settings.profile.fields.bio_placeholder")}
-                        aria-label={t("settings.profile.fields.bio_label")}
-                        style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 120 }}
+                        ariaLabel={t("settings.profile.fields.bio_label")}
+                        minHeight={200}
                       />
                       <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
                         {draft.bio.length}/{BIO_MAX}
@@ -613,16 +586,13 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                       <div className="profile-section-label">{t("settings.profile.fields.activities_label")}</div>
                       <EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("activities", e, ACTIVITIES_MAX)} />
                     </div>
-                    <textarea
-                      id="profile-editor-activities"
-                      ref={activitiesRef}
-                      className="profile-inline-input"
+                    <AutoGrowTextarea
                       value={draft.activities}
                       maxLength={ACTIVITIES_MAX}
-                      onChange={(e) => update({ activities: e.target.value })}
+                      onChange={(v) => update({ activities: v })}
                       placeholder={t("settings.profile.fields.activities_placeholder")}
-                      aria-label={t("settings.profile.fields.activities_label")}
-                      style={{ fontSize: "var(--text-sm)", resize: "none", overflow: "hidden", minHeight: 220 }}
+                      ariaLabel={t("settings.profile.fields.activities_label")}
+                      minHeight={220}
                     />
                     <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
                       {draft.activities.length}/{ACTIVITIES_MAX}
@@ -693,7 +663,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                   {t("settings.profile.banner.edit")}
                 </label>
                 {/* Live preview of the current banner choice. */}
-                <div className="profile-card-banner" style={{ ...bannerStyle(draft), borderRadius: "var(--r-md)", marginBottom: "var(--space-3)" }} aria-hidden="true" />
+                <div className="profile-card-banner" style={{ ...banner, borderRadius: "var(--r-md)", marginBottom: "var(--space-3)" }} aria-hidden="true" />
 
                 <div className="settings-label" style={{ fontSize: "var(--text-sm)", marginBottom: 4 }}>
                   {t("settings.profile.banner.cover_label")}

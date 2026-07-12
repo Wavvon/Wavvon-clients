@@ -5,8 +5,10 @@ import { getUserProfile, listRoleCategories, getActiveHubId, patchMyProfileOnHub
 import { formatRelative } from "@wavvon/core";
 import { Avatar } from "@wavvon/ui";
 import { groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearance";
-import { identityGradient } from "@shared/utils/identityColor";
+import { profileBannerStyle } from "@shared/utils/identityColor";
 import { loadFollowsDefault, loadDefaultProfile, saveDefaultProfile } from "@shared/utils/profiles";
+import { AutoGrowTextarea } from "@components/profile/AutoGrowTextarea";
+import { StatusBubble } from "@components/profile/StatusBubble";
 
 const trimToNull = (s: string) => {
   const v = s.trim();
@@ -151,13 +153,7 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
                 the payoff for the profile cosmetics. */}
             <div
               className="profile-card-banner"
-              style={
-                profile.cover
-                  ? { backgroundImage: `url(${profile.cover})`, backgroundSize: "cover", backgroundPosition: "center" }
-                  : profile.accent_color
-                    ? { background: `linear-gradient(120deg, ${profile.accent_color}, ${profile.accent_color}99)` }
-                    : { background: identityGradient(pubkey) }
-              }
+              style={profileBannerStyle({ pubkey, cover: profile.cover, accentColor: profile.accent_color })}
               aria-hidden="true"
             />
           <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 24px 24px" }}>
@@ -165,23 +161,17 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
             <div style={{ marginTop: -28, display: "flex", gap: 12, alignItems: "flex-start" }}>
               <Avatar src={profile.avatar} name={profile.display_name ?? pubkey} pubkey={pubkey} size={56} />
               {isOwn ? (
-                <div className="thought-bubble" style={{ marginTop: 16, flex: 1 }}>
-                  <input
-                    type="text"
-                    className="profile-inline-input"
-                    value={draft.status_message}
-                    maxLength={140}
-                    onChange={(e) => setDraft((d) => ({ ...d, status_message: e.target.value }))}
-                    placeholder={t("settings.profile.fields.status_placeholder")}
-                    aria-label={t("settings.profile.fields.status_label")}
-                    style={{ fontSize: "var(--text-sm)", width: "100%" }}
-                  />
-                </div>
+                <StatusBubble
+                  value={draft.status_message}
+                  editable
+                  onChange={(v) => setDraft((d) => ({ ...d, status_message: v }))}
+                  placeholder={t("settings.profile.fields.status_placeholder")}
+                  ariaLabel={t("settings.profile.fields.status_label")}
+                  style={{ marginTop: 16, flex: 1 }}
+                />
               ) : (
                 profile.status_message && (
-                  <div className="thought-bubble" style={{ marginTop: 20 }}>
-                    <span style={{ fontSize: "var(--text-sm)" }}>{profile.status_message}</span>
-                  </div>
+                  <StatusBubble value={profile.status_message} editable={false} style={{ marginTop: 20 }} />
                 )
               )}
             </div>
@@ -231,15 +221,13 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
               {tab === "bio" && (
                 <>
                   {isOwn ? (
-                    <textarea
-                      className="profile-inline-input"
+                    <AutoGrowTextarea
                       value={draft.bio}
                       maxLength={500}
-                      rows={3}
-                      onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))}
+                      onChange={(v) => setDraft((d) => ({ ...d, bio: v }))}
                       placeholder={t("settings.profile.fields.bio_placeholder")}
-                      aria-label={t("settings.profile.fields.bio_label")}
-                      style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 60 }}
+                      ariaLabel={t("settings.profile.fields.bio_label")}
+                      minHeight={80}
                     />
                   ) : profile.bio ? (
                     <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.bio}</p>
@@ -284,15 +272,13 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
 
               {tab === "activities" && (
                 isOwn ? (
-                  <textarea
-                    className="profile-inline-input"
+                  <AutoGrowTextarea
                     value={draft.activities}
                     maxLength={500}
-                    rows={5}
-                    onChange={(e) => setDraft((d) => ({ ...d, activities: e.target.value }))}
+                    onChange={(v) => setDraft((d) => ({ ...d, activities: v }))}
                     placeholder={t("settings.profile.fields.activities_placeholder")}
-                    aria-label={t("settings.profile.fields.activities_label")}
-                    style={{ fontSize: "var(--text-sm)", resize: "vertical", minHeight: 100 }}
+                    ariaLabel={t("settings.profile.fields.activities_label")}
+                    minHeight={100}
                   />
                 ) : profile.activities ? (
                   <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.activities}</p>

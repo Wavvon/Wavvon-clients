@@ -16,3 +16,18 @@ export function identityGradient(pubkeyHex: string | null | undefined): string {
   if (Math.abs(h1 - h2) < 40) h2 = (h2 + 90) % 360;
   return `linear-gradient(120deg, hsl(${h1} 58% 46%), hsl(${h2} 52% 38%))`;
 }
+
+import type { CSSProperties } from "react";
+
+// The profile-card banner background, shared by the settings editor and the
+// member card so they never drift: an uploaded cover wins, then a chosen
+// accent color (soft gradient), then the key-derived identity gradient.
+export function profileBannerStyle(opts: {
+  pubkey: string;
+  cover?: string | null;
+  accentColor?: string | null;
+}): CSSProperties {
+  if (opts.cover) return { backgroundImage: `url(${opts.cover})`, backgroundSize: "cover", backgroundPosition: "center" };
+  if (opts.accentColor) return { background: `linear-gradient(120deg, ${opts.accentColor}, ${opts.accentColor}99)` };
+  return { background: identityGradient(opts.pubkey) };
+}
