@@ -91,7 +91,7 @@ describe("distinguishingRoles", () => {
   it("hides the implicit Owner and @everyone roles", () => {
     const roles = [
       makeRole({ id: "builtin-owner", name: "Owner" }),
-      makeRole({ id: "builtin-everyone", name: "@everyone" }),
+      makeRole({ id: "builtin-everyone", name: "everyone" }),
       makeRole({ id: "mod", name: "Moderator" }),
     ];
     expect(distinguishingRoles(roles).map((r) => r.id)).toEqual(["mod"]);

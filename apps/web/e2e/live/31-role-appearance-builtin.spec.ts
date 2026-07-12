@@ -19,7 +19,7 @@ test("built-in roles hide appearance controls; custom roles keep them", async ({
   await openRolesAdmin(page);
 
   // Built-in roles: no color swatch (the clearest appearance control).
-  const everyone = page.locator(".settings-row").filter({ hasText: "@everyone" }).first();
+  const everyone = page.locator(".settings-row").filter({ hasText: "everyone" }).first();
   await expect(everyone).toBeVisible({ timeout: 10000 });
   await expect(everyone.locator(".color-swatch")).toHaveCount(0);
   const owner = page.locator(".settings-row").filter({ hasText: "Owner" }).first();

@@ -5,7 +5,7 @@ import { deriveRowStates, buildOverwritePayload } from "@components/channels/Cha
 function makeRole(overrides: Partial<ChannelRolePermissions> = {}): ChannelRolePermissions {
   return {
     role_id: "builtin-everyone",
-    role_name: "@everyone",
+    role_name: "everyone",
     overwrites: { allow: [], deny: [] },
     inherited: [],
     effective: [],
