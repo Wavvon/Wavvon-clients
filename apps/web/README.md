@@ -82,7 +82,7 @@ any web server or CDN, or let a hub self-serve it via
 
 | Repo | What it is |
 |---|---|
-| [Wavvon-clients](https://github.com/Wavvon/Wavvon-clients) | All clients (desktop / web / Android) + shared packages — **web is here, in `apps/web`** |
+| [Wavvon-clients](https://github.com/Wavvon/Wavvon-clients) | All clients (desktop / web) + shared packages — **web is here, in `apps/web`** |
 | [Wavvon-server](https://github.com/Wavvon/Wavvon-server) | Hub server, farm tooling, identity crate (Rust) |
 | [Wavvon-discovery](https://github.com/Wavvon/Wavvon-discovery) | Optional public hub directory |
 | [Wavvon-docs](https://github.com/Wavvon/Wavvon-docs) | Architecture wiki, roadmap, API spec |

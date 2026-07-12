@@ -52,10 +52,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh workflow run release-web.yml --ref "${{ steps.ver.outputs.tag }}"
-
-      - name: Dispatch release-android workflow
-        if: steps.check.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh workflow run release-android.yml --ref "${{ steps.ver.outputs.tag }}"

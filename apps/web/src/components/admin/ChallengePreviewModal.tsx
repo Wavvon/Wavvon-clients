@@ -8,7 +8,7 @@ interface Props {
 
 // APPROXIMATION: the real member-facing challenge (the "not a bot" click
 // button, and the puzzle image + answer field) is rendered at join time by
-// the Tauri desktop/Android clients (see BotChallenge.tsx there) — this web
+// the Tauri desktop client (see BotChallenge.tsx there) — this web
 // client has no join-time surface of its own to preview live, and the puzzle
 // image itself is generated server-side per attempt. This mock reproduces
 // that UI's shape and CSS classes faithfully, but the puzzle graphic below is

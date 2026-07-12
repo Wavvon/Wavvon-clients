@@ -6,12 +6,17 @@ The client monorepo for [Wavvon](https://github.com/Wavvon/Wavvon-docs) — an
 open-source, federated voice + text platform where communities run
 their own servers and **your identity is a keypair, not an account**.
 
-This one repo holds every Wavvon client — desktop, web, and Android —
-plus the shared TypeScript packages they have in common. They were
-previously three separate repos (Wavvon-desktop, Wavvon-web,
-Wavvon-android); consolidating them into a single pnpm workspace removed
+This one repo holds the Wavvon clients — desktop and web — plus the
+shared TypeScript packages they have in common. They were previously
+separate repos; consolidating them into a single pnpm workspace removed
 the duplicate-React hazard, the cross-repo Vite aliases, and the
 multi-checkout release dance.
+
+> A Tauri 2 Android client previously lived here at `apps/android`. It
+> was removed 2026-07-12 — it had fallen too far behind to maintain and
+> is slated for a clean-slate rewrite when mobile becomes a priority.
+> See [android-rewrite-notes.md](https://github.com/Wavvon/Wavvon-docs/blob/main/docs/android-rewrite-notes.md)
+> (build/native learnings) in Wavvon-docs.
 
 ## Monorepo layout
 
@@ -19,8 +24,7 @@ multi-checkout release dance.
 clients/
 ├── apps/
 │   ├── desktop/        Tauri 2 desktop app — React UI + Rust shell
-│   ├── web/            Vite + React browser SPA
-│   └── android/        Tauri 2 Android app — same React UI, packaged as APK
+│   └── web/            Vite + React browser SPA
 ├── crates/
 │   └── voice/          Rust voice codec library (cpal, Opus, RNNoise)
 ├── packages/
@@ -36,7 +40,7 @@ clients/
 
 The **apps** are end-user clients; the **packages** are internal
 `workspace:*` libraries the apps depend on (no published npm releases).
-The Rust `voice` crate is shared by the desktop and Android Tauri shells.
+The Rust `voice` crate is used by the desktop Tauri shell.
 
 ## The clients
 
@@ -49,20 +53,16 @@ The Rust `voice` crate is shared by the desktop and Android Tauri shells.
   set: text, forums, E2E DMs, admin tooling, and live voice over the
   hub's WebSocket audio relay, plus webcam video and screen share via
   WebRTC. Identity lives in IndexedDB and never leaves the device.
-- **Android** (`apps/android`) — Tauri 2 app packaged as an APK, sharing
-  the same React UI, hub API, and native voice pipeline as the desktop
-  client.
-
 All clients share one Ed25519 keypair identity with a 24-word BIP39
 recovery phrase and QR multi-device pairing. No accounts, no telemetry.
 
 ## Quick start
 
 Requires [Node 20+](https://nodejs.org) and
-[pnpm 11+](https://pnpm.io). For the desktop/Android Rust shells you
-also need Rust and the
+[pnpm 11+](https://pnpm.io). For the desktop Rust shell you also need
+Rust and the
 [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your
-OS (Android additionally needs the Android SDK + NDK).
+OS.
 
 Install all workspace dependencies once from the repo root:
 
@@ -108,9 +108,6 @@ pnpm --filter wavvon-web run build
 # Output: apps/web/dist/  (static bundle, serve from any host or CDN)
 ```
 
-Android release APKs and signing are documented in
-[`apps/android/README.md`](apps/android/README.md).
-
 ## Downloads & installer warnings
 
 Desktop installers (Windows `.exe`, macOS `.dmg`, Linux `.AppImage`)
@@ -131,7 +128,7 @@ phrase — write it down.
 
 | Repo | What it is |
 |---|---|
-| **Wavvon-clients** *(this repo)* | All clients (desktop / web / Android) + shared packages |
+| **Wavvon-clients** *(this repo)* | All clients (desktop / web) + shared packages |
 | [Wavvon-server](https://github.com/Wavvon/Wavvon-server) | Hub server, farm tooling, identity crate (Rust) |
 | [Wavvon-discovery](https://github.com/Wavvon/Wavvon-discovery) | Optional public hub directory |
 | [Wavvon-docs](https://github.com/Wavvon/Wavvon-docs) | Architecture wiki, roadmap, API spec |

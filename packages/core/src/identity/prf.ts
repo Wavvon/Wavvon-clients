@@ -3,7 +3,7 @@ import { bytesToHex } from "../hex";
 // WebAuthn PRF eval salt used to derive a Wavvon master identity from a
 // passkey (docs/docs/webauthn-auth.md, "Cross-client master key via Bitwarden
 // PRF"). This is a wire-level protocol constant: it MUST be byte-identical
-// across every client (web, desktop, android) that derives a master key from
+// across every client (web, desktop) that derives a master key from
 // PRF. Changing this string changes the derived key for every existing
 // passkey-backed identity — never change it, only ever add a new versioned
 // label alongside it.
