@@ -5,6 +5,7 @@ import { formatPubkey } from "@wavvon/core";
 import type { Hub, FavoriteHub } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
 import { ImagePicker } from "@components/common/ImagePicker";
+import { EmojiPicker } from "@components/content/EmojiPicker";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { getScoped } from "@shared/utils/accountScope";
@@ -276,6 +277,14 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     if (error === "name_required") setError(null);
   }
 
+  // Append an emoji from the picker to a text field, staying within the
+  // field's cap (counted by code points, closer to the hub's char count).
+  function appendEmoji(field: "status_message" | "bio" | "activities", emoji: string, max: number) {
+    const cur = draft?.[field] ?? "";
+    if ([...(cur + emoji)].length > max) return;
+    update({ [field]: cur + emoji } as Partial<Draft>);
+  }
+
   // "Use default" links this hub context to the default profile: it mirrors
   // the default draft from now on — including edits made to the default
   // afterwards — until a field here is edited (detach) or settings closes.
@@ -482,7 +491,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
                   </button>
                 </div>
-                <div className="thought-bubble" style={{ flex: 1 }}>
+                <div className="thought-bubble" style={{ flex: 1, display: "flex", alignItems: "center", gap: 4 }}>
                   <input
                     id="profile-editor-status"
                     type="text"
@@ -492,8 +501,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     onChange={(e) => update({ status_message: e.target.value })}
                     placeholder={t("settings.profile.fields.status_placeholder")}
                     aria-label={t("settings.profile.fields.status_label")}
-                    style={{ fontSize: "var(--text-sm)" }}
+                    style={{ fontSize: "var(--text-sm)", flex: 1, minWidth: 0 }}
                   />
+                  <EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("status_message", e, STATUS_MAX)} />
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -559,7 +569,10 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                 {tab === "bio" && (
                   <>
                     <div>
-                      <div className="profile-section-label">{t("settings.profile.fields.bio_label")}</div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div className="profile-section-label">{t("settings.profile.fields.bio_label")}</div>
+                        <EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("bio", e, BIO_MAX)} />
+                      </div>
                       <textarea
                         id="profile-editor-bio"
                         ref={bioRef}
@@ -596,7 +609,10 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
 
                 {tab === "activities" && (
                   <div>
-                    <div className="profile-section-label">{t("settings.profile.fields.activities_label")}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div className="profile-section-label">{t("settings.profile.fields.activities_label")}</div>
+                      <EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("activities", e, ACTIVITIES_MAX)} />
+                    </div>
                     <textarea
                       id="profile-editor-activities"
                       ref={activitiesRef}
