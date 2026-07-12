@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { bytesToHex } from "@wavvon/core";
 import {
-  loadIdentity,
   saveIdentity,
+  getActiveAccountId,
   publicKeyHex,
   masterSeedHex,
   masterPublicKeyHex,
@@ -12,6 +12,7 @@ import {
   buildPairingOffer,
   dhKeypairFromSeed,
   wrapBlobKey,
+  type IdentityRecord,
   type SubkeyCert,
   type PairingStatus,
 } from "@identity/index";
@@ -26,8 +27,11 @@ import {
 } from "@platform";
 import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
 
+// Operates on `account` — the account currently selected in AccountTab's
+// "Managing" selector, which defaults to (but need not be) the active one.
 interface Props {
   activeHubUrl?: string;
+  account: IdentityRecord;
 }
 
 interface Derived {
@@ -53,10 +57,31 @@ function randomToken(): string {
 // Multi-device identity: register/list this master's device certs, opt into
 // pairing, and pair a new device by issuing it a master-signed cert. This
 // device's own key is subkey 0 (its pubkey equals the legacy identity pubkey).
-export function DevicesSection({ activeHubUrl }: Props) {
+function deriveFromAccount(account: IdentityRecord): Derived {
+  return {
+    seedHex: account.seed_hex,
+    devicePubkey: publicKeyHex(account.seed_hex),
+    masterSeed: masterSeedHex(account.seed_hex),
+    masterPubkey: masterPublicKeyHex(account.seed_hex),
+    enabled: !!account.subkey_cert,
+  };
+}
+
+export function DevicesSection({ activeHubUrl, account }: Props) {
   const { t } = useTranslation();
-  const [d, setD] = useState<Derived | null>(null);
-  const [accountLabel, setAccountLabel] = useState<string | null>(null);
+  const accountLabel = account.account_label ?? null;
+  // Only the active account's own hub session can be told "this device's
+  // canonical identity is now X" (upgradeActiveHubIdentity re-auths the
+  // active hub connection, which belongs to whichever account is actually
+  // switched in) — managing a different account's devices skips that call.
+  const isActive = account.id === getActiveAccountId();
+  const [d, setD] = useState<Derived>(() => deriveFromAccount(account));
+  // Re-derive whenever a different account is selected — any optimistic
+  // local edit (below) belongs only to the account that was active when it
+  // happened.
+  useEffect(() => {
+    setD(deriveFromAccount(account));
+  }, [account]);
   const [certs, setCerts] = useState<SubkeyCert[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,25 +97,9 @@ export function DevicesSection({ activeHubUrl }: Props) {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const rec = await loadIdentity();
-      if (!rec || cancelled) return;
-      setAccountLabel(rec.account_label ?? null);
-      const derived: Derived = {
-        seedHex: rec.seed_hex,
-        devicePubkey: publicKeyHex(rec.seed_hex),
-        masterSeed: masterSeedHex(rec.seed_hex),
-        masterPubkey: masterPublicKeyHex(rec.seed_hex),
-        enabled: !!rec.subkey_cert,
-      };
-      setD(derived);
-      if (derived.enabled) void refreshCerts(derived.masterPubkey);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshCerts]);
+    if (d.enabled) void refreshCerts(d.masterPubkey);
+    else setCerts([]);
+  }, [d.enabled, d.masterPubkey, refreshCerts]);
 
   useEffect(() => {
     return () => {
@@ -103,7 +112,6 @@ export function DevicesSection({ activeHubUrl }: Props) {
   // connection on, auth presents the cert so every device resolves to one
   // canonical identity.
   async function enableMultiDevice() {
-    if (!d) return;
     setBusy(true);
     setError(null);
     try {
@@ -118,15 +126,14 @@ export function DevicesSection({ activeHubUrl }: Props) {
         null,
         fallback,
       );
-      const rec = await loadIdentity();
-      if (!rec) throw new Error("No identity");
-      await saveIdentity({ ...rec, master_pubkey: d.masterPubkey, device_label: "This device", subkey_cert: cert });
+      await saveIdentity({ ...account, master_pubkey: d.masterPubkey, device_label: "This device", subkey_cert: cert });
       await registerDeviceCert(cert).catch(() => {
         /* registration is also done implicitly at auth; ignore hub hiccups */
       });
       // Re-auth now so the hub records the master on our row — required for a
-      // newly paired device to resolve to this same canonical identity.
-      await upgradeActiveHubIdentity().catch(() => {});
+      // newly paired device to resolve to this same canonical identity. Only
+      // meaningful for the active account's own hub session.
+      if (isActive) await upgradeActiveHubIdentity().catch(() => {});
       setD({ ...d, enabled: true });
       await refreshCerts(d.masterPubkey);
     } catch (e) {
@@ -137,7 +144,6 @@ export function DevicesSection({ activeHubUrl }: Props) {
   }
 
   async function revoke(cert: SubkeyCert) {
-    if (!d) return;
     if (cert.subkey_pubkey === d.devicePubkey) return; // never revoke self here
     setBusy(true);
     setError(null);
@@ -155,7 +161,7 @@ export function DevicesSection({ activeHubUrl }: Props) {
   // Existing device: create a master-signed offer, post it, and poll for the
   // new device's claim.
   async function startPairing() {
-    if (!d || !activeHubUrl) return;
+    if (!activeHubUrl) return;
     const hubUrl = activeHubUrl.replace(/\/+$/, "");
     setError(null);
     try {
@@ -197,7 +203,7 @@ export function DevicesSection({ activeHubUrl }: Props) {
   // entropy (this device, since it derived d.masterSeed) can do this wrap —
   // d.seedHex IS that entropy.
   async function approve() {
-    if (!d || offer.phase !== "claimed") return;
+    if (offer.phase !== "claimed") return;
     const { hubUrl, token, subkeyPubkey, label } = offer;
     setOffer({ phase: "completing" });
     try {
@@ -224,8 +230,6 @@ export function DevicesSection({ activeHubUrl }: Props) {
     if (pollRef.current) clearInterval(pollRef.current);
     setOffer({ phase: "idle" });
   }
-
-  if (!d) return null;
 
   const pairingCode =
     offer.phase === "waiting"

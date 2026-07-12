@@ -4,6 +4,15 @@
 // and managing credentials/trusted devices via the hub API.
 
 import { hubFetch, rawFetch } from "./http";
+import { hubFetchAs } from "./hubFetchAs";
+import type { IdentityRecord } from "../identity/store";
+
+// Every "manage" call below optionally targets an account other than the
+// active one (AccountTab's "Managing" selector) — omit it to keep the
+// original active-session behavior untouched.
+function fetcherFor(account?: IdentityRecord): (path: string, init?: RequestInit) => ReturnType<typeof hubFetch> {
+  return account ? (path, init) => hubFetchAs(account, path, init) : hubFetch;
+}
 
 export interface CredentialInfo {
   id: string;
@@ -201,18 +210,18 @@ export async function authenticateWithPasskey(
 
 // --- Passkey management (requires active authenticated session) ---
 
-export async function listPasskeys(): Promise<CredentialInfo[]> {
-  return hubFetch("/me/credentials").then((r) => r.json() as Promise<CredentialInfo[]>);
+export async function listPasskeys(account?: IdentityRecord): Promise<CredentialInfo[]> {
+  return fetcherFor(account)("/me/credentials").then((r) => r.json() as Promise<CredentialInfo[]>);
 }
 
-export async function deletePasskey(credentialId: string): Promise<void> {
-  await hubFetch(`/me/credentials/${encodeURIComponent(credentialId)}`, {
+export async function deletePasskey(credentialId: string, account?: IdentityRecord): Promise<void> {
+  await fetcherFor(account)(`/me/credentials/${encodeURIComponent(credentialId)}`, {
     method: "DELETE",
   });
 }
 
-export async function renamePasskey(credentialId: string, name: string): Promise<void> {
-  await hubFetch(`/me/credentials/${encodeURIComponent(credentialId)}`, {
+export async function renamePasskey(credentialId: string, name: string, account?: IdentityRecord): Promise<void> {
+  await fetcherFor(account)(`/me/credentials/${encodeURIComponent(credentialId)}`, {
     method: "PATCH",
     body: JSON.stringify({ friendly_name: name }),
   });
@@ -220,12 +229,12 @@ export async function renamePasskey(credentialId: string, name: string): Promise
 
 // --- Trusted device management ---
 
-export async function listTrustedDevices(): Promise<DeviceInfo[]> {
-  return hubFetch("/me/devices").then((r) => r.json() as Promise<DeviceInfo[]>);
+export async function listTrustedDevices(account?: IdentityRecord): Promise<DeviceInfo[]> {
+  return fetcherFor(account)("/me/devices").then((r) => r.json() as Promise<DeviceInfo[]>);
 }
 
-export async function revokeTrustedDevice(deviceId: string): Promise<void> {
-  await hubFetch(`/me/devices/${encodeURIComponent(deviceId)}`, {
+export async function revokeTrustedDevice(deviceId: string, account?: IdentityRecord): Promise<void> {
+  await fetcherFor(account)(`/me/devices/${encodeURIComponent(deviceId)}`, {
     method: "DELETE",
   });
 }

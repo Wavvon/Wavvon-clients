@@ -1,42 +1,45 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { loadIdentity, masterSeedHex, masterPublicKeyHex, buildHomeHubList } from "@identity/index";
+import { masterSeedHex, buildHomeHubList, masterPubkeyOf, type IdentityRecord } from "@identity/index";
 import { getHomeHubDesignation, putHomeHubDesignation } from "@platform";
 import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
 
 // Personal-axis home-hub list (a master-signed HomeHubList). This is the
 // ordered set of hubs that other users and hubs consult to deliver DMs to you —
 // distinct from the local "saved hubs" list. Slot 0 is the preferred target.
+// Operates on `account` — the account currently selected in AccountTab's
+// "Managing" selector, which defaults to (but need not be) the active one.
 interface Props {
   activeHubUrl?: string;
+  account: IdentityRecord;
 }
 
-export function HomeHubsSection({ activeHubUrl }: Props) {
+export function HomeHubsSection({ activeHubUrl, account }: Props) {
   const { t } = useTranslation();
   const [hubs, setHubs] = useState<string[]>([]);
   const [sequence, setSequence] = useState(0);
-  const [master, setMaster] = useState<{ seedHex: string; pubkey: string } | null>(null);
-  const [accountLabel, setAccountLabel] = useState<string | null>(null);
-  const [isPairedDevice, setIsPairedDevice] = useState(false);
   const [newHub, setNewHub] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved">("loading");
   const [error, setError] = useState<string | null>(null);
 
+  const accountLabel = account.account_label ?? null;
+  // A paired device's seed is a *subkey* — deriving a master from it yields
+  // a wrong identity. It knows the real master pubkey from its cert
+  // (read-only view); only an entropy-holding device may publish.
+  const isPairedDevice = !!account.subkey_cert;
+  const pubkey = useMemo(() => masterPubkeyOf(account), [account]);
+  const master = useMemo(
+    () => (isPairedDevice ? null : { seedHex: masterSeedHex(account.seed_hex), pubkey }),
+    [isPairedDevice, account.seed_hex, pubkey],
+  );
+
   useEffect(() => {
     let cancelled = false;
+    setStatus("loading");
+    setError(null);
+    setHubs([]);
+    setSequence(0);
     (async () => {
-      const rec = await loadIdentity();
-      if (!rec || cancelled) return;
-      setAccountLabel(rec.account_label ?? null);
-      // A paired device's seed is a *subkey* — deriving a master from it
-      // yields a wrong identity. It knows the real master pubkey from its
-      // cert (read-only view); only an entropy-holding device may publish.
-      const paired = !!rec.subkey_cert;
-      setIsPairedDevice(paired);
-      const pubkey = paired && rec.master_pubkey ? rec.master_pubkey : masterPublicKeyHex(rec.seed_hex);
-      if (!paired) {
-        setMaster({ seedHex: masterSeedHex(rec.seed_hex), pubkey });
-      }
       try {
         const cur = await getHomeHubDesignation(pubkey);
         if (cancelled) return;
@@ -55,7 +58,7 @@ export function HomeHubsSection({ activeHubUrl }: Props) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pubkey]);
 
   function addHub() {
     const url = newHub.trim().replace(/\/+$/, "");

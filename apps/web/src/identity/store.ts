@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from "idb";
 import { ed25519 } from "@noble/curves/ed25519";
-import { bytesToHex, hexToBytes, publicKeyHex, type SubkeyCert } from "@wavvon/core";
+import { bytesToHex, hexToBytes, publicKeyHex, masterPublicKeyHex, type SubkeyCert } from "@wavvon/core";
 import { sortAccountsByOrder, renumberAccountOrder, nextAccountOrder } from "./accountOrder";
 
 // Accounts are device-local: this file is the only place that reads/writes
@@ -141,6 +141,17 @@ export async function saveIdentity(record: IdentityRecord): Promise<void> {
   const db = await getDb();
   await db.put("identity", record);
   if (!getActiveAccountId()) setActiveAccountId(record.id);
+}
+
+// This account's master pubkey — the identity that signature-authoritative
+// personal-axis envelopes (home hub designation, device certs) are keyed by.
+// A device that was paired in via QR only holds a subkey seed (its own
+// seed_hex can't derive the master), so it must fall back to the
+// master_pubkey learned from its cert; every other account can derive it
+// directly from its own seed.
+export function masterPubkeyOf(rec: IdentityRecord): string {
+  if (rec.subkey_cert && rec.master_pubkey) return rec.master_pubkey;
+  return masterPublicKeyHex(rec.seed_hex);
 }
 
 export async function findAccountByPubkey(pubkey: string): Promise<IdentityRecord | null> {

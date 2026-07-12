@@ -10,6 +10,7 @@ export {
   setAccountOrder,
   getActiveAccountId,
   setActiveAccountId,
+  masterPubkeyOf,
   findAccountByPubkey,
   resolveOrCreateAccount,
   removeAccount,

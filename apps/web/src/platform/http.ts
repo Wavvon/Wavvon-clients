@@ -7,6 +7,15 @@ export class HubApiError extends Error {
   }
 }
 
+// A hub-side per-account list (dm-blocks, passkeys, trusted devices) 404s or
+// 403s when the account being managed (via hubFetchAs — see
+// platform/hubFetchAs.ts) has never joined the active hub. Sections managing
+// a non-active account use this to show a friendly "not a member" notice
+// instead of a raw error string.
+export function isNotMemberError(e: unknown): boolean {
+  return e instanceof HubApiError && (e.status === 403 || e.status === 404);
+}
+
 // Default ceiling for a single network request. Without this a call to an
 // unreachable host (a mistyped hub address, a down discovery service) hangs
 // indefinitely and the UI is stuck on a spinner; with it the caller gets a
@@ -58,12 +67,15 @@ async function checkResponse(res: Response): Promise<Response> {
   return res;
 }
 
-// Authenticated fetch against the active hub.
-export async function hubFetch(
+// Authenticated fetch against an explicit hub + token — the shared core
+// behind both hubFetch (active session) and hubFetchAs (a non-active local
+// account's background-acquired token; see platform/hubFetchAs.ts).
+export async function hubFetchWithToken(
+  hub_url: string,
+  token: string,
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const { hub_url, token } = activeSession();
   const headers: Record<string, string> = {
     ...(init?.headers as Record<string, string>),
     Authorization: `Bearer ${token}`,
@@ -73,6 +85,15 @@ export async function hubFetch(
   }
   const res = await fetchWithTimeout(`${hub_url}${path}`, { ...init, headers });
   return checkResponse(res);
+}
+
+// Authenticated fetch against the active hub.
+export async function hubFetch(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const { hub_url, token } = activeSession();
+  return hubFetchWithToken(hub_url, token, path, init);
 }
 
 // Unauthenticated fetch to any URL (used during hub add).

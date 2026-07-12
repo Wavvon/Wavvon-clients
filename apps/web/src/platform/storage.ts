@@ -62,21 +62,25 @@ export function saveActiveHubId(id: string | null): void {
 }
 
 // Tokens: sessionStorage by default; localStorage when rememberMe=true.
-// Namespaced under the active account so switching accounts in the same tab
-// can never read another account's cached session token.
-export function saveToken(hubId: string, token: string, rememberMe: boolean): void {
-  const key = accountKey(TOKEN_PREFIX + hubId);
+// Namespaced under the active account (or an explicit accountId) so
+// switching accounts in the same tab can never read another account's
+// cached session token. hubFetchAs (platform/hubFetchAs.ts) passes an
+// explicit accountId to cache a background-acquired token under the TARGET
+// (non-active) account's own namespace — the same place that account's own
+// session would cache it once it becomes active.
+export function saveToken(hubId: string, token: string, rememberMe: boolean, accountId?: string): void {
+  const key = accountKey(TOKEN_PREFIX + hubId, accountId);
   if (rememberMe) localStorage.setItem(key, token);
   else sessionStorage.setItem(key, token);
 }
 
-export function loadToken(hubId: string): string | null {
-  const key = accountKey(TOKEN_PREFIX + hubId);
+export function loadToken(hubId: string, accountId?: string): string | null {
+  const key = accountKey(TOKEN_PREFIX + hubId, accountId);
   return sessionStorage.getItem(key) ?? localStorage.getItem(key);
 }
 
-export function clearToken(hubId: string): void {
-  const key = accountKey(TOKEN_PREFIX + hubId);
+export function clearToken(hubId: string, accountId?: string): void {
+  const key = accountKey(TOKEN_PREFIX + hubId, accountId);
   sessionStorage.removeItem(key);
   localStorage.removeItem(key);
 }
