@@ -11,8 +11,21 @@ import { getScoped } from "../utils/accountScope";
 const APPEARANCE_KEY = "wavvon:appearance";
 
 export function useSettingsProfile(setPublicKey: (key: string) => void) {
-  const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
+  // One-shot return destination written by switchAccount just before its
+  // reload: switching from Settings → Account lands the user back there.
+  const postSwitchReturn = (() => {
+    try {
+      const v = sessionStorage.getItem("wavvon:post_switch_return");
+      if (v) sessionStorage.removeItem("wavvon:post_switch_return");
+      return v;
+    } catch {
+      return null;
+    }
+  })();
+  const [showSettings, setShowSettings] = useState(postSwitchReturn === "settings-account");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(
+    postSwitchReturn === "settings-account" ? "account" : "profile",
+  );
   const [theme, setTheme] = useState<ThemeId>(() => {
     try {
       const raw = localStorage.getItem(APPEARANCE_KEY);
@@ -138,7 +151,7 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     const hex = phraseToSeed(ph);
     const { account } = await resolveOrCreateAccount(hex);
     setRecoveryPhrase(null);
-    switchAccount(account.id);
+    switchAccount(account.id, "settings-account");
   }
 
   return {

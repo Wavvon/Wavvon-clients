@@ -198,8 +198,20 @@ export async function removeAccount(id: string): Promise<void> {
 // the simplest way to guarantee every live WebSocket/voice/session object
 // tears down cleanly. Isolated here so a future in-place switch can replace
 // just this function without touching call sites.
-export function switchAccount(id: string): void {
+//
+// returnTo: one-shot post-reload destination (sessionStorage, same tab only).
+// Every switch initiated from Settings passes "settings-account" so the user
+// lands back where they were — managing per-account sections means switching,
+// and bouncing to the main view each time made that needlessly tedious.
+export function switchAccount(id: string, returnTo?: "settings-account"): void {
   setActiveAccountId(id);
+  if (returnTo) {
+    try {
+      sessionStorage.setItem("wavvon:post_switch_return", returnTo);
+    } catch {
+      // storage unavailable — switch still works, just lands on the main view
+    }
+  }
   window.location.reload();
 }
 

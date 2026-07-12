@@ -126,7 +126,7 @@ export function FullArchiveSection({ publicKey }: Props) {
       setRestoreSummary(plan.summary);
 
       if (!hadAnyAccountBefore) {
-        switchAccount(account.id);
+        switchAccount(account.id, "settings-account");
         return;
       }
       if (
@@ -137,7 +137,7 @@ export function FullArchiveSection({ publicKey }: Props) {
           }),
         )
       ) {
-        switchAccount(account.id);
+        switchAccount(account.id, "settings-account");
       }
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
