@@ -1,14 +1,20 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { HubEvent, RsvpStatus } from "@shared/types";
+import type { Channel, HubEvent, RsvpStatus, User, VoiceParticipant } from "@shared/types";
 import { rsvpEvent } from "@platform";
 import { EventSlotList } from "./EventSlotList";
+import { EventStagingPanel } from "./EventStagingPanel";
 import { reminderMinutesToOffset } from "@shared/utils/events";
 
 interface Props {
   event: HubEvent;
   myPubkey: string | null;
   isAdmin: boolean;
+  channels: Channel[];
+  users: User[];
+  voicePartByChannel: Record<string, VoiceParticipant[]>;
+  canMoveMembers: boolean;
+  onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
   onUpdate: (event: HubEvent) => void;
   onDelete: (eventId: string) => void;
 }
@@ -19,11 +25,20 @@ const RSVP_LABELS: Record<RsvpStatus, string> = {
   not_going: "Not going",
 };
 
-export function EventCard({ event, myPubkey, isAdmin, onUpdate, onDelete }: Props) {
+export function EventCard({
+  event, myPubkey, isAdmin, channels, users, voicePartByChannel, canMoveMembers, onMoveMember, onUpdate, onDelete,
+}: Props) {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [myStatus, setMyStatus] = useState<RsvpStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showStaging, setShowStaging] = useState(false);
+
+  // Organizer-only affordance (events.md §7.5): event creator or a hub admin,
+  // AND move_members — same rule the Phase-1 right-click surface uses. The
+  // client only tracks hub-wide isAdmin today, not the doc's channel-scoped
+  // CREATE_EVENTS check; the hub re-verifies both on every voice_move regardless.
+  const canStage = canMoveMembers && (isAdmin || event.creator_pubkey === myPubkey);
 
   const startDate = new Date(event.starts_at * 1000);
   const counts = event.rsvp_counts;
@@ -56,17 +71,41 @@ export function EventCard({ event, myPubkey, isAdmin, onUpdate, onDelete }: Prop
             {event.location && <span> · {event.location}</span>}
           </div>
         </div>
-        {isAdmin && (
-          <button
-            className="btn-ghost"
-            style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
-            onClick={() => onDelete(event.id)}
-            title="Delete event"
-          >
-            ✕
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 4 }}>
+          {canStage && (
+            <button
+              className="btn-secondary"
+              style={{ fontSize: "var(--text-xs)", padding: "2px 8px" }}
+              onClick={() => setShowStaging(true)}
+            >
+              {t("events.staging.button")}
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className="btn-ghost"
+              style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
+              onClick={() => onDelete(event.id)}
+              title="Delete event"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
+
+      {showStaging && (
+        <EventStagingPanel
+          eventId={event.id}
+          eventTitle={event.title}
+          slots={event.slots}
+          channels={channels}
+          users={users}
+          voicePartByChannel={voicePartByChannel}
+          onMoveMember={onMoveMember}
+          onClose={() => setShowStaging(false)}
+        />
+      )}
 
       {event.description && (
         <p style={{ fontSize: "var(--text-sm)", margin: "8px 0 6px", whiteSpace: "pre-wrap" }}>

@@ -148,6 +148,15 @@ export interface HubEvent {
   reminder_sent_at: number | null;
 }
 
+// A queued voice-move (events.md §7.3) — persisted when a staging-panel
+// move targets a member who isn't in voice yet, applied on their next join.
+export interface EventMoveAssignment {
+  user_pubkey: string;
+  target_channel_id: string;
+  assigned_by: string;
+  created_at: number;
+}
+
 export type NotifLevel = "all" | "mentions" | "none";
 
 export interface Reaction {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import type { HubEvent } from "@shared/types";
+import type { Channel, HubEvent, User, VoiceParticipant } from "@shared/types";
 import { getEvents, deleteEvent } from "@platform";
 import { EventCard } from "./EventCard";
 import { EventComposer } from "./EventComposer";
@@ -8,9 +8,16 @@ interface Props {
   channelId: string;
   myPubkey: string | null;
   isAdmin: boolean;
+  channels: Channel[];
+  users: User[];
+  voicePartByChannel: Record<string, VoiceParticipant[]>;
+  canMoveMembers: boolean;
+  onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
 }
 
-export function EventsPanel({ channelId, myPubkey, isAdmin }: Props) {
+export function EventsPanel({
+  channelId, myPubkey, isAdmin, channels, users, voicePartByChannel, canMoveMembers, onMoveMember,
+}: Props) {
   const [events, setEvents] = useState<HubEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +85,11 @@ export function EventsPanel({ channelId, myPubkey, isAdmin }: Props) {
           event={event}
           myPubkey={myPubkey}
           isAdmin={isAdmin}
+          channels={channels}
+          users={users}
+          voicePartByChannel={voicePartByChannel}
+          canMoveMembers={canMoveMembers}
+          onMoveMember={onMoveMember}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
         />

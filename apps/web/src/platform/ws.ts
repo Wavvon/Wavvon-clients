@@ -255,9 +255,15 @@ export class HubWebSocket {
     this.send({ type: "voice_whisper_stop" });
   }
 
-  // --- Voice move (main WS, events.md §7.1) — no event_id in Phase 1 UI. ---
-  sendVoiceMove(targetPubkey: string, targetChannelId: string): void {
-    this.send({ type: "voice_move", target_pubkey: targetPubkey, target_channel_id: targetChannelId });
+  // --- Voice move (main WS, events.md §7.1) — eventId is present for every
+  // staging-panel move (§7.5) and omitted for the Phase-1 right-click primitive.
+  sendVoiceMove(targetPubkey: string, targetChannelId: string, eventId?: string): void {
+    this.send({
+      type: "voice_move",
+      target_pubkey: targetPubkey,
+      target_channel_id: targetChannelId,
+      ...(eventId ? { event_id: eventId } : {}),
+    });
   }
 
   // --- Hub-streams (cross-channel screen-share discovery/subscribe) ---

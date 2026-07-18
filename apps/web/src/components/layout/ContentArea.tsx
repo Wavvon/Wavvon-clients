@@ -127,6 +127,10 @@ interface Props {
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onOpenUserProfile?: (pubkey: string) => void;
   onStartConversation?: (pubkey: string) => void;
+  // Event staging panel (events.md §7.5)
+  voicePartByChannel: Record<string, VoiceParticipant[]>;
+  canMoveMembers: boolean;
+  onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
 }
 
 export function ContentArea({
@@ -159,6 +163,9 @@ export function ContentArea({
   onPinToggle,
   onOpenUserProfile,
   onStartConversation,
+  voicePartByChannel,
+  canMoveMembers,
+  onMoveMember,
 }: Props) {
   const { t } = useTranslation();
 
@@ -502,7 +509,16 @@ export function ContentArea({
             </div>
 
             {activeContentTab === "events" ? (
-              <EventsPanel channelId={selectedChannel.id} myPubkey={publicKey} isAdmin={isAdmin} />
+              <EventsPanel
+                channelId={selectedChannel.id}
+                myPubkey={publicKey}
+                isAdmin={isAdmin}
+                channels={channels}
+                users={users}
+                voicePartByChannel={voicePartByChannel}
+                canMoveMembers={canMoveMembers}
+                onMoveMember={onMoveMember}
+              />
             ) : null}
 
             {activeContentTab === "messages" && <><ChannelMessageList

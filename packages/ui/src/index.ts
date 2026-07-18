@@ -9,6 +9,8 @@ export type {
   BotCommandDef,
   BotProfile,
   HubEmoji,
+  ClaimantVoiceStatus,
+  StagingGroup,
 } from "./types";
 export { AudioProfileSection } from "./components/AudioProfileSection";
 export { Avatar } from "./components/Avatar";
@@ -30,6 +32,8 @@ export { VoiceMoveMenu } from "./components/VoiceMoveMenu";
 export type { VoiceMoveChannelOption } from "./components/VoiceMoveMenu";
 export { VoiceMoveToast } from "./components/VoiceMoveToast";
 export { VoiceMovePromptModal } from "./components/VoiceMovePromptModal";
+export { StagingPanel } from "./components/StagingPanel";
+export { StagingSlotGroup } from "./components/StagingSlotGroup";
 export { AllianceView } from "./components/content/AllianceView";
 export { EmojiPicker } from "./components/content/EmojiPicker";
 export { ReconnectBanner } from "./components/content/ReconnectBanner";

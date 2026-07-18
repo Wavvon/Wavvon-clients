@@ -71,3 +71,21 @@ export interface HubEmoji {
   name: string;
   url: string;
 }
+
+/** A claimant's current voice standing relative to an event (events.md §7.5).
+ *  Computed by the caller — this component never inspects voice/assignment
+ *  state itself, only renders what it's told. */
+export type ClaimantVoiceStatus =
+  | { kind: "in_voice"; channelName: string }
+  | { kind: "assigned"; channelName: string }
+  | { kind: "none" };
+
+/** One staging-panel bucket: an event slot's claimants, or the synthesized
+ *  "Unassigned" bucket (`id: null`) for plain "going" RSVPs with no slot. */
+export interface StagingGroup {
+  id: string | null;
+  name: string;
+  capacity: number | null;
+  claimed: number | null;
+  claimants: string[];
+}

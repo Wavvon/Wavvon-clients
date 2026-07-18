@@ -2000,12 +2000,12 @@ export default function App({ initialView }: AppProps = {}) {
     }
   }
 
-  // Mover's side: right-click "Move to channel…" (events.md §7.1). No
-  // event_id — that's the staging-panel surface, Phase 2.
-  function handleMoveMember(targetPubkey: string, targetChannelId: string) {
+  // Mover's side: right-click "Move to channel…" (events.md §7.1) and the
+  // event staging panel (§7.5, eventId set) both funnel through here.
+  function handleMoveMember(targetPubkey: string, targetChannelId: string, eventId?: string) {
     const ws = activeSession().ws;
     if (!ws) { showHubError("Not connected"); return; }
-    ws.sendVoiceMove(targetPubkey, targetChannelId);
+    ws.sendVoiceMove(targetPubkey, targetChannelId, eventId);
   }
 
   function showVoiceMoveToast(channelName: string, sourceChannelId: string | null) {
@@ -2865,6 +2865,9 @@ export default function App({ initialView }: AppProps = {}) {
         onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
         onStartConversation={handleStartConversation}
+        voicePartByChannel={voicePartByChannel}
+        canMoveMembers={canMoveMembers}
+        onMoveMember={handleMoveMember}
       /></>}
       </MobileShell>
 
