@@ -16,6 +16,8 @@
   "identity_setup.passkey.working": "Warte auf deinen Passkey…",
   "identity_setup.passkey.divider": "oder eine Wiederherstellungsphrase verwenden",
   "identity_setup.passkey.unsupported": "Dieser Browser oder dieses Gerät unterstützt noch keine passkey-abgeleiteten Identitäten. Verwende stattdessen eine Wiederherstellungsphrase.",
+  "identity_setup.passkey.prf_missing": "Dein Passkey wurde erstellt, aber der Anbieter hat das Geheimnis nicht geliefert, aus dem Wavvon deine Identität ableitet (PRF-Erweiterung). Der neue Passkey-Eintrag wird nicht verwendet — du kannst ihn löschen. Bitwarden stellt dieses Geheimnis Apps derzeit nicht bereit; versuche die integrierten Passkeys von Chrome, 1Password oder Apple Passwords, oder nutze stattdessen eine Wiederherstellungsphrase.",
+  "identity_setup.passkey.restore_failed": "Dein Gerät hat den Passkey erstellt, konnte aber nicht nachweisen, dass es deine Identität später daraus wiederherstellen kann — die Anmeldung hat das Geheimnis nie geliefert. Es wurde keine Identität erstellt; der neue Passkey-Eintrag kann gelöscht werden. Wenn du die Abfrage abgebrochen hast, versuche es einfach erneut — andernfalls erstelle deine Identität stattdessen mit einer Wiederherstellungsphrase oder versuche einen anderen Passkey-Anbieter.",
   "identity_setup.passkey.backup_title": "Sichere deine Passkey-Identität",
   "identity_setup.passkey.backup_hint": "Deine Identität ist jetzt an diesen Passkey gebunden — melde dich damit auf jedem Gerät an, auf dem dein Passkey-Anbieter (Bitwarden, 1Password, iCloud, Google) angemeldet ist. Die 24 Wörter unten sind eine universelle Sicherung, die auch ohne den Passkey funktioniert.",
   "identity_setup.passkey.reveal_phrase": "Meine 24-Wort-Sicherungsphrase anzeigen",

@@ -266,6 +266,8 @@ export type { CredentialInfo, DeviceInfo } from "./webauthn";
 
 export {
   PrfUnsupportedError,
+  PrfOutputUnavailableError,
+  PrfRestoreUnverifiedError,
   createIdentityWithPasskey,
   restoreIdentityWithPasskey,
 } from "./prfIdentity";

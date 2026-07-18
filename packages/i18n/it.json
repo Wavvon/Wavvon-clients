@@ -16,6 +16,8 @@
   "identity_setup.passkey.working": "In attesa della passkey…",
   "identity_setup.passkey.divider": "oppure usa una frase di recupero",
   "identity_setup.passkey.unsupported": "Questo browser o dispositivo non supporta ancora le identità derivate da passkey. Usa una frase di recupero.",
+  "identity_setup.passkey.prf_missing": "La tua passkey è stata creata, ma il provider non ha fornito il segreto da cui Wavvon deriva la tua identità (estensione PRF). La nuova voce passkey non viene usata — puoi eliminarla. Bitwarden attualmente non fornisce questo segreto alle app; prova le passkey integrate di Chrome, 1Password o Apple Passwords, oppure usa una frase di recupero.",
+  "identity_setup.passkey.restore_failed": "Il tuo dispositivo ha creato la passkey ma non ha potuto dimostrare di poter ripristinare la tua identità da essa in seguito — l’accesso non ha mai restituito il segreto. Nessuna identità è stata creata e la nuova voce passkey può essere eliminata. Se hai annullato la richiesta, riprova — altrimenti crea la tua identità con una frase di recupero, oppure prova un altro provider di passkey.",
   "identity_setup.passkey.backup_title": "Salva un backup per la tua identità con passkey",
   "identity_setup.passkey.backup_hint": "La tua identità ora è legata a questa passkey — accedi con essa su qualsiasi dispositivo dove il tuo gestore di passkey (Bitwarden, 1Password, iCloud, Google) è connesso. Le 24 parole qui sotto sono un backup universale che funziona anche senza la passkey.",
   "identity_setup.passkey.reveal_phrase": "Mostra la mia frase di backup di 24 parole",

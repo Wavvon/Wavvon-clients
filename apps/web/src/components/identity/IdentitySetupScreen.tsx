@@ -7,6 +7,8 @@ import {
   createIdentityWithPasskey,
   restoreIdentityWithPasskey,
   PrfUnsupportedError,
+  PrfOutputUnavailableError,
+  PrfRestoreUnverifiedError,
 } from "@platform";
 import {
   generateSubkeySeed,
@@ -202,6 +204,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   }
 
   function passkeyErrorMessage(e: unknown): string {
+    if (e instanceof PrfRestoreUnverifiedError) return t("identity_setup.passkey.restore_failed");
+    if (e instanceof PrfOutputUnavailableError) return t("identity_setup.passkey.prf_missing");
     if (e instanceof PrfUnsupportedError) return t("identity_setup.passkey.unsupported");
     return e instanceof Error ? e.message : String(e);
   }
@@ -210,6 +214,9 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     setError(null);
     setPasskeyBusy("create");
     try {
+      // createIdentityWithPasskey throws PrfRestoreUnverifiedError when the
+      // recovery self-test fails — an identity is only ever created here if
+      // the passkey has PROVEN it can restore it (user ruling, 2026-07-18).
       const { seedHex } = await createIdentityWithPasskey();
       const { account } = await resolveOrCreateAccount(seedHex);
       setGeneratedSeed(seedHex);
