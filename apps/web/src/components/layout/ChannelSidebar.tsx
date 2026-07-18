@@ -178,6 +178,10 @@ interface Props {
   collapsedCategories: Record<string, Record<string, boolean>>;
   voicePartByChannel: Record<string, VoiceParticipant[]>;
   voiceChannelId: string | null;
+  /** Overrides the looked-up channel name for the voice HUD label — set from a
+   *  voice_move push's `target_channel_name` (events.md §7.1), since a
+   *  voice-only-presence destination may not be in the local channel list. */
+  voiceChannelNameHint?: string | null;
   selfMuted: boolean;
   selfDeafened: boolean;
   users: User[];
@@ -223,6 +227,8 @@ interface Props {
   onOpenChannelSettings?: (channel: Channel) => void;
   onVoiceJoin: (channel?: Channel) => void;
   onVoiceLeave: () => void;
+  /** Right-click on a voice-roster participant — the mover's "Move to channel…" surface (events.md §7.1). */
+  onParticipantContextMenu?: (e: React.MouseEvent, participant: VoiceParticipant, channelId: string) => void;
   onSelectAllianceChannel: (alliance: AllianceInfo, channel: AllianceSharedChannel) => void;
   onSelectConversation: (conv: Conversation) => void;
   onOpenFriends?: () => void;
@@ -246,7 +252,7 @@ interface Props {
 export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
-  voicePartByChannel, voiceChannelId, selfMuted, selfDeafened,
+  voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened,
   users, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
@@ -255,7 +261,7 @@ export function ChannelSidebar({
   onHubDropdownOpenChange, onSetHubMode, onClearHubUnread, onRemoveHub,
   onOpenHubAdmin, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
-  onVoiceJoin, onVoiceLeave,
+  onVoiceJoin, onVoiceLeave, onParticipantContextMenu,
   onSelectAllianceChannel, onSelectConversation,
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
@@ -391,7 +397,7 @@ export function ChannelSidebar({
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
   const myDisplayName = users.find((u) => u.public_key === publicKey)?.display_name;
   const activePing = activeHubId ? pingByHub[activeHubId] : undefined;
-  const voiceChannelName = channels.find((c) => c.id === voiceChannelId)?.name;
+  const voiceChannelName = voiceChannelNameHint ?? channels.find((c) => c.id === voiceChannelId)?.name;
 
   function resolveSoundboardChipName(pubkey: string): string {
     const known = users.find((u) => u.public_key === pubkey)?.display_name;
@@ -661,6 +667,7 @@ export function ChannelSidebar({
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
                         onSettings={(canOpenChannelSettings ?? isAdmin) && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
+                        onParticipantContextMenu={onParticipantContextMenu ? (e, p) => onParticipantContextMenu(e, p, n.node.id) : undefined}
                       />
                     );
                   })}

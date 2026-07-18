@@ -1277,6 +1277,40 @@ select,
   animation: slide-in-down var(--transition-base);
 }
 
+/* Voice-move toast (events.md §7.2) — bottom-left, near the voice HUD
+   footer, rather than the top-center `.toast` used for hub errors: it's a
+   notice about where you now are in voice, not an error. */
+.voice-move-toast {
+  position: fixed;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--r-md);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: slide-in-down var(--transition-base);
+}
+
+.voice-move-toast-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.voice-move-toast-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .update-banner {
   position: fixed;
   top: 0;

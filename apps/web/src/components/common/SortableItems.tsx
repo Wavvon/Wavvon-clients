@@ -56,6 +56,7 @@ export function SortableChannelItem({
   onContextMenu,
   onKeyDown,
   onSettings,
+  onParticipantContextMenu,
 }: {
   channel: Channel;
   activeHubId?: string | null;
@@ -81,6 +82,8 @@ export function SortableChannelItem({
   onContextMenu: (e: React.MouseEvent) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onSettings?: (e: React.MouseEvent) => void;
+  /** Right-click on a roster participant — the mover's "Move to channel…" surface (events.md §7.1). */
+  onParticipantContextMenu?: (e: React.MouseEvent, participant: VoiceParticipant) => void;
 }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -226,6 +229,7 @@ export function SortableChannelItem({
               key={p.public_key}
               className="channel-participant"
               title={p.public_key}
+              onContextMenu={onParticipantContextMenu ? (e) => { e.stopPropagation(); onParticipantContextMenu(e, p); } : undefined}
             >
               <span className="channel-participant-icon" aria-hidden="true">🎙️</span>
               {p.display_name || p.public_key.slice(0, 12)}

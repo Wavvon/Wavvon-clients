@@ -11,7 +11,7 @@ import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath } from "@wavvon/core";
+import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath, formatPubkey } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
 
 // Voice join/leave sound cues, gated by a preference (default on). Per
@@ -58,7 +58,8 @@ import { PollComposer } from "@components/polls/PollComposer";
 import { ChannelSettingsModal } from "@components/channels/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/admin/FarmSettingsPage";
 import { CreateHubFork } from "@components/hubs/CreateHubFork";
-import { BotAppLaunchCard, FocusTrap, KeyboardShortcuts, HoverSubmenu } from "@wavvon/ui";
+import { BotAppLaunchCard, FocusTrap, KeyboardShortcuts, HoverSubmenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal } from "@wavvon/ui";
+import { moveChannelOptions, decideVoiceMove } from "./utils/voiceMove";
 import { HubAdminPage } from "@components/admin/HubAdminPage";
 import { SearchBar } from "@components/layout/SearchBar";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
@@ -427,6 +428,27 @@ export default function App({ initialView }: AppProps = {}) {
     position: { x: number; y: number };
   } | null>(null);
 
+  // === Voice move (events.md §7.1/§7.2) ===
+  const [voiceMoveMenu, setVoiceMoveMenu] = useState<{
+    pubkey: string;
+    displayName: string;
+    position: { x: number; y: number };
+    currentChannelId: string;
+  } | null>(null);
+  // Overrides the sidebar's local-channel-list name lookup for the voice HUD
+  // label — set from a voice_move push's target_channel_name, since that
+  // destination may not be in the local channel list (events.md §7.1/§7.4).
+  const [voiceChannelNameHint, setVoiceChannelNameHint] = useState<string | null>(null);
+  const [voiceMovePrompt, setVoiceMovePrompt] = useState<{
+    targetChannelId: string;
+    targetChannelName: string;
+  } | null>(null);
+  const [voiceMoveToast, setVoiceMoveToast] = useState<{
+    channelName: string;
+    sourceChannelId: string | null;
+  } | null>(null);
+  const voiceMoveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // === Typing ===
   const selectedChannelIdRef = useRef<string | undefined>(undefined);
   const selectedConvIdRef = useRef<string | undefined>(undefined);
@@ -607,6 +629,12 @@ export default function App({ initialView }: AppProps = {}) {
   const meInfoRef = useRef<MeInfo | null>(null);
   useEffect(() => { meInfoRef.current = meInfo; }, [meInfo]);
 
+  // handleVoiceJoin's "already there" guard is called both from JSX (fresh
+  // voiceChannelId) and from the frozen onVoiceMove WS handler below — the
+  // ref keeps that guard correct from either call site.
+  const voiceChannelIdRef = useRef<string | null>(null);
+  useEffect(() => { voiceChannelIdRef.current = voiceChannelId; }, [voiceChannelId]);
+
   useEffect(() => {
     if (hubs.length === 1 && meInfo !== null && !meInfo.display_name) {
       // A default profile means the user already told us who they want to
@@ -781,6 +809,19 @@ export default function App({ initialView }: AppProps = {}) {
         else next.delete(sender);
         return next;
       });
+    },
+    onVoiceMove: (raw) => {
+      const m = raw as { _hub_id?: string } & Parameters<typeof decideVoiceMove>[0];
+      if (m._hub_id !== activeHubIdRef.current) return;
+      const decision = decideVoiceMove(m);
+      if (decision.kind === "ignore") return;
+      if (decision.kind === "auto") {
+        setVoiceChannelNameHint(decision.targetChannelName);
+        void handleVoiceJoin(decision.targetChannelId);
+        showVoiceMoveToast(decision.targetChannelName, decision.sourceChannelId);
+      } else {
+        setVoiceMovePrompt({ targetChannelId: decision.targetChannelId, targetChannelName: decision.targetChannelName });
+      }
     },
     onVoiceState: (raw) => {
       const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; _hub_id?: string; sender_id?: number };
@@ -1724,9 +1765,11 @@ export default function App({ initialView }: AppProps = {}) {
 
   // === Voice ===
 
-  async function handleVoiceJoin(ch: Channel) {
-    // Already in this exact voice channel — nothing to do.
-    if (voiceChannelId === ch.id) return;
+  async function handleVoiceJoin(targetChannelId: string) {
+    // Already in this exact voice channel — nothing to do. Read via the ref
+    // (not the voiceChannelId state) so this guard is correct even when
+    // called from the frozen onVoiceMove WS handler (stableHandlers memo).
+    if (voiceChannelIdRef.current === targetChannelId) return;
     // Switching channels: tear down the current session FIRST. Without this,
     // repeated joins stack independent VoiceWsSessions (joining several rooms
     // at once) and only the last is tracked, so leaving leaves the earlier
@@ -1744,7 +1787,7 @@ export default function App({ initialView }: AppProps = {}) {
     }
     try {
       const sess = activeSession();
-      const session = new VoiceWsSession(sess.hub_url, sess.token, ch.id, {
+      const session = new VoiceWsSession(sess.hub_url, sess.token, targetChannelId, {
         // `channelId` is where the join actually landed — for a spawner
         // channel the hub creates a personal sibling room and the join
         // lands there instead, never in the spawner itself.
@@ -1772,7 +1815,7 @@ export default function App({ initialView }: AppProps = {}) {
               onPeerGone: (pk) => setRemoteVideoStreams((prev) => { const n = new Map(prev); n.delete(pk); return n; }),
             });
           }
-          if (channelId !== ch.id) {
+          if (channelId !== targetChannelId) {
             hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
           }
         },
@@ -1783,6 +1826,7 @@ export default function App({ initialView }: AppProps = {}) {
           backgroundProcessorRef.current?.stop();
           backgroundProcessorRef.current = null;
           setVoiceChannelId(null);
+          setVoiceChannelNameHint(null);
           setLocalVideoStream(null);
           setRemoteVideoStreams(new Map());
           setVideoEnabled(false);
@@ -1937,6 +1981,7 @@ export default function App({ initialView }: AppProps = {}) {
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
+    setVoiceChannelNameHint(null);
     setSelfMuted(false);
     setSelfDeafened(false);
     try { activeSession().ws?.unwatchVoice(); } catch {}
@@ -1953,6 +1998,44 @@ export default function App({ initialView }: AppProps = {}) {
         return { ...prev, [channelId]: next };
       });
     }
+  }
+
+  // Mover's side: right-click "Move to channel…" (events.md §7.1). No
+  // event_id — that's the staging-panel surface, Phase 2.
+  function handleMoveMember(targetPubkey: string, targetChannelId: string) {
+    const ws = activeSession().ws;
+    if (!ws) { showHubError("Not connected"); return; }
+    ws.sendVoiceMove(targetPubkey, targetChannelId);
+  }
+
+  function showVoiceMoveToast(channelName: string, sourceChannelId: string | null) {
+    if (voiceMoveToastTimerRef.current) clearTimeout(voiceMoveToastTimerRef.current);
+    setVoiceMoveToast({ channelName, sourceChannelId });
+    voiceMoveToastTimerRef.current = setTimeout(() => setVoiceMoveToast(null), 8000);
+  }
+
+  function handleRejoinPreviousVoiceChannel() {
+    const sourceChannelId = voiceMoveToast?.sourceChannelId;
+    setVoiceMoveToast(null);
+    if (voiceMoveToastTimerRef.current) { clearTimeout(voiceMoveToastTimerRef.current); voiceMoveToastTimerRef.current = null; }
+    if (!sourceChannelId) return;
+    // The source is a channel we were just in — no name hint needed, the
+    // local channel list already knows it.
+    void handleVoiceJoin(sourceChannelId);
+  }
+
+  function handleAcceptVoiceMove() {
+    if (!voiceMovePrompt) return;
+    const { targetChannelId, targetChannelName } = voiceMovePrompt;
+    setVoiceMovePrompt(null);
+    setVoiceChannelNameHint(targetChannelName);
+    void handleVoiceJoin(targetChannelId);
+  }
+
+  // Decline is a server no-op (events.md §7.2) — closing the prompt is the
+  // entire client side of it, nothing to send.
+  function handleDeclineVoiceMove() {
+    setVoiceMovePrompt(null);
   }
 
   function handleToggleMute() {
@@ -2030,6 +2113,19 @@ export default function App({ initialView }: AppProps = {}) {
   const canManageRoles = useMemo(
     () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_roles")) ?? false,
     [meInfo],
+  );
+
+  // Gates the voice roster's "Move to channel…" entry (events.md §7.1). The
+  // hub re-checks channel-scoped against the destination on every voice_move —
+  // this is UX-only, same posture as the other client-side permission gates here.
+  const canMoveMembers = useMemo(
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("move_members")) ?? false,
+    [meInfo],
+  );
+
+  const voiceMoveChannelOptions = useMemo(
+    () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveMenu?.currentChannelId),
+    [channels, voiceMoveMenu],
   );
 
   // Same permission the invite endpoints require (routes/invites.rs) — gates
@@ -2275,6 +2371,36 @@ export default function App({ initialView }: AppProps = {}) {
         </div>
       )}
 
+      {voiceMoveToast && (
+        <VoiceMoveToast
+          channelName={voiceMoveToast.channelName}
+          canRejoin={voiceMoveToast.sourceChannelId !== null}
+          onRejoin={handleRejoinPreviousVoiceChannel}
+          onDismiss={() => {
+            setVoiceMoveToast(null);
+            if (voiceMoveToastTimerRef.current) { clearTimeout(voiceMoveToastTimerRef.current); voiceMoveToastTimerRef.current = null; }
+          }}
+        />
+      )}
+
+      {voiceMovePrompt && (
+        <VoiceMovePromptModal
+          channelName={voiceMovePrompt.targetChannelName}
+          onAccept={handleAcceptVoiceMove}
+          onDecline={handleDeclineVoiceMove}
+        />
+      )}
+
+      {voiceMoveMenu && (
+        <VoiceMoveMenu
+          displayName={voiceMoveMenu.displayName}
+          position={voiceMoveMenu.position}
+          channels={voiceMoveChannelOptions}
+          onMove={(channelId) => { handleMoveMember(voiceMoveMenu.pubkey, channelId); setVoiceMoveMenu(null); }}
+          onClose={() => setVoiceMoveMenu(null)}
+        />
+      )}
+
       {sharing && (
         <ScreenShareSelfPreview
           stream={shareLocalStream}
@@ -2478,6 +2604,7 @@ export default function App({ initialView }: AppProps = {}) {
         collapsedCategories={collapsedCategories}
         voicePartByChannel={voicePartByChannel}
         voiceChannelId={voiceChannelId}
+        voiceChannelNameHint={voiceChannelNameHint}
         selfMuted={selfMuted}
         selfDeafened={selfDeafened}
         users={users}
@@ -2542,8 +2669,18 @@ export default function App({ initialView }: AppProps = {}) {
           }
         }}
         onOpenChannelSettings={(channel) => { setChannelSettingsCtx(channel); setChannelSettingsError(null); }}
-        onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
+        onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch.id)}
         onVoiceLeave={handleVoiceLeave}
+        onParticipantContextMenu={canMoveMembers ? (e, p, channelId) => {
+          e.preventDefault();
+          if (p.public_key === publicKey) return; // hide self — move your own voice by joining directly
+          setVoiceMoveMenu({
+            pubkey: p.public_key,
+            displayName: p.display_name || formatPubkey(p.public_key),
+            position: { x: e.clientX, y: e.clientY },
+            currentChannelId: channelId,
+          });
+        } : undefined}
         onSelectAllianceChannel={handleSelectAllianceChannel}
         onOpenFriends={() => setShowFriends(true)}
         onSelectConversation={handleSelectConversation}
