@@ -157,6 +157,7 @@ export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 
 export {
   getEvents,
+  getEvent,
   createEvent,
   rsvpEvent,
   cancelRsvp,

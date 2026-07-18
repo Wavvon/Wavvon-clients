@@ -5128,6 +5128,12 @@ select:focus-visible {
   border-radius: var(--r-sm);
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   z-index: 300;
+  /* A long list (e.g. the voice-move channel picker on a hub with many
+     voice channels) would otherwise run off-screen with no way to reach
+     the lower entries — same "never taller than the viewport" posture
+     as .modal. */
+  max-height: min(320px, 70vh);
+  overflow-y: auto;
 }
 
 .hover-submenu-group:hover .hover-submenu-items {

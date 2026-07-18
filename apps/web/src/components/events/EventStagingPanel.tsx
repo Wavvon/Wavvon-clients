@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StagingPanel } from "@wavvon/ui";
 import type { Channel, EventMoveAssignment, EventRsvp, EventSlot, User, VoiceParticipant } from "@shared/types";
-import { createEventSquadRooms, getEventAssignments, getEventRsvps } from "@platform";
+import { createEventSquadRooms, getEvent, getEventAssignments, getEventRsvps } from "@platform";
 import { moveChannelOptions } from "@shared/utils/voiceMove";
 import {
   buildStagingGroups,
@@ -33,6 +33,11 @@ export function EventStagingPanel({ eventId, eventTitle, slots, channels, users,
   const { t } = useTranslation();
   const [assignments, setAssignments] = useState<EventMoveAssignment[]>([]);
   const [rsvps, setRsvps] = useState<EventRsvp[]>([]);
+  // The `slots` prop is a point-in-time snapshot from whichever client last
+  // loaded the events list — it never updates when a DIFFERENT client claims
+  // a slot. Seed from the prop so the panel isn't empty before the first
+  // fetch resolves, then replace with the server's current slots on load.
+  const [liveSlots, setLiveSlots] = useState<EventSlot[]>(slots);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [squadRoomCount, setSquadRoomCount] = useState(4);
@@ -42,10 +47,12 @@ export function EventStagingPanel({ eventId, eventTitle, slots, channels, users,
 
   const load = useCallback(async () => {
     try {
-      const [nextAssignments, nextRsvps] = await Promise.all([
+      const [freshEvent, nextAssignments, nextRsvps] = await Promise.all([
+        getEvent(eventId),
         getEventAssignments(eventId),
         getEventRsvps(eventId),
       ]);
+      setLiveSlots(freshEvent.slots);
       setAssignments(nextAssignments);
       setRsvps(nextRsvps);
       setError(null);
@@ -82,8 +89,8 @@ export function EventStagingPanel({ eventId, eventTitle, slots, channels, users,
   );
 
   const groups = useMemo(
-    () => buildStagingGroups(slots, unassignedGoingPubkeys(rsvps, slots)),
-    [slots, rsvps],
+    () => buildStagingGroups(liveSlots, unassignedGoingPubkeys(rsvps, liveSlots)),
+    [liveSlots, rsvps],
   );
 
   function refetchSoon() {

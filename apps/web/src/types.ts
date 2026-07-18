@@ -119,8 +119,10 @@ export interface Poll {
 
 export type RsvpStatus = "going" | "maybe" | "not_going";
 
+// Matches the hub's RsvpEntry field name exactly (hub/src/routes/events.rs)
+// — GET /events/:id/rsvps returns `user_pubkey`, not `pubkey`.
 export interface EventRsvp {
-  pubkey: string;
+  user_pubkey: string;
   status: RsvpStatus;
 }
 

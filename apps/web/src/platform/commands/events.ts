@@ -6,6 +6,15 @@ export async function getEvents(): Promise<HubEvent[]> {
   return res.json() as Promise<HubEvent[]>;
 }
 
+// A single event, fresh from the server — used by the staging panel to
+// re-read `slots.claimants` on open/refresh (events.md §7.5), since the
+// EventCard's own `event` prop is a point-in-time snapshot that never
+// updates when a DIFFERENT client claims a slot.
+export async function getEvent(eventId: string): Promise<HubEvent> {
+  const res = await hubFetch(`/events/${eventId}`);
+  return res.json() as Promise<HubEvent>;
+}
+
 export interface CreateEventSlotInput {
   name: string;
   capacity?: number | null;

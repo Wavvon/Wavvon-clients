@@ -13,7 +13,7 @@ export const SQUAD_ROOM_COUNT_MAX = 20;
  *  synthesized "Unassigned" bucket (events.md §7.5). */
 export function unassignedGoingPubkeys(rsvps: EventRsvp[], slots: EventSlot[]): string[] {
   const claimed = new Set(slots.flatMap((s) => s.claimants));
-  return rsvps.filter((r) => r.status === "going" && !claimed.has(r.pubkey)).map((r) => r.pubkey);
+  return rsvps.filter((r) => r.status === "going" && !claimed.has(r.user_pubkey)).map((r) => r.user_pubkey);
 }
 
 /** A claimant's current voice standing: in voice now beats a queued

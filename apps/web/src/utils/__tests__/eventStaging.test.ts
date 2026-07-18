@@ -15,16 +15,16 @@ function makeSlot(overrides: Partial<EventSlot> = {}): EventSlot {
 describe("unassignedGoingPubkeys", () => {
   it("returns pubkeys with a plain going RSVP and no slot claim", () => {
     const rsvps: EventRsvp[] = [
-      { pubkey: "pk-1", status: "going" },
-      { pubkey: "pk-2", status: "going" },
-      { pubkey: "pk-3", status: "maybe" },
+      { user_pubkey: "pk-1", status: "going" },
+      { user_pubkey: "pk-2", status: "going" },
+      { user_pubkey: "pk-3", status: "maybe" },
     ];
     const slots = [makeSlot({ claimants: ["pk-1"] })];
     expect(unassignedGoingPubkeys(rsvps, slots)).toEqual(["pk-2"]);
   });
 
   it("returns an empty list when every going RSVP claimed a slot", () => {
-    const rsvps: EventRsvp[] = [{ pubkey: "pk-1", status: "going" }];
+    const rsvps: EventRsvp[] = [{ user_pubkey: "pk-1", status: "going" }];
     const slots = [makeSlot({ claimants: ["pk-1"] })];
     expect(unassignedGoingPubkeys(rsvps, slots)).toEqual([]);
   });

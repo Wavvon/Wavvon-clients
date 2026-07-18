@@ -110,8 +110,12 @@ export function EventComposer({ channelId, channels, canHubWide, onCreated, onCl
       aria-modal="true"
       aria-label="Create event"
     >
+      {/* .modal, not the undefined .modal-box (same fix as UserProfileCard) —
+          without it the composer has no max-height/overflow, so Phase 3's
+          extra fields (scope, announcement channel, propagate checkbox) can
+          push the submit button past the viewport with no way to reach it. */}
       <div
-        className="modal-box"
+        className="modal"
         style={{ maxWidth: 440, padding: 24 }}
         onClick={(e) => e.stopPropagation()}
       >
