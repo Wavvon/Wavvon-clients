@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FocusTrap } from "@wavvon/ui";
+import { EmojiPicker, FocusTrap } from "@wavvon/ui";
 import type { Channel } from "@shared/types";
 import { ChannelPermissionsTab } from "./ChannelPermissionsTab";
 import { ChannelBansTab } from "./ChannelBansTab";
 import { ColorSwatchPicker } from "@components/common/ColorSwatchPicker";
-import { EmojiPicker } from "@components/content/EmojiPicker";
 import { safeRoleColor } from "@shared/utils/roleAppearance";
 import { BANNER_MAX_BYTES, BANNER_MIME_TYPES, type BannerSource } from "./CreateChannelModal";
 import { activeSession } from "@platform";

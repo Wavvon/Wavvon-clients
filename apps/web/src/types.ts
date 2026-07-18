@@ -685,18 +685,7 @@ export interface SelectOption {
   description?: string;
 }
 
-export interface BotCommandDef {
-  name: string;
-  description: string;
-}
-
-export interface BotProfile {
-  pubkey: string;
-  name: string;
-  avatar_url: string | null;
-  description: string | null;
-  commands: BotCommandDef[];
-}
+export type { BotCommandDef, BotProfile } from "@wavvon/ui";
 
 export interface ExternalBotRow {
   public_key: string;
@@ -1043,13 +1032,7 @@ export interface LinkPreview {
 
 // ---- Bot mini-app events ----
 
-export interface BotAppLaunchEvent {
-  type: 'bot_app_launch';
-  bot_id: string;
-  title: string;
-  description: string;
-  channel_id: string;
-}
+export type { BotAppLaunchEvent } from "@wavvon/ui";
 
 export interface BotAppOpenEvent {
   type: 'bot_app_open';

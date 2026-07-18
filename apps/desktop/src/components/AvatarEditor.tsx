@@ -1,5 +1,4 @@
-import { ImagePicker } from "./ImagePicker";
-import { Avatar } from "@wavvon/ui";
+import { Avatar, ImagePicker } from "@wavvon/ui";
 
 export function AvatarEditor({
   value,

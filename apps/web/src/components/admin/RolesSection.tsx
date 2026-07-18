@@ -7,8 +7,7 @@ import { ALL_PERMISSIONS } from "@shared/constants";
 import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "@shared/utils/roleAppearance";
 import { RoleCategoryManager } from "./RoleCategoryManager";
 import { ColorSwatchPicker } from "@components/common/ColorSwatchPicker";
-import { EmojiPicker } from "@components/content/EmojiPicker";
-import { ErrorRetry } from "@wavvon/ui";
+import { EmojiPicker, ErrorRetry } from "@wavvon/ui";
 
 // New role-admin controls (create / delete / permission editing) use plain
 // English to match the desktop RoleCreator/RoleEditor this is ported from

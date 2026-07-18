@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { Message, Attachment, User } from "../../types";
 import { formatPubkey } from "@wavvon/core";
-import { EmojiPicker } from "../EmojiPicker";
-import { PendingAttachments } from "@wavvon/ui";
+import { EmojiPicker, PendingAttachments } from "@wavvon/ui";
+import type { HubEmoji } from "@wavvon/ui";
 
 interface SlashCommandEntry {
   command: string;
@@ -212,6 +213,7 @@ export function ChannelComposer({
             <EmojiPicker
               hubUrl={activeHubUrl}
               buttonClassName="composer-btn"
+              loadHubEmojis={() => invoke<HubEmoji[]>("list_hub_emojis")}
               onPick={(emoji) => {
                 onInputTextChange(inputText + emoji);
                 messageInputRef.current?.focus();

@@ -45,7 +45,7 @@ import type {
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
 import { HubStreamsPanel } from "./components/HubStreamsPanel";
-import { KeyboardShortcuts } from "@wavvon/ui";
+import { BotAppLaunchCard, KeyboardShortcuts } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
@@ -103,7 +103,6 @@ import { Lobby } from "./components/Lobby";
 import { BotChallenge } from "./components/BotChallenge";
 import { SurveyComponent } from "./components/Survey";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { BotAppLaunchCard } from "./components/BotAppLaunchCard";
 
 function App() {
   // Multi-hub state

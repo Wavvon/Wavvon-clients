@@ -44,3 +44,30 @@ export interface IgnoreEntry {
   pubkey: string;
   since: number;
 }
+
+export interface BotAppLaunchEvent {
+  type: "bot_app_launch";
+  bot_id: string;
+  title: string;
+  description: string;
+  channel_id: string;
+}
+
+export interface BotCommandDef {
+  name: string;
+  description: string;
+}
+
+export interface BotProfile {
+  pubkey: string;
+  name: string;
+  avatar_url: string | null;
+  description: string | null;
+  commands: BotCommandDef[];
+}
+
+export interface HubEmoji {
+  id: string;
+  name: string;
+  url: string;
+}

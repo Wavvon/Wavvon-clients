@@ -15,7 +15,6 @@ import type {
   Poll,
 } from "@shared/types";
 import { UserListGrouped } from "@components/users/UserListGrouped";
-import { BotCard } from "@components/bots/BotCard";
 import { UserProfileCard } from "@components/users/UserProfileCard";
 import { PinnedMessagesModal } from "@components/content/PinnedMessagesModal";
 import { hubFetch, getPolls } from "@platform";
@@ -29,7 +28,7 @@ import { ChannelMessageList } from "@components/content/ChannelMessageList";
 import { ChannelComposer } from "@components/content/ChannelComposer";
 import { PollComposer } from "@components/polls/PollComposer";
 import { EventsPanel } from "@components/events/EventsPanel";
-import { AllianceView, ReconnectBanner } from "@wavvon/ui";
+import { AllianceView, BotCard, ReconnectBanner } from "@wavvon/ui";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 import { getScoped, setScoped } from "@shared/utils/accountScope";
 
@@ -622,6 +621,7 @@ export function ContentArea({
           pubkey={botCard.pubkey}
           anchorRect={botCard.rect}
           onClose={() => setBotCard(null)}
+          loadBotProfile={(pk) => hubFetch(`/bots/${pk}`).then((r) => r.json())}
         />
       )}
 

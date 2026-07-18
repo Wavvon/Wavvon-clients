@@ -10,7 +10,7 @@ import type {
   RoleInfo,
 } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
-import { ImagePicker } from "./ImagePicker";
+import { ImagePicker } from "@wavvon/ui";
 import { InvitesSection } from "./InvitesSection";
 import { MemberRow } from "./MemberRow";
 import { RoleCreator } from "./RoleCreator";

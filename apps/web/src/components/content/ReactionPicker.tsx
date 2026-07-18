@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { EMOJI_CATALOG } from "@shared/constants";
 import { loadRecentEmojis, pushRecentEmoji } from "@wavvon/core";
-import { FocusTrap } from "@wavvon/ui";
+import { EMOJI_CATALOG, FocusTrap } from "@wavvon/ui";
 
 export function ReactionPicker({
   onPick,

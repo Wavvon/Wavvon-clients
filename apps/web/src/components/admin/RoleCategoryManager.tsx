@@ -4,7 +4,7 @@ import type { RoleCategory } from "@shared/types";
 import { createRoleCategory, updateRoleCategory, deleteRoleCategory } from "@platform";
 import { HubApiError } from "../../platform/http";
 import { safeRoleColor } from "@shared/utils/roleAppearance";
-import { EmojiPicker } from "@components/content/EmojiPicker";
+import { EmojiPicker } from "@wavvon/ui";
 import { ColorSwatchPicker } from "@components/common/ColorSwatchPicker";
 
 interface Props {

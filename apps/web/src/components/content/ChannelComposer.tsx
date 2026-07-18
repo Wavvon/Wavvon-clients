@@ -2,8 +2,8 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, Attachment, User } from "../../types";
 import { formatPubkey } from "@wavvon/core";
-import { EmojiPicker } from "./EmojiPicker";
-import { PendingAttachments } from "@wavvon/ui";
+import { hubFetch } from "@platform";
+import { EmojiPicker, PendingAttachments } from "@wavvon/ui";
 
 interface SlashCommandEntry {
   command: string;
@@ -235,6 +235,7 @@ export function ChannelComposer({
             <EmojiPicker
               hubUrl={activeHubUrl}
               buttonClassName="composer-btn"
+              loadHubEmojis={() => hubFetch("/emojis").then((r) => r.json())}
               onPick={(emoji) => {
                 onInputTextChange(inputText + emoji);
                 messageInputRef.current?.focus();

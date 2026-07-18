@@ -496,18 +496,7 @@ export interface SelectOption {
 
 // ---- Bot profile (public card) ----
 
-export interface BotCommandDef {
-  name: string;
-  description: string;
-}
-
-export interface BotProfile {
-  pubkey: string;
-  name: string;
-  avatar_url: string | null;
-  description: string | null;
-  commands: BotCommandDef[];
-}
+export type { BotCommandDef, BotProfile } from "@wavvon/ui";
 
 // ---- External bots ----
 
@@ -933,13 +922,7 @@ export interface TauriFile extends File {
 
 // ---- Bot mini-app events ----
 
-export interface BotAppLaunchEvent {
-  type: 'bot_app_launch';
-  bot_id: string;
-  title: string;
-  description: string;
-  channel_id: string;
-}
+export type { BotAppLaunchEvent } from "@wavvon/ui";
 
 export interface BotAppOpenEvent {
   type: 'bot_app_open';

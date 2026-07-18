@@ -4,8 +4,7 @@ import { useState } from "react";
  * Drop-zone + button file picker. Resizes the chosen image (center-crop) to
  * a JPEG data URL before handing it back, so the payload stays small
  * regardless of what the user drags in. Defaults to 128×128 (avatars); pass
- * width/height for other aspects (e.g. a wide profile cover). Ported from the
- * desktop client's ImagePicker so web reaches avatar-upload parity.
+ * width/height for other aspects (e.g. a wide profile cover).
  */
 export function ImagePicker({
   onPick,

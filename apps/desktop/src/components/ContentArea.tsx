@@ -14,10 +14,10 @@ import type {
   VoiceParticipant,
   PostSummary,
   LinkPreview,
+  BotProfile,
 } from "../types";
 import { ForumView } from "./content/ForumView";
 import { UserListGrouped } from "./UserListGrouped";
-import { BotCard } from "./BotCard";
 import { UserProfileCard } from "./UserProfileCard";
 import { PinnedMessages } from "./PinnedMessages";
 import { PollComposer } from "./PollComposer";
@@ -26,7 +26,7 @@ import { DmView } from "./content/DmView";
 import { ChannelHeader } from "./content/ChannelHeader";
 import { ChannelMessageList } from "./content/ChannelMessageList";
 import { ChannelComposer } from "./content/ChannelComposer";
-import { AllianceView, ReconnectBanner } from "@wavvon/ui";
+import { AllianceView, BotCard, ReconnectBanner } from "@wavvon/ui";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -587,9 +587,9 @@ export function ContentArea({
       {botCard && activeHub && (
         <BotCard
           pubkey={botCard.pubkey}
-          hubUrl={activeHub.hub_url}
           anchorRect={botCard.rect}
           onClose={() => setBotCard(null)}
+          loadBotProfile={(pk) => invoke<BotProfile>("get_bot_profile", { hubUrl: activeHub.hub_url, pubkey: pk })}
         />
       )}
 

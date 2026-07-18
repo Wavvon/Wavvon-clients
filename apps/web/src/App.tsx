@@ -38,7 +38,6 @@ import type {
   SoundboardClip,
 } from "@shared/types";
 import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus } from "./types";
-import { BotAppLaunchCard } from "@components/bots/BotAppLaunchCard";
 import { BotMiniAppFrame } from "@components/bots/BotMiniAppFrame";
 import { HubSidebar } from "@components/layout/HubSidebar";
 import { ChannelSidebar } from "@components/layout/ChannelSidebar";
@@ -59,7 +58,7 @@ import { PollComposer } from "@components/polls/PollComposer";
 import { ChannelSettingsModal } from "@components/channels/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/admin/FarmSettingsPage";
 import { CreateHubFork } from "@components/hubs/CreateHubFork";
-import { FocusTrap, KeyboardShortcuts, HoverSubmenu } from "@wavvon/ui";
+import { BotAppLaunchCard, FocusTrap, KeyboardShortcuts, HoverSubmenu } from "@wavvon/ui";
 import { HubAdminPage } from "@components/admin/HubAdminPage";
 import { SearchBar } from "@components/layout/SearchBar";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";

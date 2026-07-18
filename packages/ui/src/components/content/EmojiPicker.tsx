@@ -1,17 +1,11 @@
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { hubFetch } from "@platform";
-import { EMOJI_CATALOG } from "@shared/constants";
 import { loadRecentEmojis, pushRecentEmoji } from "@wavvon/core";
-import { FocusTrap } from "@wavvon/ui";
+import { EMOJI_CATALOG } from "../../emojiCatalog";
+import { FocusTrap } from "../FocusTrap";
+import type { HubEmoji } from "../../types";
 
 const POPUP_HEIGHT = 320;
-
-interface HubEmoji {
-  id: string;
-  name: string;
-  url: string;
-}
 
 interface Props {
   onPick: (text: string) => void;
@@ -22,9 +16,12 @@ interface Props {
    *  resolver runs (messages) — as a role/channel icon they show as literal
    *  text, so icon pickers pass this. */
   unicodeOnly?: boolean;
+  /** Fetches the hub's custom emoji set. Omitted (or ignored when
+   *  unicodeOnly) for pickers that only ever need the standard catalog. */
+  loadHubEmojis?: () => Promise<HubEmoji[]>;
 }
 
-export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly }: Props) {
+export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly, loadHubEmojis }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [popupStyle, setPopupStyle] = useState<CSSProperties>({});
@@ -35,12 +32,11 @@ export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly }: Pr
 
   useEffect(() => {
     if (!open) return;
-    if (unicodeOnly) return;
-    hubFetch("/emojis")
-      .then((r) => r.json() as Promise<HubEmoji[]>)
+    if (unicodeOnly || !loadHubEmojis) return;
+    loadHubEmojis()
       .then(setHubEmojis)
       .catch(() => setHubEmojis([]));
-  }, [open, unicodeOnly]);
+  }, [open, unicodeOnly, loadHubEmojis]);
 
   const filteredStandard = useMemo(() => {
     const q = query.trim().toLowerCase();

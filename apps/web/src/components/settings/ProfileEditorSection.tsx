@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Avatar } from "@wavvon/ui";
+import { Avatar, EmojiPicker, ImagePicker } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
 import type { Hub, FavoriteHub } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
-import { ImagePicker } from "@components/common/ImagePicker";
-import { EmojiPicker } from "@components/content/EmojiPicker";
 import { AutoGrowTextarea } from "@components/profile/AutoGrowTextarea";
 import { StatusBubble } from "@components/profile/StatusBubble";
 import { profileBannerStyle } from "@shared/utils/identityColor";

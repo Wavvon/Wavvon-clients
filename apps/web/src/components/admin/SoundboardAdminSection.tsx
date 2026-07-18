@@ -9,8 +9,7 @@ import {
 } from "@platform";
 import { HubApiError } from "../../platform/http";
 import { formatPubkey } from "@wavvon/core";
-import { EmojiPicker } from "@components/content/EmojiPicker";
-import { ErrorRetry } from "@wavvon/ui";
+import { EmojiPicker, ErrorRetry } from "@wavvon/ui";
 
 function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;

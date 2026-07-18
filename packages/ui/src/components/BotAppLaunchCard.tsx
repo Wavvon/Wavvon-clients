@@ -1,5 +1,4 @@
-import React from "react";
-import type { BotAppLaunchEvent } from "@shared/types";
+import type { BotAppLaunchEvent } from "../types";
 
 interface Props {
   event: BotAppLaunchEvent;

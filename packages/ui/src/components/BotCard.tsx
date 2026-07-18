@@ -1,28 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { BotProfile } from "../types";
-import { Avatar, FocusTrap } from "@wavvon/ui";
+import { Avatar } from "./Avatar";
+import { FocusTrap } from "./FocusTrap";
 
 interface Props {
   pubkey: string;
-  hubUrl: string;
   anchorRect: DOMRect;
   onClose: () => void;
+  loadBotProfile: (pubkey: string) => Promise<BotProfile>;
 }
 
-export function BotCard({ pubkey, hubUrl, anchorRect, onClose }: Props) {
+export function BotCard({ pubkey, anchorRect, onClose, loadBotProfile }: Props) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<BotProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    invoke<BotProfile>("get_bot_profile", { hubUrl, pubkey })
+    loadBotProfile(pubkey)
       .then(setProfile)
       .catch((e) => setError(String(e)));
-  }, [hubUrl, pubkey]);
+  }, [pubkey, loadBotProfile]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -45,40 +45,40 @@ export function BotCard({ pubkey, hubUrl, anchorRect, onClose }: Props) {
 
   return (
     <FocusTrap>
-    <div className="bot-card" ref={cardRef} style={style}>
-      {error ? (
-        <p className="muted">{error}</p>
-      ) : !profile ? (
-        <p className="muted">{t("bot.card.loading")}</p>
-      ) : (
-        <>
-          <div className="bot-card-header">
-            <Avatar src={profile.avatar_url} name={profile.name} size={40} />
-            <div className="bot-card-identity">
-              <span className="bot-card-name">{profile.name}</span>
-              <span className="bot-badge">{t("bot.badge")}</span>
+      <div className="bot-card" ref={cardRef} style={style}>
+        {error ? (
+          <p className="muted">{error}</p>
+        ) : !profile ? (
+          <p className="muted">{t("bot.card.loading")}</p>
+        ) : (
+          <>
+            <div className="bot-card-header">
+              <Avatar src={profile.avatar_url} name={profile.name} pubkey={pubkey} size={40} />
+              <div className="bot-card-identity">
+                <span className="bot-card-name">{profile.name}</span>
+                <span className="bot-badge">{t("bot.badge")}</span>
+              </div>
             </div>
-          </div>
-          {profile.description && (
-            <p className="bot-card-desc">{profile.description}</p>
-          )}
-          {profile.commands.length > 0 && (
-            <div className="bot-card-commands">
-              <p className="bot-card-section-label">{t("bot.card.commands")}</p>
-              <ul>
-                {profile.commands.map((cmd) => (
-                  <li key={cmd.name} className="bot-card-command-row">
-                    <code className="bot-card-command-name">/{cmd.name}</code>
-                    <span className="muted">{cmd.description}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <p className="bot-card-footer muted">{t("bot.card.footer")}</p>
-        </>
-      )}
-    </div>
+            {profile.description && (
+              <p className="bot-card-desc">{profile.description}</p>
+            )}
+            {profile.commands.length > 0 && (
+              <div className="bot-card-commands">
+                <p className="bot-card-section-label">{t("bot.card.commands")}</p>
+                <ul>
+                  {profile.commands.map((cmd) => (
+                    <li key={cmd.name} className="bot-card-command-row">
+                      <code className="bot-card-command-name">/{cmd.name}</code>
+                      <span className="muted">{cmd.description}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="bot-card-footer muted">{t("bot.card.footer")}</p>
+          </>
+        )}
+      </div>
     </FocusTrap>
   );
 }
