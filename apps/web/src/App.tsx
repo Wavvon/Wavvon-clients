@@ -2965,6 +2965,8 @@ export default function App({ initialView }: AppProps = {}) {
       {eventComposerChannelId && (
         <EventComposer
           channelId={eventComposerChannelId}
+          channels={channels}
+          canHubWide={isAdmin}
           onCreated={() => {}}
           onClose={() => setEventComposerChannelId(null)}
         />

@@ -98,6 +98,8 @@ export function EventsPanel({
       {showComposer && (
         <EventComposer
           channelId={channelId}
+          channels={channels}
+          canHubWide={isAdmin}
           onCreated={handleCreated}
           onClose={() => setShowComposer(false)}
         />

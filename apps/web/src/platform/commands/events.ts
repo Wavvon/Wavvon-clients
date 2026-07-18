@@ -1,5 +1,5 @@
 import { hubFetch } from "../http";
-import type { EventMoveAssignment, EventRsvp, EventSlot, HubEvent, RsvpStatus } from "@shared/types";
+import type { Channel, EventMoveAssignment, EventRsvp, EventSlot, HubEvent, RsvpStatus } from "@shared/types";
 
 export async function getEvents(): Promise<HubEvent[]> {
   const res = await hubFetch("/events");
@@ -20,6 +20,8 @@ export async function createEvent(data: {
   ends_at?: number | null;
   reminder_minutes?: number | null;
   slots?: CreateEventSlotInput[];
+  hub_wide?: boolean;
+  propagate_to_children?: boolean;
 }): Promise<HubEvent> {
   const res = await hubFetch("/events", {
     method: "POST",
@@ -89,4 +91,20 @@ export async function getEventRsvps(eventId: string): Promise<EventRsvp[]> {
 export async function getEventAssignments(eventId: string): Promise<EventMoveAssignment[]> {
   const res = await hubFetch(`/events/${eventId}/assignments`);
   return res.json() as Promise<EventMoveAssignment[]>;
+}
+
+// Auto-spawned squad channels (events.md §7.5 Phase 3) — organizer-only,
+// same gate as getEventAssignments. The created channels arrive at every
+// client via the usual channels-updated WS push; the response here is just
+// for immediate feedback in the staging panel.
+export async function createEventSquadRooms(
+  eventId: string,
+  count: number,
+  namePrefix?: string,
+): Promise<Channel[]> {
+  const res = await hubFetch(`/events/${eventId}/squad-rooms`, {
+    method: "POST",
+    body: JSON.stringify({ count, name_prefix: namePrefix }),
+  });
+  return res.json() as Promise<Channel[]>;
 }

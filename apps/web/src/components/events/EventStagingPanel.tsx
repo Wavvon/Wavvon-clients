@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { StagingPanel } from "@wavvon/ui";
 import type { Channel, EventMoveAssignment, EventRsvp, EventSlot, User, VoiceParticipant } from "@shared/types";
-import { getEventAssignments, getEventRsvps } from "@platform";
+import { createEventSquadRooms, getEventAssignments, getEventRsvps } from "@platform";
 import { moveChannelOptions } from "@shared/utils/voiceMove";
-import { buildStagingGroups, claimantVoiceStatus, unassignedGoingPubkeys } from "@shared/utils/eventStaging";
+import {
+  buildStagingGroups,
+  claimantVoiceStatus,
+  clampSquadRoomCount,
+  orderDestinationsForEvent,
+  unassignedGoingPubkeys,
+} from "@shared/utils/eventStaging";
 
 interface Props {
   eventId: string;
@@ -23,10 +30,15 @@ interface Props {
 const REFETCH_DELAY_MS = 400;
 
 export function EventStagingPanel({ eventId, eventTitle, slots, channels, users, voicePartByChannel, onMoveMember, onClose }: Props) {
+  const { t } = useTranslation();
   const [assignments, setAssignments] = useState<EventMoveAssignment[]>([]);
   const [rsvps, setRsvps] = useState<EventRsvp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [squadRoomCount, setSquadRoomCount] = useState(4);
+  const [squadRoomPrefix, setSquadRoomPrefix] = useState(() => t("events.staging.squad_rooms.default_prefix"));
+  const [spawningSquadRooms, setSpawningSquadRooms] = useState(false);
+  const [squadRoomError, setSquadRoomError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -50,7 +62,14 @@ export function EventStagingPanel({ eventId, eventTitle, slots, channels, users,
   }, [load]);
 
   const channelNameById = useMemo(() => new Map(channels.map((c) => [c.id, c.name])), [channels]);
-  const destinationChannels = useMemo(() => moveChannelOptions(channels), [channels]);
+  const eventChannelIds = useMemo(
+    () => new Set(channels.filter((c) => c.event_id === eventId).map((c) => c.id)),
+    [channels, eventId],
+  );
+  const destinationChannels = useMemo(
+    () => orderDestinationsForEvent(moveChannelOptions(channels), eventChannelIds),
+    [channels, eventChannelIds],
+  );
 
   const nameFor = useCallback(
     (pubkey: string) => users.find((u) => u.public_key === pubkey)?.display_name || pubkey.slice(0, 8),
@@ -81,6 +100,26 @@ export function EventStagingPanel({ eventId, eventTitle, slots, channels, users,
     refetchSoon();
   }
 
+  function handleSquadRoomCountChange(count: number) {
+    setSquadRoomCount(clampSquadRoomCount(count));
+  }
+
+  async function handleSpawnSquadRooms() {
+    setSpawningSquadRooms(true);
+    setSquadRoomError(null);
+    try {
+      const prefix = squadRoomPrefix.trim();
+      await createEventSquadRooms(eventId, squadRoomCount, prefix || undefined);
+      // The created channels arrive via the normal channels-updated WS push
+      // (state.channels flows back down as this panel's `channels` prop), so
+      // there's nothing to merge locally here.
+    } catch (e) {
+      setSquadRoomError(String(e));
+    } finally {
+      setSpawningSquadRooms(false);
+    }
+  }
+
   return (
     <StagingPanel
       eventTitle={eventTitle}
@@ -93,6 +132,13 @@ export function EventStagingPanel({ eventId, eventTitle, slots, channels, users,
       loading={loading}
       error={error}
       onClose={onClose}
+      squadRoomCount={squadRoomCount}
+      onSquadRoomCountChange={handleSquadRoomCountChange}
+      squadRoomPrefix={squadRoomPrefix}
+      onSquadRoomPrefixChange={setSquadRoomPrefix}
+      onSpawnSquadRooms={() => void handleSpawnSquadRooms()}
+      spawningSquadRooms={spawningSquadRooms}
+      squadRoomError={squadRoomError}
     />
   );
 }

@@ -16,6 +16,16 @@ interface Props {
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  /** Auto-spawned squad rooms (events.md §7.5 Phase 3). The caller owns the
+   *  count/prefix state and bounds-clamping; this component only renders the
+   *  controlled inputs and fires the callbacks. */
+  squadRoomCount: number;
+  onSquadRoomCountChange: (count: number) => void;
+  squadRoomPrefix: string;
+  onSquadRoomPrefixChange: (prefix: string) => void;
+  onSpawnSquadRooms: () => void;
+  spawningSquadRooms: boolean;
+  squadRoomError: string | null;
 }
 
 /** Organizer-only staging panel on an event card (events.md §7.5) — groups
@@ -26,6 +36,8 @@ interface Props {
  *  gating on organizer + `move_members` is also the caller's job. */
 export function StagingPanel({
   eventTitle, groups, destinationChannels, nameFor, statusFor, onAssign, onBulkAssign, loading, error, onClose,
+  squadRoomCount, onSquadRoomCountChange, squadRoomPrefix, onSquadRoomPrefixChange, onSpawnSquadRooms,
+  spawningSquadRooms, squadRoomError,
 }: Props) {
   const { t } = useTranslation();
   return (
@@ -43,6 +55,45 @@ export function StagingPanel({
               {t("events.staging.title", { event: eventTitle })}
             </h3>
             <button className="btn-ghost" onClick={onClose} aria-label={t("events.staging.close")}>×</button>
+          </div>
+
+          <div className="settings-section" style={{ marginBottom: 10 }}>
+            <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 6 }}>
+              {t("events.staging.squad_rooms.title")}
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={squadRoomCount}
+                onChange={(e) => onSquadRoomCountChange(Number(e.target.value))}
+                style={{ width: 60 }}
+                aria-label={t("events.staging.squad_rooms.count_label")}
+              />
+              <input
+                type="text"
+                value={squadRoomPrefix}
+                onChange={(e) => onSquadRoomPrefixChange(e.target.value)}
+                placeholder={t("events.staging.squad_rooms.prefix_placeholder")}
+                aria-label={t("events.staging.squad_rooms.prefix_placeholder")}
+                style={{ flex: 1, minWidth: 120 }}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: "var(--text-xs)", padding: "4px 10px" }}
+                onClick={onSpawnSquadRooms}
+                disabled={spawningSquadRooms}
+              >
+                {spawningSquadRooms
+                  ? t("events.staging.squad_rooms.spawning")
+                  : t("events.staging.squad_rooms.spawn")}
+              </button>
+            </div>
+            {squadRoomError && (
+              <p style={{ color: "var(--danger)", fontSize: "var(--text-xs)", marginTop: 4 }}>{squadRoomError}</p>
+            )}
           </div>
 
           {loading && <p className="muted">{t("events.staging.loading")}</p>}

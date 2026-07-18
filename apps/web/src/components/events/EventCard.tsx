@@ -64,7 +64,12 @@ export function EventCard({
     <div className="event-card settings-section" style={{ padding: 14, marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 2 }}>{event.title}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
+            {event.title}
+            {event.hub_wide && (
+              <span className="badge-chip">{t("events.card.hub_wide_badge")}</span>
+            )}
+          </div>
           <div className="muted" style={{ fontSize: "var(--text-xs)" }}>
             {startDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}{" "}
             {startDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}

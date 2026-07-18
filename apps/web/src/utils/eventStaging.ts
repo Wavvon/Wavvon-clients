@@ -3,8 +3,11 @@
 // unit-testable without a live socket, fetch, or a DOM. Mirrors the
 // voiceMove.ts precedent.
 
-import type { ClaimantVoiceStatus, StagingGroup } from "@wavvon/ui";
+import type { ClaimantVoiceStatus, StagingGroup, VoiceMoveChannelOption } from "@wavvon/ui";
 import type { EventMoveAssignment, EventRsvp, EventSlot, VoiceParticipant } from "../types";
+
+export const SQUAD_ROOM_COUNT_MIN = 1;
+export const SQUAD_ROOM_COUNT_MAX = 20;
 
 /** Pubkeys with a plain "going" RSVP that never claimed a slot — the
  *  synthesized "Unassigned" bucket (events.md §7.5). */
@@ -47,4 +50,29 @@ export function buildStagingGroups(slots: EventSlot[], unassigned: string[]): St
     groups.push({ id: null, name: "", capacity: null, claimed: null, claimants: unassigned });
   }
   return groups;
+}
+
+/** Bounds the squad-room spawn stepper to the hub's own `1..=20` limit
+ *  (events.md §7.5 Phase 3) so an out-of-range value never reaches the
+ *  request — the input's min/max attributes only advise the browser, they
+ *  don't stop a typed value from escaping them. */
+export function clampSquadRoomCount(count: number): number {
+  if (!Number.isFinite(count)) return SQUAD_ROOM_COUNT_MIN;
+  return Math.min(SQUAD_ROOM_COUNT_MAX, Math.max(SQUAD_ROOM_COUNT_MIN, Math.round(count)));
+}
+
+/** Puts a destination channel list's entries belonging to this event first
+ *  (its own auto-spawned squad rooms), preserving each group's relative
+ *  order otherwise — events.md §7.5 Phase 3's "list them first" for rooms
+ *  whose `channel.event_id` matches the event being staged. */
+export function orderDestinationsForEvent(
+  destinations: VoiceMoveChannelOption[],
+  eventChannelIds: Set<string>,
+): VoiceMoveChannelOption[] {
+  const owned: VoiceMoveChannelOption[] = [];
+  const rest: VoiceMoveChannelOption[] = [];
+  for (const d of destinations) {
+    (eventChannelIds.has(d.id) ? owned : rest).push(d);
+  }
+  return [...owned, ...rest];
 }

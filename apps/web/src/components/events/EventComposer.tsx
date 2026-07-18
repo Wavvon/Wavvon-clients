@@ -1,12 +1,27 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { HubEvent } from "@shared/types";
+import type { Channel, HubEvent } from "@shared/types";
 import { createEvent } from "@platform";
-import { reminderOffsetToMinutes, REMINDER_OFFSETS, type ReminderOffset } from "@shared/utils/events";
+import {
+  announcementChannelCandidates,
+  channelHasDescendants,
+  defaultAnnouncementChannelId,
+  reminderOffsetToMinutes,
+  REMINDER_OFFSETS,
+  type ReminderOffset,
+} from "@shared/utils/events";
 import { EventSlotEditor, type SlotRow } from "./EventSlotEditor";
+
+type EventScope = "channel" | "hub_wide";
 
 interface Props {
   channelId: string;
+  channels: Channel[];
+  /** Same check the caller already uses to decide "may create events at all"
+   *  (today: hub-wide `isAdmin`) — reused here to gate the hub-wide scope
+   *  option, since the client has no channel-scoped permission model of its
+   *  own; the hub re-verifies hub-level CREATE_EVENTS regardless. */
+  canHubWide: boolean;
   onCreated: () => void;
   onClose: () => void;
 }
@@ -15,7 +30,7 @@ function newSlotRow(): SlotRow {
   return { key: crypto.randomUUID(), name: "", capacity: "" };
 }
 
-export function EventComposer({ channelId, onCreated, onClose }: Props) {
+export function EventComposer({ channelId, channels, canHubWide, onCreated, onClose }: Props) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -24,8 +39,17 @@ export function EventComposer({ channelId, onCreated, onClose }: Props) {
   const [endAt, setEndAt] = useState("");
   const [slots, setSlots] = useState<SlotRow[]>([]);
   const [reminderOffset, setReminderOffset] = useState<ReminderOffset>("off");
+  const [scope, setScope] = useState<EventScope>("channel");
+  const [announcementChannelId, setAnnouncementChannelId] = useState(() =>
+    defaultAnnouncementChannelId(channels, channelId),
+  );
+  const [propagateToChildren, setPropagateToChildren] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const announcementCandidates = useMemo(() => announcementChannelCandidates(channels), [channels]);
+  const anchorChannelId = scope === "hub_wide" ? announcementChannelId : channelId;
+  const anchorHasDescendants = channelHasDescendants(channels, anchorChannelId);
 
   function addSlot() {
     setSlots((prev) => [...prev, newSlotRow()]);
@@ -55,7 +79,7 @@ export function EventComposer({ channelId, onCreated, onClose }: Props) {
     setError(null);
     try {
       await createEvent({
-        channel_id: channelId,
+        channel_id: anchorChannelId,
         title: title.trim(),
         description: description.trim() || null,
         location: location.trim() || null,
@@ -66,6 +90,8 @@ export function EventComposer({ channelId, onCreated, onClose }: Props) {
           name: s.name.trim(),
           capacity: s.capacity.trim() ? Number(s.capacity) : undefined,
         })),
+        hub_wide: scope === "hub_wide",
+        propagate_to_children: anchorHasDescendants && propagateToChildren,
       });
       onCreated();
       onClose();
@@ -130,6 +156,54 @@ export function EventComposer({ channelId, onCreated, onClose }: Props) {
               style={{ width: "100%" }}
             />
           </div>
+
+          {canHubWide && (
+            <div className="settings-section" style={{ marginBottom: 10 }}>
+              <label className="settings-label" htmlFor="event-scope">
+                {t("events.composer.scope_label")}
+              </label>
+              <select
+                id="event-scope"
+                value={scope}
+                onChange={(e) => setScope(e.target.value as EventScope)}
+                style={{ width: "100%" }}
+              >
+                <option value="channel">{t("events.composer.scope_channel")}</option>
+                <option value="hub_wide">{t("events.composer.scope_hub_wide")}</option>
+              </select>
+            </div>
+          )}
+
+          {scope === "hub_wide" && (
+            <div className="settings-section" style={{ marginBottom: 10 }}>
+              <label className="settings-label" htmlFor="event-announcement-channel">
+                {t("events.composer.announcement_channel_label")}
+              </label>
+              <select
+                id="event-announcement-channel"
+                value={announcementChannelId}
+                onChange={(e) => setAnnouncementChannelId(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                {announcementCandidates.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {anchorHasDescendants && (
+            <div className="settings-section" style={{ marginBottom: 10 }}>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={propagateToChildren}
+                  onChange={(e) => setPropagateToChildren(e.target.checked)}
+                />
+                {t("events.composer.propagate_label")}
+              </label>
+            </div>
+          )}
 
           {/* minWidth: 0 lets each half shrink below the datetime input's
               large intrinsic width — without it the row overflows the modal

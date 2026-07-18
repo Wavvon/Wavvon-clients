@@ -166,6 +166,7 @@ export {
   deleteEventSlot,
   getEventRsvps,
   getEventAssignments,
+  createEventSquadRooms,
 } from "./commands/events";
 export type { CreateEventSlotInput } from "./commands/events";
 

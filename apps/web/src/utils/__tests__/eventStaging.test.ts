@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildStagingGroups, claimantVoiceStatus, unassignedGoingPubkeys } from "../eventStaging";
+import {
+  buildStagingGroups,
+  claimantVoiceStatus,
+  clampSquadRoomCount,
+  orderDestinationsForEvent,
+  unassignedGoingPubkeys,
+} from "../eventStaging";
 import type { EventMoveAssignment, EventRsvp, EventSlot, VoiceParticipant } from "../../types";
 
 function makeSlot(overrides: Partial<EventSlot> = {}): EventSlot {
@@ -86,5 +92,47 @@ describe("buildStagingGroups", () => {
   it("omits the unassigned bucket entirely when there are no unassigned claimants", () => {
     const groups = buildStagingGroups([makeSlot()], []);
     expect(groups).toHaveLength(1);
+  });
+});
+
+describe("clampSquadRoomCount", () => {
+  it("passes through an in-range value", () => {
+    expect(clampSquadRoomCount(5)).toBe(5);
+  });
+
+  it("clamps below the minimum up to 1", () => {
+    expect(clampSquadRoomCount(0)).toBe(1);
+    expect(clampSquadRoomCount(-3)).toBe(1);
+  });
+
+  it("clamps above the maximum down to 20", () => {
+    expect(clampSquadRoomCount(21)).toBe(20);
+    expect(clampSquadRoomCount(500)).toBe(20);
+  });
+
+  it("rounds a fractional value", () => {
+    expect(clampSquadRoomCount(4.6)).toBe(5);
+  });
+
+  it("falls back to the minimum for a non-finite value (e.g. a blank input)", () => {
+    expect(clampSquadRoomCount(NaN)).toBe(1);
+  });
+});
+
+describe("orderDestinationsForEvent", () => {
+  it("moves this event's rooms to the front, preserving relative order otherwise", () => {
+    const destinations = [
+      { id: "general", name: "General" },
+      { id: "squad-1", name: "Squad 1" },
+      { id: "raid-vc", name: "Raid VC" },
+      { id: "squad-2", name: "Squad 2" },
+    ];
+    const ordered = orderDestinationsForEvent(destinations, new Set(["squad-1", "squad-2"]));
+    expect(ordered.map((d) => d.id)).toEqual(["squad-1", "squad-2", "general", "raid-vc"]);
+  });
+
+  it("is a no-op when no destination belongs to the event", () => {
+    const destinations = [{ id: "general", name: "General" }, { id: "raid-vc", name: "Raid VC" }];
+    expect(orderDestinationsForEvent(destinations, new Set())).toEqual(destinations);
   });
 });

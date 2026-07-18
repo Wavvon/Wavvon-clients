@@ -25,6 +25,8 @@ export interface Channel {
   owner_pubkey?: string | null;
   /** Set only on spawner channels: the name template used for rooms it spawns. Absent/null otherwise. */
   spawner_name_template?: string | null;
+  /** Set only on auto-spawned squad rooms (events.md §7.5): the event this room was created for. */
+  event_id?: string | null;
 }
 
 export interface HubIcon {
@@ -146,6 +148,10 @@ export interface HubEvent {
   slots: EventSlot[];
   reminder_minutes: number | null;
   reminder_sent_at: number | null;
+  // events.md §5/§6: hub-level visibility and sub-channel card fan-out.
+  // Both default false server-side and are always present on responses.
+  hub_wide: boolean;
+  propagate_to_children: boolean;
 }
 
 // A queued voice-move (events.md §7.3) — persisted when a staging-panel
