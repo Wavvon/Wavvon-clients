@@ -1,12 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Conversation, DmMessageFull } from "../../types";
-import { buildDmArchiveConversation, assembleArchive, type ArchiveFetchers } from "../dataExport";
+import { buildDmArchiveConversation, assembleArchive, buildThemesSection, type ArchiveFetchers } from "../dataExport";
+import { saveCustomThemeStore } from "../customThemes";
+import { setActiveAccountId } from "../../identity/store";
 
 const localStorageData: Record<string, string> = {};
 vi.stubGlobal("localStorage", {
   getItem: (k: string) => localStorageData[k] ?? null,
   setItem: (k: string, v: string) => { localStorageData[k] = v; },
   removeItem: (k: string) => { delete localStorageData[k]; },
+});
+
+beforeEach(() => {
+  for (const k of Object.keys(localStorageData)) delete localStorageData[k];
 });
 
 const MY_PUBKEY = "me-pubkey";
@@ -218,5 +224,23 @@ describe("assembleArchive — prefs-blob decrypt", () => {
     expect(getPrefsBlob).not.toHaveBeenCalled();
     expect(doc.prefs.hub_synced).toBeNull();
     expect(doc.prefs.gap_note).toMatch(/paired device/i);
+  });
+});
+
+describe("buildThemesSection", () => {
+  it("only includes the currently active account's custom themes", () => {
+    setActiveAccountId("account-a");
+    saveCustomThemeStore({
+      themes: [{ id: "t1", name: "A's theme", skin: { format: "wavvon.skin", version: 1, name: "A's theme", base: "calm", tokens: {} } }],
+      activeId: "t1",
+    });
+
+    setActiveAccountId("account-b");
+    saveCustomThemeStore({ themes: [], activeId: null });
+
+    expect(buildThemesSection().map((s) => s.name)).toEqual([]);
+
+    setActiveAccountId("account-a");
+    expect(buildThemesSection().map((s) => s.name)).toEqual(["A's theme"]);
   });
 });

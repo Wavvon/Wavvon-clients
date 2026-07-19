@@ -1,8 +1,9 @@
 import type { WavvonSkin } from "../skinValidation";
+import { getScoped, setScoped } from "./accountScope";
 
 // Multi-theme is a client-only, personal-axis feature, mirroring the
 // profileStore pattern in utils/profiles.ts: a named array + a
-// currently-applied id, persisted locally.
+// currently-applied id, persisted per-account (see accountScope.ts).
 
 const CUSTOM_THEMES_KEY = "wavvon.customThemes";
 const LEGACY_APPEARANCE_KEY = "wavvon:appearance";
@@ -34,25 +35,23 @@ function migrateLegacySingleSkin(): CustomThemeStore | null {
   }
 }
 
-export function loadCustomThemeStore(): CustomThemeStore {
+export function loadCustomThemeStore(accountId?: string | null): CustomThemeStore {
   try {
-    const raw = localStorage.getItem(CUSTOM_THEMES_KEY);
+    const raw = getScoped(CUSTOM_THEMES_KEY, accountId);
     if (raw) return JSON.parse(raw) as CustomThemeStore;
   } catch { /* fall through */ }
 
   const migrated = migrateLegacySingleSkin();
   if (migrated) {
-    saveCustomThemeStore(migrated);
+    saveCustomThemeStore(migrated, accountId);
     return migrated;
   }
 
   return { themes: [], activeId: null };
 }
 
-export function saveCustomThemeStore(store: CustomThemeStore): void {
-  try {
-    localStorage.setItem(CUSTOM_THEMES_KEY, JSON.stringify(store));
-  } catch { /* ignore */ }
+export function saveCustomThemeStore(store: CustomThemeStore, accountId?: string | null): void {
+  setScoped(CUSTOM_THEMES_KEY, JSON.stringify(store), accountId);
 }
 
 export function newCustomThemeId(): string {

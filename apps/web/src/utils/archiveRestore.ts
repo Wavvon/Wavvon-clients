@@ -245,16 +245,11 @@ export function totalSkipped(summary: RestoreSummary): number {
   );
 }
 
-// Themes are, today, a device-wide store rather than per-account (see
-// utils/customThemes.ts — no other call site scopes them either), so unlike
-// every other field here they merge into the device's shared theme list, not
-// the target account's namespace. Not ideal for multi-account devices, but
-// consistent with how the export side already reads them.
 export function readExistingAccountSnapshot(accountId: string): ExistingAccountSnapshot {
   return {
     hubList: safeJsonParse<SavedHub[]>(getScoped(SAVED_HUBS_KEY, accountId), []),
     drafts: safeJsonParse<Record<string, string>>(getScoped(DRAFTS_KEY, accountId), {}),
-    themeNames: loadCustomThemeStore().themes.map((t) => t.name),
+    themeNames: loadCustomThemeStore(accountId).themes.map((t) => t.name),
     ignoredUsers: safeJsonParse<string[]>(getScoped(IGNORED_USERS_KEY, accountId), []),
     voiceGains: safeJsonParse<Record<string, number>>(getScoped(VOICE_GAINS_KEY, accountId), {}),
     hasMentionPingSetting: getScoped(MENTION_PING_KEY, accountId) !== null,
@@ -265,8 +260,8 @@ export function applyRestorePlan(accountId: string, plan: RestorePlan): void {
   setScoped(SAVED_HUBS_KEY, JSON.stringify(plan.hubList), accountId);
   setScoped(DRAFTS_KEY, JSON.stringify(plan.drafts), accountId);
   if (plan.newThemes.length > 0) {
-    const store = loadCustomThemeStore();
-    saveCustomThemeStore({ ...store, themes: [...store.themes, ...plan.newThemes] });
+    const store = loadCustomThemeStore(accountId);
+    saveCustomThemeStore({ ...store, themes: [...store.themes, ...plan.newThemes] }, accountId);
   }
   setScoped(IGNORED_USERS_KEY, JSON.stringify(plan.ignoredUsers), accountId);
   setScoped(VOICE_GAINS_KEY, JSON.stringify(plan.voiceGains), accountId);

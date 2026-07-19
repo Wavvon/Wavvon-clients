@@ -233,6 +233,7 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
         hub_synced: null,
         gap_note: "gap",
       },
+      themes: [{ format: "wavvon.skin", version: 1, name: "Restored", base: "calm", tokens: {} }],
     });
 
     const existing = readExistingAccountSnapshot("target-account");
@@ -244,5 +245,9 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
 
     const otherHubs = JSON.parse(localStorageData["wavvon:acct:other-account:wavvon:saved_hubs"]);
     expect(otherHubs).toEqual([makeHub({ hub_id: "untouched" })]);
+
+    const targetThemes = JSON.parse(localStorageData["wavvon:acct:target-account:wavvon.customThemes"]);
+    expect(targetThemes.themes.map((t: { name: string }) => t.name)).toEqual(["Restored"]);
+    expect(localStorageData["wavvon:acct:other-account:wavvon.customThemes"]).toBeUndefined();
   });
 });
