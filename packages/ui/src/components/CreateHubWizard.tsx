@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  probeFarm,
-  getFarmHubQuota,
-  createHubOnFarm,
-  addHub,
-} from "@platform";
-import type { Hub, FarmPublicInfo, FarmHubQuota, CreatedFarmHub } from "@shared/types";
-import type { WsHandlers } from "@platform";
-import { FocusTrap } from "@wavvon/ui";
+import type { Hub, FarmPublicInfo, FarmHubQuota, CreatedFarmHub } from "../types";
+import { FocusTrap } from "./FocusTrap";
 
 type Visibility = "public" | "private";
 
@@ -29,9 +22,45 @@ interface FarmCard {
 
 interface Props {
   knownFarms: KnownFarm[];
-  wsHandlers: WsHandlers;
+  onProbeFarm: (farmUrl: string) => Promise<FarmPublicInfo>;
+  onGetFarmHubQuota: (farmUrl: string) => Promise<FarmHubQuota>;
+  onCreateHubOnFarm: (
+    farmUrl: string,
+    name: string,
+    description: string | null,
+    visibility: Visibility,
+  ) => Promise<CreatedFarmHub>;
+  onAddHub: (hubUrl: string) => Promise<Hub>;
   onHubCreated: (hub: Hub) => void;
   onClose: () => void;
+}
+
+// Maps a raw error thrown by the create/join chain to a translation key —
+// kept as a pure lookup (no i18n dependency) so it's easy to test and reuse.
+function joinErrorKey(raw: string): { key: string; params?: Record<string, string> } {
+  if (
+    raw.includes("No active session") ||
+    raw.includes("timed out") ||
+    raw.includes("Connection refused") ||
+    raw.includes("error sending request")
+  ) {
+    return { key: "hub_wizard.error.unreachable" };
+  }
+  if (
+    raw.includes("401") ||
+    raw.includes("403") ||
+    raw.includes("Unauthorized") ||
+    raw.includes("Forbidden")
+  ) {
+    return { key: "hub_wizard.error.forbidden" };
+  }
+  if (raw.includes("already") || raw.includes("duplicate")) {
+    return { key: "hub_wizard.error.already_connected" };
+  }
+  if (raw.includes("404") || raw.includes("Not Found")) {
+    return { key: "hub_wizard.error.not_found" };
+  }
+  return { key: "hub_wizard.error.generic", params: { error: raw } };
 }
 
 function FarmCardView({
@@ -89,17 +118,15 @@ function FarmCardView({
   );
 }
 
-async function measurePing(farmUrl: string): Promise<number | null> {
-  try {
-    const start = Date.now();
-    await probeFarm(farmUrl);
-    return Date.now() - start;
-  } catch {
-    return null;
-  }
-}
-
-export function CreateHubWizard({ knownFarms, wsHandlers, onHubCreated, onClose }: Props) {
+export function CreateHubWizard({
+  knownFarms,
+  onProbeFarm,
+  onGetFarmHubQuota,
+  onCreateHubOnFarm,
+  onAddHub,
+  onHubCreated,
+  onClose,
+}: Props) {
   const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -121,6 +148,16 @@ export function CreateHubWizard({ knownFarms, wsHandlers, onHubCreated, onClose 
   const [createdHub, setCreatedHub] = useState<{ name: string; url: string } | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
+  async function measurePing(farmUrl: string): Promise<number | null> {
+    try {
+      const start = Date.now();
+      await onProbeFarm(farmUrl);
+      return Date.now() - start;
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
     async function probeAll() {
       setProbing(true);
@@ -128,8 +165,8 @@ export function CreateHubWizard({ knownFarms, wsHandlers, onHubCreated, onClose 
         knownFarms.map(async (f) => {
           try {
             const [infoResult, quotaResult] = await Promise.allSettled([
-              probeFarm(f.url),
-              getFarmHubQuota(f.url),
+              onProbeFarm(f.url),
+              onGetFarmHubQuota(f.url),
             ]);
             const publicInfo: FarmPublicInfo | null =
               infoResult.status === "fulfilled" ? infoResult.value : null;
@@ -169,6 +206,7 @@ export function CreateHubWizard({ knownFarms, wsHandlers, onHubCreated, onClose 
       setProbing(false);
     }
     void probeAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [knownFarms]);
 
   useEffect(() => {
@@ -187,9 +225,9 @@ export function CreateHubWizard({ knownFarms, wsHandlers, onHubCreated, onClose 
     try {
       const url = customUrl.trim().replace(/\/$/, "");
       const [infoResult, pingResult, quotaResult] = await Promise.allSettled([
-        probeFarm(url),
+        onProbeFarm(url),
         measurePing(url),
-        getFarmHubQuota(url),
+        onGetFarmHubQuota(url),
       ]);
       if (infoResult.status !== "fulfilled") {
         throw new Error("Could not reach farm at that URL");
@@ -229,18 +267,19 @@ export function CreateHubWizard({ knownFarms, wsHandlers, onHubCreated, onClose 
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const result: CreatedFarmHub = await createHubOnFarm(
+      const result: CreatedFarmHub = await onCreateHubOnFarm(
         selectedFarm.url,
         hubName.trim(),
         hubDescription.trim() || null,
         visibility,
       );
-      const newHub = await addHub(result.url, wsHandlers);
+      const newHub = await onAddHub(result.url);
       setCreatedHub({ name: result.name, url: result.url });
       setStep(3);
       onHubCreated(newHub);
     } catch (e) {
-      setSubmitError(String(e));
+      const { key, params } = joinErrorKey(String(e));
+      setSubmitError(t(key, params));
     } finally {
       setSubmitting(false);
     }

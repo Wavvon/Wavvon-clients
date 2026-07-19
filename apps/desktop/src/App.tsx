@@ -41,11 +41,14 @@ import type {
   BotAppLaunchEvent,
   BotAppOpenEvent,
   BotAppCloseEvent,
+  FarmPublicInfo,
+  FarmHubQuota,
+  CreatedFarmHub,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
 import { HubStreamsPanel } from "./components/HubStreamsPanel";
-import { BotAppLaunchCard, KeyboardShortcuts } from "@wavvon/ui";
+import { BotAppLaunchCard, CreateHubWizard, KeyboardShortcuts } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
@@ -84,7 +87,6 @@ import {
 } from "./components/HubAdminPage";
 import { AddHubModal } from "./components/AddHubModal";
 import { FarmSettingsPage, type FarmAdminTab } from "./components/FarmSettingsPage";
-import { CreateHubWizard } from "./components/CreateHubWizard";
 import { CreateChannelModal } from "./components/CreateChannelModal";
 import { FriendsModal } from "./components/FriendsModal";
 import { EditDescriptionModal } from "./components/EditDescriptionModal";
@@ -2549,6 +2551,12 @@ function App() {
         {showCreateHub && (
           <CreateHubWizard
             knownFarms={knownFarms}
+            onProbeFarm={(farmUrl) => invoke<FarmPublicInfo>("probe_farm", { farmUrl })}
+            onGetFarmHubQuota={(farmUrl) => invoke<FarmHubQuota>("get_farm_hub_quota", { farmUrl })}
+            onCreateHubOnFarm={(farmUrl, name, description, visibility) =>
+              invoke<CreatedFarmHub>("create_hub_on_farm", { farmUrl, name, description, visibility })
+            }
+            onAddHub={(hubUrl) => invoke<Hub>("add_hub_by_url", { hubUrl })}
             onHubCreated={(hub) => {
               setHubs((prev) => {
                 if (prev.some((h) => h.hub_id === hub.hub_id)) return prev;

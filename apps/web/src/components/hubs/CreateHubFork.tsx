@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FocusTrap } from "@wavvon/ui";
-import { CreateHubWizard } from "./CreateHubWizard";
+import { FocusTrap, CreateHubWizard } from "@wavvon/ui";
 import { CreateHubSelfHost } from "./CreateHubSelfHost";
 import type { Hub } from "@shared/types";
 import type { WsHandlers } from "@platform";
+import { probeFarm, getFarmHubQuota, createHubOnFarm, addHub } from "@platform";
 
 interface KnownFarm {
   url: string;
@@ -52,7 +52,10 @@ export function CreateHubFork({
     return (
       <CreateHubWizard
         knownFarms={knownFarms}
-        wsHandlers={wsHandlers}
+        onProbeFarm={probeFarm}
+        onGetFarmHubQuota={getFarmHubQuota}
+        onCreateHubOnFarm={createHubOnFarm}
+        onAddHub={(hubUrl) => addHub(hubUrl, wsHandlers)}
         onHubCreated={onHubCreated}
         onClose={onClose}
       />

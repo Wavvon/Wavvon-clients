@@ -89,3 +89,46 @@ export interface StagingGroup {
   claimed: number | null;
   claimants: string[];
 }
+
+export interface Hub {
+  hub_id: string;
+  hub_name: string;
+  hub_url: string;
+  hub_icon: string | null;
+  is_active: boolean;
+}
+
+export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
+
+export interface FarmPublicInfo {
+  kind: "wavvon-farm-public";
+  name: string;
+  description: string;
+  creation_policy: FarmCreationPolicy;
+  hub_count: number;
+  max_hubs_total: number;
+  allow_discovery_listing: boolean;
+  country: string;
+  region: string;
+  languages: string[];
+  tags: string[];
+  icon: string | null;
+}
+
+export interface FarmHubQuota {
+  hubs_owned_by_user: number;
+  max_hubs_per_user: number;
+  total_hubs: number;
+  max_hubs_total: number;
+  can_create: boolean;
+  reason: "quota_exceeded" | "policy_admin_only" | "policy_disabled" | null;
+}
+
+export interface CreatedFarmHub {
+  id: string;
+  url: string;
+  hub_pubkey: string;
+  name: string;
+  visibility: "public" | "private";
+  created_at: number;
+}
