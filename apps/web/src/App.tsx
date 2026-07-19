@@ -13,6 +13,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath, formatPubkey } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
+import { visibleParticipants } from "./utils/voicePresence";
 
 // Voice join/leave sound cues, gated by a preference (default on). Per
 // account — it's a notification-style preference, like the mention ping.
@@ -570,6 +571,18 @@ export default function App({ initialView }: AppProps = {}) {
     }
     prevVoiceOthersRef.current = others;
   }, [voicePartByChannel, voiceChannelId, publicKey]);
+
+  // What every rendered participant list (sidebar channel rows, the whisper
+  // bar, the event staging panel) should actually show — an invisible
+  // participant is filtered out of everyone's view but their own, same as
+  // they already are in the plain member roster (see onSetStatus above).
+  const visibleVoicePartByChannel = useMemo(() => {
+    const out: Record<string, VoiceParticipant[]> = {};
+    for (const [channelId, participants] of Object.entries(voicePartByChannel)) {
+      out[channelId] = visibleParticipants(participants, users, publicKey);
+    }
+    return out;
+  }, [voicePartByChannel, users, publicKey]);
 
   const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
@@ -2602,7 +2615,7 @@ export default function App({ initialView }: AppProps = {}) {
         selectedChannel={selectedChannel}
         unreadByChannel={unreadByChannel}
         collapsedCategories={collapsedCategories}
-        voicePartByChannel={voicePartByChannel}
+        voicePartByChannel={visibleVoicePartByChannel}
         voiceChannelId={voiceChannelId}
         voiceChannelNameHint={voiceChannelNameHint}
         selfMuted={selfMuted}
@@ -2763,7 +2776,7 @@ export default function App({ initialView }: AppProps = {}) {
         })()}
         {voiceChannelId && (
           <WhisperBar
-            participants={(voicePartByChannel[voiceChannelId] ?? []).filter((p) => p.public_key !== publicKey)}
+            participants={(visibleVoicePartByChannel[voiceChannelId] ?? []).filter((p) => p.public_key !== publicKey)}
             whisperingTo={whisperingTo}
             whisperingFrom={whisperingFrom}
             nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
@@ -2865,7 +2878,8 @@ export default function App({ initialView }: AppProps = {}) {
         onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
         onStartConversation={handleStartConversation}
-        voicePartByChannel={voicePartByChannel}
+        voicePartByChannel={visibleVoicePartByChannel}
+        selfInvisible={myPresence.status === "invisible"}
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}
       /></>}

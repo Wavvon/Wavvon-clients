@@ -5252,6 +5252,14 @@ select:focus-visible {
   background: var(--text-faint);
 }
 
+/* Self, in the member list, while Invisible: same hollow-ring cue as the
+   footer status picker's .user-status-dot.status-invisible — everyone else
+   still just sees plain offline. */
+.status-dot.invisible {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--text-muted, #888);
+}
+
 /* Custom presence text appended after a member's name in the member list. */
 .user-custom-status {
   color: var(--text-muted);

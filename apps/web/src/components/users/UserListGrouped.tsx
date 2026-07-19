@@ -5,12 +5,20 @@ import { Avatar } from "@wavvon/ui";
 export function UserListGrouped({
   users,
   inVoice,
+  myPubkey,
+  selfInvisible,
   onUserClick,
   onContextMenu,
   onBotClick,
 }: {
   users: User[];
   inVoice?: Set<string>;
+  /** This device's own account, so it can be styled distinctly below. */
+  myPubkey?: string | null;
+  /** True while self chose the Invisible status — self still shows "offline"
+   * here (same as everyone else sees them) but with a hollow-ring dot rather
+   * than plain offline gray, so it doesn't look like a connection problem. */
+  selfInvisible?: boolean;
   onUserClick?: (pubkey: string) => void;
   onContextMenu?: (e: React.MouseEvent, user: User) => void;
   onBotClick?: (pubkey: string, e: React.MouseEvent) => void;
@@ -119,26 +127,33 @@ export function UserListGrouped({
             {title} — {list.length}
           </p>
           <ul className="user-list">
-            {list.map((u) => (
-              <li
-                key={u.public_key}
-                className="user-list-item offline"
-                style={onUserClick ? { cursor: "pointer" } : undefined}
-                onClick={() => onUserClick?.(u.public_key)}
-                onContextMenu={(e) => onContextMenu?.(e, u)}
-              >
-                <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
-                <span className="status-dot offline" />
-                <span className="user-name">
-                  {u.display_name || u.public_key.slice(0, 16)}
-                </span>
-                {inVoice?.has(u.public_key) && (
-                  <span className="user-in-voice" title="In voice">
-                    🎙️
+            {list.map((u) => {
+              const isSelfInvisible = !!selfInvisible && u.public_key === myPubkey;
+              return (
+                <li
+                  key={u.public_key}
+                  className="user-list-item offline"
+                  style={onUserClick ? { cursor: "pointer" } : undefined}
+                  onClick={() => onUserClick?.(u.public_key)}
+                  onContextMenu={(e) => onContextMenu?.(e, u)}
+                >
+                  <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
+                  <span
+                    className={`status-dot ${isSelfInvisible ? "invisible" : "offline"}`}
+                    title={isSelfInvisible ? "Invisible — only you can see this" : undefined}
+                  />
+                  <span className="user-name">
+                    {u.display_name || u.public_key.slice(0, 16)}
+                    {isSelfInvisible && <span className="user-custom-status"> — Invisible</span>}
                   </span>
-                )}
-              </li>
-            ))}
+                  {inVoice?.has(u.public_key) && (
+                    <span className="user-in-voice" title="In voice">
+                      🎙️
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}

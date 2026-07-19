@@ -79,6 +79,7 @@ interface Props {
   reconnectingHubs: Record<string, boolean>;
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
+  selfInvisible: boolean;
   myAvatar?: string | null;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;
@@ -142,6 +143,7 @@ export function ContentArea({
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers,
+  selfInvisible,
   myAvatar,
   inputText, typingByKey, dmTypingByKey,
   messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
@@ -622,6 +624,8 @@ export function ContentArea({
           <UserListGrouped
             users={users}
             inVoice={voiceActiveUsers}
+            myPubkey={publicKey}
+            selfInvisible={selfInvisible}
             onUserClick={(pubkey) => handleAuthorClick(pubkey)}
             onContextMenu={(e, u) => {
               e.preventDefault();
