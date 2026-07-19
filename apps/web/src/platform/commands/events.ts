@@ -1,8 +1,12 @@
 import { hubFetch } from "../http";
 import type { Channel, EventMoveAssignment, EventRsvp, EventSlot, HubEvent, RsvpStatus } from "@shared/types";
 
-export async function getEvents(): Promise<HubEvent[]> {
-  const res = await hubFetch("/events");
+export async function getEvents(params?: { upcoming?: boolean; limit?: number }): Promise<HubEvent[]> {
+  const query = new URLSearchParams();
+  if (params?.upcoming !== undefined) query.set("upcoming", String(params.upcoming));
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  const res = await hubFetch(qs ? `/events?${qs}` : "/events");
   return res.json() as Promise<HubEvent[]>;
 }
 

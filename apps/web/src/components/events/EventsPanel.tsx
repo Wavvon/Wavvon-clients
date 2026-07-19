@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Channel, HubEvent, User, VoiceParticipant } from "@shared/types";
 import { getEvents, deleteEvent } from "@platform";
+import { EventCalendar } from "./EventCalendar";
 import { EventCard } from "./EventCard";
 import { EventComposer } from "./EventComposer";
+
+type EventsView = "list" | "month";
 
 interface Props {
   channelId: string;
@@ -18,14 +22,18 @@ interface Props {
 export function EventsPanel({
   channelId, myPubkey, isAdmin, channels, users, voicePartByChannel, canMoveMembers, onMoveMember,
 }: Props) {
+  const { t } = useTranslation();
   const [events, setEvents] = useState<HubEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
+  const [view, setView] = useState<EventsView>("list");
+  const [viewMonth, setViewMonth] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const list = await getEvents();
+      const list = await getEvents({ upcoming: true, limit: 100 });
       const now = Math.floor(Date.now() / 1000);
       setEvents(
         list
@@ -62,6 +70,26 @@ export function EventsPanel({
     void reload();
   }
 
+  // Month view is bounded by the already-fetched upcoming window
+  // (events.md §9) — no selection shows every event in the viewed month,
+  // a selection narrows to that single day.
+  const visibleEvents = useMemo(() => {
+    if (view !== "month") return events;
+    const inViewedMonth = events.filter((e) => {
+      const d = new Date(e.starts_at * 1000);
+      return d.getFullYear() === viewMonth.getFullYear() && d.getMonth() === viewMonth.getMonth();
+    });
+    if (!selectedDay) return inViewedMonth;
+    return inViewedMonth.filter((e) => {
+      const d = new Date(e.starts_at * 1000);
+      return (
+        d.getFullYear() === selectedDay.getFullYear() &&
+        d.getMonth() === selectedDay.getMonth() &&
+        d.getDate() === selectedDay.getDate()
+      );
+    });
+  }, [events, view, viewMonth, selectedDay]);
+
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -73,13 +101,40 @@ export function EventsPanel({
         )}
       </div>
 
-      {loading && <p className="muted">Loading…</p>}
-      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-      {!loading && !error && events.length === 0 && (
-        <p className="muted">No upcoming events.</p>
+      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+        <button
+          className={view === "list" ? "btn-primary" : "btn-secondary"}
+          style={{ fontSize: "var(--text-xs)", padding: "2px 10px" }}
+          onClick={() => setView("list")}
+        >
+          {t("events.view.list")}
+        </button>
+        <button
+          className={view === "month" ? "btn-primary" : "btn-secondary"}
+          style={{ fontSize: "var(--text-xs)", padding: "2px 10px" }}
+          onClick={() => setView("month")}
+        >
+          {t("events.view.month")}
+        </button>
+      </div>
+
+      {view === "month" && (
+        <EventCalendar
+          events={events}
+          month={viewMonth}
+          onMonthChange={setViewMonth}
+          onSelectDay={setSelectedDay}
+          selectedDay={selectedDay}
+        />
       )}
 
-      {events.map((event) => (
+      {loading && <p className="muted">Loading…</p>}
+      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+      {!loading && !error && visibleEvents.length === 0 && (
+        <p className="muted">{view === "month" ? t("events.calendar.no_events") : "No upcoming events."}</p>
+      )}
+
+      {visibleEvents.map((event) => (
         <EventCard
           key={event.id}
           event={event}
