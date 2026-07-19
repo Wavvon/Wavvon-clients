@@ -613,6 +613,7 @@ export function ContentArea({
               allianceId: selectedAllianceChannel.alliance_id,
               allianceName: selectedAllianceChannel.alliance_name,
               hubName: selectedAllianceChannel.channel.hub_name,
+              forumRemoteWrite: selectedAllianceChannel.channel.forum_remote_write ?? "replies_only",
             }}
           />
         ) : selectedAllianceChannel ? (

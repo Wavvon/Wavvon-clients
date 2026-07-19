@@ -1,5 +1,5 @@
 import { hubFetch } from "../http";
-import type { PostListResponse, PostDetail } from "../../types";
+import type { PostListResponse, PostDetail, ReplyView } from "../../types";
 
 export async function forumListPosts(channelId: string, cursor?: string): Promise<PostListResponse> {
   const params = new URLSearchParams();
@@ -106,4 +106,68 @@ export async function getAllianceChannelPost(
   if (after) params.set("after", after);
   const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts/${postId}?${params.toString()}`);
   return r.json() as Promise<PostDetail>;
+}
+
+// Requester-side alliance forum writes (forum federation phase 2). A
+// locally-owned channel_id is served straight from the caller's own
+// permissions on this hub; a peer-owned one is proxied over federation and
+// gated by that channel's `forum_remote_write` policy -- see
+// SharedChannelResponse.forum_remote_write and the 403 codes in
+// mapAllianceForumWriteError below.
+
+export async function createAllianceChannelPost(
+  allianceId: string,
+  channelId: string,
+  title: string,
+  body: string,
+): Promise<{ id: string }> {
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts`, {
+    method: "POST",
+    body: JSON.stringify({ title, body }),
+  });
+  return r.json() as Promise<{ id: string }>;
+}
+
+export async function createAllianceChannelReply(
+  allianceId: string,
+  channelId: string,
+  postId: string,
+  body: string,
+  replyToId?: string,
+): Promise<ReplyView> {
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts/${postId}/replies`, {
+    method: "POST",
+    body: JSON.stringify({ body, reply_to_id: replyToId }),
+  });
+  return r.json() as Promise<ReplyView>;
+}
+
+export async function reactAllianceChannelPost(
+  allianceId: string,
+  channelId: string,
+  postId: string,
+  emoji: string,
+): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts/${postId}/reactions`, {
+    method: "POST",
+    body: JSON.stringify({ emoji }),
+  });
+}
+
+const FORUM_WRITE_ERROR_CODES = [
+  "channel_not_shared_with_caller",
+  "forum_remote_write_disabled",
+  "forum_remote_write_posts_disabled",
+] as const;
+
+export type AllianceForumWriteErrorCode = (typeof FORUM_WRITE_ERROR_CODES)[number];
+
+// The local-owner path (post_alliance_forum_post et al. delegating to the
+// normal handler) never returns these codes; only the peer-proxy path does.
+// A post/reply proxy failure additionally gets wrapped in a 502 by the
+// owning-side federation client ("Failed to create forum post on peer:
+// Peer returned HTTP 403 Forbidden: forum_remote_write_disabled"), so this
+// matches on substring rather than an exact 403 + exact body.
+export function allianceForumWriteErrorCode(message: string): AllianceForumWriteErrorCode | null {
+  return FORUM_WRITE_ERROR_CODES.find((code) => message.includes(code)) ?? null;
 }

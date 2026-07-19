@@ -5,12 +5,16 @@ import { ForumPostDetail } from "./ForumPostDetail";
 import { ForumPostList } from "./ForumPostList";
 
 /** Set when rendering an alliance-shared forum channel read through from
- * another hub (forum.md §9) -- forces the whole view read-only, since the
- * federation slice has no write proxy yet. */
+ * another hub (forum.md §9). `forumRemoteWrite` is this channel's
+ * federated-write policy (SharedChannelResponse.forum_remote_write) and
+ * drives which write affordances get un-gated -- see `canWrite` below.
+ * Moderation (pin/lock/edit/delete) has no alliance write-proxy at all yet
+ * and stays disabled regardless of policy. */
 export interface ForumAllianceContext {
   allianceId: string;
   allianceName: string;
   hubName: string;
+  forumRemoteWrite: "none" | "replies_only" | "posts_and_replies";
 }
 
 interface Props {
@@ -24,12 +28,14 @@ interface Props {
 export function ForumView({ channelId, myRoles, myPubkey, isAdmin, allianceContext }: Props) {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
-  const readOnly = !!allianceContext;
-
-  const canCreatePost = !readOnly && myRoles.some((r) =>
-    r.permissions.some((p) => p === "admin" || p === "create_posts")
-  );
-  const canManagePosts = !readOnly && myRoles.some((r) =>
+  // `alliance` gates moderation/edit/delete, which never have a write-proxy.
+  // `canWrite` gates reply + react, un-gated once the policy allows it.
+  const alliance = !!allianceContext;
+  const canWrite = !alliance || allianceContext!.forumRemoteWrite !== "none";
+  const canCreatePost = alliance
+    ? allianceContext!.forumRemoteWrite === "posts_and_replies"
+    : myRoles.some((r) => r.permissions.some((p) => p === "admin" || p === "create_posts"));
+  const canManagePosts = !alliance && myRoles.some((r) =>
     r.permissions.some((p) => p === "admin" || p === "manage_posts")
   );
 
@@ -43,6 +49,7 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, allianceConte
       {composing ? (
         <ForumComposer
           channelId={channelId}
+          allianceId={allianceContext?.allianceId}
           onCreated={(postId) => { setComposing(false); setSelectedPostId(postId); }}
           onCancel={() => setComposing(false)}
         />
@@ -54,7 +61,8 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, allianceConte
           isAdmin={isAdmin}
           canManagePosts={canManagePosts}
           allianceId={allianceContext?.allianceId}
-          readOnly={readOnly}
+          readOnly={alliance}
+          canWrite={canWrite}
           onBack={() => setSelectedPostId(null)}
         />
       ) : (

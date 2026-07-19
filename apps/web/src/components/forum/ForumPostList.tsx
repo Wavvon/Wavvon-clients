@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { PostSummary } from "@shared/types";
-import { formatRelative } from "@wavvon/core";
+import { formatRelative, formatPubkey } from "@wavvon/core";
 import { forumListPosts, getAllianceChannelPosts } from "../../platform/commands/forum";
 
 interface Props {
@@ -97,6 +97,7 @@ function ForumPostRow({ post, onClick }: { post: PostSummary; onClick: () => voi
         </span>
         <span className="forum-post-meta muted">
           {formatRelative(post.last_activity_at)} · {post.reply_count} {post.reply_count === 1 ? "reply" : "replies"}
+          {post.author_hub && <span title={post.author_hub}> · via {formatPubkey(post.author_hub)}</span>}
           {post.unread_reply_count != null && post.unread_reply_count > 0 && (
             <span className="unread-badge">{post.unread_reply_count} new</span>
           )}

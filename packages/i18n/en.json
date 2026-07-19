@@ -1104,5 +1104,8 @@
   "presence.ttl.off": "Don't clear",
   "presence.ttl.30m": "30 minutes",
   "presence.ttl.1h": "1 hour",
-  "presence.ttl.3h": "3 hours"
+  "presence.ttl.3h": "3 hours",
+  "forum.errors.channel_not_shared_with_caller": "This channel isn't shared with your hub.",
+  "forum.errors.forum_remote_write_disabled": "This alliance forum is read-only for other hubs.",
+  "forum.errors.forum_remote_write_posts_disabled": "New posts aren't allowed here yet — you can still reply."
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { PostDetail, ReplyView, ReactionCount, ForumAttachment } from "@shared/types";
-import { formatRelative } from "@wavvon/core";
+import { formatRelative, formatPubkey } from "@wavvon/core";
 import {
   forumGetPost,
   forumCreateReply,
@@ -16,7 +17,10 @@ import {
   forumAddReplyReaction,
   forumRemoveReplyReaction,
   getAllianceChannelPost,
+  createAllianceChannelReply,
+  reactAllianceChannelPost,
 } from "../../platform/commands/forum";
+import { describeForumWriteError } from "./forumErrors";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
@@ -28,10 +32,16 @@ interface Props {
   canManagePosts: boolean;
   onBack: () => void;
   /** Set when this post lives in a read-through alliance-shared forum, not a
-   * locally-owned channel -- routes the detail fetch through the alliance
-   * proxy and, combined with `readOnly`, disables every write action. */
+   * locally-owned channel -- routes the detail fetch (and, when `canWrite`
+   * allows it, replies/reactions) through the alliance proxy. `readOnly`
+   * always disables moderation and edit/delete, which have no alliance
+   * write-proxy regardless of policy. */
   allianceId?: string;
   readOnly?: boolean;
+  /** Whether replying and reacting to posts is allowed in this alliance
+   * context (forum_remote_write !== "none"). Ignored when `allianceId` is
+   * unset -- local channels are always writable per the caller's roles. */
+  canWrite?: boolean;
 }
 
 interface ReactionBarProps {
@@ -120,7 +130,8 @@ function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
   );
 }
 
-export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canManagePosts, onBack, allianceId, readOnly }: Props) {
+export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canManagePosts, onBack, allianceId, readOnly, canWrite = true }: Props) {
+  const { t } = useTranslation();
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,12 +168,16 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
     if (!post || !replyBody.trim()) return;
     setSubmitting(true);
     try {
-      await forumCreateReply(post.id, replyBody.trim(), replyTo);
+      if (allianceId) {
+        await createAllianceChannelReply(allianceId, channelId, post.id, replyBody.trim(), replyTo);
+      } else {
+        await forumCreateReply(post.id, replyBody.trim(), replyTo);
+      }
       setReplyBody("");
       setReplyTo(undefined);
       await reload();
     } catch (e) {
-      setError(String(e));
+      setError(describeForumWriteError(e, t));
     } finally {
       setSubmitting(false);
     }
@@ -235,14 +250,20 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
   async function handlePostReaction(emoji: string, me: boolean) {
     if (!post) return;
     try {
-      if (me) {
+      if (allianceId) {
+        // ponytail: alliance forum federation only proxies adding a
+        // reaction, not removing one -- a repeat click on an already-active
+        // reaction here is a no-op until an unreact proxy exists.
+        if (me) return;
+        await reactAllianceChannelPost(allianceId, channelId, post.id, emoji);
+      } else if (me) {
         await forumRemovePostReaction(post.id, emoji);
       } else {
         await forumAddPostReaction(post.id, emoji);
       }
       await reload();
     } catch (e) {
-      setError(String(e));
+      setError(describeForumWriteError(e, t));
     }
   }
 
@@ -280,6 +301,7 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
         <div className="forum-post-submeta muted">
           {formatRelative(post.created_at)}
           {post.edited_at && ` · edited ${formatRelative(post.edited_at)}`}
+          {post.author_hub && <span title={post.author_hub}> · via {formatPubkey(post.author_hub)}</span>}
         </div>
         {canModerate && !post.is_deleted && (
           <div className="forum-mod-actions">
@@ -329,7 +351,7 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
           <ReactionBar
             reactions={post.reactions ?? []}
             onToggle={(emoji, me) => void handlePostReaction(emoji, me)}
-            readOnly={readOnly}
+            readOnly={!canWrite}
           />
         </>
       )}
@@ -354,11 +376,12 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
             replyingTo={replyTo}
             onReaction={(emoji, me) => void handleReplyReaction(reply.id, emoji, me)}
             readOnly={readOnly}
+            canWrite={canWrite}
           />
         ))}
       </div>
 
-      {readOnly ? (
+      {!canWrite ? (
         <div className="forum-locked-banner">
           <span>👀 Read-only — hosted on another hub, replies aren't available here yet.</span>
         </div>
@@ -410,13 +433,14 @@ interface ReplyRowProps {
   onReplyTo: (id: string) => void;
   onReaction: (emoji: string, me: boolean) => void;
   readOnly?: boolean;
+  canWrite?: boolean;
 }
 
 function ForumReplyRow({
   reply, replies, publicKey, canModerate,
   editingId, editingBody, replyingTo,
   onEditStart, onEditSave, onEditCancel, onEditBodyChange, onDelete, onReplyTo, onReaction,
-  readOnly,
+  readOnly, canWrite = true,
 }: ReplyRowProps) {
   const quotedReply = reply.reply_to_id ? replies.find((r) => r.id === reply.reply_to_id) : null;
   const isEditing = editingId === reply.id;
@@ -431,6 +455,7 @@ function ForumReplyRow({
       <div className="forum-reply-meta muted">
         {formatRelative(reply.created_at)}
         {reply.edited_at && " · edited"}
+        {reply.author_hub && <span title={reply.author_hub}> · via {formatPubkey(reply.author_hub)}</span>}
       </div>
       {isEditing ? (
         <div className="forum-edit-reply">
@@ -458,12 +483,14 @@ function ForumReplyRow({
             onToggle={onReaction}
             readOnly={readOnly}
           />
-          {!readOnly && (
+          {(canWrite || !readOnly) && (
             <div className="forum-reply-actions">
-              <button className="btn-ghost" onClick={() => onReplyTo(reply.id)}>
-                {replyingTo === reply.id ? "Cancel reply" : "Reply"}
-              </button>
-              {(canModerate || reply.author_pubkey === publicKey) && (
+              {canWrite && (
+                <button className="btn-ghost" onClick={() => onReplyTo(reply.id)}>
+                  {replyingTo === reply.id ? "Cancel reply" : "Reply"}
+                </button>
+              )}
+              {!readOnly && (canModerate || reply.author_pubkey === publicKey) && (
                 <>
                   <button className="btn-ghost" onClick={() => onEditStart(reply)}>Edit</button>
                   <button className="btn-ghost danger" onClick={() => onDelete(reply.id)}>Delete</button>

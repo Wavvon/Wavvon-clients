@@ -145,7 +145,12 @@ export {
   forumRemoveReplyReaction,
   getAllianceChannelPosts,
   getAllianceChannelPost,
+  createAllianceChannelPost,
+  createAllianceChannelReply,
+  reactAllianceChannelPost,
+  allianceForumWriteErrorCode,
 } from "./commands/forum";
+export type { AllianceForumWriteErrorCode } from "./commands/forum";
 
 export { uploadFile } from "./commands/uploads";
 

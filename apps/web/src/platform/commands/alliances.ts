@@ -74,6 +74,7 @@ export interface SharedChannel {
   channel_type: "text" | "forum" | "banner" | "spawner";
   parent_id: string | null;
   is_category: boolean;
+  forum_remote_write?: "none" | "replies_only" | "posts_and_replies";
 }
 
 export async function listAllianceSharedChannels(allianceId: string): Promise<SharedChannel[]> {

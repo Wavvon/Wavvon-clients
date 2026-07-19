@@ -1,10 +1,15 @@
 import { useRef, useState } from "react";
-import { forumCreatePost } from "../../platform/commands/forum";
+import { useTranslation } from "react-i18next";
+import { forumCreatePost, createAllianceChannelPost } from "../../platform/commands/forum";
+import { describeForumWriteError } from "./forumErrors";
 
 interface Props {
   channelId: string;
   onCreated: (postId: string) => void;
   onCancel: () => void;
+  /** Set when posting into an alliance-shared forum channel -- routes the
+   * create through the alliance write-proxy instead of the local endpoint. */
+  allianceId?: string;
 }
 
 interface PendingFile {
@@ -12,7 +17,8 @@ interface PendingFile {
   objectUrl: string;
 }
 
-export function ForumComposer({ channelId, onCreated, onCancel }: Props) {
+export function ForumComposer({ channelId, onCreated, onCancel, allianceId }: Props) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -42,11 +48,13 @@ export function ForumComposer({ channelId, onCreated, onCancel }: Props) {
     setError(null);
     try {
       // TODO: upload before submit
-      const result = await forumCreatePost(channelId, title.trim(), body.trim());
+      const result = allianceId
+        ? await createAllianceChannelPost(allianceId, channelId, title.trim(), body.trim())
+        : await forumCreatePost(channelId, title.trim(), body.trim());
       pendingFiles.forEach((f) => URL.revokeObjectURL(f.objectUrl));
       onCreated(result.id);
     } catch (e) {
-      setError(String(e));
+      setError(describeForumWriteError(e, t));
     } finally {
       setSubmitting(false);
     }

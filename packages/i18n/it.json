@@ -1104,5 +1104,8 @@
   "presence.ttl.off": "Non azzerare",
   "presence.ttl.30m": "30 minuti",
   "presence.ttl.1h": "1 ora",
-  "presence.ttl.3h": "3 ore"
+  "presence.ttl.3h": "3 ore",
+  "forum.errors.channel_not_shared_with_caller": "Questo canale non è condiviso con il tuo hub.",
+  "forum.errors.forum_remote_write_disabled": "Questo forum dell'alleanza è di sola lettura per gli altri hub.",
+  "forum.errors.forum_remote_write_posts_disabled": "Qui non è ancora possibile creare nuovi post — puoi comunque rispondere."
 }

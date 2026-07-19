@@ -461,6 +461,10 @@ export interface AllianceSharedChannel {
   channel_type: "text" | "forum" | "banner" | "spawner";
   parent_id: string | null;
   is_category: boolean;
+  /** Policy governing writes proxied from other alliance-member hubs into
+   * this channel (forum federation phase 2). Absent from peers that haven't
+   * upgraded yet; treat as "replies_only", the hub-side column default. */
+  forum_remote_write?: "none" | "replies_only" | "posts_and_replies";
 }
 
 export interface PublicHubEntry {
@@ -882,6 +886,9 @@ export interface PostSummary {
   unread_reply_count?: number | null;
   reactions?: ReactionCount[];
   attachments?: ForumAttachment[];
+  /** Origin hub public key hex when authored through the alliance forum
+   * write-proxy (forum federation phase 2); absent for locally-authored posts. */
+  author_hub?: string | null;
 }
 
 export interface ReplyView {
@@ -895,6 +902,7 @@ export interface ReplyView {
   is_deleted: boolean;
   reactions?: ReactionCount[];
   attachments?: ForumAttachment[];
+  author_hub?: string | null;
 }
 
 export interface PostDetail extends PostSummary {

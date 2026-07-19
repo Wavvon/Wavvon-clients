@@ -1104,5 +1104,8 @@
   "presence.ttl.off": "Nicht zurücksetzen",
   "presence.ttl.30m": "30 Minuten",
   "presence.ttl.1h": "1 Stunde",
-  "presence.ttl.3h": "3 Stunden"
+  "presence.ttl.3h": "3 Stunden",
+  "forum.errors.channel_not_shared_with_caller": "Dieser Kanal ist nicht mit deinem Hub geteilt.",
+  "forum.errors.forum_remote_write_disabled": "Dieses Allianz-Forum ist für andere Hubs schreibgeschützt.",
+  "forum.errors.forum_remote_write_posts_disabled": "Neue Beiträge sind hier noch nicht erlaubt — du kannst aber trotzdem antworten."
 }
