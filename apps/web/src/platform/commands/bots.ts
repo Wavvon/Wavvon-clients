@@ -9,26 +9,36 @@ import type {
 } from "@shared/types";
 import type { BotCapabilityGrants, GameLaunchCard } from "@wavvon/core";
 
+/** GET /admin/bots/external -- admin management view (bots.md §4): every
+ *  external bot row (pending invite, active, removed), not just the
+ *  member-facing directory `GET /bots` returns. */
 export async function adminListExternalBots(): Promise<ExternalBotRow[]> {
   const res = await hubFetch("/admin/bots/external");
   return res.json() as Promise<ExternalBotRow[]>;
 }
 
+/** POST /bots -- the real invite-by-pubkey route (bots.md §2, exercised by
+ *  ttt-bot/README.md). Maps the hub's `{ invite_token }` response onto the
+ *  richer `ExternalBotInviteResult` shape this panel renders. */
 export async function adminAddExternalBot(
   pubkey: string,
   localNote: string | null,
 ): Promise<ExternalBotInviteResult> {
-  const res = await hubFetch("/admin/bots/external", {
+  const res = await hubFetch("/bots", {
     method: "POST",
-    body: JSON.stringify({ pubkey, local_note: localNote }),
+    body: JSON.stringify({ pubkey, note: localNote }),
   });
-  return res.json() as Promise<ExternalBotInviteResult>;
+  const body = (await res.json()) as { invite_token: string };
+  return { bot_invite_token: body.invite_token, pubkey };
 }
 
+/** DELETE /bots/:pubkey -- the real bot-removal route (bots.md §2). */
 export async function adminRemoveExternalBot(pubkey: string): Promise<void> {
-  await hubFetch(`/admin/bots/external/${pubkey}`, { method: "DELETE" });
+  await hubFetch(`/bots/${pubkey}`, { method: "DELETE" });
 }
 
+/** PUT /admin/bots/:pubkey/channels -- replaces channel scope atomically
+ *  (bots.md §14). Empty list resets to hub-wide access. */
 export async function adminSetBotChannelScope(
   pubkey: string,
   channelIds: string[],

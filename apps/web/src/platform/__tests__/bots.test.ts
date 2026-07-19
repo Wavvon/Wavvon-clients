@@ -1,6 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setSession, setActiveHubId, resetHubSessions } from "../session";
-import { adminGetBotCapabilities, adminSetBotCapabilities, sendBotAppJoin, listBots, getBotProfile } from "../commands/bots";
+import {
+  adminGetBotCapabilities,
+  adminSetBotCapabilities,
+  adminListExternalBots,
+  adminAddExternalBot,
+  adminRemoveExternalBot,
+  adminSetBotChannelScope,
+  sendBotAppJoin,
+  listBots,
+  getBotProfile,
+} from "../commands/bots";
 
 const HUB_URL = "https://hub.example";
 const HUB_ID = "hub-pub-key";
@@ -48,6 +58,70 @@ describe("adminSetBotCapabilities", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await adminSetBotCapabilities(PUBKEY, ["can_speak_voice", "can_use_interactive_ui"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("adminListExternalBots", () => {
+  it("GETs the admin external-bot management view", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toBe(`${HUB_URL}/admin/bots/external`);
+      return new Response(
+        JSON.stringify([
+          { public_key: PUBKEY, display_name: null, local_note: "mod bot", approval_status: "pending", last_seen_at: null },
+        ]),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rows = await adminListExternalBots();
+    expect(rows).toEqual([
+      { public_key: PUBKEY, display_name: null, local_note: "mod bot", approval_status: "pending", last_seen_at: null },
+    ]);
+  });
+});
+
+describe("adminAddExternalBot", () => {
+  it("POSTs to the real invite route and maps invite_token onto bot_invite_token", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe(`${HUB_URL}/bots`);
+      expect(init?.method).toBe("POST");
+      expect(JSON.parse(init?.body as string)).toEqual({ pubkey: PUBKEY, note: "mod bot" });
+      return new Response(JSON.stringify({ invite_token: "abc123" }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await adminAddExternalBot(PUBKEY, "mod bot");
+    expect(result).toEqual({ bot_invite_token: "abc123", pubkey: PUBKEY });
+  });
+});
+
+describe("adminRemoveExternalBot", () => {
+  it("DELETEs the bot by pubkey via the real removal route", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe(`${HUB_URL}/bots/${PUBKEY}`);
+      expect(init?.method).toBe("DELETE");
+      return new Response(null, { status: 204 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await adminRemoveExternalBot(PUBKEY);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("adminSetBotChannelScope", () => {
+  it("PUTs the channel id list to the scope route", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe(`${HUB_URL}/admin/bots/${PUBKEY}/channels`);
+      expect(init?.method).toBe("PUT");
+      expect(JSON.parse(init?.body as string)).toEqual({ channel_ids: ["chan-1"] });
+      return new Response("{}", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await adminSetBotChannelScope(PUBKEY, ["chan-1"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
