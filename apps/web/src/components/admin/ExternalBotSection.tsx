@@ -6,6 +6,7 @@ import {
   adminRemoveExternalBot,
   adminSetBotChannelScope,
 } from "../../platform/commands/bots";
+import { BotCapabilitiesPanel } from "./BotCapabilitiesPanel";
 
 interface Props {
   channels: Channel[];
@@ -39,6 +40,7 @@ export function ExternalBotSection({ channels }: Props) {
   const [copiedToken, setCopiedToken] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scopeState, setScopeState] = useState<Record<string, ChannelScope>>({});
+  const [capsExpanded, setCapsExpanded] = useState<Set<string>>(new Set());
 
   const textChannels = channels.filter((c) => !c.is_category);
 
@@ -82,6 +84,14 @@ export function ExternalBotSection({ channels }: Props) {
     } catch (e) {
       setError(String(e));
     }
+  }
+
+  function toggleCaps(pubkey: string) {
+    setCapsExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(pubkey)) next.delete(pubkey); else next.add(pubkey);
+      return next;
+    });
   }
 
   function toggleScope(pubkey: string) {
@@ -219,11 +229,23 @@ export function ExternalBotSection({ channels }: Props) {
                       <button className="btn-small btn-secondary" onClick={() => toggleScope(bot.public_key)}>
                         {scope?.expanded ? "Hide access" : "Channel access"}
                       </button>
+                      <button className="btn-small btn-secondary" onClick={() => toggleCaps(bot.public_key)}>
+                        {capsExpanded.has(bot.public_key) ? "Hide capabilities" : "Capabilities"}
+                      </button>
                       <button className="btn-small btn-secondary danger" onClick={() => handleRemove(bot.public_key)}>
                         Remove
                       </button>
                     </td>
                   </tr>
+                  {capsExpanded.has(bot.public_key) && (
+                    <tr>
+                      <td colSpan={5}>
+                        <div style={{ padding: "var(--space-2) var(--space-3)", background: "var(--bg-secondary, rgba(0,0,0,0.1))", borderRadius: "var(--r-md)" }}>
+                          <BotCapabilitiesPanel pubkey={bot.public_key} />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {scope?.expanded && (
                     <tr>
                       <td colSpan={5}>

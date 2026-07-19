@@ -56,7 +56,7 @@ export {
 } from "./commands/messages";
 export type { UnreadCount } from "./commands/messages";
 
-export { sendComponentInteraction, listBotCommands } from "./commands/bots";
+export { sendComponentInteraction, sendBotAppJoin, listBotCommands } from "./commands/bots";
 
 export {
   probeFarm,

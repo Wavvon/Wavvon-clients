@@ -10,6 +10,7 @@ import {
   formatDayLabel,
   formatFullTimestamp,
   formatRelative,
+  parseGameLaunchCard,
 } from "@wavvon/core";
 import { MessageReactions } from "./MessageReactions";
 import { ReactionPicker } from "./ReactionPicker";
@@ -17,9 +18,9 @@ import { MessageEmbeds } from "./MessageEmbeds";
 import { MessageComponents } from "./MessageComponents";
 import { LinkPreviewInMessage } from "./LinkPreviewInMessage";
 import { PollCard } from "@components/polls/PollCard";
-import { pinMessage, unpinMessage } from "@platform";
+import { pinMessage, unpinMessage, sendBotAppJoin } from "@platform";
 import { reportMessage } from "../../platform/commands/moderation";
-import { Avatar, MessageAttachments, MessageContent } from "@wavvon/ui";
+import { Avatar, GameCard, MessageAttachments, MessageContent } from "@wavvon/ui";
 import { MessageContextMenu } from "./MessageContextMenu";
 
 interface Props {
@@ -448,6 +449,12 @@ export function MessageRow({
                 onInteract={onComponentInteract}
               />
             )}
+            {(() => {
+              // Bot-authored, so parsed defensively rather than trusted outright
+              // (bot-capability-layer.md §5 third-party-content threat model).
+              const game = parseGameLaunchCard(m.game);
+              return game && <GameCard game={game} botId={m.sender} channelId={m.channel_id} onPlay={sendBotAppJoin} />;
+            })()}
             {isEphemeral && (
               <div className="message-ephemeral-label">{t("message.ephemeral")}</div>
             )}

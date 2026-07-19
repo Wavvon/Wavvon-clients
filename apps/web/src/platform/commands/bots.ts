@@ -7,6 +7,7 @@ import type {
   WebhookInfo,
   WebhookCreatedResult,
 } from "@shared/types";
+import type { BotCapabilityGrants } from "@wavvon/core";
 
 export async function getBotProfile(pubkey: string): Promise<BotProfile> {
   const res = await hubFetch(`/bots/${pubkey}`);
@@ -40,6 +41,20 @@ export async function adminSetBotChannelScope(
   await hubFetch(`/admin/bots/${pubkey}/channels`, {
     method: "PUT",
     body: JSON.stringify({ channel_ids: channelIds }),
+  });
+}
+
+/** GET /admin/bots/:pubkey/capabilities (bot-capability-layer.md §1). */
+export async function adminGetBotCapabilities(pubkey: string): Promise<BotCapabilityGrants> {
+  const res = await hubFetch(`/admin/bots/${pubkey}/capabilities`);
+  return res.json() as Promise<BotCapabilityGrants>;
+}
+
+/** PUT /admin/bots/:pubkey/capabilities -- replaces the granted set atomically. */
+export async function adminSetBotCapabilities(pubkey: string, capabilities: string[]): Promise<void> {
+  await hubFetch(`/admin/bots/${pubkey}/capabilities`, {
+    method: "PUT",
+    body: JSON.stringify({ capabilities }),
   });
 }
 
@@ -99,5 +114,13 @@ export function sendComponentInteraction(
   const { ws } = activeSession();
   if (ws) {
     ws.send({ type: "component_interaction", message_id: messageId, custom_id: customId, values });
+  }
+}
+
+/** Joins a bot's mini-app / game-modal session (bot-mini-apps.md, bot-capability-layer.md §2). */
+export function sendBotAppJoin(botId: string, channelId: string): void {
+  const { ws } = activeSession();
+  if (ws) {
+    ws.send({ type: "bot_app_join", bot_id: botId, channel_id: channelId });
   }
 }

@@ -39,7 +39,6 @@ import type {
   SoundboardClip,
 } from "@shared/types";
 import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus } from "./types";
-import { BotMiniAppFrame } from "@components/bots/BotMiniAppFrame";
 import { HubSidebar } from "@components/layout/HubSidebar";
 import { ChannelSidebar } from "@components/layout/ChannelSidebar";
 import { ContentArea } from "@components/layout/ContentArea";
@@ -59,7 +58,7 @@ import { PollComposer } from "@components/polls/PollComposer";
 import { ChannelSettingsModal } from "@components/channels/ChannelSettingsModal";
 import { FarmSettingsPage } from "@components/admin/FarmSettingsPage";
 import { CreateHubFork } from "@components/hubs/CreateHubFork";
-import { BotAppLaunchCard, FocusTrap, KeyboardShortcuts, HoverSubmenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal } from "@wavvon/ui";
+import { BotAppLaunchCard, FocusTrap, GameModal, KeyboardShortcuts, HoverSubmenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal } from "@wavvon/ui";
 import { moveChannelOptions, decideVoiceMove } from "./utils/voiceMove";
 import { HubAdminPage } from "@components/admin/HubAdminPage";
 import { SearchBar } from "@components/layout/SearchBar";
@@ -75,7 +74,7 @@ import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
-import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
+import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey, sendBotAppJoin } from "@platform";
 import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, sendSetStatusTo, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
@@ -1088,12 +1087,6 @@ export default function App({ initialView }: AppProps = {}) {
   }), []);
 
   stableHandlersRef.current = stableHandlers;
-
-  function sendBotAppJoin(botId: string, channelId: string) {
-    try {
-      activeSession().ws?.send({ type: "bot_app_join", bot_id: botId, channel_id: channelId });
-    } catch {}
-  }
 
   // === Hub restore on startup ===
 
@@ -2714,9 +2707,14 @@ export default function App({ initialView }: AppProps = {}) {
       />
 
       {activeOpenApp && (
-        <BotMiniAppFrame
-          event={activeOpenApp.event}
+        <GameModal
+          miniAppUrl={activeOpenApp.event.mini_app_url}
+          sessionToken={activeOpenApp.event.session_token}
+          channelId={activeOpenApp.event.channel_id}
+          botId={activeOpenApp.event.bot_id}
           hubUrl={activeOpenApp.hubUrl}
+          title={activeBotApps.get(activeOpenApp.event.bot_id)?.title ?? "Game"}
+          requiresCamera={activeOpenApp.event.requires_camera}
           onClose={() => setActiveOpenApp(null)}
         />
       )}

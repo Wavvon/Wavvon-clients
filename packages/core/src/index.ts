@@ -1,6 +1,7 @@
 export { parseHubInput, buildInviteLink } from "./parseHubInput";
 export type { HubInputResult } from "./parseHubInput";
 export * from "./audio";
+export * from "./bots";
 export * from "./channels";
 export * from "./format";
 export * from "./hex";

@@ -29,6 +29,8 @@ export { BotCard } from "./components/BotCard";
 export { CreateHubWizard } from "./components/CreateHubWizard";
 export { ErrorRetry } from "./components/ErrorRetry";
 export { FocusTrap } from "./components/FocusTrap";
+export { GameCard } from "./components/GameCard";
+export { GameModal } from "./components/GameModal";
 export { HoverSubmenu } from "./components/HoverSubmenu";
 export { ImagePicker } from "./components/ImagePicker";
 export { KeyboardShortcuts } from "./components/KeyboardShortcuts";
