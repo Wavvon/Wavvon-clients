@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
 import type { ThemeId, WavvonSkin } from "../../skinValidation";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
-import { listAccountsOrdered, getActiveAccountId, type IdentityRecord } from "@identity/index";
+import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { NotificationsTab } from "./tabs/NotificationsTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
@@ -68,13 +68,21 @@ export function SettingsPage(props: SettingsPageProps) {
 
   useEffect(() => {
     let cancelled = false;
-    listAccountsOrdered().then((list) => {
-      if (cancelled) return;
-      setAccounts(list);
-      setManagingId((prev) => prev ?? activeId ?? list[0]?.id ?? null);
-    });
+    function refresh() {
+      listAccountsOrdered().then((list) => {
+        if (cancelled) return;
+        setAccounts(list);
+        setManagingId((prev) => prev ?? activeId ?? list[0]?.id ?? null);
+      });
+    }
+    refresh();
+    // Keeps the list (and every tab's managing-account dropdown) live while
+    // Settings stays open — e.g. adding an account from the accounts tab
+    // used to only show up after Settings was closed and reopened.
+    const unsubscribe = onAccountsChanged(refresh);
     return () => {
       cancelled = true;
+      unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -8,6 +8,7 @@ export {
   listAccounts,
   listAccountsOrdered,
   setAccountOrder,
+  onAccountsChanged,
   getActiveAccountId,
   setActiveAccountId,
   masterPubkeyOf,

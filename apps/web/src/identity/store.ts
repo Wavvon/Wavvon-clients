@@ -50,6 +50,23 @@ export interface IdentityRecord {
 // synchronously without awaiting a DB open.
 const ACTIVE_ACCOUNT_KEY = "wavvon:active_account_id";
 
+// Notified whenever the account roster itself changes (add/rename/remove/
+// reorder) — not on switching the active account, which already remounts
+// everything. Lets any mounted component (e.g. SettingsPage's own account
+// list, loaded once on mount) stay in sync with mutations made elsewhere
+// (e.g. the accounts tab's switcher table) without a full remount.
+type AccountsChangeListener = () => void;
+const accountsChangeListeners = new Set<AccountsChangeListener>();
+
+export function onAccountsChanged(listener: AccountsChangeListener): () => void {
+  accountsChangeListeners.add(listener);
+  return () => accountsChangeListeners.delete(listener);
+}
+
+function notifyAccountsChanged(): void {
+  for (const listener of accountsChangeListeners) listener();
+}
+
 let _db: IDBPDatabase | null = null;
 
 async function getDb(): Promise<IDBPDatabase> {
@@ -117,6 +134,7 @@ export async function setAccountOrder(idsInOrder: string[]): Promise<void> {
       await db.put("identity", { ...record, account_order: position });
     }
   }
+  notifyAccountsChanged();
 }
 
 export async function loadIdentity(): Promise<IdentityRecord | null> {
@@ -141,6 +159,7 @@ export async function saveIdentity(record: IdentityRecord): Promise<void> {
   const db = await getDb();
   await db.put("identity", record);
   if (!getActiveAccountId()) setActiveAccountId(record.id);
+  notifyAccountsChanged();
 }
 
 // This account's master pubkey — the identity that signature-authoritative
@@ -203,6 +222,7 @@ export async function removeAccount(id: string): Promise<void> {
     const remaining = await listAccounts();
     setActiveAccountId(remaining[0]?.id ?? null);
   }
+  notifyAccountsChanged();
 }
 
 // In-place switch: AccountRoot registers this on mount so switchAccount can
