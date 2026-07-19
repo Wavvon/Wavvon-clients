@@ -13,15 +13,10 @@ import {
   type RestoreSummary,
 } from "@shared/utils/archiveRestore";
 import { listAccounts, resolveOrCreateAccount, switchAccount, SWITCH_BLOCKED_COOLDOWN, type SubkeyCert } from "@identity/index";
+import { passphraseStrength } from "@shared/utils/passphraseStrength";
 
 interface Props {
   publicKey: string | null;
-}
-
-function passphraseStrength(p: string): "weak" | "fair" | "strong" {
-  if (p.length < 8) return "weak";
-  if (p.length < 14) return "fair";
-  return "strong";
 }
 
 type Mode = "idle" | "export" | "restore";

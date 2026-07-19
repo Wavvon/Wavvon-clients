@@ -17,6 +17,9 @@ import {
 } from "@identity/index";
 import type { IdentityRecord } from "@identity/index";
 import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
+import { encryptBackup } from "@shared/utils/backupCrypto";
+import { suggestBackupFilename } from "@shared/utils/identityBackupPayload";
+import { passphraseStrength } from "@shared/utils/passphraseStrength";
 
 export interface IdentitySetupCompletion {
   accountId: string;
@@ -54,6 +57,13 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [pendingAccount, setPendingAccount] = useState<IdentityRecord | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
   const [existingAccountCount, setExistingAccountCount] = useState(0);
+  const [showBackupForm, setShowBackupForm] = useState(false);
+  const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [backupConfirm, setBackupConfirm] = useState("");
+  const [backupLabel, setBackupLabel] = useState("");
+  const [backupWorking, setBackupWorking] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [backupDone, setBackupDone] = useState(false);
 
   // Snapshot the device's account count once, before this flow adds a row —
   // it feeds the "Account N" label suggestion without counting the very
@@ -182,6 +192,37 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     setStep("generated");
   }
 
+  // Optional safety net offered right where the phrase is shown: encrypts
+  // only the account just created (not the whole device's accounts, unlike
+  // the Settings export) into the same `.wavvon-backup` v2 envelope.
+  async function doDownloadBackup() {
+    if (!pendingAccount) return;
+    if (backupPassphrase !== backupConfirm) { setBackupError(t("settings.account.full_archive.error_mismatch")); return; }
+    if (!backupPassphrase) { setBackupError(t("settings.account.full_archive.error_empty")); return; }
+    setBackupWorking(true);
+    setBackupError(null);
+    try {
+      const blob = await encryptBackup([pendingAccount], backupPassphrase, backupLabel.trim() || null);
+      const url = URL.createObjectURL(blob);
+      const filename = suggestBackupFilename([pendingAccount], new Date());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setShowBackupForm(false);
+      setBackupPassphrase("");
+      setBackupConfirm("");
+      setBackupLabel("");
+      setBackupDone(true);
+    } catch (e) {
+      setBackupError(String(e));
+    } finally {
+      setBackupWorking(false);
+    }
+  }
+
   async function doRecoverPhrase() {
     setError(null);
     if (!validatePhrase(phrase)) { setError(t("identity_setup.recover.error_invalid_phrase")); return; }
@@ -217,6 +258,70 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           </button>
           {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
         </p>
+
+        <div className="settings-section" style={{ marginBottom: 16 }}>
+          <label className="settings-label">{t("identity_setup.backup.label")}</label>
+          <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("identity_setup.backup.hint")}</p>
+
+          {backupDone && (
+            <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("identity_setup.backup.success")}</p>
+          )}
+
+          {!showBackupForm && (
+            <button className="btn-secondary" onClick={() => { setShowBackupForm(true); setBackupDone(false); }}>
+              {backupDone ? t("identity_setup.backup.download_again_button") : t("identity_setup.backup.reveal_button")}
+            </button>
+          )}
+
+          {showBackupForm && (
+            <div>
+              <input
+                type="password"
+                placeholder={t("settings.account.full_archive.passphrase")}
+                aria-label={t("settings.account.full_archive.passphrase")}
+                value={backupPassphrase}
+                onChange={(e) => setBackupPassphrase(e.target.value)}
+                style={{ width: "100%", marginBottom: 4 }}
+              />
+              {backupPassphrase && (
+                <span className={`passphrase-strength ${passphraseStrength(backupPassphrase)}`}>
+                  {t("settings.account.full_archive.strength", { strength: t(`settings.account.full_archive.strength_${passphraseStrength(backupPassphrase)}`) })}
+                </span>
+              )}
+              {passphraseStrength(backupPassphrase) === "weak" && backupPassphrase && (
+                <p className="muted" style={{ color: "var(--warning, orange)", fontSize: "var(--text-xs)" }}>
+                  {t("settings.account.identity_backup.weak_warning")}
+                </p>
+              )}
+              <input
+                type="password"
+                placeholder={t("settings.account.full_archive.confirm_passphrase")}
+                aria-label={t("settings.account.full_archive.confirm_passphrase")}
+                value={backupConfirm}
+                onChange={(e) => setBackupConfirm(e.target.value)}
+                style={{ width: "100%", margin: "4px 0" }}
+              />
+              <input
+                type="text"
+                placeholder={t("settings.account.identity_backup.label_field_placeholder")}
+                aria-label={t("settings.account.identity_backup.label_field_aria")}
+                value={backupLabel}
+                onChange={(e) => setBackupLabel(e.target.value)}
+                style={{ width: "100%", marginBottom: 8 }}
+              />
+              {backupError && <p className="error-text">{backupError}</p>}
+              <div className="settings-row">
+                <button onClick={() => void doDownloadBackup()} disabled={backupWorking}>
+                  {backupWorking ? t("identity_setup.backup.downloading") : t("identity_setup.backup.download_button")}
+                </button>
+                <button className="btn-secondary" onClick={() => { setShowBackupForm(false); setBackupError(null); }}>
+                  {t("modal.cancel")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <label className="settings-label">{t("identity_setup.label.field_label")}</label>
         <input
           type="text"

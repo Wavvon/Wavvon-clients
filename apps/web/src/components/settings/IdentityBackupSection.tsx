@@ -11,14 +11,13 @@ import {
 } from "@identity/index";
 import { formatPubkey } from "@wavvon/core";
 import {
-  BACKUP_FORMAT,
-  BACKUP_ENVELOPE_VERSION,
   validateBackupEnvelopeMeta,
-  serializeBackupPayload,
   parseBackupPayload,
   suggestBackupFilename,
   type BackupEnvelopeMeta,
 } from "@shared/utils/identityBackupPayload";
+import { encryptBackup } from "@shared/utils/backupCrypto";
+import { passphraseStrength } from "@shared/utils/passphraseStrength";
 
 interface Props {
   publicKey: string | null;
@@ -46,12 +45,6 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function passphraseStrength(p: string): "weak" | "fair" | "strong" {
-    if (p.length < 8) return "weak";
-    if (p.length < 14) return "fair";
-    return "strong";
-  }
 
   // switchAccount refuses (voice guard, switch cooldown) rather than always
   // succeeding — surface that the same way every other failure here does.
@@ -97,35 +90,7 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
     setWorking(true);
     setError(null);
     try {
-      const payloadJson = serializeBackupPayload(selected);
-
-      const enc = new TextEncoder();
-      const saltArr = crypto.getRandomValues(new Uint8Array(16));
-      const nonceArr = crypto.getRandomValues(new Uint8Array(12));
-      const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(exportPassphrase).buffer as ArrayBuffer, "PBKDF2", false, ["deriveKey"]);
-      const aesKey = await crypto.subtle.deriveKey(
-        { name: "PBKDF2", salt: saltArr, iterations: 100000, hash: "SHA-256" },
-        keyMaterial,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["encrypt"],
-      );
-      const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: nonceArr },
-        aesKey,
-        enc.encode(payloadJson).buffer as ArrayBuffer,
-      );
-
-      const envelope = {
-        format: BACKUP_FORMAT,
-        version: BACKUP_ENVELOPE_VERSION,
-        kdf: { alg: "pbkdf2-sha256", salt: bufToBase64(saltArr.buffer as ArrayBuffer), iterations: 100000 },
-        cipher: { alg: "aes-256-gcm", nonce: bufToBase64(nonceArr.buffer as ArrayBuffer), ciphertext: bufToBase64(ciphertext) },
-        created_at: Math.floor(Date.now() / 1000),
-        label: exportLabel || null,
-      };
-
-      const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: "application/json" });
+      const blob = await encryptBackup(selected, exportPassphrase, exportLabel || null);
       const url = URL.createObjectURL(blob);
       const filename = suggestBackupFilename(selected, new Date());
       const a = document.createElement("a");
@@ -379,13 +344,6 @@ export function IdentityBackupSection({ publicKey, onExported, onImported }: Pro
       )}
     </div>
   );
-}
-
-function bufToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary);
 }
 
 function base64ToBuf(b64: string): Uint8Array {
