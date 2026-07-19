@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { User } from "@shared/types";
 import { Avatar } from "@wavvon/ui";
 
@@ -23,6 +24,7 @@ export function UserListGrouped({
   onContextMenu?: (e: React.MouseEvent, user: User) => void;
   onBotClick?: (pubkey: string, e: React.MouseEvent) => void;
 }) {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState("");
   const [botsExpanded, setBotsExpanded] = useState(false);
 
@@ -140,11 +142,13 @@ export function UserListGrouped({
                   <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
                   <span
                     className={`status-dot ${isSelfInvisible ? "invisible" : "offline"}`}
-                    title={isSelfInvisible ? "Invisible — only you can see this" : undefined}
+                    title={isSelfInvisible ? t("presence.invisible_self_tooltip") : undefined}
                   />
                   <span className="user-name">
                     {u.display_name || u.public_key.slice(0, 16)}
-                    {isSelfInvisible && <span className="user-custom-status"> — Invisible</span>}
+                    {isSelfInvisible && (
+                      <span className="user-custom-status"> — {t("presence.invisible")}</span>
+                    )}
                   </span>
                   {inVoice?.has(u.public_key) && (
                     <span className="user-in-voice" title="In voice">

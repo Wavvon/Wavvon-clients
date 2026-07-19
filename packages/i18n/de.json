@@ -1102,6 +1102,7 @@
   "user.profile.no_activities": "Noch nichts hier.",
   "settings.profile.hubs.viewer_empty": "Dieses Mitglied zeigt seine Hubs nicht.",
   "presence.invisible": "Unsichtbar",
+  "presence.invisible_self_tooltip": "Unsichtbar — nur du kannst das sehen",
   "presence.clear_after": "Zurücksetzen nach",
   "presence.ttl.off": "Nicht zurücksetzen",
   "presence.ttl.30m": "30 Minuten",
