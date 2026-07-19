@@ -88,6 +88,7 @@ export {
   registerDeviceCert,
   listDeviceRevocations,
   postDeviceRevocation,
+  getPrefsBlob,
   postPairingOffer,
   postPairingClaim,
   postPairingComplete,

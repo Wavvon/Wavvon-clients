@@ -1,16 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { ed25519 } from "@noble/curves/ed25519";
-import { bytesToHex } from "../hex";
+import { bytesToHex, hexToBytes } from "../hex";
 import {
   homeHubListSigningBytes,
   subkeyCertSigningBytes,
   revocationSigningBytes,
   pairingOfferSigningBytes,
   pairingClaimSigningBytes,
+  prefsBlobSigningBytes,
+  verifyPrefsBlob,
   buildHomeHubList,
   buildPairingClaim,
   type PairingComplete,
   type PairingStatus,
+  type SignedPrefsBlob,
   type SubkeyCert,
 } from "./wire";
 import { masterPublicKeyHex } from "./master";
@@ -52,6 +55,15 @@ const PAIRING_CLAIM_PROOF =
 // HKDF master pubkey for entropy 0x01..0x20 — MASTER_FROM_ENTROPY_PUB vector.
 const MASTER_FROM_ENTROPY_PUB =
   "8fbafd0f662f225430eed18b132b3de956dc7d75c95b26baa97ada69aab51565";
+// SignedPrefsBlob is signed by the *master* seed (HKDF-derived from entropy
+// 0x01..0x20), not the raw entropy directly — see master.ts/derivePrefsBlobKey.
+const MASTER_SEED_FROM_ENTROPY = "5a5d527b13bccb7a21160cbe6d433b0c59e2793f27df43b74759da500b3b78c0";
+const PREFS_BLOB_CIPHERTEXT_HEX =
+  "00000000000000000000000065338dfb57de69d2d7dee5cbd93fefba9e93f9e4f966cf6909f30bd96b29b6ee9b597cc02040ccfab8729f3cc8a3d906c91007fb07cbbf2660413dfc7256156cf27e73b271f16acf6b8ce6472e28141800ecdc62";
+const PREFS_BLOB_SIGNING_BYTES =
+  "776176766f6e2f70726566732d626c6f622f763100400000003866626166643066363632663232353433306565643138623133326233646539353664633764373563393562323662616139376164613639616162353135363503000000000000000a015cc67e45a14790a049a60154e36306d4367c8bbf521999118fede8ba2e6c";
+const PREFS_BLOB_SIG =
+  "bcc7e3235c6e78c174b9e7f8797303d633c2e20376333dd9eee321fc783ed860fe624598817f0d2c897d51d30c57d6e57c7e454814852aba939a93380b6e5e07";
 
 function pubHex(seed: string): string {
   return bytesToHex(ed25519.getPublicKey(seed));
@@ -102,6 +114,21 @@ describe("wire signing-bytes vectors", () => {
 
   it("master derivation (HKDF) matches Rust", () => {
     expect(masterPublicKeyHex(MASTER_SEED)).toBe(MASTER_FROM_ENTROPY_PUB);
+  });
+
+  it("SignedPrefsBlob (generated against wavvon_identity::SignedPrefsBlob directly)", () => {
+    const sb = prefsBlobSigningBytes(MASTER_FROM_ENTROPY_PUB, 3, hexToBytes(PREFS_BLOB_CIPHERTEXT_HEX));
+    expect(bytesToHex(sb)).toBe(PREFS_BLOB_SIGNING_BYTES);
+    expect(signHex(sb, MASTER_SEED_FROM_ENTROPY)).toBe(PREFS_BLOB_SIG);
+
+    const blob: SignedPrefsBlob = {
+      master_pubkey: MASTER_FROM_ENTROPY_PUB,
+      blob_version: 3,
+      ciphertext_hex: PREFS_BLOB_CIPHERTEXT_HEX,
+      signature: PREFS_BLOB_SIG,
+    };
+    expect(verifyPrefsBlob(blob)).toBe(true);
+    expect(verifyPrefsBlob({ ...blob, blob_version: 4 })).toBe(false);
   });
 });
 

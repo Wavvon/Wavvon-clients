@@ -1,5 +1,6 @@
 import { hkdf } from "@noble/hashes/hkdf";
 import { sha256 } from "@noble/hashes/sha256";
+import { gcm } from "@noble/ciphers/aes";
 import { ed25519 } from "@noble/curves/ed25519";
 import { hexToBytes, bytesToHex } from "../hex";
 
@@ -37,4 +38,38 @@ export function masterPublicKeyHex(entropyHex: string): string {
 /** Master signing seed (hex) for a device seed. */
 export function masterSeedHex(entropyHex: string): string {
   return bytesToHex(masterSeedFromEntropy(entropyHex));
+}
+
+// The hub-synced prefs blob (blocked users, cross-device voice settings) is
+// E2E-encrypted under a key derived from the master signing seed — home hubs
+// only ever hold ciphertext. Byte-identical to wavvon_identity's
+// prefs_blob::derive_blob_key()/decrypt_prefs() (apps/desktop/src-tauri):
+//   HKDF-SHA256(salt=None, ikm=master_secret_seed, info="wavvon/prefs-blob-key/v1", L=32)
+//   AES-256-GCM, ciphertext = nonce[12] || ciphertext+tag
+const PREFS_BLOB_KEY_INFO = "wavvon/prefs-blob-key/v1";
+
+export interface PrefsBlobContents {
+  blocked_users: string[];
+  voice_settings: Record<string, unknown>;
+}
+
+/** Derive the 32-byte prefs-blob AES-256-GCM key from the master signing seed (hex). */
+export function derivePrefsBlobKey(masterSeedHexValue: string): Uint8Array {
+  return hkdf(
+    sha256,
+    hexToBytes(masterSeedHexValue),
+    MASTER_HKDF_SALT,
+    new TextEncoder().encode(PREFS_BLOB_KEY_INFO),
+    32,
+  );
+}
+
+/** Decrypt the prefs blob ciphertext (hex) fetched from a home hub. */
+export function decryptPrefsBlob(ciphertextHex: string, blobKey: Uint8Array): PrefsBlobContents {
+  const data = hexToBytes(ciphertextHex);
+  if (data.length < 12) throw new Error("Prefs blob ciphertext too short.");
+  const nonce = data.slice(0, 12);
+  const ciphertext = data.slice(12);
+  const plaintext = gcm(blobKey, nonce).decrypt(ciphertext);
+  return JSON.parse(new TextDecoder().decode(plaintext)) as PrefsBlobContents;
 }

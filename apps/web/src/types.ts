@@ -415,6 +415,15 @@ export interface RevocationEntry {
   signature: string;
 }
 
+// The hub only ever stores this ciphertext — decrypting it requires the
+// entropy-holding device's master seed (see utils/dataExport.ts).
+export interface SignedPrefsBlob {
+  master_pubkey: string;
+  blob_version: number;
+  ciphertext_hex: string;
+  signature: string;
+}
+
 export interface AllianceInfo {
   id: string;
   name: string;

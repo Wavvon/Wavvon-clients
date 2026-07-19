@@ -41,6 +41,7 @@ function makeFetchers(overrides: Partial<ArchiveFetchers> = {}): ArchiveFetchers
     getHomeHubDesignation: () => Promise.resolve(null),
     listDeviceCerts: () => Promise.resolve([]),
     listDeviceRevocations: () => Promise.resolve([]),
+    getPrefsBlob: () => Promise.resolve(null),
     listConversations: () => Promise.resolve([]),
     getDmMessages: () => Promise.resolve([]),
     loadSavedHubs: () => [],
@@ -136,5 +137,86 @@ describe("assembleArchive", () => {
       ),
     ).rejects.toThrow("hub unreachable");
     expect(listConversations).not.toHaveBeenCalled();
+  });
+});
+
+describe("assembleArchive — prefs-blob decrypt", () => {
+  // Same entropy (0x01..0x20) as packages/core's master.test.ts / wire.test.ts
+  // vectors, generated against wavvon_identity::MasterIdentity/SignedPrefsBlob
+  // directly (see packages/core commit for the generating Rust snippet).
+  const ENTROPY_HEX = Array.from({ length: 32 }, (_, i) => (i + 1).toString(16).padStart(2, "0")).join("");
+  const MASTER_FROM_ENTROPY_PUB = "8fbafd0f662f225430eed18b132b3de956dc7d75c95b26baa97ada69aab51565";
+  const BLOB_CIPHERTEXT_HEX =
+    "00000000000000000000000065338dfb57de69d2d7dee5cbd93fefba9e93f9e4f966cf6909f30bd96b29b6ee9b597cc02040ccfab8729f3cc8a3d906c91007fb07cbbf2660413dfc7256156cf27e73b271f16acf6b8ce6472e28141800ecdc62";
+  const BLOB_SIG =
+    "bcc7e3235c6e78c174b9e7f8797303d633c2e20376333dd9eee321fc783ed860fe624598817f0d2c897d51d30c57d6e57c7e454814852aba939a93380b6e5e07";
+
+  it("decrypts and includes the hub-synced prefs for an entropy-holding identity", async () => {
+    const doc = await assembleArchive(
+      {},
+      makeFetchers({
+        loadIdentity: () => Promise.resolve({ seed_hex: ENTROPY_HEX, security_nonce: 0, security_level: 0 }),
+        getPrefsBlob: (masterPubkey: string) => {
+          expect(masterPubkey).toBe(MASTER_FROM_ENTROPY_PUB);
+          return Promise.resolve({
+            master_pubkey: MASTER_FROM_ENTROPY_PUB,
+            blob_version: 3,
+            ciphertext_hex: BLOB_CIPHERTEXT_HEX,
+            signature: BLOB_SIG,
+          });
+        },
+      }),
+    );
+
+    expect(doc.prefs.hub_synced).toEqual({
+      blocked_users: ["abc123"],
+      voice_settings: { vad_threshold: 0.05 },
+    });
+    expect(doc.prefs.gap_note).toBeNull();
+  });
+
+  it("rejects a prefs blob with a bad signature rather than silently omitting it", async () => {
+    await expect(
+      assembleArchive(
+        {},
+        makeFetchers({
+          loadIdentity: () => Promise.resolve({ seed_hex: ENTROPY_HEX, security_nonce: 0, security_level: 0 }),
+          getPrefsBlob: () =>
+            Promise.resolve({
+              master_pubkey: MASTER_FROM_ENTROPY_PUB,
+              blob_version: 4, // signature above was made over blob_version 3
+              ciphertext_hex: BLOB_CIPHERTEXT_HEX,
+              signature: BLOB_SIG,
+            }),
+        }),
+      ),
+    ).rejects.toThrow(/signature/i);
+  });
+
+  it("leaves hub_synced and gap_note null when nothing has been published yet", async () => {
+    const doc = await assembleArchive({}, makeFetchers());
+    expect(doc.prefs.hub_synced).toBeNull();
+    expect(doc.prefs.gap_note).toBeNull();
+  });
+
+  it("skips decrypt for a paired device, which holds no local entropy", async () => {
+    const getPrefsBlob = vi.fn(() => Promise.resolve(null));
+    const doc = await assembleArchive(
+      {},
+      makeFetchers({
+        loadIdentity: () =>
+          Promise.resolve({
+            seed_hex: FAKE_SEED_HEX,
+            security_nonce: 0,
+            security_level: 0,
+            master_pubkey: "some-master-pubkey",
+            subkey_cert: {},
+          }),
+        getPrefsBlob,
+      }),
+    );
+    expect(getPrefsBlob).not.toHaveBeenCalled();
+    expect(doc.prefs.hub_synced).toBeNull();
+    expect(doc.prefs.gap_note).toMatch(/paired device/i);
   });
 });

@@ -64,6 +64,7 @@ function makeArchive(overrides: Partial<ArchiveDocument> = {}): ArchiveDocument 
       ignored_users: [],
       voice_gains: {},
       mention_ping_enabled: true,
+      hub_synced: null,
       gap_note: "Hub-synced encrypted preferences are not included.",
     },
     dms: [],
@@ -132,7 +133,11 @@ describe("planRestore — round trip against buildLocalPrefsSnapshot's shape", (
     expect(plan.summary.hubsRestored).toBe(2);
     expect(plan.summary.draftsRestored).toBe(1);
     expect(plan.summary.hubsSkipped).toBe(0);
-    expect(plan.summary.unrestorable).toContain(prefs.gap_note);
+    // buildLocalPrefsSnapshot's gap_note is null by default (populated only
+    // when assembleArchive can't decrypt the hub-synced prefs blob) — no
+    // corresponding entry belongs in unrestorable.
+    expect(prefs.gap_note).toBeNull();
+    expect(plan.summary.unrestorable).not.toContain(null);
   });
 });
 
@@ -145,6 +150,7 @@ describe("planRestore — conflict policy", () => {
         ignored_users: ["peer-1"],
         voice_gains: { "hub-1": 0.5 },
         mention_ping_enabled: false,
+        hub_synced: null,
         gap_note: "gap",
       },
       drafts: { "conv-1": "from archive" },
@@ -224,6 +230,7 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
         ignored_users: ["peer-x"],
         voice_gains: {},
         mention_ping_enabled: true,
+        hub_synced: null,
         gap_note: "gap",
       },
     });

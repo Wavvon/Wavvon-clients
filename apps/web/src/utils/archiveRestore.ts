@@ -181,7 +181,7 @@ export function planRestore(
 
   const dmMessages = archive.dms.reduce((sum, c) => sum + c.messages.length, 0);
 
-  const unrestorable: string[] = [archive.prefs.gap_note];
+  const unrestorable: string[] = archive.prefs.gap_note ? [archive.prefs.gap_note] : [];
   if (archive.dms.length > 0) {
     unrestorable.push(
       `DM history in this archive (${archive.dms.length} conversation(s), ${dmMessages} message(s)) is not re-imported — a synced home hub already re-delivers live history to this account; the archive stays the readable copy for when that hub is gone.`,

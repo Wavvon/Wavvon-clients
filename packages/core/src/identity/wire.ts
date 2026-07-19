@@ -1,4 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519";
+import { sha256 } from "@noble/hashes/sha256";
 import { hexToBytes, bytesToHex } from "../hex";
 
 // Byte-for-byte port of the length-prefixed binary encoding in
@@ -71,6 +72,15 @@ export interface RevocationEntry {
   master_pubkey: string;
   subkey_pubkey: string;
   revoked_at: number;
+  signature: string;
+}
+
+// The home hub stores this ciphertext but never decrypts it — see
+// derivePrefsBlobKey/decryptPrefsBlob in master.ts.
+export interface SignedPrefsBlob {
+  master_pubkey: string;
+  blob_version: number;
+  ciphertext_hex: string;
   signature: string;
 }
 
@@ -214,6 +224,31 @@ export function buildRevocation(
 ): RevocationEntry {
   const sig = sign(revocationSigningBytes(masterPubkey, subkeyPubkey, revokedAt), masterSeedHex);
   return { master_pubkey: masterPubkey, subkey_pubkey: subkeyPubkey, revoked_at: revokedAt, signature: sig };
+}
+
+// --- SignedPrefsBlob ---
+// Matches SignedPrefsBlob::signing_bytes() in wavvon_identity/src/wire.rs.
+export function prefsBlobSigningBytes(
+  masterPubkey: string,
+  blobVersion: number,
+  ciphertext: Uint8Array,
+): Uint8Array {
+  return concat(
+    tag("wavvon/prefs-blob/v1\0"),
+    writeStr(masterPubkey),
+    writeU64Le(blobVersion),
+    sha256(ciphertext),
+  );
+}
+
+/** Verify a SignedPrefsBlob's master signature over its ciphertext. */
+export function verifyPrefsBlob(blob: SignedPrefsBlob): boolean {
+  try {
+    const sb = prefsBlobSigningBytes(blob.master_pubkey, blob.blob_version, hexToBytes(blob.ciphertext_hex));
+    return ed25519.verify(hexToBytes(blob.signature), sb, hexToBytes(blob.master_pubkey));
+  } catch {
+    return false;
+  }
 }
 
 // --- PairingOffer (master-signed) ---
