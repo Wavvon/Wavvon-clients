@@ -225,6 +225,7 @@
   "settings.profile.fields.status_placeholder": "Woran denkst du gerade?",
   "settings.profile.fields.activities_label": "Aktivitäten",
   "settings.profile.fields.activities_placeholder": "Was machst du gerade? Spiele, die du spielst, geplante Sessions, was du gerne tun würdest…",
+  "settings.profile.fields.game_icon_insert": "{emoji} am Anfang dieser Zeile einfügen",
   "settings.profile.banner.edit": "Banner bearbeiten",
   "settings.profile.banner.cover_label": "Titelbild",
   "settings.profile.banner.cover_button": "Titelbild hochladen",

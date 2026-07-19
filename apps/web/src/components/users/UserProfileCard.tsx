@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RoleCategory, UserProfile } from "@shared/types";
 import { getUserProfile, listRoleCategories, getActiveHubId, patchMyProfileOnHub } from "@platform";
@@ -7,8 +7,12 @@ import { Avatar } from "@wavvon/ui";
 import { distinguishingRoles, groupRolesByCategory, roleTintStyle } from "@shared/utils/roleAppearance";
 import { profileBannerStyle } from "@shared/utils/identityColor";
 import { loadFollowsDefault, loadDefaultProfile, saveDefaultProfile } from "@shared/utils/profiles";
+import { insertAtLineStart } from "@shared/utils/activityEmoji";
 import { AutoGrowTextarea } from "@components/profile/AutoGrowTextarea";
+import { GameEmojiRow } from "@components/profile/GameEmojiRow";
 import { StatusBubble } from "@components/profile/StatusBubble";
+
+const ACTIVITIES_MAX = 500;
 
 const trimToNull = (s: string) => {
   const v = s.trim();
@@ -53,6 +57,21 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
   // Name/avatar/pronouns/cosmetics/hubs stay in the full Settings editor.
   const [draft, setDraft] = useState({ status_message: "", bio: "", activities: "" });
   const [saving, setSaving] = useState(false);
+  const activitiesRef = useRef<HTMLTextAreaElement>(null);
+
+  // Game-icon row: insert at the start of the line under the cursor (see
+  // ProfileEditorSection's own copy — this card has its own draft state).
+  function insertGameEmoji(emoji: string) {
+    const el = activitiesRef.current;
+    const cursor = el?.selectionStart ?? draft.activities.length;
+    const result = insertAtLineStart(draft.activities, cursor, `${emoji} `, ACTIVITIES_MAX);
+    if (!result) return;
+    setDraft((d) => ({ ...d, activities: result.text }));
+    requestAnimationFrame(() => {
+      el?.setSelectionRange(result.cursorPos, result.cursorPos);
+      el?.focus();
+    });
+  }
 
   useEffect(() => {
     if (profile) {
@@ -272,14 +291,18 @@ export function UserProfileCard({ pubkey, myPubkey, onClose, onStartConversation
 
               {tab === "activities" && (
                 isOwn ? (
-                  <AutoGrowTextarea
-                    value={draft.activities}
-                    maxLength={500}
-                    onChange={(v) => setDraft((d) => ({ ...d, activities: v }))}
-                    placeholder={t("settings.profile.fields.activities_placeholder")}
-                    ariaLabel={t("settings.profile.fields.activities_label")}
-                    minHeight={100}
-                  />
+                  <>
+                    <GameEmojiRow onPick={insertGameEmoji} />
+                    <AutoGrowTextarea
+                      ref={activitiesRef}
+                      value={draft.activities}
+                      maxLength={ACTIVITIES_MAX}
+                      onChange={(v) => setDraft((d) => ({ ...d, activities: v }))}
+                      placeholder={t("settings.profile.fields.activities_placeholder")}
+                      ariaLabel={t("settings.profile.fields.activities_label")}
+                      minHeight={100}
+                    />
+                  </>
                 ) : profile.activities ? (
                   <p style={{ fontSize: "var(--text-sm)", whiteSpace: "pre-wrap", margin: 0 }}>{profile.activities}</p>
                 ) : (

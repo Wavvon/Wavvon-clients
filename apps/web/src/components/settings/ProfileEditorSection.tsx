@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Avatar, EmojiPicker, ImagePicker } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
 import type { Hub, FavoriteHub } from "@shared/types";
 import type { IdentityRecord } from "@identity/index";
 import { AutoGrowTextarea } from "@components/profile/AutoGrowTextarea";
+import { GameEmojiRow } from "@components/profile/GameEmojiRow";
 import { StatusBubble } from "@components/profile/StatusBubble";
+import { insertAtLineStart } from "@shared/utils/activityEmoji";
 import { profileBannerStyle } from "@shared/utils/identityColor";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
@@ -118,6 +120,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   // only persist on "Save changes".
   const [following, setFollowing] = useState<Set<string>>(new Set());
   const [followingBaseline, setFollowingBaseline] = useState<Set<string>>(new Set());
+  const activitiesRef = useRef<HTMLTextAreaElement>(null);
 
   const isDefault = context === DEFAULT_CONTEXT;
   const contextHub = hubs.find((h) => h.hub_id === context);
@@ -281,6 +284,21 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     const cur = draft?.[field] ?? "";
     if ([...(cur + emoji)].length > max) return;
     update({ [field]: cur + emoji } as Partial<Draft>);
+  }
+
+  // Game-icon row: insert at the start of the line under the cursor rather
+  // than appending, since activities entries are meant to read as one
+  // line per activity.
+  function insertGameEmoji(emoji: string) {
+    const el = activitiesRef.current;
+    const cursor = el?.selectionStart ?? draft?.activities.length ?? 0;
+    const result = insertAtLineStart(draft?.activities ?? "", cursor, `${emoji} `, ACTIVITIES_MAX);
+    if (!result) return;
+    update({ activities: result.text });
+    requestAnimationFrame(() => {
+      el?.setSelectionRange(result.cursorPos, result.cursorPos);
+      el?.focus();
+    });
   }
 
   // "Use default" links this hub context to the default profile: it mirrors
@@ -584,7 +602,9 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                       <div className="profile-section-label">{t("settings.profile.fields.activities_label")}</div>
                       <EmojiPicker unicodeOnly buttonClassName="reaction-add-btn" onPick={(e) => appendEmoji("activities", e, ACTIVITIES_MAX)} />
                     </div>
+                    <GameEmojiRow onPick={insertGameEmoji} />
                     <AutoGrowTextarea
+                      ref={activitiesRef}
                       value={draft.activities}
                       maxLength={ACTIVITIES_MAX}
                       onChange={(v) => update({ activities: v })}

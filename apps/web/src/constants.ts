@@ -11,6 +11,11 @@ export const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024; // matches the hub cap
 export const RECENT_EMOJI_KEY = "wavvon.recentEmojis";
 export const RECENT_EMOJI_MAX = 8;
 
+// Curated row shown above the Activities textarea in edit mode (wishlist:
+// "Game icons in Activities", lazy v1) — not a full emoji picker, just quick
+// inserts for the common case.
+export const GAME_ACTIVITY_EMOJI: string[] = ["🎮", "🕹️", "⚔️", "🏹", "🏎️", "⚽", "🏀", "♟️", "🧩", "🎲", "🎯", "🃏"];
+
 export const MIC_METER_MAX = 0.2;
 
 // Set to a hub URL to enable the "Try a demo hub" button on the welcome

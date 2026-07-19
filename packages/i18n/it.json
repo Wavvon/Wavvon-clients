@@ -225,6 +225,7 @@
   "settings.profile.fields.status_placeholder": "A cosa stai pensando?",
   "settings.profile.fields.activities_label": "Attività",
   "settings.profile.fields.activities_placeholder": "Cosa stai facendo? Giochi a cui stai giocando, sessioni che stai organizzando, cosa vorresti fare…",
+  "settings.profile.fields.game_icon_insert": "Inserisci {emoji} all'inizio di questa riga",
   "settings.profile.banner.edit": "Modifica banner",
   "settings.profile.banner.cover_label": "Immagine di copertina",
   "settings.profile.banner.cover_button": "Carica copertina",
