@@ -141,6 +141,8 @@ export {
   forumRemovePostReaction,
   forumAddReplyReaction,
   forumRemoveReplyReaction,
+  getAllianceChannelPosts,
+  getAllianceChannelPost,
 } from "./commands/forum";
 
 export { uploadFile } from "./commands/uploads";

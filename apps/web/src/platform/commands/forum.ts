@@ -84,3 +84,26 @@ export async function forumAddReplyReaction(replyId: string, emoji: string): Pro
 export async function forumRemoveReplyReaction(replyId: string, emoji: string): Promise<void> {
   await hubFetch(`/replies/${replyId}/reactions/${encodeURIComponent(emoji)}`, { method: "DELETE" });
 }
+
+export async function getAllianceChannelPosts(
+  allianceId: string,
+  channelId: string,
+  cursor?: string,
+): Promise<PostListResponse> {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts?${params.toString()}`);
+  return r.json() as Promise<PostListResponse>;
+}
+
+export async function getAllianceChannelPost(
+  allianceId: string,
+  channelId: string,
+  postId: string,
+  after?: string,
+): Promise<PostDetail> {
+  const params = new URLSearchParams();
+  if (after) params.set("after", after);
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts/${postId}?${params.toString()}`);
+  return r.json() as Promise<PostDetail>;
+}

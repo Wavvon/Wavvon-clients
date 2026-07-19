@@ -15,6 +15,7 @@ import {
   forumRemovePostReaction,
   forumAddReplyReaction,
   forumRemoveReplyReaction,
+  getAllianceChannelPost,
 } from "../../platform/commands/forum";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -26,17 +27,34 @@ interface Props {
   isAdmin: boolean;
   canManagePosts: boolean;
   onBack: () => void;
+  /** Set when this post lives in a read-through alliance-shared forum, not a
+   * locally-owned channel -- routes the detail fetch through the alliance
+   * proxy and, combined with `readOnly`, disables every write action. */
+  allianceId?: string;
+  readOnly?: boolean;
 }
 
 interface ReactionBarProps {
   reactions: ReactionCount[];
   onToggle: (emoji: string, me: boolean) => void;
+  readOnly?: boolean;
 }
 
-function ReactionBar({ reactions, onToggle }: ReactionBarProps) {
+function ReactionBar({ reactions, onToggle, readOnly }: ReactionBarProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const shown = reactions.filter((r) => r.count > 0);
+
+  if (readOnly) {
+    if (!shown.length) return null;
+    return (
+      <div className="reaction-bar">
+        {shown.map((r) => (
+          <span key={r.emoji} className="reaction-chip">{r.emoji} {r.count}</span>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="reaction-bar">
@@ -102,7 +120,7 @@ function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
   );
 }
 
-export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canManagePosts, onBack }: Props) {
+export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canManagePosts, onBack, allianceId, readOnly }: Props) {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +133,9 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
 
   async function reload() {
     try {
-      const p = await forumGetPost(postId);
+      const p = allianceId
+        ? await getAllianceChannelPost(allianceId, channelId, postId)
+        : await forumGetPost(postId);
       setPost(p);
     } catch (e) {
       setError(String(e));
@@ -126,10 +146,12 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
     setLoading(true);
     reload().finally(() => {
       setLoading(false);
-      void markPostRead(channelId, postId).catch(() => undefined);
+      // Read markers are local-only state on this hub's own channel rows --
+      // an alliance-proxied channel id doesn't exist here, so skip it.
+      if (!readOnly) void markPostRead(channelId, postId).catch(() => undefined);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId, channelId]);
+  }, [postId, channelId, allianceId]);
 
   async function handleSendReply() {
     if (!post || !replyBody.trim()) return;
@@ -237,7 +259,7 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
     }
   }
 
-  const canModerate = isAdmin || canManagePosts;
+  const canModerate = !readOnly && (isAdmin || canManagePosts);
 
   if (loading) return <div className="forum-detail"><p className="muted">Loading…</p></div>;
   if (error) return <div className="forum-detail"><p className="error-text">{error}</p></div>;
@@ -269,7 +291,7 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
             </button>
           </div>
         )}
-        {(canModerate || post.author_pubkey === publicKey) && !post.is_deleted && (
+        {!readOnly && (canModerate || post.author_pubkey === publicKey) && !post.is_deleted && (
           <div className="forum-author-actions">
             <button
               className="btn-secondary"
@@ -307,6 +329,7 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
           <ReactionBar
             reactions={post.reactions ?? []}
             onToggle={(emoji, me) => void handlePostReaction(emoji, me)}
+            readOnly={readOnly}
           />
         </>
       )}
@@ -330,11 +353,16 @@ export function ForumPostDetail({ postId, channelId, publicKey, isAdmin, canMana
             onReplyTo={(id) => setReplyTo(replyTo === id ? undefined : id)}
             replyingTo={replyTo}
             onReaction={(emoji, me) => void handleReplyReaction(reply.id, emoji, me)}
+            readOnly={readOnly}
           />
         ))}
       </div>
 
-      {post.is_locked && !canModerate ? (
+      {readOnly ? (
+        <div className="forum-locked-banner">
+          <span>👀 Read-only — hosted on another hub, replies aren't available here yet.</span>
+        </div>
+      ) : post.is_locked && !canModerate ? (
         <div className="forum-locked-banner">
           <span>🔒 This post is locked. No new replies.</span>
         </div>
@@ -381,12 +409,14 @@ interface ReplyRowProps {
   onDelete: (id: string) => void;
   onReplyTo: (id: string) => void;
   onReaction: (emoji: string, me: boolean) => void;
+  readOnly?: boolean;
 }
 
 function ForumReplyRow({
   reply, replies, publicKey, canModerate,
   editingId, editingBody, replyingTo,
   onEditStart, onEditSave, onEditCancel, onEditBodyChange, onDelete, onReplyTo, onReaction,
+  readOnly,
 }: ReplyRowProps) {
   const quotedReply = reply.reply_to_id ? replies.find((r) => r.id === reply.reply_to_id) : null;
   const isEditing = editingId === reply.id;
@@ -426,18 +456,21 @@ function ForumReplyRow({
           <ReactionBar
             reactions={reply.reactions ?? []}
             onToggle={onReaction}
+            readOnly={readOnly}
           />
-          <div className="forum-reply-actions">
-            <button className="btn-ghost" onClick={() => onReplyTo(reply.id)}>
-              {replyingTo === reply.id ? "Cancel reply" : "Reply"}
-            </button>
-            {(canModerate || reply.author_pubkey === publicKey) && (
-              <>
-                <button className="btn-ghost" onClick={() => onEditStart(reply)}>Edit</button>
-                <button className="btn-ghost danger" onClick={() => onDelete(reply.id)}>Delete</button>
-              </>
-            )}
-          </div>
+          {!readOnly && (
+            <div className="forum-reply-actions">
+              <button className="btn-ghost" onClick={() => onReplyTo(reply.id)}>
+                {replyingTo === reply.id ? "Cancel reply" : "Reply"}
+              </button>
+              {(canModerate || reply.author_pubkey === publicKey) && (
+                <>
+                  <button className="btn-ghost" onClick={() => onEditStart(reply)}>Edit</button>
+                  <button className="btn-ghost danger" onClick={() => onDelete(reply.id)}>Delete</button>
+                </>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

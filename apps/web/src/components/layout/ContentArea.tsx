@@ -462,7 +462,7 @@ export function ContentArea({
           )
         ) : selectedChannel && selectedChannel.channel_type === "forum" ? (
           <ForumView
-            selectedChannel={selectedChannel}
+            channelId={selectedChannel.id}
             myRoles={myRoles}
             myPubkey={publicKey}
             isAdmin={isAdmin}
@@ -603,6 +603,18 @@ export function ContentArea({
               onShowPollComposer={() => setShowPollComposer(true)}
             /></>}
           </div>
+        ) : selectedAllianceChannel && selectedAllianceChannel.channel.channel_type === "forum" ? (
+          <ForumView
+            channelId={selectedAllianceChannel.channel.channel_id}
+            myRoles={myRoles}
+            myPubkey={publicKey}
+            isAdmin={isAdmin}
+            allianceContext={{
+              allianceId: selectedAllianceChannel.alliance_id,
+              allianceName: selectedAllianceChannel.alliance_name,
+              hubName: selectedAllianceChannel.channel.hub_name,
+            }}
+          />
         ) : selectedAllianceChannel ? (
           <AllianceView
             selectedAllianceChannel={selectedAllianceChannel}

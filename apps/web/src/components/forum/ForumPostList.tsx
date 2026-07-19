@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { PostSummary } from "@shared/types";
 import { formatRelative } from "@wavvon/core";
-import { forumListPosts } from "../../platform/commands/forum";
+import { forumListPosts, getAllianceChannelPosts } from "../../platform/commands/forum";
 
 interface Props {
   channelId: string;
@@ -9,9 +9,12 @@ interface Props {
   publicKey: string | null;
   onOpenPost: (post: PostSummary) => void;
   onNewPost: () => void;
+  /** Set when this channel is a read-through alliance-shared forum, not a
+   * locally-owned one -- routes list fetches through the alliance proxy. */
+  allianceId?: string;
 }
 
-export function ForumPostList({ channelId, canCreatePost, onOpenPost, onNewPost }: Props) {
+export function ForumPostList({ channelId, canCreatePost, onOpenPost, onNewPost, allianceId }: Props) {
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
@@ -22,7 +25,9 @@ export function ForumPostList({ channelId, canCreatePost, onOpenPost, onNewPost 
     setLoading(true);
     setError(null);
     try {
-      const res = await forumListPosts(channelId, cur);
+      const res = allianceId
+        ? await getAllianceChannelPosts(allianceId, channelId, cur)
+        : await forumListPosts(channelId, cur);
       setPosts((prev) => replace ? res.posts : [...prev, ...res.posts]);
       setCursor(res.cursor);
       setHasMore(!!res.cursor);
@@ -31,7 +36,7 @@ export function ForumPostList({ channelId, canCreatePost, onOpenPost, onNewPost 
     } finally {
       setLoading(false);
     }
-  }, [channelId]);
+  }, [channelId, allianceId]);
 
   useEffect(() => {
     void load(true);
