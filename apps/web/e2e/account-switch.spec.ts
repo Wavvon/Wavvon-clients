@@ -69,7 +69,13 @@ test("switching accounts happens in place — no overlay, no reload, lands back 
   const tableAfter = page.locator(".members-table");
   await expect(tableAfter).toBeVisible();
   const row2After = tableAfter.locator("tr", { hasText: ACCOUNT2.label });
-  await expect(row2After.getByRole("button", { name: "Active" })).toBeDisabled();
+  // The remounted AccountsSwitcherSection re-fetches the account list from
+  // IndexedDB on mount (its own useEffect, independent of the remount
+  // itself) — under heavy parallel load that read can outlast the default
+  // assertion timeout well before it outlasts a real user's patience, so
+  // this waits as generously as the remount check above rather than racing
+  // it on the default 5s.
+  await expect(row2After.getByRole("button", { name: "Active" })).toBeDisabled({ timeout: 15000 });
 
   const activeId = await page.evaluate(() => localStorage.getItem("wavvon:active_account_id"));
   expect(activeId).toBe(ACCOUNT2.pubkey);
@@ -84,5 +90,5 @@ test("switching accounts happens in place — no overlay, no reload, lands back 
   // re-enablement here — that's covered by the cooldown unit tests without
   // a time-based wait.
   const row1After = tableAfter.locator("tr", { hasText: ACCOUNT1.label });
-  await expect(row1After.getByRole("button", { name: "Switch", exact: true })).toBeDisabled();
+  await expect(row1After.getByRole("button", { name: "Switch", exact: true })).toBeDisabled({ timeout: 15000 });
 });
