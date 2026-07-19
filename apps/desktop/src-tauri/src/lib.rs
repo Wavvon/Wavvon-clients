@@ -7,6 +7,7 @@ mod auth_creds;
 mod bots;
 mod certs;
 mod channels;
+mod deep_link;
 mod devices;
 mod discovery;
 mod dm;
@@ -380,6 +381,8 @@ pub fn run() {
             // Updater / tray
             updater::install_pending_update,
             updater::set_tray_unread,
+            // Deep links
+            deep_link::get_pending_deep_link,
             // Pairing / home hub / devices
             home_hub::set_home_hub_list,
             home_hub::get_home_hub_list,
