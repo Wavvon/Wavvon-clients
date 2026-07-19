@@ -5,6 +5,7 @@ import {
   adminAddExternalBot,
   adminRemoveExternalBot,
   adminSetBotChannelScope,
+  adminGetBotChannelScope,
 } from "../../platform/commands/bots";
 import { BotCapabilitiesPanel } from "./BotCapabilitiesPanel";
 
@@ -17,6 +18,7 @@ interface ChannelScope {
   restricted: boolean;
   selectedIds: Set<string>;
   saving: boolean;
+  loaded: boolean;
 }
 
 function truncatePk(pk: string) {
@@ -94,28 +96,46 @@ export function ExternalBotSection({ channels }: Props) {
     });
   }
 
-  function toggleScope(pubkey: string) {
+  async function toggleScope(pubkey: string) {
+    const wasExpanded = scopeState[pubkey]?.expanded ?? false;
+    const alreadyLoaded = scopeState[pubkey]?.loaded ?? false;
     setScopeState((prev) => ({
       ...prev,
       [pubkey]: {
-        expanded: !prev[pubkey]?.expanded,
+        expanded: !wasExpanded,
         restricted: prev[pubkey]?.restricted ?? false,
         selectedIds: prev[pubkey]?.selectedIds ?? new Set(),
         saving: false,
+        loaded: prev[pubkey]?.loaded ?? false,
       },
     }));
+    if (wasExpanded || alreadyLoaded) return;
+    try {
+      const channelIds = await adminGetBotChannelScope(pubkey);
+      setScopeState((prev) => ({
+        ...prev,
+        [pubkey]: {
+          ...(prev[pubkey] ?? { expanded: true, saving: false }),
+          restricted: channelIds.length > 0,
+          selectedIds: new Set(channelIds),
+          loaded: true,
+        },
+      }));
+    } catch (e) {
+      setError(String(e));
+    }
   }
 
   function toggleRestricted(pubkey: string, val: boolean) {
     setScopeState((prev) => ({
       ...prev,
-      [pubkey]: { ...(prev[pubkey] ?? { expanded: true, selectedIds: new Set(), saving: false }), restricted: val },
+      [pubkey]: { ...(prev[pubkey] ?? { expanded: true, selectedIds: new Set(), saving: false, loaded: true }), restricted: val },
     }));
   }
 
   function toggleChannelId(pubkey: string, channelId: string) {
     setScopeState((prev) => {
-      const cur = prev[pubkey] ?? { expanded: true, restricted: true, selectedIds: new Set(), saving: false };
+      const cur = prev[pubkey] ?? { expanded: true, restricted: true, selectedIds: new Set(), saving: false, loaded: true };
       const next = new Set(cur.selectedIds);
       if (next.has(channelId)) next.delete(channelId); else next.add(channelId);
       return { ...prev, [pubkey]: { ...cur, selectedIds: next } };

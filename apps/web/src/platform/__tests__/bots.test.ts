@@ -7,6 +7,7 @@ import {
   adminAddExternalBot,
   adminRemoveExternalBot,
   adminSetBotChannelScope,
+  adminGetBotChannelScope,
   sendBotAppJoin,
   listBots,
   getBotProfile,
@@ -123,6 +124,23 @@ describe("adminSetBotChannelScope", () => {
 
     await adminSetBotChannelScope(PUBKEY, ["chan-1"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("adminGetBotChannelScope", () => {
+  it("GETs the scope route and returns the channel id list", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe(`${HUB_URL}/admin/bots/${PUBKEY}/channels`);
+      expect(init?.method ?? "GET").toBe("GET");
+      return new Response(
+        JSON.stringify({ bot_pubkey: PUBKEY, channel_ids: ["chan-1", "chan-2"] }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await adminGetBotChannelScope(PUBKEY);
+    expect(result).toEqual(["chan-1", "chan-2"]);
   });
 });
 

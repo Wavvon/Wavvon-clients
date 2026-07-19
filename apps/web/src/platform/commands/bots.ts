@@ -49,6 +49,14 @@ export async function adminSetBotChannelScope(
   });
 }
 
+/** GET /admin/bots/:pubkey/channels -- current channel scope (bots.md §14).
+ *  Empty list means hub-wide access. */
+export async function adminGetBotChannelScope(pubkey: string): Promise<string[]> {
+  const res = await hubFetch(`/admin/bots/${pubkey}/channels`);
+  const body = (await res.json()) as { channel_ids: string[] };
+  return body.channel_ids;
+}
+
 /** GET /admin/bots/:pubkey/capabilities (bot-capability-layer.md §1). */
 export async function adminGetBotCapabilities(pubkey: string): Promise<BotCapabilityGrants> {
   const res = await hubFetch(`/admin/bots/${pubkey}/capabilities`);
