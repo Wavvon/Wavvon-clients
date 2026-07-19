@@ -41,7 +41,12 @@ test("a member shows online, then flips offline live when they leave", async ({ 
   }
 });
 
-test("status picker: member goes DND with custom text; others see it live", async ({ page, browser }) => {
+// Web's presence picker is Online/Away/DND/Invisible only — the free-text
+// custom status was deliberately removed 2026-07-12 (decisions.md "Presence:
+// Invisible + 'clear after' TTL; custom-text status removed"); the
+// presence_custom plumbing stays dormant for desktop. So this asserts the
+// DND state propagates live, without custom text.
+test("status picker: member goes DND; others see the dot live", async ({ page, browser }) => {
   test.setTimeout(90000);
   await page.goto("/");
   await expectInHub(page);
@@ -49,29 +54,24 @@ test("status picker: member goes DND with custom text; others see it live", asyn
   const memberName = uniqueName("Dnd");
   const { context, page: member } = await newMemberPage(browser, memberName);
   try {
-    // Member opens the footer status picker and goes DND with a custom text.
+    // Member opens the footer status picker and goes DND.
     await member.locator(".user-identity-details").click();
     const menu = member.locator(".status-menu");
     await expect(menu).toBeVisible();
-    const custom = `raiding ${Date.now()}`;
-    await menu.getByPlaceholder("Custom status…").fill(custom);
     await menu.getByRole("button", { name: "Do Not Disturb" }).click();
     await expect(menu).not.toBeVisible();
 
-    // Member's own footer reflects it (dot + custom text).
+    // Member's own footer reflects it (dot).
     await expect(member.locator(".user-identity .user-status-dot.status-dnd")).toBeVisible();
-    await expect(member.locator(".user-identity-custom-status")).toHaveText(custom);
 
-    // The owner's member list shows the DND dot and the custom text live.
+    // The owner's member list shows the DND dot live.
     const memberRow = page.locator("li.user-list-item", { hasText: memberName });
     await expect(memberRow.locator(".status-dot.dnd")).toBeVisible({ timeout: 15000 });
-    await expect(memberRow).toContainText(custom);
 
-    // Back to online clears both, again live for the owner.
+    // Back to online, again live for the owner.
     await member.locator(".user-identity-details").click();
     await member.locator(".status-menu").getByRole("button", { name: "Online", exact: true }).click();
     await expect(memberRow.locator(".status-dot.online")).toBeVisible({ timeout: 15000 });
-    await expect(memberRow).not.toContainText(custom);
   } finally {
     await context.close();
   }

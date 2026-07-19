@@ -10,9 +10,13 @@ import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqu
 // duplicated in the DOM — assert by unique label with .first() rather than
 // by count.
 
-async function joinVoiceAndEnableCamera(page: Page) {
-  await page.getByRole("button", { name: "Join Voice" }).click();
-  const cam = page.getByRole("button", { name: "Turn camera on" });
+async function joinVoiceAndEnableCamera(page: Page, channel: string) {
+  // Share screen and camera both live in the voice-session footer — a
+  // channel row is joined by double-click (see the "Double-click to join
+  // voice" row tooltip in SortableItems.tsx), not a header button.
+  await channelButton(page, channel).dblclick();
+  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  const cam = page.getByRole("button", { name: "Turn on camera" });
   await expect(cam).toBeVisible({ timeout: 15000 });
   await cam.click();
   // Local preview tile ("You") shows immediately.
@@ -26,14 +30,12 @@ test("two members see each other's camera over WebRTC", async ({ page, browser }
 
   const channel = uniqueName("cam");
   await createChannel(page, channel);
-  await channelButton(page, channel).click();
-  await joinVoiceAndEnableCamera(page);
+  await joinVoiceAndEnableCamera(page, channel);
 
   const memberName = uniqueName("CamMate");
   const { context, page: member } = await newMemberPage(browser, memberName);
   try {
-    await channelButton(member, channel).click();
-    await joinVoiceAndEnableCamera(member);
+    await joinVoiceAndEnableCamera(member, channel);
 
     // Each side receives the other's remote video track → a tile that is NOT
     // the local "You" tile appears (the peer's label may be a name or a
@@ -45,7 +47,7 @@ test("two members see each other's camera over WebRTC", async ({ page, browser }
 
     // Owner turns camera off → the member's remote tile for the owner goes away
     // (the member keeps only their own "You" tile).
-    await page.getByRole("button", { name: "Turn camera off" }).click();
+    await page.getByRole("button", { name: "Turn off camera" }).click();
     await expect(member.locator(".video-tile").filter({ hasNotText: "You" }).first())
       .toBeHidden({ timeout: 15000 });
   } finally {

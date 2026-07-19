@@ -16,14 +16,13 @@ test("joining a second voice channel leaves the first", async ({ page }) => {
   await createChannel(page, a);
   await createChannel(page, b);
 
-  // Join A.
-  await channelButton(page, a).click();
-  await page.getByRole("button", { name: "Join Voice" }).click();
+  // Join A — a channel row is joined by double-click (see the "Double-click
+  // to join voice" row tooltip in SortableItems.tsx), not a header button.
+  await channelButton(page, a).dblclick();
   await expect(page.locator(".voice-status-label").first()).toHaveText(`#${a}`, { timeout: 15000 });
 
   // Switch to B — should leave A.
-  await channelButton(page, b).click();
-  await page.getByRole("button", { name: "Join Voice" }).click();
+  await channelButton(page, b).dblclick();
   await expect(page.locator(".voice-status-label").first()).toHaveText(`#${b}`, { timeout: 15000 });
 
   // No lingering voice status for A (the "in two rooms at once" bug).

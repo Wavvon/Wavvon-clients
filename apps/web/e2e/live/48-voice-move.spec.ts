@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
 // P48 — voice-move Phase 1 primitive (events.md §7.1/§7.2): right-click a
 // voice participant, "Move to channel…", target with no event context always
@@ -101,12 +101,19 @@ test("a member without move_members has no 'Move to channel…' entry", async ({
     await joinVoice(mover, a);
     await expect(rosterEntry(page, a, moverName)).toBeVisible({ timeout: 15000 });
 
+    // The owner's display name isn't a given here — earlier specs in this
+    // shared, persistent-hub run may have renamed it (e.g. P24's hub-context
+    // profile edit) — so read it back rather than assuming the seed's
+    // OWNER_NAME still holds.
+    const owner = await hubApi<{ display_name: string | null }>(page, "/me");
+    const ownerDisplayName = owner.display_name || "Owner E2E";
+
     // The plain member (no move_members, no admin) right-clicks the owner's
     // own roster row. The participant row itself has no context-menu handler
     // when onParticipantContextMenu is ungated-off, so the event bubbles to
     // the channel row's own (unrelated) context menu — assert the "Move to
     // channel…" entry specifically isn't there, not that no menu renders.
-    await rosterEntry(mover, a, "Owner E2E").click({ button: "right" });
+    await rosterEntry(mover, a, ownerDisplayName).click({ button: "right" });
     await mover.waitForTimeout(500);
     await expect(mover.getByRole("button", { name: /Move to channel/ })).toHaveCount(0);
   } finally {

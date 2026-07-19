@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub } from "./helpers/live";
+import { expectInHub, scopedLocalStorageItem } from "./helpers/live";
 
 // P41 — voice join/leave sound cues (#9) have a Settings toggle. Actual audio
 // can't be asserted headless, so we cover the preference wiring (default on +
@@ -26,6 +26,6 @@ test("disabling voice sounds persists to localStorage", async ({ page }) => {
   const cb = page.getByRole("checkbox", { name: "Play voice join/leave sounds" }).first();
   await cb.uncheck();
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem("wavvon.voiceSounds")))
+    .poll(() => scopedLocalStorageItem(page, "wavvon.voiceSounds"))
     .toBe("0");
 });

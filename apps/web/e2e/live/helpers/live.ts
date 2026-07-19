@@ -159,6 +159,17 @@ export async function hubApi<T = unknown>(
   )) as T;
 }
 
+// Reads a per-account-scoped localStorage value (utils/accountScope.ts:
+// `wavvon:acct:<accountId>:<key>`), resolving the active account id itself
+// from `wavvon:active_account_id` — the same namespacing hubApi's token
+// lookup relies on. Returns null if there's no active account or no value.
+export async function scopedLocalStorageItem(page: Page, key: string): Promise<string | null> {
+  return page.evaluate((key) => {
+    const accountId = localStorage.getItem("wavvon:active_account_id");
+    return accountId ? localStorage.getItem(`wavvon:acct:${accountId}:${key}`) : null;
+  }, key);
+}
+
 // A single unlimited-use invite code, minted once per test process and
 // reused by every newMemberPage call (fresh hubs default to invite_only=true
 // — see onboardWithSeed). Reuses the owner's saved session (the "live"

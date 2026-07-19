@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
+import { expectInHub, hubApi, newMemberPage, scopedLocalStorageItem, uniqueName } from "./helpers/live";
 
 // P46 — achievement badges. A hub grants a named badge (a labelled cert); it
 // lands in the member's cross-hub portfolio, links back to the issuing hub, and
@@ -68,7 +68,7 @@ test("a granted badge shows in the member's portfolio and can be hidden", async 
     // Hide it → the choice persists locally (curation).
     await section.getByRole("button", { name: "Hide" }).first().click();
     await expect
-      .poll(() => member.evaluate(() => localStorage.getItem("wavvon.hiddenBadges") ?? ""))
+      .poll(async () => (await scopedLocalStorageItem(member, "wavvon.hiddenBadges")) ?? "")
       .toMatch(/[0-9a-f]{16,}/);
   } finally {
     await context.close();
