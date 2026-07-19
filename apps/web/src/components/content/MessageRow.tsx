@@ -452,7 +452,13 @@ export function MessageRow({
             {(() => {
               // Bot-authored, so parsed defensively rather than trusted outright
               // (bot-capability-layer.md §5 third-party-content threat model).
-              const game = parseGameLaunchCard(m.game);
+              // A result embed patched onto this same message (bot-capability-
+              // layer.md §7 step 5) means the game already ended — there's no
+              // PATCH shape to clear `game` itself (routes/chat_models.rs
+              // EditMessageRequest has no such field), so the launch card is
+              // hidden client-side instead of leaving a dead "Play" button
+              // pointing at a session the bot already closed.
+              const game = m.embeds && m.embeds.length > 0 ? null : parseGameLaunchCard(m.game);
               return game && <GameCard game={game} botId={m.sender} channelId={m.channel_id} onPlay={sendBotAppJoin} />;
             })()}
             {isEphemeral && (
