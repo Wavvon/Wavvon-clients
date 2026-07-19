@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addHub, previewHubInfo } from "@platform";
+import { addHub, previewHubInfo, verifyLanFingerprint } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
 import { parseHubInput } from "@wavvon/core";
@@ -183,6 +183,7 @@ interface WelcomeScreenContainerProps {
 }
 
 export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, onBrowse }: WelcomeScreenContainerProps) {
+  const { t } = useTranslation();
   const [hubUrl, setHubUrl] = useState(initialHubUrl ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -218,6 +219,9 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
       const parsed = parseHubInput(hubUrl.trim());
       const cleanUrl = parsed?.hubUrl ?? hubUrl.trim();
       const inviteCode = parsed?.inviteCode || undefined;
+      if (!(await verifyLanFingerprint(cleanUrl, parsed?.fingerprint))) {
+        throw new Error(t("hub.add_modal.fingerprint_mismatch"));
+      }
       const hub = await addHub(cleanUrl, wsHandlers, inviteCode ? { invite_code: inviteCode } : undefined);
       onHubAdded(hub, parsed?.target);
     } catch (e) {

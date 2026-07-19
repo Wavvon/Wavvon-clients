@@ -27,6 +27,7 @@ export {
   upgradeActiveHubIdentity,
   getHubInfo,
   previewHubInfo,
+  verifyLanFingerprint,
   reorderHubs,
   restorePersistedHubs,
   connectHubWebSocket,

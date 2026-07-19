@@ -992,6 +992,8 @@
   "hub.add_modal.connect": "Connetti",
   "hub.add_modal.passkey_signin": "Accedi con una passkey",
   "hub.add_modal.or_divider": "oppure",
+  "hub.add_modal.fingerprint_match": "L'identità dell'hub corrisponde all'impronta dell'invito.",
+  "hub.add_modal.fingerprint_mismatch": "L'impronta non corrisponde all'invito — possibile intercettazione. Non partecipare.",
   "settings.account.identity_backup.hint": "Esporta la tua identità in un file cifrato. Chiunque abbia il file e la passphrase può diventare te — conservalo con cura e non condividere mai la passphrase.",
   "settings.account.identity_backup.import_complete": "Importazione completata: {added} aggiunte, {alreadyPresent} già presenti su questo dispositivo.",
   "settings.account.identity_backup.export_button": "Esporta backup",

@@ -992,6 +992,8 @@
   "hub.add_modal.connect": "Verbinden",
   "hub.add_modal.passkey_signin": "Mit Passkey anmelden",
   "hub.add_modal.or_divider": "oder",
+  "hub.add_modal.fingerprint_match": "Die Hub-Identität stimmt mit dem Fingerabdruck der Einladung überein.",
+  "hub.add_modal.fingerprint_mismatch": "Der Fingerabdruck stimmt nicht mit der Einladung überein — möglicherweise wurde die Verbindung abgefangen. Nicht beitreten.",
   "settings.account.identity_backup.hint": "Exportiere deine Identität als verschlüsselte Datei. Jeder mit der Datei und der Passphrase kann sich als du ausgeben — bewahre sie sicher auf und teile die Passphrase niemals.",
   "settings.account.identity_backup.import_complete": "Import abgeschlossen: {added} hinzugefügt, {alreadyPresent} bereits auf diesem Gerät vorhanden.",
   "settings.account.identity_backup.export_button": "Backup exportieren",

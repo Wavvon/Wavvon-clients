@@ -17,12 +17,14 @@ interface Props {
   onInviteCodeChange?: (v: string) => void;
   loading: boolean;
   error: string | null;
+  /** True once the invite's `?fp=`/`#fp=` fingerprint was verified against the hub's /info (lan-mode.md §5). */
+  fingerprintMatch?: boolean;
   onAdd: () => void;
   onAddWithPasskey?: () => void;
   onClose: () => void;
 }
 
-export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, onAdd, onAddWithPasskey, onClose }: Props) {
+export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, fingerprintMatch, onAdd, onAddWithPasskey, onClose }: Props) {
   const { t } = useTranslation();
   const [copiedInvite, setCopiedInvite] = useState(false);
   const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && isPasskeySupported();
@@ -96,6 +98,9 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
               </div>
             )}
           </div>
+        )}
+        {fingerprintMatch && (
+          <p className="muted hub-preview-status">{t("hub.add_modal.fingerprint_match")}</p>
         )}
         <div className="modal-actions">
           <button onClick={onClose} className="btn-secondary">{t("modal.cancel")}</button>

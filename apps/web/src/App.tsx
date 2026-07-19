@@ -85,6 +85,7 @@ import {
   listHubs,
   renameSavedHub,
   previewHubInfo,
+  verifyLanFingerprint,
   reorderHubs,
   reauthorizeHub,
   hubFetch,
@@ -187,6 +188,11 @@ export default function App({ initialView }: AppProps = {}) {
   const [hubPreview, setHubPreview] = useState<HubPreview>({ state: "idle" });
   const [addingHub, setAddingHub] = useState(false);
   const [addHubError, setAddHubError] = useState<string | null>(null);
+  // LAN fingerprint pinning (lan-mode.md §5): set when the parsed invite
+  // carried a `?fp=`/`#fp=` fingerprint, so handleAddHub* can TOFU-verify it
+  // against /info before joining.
+  const [expectedFingerprint, setExpectedFingerprint] = useState<string | undefined>(undefined);
+  const [fingerprintMatch, setFingerprintMatch] = useState(false);
   const [showAddHub, setShowAddHub] = useState(false);
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   const [homeHubUrl, setHomeHubUrl] = useState<string | undefined>(undefined);
@@ -1340,6 +1346,8 @@ export default function App({ initialView }: AppProps = {}) {
     const p = parseHubInput(v);
     setHubUrl(p?.hubUrl ?? v);
     if (p?.inviteCode) setInviteCode(p.inviteCode);
+    setExpectedFingerprint(p?.fingerprint);
+    setFingerprintMatch(false);
     setHubPreview({ state: "idle" });
     setAddHubError(null);
     if (p?.target) {
@@ -1374,6 +1382,11 @@ export default function App({ initialView }: AppProps = {}) {
     setAddingHub(true);
     setAddHubError(null);
     try {
+      if (!(await verifyLanFingerprint(hubUrl, expectedFingerprint))) {
+        setAddHubError(t("hub.add_modal.fingerprint_mismatch"));
+        return;
+      }
+      if (expectedFingerprint) setFingerprintMatch(true);
       const hub = await addHub(hubUrl, stableHandlers, { invite_code: inviteCode || undefined });
       setHubs(listHubs());
       setActiveHubIdState(hub.hub_id);
@@ -1401,6 +1414,11 @@ export default function App({ initialView }: AppProps = {}) {
     setAddingHub(true);
     setAddHubError(null);
     try {
+      if (!(await verifyLanFingerprint(hubUrl, expectedFingerprint))) {
+        setAddHubError(t("hub.add_modal.fingerprint_mismatch"));
+        return;
+      }
+      if (expectedFingerprint) setFingerprintMatch(true);
       const token = await authenticateWithPasskey(hubUrl, publicKey);
       const hub = await addHub(hubUrl, stableHandlers, {
         invite_code: inviteCode || undefined,
@@ -2947,9 +2965,15 @@ export default function App({ initialView }: AppProps = {}) {
           onInviteCodeChange={setInviteCode}
           loading={addingHub}
           error={addHubError}
+          fingerprintMatch={fingerprintMatch}
           onAdd={handleAddHub}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
-          onClose={() => { setShowAddHub(false); setHubPreview({ state: "idle" }); setAddHubError(null); }}
+          onClose={() => {
+            setShowAddHub(false);
+            setHubPreview({ state: "idle" });
+            setAddHubError(null);
+            setFingerprintMatch(false);
+          }}
         />
       )}
 

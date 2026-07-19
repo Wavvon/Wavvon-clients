@@ -30,6 +30,8 @@ interface InfoResponse {
   farm_url?: string | null;
   welcome_label?: string | null;
   welcome_invite_url?: string | null;
+  /** SHA-256 hex of the LAN self-signed cert, present when lan_tls === "self". */
+  lan_fingerprint?: string | null;
 }
 
 function authBaseUrl(info: InfoResponse, hub_url: string): string {
@@ -265,12 +267,28 @@ export async function getHubInfo(hub_id: string): Promise<Hub | null> {
   };
 }
 
+// LAN fingerprint pinning (lan-mode.md §5): TOFU-verify the hub's
+// self-reported /info fingerprint against the one carried out-of-band in
+// the invite URL. `undefined` expectedFingerprint means the invite carried
+// none — always passes, so normal (non-LAN) hubs are unaffected. Shared by
+// every add-hub call site (App.tsx, WelcomeScreenContainer) so none of them
+// can silently skip the check.
+export async function verifyLanFingerprint(
+  hub_url: string,
+  expectedFingerprint: string | undefined,
+): Promise<boolean> {
+  if (!expectedFingerprint) return true;
+  const info = await previewHubInfo(hub_url);
+  return (info.lan_fingerprint ?? "").toLowerCase() === expectedFingerprint;
+}
+
 export async function previewHubInfo(hub_url: string): Promise<{
   name: string;
   public_key: string;
   icon: string | null;
   welcome_label: string | null;
   welcome_invite_url: string | null;
+  lan_fingerprint: string | null;
 }> {
   const url = hub_url.replace(/\/$/, "");
   const info: InfoResponse = await rawFetch(`${url}/info`).then((r) => r.json() as Promise<InfoResponse>);
@@ -280,6 +298,7 @@ export async function previewHubInfo(hub_url: string): Promise<{
     icon: info.icon,
     welcome_label: info.welcome_label ?? null,
     welcome_invite_url: info.welcome_invite_url ?? null,
+    lan_fingerprint: info.lan_fingerprint ?? null,
   };
 }
 

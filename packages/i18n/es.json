@@ -992,6 +992,8 @@
   "hub.add_modal.connect": "Conectar",
   "hub.add_modal.passkey_signin": "Iniciar sesión con una passkey",
   "hub.add_modal.or_divider": "o",
+  "hub.add_modal.fingerprint_match": "La identidad del hub coincide con la huella de la invitación.",
+  "hub.add_modal.fingerprint_mismatch": "La huella no coincide con la invitación — posible interceptación. No te unas.",
   "settings.account.identity_backup.hint": "Exporta tu identidad a un archivo cifrado. Cualquiera que tenga el archivo y la contraseña puede convertirse en ti — guárdalo con cuidado y no compartas nunca la contraseña.",
   "settings.account.identity_backup.import_complete": "Importación completada: {added} añadidas, {alreadyPresent} ya presentes en este dispositivo.",
   "settings.account.identity_backup.export_button": "Exportar copia de seguridad",

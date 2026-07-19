@@ -86,6 +86,8 @@
   "hub.add_modal.connect": "Connect",
   "hub.add_modal.passkey_signin": "Sign in with passkey",
   "hub.add_modal.or_divider": "or",
+  "hub.add_modal.fingerprint_match": "Hub identity matches the invite fingerprint.",
+  "hub.add_modal.fingerprint_mismatch": "Fingerprint does not match the invite — possible interception. Do not join.",
   "hub.settings": "Hub settings",
   "hub.invite_people": "Invite people",
   "hub.create_channel": "Create…",
