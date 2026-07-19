@@ -84,6 +84,15 @@ export function StagingSlotGroup({
               <div>
                 <span>{nameFor(pubkey)}</span>
                 {label && <span className="muted"> — {label}</span>}
+                {status.kind === "assigned" && status.voiceOnly && (
+                  <span
+                    className="badge-chip"
+                    style={{ borderColor: "var(--warning)", color: "var(--warning)", marginLeft: 6 }}
+                    title={t("events.staging.voice_only_hint")}
+                  >
+                    {t("events.staging.voice_only_chip")}
+                  </span>
+                )}
               </div>
               {destinationChannels.length > 0 && (
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

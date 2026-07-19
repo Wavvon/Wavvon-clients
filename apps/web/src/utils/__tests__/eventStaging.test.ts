@@ -46,15 +46,23 @@ describe("claimantVoiceStatus", () => {
 
   it("reports assigned when not in voice but a pending assignment exists", () => {
     const assignments: EventMoveAssignment[] = [
-      { user_pubkey: "pk-1", target_channel_id: "chan-assigned", assigned_by: "org", created_at: 0 },
+      { user_pubkey: "pk-1", target_channel_id: "chan-assigned", assigned_by: "org", created_at: 0, voice_only: false },
     ];
     const status = claimantVoiceStatus("pk-1", assignments, {}, channelNameById);
-    expect(status).toEqual({ kind: "assigned", channelName: "Squad Bravo" });
+    expect(status).toEqual({ kind: "assigned", channelName: "Squad Bravo", voiceOnly: false });
+  });
+
+  it("carries voice_only through to the assigned status", () => {
+    const assignments: EventMoveAssignment[] = [
+      { user_pubkey: "pk-1", target_channel_id: "chan-assigned", assigned_by: "org", created_at: 0, voice_only: true },
+    ];
+    const status = claimantVoiceStatus("pk-1", assignments, {}, channelNameById);
+    expect(status).toEqual({ kind: "assigned", channelName: "Squad Bravo", voiceOnly: true });
   });
 
   it("prefers in_voice over a stale assignment for the same pubkey", () => {
     const assignments: EventMoveAssignment[] = [
-      { user_pubkey: "pk-1", target_channel_id: "chan-assigned", assigned_by: "org", created_at: 0 },
+      { user_pubkey: "pk-1", target_channel_id: "chan-assigned", assigned_by: "org", created_at: 0, voice_only: false },
     ];
     const voicePartByChannel: Record<string, VoiceParticipant[]> = {
       "chan-voice": [{ public_key: "pk-1", display_name: "Alice" }],

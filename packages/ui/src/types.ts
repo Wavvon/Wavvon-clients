@@ -77,7 +77,7 @@ export interface HubEmoji {
  *  state itself, only renders what it's told. */
 export type ClaimantVoiceStatus =
   | { kind: "in_voice"; channelName: string }
-  | { kind: "assigned"; channelName: string }
+  | { kind: "assigned"; channelName: string; voiceOnly: boolean }
   | { kind: "none" };
 
 /** One staging-panel bucket: an event slot's claimants, or the synthesized

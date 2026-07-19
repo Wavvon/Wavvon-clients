@@ -1058,6 +1058,8 @@
   "events.staging.group.unassigned": "Unassigned",
   "events.staging.status.in_voice": "in {channel}",
   "events.staging.status.assigned": "assigned → {channel}, not in voice yet",
+  "events.staging.voice_only_hint": "This member can't read that channel — they'll join voice only",
+  "events.staging.voice_only_chip": "voice-only",
   "events.staging.move": "Move to…",
   "events.staging.move_all": "Move all {group} to…",
   "events.composer.scope_label": "Event scope",

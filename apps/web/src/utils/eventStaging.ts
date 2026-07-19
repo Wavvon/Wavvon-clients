@@ -32,7 +32,11 @@ export function claimantVoiceStatus(
   }
   const assignment = assignments.find((a) => a.user_pubkey === pubkey);
   if (assignment) {
-    return { kind: "assigned", channelName: channelNameById.get(assignment.target_channel_id) ?? "?" };
+    return {
+      kind: "assigned",
+      channelName: channelNameById.get(assignment.target_channel_id) ?? "?",
+      voiceOnly: assignment.voice_only,
+    };
   }
   return { kind: "none" };
 }

@@ -163,6 +163,7 @@ export interface EventMoveAssignment {
   target_channel_id: string;
   assigned_by: string;
   created_at: number;
+  voice_only: boolean;
 }
 
 export type NotifLevel = "all" | "mentions" | "none";

@@ -922,6 +922,8 @@
   "events.staging.group.unassigned": "Sin asignar",
   "events.staging.status.in_voice": "en {channel}",
   "events.staging.status.assigned": "asignado → {channel}, aún no está en voz",
+  "events.staging.voice_only_hint": "Este miembro no puede leer ese canal — solo se unirá a la voz",
+  "events.staging.voice_only_chip": "solo voz",
   "events.staging.move": "Mover a…",
   "events.staging.move_all": "Mover todo {group} a…",
   "events.composer.scope_label": "Alcance del evento",

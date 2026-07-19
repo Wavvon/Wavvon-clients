@@ -922,6 +922,8 @@
   "events.staging.group.unassigned": "Nicht zugewiesen",
   "events.staging.status.in_voice": "in {channel}",
   "events.staging.status.assigned": "zugewiesen → {channel}, noch nicht in Voice",
+  "events.staging.voice_only_hint": "Dieses Mitglied kann diesen Kanal nicht lesen — es tritt nur dem Voice-Kanal bei",
+  "events.staging.voice_only_chip": "nur Sprache",
   "events.staging.move": "Verschieben nach…",
   "events.staging.move_all": "Alle aus {group} verschieben nach…",
   "events.composer.scope_label": "Veranstaltungsbereich",
