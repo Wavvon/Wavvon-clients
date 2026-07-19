@@ -386,6 +386,8 @@
   "bot.automated_notice": "Questo è un account automatizzato",
   "bot.card.loading": "Caricamento…",
   "bot.card.commands": "Comandi",
+  "bot.card.play": "Gioca a {{name}}",
+  "bot.card.play_no_channel": "Apri un canale per giocare",
   "bot.card.footer": "Questo è un account automatizzato.",
   "modal.close": "Chiudi",
   "modal.cancel": "Annulla",

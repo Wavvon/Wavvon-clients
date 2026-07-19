@@ -1,3 +1,5 @@
+import type { GameLaunchCard } from "@wavvon/core";
+
 export interface Attachment {
   name: string;
   mime: string;
@@ -64,6 +66,9 @@ export interface BotProfile {
   avatar_url: string | null;
   description: string | null;
   commands: BotCommandDef[];
+  /** Profile-declared game descriptor (bot-capability-layer.md §11): drives
+   *  the directory card's Play affordance. Absent = bot never declared one. */
+  game?: GameLaunchCard | null;
 }
 
 export interface HubEmoji {

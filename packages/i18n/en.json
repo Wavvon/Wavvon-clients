@@ -531,6 +531,8 @@
   "bot.automated_notice": "This is an automated account",
   "bot.card.loading": "Loading…",
   "bot.card.commands": "Commands",
+  "bot.card.play": "Play {{name}}",
+  "bot.card.play_no_channel": "Open a channel to play",
   "bot.card.footer": "This is an automated account.",
   "modal.close": "Close",
   "modal.cancel": "Cancel",

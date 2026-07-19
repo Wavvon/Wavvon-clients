@@ -17,7 +17,7 @@ import type {
 import { UserListGrouped } from "@components/users/UserListGrouped";
 import { UserProfileCard } from "@components/users/UserProfileCard";
 import { PinnedMessagesModal } from "@components/content/PinnedMessagesModal";
-import { hubFetch, getPolls } from "@platform";
+import { hubFetch, getPolls, getBotProfile, sendBotAppJoin } from "@platform";
 import { activeSession } from "../../platform/session";
 import { ScreenShareViewer } from "@components/voice/ScreenShareViewer";
 import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
@@ -654,7 +654,9 @@ export function ContentArea({
           pubkey={botCard.pubkey}
           anchorRect={botCard.rect}
           onClose={() => setBotCard(null)}
-          loadBotProfile={(pk) => hubFetch(`/bots/${pk}`).then((r) => r.json())}
+          loadBotProfile={getBotProfile}
+          channelId={selectedChannel?.id ?? null}
+          onPlay={sendBotAppJoin}
         />
       )}
 

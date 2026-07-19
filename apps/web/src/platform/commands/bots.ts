@@ -7,12 +7,7 @@ import type {
   WebhookInfo,
   WebhookCreatedResult,
 } from "@shared/types";
-import type { BotCapabilityGrants } from "@wavvon/core";
-
-export async function getBotProfile(pubkey: string): Promise<BotProfile> {
-  const res = await hubFetch(`/bots/${pubkey}`);
-  return res.json() as Promise<BotProfile>;
-}
+import type { BotCapabilityGrants, GameLaunchCard } from "@wavvon/core";
 
 export async function adminListExternalBots(): Promise<ExternalBotRow[]> {
   const res = await hubFetch("/admin/bots/external");
@@ -95,15 +90,41 @@ export interface BotCommandSummary {
 export interface BotListEntry {
   pubkey: string;
   name: string;
+  avatar_url?: string | null;
+  description?: string | null;
+  /** Profile-declared game descriptor (bot-capability-layer.md §11): drives
+   *  the directory card's Play affordance. Absent = bot never declared one. */
+  game?: GameLaunchCard | null;
   commands: BotCommandSummary[];
 }
 
-export async function listBotCommands(): Promise<Array<{ command: string; description: string; bot_name: string }>> {
+export async function listBots(): Promise<BotListEntry[]> {
   const res = await hubFetch("/bots");
-  const bots = (await res.json()) as BotListEntry[];
+  return res.json() as Promise<BotListEntry[]>;
+}
+
+export async function listBotCommands(): Promise<Array<{ command: string; description: string; bot_name: string }>> {
+  const bots = await listBots();
   return bots.flatMap((b) =>
     b.commands.map((c) => ({ command: c.name, description: c.description, bot_name: b.name }))
   );
+}
+
+/** Directory-card lookup for the hover/click bot card (bots.md §10). Sourced
+ *  from the same `GET /bots` directory list -- there is no single-bot
+ *  profile route, so this filters client-side. */
+export async function getBotProfile(pubkey: string): Promise<BotProfile> {
+  const bots = await listBots();
+  const bot = bots.find((b) => b.pubkey === pubkey);
+  if (!bot) throw new Error("Bot not found");
+  return {
+    pubkey: bot.pubkey,
+    name: bot.name,
+    avatar_url: bot.avatar_url ?? null,
+    description: bot.description ?? null,
+    commands: bot.commands,
+    game: bot.game ?? null,
+  };
 }
 
 export function sendComponentInteraction(

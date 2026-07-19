@@ -10,9 +10,15 @@ interface Props {
   anchorRect: DOMRect;
   onClose: () => void;
   loadBotProfile: (pubkey: string) => Promise<BotProfile>;
+  /** Null when the current view has no channel to launch into (e.g. a DM) --
+   *  `bot_app_join` requires a channel id, so the Play button disables.
+   *  Optional: platforms without a launch flow (desktop, pre-parity) omit
+   *  both and get no Play button at all. */
+  channelId?: string | null;
+  onPlay?: (botId: string, channelId: string) => void;
 }
 
-export function BotCard({ pubkey, anchorRect, onClose, loadBotProfile }: Props) {
+export function BotCard({ pubkey, anchorRect, onClose, loadBotProfile, channelId, onPlay }: Props) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<BotProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +67,25 @@ export function BotCard({ pubkey, anchorRect, onClose, loadBotProfile }: Props) 
             </div>
             {profile.description && (
               <p className="bot-card-desc">{profile.description}</p>
+            )}
+            {profile.game && onPlay && (
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                {profile.game.thumbnail_url && (
+                  <img
+                    src={profile.game.thumbnail_url}
+                    alt=""
+                    style={{ width: 24, height: 24, objectFit: "cover", borderRadius: "var(--r-sm)" }}
+                  />
+                )}
+                <button
+                  className="btn-secondary btn-small"
+                  disabled={!channelId}
+                  title={channelId ? undefined : t("bot.card.play_no_channel")}
+                  onClick={() => channelId && onPlay(pubkey, channelId)}
+                >
+                  {t("bot.card.play", { name: profile.game.name })}
+                </button>
+              </div>
             )}
             {profile.commands.length > 0 && (
               <div className="bot-card-commands">
