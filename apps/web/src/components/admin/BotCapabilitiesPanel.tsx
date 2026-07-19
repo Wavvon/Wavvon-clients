@@ -36,6 +36,7 @@ const CAPABILITY_INFO: Record<string, CapabilityInfo> = {
     label: "Inject video",
     risk: "high",
     unlocks: "Push video/canvas frames into the screen-share relay.",
+    note: "Also requires the hub operator's WAVVON_BOTS_ALLOW_VIDEO setting; concurrent bot streams are budget-capped.",
   },
   can_use_camera: {
     label: "Use camera",
