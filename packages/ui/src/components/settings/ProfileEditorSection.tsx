@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Avatar, EmojiPicker, ImagePicker } from "@wavvon/ui";
+import { Avatar } from "../Avatar";
+import { EmojiPicker } from "../content/EmojiPicker";
+import { ImagePicker } from "../ImagePicker";
 import { formatPubkey } from "@wavvon/core";
-import type { Hub, FavoriteHub } from "@shared/types";
-import type { IdentityRecord } from "@identity/index";
-import { AutoGrowTextarea, GameEmojiRow, StatusBubble, insertAtLineStart, profileBannerStyle } from "@wavvon/ui";
+import type { Hub, FavoriteHub, ProfileAccountRef, ProfileDraftFields, ProfileEditorActions } from "../../types";
+import { AutoGrowTextarea } from "../profile/AutoGrowTextarea";
+import { GameEmojiRow } from "../profile/GameEmojiRow";
+import { StatusBubble } from "../profile/StatusBubble";
+import { insertAtLineStart } from "../../utils/activityEmoji";
+import { profileBannerStyle } from "../../utils/identityColor";
+import { loadHiddenBadgeSet } from "../../utils/hiddenBadges";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
-import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
-import { getScoped } from "@shared/utils/accountScope";
-import { getMyProfileOnHub, updateMyProfileOnHub, listMyCertifications, NO_HUB_SESSION } from "@platform";
-import { AvatarChooser } from "@components/users/AvatarChooser";
+import { AvatarChooser } from "./AvatarChooser";
 
 interface Props {
   hubs: Hub[];
-  account: IdentityRecord;
+  account: ProfileAccountRef;
   // Managing the active account? Hub contexts need its live sessions; for a
   // non-active account only the (purely local) default profile is editable.
   isActive: boolean;
@@ -22,12 +25,13 @@ interface Props {
   publicKey: string | null;
   // All on-device accounts + the active one, so the scope line can offer
   // "[profile] for [account]" when there's more than one. The account choice
-  // flows back through onManagingChange (owned by SettingsPage).
-  accounts: IdentityRecord[] | null;
+  // flows back through onManagingChange (owned by the settings shell).
+  accounts: ProfileAccountRef[] | null;
   activeId: string | null;
   onManagingChange: (id: string) => void;
-  // Lets App refresh meInfo/users when a saved hub is the active one.
+  // Lets the caller refresh meInfo/users when a saved hub is the active one.
   onHubProfileSaved?: (hubId: string) => void;
+  actions: ProfileEditorActions;
 }
 
 const DEFAULT_CONTEXT = "__default__";
@@ -38,6 +42,11 @@ const ACTIVITIES_MAX = 500;
 
 type CardTab = "bio" | "activities" | "hubs";
 
+// Internal working-copy shape: text fields are always strings (never null)
+// so inputs stay controlled — unlike ProfileEditorActions' external
+// ProfileDraftFields (which mirrors storage/wire shapes using null for
+// "unset"). Converted at the boundary: fromExternal() on load, trimToNull()
+// on save.
 interface Draft {
   display_name: string;
   avatar: string | null;
@@ -49,6 +58,21 @@ interface Draft {
   cover: string | null;
   favorite_hubs: FavoriteHub[];
   show_hubs: boolean;
+}
+
+function fromExternal(p: Omit<ProfileDraftFields, "display_name"> & { display_name: string | null }): Draft {
+  return {
+    display_name: p.display_name ?? "",
+    avatar: p.avatar,
+    bio: p.bio ?? "",
+    pronouns: p.pronouns ?? "",
+    status_message: p.status_message ?? "",
+    activities: p.activities ?? "",
+    accent_color: p.accent_color,
+    cover: p.cover,
+    favorite_hubs: p.favorite_hubs,
+    show_hubs: p.show_hubs,
+  };
 }
 
 const sameDraft = (a: Draft, b: Draft) =>
@@ -68,23 +92,6 @@ const trimToNull = (s: string) => {
   return v ? v : null;
 };
 
-// The default-profile draft for an account, read from scoped storage.
-function buildDefaultDraft(accountId: string): Draft {
-  const p = loadDefaultProfile(accountId);
-  return {
-    display_name: p?.display_name ?? "",
-    avatar: p?.avatar ?? null,
-    bio: p?.bio ?? "",
-    pronouns: p?.pronouns ?? "",
-    status_message: p?.status_message ?? "",
-    activities: p?.activities ?? "",
-    accent_color: p?.accent_color ?? null,
-    cover: p?.cover ?? null,
-    favorite_hubs: p?.favorite_hubs ?? [],
-    show_hubs: p?.show_hubs ?? false,
-  };
-}
-
 // One WYSIWYG editor over many contexts (the Discord server-profiles
 // pattern): the dropdown picks the default profile or any joined hub, and
 // the card below IS the profile. The card is tabbed — Bio (about me +
@@ -92,7 +99,7 @@ function buildDefaultDraft(accountId: string): Draft {
 // Edits are kept as per-context drafts (dirty contexts get a • in the
 // dropdown) and a single "Save changes" persists all of them: default →
 // local scoped storage, each hub → its own session (PATCH /me).
-export function ProfileEditorSection({ hubs, account, isActive, publicKey, accounts, activeId, onManagingChange, onHubProfileSaved }: Props) {
+export function ProfileEditorSection({ hubs, account, isActive, publicKey, accounts, activeId, onManagingChange, onHubProfileSaved, actions }: Props) {
   const { t } = useTranslation();
   const [context, setContext] = useState<string>(DEFAULT_CONTEXT);
   const [tab, setTab] = useState<CardTab>("bio");
@@ -101,7 +108,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   // Read-only: badges earned on each hub, shown as members see them.
   const [badgesByCtx, setBadgesByCtx] = useState<Record<string, string[]>>({});
   // Identity-wide badges (cross-hub certs with a label) for the default
-  // context, honoring the hide/show curation from the section below.
+  // context, honoring the hide/show curation from MyCertificationsSection
+  // (utils/hiddenBadges.ts).
   const [identityBadges, setIdentityBadges] = useState<string[]>([]);
   const [choosingAvatar, setChoosingAvatar] = useState(false);
   const [editingBanner, setEditingBanner] = useState(false);
@@ -133,32 +141,22 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   // switch it wouldn't re-run, and the card would render with no draft (it
   // vanished). Seeding synchronously keeps the card populated across a switch.
   useEffect(() => {
-    const d = buildDefaultDraft(account.id);
+    const loaded = actions.loadDefaultProfile(account.id);
+    const d = loaded ? fromExternal(loaded) : blankDraft();
     setDrafts({ [DEFAULT_CONTEXT]: d });
     setBaselines({ [DEFAULT_CONTEXT]: d });
     setBadgesByCtx({});
     setContext(DEFAULT_CONTEXT);
-    setHasDefault(loadDefaultProfile(account.id) !== null);
+    setHasDefault(loaded !== null);
     // Restore the persistent follow links, pruning hubs no longer saved.
-    const stored = new Set(loadFollowsDefault(account.id).filter((id) => hubs.some((h) => h.hub_id === id)));
+    const stored = new Set(actions.loadFollowsDefault(account.id).filter((id) => hubs.some((h) => h.hub_id === id)));
     setFollowing(stored);
     setFollowingBaseline(new Set(stored));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account.id]);
 
-  function draftFromHub(p: Awaited<ReturnType<typeof getMyProfileOnHub>>): Draft {
-    return {
-      display_name: p.display_name ?? "",
-      avatar: p.avatar,
-      bio: p.bio ?? "",
-      pronouns: p.pronouns ?? "",
-      status_message: p.status_message ?? "",
-      activities: p.activities ?? "",
-      accent_color: p.accent_color,
-      cover: p.cover,
-      favorite_hubs: p.favorite_hubs,
-      show_hubs: p.show_hubs,
-    };
+  function draftFromHub(p: Awaited<ReturnType<typeof actions.getMyProfileOnHub>>): Draft {
+    return fromExternal(p);
   }
 
   // Followed hubs need their baseline even if never opened this session —
@@ -170,7 +168,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     if (!publicKey) return;
     for (const id of following) {
       if (baselines[id]) continue;
-      getMyProfileOnHub(id, publicKey)
+      actions.getMyProfileOnHub(id, publicKey)
         .then((p) => {
           const d = draftFromHub(p);
           setBaselines((b) => (b[id] ? b : { ...b, [id]: d }));
@@ -191,9 +189,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     setIdentityBadges([]);
     if (!isActive || !publicKey) return;
     let cancelled = false;
-    let hidden: Set<string>;
-    try { hidden = new Set(JSON.parse(getScoped("wavvon.hiddenBadges") ?? "[]") as string[]); } catch { hidden = new Set(); }
-    listMyCertifications(publicKey)
+    const hidden = loadHiddenBadgeSet();
+    actions.listMyCertifications(publicKey)
       .then((certs) => {
         if (cancelled) return;
         setIdentityBadges(
@@ -206,6 +203,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, publicKey, account.id]);
 
   // Load a context's baseline the first time it's opened. Already-loaded
@@ -217,7 +215,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     if (context === DEFAULT_CONTEXT) {
       // Usually already seeded by the account-reset effect; this covers a
       // direct switch back to Default that somehow finds no baseline.
-      const d = buildDefaultDraft(account.id);
+      const loaded = actions.loadDefaultProfile(account.id);
+      const d = loaded ? fromExternal(loaded) : blankDraft();
       setBaselines((b) => ({ ...b, [context]: d }));
       setDrafts((ds) => ({ ...ds, [context]: d }));
       return;
@@ -225,7 +224,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     if (!publicKey) return;
     let cancelled = false;
     setStatus("loading");
-    getMyProfileOnHub(context, publicKey)
+    actions.getMyProfileOnHub(context, publicKey)
       .then((p) => {
         if (cancelled) return;
         const d = draftFromHub(p);
@@ -238,7 +237,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
         if (cancelled) return;
         setStatus("idle");
         const msg = e instanceof Error ? e.message : String(e);
-        setError(msg === NO_HUB_SESSION ? "no_session" : msg);
+        setError(msg === actions.noHubSessionError ? "no_session" : msg);
       });
     return () => {
       cancelled = true;
@@ -317,7 +316,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
     try {
       for (const c of contentDirty) {
         const d = effectiveOf(c)!;
-        const profile = {
+        const profile: ProfileDraftFields = {
           display_name: d.display_name.trim(),
           avatar: d.avatar,
           bio: trimToNull(d.bio),
@@ -330,24 +329,24 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
           show_hubs: d.show_hubs,
         };
         if (c === DEFAULT_CONTEXT) {
-          saveDefaultProfile(profile, account.id);
+          actions.saveDefaultProfile(profile, account.id);
           setHasDefault(true);
         } else {
-          await updateMyProfileOnHub(c, profile);
+          await actions.updateMyProfileOnHub(c, profile);
           onHubProfileSaved?.(c);
         }
         setBaselines((b) => ({ ...b, [c]: { ...d } }));
       }
       // Persist link changes (pure preference — no hub write of its own).
       if (followDirty.length > 0) {
-        saveFollowsDefault([...following], account.id);
+        actions.saveFollowsDefault([...following], account.id);
         setFollowingBaseline(new Set(following));
       }
       setStatus("saved");
     } catch (e) {
       setStatus("idle");
       const msg = e instanceof Error ? e.message : String(e);
-      setError(msg === NO_HUB_SESSION ? "no_session" : msg);
+      setError(msg === actions.noHubSessionError ? "no_session" : msg);
     }
   }
 
@@ -732,4 +731,19 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
       )}
     </div>
   );
+}
+
+function blankDraft(): Draft {
+  return {
+    display_name: "",
+    avatar: null,
+    bio: "",
+    pronouns: "",
+    status_message: "",
+    activities: "",
+    accent_color: null,
+    cover: null,
+    favorite_hubs: [],
+    show_hubs: false,
+  };
 }

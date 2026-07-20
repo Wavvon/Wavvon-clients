@@ -4,9 +4,10 @@ import { DevicesSection } from "../DevicesSection";
 import { PasskeySection } from "../PasskeySection";
 import { TrustedDevicesSection } from "../TrustedDevicesSection";
 import { ManagingAccountSelector } from "../ManagingAccountSelector";
-import type { PerAccountProps } from "./perAccount";
+import type { PerAccountProps } from "@wavvon/ui";
+import type { IdentityRecord } from "@identity/index";
 
-interface Props extends PerAccountProps {
+interface Props extends PerAccountProps<IdentityRecord> {
   hubs: Hub[];
   publicKey: string | null;
 }

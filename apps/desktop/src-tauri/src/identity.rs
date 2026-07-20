@@ -47,6 +47,27 @@ impl Identity {
         hex::encode(self.signing_key.verifying_key().as_bytes())
     }
 
+    /// Raw 32-byte secret key, hex-encoded — the payload of an identity
+    /// backup file (see `backup.rs`). Never sent anywhere except into that
+    /// encrypted envelope.
+    pub fn secret_key_hex(&self) -> String {
+        hex::encode(self.signing_key.to_bytes())
+    }
+
+    /// Reconstruct an identity from the raw secret key hex produced by
+    /// `secret_key_hex()` (backup restore path).
+    pub fn from_secret_key_hex(hex_str: &str) -> Result<Self> {
+        let bytes = hex::decode(hex_str).context("Invalid secret key hex")?;
+        let secret_array: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| anyhow!("Secret key must be exactly 32 bytes"))?;
+        Ok(Self {
+            signing_key: SigningKey::from_bytes(&secret_array),
+            security_nonce: 0,
+            security_level: 0,
+        })
+    }
+
     pub fn save(&self, path: &Path) -> Result<()> {
         let data = SavedIdentity {
             secret_key: hex::encode(self.signing_key.to_bytes()),
@@ -95,9 +116,11 @@ impl Identity {
         self.signing_key.verifying_key()
     }
 
+    /// Resolves to the *active account's* identity.json (see `accounts.rs`).
+    /// Kept as one function so every existing call site transparently
+    /// re-targets to per-account storage with no call-site changes.
     pub fn default_path() -> Result<PathBuf> {
-        let home = dirs::home_dir().context("Could not find home directory")?;
-        Ok(home.join(".wavvon").join("identity.json"))
+        crate::accounts::active_identity_path().map_err(|e| anyhow!(e))
     }
 
     /// Derive the master keypair from this identity's secret bytes.

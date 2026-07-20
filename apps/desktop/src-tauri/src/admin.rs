@@ -1070,3 +1070,27 @@ pub(crate) async fn get_user_profile(
         .map_err(|e| e.to_string())?;
     res.json().await.map_err(|e| e.to_string())
 }
+
+/// PATCH /me on a hub identified by URL rather than "whichever is active" —
+/// the shared profile editor (packages/ui ProfileEditorSection) can write to
+/// any joined hub with a live session, not just the active one.
+#[tauri::command]
+pub(crate) async fn update_my_profile_on_hub(
+    hub_url: String,
+    profile: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let resp = state
+        .http_client
+        .patch(format!("{}/me", hub_url.trim_end_matches('/')))
+        .bearer_auth(&token)
+        .json(&profile)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}

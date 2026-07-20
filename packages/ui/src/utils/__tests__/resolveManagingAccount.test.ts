@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { resolveManagingAccount } from "../resolveManagingAccount";
-import type { IdentityRecord } from "@identity/index";
+import type { ProfileAccountRef } from "../../types";
 
-// Default-resolution rule for AccountTab's "Managing" selector (see
-// USER VISION: the selector defaults to the active account, and switching
-// accounts is a separate, in-place action — see AccountRoot.tsx).
+// Default-resolution rule for the accounts/devices/privacy tabs' "Managing"
+// selector: defaults to the active account, and switching accounts is a
+// separate, in-place action (see AccountRoot.tsx).
 
-function account(id: string, extra: Partial<IdentityRecord> = {}): IdentityRecord {
-  return { id, seed_hex: `seed-${id}`, security_nonce: 0, security_level: 0, ...extra };
+function account(id: string, extra: Partial<ProfileAccountRef> = {}): ProfileAccountRef {
+  return { id, ...extra };
 }
 
 describe("resolveManagingAccount", () => {

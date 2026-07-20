@@ -1,32 +1,42 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listMyCertifications } from "@platform";
-import type { Certification } from "@platform";
-import { getScoped, setScoped } from "@shared/utils/accountScope";
+import type { MyCertification } from "../../types";
+import { loadHiddenBadgeSet, saveHiddenBadgeSet } from "../../utils/hiddenBadges";
+
+export type { MyCertification } from "../../types";
 
 // A member's own earned hub certifications + achievement badges (read-only,
 // aggregated from every hub they're on). Badges (certs with a `label`) render
 // distinctly, link back to the granting community, and can be hidden/shown by
-// the user (client-side curation, persisted locally per account — these are
-// the active identity's own certs).
-const HIDDEN_KEY = "wavvon.hiddenBadges";
-
-function loadHidden(): Set<string> {
-  try { return new Set(JSON.parse(getScoped(HIDDEN_KEY) ?? "[]")); } catch { return new Set(); }
-}
-function saveHidden(s: Set<string>) {
-  try { setScoped(HIDDEN_KEY, JSON.stringify([...s])); } catch { /* ignore */ }
-}
+// the user (client-side curation — see utils/hiddenBadges.ts).
 
 function issuerHost(url: string): string {
-  try { return new URL(url).host; } catch { return url; }
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
 
-export function MyCertificationsSection({ publicKey }: { publicKey: string | null }) {
+interface Props {
+  publicKey: string | null;
+  listMyCertifications: (pubkey: string) => Promise<MyCertification[]>;
+  /** Defaults to utils/hiddenBadges.ts's flat localStorage key — override
+   *  only if a platform wants account-scoped storage instead. */
+  loadHiddenBadges?: () => Set<string>;
+  saveHiddenBadges?: (hidden: Set<string>) => void;
+}
+
+export function MyCertificationsSection({
+  publicKey,
+  listMyCertifications,
+  loadHiddenBadges = loadHiddenBadgeSet,
+  saveHiddenBadges = saveHiddenBadgeSet,
+}: Props) {
   const { t } = useTranslation();
-  const [certs, setCerts] = useState<Certification[] | null>(null);
+  const [certs, setCerts] = useState<MyCertification[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hidden, setHidden] = useState<Set<string>>(() => loadHidden());
+  const [hidden, setHidden] = useState<Set<string>>(() => loadHiddenBadges());
 
   useEffect(() => {
     if (!publicKey) return;
@@ -35,13 +45,14 @@ export function MyCertificationsSection({ publicKey }: { publicKey: string | nul
       .then((c) => { if (!cancelled) setCerts(c); })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publicKey]);
 
   function toggleHidden(sig: string) {
     setHidden((prev) => {
       const next = new Set(prev);
       if (next.has(sig)) next.delete(sig); else next.add(sig);
-      saveHidden(next);
+      saveHiddenBadges(next);
       return next;
     });
   }

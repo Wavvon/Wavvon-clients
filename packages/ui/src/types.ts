@@ -633,6 +633,92 @@ export interface BadgeSummary {
   color?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Shared profile editor (settings-ia.md §5 — the 2026-07-12 converged model:
+// one local default + per-hub /me card). Account is generalized down to
+// {id, account_label} so both web's IndexedDB IdentityRecord and desktop's
+// Rust-backed AccountSummary satisfy it without either platform's account
+// model leaking into packages/ui.
+// ---------------------------------------------------------------------------
+
+export interface ProfileAccountRef {
+  id: string;
+  account_label?: string;
+}
+
+// Props shared by every settings tab that can act on a non-active local
+// account. Generic over the platform's own account shape (web's IndexedDB
+// IdentityRecord, desktop's Rust-backed AccountSummary) — packages/ui only
+// needs `id` and `account_label` (ProfileAccountRef), so this stays platform-
+// free while each app's account type satisfies it structurally.
+export interface PerAccountProps<TAccount extends ProfileAccountRef = ProfileAccountRef> {
+  accounts: TAccount[] | null;
+  activeId: string | null;
+  managing: TAccount | null;
+  onManagingChange: (id: string) => void;
+}
+
+export interface ProfileDraftFields {
+  display_name: string;
+  avatar: string | null;
+  bio: string | null;
+  pronouns: string | null;
+  status_message: string | null;
+  activities: string | null;
+  accent_color: string | null;
+  cover: string | null;
+  favorite_hubs: FavoriteHub[];
+  show_hubs: boolean;
+}
+
+export interface HubProfileSnapshot extends Omit<ProfileDraftFields, "display_name"> {
+  // Unlike ProfileDraftFields (a write payload, where display_name is
+  // required), a hub's read response can have no display_name set yet.
+  display_name: string | null;
+  /** Earned on that hub, read-only — shown in the editor card as members
+   *  would see them (labels only). */
+  badges: string[];
+}
+
+// A member's own earned hub certifications + achievement badges, aggregated
+// from every hub they're on.
+export interface MyCertification {
+  payload: {
+    subject_kind: string;
+    issuer_pubkey: string;
+    issuer_url: string;
+    subject_pubkey: string;
+    member_since: number;
+    standing: "good" | "revoked";
+    pow_level: number | null;
+    issued_at: number;
+    expires_at: number;
+    capabilities: string[];
+    label?: string | null;
+    description?: string | null;
+    icon?: string | null;
+  };
+  signature: string;
+  /** Which hub this cert was read from (client-side annotation). */
+  hub_url?: string;
+}
+
+export interface ProfileEditorActions {
+  getMyProfileOnHub: (hubId: string, publicKey: string) => Promise<HubProfileSnapshot>;
+  updateMyProfileOnHub: (hubId: string, profile: ProfileDraftFields) => Promise<void>;
+  /** Sentinel error message thrown by getMyProfileOnHub/updateMyProfileOnHub
+   *  when the hub has no live session this run (saved but never connected,
+   *  or offline) — shown as a friendly note instead of a raw error. */
+  noHubSessionError: string;
+  loadDefaultProfile: (accountId: string) => ProfileDraftFields | null;
+  saveDefaultProfile: (profile: ProfileDraftFields, accountId: string) => void;
+  loadFollowsDefault: (accountId: string) => string[];
+  saveFollowsDefault: (hubIds: string[], accountId: string) => void;
+  /** Identity-wide badges shown live in the Bio tab's default context —
+   *  the same read MyCertificationsSection uses for its full list. */
+  listMyCertifications: (pubkey: string) => Promise<MyCertification[]>;
+}
+
 export interface UserProfile {
   pubkey: string;
   display_name: string | null;

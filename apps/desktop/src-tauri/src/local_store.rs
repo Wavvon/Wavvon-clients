@@ -56,40 +56,51 @@ fn default_appearance_slot() -> String {
 
 // ---------------------------------------------------------------------------
 // Profile types
+//
+// The 2026-07-12 converged model (settings-ia.md §5): one local default
+// profile (personal-axis) plus a hub-authoritative /me card per joined hub
+// (community-axis, not mirrored here). The old NamedProfile[] pool +
+// per-hub assignment map is deleted — alpha rules, no migration.
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct NamedProfile {
-    pub id: String,
-    pub label: String,
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct FavoriteHubEntry {
+    pub url: String,
+    pub name: String,
+    #[serde(default)]
+    pub icon: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct DefaultProfileFields {
     #[serde(default)]
     pub display_name: String,
     #[serde(default)]
     pub avatar: Option<String>,
+    #[serde(default)]
+    pub bio: Option<String>,
+    #[serde(default)]
+    pub pronouns: Option<String>,
+    #[serde(default)]
+    pub status_message: Option<String>,
+    #[serde(default)]
+    pub activities: Option<String>,
+    #[serde(default)]
+    pub accent_color: Option<String>,
+    #[serde(default)]
+    pub cover: Option<String>,
+    #[serde(default)]
+    pub favorite_hubs: Vec<FavoriteHubEntry>,
+    #[serde(default)]
+    pub show_hubs: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub(crate) struct LocalProfile {
     #[serde(default)]
-    pub profiles: Vec<NamedProfile>,
-    #[serde(default)]
-    pub default_profile_id: Option<String>,
+    pub default_profile: Option<DefaultProfileFields>,
     #[serde(default)]
     pub theme: Option<String>,
-}
-
-impl LocalProfile {
-    pub(crate) fn default_profile(&self) -> Option<&NamedProfile> {
-        if self.profiles.is_empty() {
-            return None;
-        }
-        if let Some(id) = self.default_profile_id.as_ref() {
-            if let Some(p) = self.profiles.iter().find(|p| &p.id == id) {
-                return Some(p);
-            }
-        }
-        self.profiles.first()
-    }
 }
 
 // ---------------------------------------------------------------------------

@@ -13,7 +13,7 @@ import {
   type RestoreSummary,
 } from "@shared/utils/archiveRestore";
 import { listAccounts, resolveOrCreateAccount, switchAccount, SWITCH_BLOCKED_COOLDOWN, type SubkeyCert } from "@identity/index";
-import { passphraseStrength } from "@shared/utils/passphraseStrength";
+import { passphraseStrength } from "@wavvon/ui";
 
 interface Props {
   publicKey: string | null;

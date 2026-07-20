@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
-import type { ThemeId, WavvonSkin } from "@wavvon/ui";
+import type { ThemeId, WavvonSkin, ProfileEditorActions, SettingsTabDef } from "@wavvon/ui";
+import { ProfileTab, resolveManagingAccount, SettingsShell } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
-import { ProfileTab } from "./tabs/ProfileTab";
+import { getMyProfileOnHub, updateMyProfileOnHub, NO_HUB_SESSION, listMyCertifications } from "@platform";
+import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { NotificationsTab } from "./tabs/NotificationsTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { VoiceTab } from "./tabs/VoiceTab";
@@ -12,7 +14,20 @@ import { CameraTab } from "./tabs/CameraTab";
 import { ManageAccountsTab } from "./tabs/ManageAccountsTab";
 import { DevicesTab } from "./tabs/DevicesTab";
 import { PrivacyTab } from "./tabs/PrivacyTab";
-import { resolveManagingAccount } from "./tabs/resolveManagingAccount";
+
+// Web's platform wiring for the shared ProfileEditorSection (packages/ui):
+// hub sessions via @platform, the local default profile via
+// @shared/utils/profiles. Built once — none of this depends on props.
+const profileEditorActions: ProfileEditorActions = {
+  getMyProfileOnHub,
+  updateMyProfileOnHub,
+  noHubSessionError: NO_HUB_SESSION,
+  loadDefaultProfile: (accountId) => loadDefaultProfile(accountId),
+  saveDefaultProfile: (profile, accountId) => saveDefaultProfile(profile, accountId),
+  loadFollowsDefault: (accountId) => loadFollowsDefault(accountId),
+  saveFollowsDefault: (hubIds, accountId) => saveFollowsDefault(hubIds, accountId),
+  listMyCertifications,
+};
 
 export type SettingsTab =
   | "profile"
@@ -97,7 +112,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const G_ACCOUNTS = t("settings.nav_groups.accounts");
   const G_APP = t("settings.nav_groups.app");
   const G_AV = t("settings.nav_groups.audio_video");
-  const TABS: { id: SettingsTab; label: string; group: string }[] = [
+  const TABS: SettingsTabDef<SettingsTab>[] = [
     { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
     { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS },
     { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
@@ -109,45 +124,13 @@ export function SettingsPage(props: SettingsPageProps) {
   ];
 
   return (
-    <div className="settings-page" style={{ display: "flex", height: "100%", minHeight: 0 }}>
-      <aside className="settings-nav" style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border)", padding: "16px 8px", display: "flex", flexDirection: "column" }}>
-        <h2 style={{ padding: "0 8px", marginBottom: 12, fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".05em" }}>{t("settings.title")}</h2>
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
-          {TABS.map((tab, i) => (
-            <li key={tab.id}>
-              {(i === 0 || TABS[i - 1].group !== tab.group) && (
-                <div className="settings-nav-group">{tab.group}</div>
-              )}
-              <button
-                className={`settings-nav-item${props.tab === tab.id ? " active" : ""}`}
-                onClick={() => props.onTab(tab.id)}
-                style={{ width: "100%", textAlign: "left", padding: "6px 10px", borderRadius: "var(--r-sm)" }}
-              >
-                {tab.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button className="settings-nav-close btn-ghost" onClick={props.onClose} style={{ marginTop: 8 }}>
-          {t("modal.close")}
-        </button>
-      </aside>
-
-      <main className="settings-content" style={{ flex: 1, overflow: "auto", padding: 24, position: "relative" }}>
-        <button
-          className="settings-close-x"
-          onClick={props.onClose}
-          title="Close"
-          style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--text-muted)" }}
-        >
-          ×
-        </button>
-
+    <SettingsShell title={t("settings.title")} tabs={TABS} activeTab={props.tab} onTab={props.onTab} onClose={props.onClose}>
         {props.tab === "profile" && (
           <ProfileTab
             hubs={props.hubs}
             publicKey={props.publicKey}
             onHubProfileSaved={props.onHubProfileSaved}
+            actions={profileEditorActions}
             {...perAccount}
           />
         )}
@@ -206,7 +189,6 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "voice" && <VoiceTab />}
 
         {props.tab === "camera" && <CameraTab />}
-      </main>
-    </div>
+    </SettingsShell>
   );
 }

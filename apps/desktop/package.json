@@ -21,6 +21,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@types/dompurify": "^3.0.5",
     "@wavvon/core": "workspace:*",

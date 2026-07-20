@@ -36,7 +36,7 @@ pub(crate) async fn add_hub(
         .await?;
 
     let profile = load_profile();
-    if let Some(default_profile) = profile.default_profile().cloned() {
+    if let Some(default_profile) = profile.default_profile.clone() {
         if let Ok(me_resp) = client
             .get(format!("{hub_url}/me"))
             .bearer_auth(&token)

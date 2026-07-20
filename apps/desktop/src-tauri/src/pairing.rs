@@ -275,8 +275,7 @@ pub fn fingerprint_pubkey(public_key_hex: String) -> String {
 // --- New-device side ---
 
 fn paired_identity_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("paired_identity.json"))
+    crate::accounts::active_paired_identity_path()
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

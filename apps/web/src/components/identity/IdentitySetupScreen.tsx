@@ -17,9 +17,8 @@ import {
 } from "@identity/index";
 import type { IdentityRecord } from "@identity/index";
 import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
-import { encryptBackup } from "@shared/utils/backupCrypto";
-import { suggestBackupFilename } from "@shared/utils/identityBackupPayload";
-import { passphraseStrength } from "@shared/utils/passphraseStrength";
+import { encryptBackup, suggestBackupFilename } from "@wavvon/core";
+import { passphraseStrength } from "@wavvon/ui";
 
 export interface IdentitySetupCompletion {
   accountId: string;
@@ -60,7 +59,6 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [showBackupForm, setShowBackupForm] = useState(false);
   const [backupPassphrase, setBackupPassphrase] = useState("");
   const [backupConfirm, setBackupConfirm] = useState("");
-  const [backupLabel, setBackupLabel] = useState("");
   const [backupWorking, setBackupWorking] = useState(false);
   const [backupError, setBackupError] = useState<string | null>(null);
   const [backupDone, setBackupDone] = useState(false);
@@ -194,7 +192,9 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
 
   // Optional safety net offered right where the phrase is shown: encrypts
   // only the account just created (not the whole device's accounts, unlike
-  // the Settings export) into the same `.wavvon-backup` v2 envelope.
+  // the Settings export) into the unified `.wavvon-backup` envelope
+  // (settings-ia.md §4a — same format the Settings export/import and desktop
+  // both read and write).
   async function doDownloadBackup() {
     if (!pendingAccount) return;
     if (backupPassphrase !== backupConfirm) { setBackupError(t("settings.account.full_archive.error_mismatch")); return; }
@@ -202,9 +202,11 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     setBackupWorking(true);
     setBackupError(null);
     try {
-      const blob = await encryptBackup([pendingAccount], backupPassphrase, backupLabel.trim() || null);
+      const label = labelDraft.trim() || suggestedLabel();
+      const envelope = await encryptBackup({ label, secret_key_hex: pendingAccount.seed_hex }, backupPassphrase);
+      const blob = new Blob([JSON.stringify(envelope)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      const filename = suggestBackupFilename([pendingAccount], new Date());
+      const filename = suggestBackupFilename(label);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
@@ -214,7 +216,6 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       setShowBackupForm(false);
       setBackupPassphrase("");
       setBackupConfirm("");
-      setBackupLabel("");
       setBackupDone(true);
     } catch (e) {
       setBackupError(String(e));
@@ -299,15 +300,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
                 aria-label={t("settings.account.full_archive.confirm_passphrase")}
                 value={backupConfirm}
                 onChange={(e) => setBackupConfirm(e.target.value)}
-                style={{ width: "100%", margin: "4px 0" }}
-              />
-              <input
-                type="text"
-                placeholder={t("settings.account.identity_backup.label_field_placeholder")}
-                aria-label={t("settings.account.identity_backup.label_field_aria")}
-                value={backupLabel}
-                onChange={(e) => setBackupLabel(e.target.value)}
-                style={{ width: "100%", marginBottom: 8 }}
+                style={{ width: "100%", margin: "4px 0 8px" }}
               />
               {backupError && <p className="error-text">{backupError}</p>}
               <div className="settings-row">

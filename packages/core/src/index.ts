@@ -14,3 +14,4 @@ export * from "./identity/master";
 export * from "./identity/wire";
 export * from "./identity/ecies";
 export * from "./identity/prf";
+export * from "./identity/backup";

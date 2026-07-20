@@ -1,9 +1,11 @@
 // Wavvon desktop Tauri shell — composition root.
 // All domain logic lives in the modules below. This file wires them together.
 
+mod accounts;
 mod admin;
 mod admin_alliance;
 mod auth_creds;
+mod backup;
 mod bots;
 mod certs;
 mod channels;
@@ -245,6 +247,7 @@ pub fn run() {
             admin::create_invite,
             admin::revoke_invite,
             admin::get_user_profile,
+            admin::update_my_profile_on_hub,
             // Alliance / federation
             admin_alliance::list_alliances,
             admin_alliance::create_alliance,
@@ -260,14 +263,22 @@ pub fn run() {
             admin_alliance::send_alliance_channel_message,
             admin_alliance::share_channel_with_alliance,
             admin_alliance::unshare_channel_from_alliance,
+            // Accounts (multi-account switcher)
+            accounts::list_accounts,
+            accounts::create_account,
+            accounts::switch_account,
+            accounts::remove_account,
+            accounts::rename_account,
+            accounts::reorder_accounts,
+            // Identity backup (unified .wavvon-backup, settings-ia.md §4a)
+            backup::export_account_backup,
+            backup::import_account_backup,
             // Identity
             identity_cmd::get_recovery_phrase,
             identity_cmd::recover_identity_from_phrase,
             identity_cmd::get_my_public_key,
             identity_cmd::get_my_pubkey,
             identity_cmd::sign_message,
-            identity_cmd::export_identity_backup,
-            identity_cmd::import_identity_backup,
             identity_cmd::push_prefs_blob,
             identity_cmd::pull_and_apply_prefs_blob,
             identity_cmd::save_public_profile,
@@ -428,7 +439,7 @@ pub fn run() {
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::local_store::{LocalProfile, NamedProfile, StoredVoiceSettings};
+    use crate::local_store::{DefaultProfileFields, LocalProfile, StoredVoiceSettings};
     use crate::messages::urlencoding_emoji;
     use crate::types::{default_approval_status, SavedHub};
 
@@ -457,54 +468,34 @@ mod tests {
     #[test]
     fn local_profile_default_is_empty_with_no_theme() {
         let p = LocalProfile::default();
-        assert!(p.profiles.is_empty());
-        assert!(p.default_profile_id.is_none());
+        assert!(p.default_profile.is_none());
         assert!(p.theme.is_none());
-        assert!(p.default_profile().is_none());
     }
 
     #[test]
-    fn local_profile_default_profile_falls_back_to_first_when_id_stale() {
-        let a = NamedProfile {
-            id: "id-a".to_string(),
-            label: "Profile A".to_string(),
-            display_name: "Alice".to_string(),
-            avatar: None,
-        };
-        let b = NamedProfile {
-            id: "id-b".to_string(),
-            label: "Profile B".to_string(),
-            display_name: "Bob".to_string(),
-            avatar: None,
-        };
+    fn local_profile_round_trips_default_profile_fields() {
         let p = LocalProfile {
-            profiles: vec![a.clone(), b.clone()],
-            default_profile_id: Some("vanished".to_string()),
-            theme: None,
+            default_profile: Some(DefaultProfileFields {
+                display_name: "Alice".to_string(),
+                avatar: Some("data:image/png;base64,xx".to_string()),
+                bio: Some("hi".to_string()),
+                ..Default::default()
+            }),
+            theme: Some("calm".to_string()),
         };
-        assert_eq!(p.default_profile().unwrap().id, "id-a");
+        let json = serde_json::to_string(&p).unwrap();
+        let back: LocalProfile = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.default_profile.unwrap().display_name, "Alice");
+        assert_eq!(back.theme.as_deref(), Some("calm"));
     }
 
     #[test]
-    fn local_profile_default_profile_honors_explicit_id() {
-        let a = NamedProfile {
-            id: "id-a".to_string(),
-            label: "Profile A".to_string(),
-            display_name: "Alice".to_string(),
-            avatar: None,
-        };
-        let b = NamedProfile {
-            id: "id-b".to_string(),
-            label: "Profile B".to_string(),
-            display_name: "Bob".to_string(),
-            avatar: None,
-        };
-        let p = LocalProfile {
-            profiles: vec![a, b.clone()],
-            default_profile_id: Some("id-b".to_string()),
-            theme: None,
-        };
-        assert_eq!(p.default_profile().unwrap().id, "id-b");
+    fn local_profile_ignores_orphaned_pool_fields_from_before_the_2026_07_12_model() {
+        // Alpha rules — no migration (settings-ia.md §5): a pre-convergence
+        // profile.json still parses, just with an empty default_profile.
+        let old = r#"{"profiles":[{"id":"a","label":"A"}],"default_profile_id":"a"}"#;
+        let p: LocalProfile = serde_json::from_str(old).unwrap();
+        assert!(p.default_profile.is_none());
     }
 
     #[test]
@@ -552,9 +543,8 @@ mod tests {
 
     #[test]
     fn local_profile_decodes_with_missing_theme() {
-        let old: LocalProfile = serde_json::from_str(r#"{"profiles":[]}"#).unwrap();
-        assert!(old.profiles.is_empty());
+        let old: LocalProfile = serde_json::from_str(r#"{}"#).unwrap();
+        assert!(old.default_profile.is_none());
         assert!(old.theme.is_none());
-        assert!(old.default_profile_id.is_none());
     }
 }

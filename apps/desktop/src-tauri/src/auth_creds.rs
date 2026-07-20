@@ -5,8 +5,7 @@ use crate::identity::{DeviceSubkey, Identity, SubkeyCert};
 use crate::pairing::PairedIdentity;
 
 fn paired_identity_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("paired_identity.json"))
+    crate::accounts::active_paired_identity_path()
 }
 
 fn read_paired_identity() -> Option<PairedIdentity> {

@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Hub, FavoriteHub } from "@shared/types";
+import type { Hub, FavoriteHub } from "../../types";
 
 interface Props {
   // The hubs the user has joined — the pool they pick favorites from.

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Avatar, AvatarPicker, ImagePicker } from "@wavvon/ui";
+import { Avatar } from "../Avatar";
+import { AvatarPicker } from "../AvatarPicker";
+import { ImagePicker } from "../ImagePicker";
 
 interface Props {
   value: string | null;

@@ -477,8 +477,7 @@ pub(crate) async fn decrypt_dm(
 // ---------------------------------------------------------------------------
 
 fn group_sender_keys_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "Could not find home directory".to_string())?;
-    Ok(home.join(".wavvon").join("group_sender_keys.json"))
+    crate::accounts::active_group_sender_keys_path()
 }
 
 fn load_sender_key_state() -> Result<serde_json::Value, String> {
@@ -1117,8 +1116,7 @@ pub struct DrDmEnvelope {
 }
 
 fn dr_sessions_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "Could not find home directory".to_string())?;
-    Ok(home.join(".wavvon").join("dr_sessions.json"))
+    crate::accounts::active_dr_sessions_path()
 }
 
 fn load_dr_sessions() -> Result<std::collections::HashMap<String, DrSession>, String> {

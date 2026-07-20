@@ -2,9 +2,10 @@ import { useTranslation } from "react-i18next";
 import type { BlockEntry, IgnoreEntry } from "@shared/types";
 import { AccountBlockIgnoreSection } from "../AccountBlockIgnoreSection";
 import { ManagingAccountSelector } from "../ManagingAccountSelector";
-import type { PerAccountProps } from "./perAccount";
+import type { PerAccountProps } from "@wavvon/ui";
+import type { IdentityRecord } from "@identity/index";
 
-interface Props extends PerAccountProps {
+interface Props extends PerAccountProps<IdentityRecord> {
   blocks: BlockEntry[];
   ignores: IgnoreEntry[];
   onUnblock: (pubkey: string) => void;

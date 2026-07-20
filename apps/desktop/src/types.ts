@@ -56,12 +56,6 @@ export type { Hub } from "@wavvon/ui";
 import type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile } from "@wavvon/ui";
 export type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile };
 
-export interface NamedProfile {
-  id: string;
-  label: string;
-  display_name: string;
-  avatar: string | null;
-}
 
 export interface MeInfo {
   public_key: string;

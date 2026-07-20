@@ -21,7 +21,6 @@ import type {
   VoiceParticipant,
   Hub,
   RoleInfo,
-  NamedProfile,
   MeInfo,
   MemberAdminInfo,
   BanInfo,
@@ -146,6 +145,7 @@ import { WelcomeScreen } from "@wavvon/ui";
 import { BotChallenge } from "./components/BotChallenge";
 import { SurveyComponent } from "./components/Survey";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { setSwitchGuard } from "./accounts/store";
 
 function App() {
   // Multi-hub state
@@ -729,6 +729,17 @@ function App() {
 
   const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast });
 
+  // Registered so switchAccountGuarded can refuse a mid-voice account switch
+  // at the source (defense in depth alongside a disabled Switch button in
+  // Settings → Account) — switching while joined to a voice channel is
+  // blocked outright, not auto-left on the caller's behalf (mirrors web's
+  // App.tsx switch guard, decisions.md "Account switching is an in-place
+  // key-remount, guarded, not a reload").
+  useEffect(() => {
+    setSwitchGuard(() => (voice.voiceChannelId ? "Leave the voice channel before switching accounts." : null));
+    return () => setSwitchGuard(null);
+  }, [voice.voiceChannelId]);
+
   const video = useVideo({
     activeHubId,
     voiceChannelId: voice.voiceChannelId,
@@ -869,29 +880,14 @@ function App() {
     setTheme,
     skin,
     setSkin,
-    profiles,
-    setProfiles,
-    defaultProfileId,
-    setDefaultProfileId,
     recoveryPhrase,
     setRecoveryPhrase,
-    copiedKey,
-    persistProfileFile,
-    handleCreateProfile,
-    handleUpdateProfile,
-    handleDeleteProfile,
-    handleSetDefaultProfile,
-    handleApplyProfileToHub,
     handleSetTheme,
     handleSkinChange,
     handleShowRecovery,
     handleClearLocalData,
     handleRecoverIdentity,
-    handleImportBackup,
-    copyPublicKey,
   } = useSettingsProfile({
-    hasActiveHub,
-    setUsers: (updater) => setUsers(updater),
     setPublicKey,
     setError,
     setToast,
@@ -1527,16 +1523,8 @@ function App() {
   async function openSettings() {
     setShowSettings(true);
     setRecoveryPhrase(null);
-    // Pre-fill with current display name if known
-    // Load profiles + theme
     try {
-      const profile = await invoke<{
-        profiles?: NamedProfile[];
-        default_profile_id?: string | null;
-        theme?: string | null;
-      }>("get_profile");
-      setProfiles(profile.profiles ?? []);
-      setDefaultProfileId(profile.default_profile_id ?? null);
+      const profile = await invoke<{ theme?: string | null }>("get_profile");
       const t = profile.theme;
       if (t === "calm" || t === "classic" || t === "linear" || t === "light") {
         setTheme(t);
@@ -2286,13 +2274,6 @@ function App() {
             onTab={setSettingsTab}
             onClose={closeSettings}
             hubs={hubs}
-            profiles={profiles}
-            defaultProfileId={defaultProfileId}
-            onCreateProfile={handleCreateProfile}
-            onUpdateProfile={handleUpdateProfile}
-            onDeleteProfile={handleDeleteProfile}
-            onSetDefaultProfile={handleSetDefaultProfile}
-            onApplyProfileToHub={handleApplyProfileToHub}
             theme={theme}
             onThemeChange={handleSetTheme}
             skin={skin}
@@ -2305,12 +2286,9 @@ function App() {
             videoInputs={video.videoInputs}
             videoInputDevice={video.videoInputDevice}
             onVideoInputDeviceChange={video.setVideoInputDevice}
-            hasActiveHub={hasActiveHub}
             activeHubId={activeHubId}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
             publicKey={publicKey}
-            copiedKey={copiedKey}
-            onCopyKey={() => copyPublicKey(publicKey)}
             audioInputs={voice.audioInputs}
             audioOutputs={voice.audioOutputs}
             voiceInputDevice={voice.voiceInputDevice}

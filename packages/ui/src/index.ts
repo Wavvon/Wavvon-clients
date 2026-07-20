@@ -44,6 +44,10 @@ export { AccountLabelSuffix, PerAccountHint } from "./components/AccountScopeNot
 export { generateAvatarDataUrl, randomAvatarSeed } from "./utils/avatarGenerator";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
+export { IdentityBackupSection } from "./components/IdentityBackupSection";
+export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
+export { passphraseStrength } from "./utils/passphraseStrength";
+export type { PassphraseStrength } from "./utils/passphraseStrength";
 export { BotAppLaunchCard } from "./components/BotAppLaunchCard";
 export { BotCard } from "./components/BotCard";
 export { CreateHubWizard } from "./components/CreateHubWizard";
@@ -276,6 +280,28 @@ export { AuditLogSection } from "./components/admin/AuditLogSection";
 export type { AuditLogSectionActions } from "./components/admin/AuditLogSection";
 export { CertificationsSection } from "./components/admin/CertificationsSection";
 export type { CertificationsSectionActions } from "./components/admin/CertificationsSection";
+
+// ---------------------------------------------------------------------------
+// Settings: ProfileTab / ProfileEditorSection + TABS skeleton (settings-ia.md
+// parity hoist, 2026-07-20)
+// ---------------------------------------------------------------------------
+export { ProfileTab } from "./components/settings/ProfileTab";
+export { ProfileEditorSection } from "./components/settings/ProfileEditorSection";
+export { MyCertificationsSection } from "./components/settings/MyCertificationsSection";
+export { FavoriteHubsEditor } from "./components/settings/FavoriteHubsEditor";
+export { AvatarChooser } from "./components/settings/AvatarChooser";
+export type {
+  ProfileAccountRef,
+  ProfileDraftFields,
+  HubProfileSnapshot,
+  ProfileEditorActions,
+  MyCertification,
+  PerAccountProps,
+} from "./types";
+export { resolveManagingAccount } from "./utils/resolveManagingAccount";
+export { loadHiddenBadgeSet, saveHiddenBadgeSet } from "./utils/hiddenBadges";
+export { SettingsShell } from "./components/settings/SettingsShell";
+export type { SettingsTabDef } from "./components/settings/SettingsShell";
 export { SoundboardAdminSection } from "./components/admin/SoundboardAdminSection";
 export type { SoundboardAdminSectionActions } from "./components/admin/SoundboardAdminSection";
 export { OnboardingAdminSection } from "./components/admin/OnboardingAdminSection";

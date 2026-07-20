@@ -1,13 +1,13 @@
 import { useTranslation } from "react-i18next";
-import type { Hub } from "@shared/types";
-import { ProfileEditorSection } from "../ProfileEditorSection";
-import { MyCertificationsSection } from "../MyCertificationsSection";
-import type { PerAccountProps } from "./perAccount";
+import type { Hub, PerAccountProps, ProfileAccountRef, ProfileEditorActions, MyCertification } from "../../types";
+import { ProfileEditorSection } from "./ProfileEditorSection";
+import { MyCertificationsSection } from "./MyCertificationsSection";
 
-interface Props extends PerAccountProps {
+interface Props extends PerAccountProps<ProfileAccountRef> {
   hubs: Hub[];
   publicKey: string | null;
   onHubProfileSaved?: (hubId: string) => void;
+  actions: ProfileEditorActions;
 }
 
 // Who the selected account is: one profile editor over every context (the
@@ -38,9 +38,15 @@ export function ProfileTab(props: Props) {
             activeId={props.activeId}
             onManagingChange={props.onManagingChange}
             onHubProfileSaved={props.onHubProfileSaved}
+            actions={props.actions}
           />
         )}
-        {managingIsActive && <MyCertificationsSection publicKey={props.publicKey} />}
+        {managingIsActive && (
+          <MyCertificationsSection
+            publicKey={props.publicKey}
+            listMyCertifications={props.actions.listMyCertifications as (pubkey: string) => Promise<MyCertification[]>}
+          />
+        )}
       </div>
     </section>
   );
