@@ -161,9 +161,6 @@ interface Props {
   hasDraft?: (draftKey: string) => boolean;
   /** Present = render the global-search trigger button above the channel list. */
   onOpenSearch?: () => void;
-  /** Present = render the hub-streams toggle in the voice footer. */
-  hubStreamsCount?: number;
-  onToggleHubStreams?: () => void;
   /** Whisper (events.md whisper follow-up): named target lists (save/load/delete)
    *  are folded in as optional props — present only where the caller has the
    *  backing commands wired. */
@@ -202,7 +199,7 @@ export function ChannelSidebar({
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
   voiceGains, onSetVoiceGain, inboundWhispers, hasDraft,
-  onOpenSearch, hubStreamsCount, onToggleHubStreams,
+  onOpenSearch,
   isWhispering, whisperTargets, whisperLists, showWhisperPanel,
   onToggleWhisperPanel, onCloseWhisperPanel, onStartWhisper, onStopWhisper,
   onSaveWhisperList, onDeleteWhisperList,
@@ -870,15 +867,6 @@ export function ChannelSidebar({
                     aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
                   >
                     {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
-                  </button>
-                )}
-                {onToggleHubStreams && (
-                  <button
-                    onClick={onToggleHubStreams}
-                    className={`btn-icon-gear ${hubStreamsCount ? "active" : ""}`}
-                    title={t("voice.hub_streams", "Hub streams")}
-                  >
-                    📺{!!hubStreamsCount && <span className="hub-streams-badge" style={{ marginLeft: 4 }}>{hubStreamsCount}</span>}
                   </button>
                 )}
                 {onToggleWhisperPanel && (

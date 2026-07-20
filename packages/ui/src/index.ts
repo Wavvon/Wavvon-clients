@@ -33,6 +33,7 @@ export type {
   EventMoveAssignment,
   AllianceInfo,
   Conversation,
+  DmMessage,
   WhisperTarget,
   WhisperList,
   SoundboardChip,
@@ -142,6 +143,10 @@ export { MessageRow } from "./components/content/MessageRow";
 export type { MessageRowActions } from "./components/content/MessageRow";
 export { ChannelHeader } from "./components/content/ChannelHeader";
 export { ChannelComposer } from "./components/content/ChannelComposer";
+export { ChannelMessageList } from "./components/content/ChannelMessageList";
+export { DmView } from "./components/content/DmView";
+export { WelcomeInviteBanner } from "./components/content/WelcomeInviteBanner";
+export { ContentArea } from "./components/content/ContentArea";
 export { ErrorBoundary } from "./components/ErrorBoundary";
 export { SortableHubIcon, SortableChannelItem, SortableCategoryItem } from "./components/SortableItems";
 export {

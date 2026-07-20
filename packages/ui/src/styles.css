@@ -1435,6 +1435,32 @@ select,
   margin-bottom: var(--space-3);
 }
 
+.content-area-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.content-area-tab {
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-bottom: -1px;
+}
+
+.content-area-tab.active {
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+  color: var(--text);
+}
+
 .error {
   color: var(--danger);
   background: var(--danger-bg);

@@ -119,6 +119,12 @@ export interface AllianceSharedChannel {
   channel_type?: "text" | "forum" | "banner" | "spawner";
   parent_id?: string | null;
   is_category?: boolean;
+  /** Policy governing writes proxied from other alliance-member hubs into
+   * this channel (forum federation phase 2). Absent from peers that haven't
+   * upgraded yet (and from desktop's own AllianceSharedChannel, which hasn't
+   * picked up alliance-forum access at all); treat as "replies_only", the
+   * hub-side column default. */
+  forum_remote_write?: "none" | "replies_only" | "posts_and_replies";
 }
 
 export interface AllianceInfo {
@@ -134,6 +140,20 @@ export interface Conversation {
   members: string[];
   created_at: number;
   last_activity_at?: number;
+}
+
+export interface DmMessage {
+  id?: string;
+  sender: string;
+  sender_name: string | null;
+  content: string;
+  timestamp: number;
+  attachments?: Attachment[];
+  is_encrypted?: boolean;
+  /** True when at least one outbox row for this message has bounced
+   *  (retries exhausted). Renders a delivery-failed mark next to the
+   *  message. False/missing for received messages and not-yet-bounced sends. */
+  delivery_failed?: boolean;
 }
 
 export interface BlockEntry {

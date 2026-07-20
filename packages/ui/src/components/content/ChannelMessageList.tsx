@@ -1,9 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
-import { MessageRow, TypingIndicator, type MessageRowActions } from "@wavvon/ui";
+import { MessageRow, type MessageRowActions } from "./MessageRow";
+import { TypingIndicator } from "../TypingIndicator";
 
 type HubEmojiEntry = { id: string; name: string; url: string };
+
 type TypingEntry = { name: string; ts: number };
 
 interface Props {
@@ -21,13 +23,17 @@ interface Props {
   editingMessageId: string | null;
   editingDraft: string;
   focusedMessageIndex: number;
-  activeHub: Hub | undefined;
-  hubEmojiMap: Map<string, HubEmojiEntry>;
   expandedThreads: Set<string>;
   threadReplies: Record<string, Message[]>;
   hubs: Hub[];
   activeHubId: string | null;
   isAdmin: boolean;
+  pinnedMessageIds?: Set<string>;
+  sessionHubUrl: string | null;
+  sessionToken?: string | null;
+  hubEmojiMap: Map<string, HubEmojiEntry>;
+  hubBaseUrl?: string;
+  actions: MessageRowActions;
   stickToBottom: boolean;
   newWhileScrolledUp: number;
   firstNotifyingMessageId: string | null;
@@ -48,14 +54,14 @@ interface Props {
   onToggleThread: (messageId: string) => void;
   onOpenImage: (src: string, alt: string) => void;
   onOpenBotCard: (pubkey: string, e: React.MouseEvent) => void;
-  onOpenProfileCard: (pubkey: string, e: React.MouseEvent) => void;
+  onAuthorClick: (pubkey: string, e?: React.MouseEvent) => void;
   onAuthorContextMenu: (e: React.MouseEvent, pubkey: string, fallbackName: string | null) => void;
+  onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onMessagesScroll: () => void;
   onJumpToBottom: () => void;
   onClearFirstNotify: () => void;
   onMessageKeyDown: (e: React.KeyboardEvent<HTMLLIElement>, index: number, displayedMessages: Message[]) => void;
   onComponentInteract: (messageId: string, customId: string, values: string[]) => void;
-  actions: MessageRowActions;
   channelPolls?: Poll[];
   onPollUpdate?: (poll: Poll) => void;
   onPollDelete?: (pollId: string) => void;
@@ -76,13 +82,17 @@ export function ChannelMessageList({
   editingMessageId,
   editingDraft,
   focusedMessageIndex,
-  activeHub,
-  hubEmojiMap,
   expandedThreads,
   threadReplies,
   hubs,
   activeHubId,
   isAdmin,
+  pinnedMessageIds,
+  sessionHubUrl,
+  sessionToken,
+  hubEmojiMap,
+  hubBaseUrl,
+  actions,
   stickToBottom,
   newWhileScrolledUp,
   firstNotifyingMessageId,
@@ -103,14 +113,14 @@ export function ChannelMessageList({
   onToggleThread,
   onOpenImage,
   onOpenBotCard,
-  onOpenProfileCard,
+  onAuthorClick,
   onAuthorContextMenu,
+  onPinToggle,
   onMessagesScroll,
   onJumpToBottom,
   onClearFirstNotify,
   onMessageKeyDown,
   onComponentInteract,
-  actions,
   channelPolls = [],
   onPollUpdate,
   onPollDelete,
@@ -159,19 +169,19 @@ export function ChannelMessageList({
             editingMessageId={editingMessageId}
             editingDraft={editingDraft}
             focusedMessageIndex={focusedMessageIndex}
-            hubEmojiMap={hubEmojiMap}
-            hubBaseUrl={activeHub?.hub_url}
             expandedThreads={expandedThreads}
             threadReplies={threadReplies}
             hubs={hubs}
             activeHubId={activeHubId}
             isAdmin={isAdmin}
-            sessionHubUrl={activeHub?.hub_url ?? null}
+            pinnedMessageIds={pinnedMessageIds}
+            sessionHubUrl={sessionHubUrl}
+            sessionToken={sessionToken}
+            hubEmojiMap={hubEmojiMap}
+            hubBaseUrl={hubBaseUrl}
             actions={actions}
-            channelPolls={channelPolls}
-            onPollUpdate={(poll) => onPollUpdate?.(poll)}
-            onPollDelete={(pollId) => onPollDelete?.(pollId)}
             displayedMessages={displayedMessages}
+            channelPolls={channelPolls}
             messageRowRef={(el) => { messageRowRefs.current[i] = el; }}
             onToggleReaction={onToggleReaction}
             onSetReplyTarget={onSetReplyTarget}
@@ -186,10 +196,13 @@ export function ChannelMessageList({
             onToggleThread={onToggleThread}
             onOpenImage={onOpenImage}
             onOpenBotCard={onOpenBotCard}
-            onAuthorClick={(pubkey, e) => { if (e) onOpenProfileCard(pubkey, e); }}
+            onAuthorClick={onAuthorClick}
             onAuthorContextMenu={onAuthorContextMenu}
+            onPinToggle={onPinToggle}
             onMessageKeyDown={onMessageKeyDown}
             onComponentInteract={onComponentInteract}
+            onPollUpdate={(poll) => onPollUpdate?.(poll)}
+            onPollDelete={(pollId) => onPollDelete?.(pollId)}
           />
         ))}
         <li ref={messagesEndChannelRef} aria-hidden="true" />

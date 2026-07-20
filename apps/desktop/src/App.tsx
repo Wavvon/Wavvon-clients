@@ -728,10 +728,6 @@ function App() {
     () => users.find((u) => u.public_key === publicKey)?.display_name ?? null,
     [users, publicKey]
   );
-  const myAvatar = useMemo(
-    () => users.find((u) => u.public_key === publicKey)?.avatar ?? null,
-    [users, publicKey]
-  );
   useEffect(() => {
     myDisplayNameRef.current = myDisplayName;
   }, [myDisplayName]);
@@ -2587,8 +2583,6 @@ function App() {
                   onToggleHideSilenced={() => setHideSilenced((v) => !v)}
                   sharing={voice.sharing}
                   onScreenShare={voice.handleScreenShare}
-                  hubStreamsCount={voice.hubStreams.filter((s) => s.kind === "screen").length}
-                  onToggleHubStreams={() => setShowHubStreams((v) => !v)}
                   onOpenSearch={() => setShowSearchBar(true)}
                   myStatus={myPresence.status === "online" ? null : myPresence.status}
                   onSetStatus={handleSetStatus}
@@ -2687,7 +2681,6 @@ function App() {
                   view={view}
                   activeHubId={activeHubId}
                   hubs={hubs}
-                  theme={theme}
                   channels={channels}
                   selectedChannel={channelMessages.selectedChannel}
                   selectedConversation={selectedConversation}
@@ -2716,10 +2709,6 @@ function App() {
                   reconnectingHubs={reconnectingHubs}
                   memberSidebarHidden={memberSidebarHidden}
                   voiceActiveUsers={voice.voiceActiveUsers}
-                  voiceChannelId={voice.voiceChannelId}
-                  onVoiceJoin={() => voice.handleVoiceJoin()}
-                  onVoiceLeave={() => { voice.handleVoiceLeave(); setAssertiveAnnouncement("Left voice"); }}
-                  myAvatar={myAvatar}
                   inputText={channelMessages.inputText}
                   typingByKey={typingByKey}
                   dmTypingByKey={dmTypingByKey}
@@ -2769,10 +2758,7 @@ function App() {
                   onOpenImage={openImage}
                   onToast={setToast}
                   onError={setError}
-                  sharing={voice.sharing}
-                  shareKbps={voice.shareKbps}
-                  onStopShare={voice.stopShare}
-                  assertiveAnnouncement={assertiveAnnouncement}
+                  onOpenHubStreams={() => setShowHubStreams(true)}
                   voicePartByChannel={voice.voicePartByChannel}
                   canMoveMembers={canMoveMembers}
                   onMoveMember={handleMoveMember}

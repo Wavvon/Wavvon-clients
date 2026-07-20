@@ -1,8 +1,10 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
 import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
-import { MessageAttachments, MessageContent, PendingAttachments, TypingIndicator } from "@wavvon/ui";
+import { MessageAttachments, PendingAttachments } from "../Attachments";
+import { MessageContent } from "../MessageContent";
+import { TypingIndicator } from "../TypingIndicator";
 
 interface TypingEntry { name: string; ts: number }
 
@@ -24,6 +26,12 @@ interface Props {
   onPingDmTyping: () => void;
   onSendDm: () => void;
   onOpenImage: (src: string, alt: string) => void;
+  /** Present only on platforms that implement group-DM sender-key E2E
+   *  encryption. Gates the conversation behind a one-time acknowledgment
+   *  and pushes this device's sender key on accept. Platforms without the
+   *  crypto (e.g. web, pending packages/core support) omit it and fall
+   *  back to the plain "not encrypted" banner. */
+  onAcknowledgeGroupDm?: (conversationId: string) => void;
 }
 
 export function DmView({
@@ -44,14 +52,40 @@ export function DmView({
   onPingDmTyping,
   onSendDm,
   onOpenImage,
+  onAcknowledgeGroupDm,
 }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const isComposing = useRef(false);
+  const [groupDmAcknowledged, setGroupDmAcknowledged] = useState(false);
 
   function handleContainerClick(e: React.MouseEvent<HTMLElement>) {
     const target = e.target as HTMLElement;
     if (target.closest("button, a, input, textarea, select, label")) return;
     inputRef.current?.focus();
+  }
+
+  if (selectedConversation.conv_type === "group" && onAcknowledgeGroupDm && !groupDmAcknowledged) {
+    return (
+      <div className="dm-group-ack-overlay">
+        <div className="dm-group-ack-box">
+          <p className="dm-group-ack-title">{t("dm.group_warning_title")}</p>
+          <p className="dm-group-ack-body">
+            {t("dm.group_banner")}
+            {" "}{t("dm.group_banner_detail")}
+          </p>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              setGroupDmAcknowledged(true);
+              onAcknowledgeGroupDm(selectedConversation.id);
+            }}
+          >
+            {t("dm.group_banner_got_it")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -70,7 +104,7 @@ export function DmView({
       </div>
       {selectedConversation.conv_type === "group" && (
         <div className="dm-group-banner">
-          Group DMs are not end-to-end encrypted yet.
+          {onAcknowledgeGroupDm ? t("dm.group_e2e_active") : t("dm.group_banner")}
         </div>
       )}
       <div className="messages">
@@ -159,7 +193,17 @@ export function DmView({
           ref={inputRef}
           type="text"
           value={inputText}
-          onChange={(e) => { onInputTextChange(e.target.value); if (e.target.value.length > 0) onPingDmTyping(); }}
+          onChange={(e) => {
+            if (!isComposing.current) {
+              onInputTextChange(e.target.value);
+              if (e.target.value.length > 0) onPingDmTyping();
+            }
+          }}
+          onCompositionStart={() => { isComposing.current = true; }}
+          onCompositionEnd={(e) => {
+            isComposing.current = false;
+            onInputTextChange((e.target as HTMLInputElement).value);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSendDm(); }
           }}
