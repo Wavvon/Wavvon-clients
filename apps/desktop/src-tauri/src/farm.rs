@@ -485,14 +485,6 @@ pub(crate) async fn farm_totp_disable(
 // =============================================================================
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub(crate) struct RecoveryContact {
-    pub pubkey: String,
-    pub display_name: Option<String>,
-    pub added_at: i64,
-    pub hub_url: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) struct RecoveryContactEntry {
     pub pubkey: String,
     pub added_at: i64,
@@ -505,22 +497,17 @@ pub(crate) struct RecoveryContactsResponse {
     pub threshold: u32,
 }
 
+/// Mirrors the hub's `RotationRequestBundle` (GET
+/// /recovery/rotation-request/:id) — the shape both the requester (status
+/// polling) and a reviewing contact (bundle to sign) need.
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub(crate) struct RotationRequest {
+pub(crate) struct RotationRequestBundle {
     pub id: String,
+    pub hub_pubkey: String,
+    pub old_pubkey: String,
     pub new_pubkey: String,
-    pub hub_url: String,
-    pub attestations: Vec<serde_json::Value>,
-    pub threshold: i64,
-    pub submitted_at: i64,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub(crate) struct MyRotationRequestResponse {
-    pub id: String,
-    pub new_pubkey: String,
+    pub nonce: String,
     pub status: String,
-    pub created_at: i64,
     pub attestation_count: i64,
     pub threshold: i64,
 }
@@ -531,11 +518,14 @@ struct SetContactsPayload {
     threshold: u32,
 }
 
+/// `GET /recovery/contacts` — the full owner designation (threshold +
+/// contact list) in one shot, matching the shared `RecoveryContactsSection`
+/// UI's bulk-textarea-and-threshold editing model.
 #[tauri::command]
-pub(crate) async fn list_recovery_contacts(
+pub(crate) async fn get_recovery_contacts(
     hub_url: String,
     state: State<'_, AppState>,
-) -> Result<Vec<RecoveryContact>, String> {
+) -> Result<RecoveryContactsResponse, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
     let resp = state
@@ -548,43 +538,19 @@ pub(crate) async fn list_recovery_contacts(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    let cr: RecoveryContactsResponse = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-    Ok(cr
-        .contacts
-        .into_iter()
-        .map(|c| RecoveryContact {
-            pubkey: c.pubkey,
-            display_name: None,
-            added_at: c.added_at,
-            hub_url: hub_url.clone(),
-        })
-        .collect())
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
+/// `PUT /recovery/contacts` — replaces the whole contact list + threshold.
 #[tauri::command]
-pub(crate) async fn add_recovery_contact(
+pub(crate) async fn set_recovery_contacts(
     hub_url: String,
-    pubkey: String,
+    threshold: u32,
+    contacts: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<RecoveryContact, String> {
+) -> Result<(), String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
-    let resp = state
-        .http_client
-        .get(format!("{base}/recovery/contacts"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    let cr: RecoveryContactsResponse = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-    let mut contacts: Vec<String> = cr.contacts.iter().map(|c| c.pubkey.clone()).collect();
-    if !contacts.contains(&pubkey) {
-        contacts.push(pubkey.clone());
-    }
-    let threshold = cr.threshold.max(1);
     let resp = state
         .http_client
         .put(format!("{base}/recovery/contacts"))
@@ -599,16 +565,7 @@ pub(crate) async fn add_recovery_contact(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    Ok(RecoveryContact {
-        pubkey,
-        display_name: None,
-        added_at: now,
-        hub_url,
-    })
+    Ok(())
 }
 
 #[tauri::command]
@@ -632,79 +589,137 @@ pub(crate) async fn remove_recovery_contact(
     Ok(())
 }
 
+/// `GET {base}/info`, no auth — used to bind the recovery signing bundle to
+/// this hub (recovery-attestation.md: `hub_pubkey` blocks cross-hub replay).
+async fn get_hub_pubkey(state: &AppState, base: &str) -> Result<String, String> {
+    let resp = state
+        .http_client
+        .get(format!("{base}/info"))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let info: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    info["public_key"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Hub /info response missing public_key".to_string())
+}
+
+async fn fetch_rotation_bundle(
+    state: &AppState,
+    base: &str,
+    id: &str,
+) -> Result<RotationRequestBundle, String> {
+    let resp = state
+        .http_client
+        .get(format!("{base}/recovery/rotation-request/{id}"))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+fn active_master() -> Result<crate::identity::MasterIdentity, String> {
+    let path =
+        crate::identity::Identity::default_path().map_err(|e| format!("Identity path: {e}"))?;
+    let identity =
+        crate::identity::Identity::load(&path).map_err(|e| format!("Load identity: {e}"))?;
+    identity
+        .master()
+        .map_err(|e| format!("Derive master key: {e}"))
+}
+
+/// `POST /recovery/rotate-key` — this device's active identity is always the
+/// **new** key (identity-recovery.md: "O-new opens a rotation request").
+/// `old_pubkey` is the lost identity the caller remembers/enters; unlike the
+/// old inline-attestations shape, the hub now requires a `new_key_signature`
+/// proof and rejects a non-empty `attestations` field outright.
 #[tauri::command]
 pub(crate) async fn submit_rotation_request(
     hub_url: String,
-    new_pubkey: String,
+    old_pubkey: String,
+    reason: Option<String>,
     state: State<'_, AppState>,
-) -> Result<RotationRequest, String> {
-    let token = crate::state::session_for_url(&state, &hub_url)?;
-    let old_pubkey = {
-        let path =
-            crate::identity::Identity::default_path().map_err(|e| format!("Identity path: {e}"))?;
-        let identity =
-            crate::identity::Identity::load(&path).map_err(|e| format!("Load identity: {e}"))?;
-        identity.public_key_hex()
-    };
-    let base = hub_url.trim_end_matches('/');
-    let body = serde_json::json!({
-        "old_pubkey": old_pubkey,
-        "new_pubkey": new_pubkey,
-        "attestations": []
-    });
+) -> Result<RotationRequestBundle, String> {
+    let master = active_master()?;
+    let new_pubkey = master.public_key_hex();
+
+    let base = hub_url.trim_end_matches('/').to_string();
+    let hub_pubkey = get_hub_pubkey(&state, &base).await?;
+
+    let proof_bytes =
+        crate::identity::recovery_request_signing_bytes(&hub_pubkey, &old_pubkey, &new_pubkey);
+    let new_key_signature = hex::encode(master.sign(&proof_bytes).to_bytes());
+
     let resp = state
         .http_client
         .post(format!("{base}/recovery/rotate-key"))
-        .bearer_auth(&token)
-        .json(&body)
+        .json(&serde_json::json!({
+            "old_pubkey": old_pubkey,
+            "new_pubkey": new_pubkey,
+            "reason": reason,
+            "new_key_signature": new_key_signature,
+        }))
         .send()
         .await
         .map_err(|e| format!("Failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    let r: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-    let id = r["id"].as_str().unwrap_or("").to_string();
-    let new_pk = r["new_pubkey"].as_str().unwrap_or("").to_string();
-    let created_at = r["created_at"].as_i64().unwrap_or(0);
-    Ok(RotationRequest {
-        id,
-        new_pubkey: new_pk,
-        hub_url,
-        attestations: vec![],
-        threshold: 0,
-        submitted_at: created_at,
-    })
+    let created: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    let id = created["id"].as_str().unwrap_or("").to_string();
+    fetch_rotation_bundle(&state, &base, &id).await
 }
 
+/// `GET /recovery/rotation-request/:id` — no auth. Used both by the
+/// requester (status polling) and by a contact reviewing a pasted-in id.
 #[tauri::command]
-pub(crate) async fn list_rotation_requests(
+pub(crate) async fn get_rotation_request_bundle(
     hub_url: String,
+    id: String,
     state: State<'_, AppState>,
-) -> Result<Vec<RotationRequest>, String> {
-    let token = crate::state::session_for_url(&state, &hub_url)?;
+) -> Result<RotationRequestBundle, String> {
     let base = hub_url.trim_end_matches('/');
+    fetch_rotation_bundle(&state, base, &id).await
+}
+
+/// `POST /recovery/rotation-request/:id/attest` — this device's active
+/// identity signs the bundle as the attesting contact. Crypto stays in Rust
+/// (the master seed never enters the renderer).
+#[tauri::command]
+pub(crate) async fn attest_rotation_request(
+    hub_url: String,
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let base = hub_url.trim_end_matches('/');
+    let bundle = fetch_rotation_bundle(&state, base, &id).await?;
+
+    let master = active_master()?;
+    let attester = master.public_key_hex();
+    let bytes = crate::identity::recovery_attestation_signing_bytes(
+        &bundle.hub_pubkey,
+        &bundle.old_pubkey,
+        &bundle.new_pubkey,
+        &bundle.nonce,
+    );
+    let signature = hex::encode(master.sign(&bytes).to_bytes());
+
     let resp = state
         .http_client
-        .get(format!("{base}/recovery/requests"))
-        .bearer_auth(&token)
+        .post(format!("{base}/recovery/rotation-request/{id}/attest"))
+        .json(&serde_json::json!({ "attester": attester, "signature": signature }))
         .send()
         .await
         .map_err(|e| format!("Failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    let rows: Vec<MyRotationRequestResponse> =
-        resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-    Ok(rows
-        .into_iter()
-        .map(|r| RotationRequest {
-            id: r.id,
-            new_pubkey: r.new_pubkey,
-            hub_url: hub_url.clone(),
-            attestations: vec![],
-            threshold: r.threshold,
-            submitted_at: r.created_at,
-        })
-        .collect())
+    Ok(())
 }

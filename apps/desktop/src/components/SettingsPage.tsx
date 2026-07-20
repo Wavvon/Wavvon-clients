@@ -51,6 +51,7 @@ export interface SettingsPageProps {
   onSkinChange: (skin: WavvonSkin) => void;
   activeHubId: string | null;
   activeHubUrl: string;
+  isAdmin: boolean;
   publicKey: string | null;
   audioInputs: string[];
   audioOutputs: string[];
@@ -175,6 +176,7 @@ export function SettingsPage(props: SettingsPageProps) {
           <ManageAccountsTab
             hubs={props.hubs}
             activeHubUrl={props.activeHubUrl}
+            isAdmin={props.isAdmin}
             accounts={accounts}
             recoveryPhrase={props.recoveryPhrase}
             onShowRecovery={props.onShowRecovery}

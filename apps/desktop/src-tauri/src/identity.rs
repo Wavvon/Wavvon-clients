@@ -863,6 +863,62 @@ impl PublicHubProfile {
     }
 }
 
+/// Shared encoder for the recovery-rotation bundle (hub_pubkey, old_pubkey,
+/// new_pubkey), parameterized by domain tag — mirrors
+/// wavvon_identity::wire::recovery_bundle_bytes (Wavvon-server) so distinct
+/// signers (new-key proof vs. contact attestation) can never have their
+/// signatures replayed as each other's.
+fn recovery_bundle_bytes(
+    tag: &[u8],
+    hub_pubkey: &str,
+    old_pubkey: &str,
+    new_pubkey: &str,
+) -> Vec<u8> {
+    let mut buf = tag.to_vec();
+    write_str(&mut buf, hub_pubkey);
+    write_str(&mut buf, old_pubkey);
+    write_str(&mut buf, new_pubkey);
+    buf
+}
+
+/// Signing bytes for the requester's new-key proof, submitted inline with
+/// `POST /recovery/rotate-key` (docs/recovery-attestation.md §4). Signed by
+/// `new_pubkey`'s master key, proving the requester holds the key they're
+/// rotating to. No `request_nonce` — the hub hasn't minted one yet.
+pub fn recovery_request_signing_bytes(
+    hub_pubkey: &str,
+    old_pubkey: &str,
+    new_pubkey: &str,
+) -> Vec<u8> {
+    recovery_bundle_bytes(
+        b"wavvon/recovery-request/v1\0",
+        hub_pubkey,
+        old_pubkey,
+        new_pubkey,
+    )
+}
+
+/// Signing bytes for a recovery-contact attestation
+/// (docs/recovery-attestation.md §2). A designated recovery contact signs
+/// these bytes with their master key to vouch for an open key-rotation
+/// request. `request_nonce` is the hub-generated per-request nonce, binding
+/// the signature to one request.
+pub fn recovery_attestation_signing_bytes(
+    hub_pubkey: &str,
+    old_pubkey: &str,
+    new_pubkey: &str,
+    request_nonce: &str,
+) -> Vec<u8> {
+    let mut buf = recovery_bundle_bytes(
+        b"wavvon/recovery-attestation/v1\0",
+        hub_pubkey,
+        old_pubkey,
+        new_pubkey,
+    );
+    write_str(&mut buf, request_nonce);
+    buf
+}
+
 // ---------------------------------------------------------------------------
 // Wire-format test vectors
 // ---------------------------------------------------------------------------
@@ -1199,5 +1255,68 @@ mod wire_vector_tests {
         let sb = crate::dm::sender_key_dist_signing_bytes(DM_CONV_ID, 1, &dist_recipients());
         let sig = master_key().sign(&sb);
         assert_eq!(hex::encode(sig.to_bytes()), SENDER_KEY_DIST_SIG);
+    }
+
+    // -----------------------------------------------------------------------
+    // Recovery-attestation bundle (docs/recovery-attestation.md §2, §4). HUB_PUB
+    // and OLD_PUB reuse MASTER_PUB/SUBKEY_PUB; NEW_PUB is a third fixed
+    // identity continuing the seed pattern (0x41..0x60).
+    // -----------------------------------------------------------------------
+
+    const HUB_PUB: &str = MASTER_PUB;
+    const OLD_PUB: &str = SUBKEY_PUB;
+    const REQUEST_NONCE: &str = "req-nonce-0001";
+
+    const RECOVERY_REQUEST_SIGNING_BYTES: &str = "776176766f6e2f7265636f766572792d726571756573742f763100400000003739623535363265386665363534663934303738623131326538613938626137393031663835336165363935626564376530653339313062616430343936363440000000653766313632613130626563353539616665613139356534646365383462363935363864356432636230393633656234343663303638356532623137663266304000000061646331343031316638326431633536643935366161346639643733643838353833363161363036303438353235653064303863363338646337356464386337";
+    const RECOVERY_REQUEST_PROOF: &str = "31d6892113f05da64c22ee7b3a108bf61e4df1592f820d53de0eeb15a7d3a1c50859df4dc08e72d4997047f590b001b2fa3378e77a64d678e277c5edc78a160b";
+
+    const RECOVERY_ATTESTATION_SIGNING_BYTES: &str = "776176766f6e2f7265636f766572792d6174746573746174696f6e2f7631004000000037396235353632653866653635346639343037386231313265386139386261373930316638353361653639356265643765306533393130626164303439363634400000006537663136326131306265633535396166656131393565346463653834623639353638643564326362303936336562343436633036383565326231376632663040000000616463313430313166383264316335366439353661613466396437336438383538333631613630363034383532356530643038633633386463373564643863370e0000007265712d6e6f6e63652d30303031";
+    const RECOVERY_ATTESTATION_SIG: &str = "878bd554b21b60e63d1725db9a829d0107830e58ed0d8e80149368a833f1c09948490afd7cba160f34bc808092b15cf99141a86656c0d383fbaf04151edfb302";
+
+    fn new_key_signing_key() -> SigningKey {
+        let mut seed = [0u8; 32];
+        for (i, b) in seed.iter_mut().enumerate() {
+            *b = (i + 0x41) as u8;
+        }
+        SigningKey::from_bytes(&seed)
+    }
+
+    fn new_pub() -> String {
+        hex_pubkey(&new_key_signing_key())
+    }
+
+    #[test]
+    fn recovery_request_signing_bytes_vector() {
+        let sb = recovery_request_signing_bytes(HUB_PUB, OLD_PUB, &new_pub());
+        assert_eq!(hex::encode(&sb), RECOVERY_REQUEST_SIGNING_BYTES);
+    }
+
+    #[test]
+    fn recovery_request_proof_vector() {
+        let sb = recovery_request_signing_bytes(HUB_PUB, OLD_PUB, &new_pub());
+        let sig = new_key_signing_key().sign(&sb);
+        assert_eq!(hex::encode(sig.to_bytes()), RECOVERY_REQUEST_PROOF);
+    }
+
+    #[test]
+    fn recovery_attestation_signing_bytes_vector() {
+        let sb = recovery_attestation_signing_bytes(HUB_PUB, OLD_PUB, &new_pub(), REQUEST_NONCE);
+        assert_eq!(hex::encode(&sb), RECOVERY_ATTESTATION_SIGNING_BYTES);
+    }
+
+    #[test]
+    fn recovery_attestation_signature_vector() {
+        let sb = recovery_attestation_signing_bytes(HUB_PUB, OLD_PUB, &new_pub(), REQUEST_NONCE);
+        let sig = master_key().sign(&sb);
+        assert_eq!(hex::encode(sig.to_bytes()), RECOVERY_ATTESTATION_SIG);
+    }
+
+    #[test]
+    fn recovery_request_and_attestation_bytes_differ() {
+        let new_pub = new_pub();
+        let request_sb = recovery_request_signing_bytes(HUB_PUB, OLD_PUB, &new_pub);
+        let attestation_sb =
+            recovery_attestation_signing_bytes(HUB_PUB, OLD_PUB, &new_pub, REQUEST_NONCE);
+        assert_ne!(request_sb, attestation_sb);
     }
 }

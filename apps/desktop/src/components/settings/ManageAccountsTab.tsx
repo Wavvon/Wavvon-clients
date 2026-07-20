@@ -1,23 +1,36 @@
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
-import { IdentityBackupSection, type IdentityBackupSectionActions } from "@wavvon/ui";
+import {
+  IdentityBackupSection,
+  RecoveryContactsSection,
+  type IdentityBackupSectionActions,
+  type RecoveryContactsSectionActions,
+  type RecoveryContactItem,
+  type RecoveryRequestBundle,
+} from "@wavvon/ui";
 import { suggestBackupFilename } from "@wavvon/core";
 import type { AccountSummary } from "../../accounts/store";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
-import { RecoveryContactsSection } from "../RecoveryContactsSection";
 import { RestoreIdentitySection } from "../RestoreIdentitySection";
 import type { Hub } from "../../types";
 
 interface Props {
   hubs: Hub[];
   activeHubUrl: string;
+  isAdmin: boolean;
   accounts: AccountSummary[];
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
   onRecoverIdentity: (phrase: string) => Promise<void>;
   onClearLocalData: () => void;
+}
+
+interface RecoveryContactsResponse {
+  owner_pubkey: string;
+  contacts: RecoveryContactItem[];
+  threshold: number;
 }
 
 interface ImportedAccount {
@@ -29,8 +42,33 @@ interface ImportedAccount {
 // recovery phrase + identity backup (unified shared component, going through
 // Rust's export_account_backup/import_account_backup so the secret key never
 // enters the renderer), recovery contacts, and the home-hub list.
-export function ManageAccountsTab({ hubs, activeHubUrl, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData }: Props) {
+export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData }: Props) {
   const { t } = useTranslation();
+
+  // Admin queue isn't wired on desktop yet — no Rust proxy for
+  // admin/recovery/pending exists — so those actions stay undefined and the
+  // shared component simply omits that section (same as before this feature).
+  const recoveryActions: RecoveryContactsSectionActions = {
+    async getContacts() {
+      const r = await invoke<RecoveryContactsResponse>("get_recovery_contacts", { hubUrl: activeHubUrl });
+      return { threshold: r.threshold, contacts: r.contacts };
+    },
+    async setContacts(threshold, contactPubkeys) {
+      await invoke("set_recovery_contacts", { hubUrl: activeHubUrl, threshold, contacts: contactPubkeys });
+    },
+    async removeContact(pubkey) {
+      await invoke("remove_recovery_contact", { hubUrl: activeHubUrl, pubkey });
+    },
+    async openRotationRequest(oldPubkey, reason) {
+      return invoke<RecoveryRequestBundle>("submit_rotation_request", { hubUrl: activeHubUrl, oldPubkey, reason });
+    },
+    async getRotationRequest(id) {
+      return invoke<RecoveryRequestBundle>("get_rotation_request_bundle", { hubUrl: activeHubUrl, id });
+    },
+    async attestRotationRequest(bundle) {
+      await invoke("attest_rotation_request", { hubUrl: activeHubUrl, id: bundle.id });
+    },
+  };
 
   const backupAccounts = accounts
     .filter((a) => a.kind === "owned")
@@ -69,7 +107,7 @@ export function ManageAccountsTab({ hubs, activeHubUrl, accounts, recoveryPhrase
         actions={backupActions}
       />
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
-      {activeHubUrl && <RecoveryContactsSection activeHubUrl={activeHubUrl} />}
+      {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
       <HomeHubSection hubs={hubs} />
       <div className="settings-section">
         <label className="settings-label">{t("settings.account.local_data.label")}</label>

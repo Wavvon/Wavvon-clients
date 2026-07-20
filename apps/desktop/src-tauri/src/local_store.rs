@@ -107,74 +107,81 @@ pub(crate) struct LocalProfile {
 // Path helpers
 // ---------------------------------------------------------------------------
 
-pub(crate) fn saved_hubs_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("hubs.json"))
-}
-
-pub(crate) fn active_hub_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("active_hub"))
-}
-
+// Device-global (settings-ia.md §7): hardware/device selection and encode
+// tuning aren't tied to which account is active, matching web's unscoped
+// `wavvon.audio_profile` / PTT-key / audio-device-id localStorage keys.
 pub(crate) fn voice_settings_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
     Ok(home.join(".wavvon").join("voice.json"))
 }
 
-pub(crate) fn voice_gains_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("voice_gains.json"))
-}
-
+// Device-global: the theme *slot* choice, matching web's unscoped
+// `wavvon:appearance` key. The *skin* half of `AppearanceSettings` is
+// per-account instead — see load_appearance/save_appearance below, which
+// merge this file with accounts::active_skin_path().
 pub(crate) fn appearance_settings_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
     Ok(home.join(".wavvon").join("appearance.json"))
 }
 
-pub(crate) fn unread_state_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("unread.json"))
-}
-
-pub(crate) fn notification_mutes_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("notification_mutes.json"))
-}
-
-pub(crate) fn pinned_channels_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("pinned_channels.json"))
-}
-
-pub(crate) fn collapsed_categories_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("collapsed_categories.json"))
-}
-
-pub(crate) fn blocked_users_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("blocked_users.json"))
-}
-
-pub(crate) fn ignored_users_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("ignored_users.json"))
-}
-
-pub(crate) fn dnd_settings_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("dnd_settings.json"))
-}
-
+// Device-global: the `theme` field only (a legacy duplicate of
+// appearance.json's slot — see useSettingsProfile.ts's persistTheme). The
+// `default_profile` half of `LocalProfile` is per-account instead — see
+// load_profile/save_profile_to_disk below, which merge this file with
+// accounts::active_default_profile_path().
 pub(crate) fn profile_path() -> Result<std::path::PathBuf, String> {
     let home = dirs::home_dir().ok_or("No home directory")?;
     Ok(home.join(".wavvon").join("profile.json"))
 }
 
+// Per-account (settings-ia.md §7 fix): every one of these mirrors a web
+// localStorage key that's namespaced under `wavvon:acct:<pubkey>:*` (saved
+// hubs, active hub pointer, per-peer voice gains, ignored users, pinned
+// channels, collapsed categories, notify mode/mutes, per-hub notify level)
+// or, for unread state and the synced DM-block cache, data that's only
+// meaningful within one account's own hub membership.
+pub(crate) fn saved_hubs_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_saved_hubs_path()
+}
+
+pub(crate) fn active_hub_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_selected_hub_path()
+}
+
+pub(crate) fn voice_gains_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_voice_gains_path()
+}
+
+pub(crate) fn unread_state_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_unread_state_path()
+}
+
+pub(crate) fn notification_mutes_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_notification_mutes_path()
+}
+
+pub(crate) fn pinned_channels_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_pinned_channels_path()
+}
+
+pub(crate) fn collapsed_categories_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_collapsed_categories_path()
+}
+
+pub(crate) fn blocked_users_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_blocked_users_path()
+}
+
+pub(crate) fn ignored_users_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_ignored_users_path()
+}
+
+pub(crate) fn dnd_settings_path() -> Result<std::path::PathBuf, String> {
+    crate::accounts::active_dnd_settings_path()
+}
+
 pub(crate) fn notif_prefs_path() -> Result<std::path::PathBuf, String> {
-    let base = dirs::data_dir().ok_or("Cannot determine data dir")?;
-    Ok(base.join("wavvon").join("notification_prefs.json"))
+    crate::accounts::active_notif_prefs_path()
 }
 
 // ---------------------------------------------------------------------------
@@ -261,24 +268,61 @@ pub(crate) fn save_active_hub_id(hub_id: Option<&str>) {
     let _ = std::fs::write(&path, hub_id.unwrap_or(""));
 }
 
+// The on-disk shape of the device-global half of LocalProfile — just
+// `theme` (see profile_path()'s doc comment for why `default_profile` isn't
+// here).
+#[derive(Serialize, Deserialize, Default)]
+struct GlobalThemeFile {
+    #[serde(default)]
+    theme: Option<String>,
+}
+
 pub(crate) fn load_profile() -> LocalProfile {
-    if let Ok(path) = profile_path() {
-        if let Ok(data) = std::fs::read_to_string(&path) {
-            if let Ok(p) = serde_json::from_str::<LocalProfile>(&data) {
-                return p;
-            }
-        }
+    let theme = profile_path()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+        .and_then(|s| serde_json::from_str::<GlobalThemeFile>(&s).ok())
+        .and_then(|g| g.theme);
+    let default_profile = crate::accounts::active_default_profile_path()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok());
+    LocalProfile {
+        default_profile,
+        theme,
     }
-    LocalProfile::default()
 }
 
 pub(crate) fn save_profile_to_disk(profile: &LocalProfile) -> Result<(), String> {
+    // `theme` is device-global — always persisted, even with no active
+    // account yet.
     let path = profile_path()?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("Mkdir failed: {e}"))?;
     }
-    let json = serde_json::to_string_pretty(profile).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&GlobalThemeFile {
+        theme: profile.theme.clone(),
+    })
+    .map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| format!("Write failed: {e}"))?;
+
+    // `default_profile` is per-account; best-effort so a theme-only save
+    // (persistTheme) still succeeds before any account exists.
+    if let Ok(dp_path) = crate::accounts::active_default_profile_path() {
+        if let Some(parent) = dp_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match &profile.default_profile {
+            Some(dp) => {
+                if let Ok(json) = serde_json::to_string_pretty(dp) {
+                    let _ = std::fs::write(&dp_path, json);
+                }
+            }
+            None => {
+                let _ = std::fs::remove_file(&dp_path);
+            }
+        }
+    }
     Ok(())
 }
 
@@ -297,26 +341,61 @@ pub(crate) fn save_blocked_users_raw(users: &[String]) -> Result<(), String> {
 // voice settings, DnD, unread, notification mutes
 // ---------------------------------------------------------------------------
 
+// The on-disk shape of the device-global half of AppearanceSettings — just
+// `slot` (see appearance_settings_path()'s doc comment for why `skin` isn't
+// here).
+#[derive(Serialize, Deserialize)]
+struct GlobalAppearanceFile {
+    #[serde(default = "default_appearance_slot")]
+    slot: String,
+}
+
 #[tauri::command]
 pub(crate) fn load_appearance() -> AppearanceSettings {
-    appearance_settings_path()
+    let slot = appearance_settings_path()
         .ok()
         .and_then(|p| std::fs::read_to_string(&p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or(AppearanceSettings {
-            slot: "calm".to_string(),
-            skin: None,
-        })
+        .and_then(|s| serde_json::from_str::<GlobalAppearanceFile>(&s).ok())
+        .map(|g| g.slot)
+        .unwrap_or_else(default_appearance_slot);
+    let skin = crate::accounts::active_skin_path()
+        .ok()
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok());
+    AppearanceSettings { slot, skin }
 }
 
 #[tauri::command]
 pub(crate) fn save_appearance(settings: AppearanceSettings) -> Result<(), String> {
+    // `slot` is device-global — always persisted, even with no active
+    // account yet.
     let path = appearance_settings_path()?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("Dir error: {e}"))?;
     }
-    let json = serde_json::to_string_pretty(&settings).map_err(|e| format!("Serialize: {e}"))?;
+    let json = serde_json::to_string_pretty(&GlobalAppearanceFile {
+        slot: settings.slot.clone(),
+    })
+    .map_err(|e| format!("Serialize: {e}"))?;
     std::fs::write(&path, json).map_err(|e| format!("Write error: {e}"))?;
+
+    // `skin` is per-account; best-effort so a plain slot switch (away from
+    // "custom") still succeeds before any account exists.
+    if let Ok(skin_path) = crate::accounts::active_skin_path() {
+        if let Some(parent) = skin_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match &settings.skin {
+            Some(skin) => {
+                if let Ok(json) = serde_json::to_string_pretty(skin) {
+                    let _ = std::fs::write(&skin_path, json);
+                }
+            }
+            None => {
+                let _ = std::fs::remove_file(&skin_path);
+            }
+        }
+    }
     Ok(())
 }
 

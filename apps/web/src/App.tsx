@@ -95,6 +95,9 @@ import {
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
+  getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
+  listAdminRecoveryRequests, approveRecoveryRequest, denyRecoveryRequest,
+  openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
 import {
   adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
@@ -104,7 +107,7 @@ import {
 import { ModerationTab } from "@components/admin/ModerationTab";
 import { OutgoingWebhooksSection } from "@components/admin/OutgoingWebhooksSection";
 import { BotCapabilitiesPanel } from "@components/admin/BotCapabilitiesPanel";
-import { RecoveryContactsSection } from "@components/settings/RecoveryContactsSection";
+import { RecoveryContactsSection, type RecoveryContactsSectionActions } from "@wavvon/ui";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
 import { SettingsPage } from "@components/settings/SettingsPage";
 import { UserContextMenu } from "@wavvon/ui";
@@ -3172,13 +3175,21 @@ export default function App({ initialView }: AppProps = {}) {
             }}
             renderModerationTab={() => <ModerationTab />}
             renderOutgoingWebhooks={() => <OutgoingWebhooksSection channels={channels} />}
-            renderRecoveryContacts={() => (
-              <RecoveryContactsSection
-                hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
-                isAdmin={isAdmin}
-                publicKey={null}
-              />
-            )}
+            renderRecoveryContacts={() => {
+              const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
+              const recoveryActions: RecoveryContactsSectionActions = {
+                getContacts: getRecoveryContacts,
+                setContacts: setRecoveryContacts,
+                removeContact: removeRecoveryContact,
+                listAdminRequests: isAdmin ? listAdminRecoveryRequests : undefined,
+                approveRequest: isAdmin ? approveRecoveryRequest : undefined,
+                denyRequest: isAdmin ? denyRecoveryRequest : undefined,
+                openRotationRequest: (oldPubkey, reason) => openRotationRequest(hubUrl, oldPubkey, reason),
+                getRotationRequest: (id) => getRotationRequestBundle(hubUrl, id),
+                attestRotationRequest: (bundle) => attestRotationRequest(hubUrl, bundle),
+              };
+              return <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />;
+            }}
           />
         </div>
       )}

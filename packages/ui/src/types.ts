@@ -920,3 +920,34 @@ export interface CertAdmissionSettings {
 
 export type ChallengeMode = "off" | "click" | "puzzle" | "both";
 export type ChallengeDifficulty = "easy" | "medium";
+
+// ---- Recovery contacts / rotation-attestation (recovery-attestation.md) ----
+
+export interface RecoveryContactItem {
+  pubkey: string;
+  added_at: number;
+  display_name?: string | null;
+}
+
+export interface RecoveryAdminRequest {
+  id: string;
+  old_pubkey: string;
+  new_pubkey: string;
+  status: string;
+  reason: string | null;
+  created_at: number;
+  attestation_count: number;
+}
+
+/** GET /recovery/rotation-request/:id — the bundle a reviewing contact signs,
+ *  plus progress. Also what a requester polls for its own open request. */
+export interface RecoveryRequestBundle {
+  id: string;
+  hub_pubkey: string;
+  old_pubkey: string;
+  new_pubkey: string;
+  nonce: string;
+  status: string;
+  attestation_count: number;
+  threshold: number;
+}

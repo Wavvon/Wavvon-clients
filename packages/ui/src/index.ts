@@ -328,4 +328,9 @@ export type {
   CertAdmissionSettings,
   ChallengeMode,
   ChallengeDifficulty,
+  RecoveryContactItem,
+  RecoveryAdminRequest,
+  RecoveryRequestBundle,
 } from "./types";
+export { RecoveryContactsSection } from "./components/settings/RecoveryContactsSection";
+export type { RecoveryContactsSectionActions } from "./components/settings/RecoveryContactsSection";

@@ -610,25 +610,13 @@ export type { CertIssuance, CertAdmissionSettings } from "@wavvon/ui";
 
 // ---- Identity Recovery ----
 
-export interface RecoveryContact {
-  pubkey: string;
-  added_at: number;
-}
+import type { RecoveryContactItem } from "@wavvon/ui";
+export type { RecoveryContactItem, RecoveryAdminRequest, RecoveryRequestBundle } from "@wavvon/ui";
 
 export interface RecoverySettings {
   owner_pubkey: string;
   threshold: number;
-  contacts: RecoveryContact[];
-}
-
-export interface RecoveryRotationRequest {
-  id: string;
-  old_pubkey: string;
-  new_pubkey: string;
-  status: string;
-  reason: string | null;
-  created_at: number;
-  attestation_count: number;
+  contacts: RecoveryContactItem[];
 }
 
 // ---- Block / Ignore / DND ----

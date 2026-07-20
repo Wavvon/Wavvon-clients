@@ -4,10 +4,13 @@ import type {
   HubBadge,
   PendingBadgeOffer,
   RecoverySettings,
-  RecoveryRotationRequest,
+  RecoveryAdminRequest,
+  RecoveryRequestBundle,
   InviteInfo,
 } from "../../types";
 import type { CertIssuance, CertAdmissionSettings } from "@wavvon/ui";
+import { signRecoveryRequest, signRecoveryAttestation, masterSeedHex, masterPublicKeyHex } from "@wavvon/core";
+import { loadIdentity } from "../../identity/store";
 
 // ---- Discovery / self-tags ----
 
@@ -119,9 +122,9 @@ export async function removeRecoveryContact(pubkey: string): Promise<void> {
   await hubFetch(`/recovery/contacts/${encodeURIComponent(pubkey)}`, { method: "DELETE" });
 }
 
-export async function listAdminRecoveryRequests(): Promise<RecoveryRotationRequest[]> {
+export async function listAdminRecoveryRequests(): Promise<RecoveryAdminRequest[]> {
   const r = await hubFetch("/admin/recovery/pending");
-  return r.json() as Promise<RecoveryRotationRequest[]>;
+  return r.json() as Promise<RecoveryAdminRequest[]>;
 }
 
 export async function approveRecoveryRequest(requestId: string): Promise<void> {
@@ -130,6 +133,71 @@ export async function approveRecoveryRequest(requestId: string): Promise<void> {
 
 export async function denyRecoveryRequest(requestId: string): Promise<void> {
   await hubFetch(`/admin/recovery/${requestId}/deny`, { method: "POST" });
+}
+
+// ---- Recovery: rotation-request open/status/attest. Unauthenticated on the
+// hub (the requester/a contact may hold no session there at all) — plain
+// rawFetch rather than hubFetch's active-session auth. ----
+
+async function hubPublicKey(hubUrl: string): Promise<string> {
+  const r = await rawFetch(`${hubUrl.replace(/\/$/, "")}/info`);
+  const info = (await r.json()) as { public_key: string };
+  return info.public_key;
+}
+
+/** This device's active identity always opens the request as the new key
+ *  (identity-recovery.md — "O-new opens the request"); `oldPubkey` is the
+ *  lost identity the caller remembers or was told out-of-band. */
+export async function openRotationRequest(
+  hubUrl: string,
+  oldPubkey: string,
+  reason?: string,
+): Promise<RecoveryRequestBundle> {
+  const identity = await loadIdentity();
+  if (!identity) throw new Error("No local identity");
+  const newSeed = masterSeedHex(identity.seed_hex);
+  const newPubkey = masterPublicKeyHex(identity.seed_hex);
+  const base = hubUrl.replace(/\/$/, "");
+  const hubPubkey = await hubPublicKey(base);
+  const newKeySignature = signRecoveryRequest(newSeed, hubPubkey, oldPubkey, newPubkey);
+
+  const r = await rawFetch(`${base}/recovery/rotate-key`, {
+    method: "POST",
+    body: JSON.stringify({
+      old_pubkey: oldPubkey,
+      new_pubkey: newPubkey,
+      reason,
+      new_key_signature: newKeySignature,
+    }),
+  });
+  const created = (await r.json()) as { id: string };
+  return getRotationRequestBundle(hubUrl, created.id);
+}
+
+export async function getRotationRequestBundle(hubUrl: string, id: string): Promise<RecoveryRequestBundle> {
+  const r = await rawFetch(`${hubUrl.replace(/\/$/, "")}/recovery/rotation-request/${id}`);
+  return r.json() as Promise<RecoveryRequestBundle>;
+}
+
+/** Signs the bundle as this device's active identity (the attesting contact)
+ *  and submits it. Crypto stays client-side but never leaves this function —
+ *  callers only ever see the fetched bundle, never raw key material. */
+export async function attestRotationRequest(hubUrl: string, bundle: RecoveryRequestBundle): Promise<void> {
+  const identity = await loadIdentity();
+  if (!identity) throw new Error("No local identity");
+  const contactSeed = masterSeedHex(identity.seed_hex);
+  const attester = masterPublicKeyHex(identity.seed_hex);
+  const signature = signRecoveryAttestation(
+    contactSeed,
+    bundle.hub_pubkey,
+    bundle.old_pubkey,
+    bundle.new_pubkey,
+    bundle.nonce,
+  );
+  await rawFetch(`${hubUrl.replace(/\/$/, "")}/recovery/rotation-request/${bundle.id}/attest`, {
+    method: "POST",
+    body: JSON.stringify({ attester, signature }),
+  });
 }
 
 // ---- Block / DM-blocks ----

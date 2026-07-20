@@ -509,30 +509,6 @@ export interface CertSettings {
   cert_trusted_issuers: string[];
 }
 
-// ---- Identity recovery ----
-
-export interface RecoveryContact {
-  pubkey: string;
-  display_name: string | null;
-  added_at: number;
-  hub_url: string;
-}
-
-export interface RotationAttestation {
-  contact_pubkey: string;
-  contact_display: string | null;
-  attested_at: number;
-}
-
-export interface RotationRequest {
-  id: string;
-  new_pubkey: string;
-  hub_url: string;
-  attestations: RotationAttestation[];
-  threshold: number;
-  submitted_at: number;
-}
-
 // ---- Block / Ignore / DND ----
 
 export interface BlockEntry {

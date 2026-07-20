@@ -318,3 +318,64 @@ export function buildPairingClaim(
   const proof = sign(pairingClaimSigningBytes(pairingToken, subkeyPubkey, deviceLabel), subkeySeedHex);
   return { pairing_token: pairingToken, subkey_pubkey: subkeyPubkey, device_label: deviceLabel, proof };
 }
+
+// --- Recovery-attestation bundle (recovery-attestation.md §2, §4) ---
+// Shared encoder parameterized by domain tag, mirroring
+// wavvon_identity::wire::recovery_bundle_bytes (server) — distinct signers
+// (new-key proof vs. contact attestation) can never have their signatures
+// replayed as each other's.
+function recoveryBundleBytes(tagStr: string, hubPubkey: string, oldPubkey: string, newPubkey: string): Uint8Array {
+  return concat(tag(tagStr), writeStr(hubPubkey), writeStr(oldPubkey), writeStr(newPubkey));
+}
+
+/**
+ * Signing bytes for the requester's new-key proof, submitted inline with
+ * `POST /recovery/rotate-key`. Signed by `newPubkey`'s master key, proving
+ * the requester holds the key they're rotating to. No `requestNonce` — the
+ * hub hasn't minted one yet at this point.
+ */
+export function recoveryRequestSigningBytes(hubPubkey: string, oldPubkey: string, newPubkey: string): Uint8Array {
+  return recoveryBundleBytes("wavvon/recovery-request/v1\0", hubPubkey, oldPubkey, newPubkey);
+}
+
+/**
+ * Signing bytes for a recovery-contact attestation. A designated recovery
+ * contact signs these bytes with their master key to vouch for an open
+ * key-rotation request. `requestNonce` is the hub-generated per-request
+ * nonce, binding the signature to one request.
+ */
+export function recoveryAttestationSigningBytes(
+  hubPubkey: string,
+  oldPubkey: string,
+  newPubkey: string,
+  requestNonce: string,
+): Uint8Array {
+  return concat(
+    recoveryBundleBytes("wavvon/recovery-attestation/v1\0", hubPubkey, oldPubkey, newPubkey),
+    writeStr(requestNonce),
+  );
+}
+
+/** Sign the new-key proof for POST /recovery/rotate-key with the requester's master seed. */
+export function signRecoveryRequest(
+  newMasterSeedHex: string,
+  hubPubkey: string,
+  oldPubkey: string,
+  newPubkey: string,
+): string {
+  return sign(recoveryRequestSigningBytes(hubPubkey, oldPubkey, newPubkey), newMasterSeedHex);
+}
+
+/** Sign a recovery-contact attestation with the contact's master seed. */
+export function signRecoveryAttestation(
+  contactMasterSeedHex: string,
+  hubPubkey: string,
+  oldPubkey: string,
+  newPubkey: string,
+  requestNonce: string,
+): string {
+  return sign(
+    recoveryAttestationSigningBytes(hubPubkey, oldPubkey, newPubkey, requestNonce),
+    contactMasterSeedHex,
+  );
+}

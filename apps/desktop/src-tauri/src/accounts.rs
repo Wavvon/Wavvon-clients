@@ -13,13 +13,34 @@
 //     home_hub_list.json   — cached master-signed HomeHubList
 //     dr_sessions.json     — DM double-ratchet session state
 //     group_sender_keys.json — DM group sender-key state
+//     hubs.json             — saved/joined hub list
+//     active_hub             — pointer to the last-selected hub
+//     voice_gains.json      — per-peer voice volume overrides
+//     blocked_users.json    — local cache of the synced DM block list
+//     ignored_users.json    — locally-ignored pubkeys
+//     pinned_channels.json  — pinned-channel flags, keyed by hub/channel id
+//     collapsed_categories.json — collapsed-category flags
+//     notification_mutes.json  — per-hub/channel notify mode
+//     unread.json           — unread counts, keyed by hub/channel id
+//     dnd_settings.json     — do-not-disturb toggle
+//     notification_prefs.json — per-hub notify level (legacy key shape)
+//     default_profile.json  — the local default profile card
+//     skin.json             — the active custom-theme skin, if any
+//
+// settings-ia.md §7 records which of local_store.rs's files stayed
+// device-global on purpose (voice device/profile settings, and the theme
+// *slot* itself) vs moved here — matched item-by-item against which
+// localStorage keys web scopes under `wavvon:acct:<pubkey>:*` vs leaves
+// unscoped. See local_store.rs's load_appearance/load_profile for the
+// slot-vs-skin and theme-vs-default_profile splits.
 //
 // Every existing per-identity path helper (Identity::default_path(),
 // pairing.rs/auth_creds.rs's paired_identity_path(), home_hub.rs's
-// home_hub_list_path(), dm.rs's dr_sessions_path()/group_sender_keys_path())
-// now delegates to the *_path() functions below, so every existing call site
-// (devices.rs, dm.rs, farm.rs, identity_cmd.rs, pairing.rs, home_hub.rs) keeps
-// working unchanged, transparently re-targeted at the active account.
+// home_hub_list_path(), dm.rs's dr_sessions_path()/group_sender_keys_path(),
+// local_store.rs's per-user path helpers) now delegates to the *_path()
+// functions below, so every existing call site (devices.rs, dm.rs, farm.rs,
+// identity_cmd.rs, pairing.rs, home_hub.rs, local_store.rs) keeps working
+// unchanged, transparently re-targeted at the active account.
 //
 // Device-local only: this registry is never synced to a hub, never enters the
 // prefs blob (same rule as web).
@@ -366,6 +387,65 @@ pub(crate) fn active_group_sender_keys_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("group_sender_keys.json"))
 }
 
+// local_store.rs's per-user files (settings-ia.md §7 fix): everything below
+// backs a local_store.rs path helper of the same data. Voice device/profile
+// settings and the theme *slot* deliberately stay out of this list — they
+// stay device-global in local_store.rs's own path helpers, matching web's
+// unscoped `wavvon.audio_profile`/PTT/device-id keys and unscoped
+// `wavvon:appearance` slot.
+
+pub(crate) fn active_saved_hubs_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("hubs.json"))
+}
+
+pub(crate) fn active_selected_hub_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("active_hub"))
+}
+
+pub(crate) fn active_voice_gains_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("voice_gains.json"))
+}
+
+pub(crate) fn active_blocked_users_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("blocked_users.json"))
+}
+
+pub(crate) fn active_ignored_users_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("ignored_users.json"))
+}
+
+pub(crate) fn active_pinned_channels_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("pinned_channels.json"))
+}
+
+pub(crate) fn active_collapsed_categories_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("collapsed_categories.json"))
+}
+
+pub(crate) fn active_notification_mutes_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("notification_mutes.json"))
+}
+
+pub(crate) fn active_unread_state_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("unread.json"))
+}
+
+pub(crate) fn active_dnd_settings_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("dnd_settings.json"))
+}
+
+pub(crate) fn active_notif_prefs_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("notification_prefs.json"))
+}
+
+pub(crate) fn active_default_profile_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("default_profile.json"))
+}
+
+pub(crate) fn active_skin_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("skin.json"))
+}
+
 /// identity.json path for an arbitrary (not necessarily active) registered
 /// account — used by backup export, which reads a specific account's secret
 /// key rather than whichever one is currently active.
@@ -407,6 +487,15 @@ fn teardown_live_sessions(state: &State<'_, AppState>) {
     }
     *state.active_hub.lock().unwrap() = None;
     crate::local_store::save_active_hub_id(None);
+
+    // A joined voice call belongs to whichever hub session was just torn
+    // down above — its stop_tx/ws_tx reference a connection that no longer
+    // exists, so it must not linger in AppState across the switch (the
+    // voice-side half of "reset stale per-account state", mirroring the hub
+    // session drain above).
+    if let Some(session) = state.voice.lock().unwrap().take() {
+        let _ = session.stop_tx.send(());
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -577,6 +666,42 @@ mod tests {
         let reordered = reorder_accounts_in(&base.0, &[b.id.clone(), a.id.clone()]).unwrap();
         assert_eq!(reordered[0].id, b.id);
         assert_eq!(reordered[1].id, a.id);
+    }
+
+    #[test]
+    fn local_store_files_are_isolated_per_account_and_purged_on_remove() {
+        // Exercises the same active_account_dir_in() primitive every
+        // local_store.rs per-user path helper (pinned_channels, blocked
+        // users, notification mutes, ...) delegates to via its production
+        // active_*_path() wrappers — proving those files land inside each
+        // account's own directory rather than one shared device-global file.
+        let base = TempBase::new("local-store-isolation");
+        let a = create_account_in(&base.0, Some("A".to_string()), None).expect("create a");
+        let b = create_account_in(&base.0, Some("B".to_string()), None).expect("create b");
+
+        switch_account_in(&base.0, &a.id).expect("switch to a");
+        let dir_a = active_account_dir_in(&base.0).expect("active dir a");
+        std::fs::write(dir_a.join("pinned_channels.json"), r#"{"scope":"a"}"#).unwrap();
+
+        switch_account_in(&base.0, &b.id).expect("switch to b");
+        let dir_b = active_account_dir_in(&base.0).expect("active dir b");
+        std::fs::write(dir_b.join("pinned_channels.json"), r#"{"scope":"b"}"#).unwrap();
+
+        assert_ne!(dir_a, dir_b);
+        assert_eq!(
+            std::fs::read_to_string(dir_a.join("pinned_channels.json")).unwrap(),
+            r#"{"scope":"a"}"#
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir_b.join("pinned_channels.json")).unwrap(),
+            r#"{"scope":"b"}"#
+        );
+
+        // Removing b purges its local-store file along with the rest of its
+        // namespace; a's copy is untouched.
+        remove_account_in(&base.0, &b.id).expect("remove b");
+        assert!(!dir_b.join("pinned_channels.json").exists());
+        assert!(dir_a.join("pinned_channels.json").exists());
     }
 
     #[test]

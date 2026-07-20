@@ -7,12 +7,14 @@ import type { HubProfileSnapshot, MyCertification, ProfileDraftFields, ProfileEd
 // PATCH shape, backed by admin.rs's hub-parameterized get_user_profile /
 // update_my_profile_on_hub commands instead of stored fetch sessions.
 //
-// Known gap (settings-ia.md piece 2, left optional-unwired): the default
-// profile is stored device-globally via local_store.rs's profile.json, not
-// per-account — the prior multi-account commit flagged this ("local_store
-// prefs stay device-global") and it isn't fixed here. Managing a non-active
-// account's default profile edits the same global file the active account
-// sees.
+// The default profile is per-account now (settings-ia.md §7 fix):
+// local_store.rs's get_profile/save_profile split `default_profile` into
+// the active account's own file (accounts::active_default_profile_path())
+// while `theme` stays in the device-global profile.json. get_profile/
+// save_profile still always resolve against whichever account is active on
+// the Rust side, so managing a *non-active* account's default profile from
+// here isn't possible yet — same active-account-only limitation as
+// Devices/Privacy (settings-ia.md §7, by design, not a missing prop).
 
 export const NO_HUB_SESSION = "NO_HUB_SESSION";
 
