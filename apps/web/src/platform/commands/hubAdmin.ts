@@ -9,7 +9,7 @@ import type {
   InviteInfo,
 } from "../../types";
 import type { CertIssuance, CertAdmissionSettings } from "@wavvon/ui";
-import { signRecoveryRequest, signRecoveryAttestation, masterSeedHex, masterPublicKeyHex } from "@wavvon/core";
+import { signRecoveryRequest, signRecoveryAttestation, publicKeyHex } from "@wavvon/core";
 import { loadIdentity } from "../../identity/store";
 
 // ---- Discovery / self-tags ----
@@ -155,8 +155,11 @@ export async function openRotationRequest(
 ): Promise<RecoveryRequestBundle> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No local identity");
-  const newSeed = masterSeedHex(identity.seed_hex);
-  const newPubkey = masterPublicKeyHex(identity.seed_hex);
+  // Sign with the identity key the hub knows this account by (roster
+  // pubkey), NOT the derived multi-device master — contacts are designated
+  // and requests approved against hub-known pubkeys.
+  const newSeed = identity.seed_hex;
+  const newPubkey = publicKeyHex(identity.seed_hex);
   const base = hubUrl.replace(/\/$/, "");
   const hubPubkey = await hubPublicKey(base);
   const newKeySignature = signRecoveryRequest(newSeed, hubPubkey, oldPubkey, newPubkey);
@@ -185,8 +188,8 @@ export async function getRotationRequestBundle(hubUrl: string, id: string): Prom
 export async function attestRotationRequest(hubUrl: string, bundle: RecoveryRequestBundle): Promise<void> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No local identity");
-  const contactSeed = masterSeedHex(identity.seed_hex);
-  const attester = masterPublicKeyHex(identity.seed_hex);
+  const contactSeed = identity.seed_hex;
+  const attester = publicKeyHex(identity.seed_hex);
   const signature = signRecoveryAttestation(
     contactSeed,
     bundle.hub_pubkey,

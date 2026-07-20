@@ -625,14 +625,15 @@ async fn fetch_rotation_bundle(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
-fn active_master() -> Result<crate::identity::MasterIdentity, String> {
+// The hub knows a user (and records their designated recovery contacts) by
+// the pubkey they authenticate with — the identity key, NOT the derived
+// multi-device master. Signing recovery envelopes with the master produced
+// pubkeys the hub had never seen (attester rejected, wrong "new key"), so
+// recovery operations use the active identity itself.
+fn active_recovery_identity() -> Result<crate::identity::Identity, String> {
     let path =
         crate::identity::Identity::default_path().map_err(|e| format!("Identity path: {e}"))?;
-    let identity =
-        crate::identity::Identity::load(&path).map_err(|e| format!("Load identity: {e}"))?;
-    identity
-        .master()
-        .map_err(|e| format!("Derive master key: {e}"))
+    crate::identity::Identity::load(&path).map_err(|e| format!("Load identity: {e}"))
 }
 
 /// `POST /recovery/rotate-key` — this device's active identity is always the
@@ -647,15 +648,15 @@ pub(crate) async fn submit_rotation_request(
     reason: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<RotationRequestBundle, String> {
-    let master = active_master()?;
-    let new_pubkey = master.public_key_hex();
+    let identity = active_recovery_identity()?;
+    let new_pubkey = identity.public_key_hex();
 
     let base = hub_url.trim_end_matches('/').to_string();
     let hub_pubkey = get_hub_pubkey(&state, &base).await?;
 
     let proof_bytes =
         crate::identity::recovery_request_signing_bytes(&hub_pubkey, &old_pubkey, &new_pubkey);
-    let new_key_signature = hex::encode(master.sign(&proof_bytes).to_bytes());
+    let new_key_signature = hex::encode(identity.sign(&proof_bytes).to_bytes());
 
     let resp = state
         .http_client
@@ -701,15 +702,15 @@ pub(crate) async fn attest_rotation_request(
     let base = hub_url.trim_end_matches('/');
     let bundle = fetch_rotation_bundle(&state, base, &id).await?;
 
-    let master = active_master()?;
-    let attester = master.public_key_hex();
+    let identity = active_recovery_identity()?;
+    let attester = identity.public_key_hex();
     let bytes = crate::identity::recovery_attestation_signing_bytes(
         &bundle.hub_pubkey,
         &bundle.old_pubkey,
         &bundle.new_pubkey,
         &bundle.nonce,
     );
-    let signature = hex::encode(master.sign(&bytes).to_bytes());
+    let signature = hex::encode(identity.sign(&bytes).to_bytes());
 
     let resp = state
         .http_client
