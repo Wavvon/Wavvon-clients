@@ -835,6 +835,7 @@
   "alliances.join.hint": "Paste the share code you received from another hub's admin.",
   "alliances.join.placeholder": "Paste share code…",
   "alliances.join.button": "Join",
+  "alliances.join.invalid_code": "Invalid share code — make sure you pasted it completely.",
   "alliances.share.category_hint": "Sharing a category shares its whole subtree with the alliance — including sub-channels added later.",
   "alliances.share.recursive_marker": "(+ sub-spaces)",
   "ext_bot.section.title": "External Bots",

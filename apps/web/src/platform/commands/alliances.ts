@@ -1,7 +1,7 @@
 import { hubFetch } from "../http";
-import type { Alliance, AllianceMember, AllianceDetail, PendingAllianceInvite, SharedChannel } from "@wavvon/ui";
+import type { Alliance, AllianceMember, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel } from "@wavvon/ui";
 
-export type { Alliance, AllianceMember, AllianceDetail, PendingAllianceInvite, SharedChannel };
+export type { Alliance, AllianceMember, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel };
 
 export async function listAlliances(): Promise<Alliance[]> {
   const r = await hubFetch("/alliances");
@@ -57,4 +57,47 @@ export async function shareChannelWithAlliance(
 
 export async function unshareChannelFromAlliance(allianceId: string, channelId: string): Promise<void> {
   await hubFetch(`/alliances/${allianceId}/channels/${channelId}`, { method: "DELETE" });
+}
+
+/** Mints a signed invite token for this alliance (admin-only). `hub_url` in
+ *  the response is always "self" from the issuing hub's point of view — the
+ *  caller pairs the token with its own known hub URL. */
+export async function createAllianceInvite(allianceId: string): Promise<AllianceInvite> {
+  const r = await hubFetch(`/alliances/${allianceId}/invite`, { method: "POST" });
+  return r.json() as Promise<AllianceInvite>;
+}
+
+/** Pushes a direct invite to another hub's federation endpoint (admin-only). */
+export async function sendAlliancePushInvite(
+  allianceId: string,
+  targetHubUrl: string,
+  ownHubUrl: string,
+  message: string | null,
+): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/push-invite`, {
+    method: "POST",
+    body: JSON.stringify({ target_hub_url: targetHubUrl, own_hub_url: ownHubUrl, message }),
+  });
+}
+
+/** Joins an alliance from a pasted share code: calls out to the inviter to
+ *  register, then mirrors the alliance locally (`join_alliance_local` on the
+ *  hub — note this is `POST /alliances/join`, not `/alliances/{id}/join`;
+ *  the latter is a federation-only, hub-to-hub endpoint). */
+export async function joinAllianceByCode(
+  inviterHubUrl: string,
+  allianceId: string,
+  inviteToken: string,
+  ownHubUrl: string,
+): Promise<AllianceDetail> {
+  const r = await hubFetch("/alliances/join", {
+    method: "POST",
+    body: JSON.stringify({
+      inviter_hub_url: inviterHubUrl,
+      alliance_id: allianceId,
+      invite_token: inviteToken,
+      own_hub_url: ownHubUrl,
+    }),
+  });
+  return r.json() as Promise<AllianceDetail>;
 }

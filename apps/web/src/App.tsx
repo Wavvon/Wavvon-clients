@@ -45,7 +45,7 @@ import { ContentArea } from "@components/layout/ContentArea";
 import { WhisperBar } from "@components/voice/WhisperBar";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, type DefaultProfile } from "./utils/profiles";
-import { getUserProfile, listRoleCategories, patchMyProfileOnHub, listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } from "@platform";
+import { getUserProfile, listRoleCategories, patchMyProfileOnHub, listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
 import { getHubSettings, saveHubSettings } from "@platform";
 import {
   getChannelPermissions, setChannelRolePermissions, clearChannelRolePermissions,
@@ -59,7 +59,7 @@ import { HubStreamsPanel } from "@wavvon/ui";
 import type { HubStreamInfo } from "./types";
 import { AddHubModal } from "@wavvon/ui";
 import { isPasskeySupported } from "@platform";
-import { QuickInviteModal } from "@components/hubs/QuickInviteModal";
+import { QuickInviteModal } from "@wavvon/ui";
 import { CreateChannelModal, ChannelSettingsModal } from "@wavvon/ui";
 import type { ChannelPermissionsTabActions, ChannelBansTabActions, ChannelTalkPowerTabActions } from "@wavvon/ui";
 import { CreateHubFork } from "@components/hubs/CreateHubFork";
@@ -94,6 +94,7 @@ import {
   listAlliances, createAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+  createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
 } from "@platform";
 import {
   adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
@@ -2001,7 +2002,7 @@ export default function App({ initialView }: AppProps = {}) {
     screenShareViewerRef.current?.stopStream(streamId);
   }
 
-  async function handleToggleVideo() {
+  async function handleToggleVideo(deviceId?: string) {
     if (videoEnabled) { handleStopVideo(); return; }
     // Video is scoped to the voice channel you're in; the session was created
     // on voice-join so it already knows the participant roster.
@@ -2010,9 +2011,10 @@ export default function App({ initialView }: AppProps = {}) {
       return;
     }
     try {
-      // Honor the camera chosen in Settings → Voice, if any.
-      let camId: string | null = null;
-      try { camId = localStorage.getItem("wavvon.videoInputDevice"); } catch { /* ignore */ }
+      // A device passed by the caller (e.g. the sidebar's quick-toggle,
+      // which auto-picks a camera) wins over the one saved in Settings.
+      let camId: string | null = deviceId ?? null;
+      if (!camId) { try { camId = localStorage.getItem("wavvon.videoInputDevice"); } catch { /* ignore */ } }
       const raw = await navigator.mediaDevices.getUserMedia({
         video: camId ? { deviceId: { exact: camId } } : true,
         audio: false,
@@ -3158,6 +3160,9 @@ export default function App({ initialView }: AppProps = {}) {
               acceptAllianceInvite: (inviteId, ownHubUrl) => acceptAllianceInvite(inviteId, ownHubUrl).then(() => {}),
               declineAllianceInvite,
               listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+              createAllianceInvite, sendAlliancePushInvite,
+              joinAllianceByCode: (inviterHubUrl, allianceId, inviteToken, ownHubUrl) =>
+                joinAllianceByCode(inviterHubUrl, allianceId, inviteToken, ownHubUrl).then(() => {}),
             }}
             hubIconActions={{ listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon }}
             surveyActions={{
@@ -3207,6 +3212,7 @@ export default function App({ initialView }: AppProps = {}) {
           hubSerial={activeHubId}
           myMaxPriority={myMaxPriority}
           onClose={() => setShowQuickInvite(false)}
+          actions={{ listRoles, createInvite }}
         />
       )}
 

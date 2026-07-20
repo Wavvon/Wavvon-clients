@@ -53,6 +53,8 @@ pub(crate) async fn voice_join(
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, ZoneInfo>>>,
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<f64>>>>,
             std::sync::Arc<std::sync::Mutex<Option<String>>>,
+            std::sync::Arc<std::sync::Mutex<Option<wavvon_voice::soundboard::ActiveClip>>>,
+            u32,
         ),
         String,
     >;
@@ -109,6 +111,8 @@ pub(crate) async fn voice_join(
             let gain_map = pipeline.gain_map.clone();
             let roster_map = pipeline.roster_map.clone();
             let udp_reg_token = pipeline.udp_reg_token.clone();
+            let active_clip = pipeline.active_clip.clone();
+            let opus_rate = pipeline.opus_rate;
             let voice_zones =
                 std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
                     String,
@@ -128,6 +132,8 @@ pub(crate) async fn voice_join(
                 voice_zones,
                 my_position,
                 udp_reg_token,
+                active_clip,
+                opus_rate,
             )));
 
             let speaking_rx = pipeline.speaking_rx.take();
@@ -193,6 +199,8 @@ pub(crate) async fn voice_join(
         voice_zones,
         my_position,
         udp_reg_token,
+        active_clip,
+        opus_rate,
     ) = ready_rx
         .recv()
         .map_err(|_| "Voice thread died".to_string())??;
@@ -215,6 +223,8 @@ pub(crate) async fn voice_join(
         voice_zones,
         my_position,
         udp_reg_token,
+        active_clip,
+        opus_rate,
     });
 
     Ok(())
@@ -449,6 +459,10 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
         voice_zones: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         my_position: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         udp_reg_token: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        // Mic test is a loopback pipeline, not a real voice session -- the
+        // soundboard has nothing to mix into here.
+        active_clip: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        opus_rate: 48_000,
     });
 
     Ok(())

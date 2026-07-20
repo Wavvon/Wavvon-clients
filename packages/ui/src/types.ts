@@ -458,6 +458,16 @@ export interface AllianceDetail extends Alliance {
   members: AllianceMember[];
 }
 
+/** Returned by the hub's `POST /alliances/{id}/invite` — `hub_url` is always
+ *  "self" from the issuing hub's own point of view, so callers pair it with
+ *  their own known hub URL rather than reading it back. */
+export interface AllianceInvite {
+  token: string;
+  alliance_id: string;
+  alliance_name: string;
+  hub_url: string;
+}
+
 export interface PendingAllianceInvite {
   id: string;
   alliance_id: string;

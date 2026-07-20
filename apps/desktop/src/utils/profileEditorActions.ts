@@ -45,9 +45,17 @@ async function saveDefaultProfileAsync(profile: ProfileDraftFields): Promise<voi
 
 const FOLLOWS_KEY = "wavvon.profileFollowsDefault";
 
-function loadFollowsDefault(): string[] {
+// Namespaces the key under the given account, mirroring web's
+// `wavvon:acct:<id>:*` convention (apps/web/src/utils/accountScope.ts) —
+// desktop's account id (AccountSummary.id) plays the same role as web's
+// pubkey there.
+function scopedKey(key: string, accountId?: string | null): string {
+  return accountId ? `wavvon:acct:${accountId}:${key}` : key;
+}
+
+function loadFollowsDefault(accountId?: string | null): string[] {
   try {
-    const raw = localStorage.getItem(FOLLOWS_KEY);
+    const raw = localStorage.getItem(scopedKey(FOLLOWS_KEY, accountId));
     if (!raw) return [];
     const list = JSON.parse(raw) as unknown;
     return Array.isArray(list) ? list.filter((x): x is string => typeof x === "string") : [];
@@ -56,9 +64,9 @@ function loadFollowsDefault(): string[] {
   }
 }
 
-function saveFollowsDefault(hubIds: string[]): void {
+function saveFollowsDefault(hubIds: string[], accountId?: string | null): void {
   try {
-    localStorage.setItem(FOLLOWS_KEY, JSON.stringify(hubIds));
+    localStorage.setItem(scopedKey(FOLLOWS_KEY, accountId), JSON.stringify(hubIds));
   } catch {
     /* storage unavailable */
   }
@@ -125,8 +133,8 @@ export function buildProfileEditorActions(hubs: Hub[]): ProfileEditorActions {
     noHubSessionError: NO_HUB_SESSION,
     loadDefaultProfile: () => loadDefaultProfileSync(),
     saveDefaultProfile: (profile) => { void saveDefaultProfileAsync(profile); },
-    loadFollowsDefault: () => loadFollowsDefault(),
-    saveFollowsDefault: (hubIds) => saveFollowsDefault(hubIds),
+    loadFollowsDefault: (accountId) => loadFollowsDefault(accountId),
+    saveFollowsDefault: (hubIds, accountId) => saveFollowsDefault(hubIds, accountId),
     listMyCertifications: () => invoke<MyCertification[]>("fetch_my_certs"),
   };
 }

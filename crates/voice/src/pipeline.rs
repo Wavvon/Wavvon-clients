@@ -16,6 +16,7 @@ use crate::codec::{self, EffectiveVoiceConfig, VoiceDecoder, VoiceEncoder};
 use crate::denoise::Denoiser;
 use crate::playback::AudioPlayback;
 use crate::protocol::{VoicePacket, RING_BUFFER_SIZE};
+use crate::soundboard::ActiveClip;
 use crate::transport::VoiceSocket;
 
 /// Default threshold for the RMS voice activity detector. Values in [0, 1].
@@ -136,6 +137,17 @@ pub struct AudioPipeline {
     pub udp_reg_token: Arc<Mutex<Option<String>>>,
     /// Set to true by the receive task when the hub replies with b"VXRA".
     pub udp_reg_acked: Arc<AtomicBool>,
+    /// Soundboard clip currently being mixed into the outbound stream, if
+    /// any (soundboard.md §1). `None` = nothing playing. Set this to `Some`
+    /// with samples already resampled to `opus_rate` -- the send task mixes
+    /// it in once per captured frame, ahead of Opus encoding, and clears it
+    /// back to `None` when the clip drains. Only one clip at a time: a new
+    /// clip replaces whatever's still playing rather than queuing.
+    pub active_clip: Arc<Mutex<Option<ActiveClip>>>,
+    /// The sample rate the send task's frames are captured/encoded at.
+    /// Callers must resample a decoded clip (always 48 kHz PCM) to this
+    /// rate before storing it in `active_clip`.
+    pub opus_rate: u32,
 }
 
 fn resolve_opus_rate(device_rate: u32) -> u32 {
@@ -236,6 +248,8 @@ impl AudioPipeline {
             roster_map: Arc::new(TokioRwLock::new(HashMap::new())),
             udp_reg_token: Arc::new(Mutex::new(None)),
             udp_reg_acked: Arc::new(AtomicBool::new(false)),
+            active_clip: Arc::new(Mutex::new(None)),
+            opus_rate,
         })
     }
 
@@ -286,9 +300,12 @@ impl AudioPipeline {
         let udp_reg_token: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
         let udp_reg_acked = Arc::new(AtomicBool::new(false));
 
+        let active_clip: Arc<Mutex<Option<ActiveClip>>> = Arc::new(Mutex::new(None));
+
         // Send task: capture → encode → UDP, plus RMS-based VAD + level meter
         let send_socket = socket.clone();
         let send_muted = muted.clone();
+        let send_active_clip = active_clip.clone();
         let vad_enabled = cfg.vad_enabled;
         let vad_threshold = cfg.vad_threshold;
         let send_task = tokio::spawn(async move {
@@ -327,9 +344,24 @@ impl AudioPipeline {
                     continue;
                 }
 
-                let denoised = denoiser.process(&read_buf[..count]);
+                let mut denoised = denoiser.process(&read_buf[..count]);
 
-                // Voice activity detection on post-denoise samples.
+                // Mix in a playing soundboard clip *after* denoise (mixing
+                // before would feed RNNoise a burst of clean synthetic audio
+                // it might mistake for noise and suppress) and *before* Opus
+                // encode, so the clip rides the caller's own outgoing
+                // stream (soundboard.md §1) rather than only playing back
+                // locally.
+                {
+                    let mut clip_slot = send_active_clip.lock().unwrap();
+                    if let Some(clip) = clip_slot.as_mut() {
+                        if crate::soundboard::mix_clip_into_frame(&mut denoised, clip) {
+                            *clip_slot = None;
+                        }
+                    }
+                }
+
+                // Voice activity detection on post-denoise (+ clip-mixed) samples.
                 let rms = rms_of(&denoised);
 
                 // Decimate level emission to ~20 Hz (every 5 ticks of 10 ms).
@@ -550,6 +582,8 @@ impl AudioPipeline {
             roster_map,
             udp_reg_token,
             udp_reg_acked,
+            active_clip,
+            opus_rate,
         })
     }
 

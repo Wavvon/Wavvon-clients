@@ -21,6 +21,7 @@ import type {
   VoiceParticipant,
   Hub,
   RoleInfo,
+  RoleCategory,
   MeInfo,
   MemberAdminInfo,
   BanInfo,
@@ -58,6 +59,7 @@ import { BotAppLaunchCard, CreateHubWizard, KeyboardShortcuts, DiscoverPage, Lob
 import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, decideVoiceMove } from "@wavvon/ui";
 import type { GlobalSearchResult } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
+import { useSoundboard } from "./hooks/useSoundboard";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
@@ -102,6 +104,7 @@ import {
 } from "@wavvon/ui";
 import type {
   Alliance,
+  AllianceInvite,
   PendingAllianceInvite,
   SharedChannel,
   ExternalBotRow,
@@ -118,6 +121,7 @@ import type {
   AuditLogPage,
 } from "@wavvon/ui";
 import { AddHubModal } from "@wavvon/ui";
+import { QuickInviteModal } from "@wavvon/ui";
 import type { FarmAdminTab } from "@wavvon/ui";
 import { CreateChannelModal, type BannerSource } from "@wavvon/ui";
 import { ChannelSettingsModal } from "@wavvon/ui";
@@ -154,7 +158,12 @@ function App() {
   useEffect(() => { hubsRef.current = hubs; }, [hubs]);
   const [activeHubId, setActiveHubId] = useState<string | null>(null);
   const [showAddHub, setShowAddHub] = useState(false);
+  const [showQuickInvite, setShowQuickInvite] = useState(false);
   const [hubScope, setHubScope] = useState<Record<string, "lobby" | "member">>({});
+  const lobbyHubIds = useMemo(
+    () => new Set(Object.entries(hubScope).filter(([, scope]) => scope === "lobby").map(([id]) => id)),
+    [hubScope],
+  );
   const [pendingSurveyHubId, setPendingSurveyHubId] = useState<string | null>(null);
   const [botChallenge, setBotChallenge] = useState<{
     hubUrl: string;
@@ -748,6 +757,7 @@ function App() {
   });
 
   const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
+  const soundboard = useSoundboard(voice.voiceChannelId);
   const [showWhisperPanel, setShowWhisperPanel] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
 
@@ -773,6 +783,7 @@ function App() {
   const voiceMoveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canMoveMembers = isAdmin || myRoles.some((r) => r.permissions?.includes("move_members"));
+  const canCreateInvites = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_channels"));
   const voiceMoveChannelOptions = useMemo(
     () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveMenu?.currentChannelId),
     [channels, voiceMoveMenu],
@@ -1650,11 +1661,6 @@ function App() {
     setCreateChannelLoading(true);
     setCreateChannelError(null);
     try {
-      // create_channel's Rust command has no spawner_name_template parameter
-      // yet (hub-src/routes/channels.rs supports it, the Tauri wrapper
-      // doesn't) — a spawner channel still creates fine, just always with
-      // the hub's default "{user}'s room" naming until that param is added.
-      void spawnerNameTemplate;
       const channel = await invoke<Channel>("create_channel", {
         name,
         parentId: newChannelParentId,
@@ -1662,6 +1668,7 @@ function App() {
         channelType: isCategory ? undefined : channelType,
         description: description ? description : null,
         bannerUrl: channelType === "banner" ? (banner?.url || null) : null,
+        spawnerNameTemplate: channelType === "spawner" ? (spawnerNameTemplate ?? null) : null,
       });
 
       if (channelType === "banner" && banner?.file) {
@@ -1770,11 +1777,9 @@ function App() {
   }
 
   // ChannelSettingsModal's onSave — composes the individual PATCH-shaped
-  // Tauri commands the settings tab touches. Banner *file* upload isn't
-  // wired here: Tauri's upload_file command takes a filesystem path, not
-  // the browser File object the shared modal collects, so only the URL
-  // banner source works on desktop today (bannerUploadSupported={false}
-  // below hides the upload option instead of silently no-op'ing it).
+  // Tauri commands the settings tab touches. A banner *file* goes through
+  // upload_file_bytes (base64 over the IPC boundary — webview Files carry
+  // bytes but no filesystem path).
   async function handleSaveChannelSettings(
     name: string,
     description: string,
@@ -1801,7 +1806,21 @@ function App() {
       ) {
         await invoke("update_channel_appearance", { channelId: channel.id, icon, color, customIconSvg });
       }
-      if (banner?.url && banner.url !== (channel.banner_url ?? "")) {
+      const bannerHub = hubs.find((h) => h.hub_id === activeHubId) ?? hubs.find((h) => h.is_active);
+      if (banner?.file && bannerHub) {
+        const buf = await banner.file.arrayBuffer();
+        let bin = "";
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < view.length; i++) bin += String.fromCharCode(view[i]);
+        const up = await invoke<{ file_id: string }>("upload_file_bytes", {
+          hubUrl: bannerHub.hub_url,
+          channelId: channel.id,
+          filename: banner.file.name,
+          mimeType: banner.file.type || "application/octet-stream",
+          bytesB64: btoa(bin),
+        });
+        await invoke("patch_channel_banner_url", { channelId: channel.id, bannerFileId: up.file_id });
+      } else if (banner?.url && banner.url !== (channel.banner_url ?? "")) {
         await invoke("patch_channel_banner_url", { channelId: channel.id, bannerUrl: banner.url });
       }
       setChannels((prev) =>
@@ -2124,10 +2143,8 @@ function App() {
             hubSerial={activeHubId ?? ""}
             myPubkey={publicKey ?? ""}
             isAdmin={isAdmin}
-            // Soundboard admin (upload/list/delete) has no Tauri commands yet
-            // (docs/docs/client-parity.md) — the tab stays hidden regardless
-            // of this permission until soundboardActions exists below.
             canManageSoundboard={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_soundboard"))}
+            soundboardActions={soundboard.soundboardActions}
             onCreateInvite={handleCreateInvite}
             onRevokeInvite={handleRevokeInvite}
             channels={channels}
@@ -2152,9 +2169,18 @@ function App() {
                   categoryId: updates.category_id ?? null,
                 }),
               deleteRole: (roleId) => invoke("delete_role", { roleId }),
-              // Role categories + per-role color/icon are a known desktop
-              // Tauri-command gap (docs/docs/client-parity.md) — the section
-              // hides that UI entirely when these are omitted.
+              listRoleCategories: () => invoke<RoleCategory[]>("list_role_categories"),
+              createRoleCategory: (input) =>
+                invoke<RoleCategory>("create_role_category", { name: input.name, position: input.position }),
+              updateRoleCategory: (id, updates) =>
+                invoke<RoleCategory>("update_role_category", {
+                  categoryId: id,
+                  name: updates.name ?? null,
+                  color: updates.color ?? null,
+                  icon: updates.icon ?? null,
+                  position: updates.position ?? null,
+                }),
+              deleteRoleCategory: (id) => invoke("delete_role_category", { categoryId: id }),
             } as RolesSectionActions}
             memberRoleActions={{
               listRoles: () => invoke<RoleInfo[]>("list_roles"),
@@ -2250,6 +2276,13 @@ function App() {
                 invoke("share_channel_with_alliance", { allianceId, channelId, includeDescendants }),
               unshareChannelFromAlliance: (allianceId, channelId) =>
                 invoke("unshare_channel_from_alliance", { allianceId, channelId }),
+              createAllianceInvite: (allianceId) => invoke<AllianceInvite>("create_alliance_invite", { allianceId }),
+              sendAlliancePushInvite: (allianceId, targetHubUrl, ownHubUrl, message) =>
+                invoke("send_alliance_push_invite", { allianceId, targetHubUrl, ownHubUrl, message }),
+              joinAllianceByCode: (inviterHubUrl, allianceId, inviteToken, ownHubUrl) =>
+                invoke("join_alliance", {
+                  inviterHubUrl, allianceId, inviteToken, ownHubPublicUrl: ownHubUrl,
+                }).then(() => {}),
             }}
             hubIconActions={{
               listHubIcons: () => invoke<HubIcon[]>("list_hub_icons"),
@@ -2391,6 +2424,7 @@ function App() {
               unreadByHub={unreadByHub}
               pingByHub={pingByHub}
               hubNotifyMode={hubNotifyMode}
+              lobbyHubIds={lobbyHubIds}
               hasActiveHub={hasActiveHub}
               onSwitchToDms={() => { setView("dms"); if (hasActiveHub) loadConversations(); }}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
@@ -2504,6 +2538,7 @@ function App() {
                   pingByHub={pingByHub}
                   isAdmin={isAdmin}
                   canOpenChannelSettings={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"))}
+                  canCreateInvites={canCreateInvites}
                   hasDraft={hasDraft}
                   hubNotifyMode={hubNotifyMode}
                   hubDropdownOpen={hubDropdownOpen}
@@ -2524,6 +2559,7 @@ function App() {
                   onRemoveHub={handleRemoveHub}
                   onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}
                   onOpenHubAdminInvites={() => { setHubDropdownOpen(false); openHubAdminInvites(); }}
+                  onOpenQuickInvite={() => setShowQuickInvite(true)}
                   onOpenCreateChannel={openCreateChannelUnder}
                   onSelectChannel={channelMessages.selectChannel}
                   onChannelContextMenu={openContextMenu}
@@ -2570,6 +2606,10 @@ function App() {
                   onDeleteWhisperList={whisper.deleteWhisperList}
                   videoEnabled={video.videoEnabled}
                   onToggleVideo={(deviceId) => video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId)}
+                  canUseSoundboard={isAdmin || myRoles.some((r) => r.permissions?.includes("use_soundboard"))}
+                  onListSoundboardClips={soundboard.listClips}
+                  onTriggerSoundboardClip={soundboard.triggerClip}
+                  soundboardPlayingClipId={soundboard.playingClipId}
                 />
                 {showSearchBar && (
                   <SearchBar
@@ -2732,6 +2772,9 @@ function App() {
                   shareKbps={voice.shareKbps}
                   onStopShare={voice.stopShare}
                   assertiveAnnouncement={assertiveAnnouncement}
+                  voicePartByChannel={voice.voicePartByChannel}
+                  canMoveMembers={canMoveMembers}
+                  onMoveMember={handleMoveMember}
                 />
                 {showHubStreams && (
                   <HubStreamsPanel
@@ -2791,6 +2834,20 @@ function App() {
             onAdd={() => handleAddHub()}
             onClose={() => { setShowAddHub(false); setHubUrl(""); setInviteCode(""); }}
             onBrowse={() => { setShowAddHub(false); setShowHubBrowser(true); }}
+          />
+        )}
+
+        {showQuickInvite && activeHubId && (
+          <QuickInviteModal
+            activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+            hubSerial={activeHubId}
+            myMaxPriority={myRoles.reduce((m, r) => Math.max(m, r.priority), 0)}
+            onClose={() => setShowQuickInvite(false)}
+            actions={{
+              listRoles: () => invoke<RoleInfo[]>("list_roles"),
+              createInvite: (maxUses, expiresInSeconds, grantRoleId) =>
+                invoke<InviteInfo>("create_invite", { maxUses, expiresInSeconds, grantRoleId }),
+            }}
           />
         )}
 
@@ -2880,7 +2937,7 @@ function App() {
             bansSupportReason
             talkPowerActions={channelTalkPowerTabActions}
             listHubIcons={() => invoke<HubIcon[]>("list_hub_icons")}
-            bannerUploadSupported={false}
+            bannerUploadSupported={true}
           />
         )}
 

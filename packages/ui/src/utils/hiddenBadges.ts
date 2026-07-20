@@ -3,25 +3,27 @@
 // UI) and ProfileEditorSection (the live Bio-tab badge display), so both
 // respect the same hide/show state.
 //
-// Deliberately a flat (not per-account-scoped) key: a device-local UI
-// preference, not personal-axis data. On multi-account devices this means
-// hidden badges are shared across local accounts rather than namespaced per
-// account like session/DM state — a known simplification, not a security
-// concern (nothing here is sensitive), acceptable until an app wants to
-// thread account-scoped storage through as an override.
+// Flat by default (a device-local UI preference), but callers on
+// multi-account devices can pass an accountId to namespace the key the same
+// way web's `wavvon:acct:<id>:*` convention does — MyCertificationsSection
+// still defaults to the unscoped key when no accountId is supplied.
 const HIDDEN_BADGES_KEY = "wavvon.hiddenBadges";
 
-export function loadHiddenBadgeSet(): Set<string> {
+function scopedKey(accountId?: string | null): string {
+  return accountId ? `wavvon:acct:${accountId}:${HIDDEN_BADGES_KEY}` : HIDDEN_BADGES_KEY;
+}
+
+export function loadHiddenBadgeSet(accountId?: string | null): Set<string> {
   try {
-    return new Set(JSON.parse(localStorage.getItem(HIDDEN_BADGES_KEY) ?? "[]"));
+    return new Set(JSON.parse(localStorage.getItem(scopedKey(accountId)) ?? "[]"));
   } catch {
     return new Set();
   }
 }
 
-export function saveHiddenBadgeSet(hidden: Set<string>): void {
+export function saveHiddenBadgeSet(hidden: Set<string>, accountId?: string | null): void {
   try {
-    localStorage.setItem(HIDDEN_BADGES_KEY, JSON.stringify([...hidden]));
+    localStorage.setItem(scopedKey(accountId), JSON.stringify([...hidden]));
   } catch {
     /* storage unavailable */
   }

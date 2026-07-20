@@ -102,6 +102,18 @@ pub(crate) struct RoleInfo {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub(crate) struct RoleCategory {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub color: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    pub position: i64,
+    pub created_at: i64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct MeInfo {
     pub public_key: String,
     pub display_name: Option<String>,

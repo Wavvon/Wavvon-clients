@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { Hub, PerAccountProps, ProfileAccountRef, ProfileEditorActions, MyCertification } from "../../types";
 import { ProfileEditorSection } from "./ProfileEditorSection";
 import { MyCertificationsSection } from "./MyCertificationsSection";
+import { loadHiddenBadgeSet, saveHiddenBadgeSet } from "../../utils/hiddenBadges";
 
 interface Props extends PerAccountProps<ProfileAccountRef> {
   hubs: Hub[];
@@ -45,6 +46,8 @@ export function ProfileTab(props: Props) {
           <MyCertificationsSection
             publicKey={props.publicKey}
             listMyCertifications={props.actions.listMyCertifications as (pubkey: string) => Promise<MyCertification[]>}
+            loadHiddenBadges={() => loadHiddenBadgeSet(props.managing?.id)}
+            saveHiddenBadges={(hidden) => saveHiddenBadgeSet(hidden, props.managing?.id)}
           />
         )}
       </div>

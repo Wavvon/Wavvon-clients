@@ -123,6 +123,9 @@ export function CameraTab() {
     setDevice(v);
     if (v) localStorage.setItem(KEY, v); else localStorage.removeItem(KEY);
     if (previewing) void startPreview(v, mode, source);
+    // Re-run App's live camera pipeline (same event the background-effect
+    // controls use) so an in-progress video call switches to the new device.
+    window.dispatchEvent(new Event("wavvon:bgchange"));
   }
 
   async function onBackgroundFile(kind: "image" | "video", file?: File) {

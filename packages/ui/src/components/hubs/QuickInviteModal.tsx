@@ -1,14 +1,31 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RoleInfo } from "@shared/types";
 import { buildInviteLink } from "@wavvon/core";
-import { listRoles, createInvite } from "@platform";
-import { FocusTrap } from "@wavvon/ui";
-import { grantableRoles, roleGrantsAdmin } from "@shared/utils/inviteRoles";
+import type { RoleInfo } from "../../types";
+import { FocusTrap } from "../FocusTrap";
 
 // Mirrors hub/src/routes/invites.rs::ADMIN_GRANT_DEFAULT_EXPIRY_SECS — for
 // client-side annotation only, the server remains authoritative.
 const ADMIN_GRANT_DEFAULT_EXPIRY_SECS = 24 * 3600;
+
+function roleGrantsAdmin(role: RoleInfo): boolean {
+  return role.permissions.includes("admin");
+}
+
+function grantableRoles(roles: RoleInfo[], myMaxPriority: number): RoleInfo[] {
+  return roles
+    .filter((r) => r.id !== "builtin-everyone" && r.priority < myMaxPriority)
+    .sort((a, b) => b.priority - a.priority);
+}
+
+export interface QuickInviteModalActions {
+  listRoles: () => Promise<RoleInfo[]>;
+  createInvite: (
+    maxUses: number | null,
+    expiresInSeconds: number | null,
+    grantRoleId: string | null,
+  ) => Promise<{ code: string }>;
+}
 
 interface Props {
   activeHubUrl: string;
@@ -18,13 +35,14 @@ interface Props {
   /** Highest priority among the viewer's own roles; only lower-priority roles can be granted. */
   myMaxPriority: number;
   onClose: () => void;
+  actions: QuickInviteModalActions;
 }
 
 /** Compact invite-creation modal for members who can create invites
  *  (manage_channels) but aren't full admins — no access to the full admin
  *  panel. Mints a plain invite by default; offers a role picker only when
  *  the viewer actually has grantable roles below their own priority. */
-export function QuickInviteModal(props: Props) {
+export function QuickInviteModal({ activeHubUrl, hubSerial, myMaxPriority, onClose, actions }: Props) {
   const { t } = useTranslation();
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const [grantRoleId, setGrantRoleId] = useState("");
@@ -35,11 +53,12 @@ export function QuickInviteModal(props: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    listRoles().then((r) => { if (!cancelled) setRoles(r); }).catch(() => {});
+    actions.listRoles().then((r) => { if (!cancelled) setRoles(r); }).catch(() => {});
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const options = grantableRoles(roles, props.myMaxPriority);
+  const options = grantableRoles(roles, myMaxPriority);
   const selectedRole = options.find((r) => r.id === grantRoleId);
   const forcesSingleUse = selectedRole ? roleGrantsAdmin(selectedRole) : false;
 
@@ -47,12 +66,12 @@ export function QuickInviteModal(props: Props) {
     setCreating(true);
     setError(null);
     try {
-      const inv = await createInvite(
+      const inv = await actions.createInvite(
         forcesSingleUse ? 1 : null,
         forcesSingleUse ? ADMIN_GRANT_DEFAULT_EXPIRY_SECS : null,
         grantRoleId || null,
       );
-      setLink(buildInviteLink(props.activeHubUrl, props.hubSerial, inv.code));
+      setLink(buildInviteLink(activeHubUrl, hubSerial, inv.code));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -61,7 +80,7 @@ export function QuickInviteModal(props: Props) {
   }
 
   return (
-    <div className="modal-overlay" onClick={props.onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
         <div className="modal" role="dialog" aria-modal="true" aria-labelledby="quick-invite-title" onClick={(e) => e.stopPropagation()}>
           <h3 id="quick-invite-title">{t("hub.invite_people")}</h3>
@@ -81,7 +100,7 @@ export function QuickInviteModal(props: Props) {
               )}
               {error && <p className="error-text">{error}</p>}
               <div className="modal-actions">
-                <button onClick={props.onClose} className="btn-secondary">{t("modal.cancel")}</button>
+                <button onClick={onClose} className="btn-secondary">{t("modal.cancel")}</button>
                 <button onClick={handleCreate} disabled={creating}>
                   {creating ? t("invites.quick.creating") : t("invites.quick.create")}
                 </button>
@@ -100,7 +119,7 @@ export function QuickInviteModal(props: Props) {
                 </button>
               </div>
               <div className="modal-actions">
-                <button onClick={props.onClose}>{t("modal.close")}</button>
+                <button onClick={onClose}>{t("modal.close")}</button>
               </div>
             </>
           )}

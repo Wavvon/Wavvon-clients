@@ -9,6 +9,7 @@ import type {
   Attachment,
   User,
   RoleInfo,
+  RoleCategory,
   Conversation,
   AllianceSharedChannel,
   VoiceParticipant,
@@ -25,7 +26,8 @@ import { DmView } from "./content/DmView";
 import { ChannelMessageList } from "./content/ChannelMessageList";
 import {
   AllianceView, BotCard, ReconnectBanner, ForumView, type ForumActions,
-  PollComposer, EventsPanel, type Poll, type HubEvent,
+  PollComposer, EventsPanel, type Poll, type HubEvent, type EventStagingCapability,
+  type EventMoveAssignment, type EventRsvp,
   ChannelHeader, ChannelComposer, type MessageRowActions,
 } from "@wavvon/ui";
 
@@ -162,6 +164,11 @@ interface Props {
   onStopShare: () => void;
   onComponentInteract?: (messageId: string, customId: string, values: string[]) => void;
   assertiveAnnouncement?: string;
+  // Event staging panel (events.md §7.5) — voice-move infra shared with the
+  // ChannelSidebar right-click move.
+  voicePartByChannel: Record<string, VoiceParticipant[]>;
+  canMoveMembers: boolean;
+  onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
 }
 
 export function ContentArea({
@@ -190,6 +197,7 @@ export function ContentArea({
   sharing, shareKbps, onStopShare,
   onComponentInteract,
   assertiveAnnouncement = "",
+  voicePartByChannel, canMoveMembers, onMoveMember,
 }: Props) {
   const { t } = useTranslation();
   const [slashSuggestions, setSlashSuggestions] = useState<SlashCommandEntry[]>([]);
@@ -202,6 +210,7 @@ export function ContentArea({
   const [showPinned, setShowPinned] = useState(false);
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [showEventsPanel, setShowEventsPanel] = useState(false);
+  const [channelPolls, setChannelPolls] = useState<Poll[]>([]);
   // Track IME composition so we don't reset the input value mid-emoji on Windows.
   const isComposing = React.useRef(false);
 
@@ -220,6 +229,16 @@ export function ContentArea({
       .then(setHubEmojis)
       .catch(() => setHubEmojis([]));
   }, [activeHubId]);
+
+  const activeHubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+  useEffect(() => {
+    setChannelPolls([]);
+    if (selectedChannel && activeHubUrl) {
+      invoke<Poll[]>("get_channel_polls", { hubUrl: activeHubUrl, channelId: selectedChannel.id })
+        .then(setChannelPolls)
+        .catch(() => {});
+    }
+  }, [selectedChannel?.id, activeHubUrl]);
 
   const hubEmojiMap = useMemo(() => {
     const map = new Map<string, HubEmojiEntry>();
@@ -340,7 +359,9 @@ export function ContentArea({
     muteUser: (pubkey) => invoke("mute_user_cmd", { targetPublicKey: pubkey, reason: null }),
     kickUser: (pubkey) => invoke("kick_user_cmd", { targetPublicKey: pubkey, reason: null }),
     banUser: (pubkey) => invoke("ban_user_cmd", { targetPublicKey: pubkey, reason: null }),
-    // votePoll/deletePoll and reportMessage omitted — see MessageRowActions doc comment.
+    votePoll: (pollId, optionId) => invoke<Poll>("vote_poll", { pollId, optionIds: [optionId] }),
+    deletePoll: (pollId) => invoke("delete_poll", { hubUrl: activeHub?.hub_url ?? "", pollId }),
+    reportMessage: (messageId, reason) => invoke("report_message", { messageId, reason }),
   };
 
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
@@ -581,6 +602,9 @@ export function ContentArea({
               hubs={hubs}
               activeHubId={activeHubId}
               isAdmin={isAdmin}
+              channelPolls={channelPolls}
+              onPollUpdate={(poll) => setChannelPolls((prev) => prev.map((p) => (p.id === poll.id ? poll : p)))}
+              onPollDelete={(pollId) => setChannelPolls((prev) => prev.filter((p) => p.id !== pollId))}
               stickToBottom={stickToBottom}
               newWhileScrolledUp={newWhileScrolledUp}
               firstNotifyingMessageId={firstNotifyingMessageId}
@@ -684,7 +708,12 @@ export function ContentArea({
           pubkey={profileCard.pubkey}
           myPubkey={publicKey}
           activeHubId={activeHubId}
-          actions={{ getUserProfile: (pubkey) => invoke<UserProfile>("get_user_profile", { hubUrl: activeHub.hub_url, pubkey }) }}
+          actions={{
+            getUserProfile: (pubkey) => invoke<UserProfile>("get_user_profile", { hubUrl: activeHub.hub_url, pubkey }),
+            listRoleCategories: () => invoke<RoleCategory[]>("list_role_categories"),
+            saveMyProfile: (_hubId, fields) =>
+              invoke<void>("update_my_profile_on_hub", { hubUrl: activeHub.hub_url, profile: fields }),
+          }}
           onClose={() => setProfileCard(null)}
         />
       )}
@@ -720,6 +749,7 @@ export function ContentArea({
               ends_at: raw.ends_at,
               is_deleted: false,
             };
+            setChannelPolls((prev) => [...prev, poll]);
             return poll;
           }}
           onCreated={() => {
@@ -743,7 +773,9 @@ export function ContentArea({
               channels={channels}
               getEvents={() => invoke<HubEvent[]>("get_hub_events", { hubUrl: activeHub.hub_url })}
               deleteEvent={(eventId) => invoke<void>("delete_event", { hubUrl: activeHub.hub_url, eventId })}
-              rsvpEvent={(eventId, status) => invoke<void>("rsvp_event_hub", { hubUrl: activeHub.hub_url, eventId, status })}
+              rsvpEvent={(eventId, status, slotId) =>
+                invoke<void>("rsvp_event_hub", { hubUrl: activeHub.hub_url, eventId, status, slotId: slotId ?? null })
+              }
               createEvent={(payload) =>
                 invoke<HubEvent>("create_event_hub", {
                   hubUrl: activeHub.hub_url,
@@ -753,8 +785,28 @@ export function ContentArea({
                   endsAt: payload.ends_at ?? null,
                   channelId: payload.channel_id,
                   location: payload.location ?? null,
+                  reminderMinutes: payload.reminder_minutes ?? null,
+                  slots: payload.slots ?? [],
+                  hubWide: payload.hub_wide ?? false,
+                  propagateToChildren: payload.propagate_to_children ?? false,
                 })
               }
+              advancedFieldsSupported
+              slotClaimSupported
+              staging={{
+                channels,
+                users,
+                voicePartByChannel,
+                canMoveMembers,
+                onMoveMember,
+                getEvent: (eventId) => invoke<HubEvent>("get_event", { hubUrl: activeHub.hub_url, eventId }),
+                getEventAssignments: (eventId) =>
+                  invoke<EventMoveAssignment[]>("get_event_assignments", { hubUrl: activeHub.hub_url, eventId }),
+                getEventRsvps: (eventId) =>
+                  invoke<EventRsvp[]>("get_event_rsvps", { hubUrl: activeHub.hub_url, eventId }),
+                createEventSquadRooms: (eventId, count, namePrefix) =>
+                  invoke<Channel[]>("create_event_squad_rooms", { hubUrl: activeHub.hub_url, eventId, count, namePrefix: namePrefix ?? null }),
+              } satisfies EventStagingCapability}
             />
           </div>
         </div>

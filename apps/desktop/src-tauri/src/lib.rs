@@ -27,6 +27,7 @@ mod pairing;
 mod passkey_cmd;
 mod prefs_blob;
 mod screen_share;
+mod soundboard;
 mod state;
 mod types;
 mod updater;
@@ -157,6 +158,7 @@ pub fn run() {
             messages::forum_remove_reply_reaction,
             messages::mark_post_read,
             messages::upload_file,
+            messages::upload_file_bytes,
             messages::pin_message,
             messages::unpin_message,
             messages::get_pinned_messages,
@@ -182,6 +184,13 @@ pub fn run() {
             voice_cmd::stop_whisper,
             voice_cmd::load_whisper_lists,
             voice_cmd::save_whisper_lists,
+            // Soundboard
+            soundboard::soundboard_list_clips,
+            soundboard::soundboard_fetch_audio,
+            soundboard::soundboard_upload_clip,
+            soundboard::soundboard_delete_clip,
+            soundboard::soundboard_play_clip,
+            soundboard::soundboard_stop,
             // Local store
             local_store::load_appearance,
             local_store::save_appearance,
@@ -218,6 +227,10 @@ pub fn run() {
             admin::assign_role,
             admin::unassign_role,
             admin::list_user_roles,
+            admin::list_role_categories,
+            admin::create_role_category,
+            admin::update_role_category,
+            admin::delete_role_category,
             admin::get_hub_settings,
             admin::list_pending_members,
             admin::approve_member,
@@ -228,6 +241,7 @@ pub fn run() {
             admin::list_hub_members,
             admin::kick_user_cmd,
             admin::ban_user_cmd,
+            admin::report_message,
             admin::mute_user_cmd,
             admin::timeout_user_cmd,
             admin::voice_mute_user_cmd,
@@ -376,6 +390,10 @@ pub fn run() {
             events_polls::get_hub_events,
             events_polls::rsvp_event_hub,
             events_polls::create_event_hub,
+            events_polls::get_event,
+            events_polls::get_event_assignments,
+            events_polls::get_event_rsvps,
+            events_polls::create_event_squad_rooms,
             // Screen capture / PiP
             screen_share::list_capture_sources,
             screen_share::open_pip_window,

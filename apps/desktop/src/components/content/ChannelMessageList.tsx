@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { Message, User, RoleInfo, Hub } from "../../types";
+import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
 import { MessageRow, TypingIndicator, type MessageRowActions } from "@wavvon/ui";
 
 type HubEmojiEntry = { id: string; name: string; url: string };
@@ -56,6 +56,9 @@ interface Props {
   onMessageKeyDown: (e: React.KeyboardEvent<HTMLLIElement>, index: number, displayedMessages: Message[]) => void;
   onComponentInteract: (messageId: string, customId: string, values: string[]) => void;
   actions: MessageRowActions;
+  channelPolls?: Poll[];
+  onPollUpdate?: (poll: Poll) => void;
+  onPollDelete?: (pollId: string) => void;
 }
 
 export function ChannelMessageList({
@@ -108,6 +111,9 @@ export function ChannelMessageList({
   onMessageKeyDown,
   onComponentInteract,
   actions,
+  channelPolls = [],
+  onPollUpdate,
+  onPollDelete,
 }: Props) {
   const { t } = useTranslation();
   const displayedMessages = (searchResults ?? messages).filter((msg) => !blockedUsers.has(msg.sender));
@@ -162,8 +168,9 @@ export function ChannelMessageList({
             isAdmin={isAdmin}
             sessionHubUrl={activeHub?.hub_url ?? null}
             actions={actions}
-            onPollUpdate={() => {}}
-            onPollDelete={() => {}}
+            channelPolls={channelPolls}
+            onPollUpdate={(poll) => onPollUpdate?.(poll)}
+            onPollDelete={(pollId) => onPollDelete?.(pollId)}
             displayedMessages={displayedMessages}
             messageRowRef={(el) => { messageRowRefs.current[i] = el; }}
             onToggleReaction={onToggleReaction}

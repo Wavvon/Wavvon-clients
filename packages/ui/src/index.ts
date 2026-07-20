@@ -83,6 +83,7 @@ export type {
   Alliance,
   AllianceMember,
   AllianceDetail,
+  AllianceInvite,
   PendingAllianceInvite,
   SharedChannel,
   ExternalBotRow,
@@ -178,6 +179,7 @@ export type { SkinBase, ThemeId, WavvonSkin, AppearanceState } from "./skinValid
 export { SkinEditor, makeSeed } from "./components/SkinEditor";
 export { SkinsGallery } from "./components/SkinsGallery";
 export { AddHubModal } from "./components/hubs/AddHubModal";
+export { QuickInviteModal, type QuickInviteModalActions } from "./components/hubs/QuickInviteModal";
 export { CreateChannelModal, BANNER_MAX_BYTES, BANNER_MIME_TYPES } from "./components/channels/CreateChannelModal";
 export type { BannerSource } from "./components/channels/CreateChannelModal";
 export { WelcomeScreen } from "./components/layout/WelcomeScreen";

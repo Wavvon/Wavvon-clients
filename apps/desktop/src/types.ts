@@ -33,6 +33,7 @@ import type { Message } from "@wavvon/ui";
 export type { ReplyContext, Message, User } from "@wavvon/ui";
 
 export type { NotifyMode } from "@wavvon/ui";
+export type { SoundboardClip } from "@wavvon/ui";
 
 /** Own presence: absent/"online" is the default; away/dnd/invisible are
  *  explicit picks. Free-text custom status was removed (decisions.md 2026-07-12). */

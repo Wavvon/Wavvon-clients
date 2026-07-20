@@ -17,10 +17,9 @@ const trimToNull = (s: string) => {
   return v ? v : null;
 };
 
-/** Platform-calling operations the profile card needs. `listRoleCategories`
- * and `saveMyProfile` have no desktop-side hub route yet, so own-profile
- * editing and category-grouped roles are unavailable there — the card falls
- * back to a flat, uncategorized role list and view-only fields. */
+/** Platform-calling operations the profile card needs. The optional members
+ * degrade gracefully when omitted: no `listRoleCategories` → flat role list;
+ * no `saveMyProfile` → view-only own-profile fields. */
 export interface UserProfileCardActions {
   getUserProfile: (pubkey: string) => Promise<UserProfile>;
   listRoleCategories?: (hubId: string) => Promise<RoleCategory[]>;

@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 use crate::state::{active_session, AppState};
 use crate::types::{
-    HubBranding, HubIcon, HubSettings, InfoResponse, MeInfo, PendingUser, RoleInfo, UserInfo,
+    HubBranding, HubIcon, HubSettings, InfoResponse, MeInfo, PendingUser, RoleCategory, RoleInfo,
+    UserInfo,
 };
 use tauri::{AppHandle, Emitter, State};
 
@@ -391,6 +392,109 @@ pub(crate) async fn unassign_role(
 }
 
 // ---------------------------------------------------------------------------
+// Role categories (display-only grouping containers for roles)
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub(crate) async fn list_role_categories(
+    state: State<'_, AppState>,
+) -> Result<Vec<RoleCategory>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    client
+        .get(format!("{hub_url}/role-categories"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn create_role_category(
+    name: String,
+    position: i64,
+    state: State<'_, AppState>,
+) -> Result<RoleCategory, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .post(format!("{hub_url}/role-categories"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "name": name, "position": position }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn update_role_category(
+    category_id: String,
+    name: Option<String>,
+    color: Option<String>,
+    icon: Option<String>,
+    position: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<RoleCategory, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    // Tri-state fields on the hub side (`Some(None)` clears, absent leaves
+    // untouched) — Tauri collapses "omitted" and "explicit null" into the
+    // same `None`, so only send keys the caller actually set (same pattern
+    // as create_role/update_role's color/icon/category_id above).
+    let mut body = serde_json::json!({});
+    let obj = body.as_object_mut().unwrap();
+    if let Some(n) = name {
+        obj.insert("name".to_string(), serde_json::Value::String(n));
+    }
+    if let Some(c) = color {
+        obj.insert("color".to_string(), serde_json::Value::String(c));
+    }
+    if let Some(i) = icon {
+        obj.insert("icon".to_string(), serde_json::Value::String(i));
+    }
+    if let Some(p) = position {
+        obj.insert("position".to_string(), serde_json::json!(p));
+    }
+    let resp = client
+        .patch(format!("{hub_url}/role-categories/{category_id}"))
+        .bearer_auth(&token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn delete_role_category(
+    category_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .delete(format!("{hub_url}/role-categories/{category_id}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Hub settings / members / icons
 // ---------------------------------------------------------------------------
 
@@ -610,6 +714,20 @@ pub(crate) async fn ban_user_cmd(
             "target_public_key": target_public_key,
             "reason": reason,
         }),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn report_message(
+    message_id: String,
+    reason: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    post_moderation(
+        &state,
+        &format!("messages/{message_id}/report"),
+        serde_json::json!({ "reason": reason }),
     )
     .await
 }

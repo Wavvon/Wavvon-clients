@@ -754,3 +754,50 @@ pub(crate) async fn upload_file(
         file_id: json["id"].as_str().unwrap_or("").to_string(),
     })
 }
+
+/// Like `upload_file`, but takes the bytes directly (base64) — for content
+/// the webview holds as a browser `File` with no filesystem path (e.g. the
+/// shared ChannelSettingsModal's banner picker).
+#[tauri::command]
+pub(crate) async fn upload_file_bytes(
+    hub_url: String,
+    channel_id: String,
+    filename: String,
+    mime_type: String,
+    bytes_b64: String,
+    state: State<'_, AppState>,
+) -> Result<UploadResult, String> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let bytes = B64.decode(&bytes_b64).map_err(|e| e.to_string())?;
+    let size_bytes = bytes.len() as u64;
+    let part = reqwest::multipart::Part::bytes(bytes)
+        .file_name(filename.clone())
+        .mime_str(&mime_type)
+        .map_err(|e| e.to_string())?;
+    let form = reqwest::multipart::Form::new().part("file", part);
+    let url = format!(
+        "{}/channels/{}/upload",
+        hub_url.trim_end_matches('/'),
+        channel_id
+    );
+    let res = state
+        .http_client
+        .post(&url)
+        .bearer_auth(&token)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("Upload failed: HTTP {}", res.status()));
+    }
+    let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+    Ok(UploadResult {
+        url: json["url"].as_str().unwrap_or("").to_string(),
+        filename: json["filename"].as_str().unwrap_or(&filename).to_string(),
+        size_bytes: json["size_bytes"].as_u64().unwrap_or(size_bytes),
+        mime_type: json["mime_type"].as_str().unwrap_or(&mime_type).to_string(),
+        file_id: json["id"].as_str().unwrap_or("").to_string(),
+    })
+}

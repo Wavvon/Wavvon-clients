@@ -693,6 +693,7 @@
   "alliances.join.hint": "Incolla il codice di condivisione ricevuto dall'admin di un altro hub.",
   "alliances.join.placeholder": "Incolla codice…",
   "alliances.join.button": "Unisciti",
+  "alliances.join.invalid_code": "Codice di condivisione non valido — assicurati di averlo incollato per intero.",
   "alliances.share.category_hint": "Condividere una categoria condivide tutto il suo sottoalbero con l'alleanza, inclusi i sotto-canali aggiunti in seguito.",
   "alliances.share.recursive_marker": "(+ sotto-spazi)",
   "ext_bot.section.title": "Bot esterni",
