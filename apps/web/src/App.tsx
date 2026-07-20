@@ -40,12 +40,18 @@ import type {
 } from "@shared/types";
 import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus } from "./types";
 import { HubSidebar } from "@wavvon/ui";
-import { ChannelSidebar } from "@components/layout/ChannelSidebar";
+import { ChannelSidebar } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
 import { WhisperBar } from "@components/voice/WhisperBar";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, type DefaultProfile } from "./utils/profiles";
 import { getUserProfile, listRoleCategories, patchMyProfileOnHub, listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } from "@platform";
+import { getHubSettings, saveHubSettings } from "@platform";
+import {
+  getChannelPermissions, setChannelRolePermissions, clearChannelRolePermissions,
+  listChannelBans, banFromChannel, unbanFromChannel,
+  listHubIcons, getTalkPower, setTalkPower,
+} from "@platform";
 import type { UserProfileCardActions, UserContextMenuActions } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
@@ -54,13 +60,50 @@ import type { HubStreamInfo } from "./types";
 import { AddHubModal } from "@wavvon/ui";
 import { isPasskeySupported } from "@platform";
 import { QuickInviteModal } from "@components/hubs/QuickInviteModal";
-import { CreateChannelModal } from "@wavvon/ui";
-import { ChannelSettingsModal } from "@components/channels/ChannelSettingsModal";
+import { CreateChannelModal, ChannelSettingsModal } from "@wavvon/ui";
+import type { ChannelPermissionsTabActions, ChannelBansTabActions, ChannelTalkPowerTabActions } from "@wavvon/ui";
 import { CreateHubFork } from "@components/hubs/CreateHubFork";
 import { BotAppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, HoverSubmenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, FarmSettingsPage } from "@wavvon/ui";
 import { createEvent, createPoll } from "@platform";
-import { moveChannelOptions, decideVoiceMove } from "./utils/voiceMove";
-import { HubAdminPage } from "@components/admin/HubAdminPage";
+import { moveChannelOptions, decideVoiceMove } from "@wavvon/ui";
+import {
+  HubAdminPage,
+  type RolesSectionActions,
+  type MemberRoleManagerActions,
+  type ServerTagsSectionActions,
+  type InviteManagerActions,
+  type NativeBotsSectionActions,
+  type AuditLogSectionActions,
+  type CertificationsSectionActions,
+  type SoundboardAdminSectionActions,
+  type OnboardingAdminSectionActions,
+} from "@wavvon/ui";
+import {
+  createRole, updateRole, deleteRole,
+  createRoleCategory, updateRoleCategory, deleteRoleCategory,
+  getDiscoveryTags, setDiscoveryTags, submitToDirectory,
+  listBadges, listPendingBadges, acceptBadge, declineBadge, removeBadge, grantBadge,
+  createHubIcon, renameHubIcon, deleteHubIcon,
+  listNativeBots, createNativeBot, deleteNativeBot, getNativeBotDetail, setNativeBotWebhook,
+  getAuditLog,
+  listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+  listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip,
+  listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
+  muteMember, timeoutMember, voiceMuteMember, voiceUnmuteMember, listVoiceMutes,
+  getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
+  listAlliances, createAlliance, leaveAlliance,
+  listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
+  listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+} from "@platform";
+import {
+  adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
+  adminListExternalBots, adminAddExternalBot, adminRemoveExternalBot,
+  adminGetBotChannelScope, adminSetBotChannelScope,
+} from "./platform/commands/bots";
+import { ModerationTab } from "@components/admin/ModerationTab";
+import { OutgoingWebhooksSection } from "@components/admin/OutgoingWebhooksSection";
+import { BotCapabilitiesPanel } from "@components/admin/BotCapabilitiesPanel";
+import { RecoveryContactsSection } from "@components/settings/RecoveryContactsSection";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
 import { SettingsPage } from "@components/settings/SettingsPage";
 import { UserContextMenu } from "@wavvon/ui";
@@ -70,7 +113,7 @@ import { listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriend
 import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
-import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
+import { saveDraft, loadDraft, clearDraft, hasDraft } from "./utils/drafts";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey, sendBotAppJoin } from "@platform";
@@ -398,6 +441,13 @@ export default function App({ initialView }: AppProps = {}) {
     hubAdminInvites,
     hubAdminPending,
     maxChannelDepth, setMaxChannelDepth,
+    hubListed,
+    onHubListedChange,
+    voiceMutedKeys,
+    onMuteMember,
+    onTimeoutMember,
+    onVoiceMuteMember,
+    onVoiceUnmuteMember,
     openHubAdmin,
     saveHubAdminSettings,
     addInvite,
@@ -1531,7 +1581,7 @@ export default function App({ initialView }: AppProps = {}) {
     }
   }
 
-  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, banner?: { url?: string; file?: File | null }) {
+  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, customIconSvg?: string | null, banner?: { url?: string; file?: File | null }) {
     if (!channelSettingsCtx) return;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
@@ -1552,6 +1602,7 @@ export default function App({ initialView }: AppProps = {}) {
           description: description || null,
           color,
           icon,
+          custom_icon_svg: customIconSvg,
           banner_url: banner?.url,
           banner_file_id: bannerFileId,
         }),
@@ -2238,6 +2289,24 @@ export default function App({ initialView }: AppProps = {}) {
     [myRoles],
   );
 
+  const channelPermissionsTabActions: ChannelPermissionsTabActions = {
+    getChannelPermissions,
+    setChannelRolePermissions,
+    clearChannelRolePermissions,
+    listRoles,
+  };
+
+  const channelBansTabActions: ChannelBansTabActions = {
+    listChannelBans,
+    banFromChannel,
+    unbanFromChannel,
+  };
+
+  const channelTalkPowerTabActions: ChannelTalkPowerTabActions = {
+    getTalkPower,
+    setTalkPower,
+  };
+
   const userContextMenuActions: UserContextMenuActions = {
     listRoles,
     listUserRoles,
@@ -2783,7 +2852,7 @@ export default function App({ initialView }: AppProps = {}) {
             currentChannelId: channelId,
           });
         } : undefined}
-        onSelectAllianceChannel={handleSelectAllianceChannel}
+        onSelectAllianceChannel={(a, c) => handleSelectAllianceChannel(a, c as AllianceSharedChannel)}
         onOpenFriends={() => setShowFriends(true)}
         onSelectConversation={handleSelectConversation}
         onToggleSelfMute={handleToggleMute}
@@ -2793,7 +2862,10 @@ export default function App({ initialView }: AppProps = {}) {
         voiceGains={voiceGains}
         onSetVoiceGain={handleSetVoiceGain}
         inboundWhispers={whisperingFrom}
+        hasDraft={hasDraft}
+        onOpenSearch={() => setShowSearchBar(true)}
         canUseSoundboard={canUseSoundboard}
+        onListSoundboardClips={listSoundboardClips}
         onTriggerSoundboardClip={handleTriggerSoundboardClip}
         soundboardPlayingClipId={soundboardPlayingClipId}
         soundboardChips={voiceChannelId ? soundboardChipsByChannel[voiceChannelId] ?? [] : []}
@@ -3007,11 +3079,19 @@ export default function App({ initialView }: AppProps = {}) {
             onWelcomeInviteUrlChange={setHubAdminWelcomeInviteUrl}
             saveError={hubAdminSaveError}
             onSave={saveHubAdminSettings}
+            hubListed={hubListed}
+            onHubListedChange={onHubListedChange}
+            submitToDirectory={submitToDirectory}
             pendingMembers={hubAdminPending}
             onApproveMember={(pk) => hubFetch(`/hub/pending/${pk}/approve`, { method: "POST" }).catch(() => {})}
             members={hubAdminMembers}
             onKickMember={(pk) => hubFetch(`/moderation/kick`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}
             onBanMember={(pk) => hubFetch(`/moderation/bans`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}
+            onMuteMember={onMuteMember}
+            onTimeoutMember={onTimeoutMember}
+            onVoiceMuteMember={onVoiceMuteMember}
+            onVoiceUnmuteMember={onVoiceUnmuteMember}
+            voiceMutedKeys={voiceMutedKeys}
             bans={hubAdminBans}
             onUnban={(pk) => hubFetch(`/moderation/bans/${pk}`, { method: "DELETE" }).catch(() => {})}
             invites={hubAdminInvites}
@@ -3034,6 +3114,66 @@ export default function App({ initialView }: AppProps = {}) {
               removeInvite(code);
             }}
             channels={channels}
+            rolesActions={{
+              listRoles, createRole, updateRole, deleteRole,
+              listRoleCategories, createRoleCategory, updateRoleCategory, deleteRoleCategory,
+            } as RolesSectionActions}
+            memberRoleActions={{ listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } as MemberRoleManagerActions}
+            serverTagsActions={{
+              getDiscoveryTags, setDiscoveryTags,
+              listBadges, listPendingBadges, acceptBadge, declineBadge, removeBadge, grantBadge,
+            } as ServerTagsSectionActions}
+            inviteActions={{ listRoles, getHubSettings, saveHubSettings } as InviteManagerActions}
+            webhookActions={{
+              loadWebhooks: adminListWebhooks,
+              createWebhook: adminCreateWebhook,
+              regenerateWebhook: adminRegenerateWebhook,
+              deleteWebhook: adminDeleteWebhook,
+            }}
+            externalBotActions={{
+              loadBots: adminListExternalBots,
+              addBot: adminAddExternalBot,
+              removeBot: adminRemoveExternalBot,
+              getBotChannelScope: adminGetBotChannelScope,
+              setBotChannelScope: adminSetBotChannelScope,
+            }}
+            renderBotCapabilities={(pubkey) => <BotCapabilitiesPanel pubkey={pubkey} />}
+            nativeBotActions={{
+              listNativeBots, createNativeBot, deleteNativeBot,
+              getBotDetail: getNativeBotDetail, setBotWebhook: setNativeBotWebhook,
+            } as NativeBotsSectionActions}
+            auditLogActions={{ getAuditLog } as AuditLogSectionActions}
+            certActions={{
+              listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+            } as CertificationsSectionActions}
+            soundboardActions={{
+              listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip, fetchSoundboardAudioBytes,
+            } as SoundboardAdminSectionActions}
+            onboardingActions={{
+              listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
+            } as OnboardingAdminSectionActions}
+            allianceActions={{
+              listAlliances, createAlliance, leaveAlliance,
+              listPendingAllianceInvites,
+              acceptAllianceInvite: (inviteId, ownHubUrl) => acceptAllianceInvite(inviteId, ownHubUrl).then(() => {}),
+              declineAllianceInvite,
+              listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+            }}
+            hubIconActions={{ listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon }}
+            surveyActions={{
+              getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
+              loadAssignableRoles: () =>
+                listRoles().then((roles) => roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))),
+            }}
+            renderModerationTab={() => <ModerationTab />}
+            renderOutgoingWebhooks={() => <OutgoingWebhooksSection channels={channels} />}
+            renderRecoveryContacts={() => (
+              <RecoveryContactsSection
+                hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+                isAdmin={isAdmin}
+                publicKey={null}
+              />
+            )}
           />
         </div>
       )}
@@ -3112,9 +3252,15 @@ export default function App({ initialView }: AppProps = {}) {
           canManageRoles={canManageRoles}
           isAdmin={isAdmin}
           myMaxPriority={myMaxPriority}
+          hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
           onSave={handleSaveChannelSettings}
           onDelete={handleDeleteChannel}
           onClose={() => { setChannelSettingsCtx(null); setChannelSettingsError(null); }}
+          permissionsActions={channelPermissionsTabActions}
+          bansActions={channelBansTabActions}
+          bansUsers={users}
+          talkPowerActions={channelTalkPowerTabActions}
+          listHubIcons={listHubIcons}
         />
       )}
 

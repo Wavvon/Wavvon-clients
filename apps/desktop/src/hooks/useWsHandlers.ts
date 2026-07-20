@@ -2,7 +2,7 @@ import { useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { formatPubkey } from "@wavvon/core";
-import type { DmMessage, VoiceParticipant, Conversation, User, BotAppLaunchEvent, BotAppOpenEvent, BotAppCloseEvent } from "../types";
+import type { DmMessage, VoiceParticipant, Conversation, User, BotAppLaunchEvent, BotAppOpenEvent, BotAppCloseEvent, PresenceStatus } from "../types";
 
 export interface WsHandlersParams {
   activeHubIdRef: RefObject<string | null>;
@@ -11,7 +11,8 @@ export interface WsHandlersParams {
   selectedConversationIdRef: RefObject<string | null>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-  myPresenceRef: RefObject<{ status: "online" | "away" | "dnd"; custom: string | null }>;
+  myPresenceRef: RefObject<{ status: PresenceStatus }>;
+  onVoiceMove: (raw: unknown) => void;
   setHubConnected: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   setAssertiveAnnouncement: (msg: string) => void;
   setToast: (msg: string) => void;
@@ -77,6 +78,7 @@ export function useWsHandlers({
   onBotAppLaunch,
   onBotAppOpen,
   onBotAppClose,
+  onVoiceMove,
 }: WsHandlersParams) {
   useEffect(() => {
     const unlistens: (() => void)[] = [];
@@ -106,10 +108,10 @@ export function useWsHandlers({
               // just (re)connected, but only if the user ever picked one here —
               // a fresh device must not stomp a status set elsewhere.
               const p = myPresenceRef.current;
-              if (p && (p.status !== "online" || p.custom)) {
+              if (p && p.status !== "online") {
                 invoke("send_hub_ws_raw_to", {
                   hubId: hub_id,
-                  payload: JSON.stringify({ type: "set_status", status: p.status, custom: p.custom }),
+                  payload: JSON.stringify({ type: "set_status", status: p.status, custom: null }),
                 }).catch(() => { /* session raced away */ });
               }
               onHubReconnected(hub_id);
@@ -134,6 +136,20 @@ export function useWsHandlers({
             );
           }
         )
+      );
+
+      unlistens.push(
+        await listen<{
+          hub_id: string;
+          target_channel_id?: string;
+          target_channel_name?: string;
+          source_channel_id?: string | null;
+          event_id?: string | null;
+          auto?: boolean;
+        }>("voice-move", (event) => {
+          if (event.payload.hub_id !== activeHubIdRef.current) return;
+          onVoiceMove(event.payload);
+        })
       );
 
       unlistens.push(

@@ -34,6 +34,10 @@ export type { ReplyContext, Message, User } from "@wavvon/ui";
 
 export type { NotifyMode } from "@wavvon/ui";
 
+/** Own presence: absent/"online" is the default; away/dnd/invisible are
+ *  explicit picks. Free-text custom status was removed (decisions.md 2026-07-12). */
+export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
+
 export interface BotInfo {
   public_key: string;
   display_name: string;
@@ -97,6 +101,7 @@ export interface InviteInfo {
   uses: number;
   expires_at: number | null;
   created_at: number;
+  grant_role_id: string | null;
 }
 
 export interface PendingUser {

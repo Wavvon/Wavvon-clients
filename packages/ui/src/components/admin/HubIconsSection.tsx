@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
-import DOMPurify from "dompurify";
 import { ErrorRetry } from "../ErrorRetry";
 import type { HubIcon } from "../../types";
+import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
 
 const RASTER_SIZE = 64;
-
-function sanitizeSvgMarkup(svg: string): string {
-  return DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
-}
 
 // Raster files never reach the server as raw pixels — they're drawn to an
 // offscreen canvas, center-cropped to a square, and embedded as a data URI

@@ -3,12 +3,11 @@ import type {
   HubSelfTagSettings,
   HubBadge,
   PendingBadgeOffer,
-  CertIssuance,
-  CertAdmissionSettings,
   RecoverySettings,
   RecoveryRotationRequest,
   InviteInfo,
 } from "../../types";
+import type { CertIssuance, CertAdmissionSettings } from "@wavvon/ui";
 
 // ---- Discovery / self-tags ----
 
@@ -246,4 +245,21 @@ export async function createInvite(
     }),
   });
   return r.json() as Promise<InviteInfo>;
+}
+
+// ---- Public listing (/federation/listing itself is unauthenticated, but
+// hubFetch's auth header is harmless against it; the admin toggle lives at
+// /admin/settings/listing) ----
+
+export async function getHubListingStatus(): Promise<boolean> {
+  const r = await hubFetch("/federation/listing");
+  const body = (await r.json()) as { listed?: boolean };
+  return body.listed ?? false;
+}
+
+export async function setHubListed(listed: boolean): Promise<void> {
+  await hubFetch("/admin/settings/listing", {
+    method: "PATCH",
+    body: JSON.stringify({ listed }),
+  });
 }

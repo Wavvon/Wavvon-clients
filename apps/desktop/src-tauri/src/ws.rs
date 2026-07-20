@@ -87,6 +87,16 @@ pub(crate) async fn spawn_ws_task(
                                             "custom": custom,
                                         }));
                                     }
+                                    WsServerMessage::VoiceMove { target_channel_id, target_channel_name, source_channel_id, event_id, auto } => {
+                                        let _ = app.emit("voice-move", serde_json::json!({
+                                            "hub_id": hub_id_for_task,
+                                            "target_channel_id": target_channel_id,
+                                            "target_channel_name": target_channel_name,
+                                            "source_channel_id": source_channel_id,
+                                            "event_id": event_id,
+                                            "auto": auto,
+                                        }));
+                                    }
                                     WsServerMessage::VoiceJoined { channel_id, hub_udp_port, participants, udp_register_token } => {
                                         // If the hub sent a registration token, hand it to the
                                         // running pipeline so the VXRG loop can begin. The pipeline

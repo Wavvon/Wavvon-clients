@@ -79,6 +79,10 @@ pub(crate) struct InfoResponse {
     pub public_key: String,
     #[serde(default)]
     pub farm_url: Option<String>,
+    #[serde(default)]
+    pub welcome_label: Option<String>,
+    #[serde(default)]
+    pub welcome_invite_url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -89,6 +93,12 @@ pub(crate) struct RoleInfo {
     pub priority: i64,
     #[serde(default)]
     pub display_separately: bool,
+    #[serde(default)]
+    pub color: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub category_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -111,6 +121,10 @@ pub(crate) struct HubBranding {
     pub name: String,
     pub description: Option<String>,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub welcome_label: Option<String>,
+    #[serde(default)]
+    pub welcome_invite_url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -119,6 +133,8 @@ pub(crate) struct HubSettings {
     pub invite_only: bool,
     pub min_security_level: u32,
     pub max_channel_depth: u32,
+    #[serde(default)]
+    pub default_invite_role_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -867,6 +883,22 @@ pub(crate) enum WsServerMessage {
         status: Option<String>,
         #[serde(default)]
         custom: Option<String>,
+    },
+    /// Hub-pushed voice_move (events.md §7.1) — targeted-by-pubkey, like whisper.
+    /// `target_channel_name` is used as-is; the destination may not be in the
+    /// local channel list (a voice-only-presence target has no read access).
+    #[serde(rename = "voice_move")]
+    VoiceMove {
+        #[serde(default)]
+        target_channel_id: Option<String>,
+        #[serde(default)]
+        target_channel_name: Option<String>,
+        #[serde(default)]
+        source_channel_id: Option<String>,
+        #[serde(default)]
+        event_id: Option<String>,
+        #[serde(default)]
+        auto: Option<bool>,
     },
     #[serde(rename = "voice_joined")]
     VoiceJoined {

@@ -50,30 +50,6 @@ export const ALL_PERMISSIONS: { id: string; label: string }[] = [
   { id: "move_members", label: "Move members between voice channels" },
 ];
 
-// Permissions eligible for a per-channel role overwrite. Excludes "admin"
-// (overwrite-immune server-side — see nested-channels-ux.md §3.2) and
-// hub-only permissions like manage_bots that have no channel dimension.
-export const CHANNEL_OVERWRITE_PERMISSIONS: { id: string; label: string }[] = [
-  { id: "read_messages", label: "Read messages" },
-  { id: "send_messages", label: "Send messages" },
-  { id: "manage_channels", label: "Manage channels" },
-  { id: "manage_messages", label: "Manage messages" },
-  { id: "manage_roles", label: "Manage roles" },
-  { id: "kick_members", label: "Kick members" },
-  { id: "ban_members", label: "Ban members" },
-  { id: "mute_members", label: "Mute members" },
-  { id: "timeout_members", label: "Timeout members" },
-  { id: "manage_games", label: "Manage games" },
-  { id: "manage_hub_icons", label: "Manage hub icon library" },
-  { id: "manage_channel_icons", label: "Set icons and colors on channels" },
-  { id: "create_posts", label: "Create forum posts" },
-  { id: "manage_posts", label: "Manage forum posts" },
-  { id: "start_game", label: "Start games" },
-  { id: "create_events", label: "Create events" },
-  { id: "use_soundboard", label: "Use soundboard" },
-  { id: "move_members", label: "Move members between voice channels" },
-];
-
 // Small preset palette for role/role-category color pickers. Free hex input
 // is offered alongside these for anything more specific.
 export const ROLE_ACCENT_COLORS: string[] = [

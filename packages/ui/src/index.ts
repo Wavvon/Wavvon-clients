@@ -31,6 +31,11 @@ export type {
   EventSlot,
   HubEvent,
   EventMoveAssignment,
+  AllianceInfo,
+  Conversation,
+  WhisperTarget,
+  WhisperList,
+  SoundboardChip,
 } from "./types";
 export { AudioProfileSection } from "./components/AudioProfileSection";
 export { Avatar } from "./components/Avatar";
@@ -201,4 +206,98 @@ export type {
   UserProfile,
   PublicHubEntry,
   PublicHubProfile,
+} from "./types";
+export type {
+  ChannelRoleOverwrites,
+  ChannelRolePermissions,
+  ChannelPermissionsResponse,
+} from "./types";
+export { sanitizeSvgMarkup } from "./utils/svgSanitize";
+export {
+  CHANNEL_OVERWRITE_PERMISSIONS,
+  deriveRowStates,
+  buildOverwritePayload,
+} from "./utils/channelPermissions";
+export type { TriState } from "./utils/channelPermissions";
+export { ChannelIconPicker } from "./components/channels/ChannelIconPicker";
+export { ChannelPermissionsTab } from "./components/channels/ChannelPermissionsTab";
+export type { ChannelPermissionsTabActions } from "./components/channels/ChannelPermissionsTab";
+export { ChannelBansTab } from "./components/channels/ChannelBansTab";
+export type { ChannelBansTabActions, ChannelBanRow, ChannelBansTabUser } from "./components/channels/ChannelBansTab";
+export { ChannelTalkPowerTab } from "./components/channels/ChannelTalkPowerTab";
+export type { ChannelTalkPowerTabActions } from "./components/channels/ChannelTalkPowerTab";
+export { ChannelSettingsModal } from "./components/channels/ChannelSettingsModal";
+export type { ChannelSettingsModalChannel } from "./components/channels/ChannelSettingsModal";
+
+// ---------------------------------------------------------------------------
+// ChannelSidebar (parity hoist, 2026-07-20)
+// ---------------------------------------------------------------------------
+export { ChannelSidebar, categoryHasVisibleChannel } from "./components/layout/ChannelSidebar";
+export {
+  INDENT_CAP,
+  STEP,
+  DRILL_DEPTH,
+  computeIndent,
+  resolveDrillInScope,
+  flattenAllianceChannels,
+  allianceChannelIcon,
+} from "./components/layout/channelSidebarLayout";
+export type { IndentInfo, DrillInScope, AllianceFlatNode } from "./components/layout/channelSidebarLayout";
+export { WhisperPanel } from "./components/voice/WhisperPanel";
+export { SoundboardPopover } from "./components/voice/SoundboardPopover";
+export {
+  isSpawnerChannel,
+  isTemporaryChannel,
+  resolveOwnerDisplayName,
+  normalizeSpawnerNameTemplate,
+} from "./utils/spawnerChannels";
+export { moveChannelOptions, decideVoiceMove } from "./utils/voiceMove";
+export type { VoiceMovePush, VoiceMoveDecision } from "./utils/voiceMove";
+
+// ---------------------------------------------------------------------------
+// HubAdminPage (parity hoist, 2026-07-20)
+// ---------------------------------------------------------------------------
+export { HubAdminPage } from "./components/admin/HubAdminPage";
+export type { HubAdminTab, HubAdminPageProps } from "./components/admin/HubAdminPage";
+export { RolesSection, ALL_PERMISSIONS } from "./components/admin/RolesSection";
+export type { RolesSectionActions, RoleUpdateInput } from "./components/admin/RolesSection";
+export { MemberRoleManager } from "./components/admin/MemberRoleManager";
+export type { MemberRoleManagerActions } from "./components/admin/MemberRoleManager";
+export { RoleCategoryManager } from "./components/admin/RoleCategoryManager";
+export type { RoleCategoryManagerActions } from "./components/admin/RoleCategoryManager";
+export { ColorSwatchPicker } from "./components/admin/ColorSwatchPicker";
+export { ServerTagsSection } from "./components/admin/ServerTagsSection";
+export type { ServerTagsSectionActions } from "./components/admin/ServerTagsSection";
+export { InviteManager } from "./components/admin/InviteManager";
+export type { InviteManagerActions } from "./components/admin/InviteManager";
+export { NativeBotsSection } from "./components/admin/NativeBotsSection";
+export type { NativeBotsSectionActions } from "./components/admin/NativeBotsSection";
+export { AuditLogSection } from "./components/admin/AuditLogSection";
+export type { AuditLogSectionActions } from "./components/admin/AuditLogSection";
+export { CertificationsSection } from "./components/admin/CertificationsSection";
+export type { CertificationsSectionActions } from "./components/admin/CertificationsSection";
+export { SoundboardAdminSection } from "./components/admin/SoundboardAdminSection";
+export type { SoundboardAdminSectionActions } from "./components/admin/SoundboardAdminSection";
+export { OnboardingAdminSection } from "./components/admin/OnboardingAdminSection";
+export type { OnboardingAdminSectionActions } from "./components/admin/OnboardingAdminSection";
+export { ChallengePreviewModal } from "./components/admin/ChallengePreviewModal";
+export type {
+  PendingUser,
+  MemberAdminInfo,
+  BanInfo,
+  InviteInfo,
+  HubSelfTagSettings,
+  HubBadge,
+  PendingBadgeOffer,
+  NativeBot,
+  NativeBotCreated,
+  BotSlashCommandInfo,
+  NativeBotDetail,
+  SoundboardClip,
+  AuditLogEntry,
+  AuditLogPage,
+  CertIssuance,
+  CertAdmissionSettings,
+  ChallengeMode,
+  ChallengeDifficulty,
 } from "./types";

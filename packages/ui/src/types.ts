@@ -121,6 +121,21 @@ export interface AllianceSharedChannel {
   is_category?: boolean;
 }
 
+export interface AllianceInfo {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: number;
+}
+
+export interface Conversation {
+  id: string;
+  conv_type: string;
+  members: string[];
+  created_at: number;
+  last_activity_at?: number;
+}
+
 export interface BlockEntry {
   pubkey: string;
   since: number;
@@ -273,6 +288,26 @@ export interface FarmServerEntry {
 export interface VoiceParticipant {
   public_key: string;
   display_name: string | null;
+}
+
+export interface WhisperTarget {
+  type: "user" | "channel" | "role";
+  id: string;
+  label: string;
+}
+
+export interface WhisperList {
+  id: string;
+  name: string;
+  targets: WhisperTarget[];
+  keybind?: string;
+}
+
+/** Ephemeral "X played Y" attribution chip shown near the soundboard trigger. */
+export interface SoundboardChip {
+  id: string;
+  public_key: string;
+  clip_name: string;
 }
 
 export interface PollOption {
@@ -646,3 +681,146 @@ export interface ActiveStream {
   mime: string;
   has_audio: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Channel permission overwrites (Nested Channels §3.6) — ChannelSettingsModal
+// ---------------------------------------------------------------------------
+
+export interface ChannelRoleOverwrites {
+  allow: string[];
+  deny: string[];
+}
+
+export interface ChannelRolePermissions {
+  role_id: string;
+  role_name: string;
+  overwrites: ChannelRoleOverwrites;
+  inherited: string[];
+  effective: string[];
+}
+
+export interface ChannelPermissionsResponse {
+  channel_id: string;
+  roles: ChannelRolePermissions[];
+}
+
+// ---------------------------------------------------------------------------
+// HubAdminPage (parity hoist, 2026-07-20)
+// ---------------------------------------------------------------------------
+
+export interface PendingUser {
+  public_key: string;
+  display_name: string | null;
+  first_seen_at: number;
+}
+
+export interface MemberAdminInfo {
+  public_key: string;
+  display_name: string | null;
+  online: boolean;
+  first_seen_at: number;
+  last_seen_at: number;
+  roles: RoleInfo[];
+}
+
+export interface BanInfo {
+  target_public_key: string;
+  banned_by: string;
+  reason: string | null;
+  created_at: number;
+}
+
+export interface InviteInfo {
+  code: string;
+  created_by: string;
+  max_uses: number | null;
+  uses: number;
+  expires_at: number | null;
+  created_at: number;
+  /** Role granted to the joining user in addition to `builtin-everyone`, if any. */
+  grant_role_id: string | null;
+}
+
+export interface HubSelfTagSettings {
+  self_tags: string[];
+  nsfw: boolean;
+}
+
+export interface HubBadge {
+  id: string;
+  label: string;
+  issuer_url: string;
+}
+
+export interface PendingBadgeOffer {
+  id: string;
+  label: string;
+  issuer_url: string;
+}
+
+export interface NativeBot {
+  public_key: string;
+  display_name: string;
+  created_by: string;
+  created_at: number;
+  webhook_url?: string | null;
+}
+
+export interface NativeBotCreated extends NativeBot {
+  token: string;
+}
+
+export interface BotSlashCommandInfo {
+  command: string;
+  description: string;
+}
+
+export interface NativeBotDetail {
+  public_key: string;
+  display_name: string;
+  created_by: string;
+  created_at: number;
+  webhook_url: string | null;
+  commands: BotSlashCommandInfo[];
+}
+
+export interface SoundboardClip {
+  id: string;
+  name: string;
+  emoji: string | null;
+  uploader: string;
+  duration_ms: number;
+  size_bytes: number;
+  created_at: number;
+}
+
+export interface AuditLogEntry {
+  seq: number;
+  event_type: string;
+  at: number;
+  actor_pubkey: string | null;
+  target_pubkey: string | null;
+}
+
+export interface AuditLogPage {
+  entries: AuditLogEntry[];
+  next_cursor: number | null;
+}
+
+export interface CertIssuance {
+  subject_pubkey: string;
+  issued_at: number;
+  expires_at: number;
+  standing: "good" | "revoked";
+}
+
+export interface CertAdmissionSettings {
+  cert_mode: "none" | "any" | "trusted";
+  cert_auto_issue: boolean;
+  cert_min_age_days: number;
+  cert_validity_days: number;
+  cert_trusted_issuers: string[];
+}
+
+export type ChallengeMode = "off" | "click" | "puzzle" | "both";
+export type ChallengeDifficulty = "easy" | "medium";

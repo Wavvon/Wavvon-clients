@@ -32,3 +32,25 @@ export async function createNativeBot(input: {
 export async function deleteNativeBot(pubkey: string): Promise<void> {
   await hubFetch(`/admin/bots/${pubkey}`, { method: "DELETE" });
 }
+
+export interface NativeBotCommandInfo {
+  command: string;
+  description: string;
+}
+
+export interface NativeBotDetail extends Omit<NativeBot, "webhook_url"> {
+  webhook_url: string | null;
+  commands: NativeBotCommandInfo[];
+}
+
+export async function getNativeBotDetail(pubkey: string): Promise<NativeBotDetail> {
+  const r = await hubFetch(`/admin/bots/${pubkey}`);
+  return r.json() as Promise<NativeBotDetail>;
+}
+
+export async function setNativeBotWebhook(pubkey: string, webhookUrl: string | null): Promise<void> {
+  await hubFetch(`/admin/bots/${pubkey}/webhook`, {
+    method: "PUT",
+    body: JSON.stringify({ webhook_url: webhookUrl }),
+  });
+}

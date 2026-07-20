@@ -97,23 +97,7 @@ export interface BotInfo {
 
 export type { Hub } from "@wavvon/ui";
 
-export interface ChannelRoleOverwrites {
-  allow: string[];
-  deny: string[];
-}
-
-export interface ChannelRolePermissions {
-  role_id: string;
-  role_name: string;
-  overwrites: ChannelRoleOverwrites;
-  inherited: string[];
-  effective: string[];
-}
-
-export interface ChannelPermissionsResponse {
-  channel_id: string;
-  roles: ChannelRolePermissions[];
-}
+export type { ChannelRoleOverwrites, ChannelRolePermissions, ChannelPermissionsResponse } from "@wavvon/ui";
 
 export interface MeInfo {
   public_key: string;
@@ -622,24 +606,7 @@ export interface HubCertification {
   signature: string;
 }
 
-export interface CertIssuance {
-  subject_pubkey: string;
-  issued_at: number;
-  expires_at: number;
-  standing: "good" | "revoked";
-  pow_level: number | null;
-  signature: string;
-}
-
-export interface CertAdmissionSettings {
-  cert_auto_issue: boolean;
-  cert_min_age_days: number;
-  cert_validity_days: number;
-  cert_min_pow_level: number | null;
-  cert_mode: "off" | "any" | "all";
-  cert_trusted_issuers: { pubkey: string; url: string; label: string }[];
-  cert_require: { min_pow_level?: number; min_member_since_days?: number } | null;
-}
+export type { CertIssuance, CertAdmissionSettings } from "@wavvon/ui";
 
 // ---- Identity Recovery ----
 

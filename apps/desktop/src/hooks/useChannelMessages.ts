@@ -5,7 +5,7 @@ import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
-import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode } from "../types";
+import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
 
 export interface ChannelMessagesParams {
   activeHubIdRef: RefObject<string | null>;
@@ -14,7 +14,7 @@ export interface ChannelMessagesParams {
   channelsRef: RefObject<Channel[]>;
   hubsRef: RefObject<{ hub_id: string; hub_name: string }[]>;
   selectedChannelIdRef: RefObject<string | null>;
-  myPresenceRef: RefObject<{ status: "online" | "away" | "dnd"; custom: string | null }>;
+  myPresenceRef: RefObject<{ status: PresenceStatus }>;
   effectiveNotifyMode: (hubId: string, channelId: string) => NotifyMode;
   bumpUnread: (hubId: string, channelId: string) => void;
   clearUnread: (hubId: string, channelId: string) => void;

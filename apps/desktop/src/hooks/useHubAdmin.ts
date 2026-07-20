@@ -8,7 +8,7 @@ import type {
   InviteInfo,
   PendingUser,
 } from "../types";
-import type { HubAdminTab } from "../components/HubAdminPage";
+import type { HubAdminTab } from "@wavvon/ui";
 
 interface UseHubAdminParams {
   activeHubId: string | null;
@@ -34,7 +34,8 @@ export function useHubAdmin({
   const [adminHubName, setAdminHubName] = useState("");
   const [adminHubDescription, setAdminHubDescription] = useState("");
   const [adminHubIcon, setAdminHubIcon] = useState("");
-  const [adminRoles, setAdminRoles] = useState<RoleInfo[]>([]);
+  const [adminWelcomeLabel, setAdminWelcomeLabel] = useState("");
+  const [adminWelcomeInviteUrl, setAdminWelcomeInviteUrl] = useState("");
   const [adminMembers, setAdminMembers] = useState<MemberAdminInfo[]>([]);
   const [adminBans, setAdminBans] = useState<BanInfo[]>([]);
   const [adminInvites, setAdminInvites] = useState<InviteInfo[]>([]);
@@ -42,8 +43,13 @@ export function useHubAdmin({
   const [minSecurityLevel, setMinSecurityLevel] = useState(0);
   const [maxChannelDepth, setMaxChannelDepth] = useState(0);
   const [pendingMembers, setPendingMembers] = useState<PendingUser[]>([]);
+  const [hubListed, setHubListedState] = useState(false);
 
   const isAdmin = myRoles.some((r) => r.permissions.includes("admin"));
+
+  function activeHubUrl(): string {
+    return hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
+  }
 
   async function openHubAdmin() {
     setShowHubAdmin(true);
@@ -53,10 +59,14 @@ export function useHubAdmin({
         name: string;
         description: string | null;
         icon: string | null;
+        welcome_label: string | null;
+        welcome_invite_url: string | null;
       }>("get_hub_branding");
       setAdminHubName(branding.name);
       setAdminHubDescription(branding.description ?? "");
       setAdminHubIcon(branding.icon ?? "");
+      setAdminWelcomeLabel(branding.welcome_label ?? "");
+      setAdminWelcomeInviteUrl(branding.welcome_invite_url ?? "");
 
       const settings = await invoke<{
         require_approval: boolean;
@@ -69,6 +79,14 @@ export function useHubAdmin({
       setMaxChannelDepth(settings.max_channel_depth ?? 0);
     } catch (e) {
       setError(String(e));
+    }
+    const hubUrl = activeHubUrl();
+    if (hubUrl) {
+      try {
+        const res = await fetch(hubUrl + "/federation/listing");
+        const data: { listed?: boolean } = await res.json();
+        if (typeof data.listed === "boolean") setHubListedState(data.listed);
+      } catch { /* ignore */ }
     }
   }
 
@@ -86,10 +104,21 @@ export function useHubAdmin({
         requireApproval,
         minSecurityLevel,
         maxChannelDepth,
+        welcomeLabel: adminWelcomeLabel,
+        welcomeInviteUrl: adminWelcomeInviteUrl,
       });
       const refreshed = await invoke<Hub[]>("list_hubs");
       setHubs(() => refreshed);
       setToast("Hub settings saved");
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleHubListedChange(next: boolean) {
+    try {
+      await invoke("set_hub_listed", { hubUrl: activeHubUrl(), listed: next });
+      setHubListedState(next);
     } catch (e) {
       setError(String(e));
     }
@@ -110,65 +139,6 @@ export function useHubAdmin({
       setToast("Member approved");
       await refreshPending();
       await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function refreshRoles() {
-    try {
-      const r = await invoke<RoleInfo[]>("list_roles");
-      setAdminRoles(r);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleCreateRole(
-    name: string,
-    permissions: string[],
-    priority: number,
-    displaySeparately: boolean,
-  ) {
-    try {
-      await invoke("create_role", { name, permissions, priority, displaySeparately });
-      await refreshRoles();
-      setToast("Role created");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleUpdateRole(
-    roleId: string,
-    updates: {
-      name?: string;
-      permissions?: string[];
-      priority?: number;
-      display_separately?: boolean;
-    },
-  ) {
-    try {
-      await invoke("update_role", {
-        roleId,
-        name: updates.name ?? null,
-        permissions: updates.permissions ?? null,
-        priority: updates.priority ?? null,
-        displaySeparately: updates.display_separately ?? null,
-      });
-      await refreshRoles();
-      setToast("Role updated");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleDeleteRole(roleId: string) {
-    if (!confirm("Delete this role? Users assigned to it will lose the role.")) return;
-    try {
-      await invoke("delete_role", { roleId });
-      await refreshRoles();
-      setToast("Role deleted");
     } catch (e) {
       setError(String(e));
     }
@@ -277,9 +247,13 @@ export function useHubAdmin({
     }
   }
 
-  async function handleCreateInvite(maxUses: number | null, expiresInSeconds: number | null) {
+  async function handleCreateInvite(
+    maxUses: number | null,
+    expiresInSeconds: number | null,
+    grantRoleId: string | null,
+  ) {
     try {
-      await invoke<InviteInfo>("create_invite", { maxUses, expiresInSeconds });
+      await invoke<InviteInfo>("create_invite", { maxUses, expiresInSeconds, grantRoleId });
       await refreshInvites();
       setToast("Invite created");
     } catch (e) {
@@ -298,28 +272,8 @@ export function useHubAdmin({
     }
   }
 
-  async function handleToggleRoleAssignment(
-    publicKey: string,
-    roleId: string,
-    hasRole: boolean,
-  ) {
-    try {
-      if (hasRole) {
-        await invoke("unassign_role", { targetPublicKey: publicKey, roleId });
-      } else {
-        await invoke("assign_role", { targetPublicKey: publicKey, roleId });
-      }
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
   function loadAdminTabData(tab: HubAdminTab, refreshVoiceMutes: () => void) {
-    if (tab === "roles") {
-      refreshRoles();
-    } else if (tab === "members") {
-      refreshRoles();
+    if (tab === "members") {
       refreshMembers();
       refreshPending();
       refreshVoiceMutes();
@@ -345,7 +299,10 @@ export function useHubAdmin({
     setAdminHubDescription,
     adminHubIcon,
     setAdminHubIcon,
-    adminRoles,
+    adminWelcomeLabel,
+    setAdminWelcomeLabel,
+    adminWelcomeInviteUrl,
+    setAdminWelcomeInviteUrl,
     adminMembers,
     adminBans,
     adminInvites,
@@ -356,16 +313,14 @@ export function useHubAdmin({
     maxChannelDepth,
     setMaxChannelDepth,
     pendingMembers,
+    hubListed,
+    onHubListedChange: handleHubListedChange,
     isAdmin,
     openHubAdmin,
     openHubAdminInvites,
     handleSaveHubBranding,
     refreshPending,
     handleApproveMember,
-    refreshRoles,
-    handleCreateRole,
-    handleUpdateRole,
-    handleDeleteRole,
     refreshMembers,
     handleKickMember,
     handleBanMember,
@@ -376,7 +331,6 @@ export function useHubAdmin({
     refreshInvites,
     handleCreateInvite,
     handleRevokeInvite,
-    handleToggleRoleAssignment,
     loadAdminTabData,
   };
 }

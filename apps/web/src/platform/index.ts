@@ -131,6 +131,8 @@ export {
   saveHubSettings,
   getHubSettings,
   createInvite,
+  getHubListingStatus,
+  setHubListed,
 } from "./commands/hubAdmin";
 
 export {
@@ -214,7 +216,13 @@ export {
   addBanlistOverride,
   removeBanlistOverride,
   setBanlistPublish,
+  muteMember,
+  timeoutMember,
+  voiceMuteMember,
+  voiceUnmuteMember,
+  listVoiceMutes,
 } from "./commands/moderation";
+export type { VoiceMuteInfo } from "./commands/moderation";
 
 export {
   getChannelPermissions,
@@ -239,10 +247,11 @@ export { getAuditLog } from "./commands/audit";
 export type { AuditLogEntry, AuditLogPage } from "./commands/audit";
 export { listChannelBans, banFromChannel, unbanFromChannel } from "./commands/channelBans";
 export type { ChannelBan } from "./commands/channelBans";
+export { getTalkPower, setTalkPower } from "./commands/talkPower";
 export { listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon } from "./commands/hubIcons";
 export type { HubIcon } from "./commands/hubIcons";
-export { listNativeBots, createNativeBot, deleteNativeBot } from "./commands/nativeBots";
-export type { NativeBot, NativeBotCreated } from "./commands/nativeBots";
+export { listNativeBots, createNativeBot, deleteNativeBot, getNativeBotDetail, setNativeBotWebhook } from "./commands/nativeBots";
+export type { NativeBot, NativeBotCreated, NativeBotDetail, NativeBotCommandInfo } from "./commands/nativeBots";
 export {
   listAlliances, createAlliance, getAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,

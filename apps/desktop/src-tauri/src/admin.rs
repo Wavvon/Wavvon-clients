@@ -136,10 +136,13 @@ pub(crate) async fn get_hub_branding(state: State<'_, AppState>) -> Result<HubBr
         name: info.name,
         description: info.description,
         icon: info.icon,
+        welcome_label: info.welcome_label,
+        welcome_invite_url: info.welcome_invite_url,
     })
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn update_hub_branding(
     name: Option<String>,
     description: Option<String>,
@@ -147,6 +150,9 @@ pub(crate) async fn update_hub_branding(
     require_approval: Option<bool>,
     min_security_level: Option<u32>,
     max_channel_depth: Option<u32>,
+    welcome_label: Option<String>,
+    welcome_invite_url: Option<String>,
+    default_invite_role_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
@@ -161,6 +167,9 @@ pub(crate) async fn update_hub_branding(
             "require_approval": require_approval,
             "min_security_level": min_security_level,
             "max_channel_depth": max_channel_depth,
+            "welcome_label": welcome_label,
+            "welcome_invite_url": welcome_invite_url,
+            "default_invite_role_id": default_invite_role_id,
         }))
         .send()
         .await
@@ -207,24 +216,44 @@ pub(crate) async fn list_roles(state: State<'_, AppState>) -> Result<Vec<RoleInf
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn create_role(
     name: String,
     permissions: Vec<String>,
     priority: i64,
     display_separately: Option<bool>,
+    color: Option<String>,
+    icon: Option<String>,
+    category_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<RoleInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
+    let mut body = serde_json::json!({
+        "name": name,
+        "permissions": permissions,
+        "priority": priority,
+        "display_separately": display_separately.unwrap_or(false),
+    });
+    // The hub's role-appearance fields use a tri-state deserializer where a
+    // JSON-present `null` means "clear" — unlike this file's other Option<T>
+    // params, we must omit these keys entirely (not send `null`) when the
+    // caller didn't touch them, or every create would blank any appearance
+    // fields the caller wasn't setting.
+    let obj = body.as_object_mut().unwrap();
+    if let Some(c) = color {
+        obj.insert("color".to_string(), serde_json::Value::String(c));
+    }
+    if let Some(i) = icon {
+        obj.insert("icon".to_string(), serde_json::Value::String(i));
+    }
+    if let Some(c) = category_id {
+        obj.insert("category_id".to_string(), serde_json::Value::String(c));
+    }
     let resp = client
         .post(format!("{hub_url}/roles"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "name": name,
-            "permissions": permissions,
-            "priority": priority,
-            "display_separately": display_separately.unwrap_or(false),
-        }))
+        .json(&body)
         .send()
         .await
         .map_err(|e| format!("Failed: {e}"))?;
@@ -235,32 +264,51 @@ pub(crate) async fn create_role(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn update_role(
     role_id: String,
     name: Option<String>,
     permissions: Option<Vec<String>>,
     priority: Option<i64>,
     display_separately: Option<bool>,
+    color: Option<String>,
+    icon: Option<String>,
+    category_id: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<RoleInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
+    let mut body = serde_json::json!({
+        "name": name,
+        "permissions": permissions,
+        "priority": priority,
+        "display_separately": display_separately,
+    });
+    // See create_role: only send appearance keys the caller actually set —
+    // Tauri collapses "omitted" and "explicit null" into the same `None`
+    // here, so an always-present `null` would silently clear the role's
+    // color/icon/category on every unrelated update (e.g. a permission toggle).
+    let obj = body.as_object_mut().unwrap();
+    if let Some(c) = color {
+        obj.insert("color".to_string(), serde_json::Value::String(c));
+    }
+    if let Some(i) = icon {
+        obj.insert("icon".to_string(), serde_json::Value::String(i));
+    }
+    if let Some(c) = category_id {
+        obj.insert("category_id".to_string(), serde_json::Value::String(c));
+    }
     let resp = client
         .patch(format!("{hub_url}/roles/{role_id}"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "name": name,
-            "permissions": permissions,
-            "priority": priority,
-            "display_separately": display_separately,
-        }))
+        .json(&body)
         .send()
         .await
         .map_err(|e| format!("Failed: {e}"))?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    Ok(())
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
 #[tauri::command]
@@ -277,6 +325,25 @@ pub(crate) async fn delete_role(role_id: String, state: State<'_, AppState>) -> 
         return Err(resp.text().await.unwrap_or_default());
     }
     Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn list_user_roles(
+    target_public_key: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<RoleInfo>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .get(format!("{hub_url}/users/{target_public_key}/roles"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
 #[tauri::command]
@@ -658,6 +725,99 @@ pub(crate) async fn list_channel_bans(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
+// ---------------------------------------------------------------------------
+// Channel permission overwrites (Nested Channels §3.6)
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+pub(crate) struct ChannelOverwriteSet {
+    #[serde(default)]
+    pub allow: Vec<String>,
+    #[serde(default)]
+    pub deny: Vec<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct ChannelRolePermissionsView {
+    pub role_id: String,
+    pub role_name: String,
+    pub overwrites: ChannelOverwriteSet,
+    pub inherited: Vec<String>,
+    pub effective: Vec<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct ChannelPermissionsResponse {
+    pub channel_id: String,
+    pub roles: Vec<ChannelRolePermissionsView>,
+}
+
+#[tauri::command]
+pub(crate) async fn get_channel_permissions(
+    channel_id: String,
+    state: State<'_, AppState>,
+) -> Result<ChannelPermissionsResponse, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .get(format!("{hub_url}/channels/{channel_id}/permissions"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn set_channel_role_permissions(
+    channel_id: String,
+    role_id: String,
+    allow: Vec<String>,
+    deny: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<ChannelRolePermissionsView, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .put(format!(
+            "{hub_url}/channels/{channel_id}/permissions/{role_id}"
+        ))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "allow": allow, "deny": deny }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn clear_channel_role_permissions(
+    channel_id: String,
+    role_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .delete(format!(
+            "{hub_url}/channels/{channel_id}/permissions/{role_id}"
+        ))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) struct VoiceMuteInfo {
     pub target_public_key: String,
@@ -823,6 +983,8 @@ pub(crate) struct InviteInfo {
     pub uses: i64,
     pub expires_at: Option<i64>,
     pub created_at: i64,
+    #[serde(default)]
+    pub grant_role_id: Option<String>,
 }
 
 #[tauri::command]
@@ -845,6 +1007,7 @@ pub(crate) async fn list_invites(state: State<'_, AppState>) -> Result<Vec<Invit
 pub(crate) async fn create_invite(
     max_uses: Option<i64>,
     expires_in_seconds: Option<i64>,
+    grant_role_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<InviteInfo, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -855,6 +1018,7 @@ pub(crate) async fn create_invite(
         .json(&serde_json::json!({
             "max_uses": max_uses,
             "expires_in_seconds": expires_in_seconds,
+            "grant_role_id": grant_role_id,
         }))
         .send()
         .await
