@@ -202,7 +202,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
       { id: "survey" as HubAdminTab, label: "Survey", group: G_MEMBERS },
     ] : []),
     { id: "certifications", label: "Certifications", group: G_MEMBERS },
-    ...(props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: "Recovery contacts", group: G_MEMBERS }] : []),
+    ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: "Recovery requests", group: G_MEMBERS }] : []),
     // Alliances is cross-hub channel sharing, not a bot/webhook integration —
     // grouped with other cross-hub features instead. The federated ban list
     // lives inside the Moderation tab, not its own nav entry, so it doesn't

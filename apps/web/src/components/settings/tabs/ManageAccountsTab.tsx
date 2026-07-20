@@ -1,8 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
 import type { BackupAccount } from "@wavvon/core";
-import { IdentityBackupSection, type IdentityBackupSectionActions } from "@wavvon/ui";
+import { IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
+import {
+  getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
+  openRotationRequest, getRotationRequestBundle, attestRotationRequest,
+} from "@platform";
 import { FullArchiveSection } from "@components/admin/FullArchiveSection";
 import { HomeHubsSection } from "../HomeHubsSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
@@ -96,6 +100,18 @@ export function ManageAccountsTab(props: Props) {
     secretKeyHex: a.seed_hex,
   }));
 
+  // Member-facing cards only (designate/request/vouch) — the admin queue
+  // lives exclusively in HubAdminPage's Recovery requests tab, so no
+  // listAdminRequests/approveRequest/denyRequest here.
+  const recoveryActions: RecoveryContactsSectionActions = {
+    getContacts: getRecoveryContacts,
+    setContacts: setRecoveryContacts,
+    removeContact: removeRecoveryContact,
+    openRotationRequest: (oldPubkey, reason) => openRotationRequest(activeHubUrl ?? "", oldPubkey, reason),
+    getRotationRequest: (id) => getRotationRequestBundle(activeHubUrl ?? "", id),
+    attestRotationRequest: (bundle) => attestRotationRequest(activeHubUrl ?? "", bundle),
+  };
+
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.accounts")}</h1>
@@ -106,6 +122,7 @@ export function ManageAccountsTab(props: Props) {
         onRevealPhrase={props.onShowRecovery}
         actions={backupActions}
       />
+      {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
       <FullArchiveSection publicKey={props.publicKey} />
       {props.accounts && props.managing && (
         <ManagingAccountSelector

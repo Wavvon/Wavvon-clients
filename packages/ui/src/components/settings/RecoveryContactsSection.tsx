@@ -28,11 +28,16 @@ export interface RecoveryContactsSectionActions {
 interface Props {
   isAdmin: boolean;
   actions: RecoveryContactsSectionActions;
+  /** Designate/request/vouch cards — the member-facing surface. Default on.
+   *  Hosts that mount a dedicated admin-queue-only view (e.g. HubAdminPage,
+   *  once the member surface already lives in Settings) pass false so the
+   *  cards aren't shown twice. */
+  showMemberCards?: boolean;
 }
 
 const POLL_MS = 5000;
 
-export function RecoveryContactsSection({ isAdmin, actions }: Props) {
+export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = true }: Props) {
   const [threshold, setThreshold] = useState(2);
   const [contacts, setContacts] = useState<RecoveryContactItem[]>([]);
   const [contactsText, setContactsText] = useState("");
@@ -158,6 +163,8 @@ export function RecoveryContactsSection({ isAdmin, actions }: Props) {
 
   return (
     <div>
+      {showMemberCards && (
+      <>
       <div className="settings-section">
         <label className="settings-label">Recovery contacts for this hub</label>
         <p className="muted">
@@ -297,6 +304,8 @@ export function RecoveryContactsSection({ isAdmin, actions }: Props) {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {isAdmin && actions.listAdminRequests && (
         <div className="settings-section">

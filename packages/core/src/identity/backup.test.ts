@@ -16,8 +16,12 @@ const VECTOR_ACCOUNT = { label: "test-account", secret_key_hex: "a1".repeat(32) 
 const VECTOR_CIPHERTEXT =
   "Z09hWEMqmbrPQD9lNMlEFy9pan5hNuegXFeJ2AmOE+YR2F/ghRqpwup+yNHFfVh55NxxC3ebPnQ2udg+wbHqgkRmRr6FmmMZgpUCPpSHuiKQrKd5/zyTgWWpW95UD0UnvH1etfgvvKBnKdO/ADl+5gsyBEb8Upi1FTwHnw==";
 
+// Argon2id at 64 MiB legitimately takes seconds; under parallel test load the
+// default 5s vitest timeout flakes. KDF-running tests get explicit headroom.
+const KDF_TIMEOUT = 30_000;
+
 describe("identity backup envelope", () => {
-  it("matches the shared cross-platform test vector", async () => {
+  it("matches the shared cross-platform test vector", { timeout: KDF_TIMEOUT }, async () => {
     const envelope = await encryptBackup(VECTOR_ACCOUNT, VECTOR_PASSPHRASE, {
       salt: VECTOR_SALT,
       nonce: VECTOR_NONCE,
@@ -32,7 +36,7 @@ describe("identity backup envelope", () => {
     });
   });
 
-  it("round-trips through decrypt", async () => {
+  it("round-trips through decrypt", { timeout: KDF_TIMEOUT }, async () => {
     const envelope = await encryptBackup(VECTOR_ACCOUNT, VECTOR_PASSPHRASE, {
       salt: VECTOR_SALT,
       nonce: VECTOR_NONCE,
@@ -41,7 +45,7 @@ describe("identity backup envelope", () => {
     expect(decrypted).toEqual(VECTOR_ACCOUNT);
   });
 
-  it("rejects a wrong passphrase", async () => {
+  it("rejects a wrong passphrase", { timeout: KDF_TIMEOUT }, async () => {
     const envelope = await encryptBackup(VECTOR_ACCOUNT, VECTOR_PASSPHRASE, {
       salt: VECTOR_SALT,
       nonce: VECTOR_NONCE,
@@ -51,7 +55,7 @@ describe("identity backup envelope", () => {
     );
   });
 
-  it("rejects an unrecognized envelope shape (old web PBKDF2 file / desktop .voxback)", async () => {
+  it("rejects an unrecognized envelope shape (old web PBKDF2 file / desktop .voxback)", { timeout: KDF_TIMEOUT }, async () => {
     const legacy = JSON.stringify({
       format: "wavvon-backup",
       version: 2,

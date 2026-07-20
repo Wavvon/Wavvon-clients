@@ -3185,7 +3185,7 @@ export default function App({ initialView }: AppProps = {}) {
                 getRotationRequest: (id) => getRotationRequestBundle(hubUrl, id),
                 attestRotationRequest: (bundle) => attestRotationRequest(hubUrl, bundle),
               };
-              return <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />;
+              return <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} showMemberCards={false} />;
             }}
           />
         </div>
