@@ -35,6 +35,8 @@ export interface WsHandlers {
     hubId: string,
   ) => void;
   onBotApp?: (e: object) => void;
+  /** Hub-pushed voice_move (events.md §7.1) — targeted-by-pubkey, like whisper. */
+  onVoiceMove?: (e: object) => void;
 }
 
 const BACKOFF_INITIAL = 1000;
@@ -183,6 +185,8 @@ export class HubWebSocket {
       this.handlers.onVoicePositionUpdated?.(tagged);
     } else if (type === "voice_zone_state") {
       this.handlers.onVoiceZoneState?.(tagged);
+    } else if (type === "voice_move") {
+      this.handlers.onVoiceMove?.(tagged);
     }
   }
 
@@ -249,6 +253,17 @@ export class HubWebSocket {
   }
   stopWhisper(): void {
     this.send({ type: "voice_whisper_stop" });
+  }
+
+  // --- Voice move (main WS, events.md §7.1) — eventId is present for every
+  // staging-panel move (§7.5) and omitted for the Phase-1 right-click primitive.
+  sendVoiceMove(targetPubkey: string, targetChannelId: string, eventId?: string): void {
+    this.send({
+      type: "voice_move",
+      target_pubkey: targetPubkey,
+      target_channel_id: targetChannelId,
+      ...(eventId ? { event_id: eventId } : {}),
+    });
   }
 
   // --- Hub-streams (cross-channel screen-share discovery/subscribe) ---

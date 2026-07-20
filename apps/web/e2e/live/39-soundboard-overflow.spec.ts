@@ -8,8 +8,11 @@ import { channelButton, createChannel, expectInHub, uniqueName } from "./helpers
 async function openSoundboard(page: import("@playwright/test").Page) {
   const ch = uniqueName("sb");
   await createChannel(page, ch);
-  await channelButton(page, ch).click();
-  await page.getByRole("button", { name: "Join Voice" }).click();
+  // The soundboard lives in the voice-session footer — a channel row is
+  // joined by double-click (see the "Double-click to join voice" row
+  // tooltip in SortableItems.tsx), not a header button.
+  await channelButton(page, ch).dblclick();
+  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${ch}`, { timeout: 15000 });
   const btn = page.getByRole("button", { name: "Soundboard" }).first();
   await expect(btn).toBeVisible({ timeout: 15000 });
   await btn.click();

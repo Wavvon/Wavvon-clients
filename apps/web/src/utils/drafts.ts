@@ -1,14 +1,16 @@
+import { getScoped, setScoped } from "./accountScope";
+
 const DRAFTS_KEY = "wavvon.drafts";
 
 function load(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}"); } catch { return {}; }
+  try { return JSON.parse(getScoped(DRAFTS_KEY) ?? "{}"); } catch { return {}; }
 }
 
 export function saveDraft(key: string, text: string) {
   const drafts = load();
   if (text.trim()) drafts[key] = text;
   else delete drafts[key];
-  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+  setScoped(DRAFTS_KEY, JSON.stringify(drafts));
 }
 
 export function loadDraft(key: string): string {
@@ -18,7 +20,7 @@ export function loadDraft(key: string): string {
 export function clearDraft(key: string) {
   const drafts = load();
   delete drafts[key];
-  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+  setScoped(DRAFTS_KEY, JSON.stringify(drafts));
 }
 
 export function hasDraft(key: string): boolean {

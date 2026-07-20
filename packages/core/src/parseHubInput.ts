@@ -8,9 +8,24 @@ export interface HubInputResult {
    * can route to different hubs by serial). Empty for legacy host-only links.
    */
   hubSerial?: string;
+  /**
+   * SHA-256 hex fingerprint of a LAN hub's self-signed cert, carried
+   * out-of-band in the invite URL's `?fp=` query param or `#fp=` hash
+   * fragment (lan-mode.md §3/§5). Lets the client TOFU-verify the hub it
+   * connected to is the one the invite was printed for. Undefined when
+   * absent or malformed (not 64 hex chars) — callers then skip the check.
+   */
+  fingerprint?: string;
   target?:
     | { kind: "channel"; channelId: string }
     | { kind: "message"; channelId: string; messageId: string };
+}
+
+function extractFingerprint(url: URL): string | undefined {
+  const fromQuery = url.searchParams.get("fp");
+  const fromHash = new URLSearchParams(url.hash.replace(/^#/, "")).get("fp");
+  const fp = (fromQuery ?? fromHash ?? "").toLowerCase();
+  return /^[0-9a-f]{64}$/.test(fp) ? fp : undefined;
 }
 
 /**
@@ -114,15 +129,21 @@ export function parseHubInput(raw: string): HubInputResult | null {
     try {
       const url = new URL(trimmed);
       const hubUrl = `${url.protocol}//${url.host}`;
+      const fingerprint = extractFingerprint(url);
       // Farm-ready invite path: https://host/i/<hubSerial>/<inviteCode>
       const invite = parseInvitePath(url.pathname.replace(/^\/+/, ""));
       if (invite) {
-        return { hubUrl, inviteCode: invite.inviteCode, hubSerial: invite.hubSerial };
+        return {
+          hubUrl,
+          inviteCode: invite.inviteCode,
+          hubSerial: invite.hubSerial,
+          ...(fingerprint ? { fingerprint } : {}),
+        };
       }
       // Browser-facing invite path: https://host/join/<inviteCode>
       const joinCode = parseJoinPath(url.pathname.replace(/^\/+/, ""));
       if (joinCode) {
-        return { hubUrl, inviteCode: joinCode };
+        return { hubUrl, inviteCode: joinCode, ...(fingerprint ? { fingerprint } : {}) };
       }
       const fromQuery = url.searchParams.get("invite") ?? "";
       const fromHash = url.hash.startsWith("#invite=")
@@ -133,6 +154,7 @@ export function parseHubInput(raw: string): HubInputResult | null {
         hubUrl,
         inviteCode: fromQuery || fromHash,
         ...(hubSerial ? { hubSerial } : {}),
+        ...(fingerprint ? { fingerprint } : {}),
       };
     } catch {
       return { hubUrl: trimmed, inviteCode: "" };

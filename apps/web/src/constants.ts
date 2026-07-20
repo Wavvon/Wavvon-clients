@@ -2,141 +2,19 @@
 //
 // Pure values with no React or runtime dependencies. Anything that
 // needs hooks or a render context belongs in a component file.
-
-/**
- * Curated emoji catalog for the picker. Each entry is [emoji, keywords].
- * Keywords are matched as substrings against the user's query so "thumb"
- * finds 👍 and "fire" finds 🔥. The first 8 also serve as the always-visible
- * frequent set when the search is empty.
- */
-export const EMOJI_CATALOG: [string, string][] = [
-  ["👍", "thumbs up yes ok approve"],
-  ["❤️", "heart love"],
-  ["😂", "laugh joy lol cry"],
-  ["🎉", "party celebrate tada"],
-  ["🔥", "fire lit hot"],
-  ["👀", "eyes look watch see"],
-  ["😢", "sad cry tear"],
-  ["🙏", "pray thanks please"],
-  ["👎", "thumbs down no nope"],
-  ["✅", "check yes done correct"],
-  ["❌", "x cross no wrong"],
-  ["💯", "100 perfect score"],
-  ["🤔", "think thinking hmm"],
-  ["😅", "sweat smile awkward"],
-  ["😎", "cool sunglasses"],
-  ["😭", "crying sob bawl"],
-  ["😡", "angry mad rage"],
-  ["🤯", "mind blown shocked"],
-  ["🥳", "party celebrate happy"],
-  ["🤝", "handshake deal agree"],
-  ["💪", "muscle strong flex"],
-  ["👏", "clap applause bravo"],
-  ["🙌", "raised hands praise"],
-  ["✨", "sparkle shiny stars"],
-  ["⭐", "star favorite"],
-  ["💡", "idea bulb"],
-  ["⚡", "lightning fast bolt"],
-  ["🐛", "bug insect"],
-  ["🚀", "rocket launch ship"],
-  ["🎯", "target dart bullseye"],
-  ["💀", "skull dead rip"],
-  ["👻", "ghost spooky"],
-  ["🤖", "robot bot"],
-  ["☕", "coffee mug"],
-  ["🍕", "pizza"],
-  ["🍔", "burger food"],
-  ["🍺", "beer drink"],
-  ["🍰", "cake birthday"],
-  ["🌮", "taco food"],
-  ["🎵", "music note song"],
-  ["🎮", "game controller play"],
-  ["📺", "tv television"],
-  ["💻", "laptop computer"],
-  ["📱", "phone mobile"],
-  ["⌨️", "keyboard"],
-  ["🖱️", "mouse"],
-  ["🐶", "dog puppy"],
-  ["🐱", "cat kitten"],
-  ["🦊", "fox"],
-  ["🦁", "lion"],
-  ["🐧", "penguin"],
-  ["🦄", "unicorn magic"],
-  ["🐢", "turtle slow"],
-  ["🌈", "rainbow"],
-  ["☀️", "sun sunny day"],
-  ["🌙", "moon night"],
-  ["🌧️", "rain"],
-  ["❄️", "snow snowflake winter"],
-  ["🌊", "wave water ocean"],
-  ["🌍", "earth world globe"],
-  ["💚", "green heart"],
-  ["💙", "blue heart"],
-  ["💜", "purple heart"],
-  ["🖤", "black heart"],
-  ["💛", "yellow heart"],
-  ["💔", "broken heart sad"],
-  ["💕", "two hearts love"],
-  ["😀", "grin smile"],
-  ["😊", "smile happy"],
-  ["😉", "wink"],
-  ["😌", "relieved calm"],
-  ["😘", "kiss"],
-  ["😏", "smirk smug"],
-  ["😴", "sleep zzz tired"],
-  ["🤐", "zip mouth shut"],
-  ["🤫", "shush quiet"],
-  ["🤣", "rofl laugh"],
-  ["😬", "grimace awkward"],
-  ["🙃", "upside down silly"],
-  ["😱", "scream shock fear"],
-  ["😳", "flushed embarrassed"],
-  ["🥺", "pleading puppy eyes"],
-  ["😷", "mask sick"],
-  ["🤒", "thermometer sick fever"],
-  ["🥵", "hot heat sweat"],
-  ["🥶", "cold freeze"],
-  ["😈", "devil mischief"],
-  ["💩", "poop"],
-  ["🎂", "cake birthday"],
-  ["🎁", "gift present"],
-  ["🏆", "trophy win"],
-  ["🥇", "gold medal first"],
-  ["💎", "diamond gem"],
-  ["💰", "money cash bag"],
-  ["📈", "chart up growth"],
-  ["📉", "chart down decline"],
-  ["🔔", "bell notification"],
-  ["🔒", "lock secure"],
-  ["🔑", "key"],
-  ["🛠️", "tools wrench fix"],
-  ["📌", "pin"],
-  ["📎", "paperclip attach"],
-  ["📝", "memo write note"],
-  ["📚", "books read"],
-  ["🎓", "graduation cap"],
-  ["🌟", "glowing star"],
-  ["🐝", "bee"],
-  ["🦋", "butterfly"],
-  ["🍎", "apple"],
-  ["🍌", "banana"],
-  ["🍇", "grapes"],
-  ["🥑", "avocado"],
-  ["🥦", "broccoli"],
-  ["🍿", "popcorn"],
-  ["🧀", "cheese"],
-  ["🍩", "donut"],
-  ["🍪", "cookie"],
-  ["🍷", "wine"],
-  ["🥤", "soda drink"],
-];
-
-export const QUICK_REACTIONS = EMOJI_CATALOG.slice(0, 8).map(([e]) => e);
+//
+// EMOJI_CATALOG and QUICK_REACTIONS moved to @wavvon/ui (packages/ui/src/emojiCatalog.ts)
+// so both apps share one catalog.
 
 export const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024; // matches the hub cap
 
 export const RECENT_EMOJI_KEY = "wavvon.recentEmojis";
 export const RECENT_EMOJI_MAX = 8;
+
+// Curated row shown above the Activities textarea in edit mode (wishlist:
+// "Game icons in Activities", lazy v1) — not a full emoji picker, just quick
+// inserts for the common case.
+export const GAME_ACTIVITY_EMOJI: string[] = ["🎮", "🕹️", "⚔️", "🏹", "🏎️", "⚽", "🏀", "♟️", "🧩", "🎲", "🎯", "🃏"];
 
 export const MIC_METER_MAX = 0.2;
 
@@ -169,29 +47,7 @@ export const ALL_PERMISSIONS: { id: string; label: string }[] = [
   { id: "read_messages", label: "Read messages" },
   { id: "send_messages", label: "Send messages" },
   { id: "manage_soundboard", label: "Manage soundboard (upload / delete clips)" },
-];
-
-// Permissions eligible for a per-channel role overwrite. Excludes "admin"
-// (overwrite-immune server-side — see nested-channels-ux.md §3.2) and
-// hub-only permissions like manage_bots that have no channel dimension.
-export const CHANNEL_OVERWRITE_PERMISSIONS: { id: string; label: string }[] = [
-  { id: "read_messages", label: "Read messages" },
-  { id: "send_messages", label: "Send messages" },
-  { id: "manage_channels", label: "Manage channels" },
-  { id: "manage_messages", label: "Manage messages" },
-  { id: "manage_roles", label: "Manage roles" },
-  { id: "kick_members", label: "Kick members" },
-  { id: "ban_members", label: "Ban members" },
-  { id: "mute_members", label: "Mute members" },
-  { id: "timeout_members", label: "Timeout members" },
-  { id: "manage_games", label: "Manage games" },
-  { id: "manage_hub_icons", label: "Manage hub icon library" },
-  { id: "manage_channel_icons", label: "Set icons and colors on channels" },
-  { id: "create_posts", label: "Create forum posts" },
-  { id: "manage_posts", label: "Manage forum posts" },
-  { id: "start_game", label: "Start games" },
-  { id: "create_events", label: "Create events" },
-  { id: "use_soundboard", label: "Use soundboard" },
+  { id: "move_members", label: "Move members between voice channels" },
 ];
 
 // Small preset palette for role/role-category color pickers. Free hex input

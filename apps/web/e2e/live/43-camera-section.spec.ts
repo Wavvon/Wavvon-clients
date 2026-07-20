@@ -1,18 +1,19 @@
 import { test, expect } from "@playwright/test";
 import { expectInHub } from "./helpers/live";
 
-// P43 — camera device picker + live preview (Settings → Voice, #6). Background
-// blur is deferred (heavy ML). Fake media is provided by the Playwright flags.
+// P43 — camera device picker + live preview (Settings → Camera, #6). Background
+// effects are covered by P45 and e2e/camera-background.spec.ts. Fake media is
+// provided by the Playwright flags.
 
-async function openVoiceSettings(page: import("@playwright/test").Page) {
+async function openCameraSettings(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice & Video", exact: true }).click();
+  await page.getByRole("button", { name: "Camera", exact: true }).click();
 }
 
 test("camera section shows a device picker and preview control", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openVoiceSettings(page);
+  await openCameraSettings(page);
   await expect(page.getByLabel("Camera device").first()).toBeVisible({ timeout: 10000 });
   await expect(page.getByRole("button", { name: "Preview camera" }).first()).toBeVisible();
 });
@@ -20,7 +21,7 @@ test("camera section shows a device picker and preview control", async ({ page }
 test("previewing the camera shows a live video element", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openVoiceSettings(page);
+  await openCameraSettings(page);
   const section = page
     .locator(".settings-section", { has: page.getByText("Camera", { exact: true }) })
     .first();

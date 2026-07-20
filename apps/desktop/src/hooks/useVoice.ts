@@ -338,8 +338,11 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     }
   }
 
-  async function handleVoiceJoin(channel?: Channel) {
-    const target = channel ?? selectedChannel;
+  // Accepts a bare channel id too — a voice_move push's destination (events.md
+  // §7.1) may not be in the local channel list (voice-only presence), so the
+  // mover's target can't always be resolved to a full Channel object.
+  async function handleVoiceJoin(channel?: Channel | string) {
+    const target = typeof channel === "string" ? { id: channel, is_category: false } : (channel ?? selectedChannel);
     if (!target || target.is_category) return;
     try {
       if (voiceChannelId && voiceChannelId !== target.id) {

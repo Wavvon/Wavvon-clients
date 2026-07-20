@@ -11,7 +11,7 @@ test("full archive export downloads an encrypted file", async ({ page }) => {
   await expectInHub(page);
 
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: "Manage accounts", exact: true }).click();
   await page.getByRole("button", { name: "Export full archive…" }).click();
 
   const passphrase = page.getByPlaceholder("Passphrase", { exact: true });

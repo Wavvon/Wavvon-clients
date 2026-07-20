@@ -19,6 +19,8 @@ export interface Channel {
   owner_pubkey?: string | null;
   /** Set only on spawner channels: the name template used for rooms it spawns. Absent/null otherwise. */
   spawner_name_template?: string | null;
+  /** Set only on auto-spawned squad rooms (events.md §7.5): the event this room was created for. */
+  event_id?: string | null;
 }
 
 export interface TreeNode {

@@ -52,7 +52,7 @@ test("manage_roles member reaches Permissions tab; rename/delete stay admin-only
     await expect(dialog).toBeVisible();
 
     // Lands directly on the Permissions tab (role list visible)…
-    await expect(dialog.getByRole("button", { name: "@everyone" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "everyone" })).toBeVisible();
     // …with no admin-only surfaces: no Settings tab, no delete button.
     await expect(dialog.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
     await expect(dialog.getByRole("button", { name: /Delete (channel|category)/ })).toHaveCount(0);

@@ -11,11 +11,14 @@ import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath } from "@wavvon/core";
+import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath, formatPubkey } from "@wavvon/core";
+import { getScoped, setScoped } from "./utils/accountScope";
+import { visibleParticipants } from "./utils/voicePresence";
 
-// Voice join/leave sound cues, gated by a preference (default on).
+// Voice join/leave sound cues, gated by a preference (default on). Per
+// account — it's a notification-style preference, like the mention ping.
 function voiceSoundsOn(): boolean {
-  try { return localStorage.getItem("wavvon.voiceSounds") !== "0"; } catch { return true; }
+  try { return getScoped("wavvon.voiceSounds") !== "0"; } catch { return true; }
 }
 import { DISCOVERY_NEW_HUB_URL, HUB_SETUP_COMMAND } from "./constants";
 import { parseHubInput } from "@wavvon/core";
@@ -35,42 +38,90 @@ import type {
   AllianceSharedChannel,
   SoundboardClip,
 } from "@shared/types";
-import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent } from "./types";
-import { BotAppLaunchCard } from "@components/BotAppLaunchCard";
-import { BotMiniAppFrame } from "@components/BotMiniAppFrame";
-import { HubSidebar } from "@components/HubSidebar";
-import { ChannelSidebar } from "@components/ChannelSidebar";
-import { ContentArea } from "@components/ContentArea";
-import { WhisperBar } from "@components/WhisperBar";
-import { loadPttConfig } from "@components/PushToTalkSection";
-import { loadProfiles, saveProfiles, newProfileId } from "./utils/profiles";
+import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus } from "./types";
+import { HubSidebar } from "@wavvon/ui";
+import { ChannelSidebar } from "@wavvon/ui";
+import { ContentArea } from "@components/layout/ContentArea";
+import { WhisperBar } from "@components/voice/WhisperBar";
+import { loadPttConfig } from "@components/settings/PushToTalkSection";
+import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, type DefaultProfile } from "./utils/profiles";
+import { getUserProfile, listRoleCategories, patchMyProfileOnHub, listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
+import { getHubSettings, saveHubSettings } from "@platform";
+import {
+  getChannelPermissions, setChannelRolePermissions, clearChannelRolePermissions,
+  listChannelBans, banFromChannel, unbanFromChannel,
+  listHubIcons, getTalkPower, setTalkPower,
+} from "@platform";
+import type { UserProfileCardActions, UserContextMenuActions } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket } from "@platform";
-import { SurveyModal } from "@components/SurveyModal";
-import { Lobby } from "@components/Lobby";
-import { HubStreamsPanel } from "@components/HubStreamsPanel";
+import { SurveyModal } from "@components/polls/SurveyModal";
+import { HubStreamsPanel } from "@wavvon/ui";
 import type { HubStreamInfo } from "./types";
-import { AddHubModal } from "@components/AddHubModal";
-import { CreateChannelModal } from "@components/CreateChannelModal";
-import { ChannelSettingsModal } from "@components/ChannelSettingsModal";
-import { FarmSettingsPage } from "@components/FarmSettingsPage";
-import { CreateHubFork } from "@components/CreateHubFork";
-import { FocusTrap, KeyboardShortcuts, HoverSubmenu } from "@wavvon/ui";
-import { HubAdminPage } from "./components/HubAdminPage";
-import { SearchBar } from "@components/SearchBar";
-import { WelcomeScreenContainer } from "@components/WelcomeScreen";
-import { SettingsPage } from "@components/SettingsPage";
-import { UserContextMenu } from "@components/UserContextMenu";
-import { VideoPipWindow } from "@components/VideoPipWindow";
-import { FriendsModal } from "@components/FriendsModal";
-import { MobileShell } from "@components/MobileShell";
-import { DiscoverPage } from "@components/DiscoverPage";
+import { AddHubModal } from "@wavvon/ui";
+import { isPasskeySupported } from "@platform";
+import { QuickInviteModal } from "@wavvon/ui";
+import { CreateChannelModal, ChannelSettingsModal } from "@wavvon/ui";
+import type { ChannelPermissionsTabActions, ChannelBansTabActions, ChannelTalkPowerTabActions } from "@wavvon/ui";
+import { CreateHubFork } from "@components/hubs/CreateHubFork";
+import { BotAppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, HoverSubmenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, FarmSettingsPage } from "@wavvon/ui";
+import { createEvent, createPoll } from "@platform";
+import { moveChannelOptions, decideVoiceMove } from "@wavvon/ui";
+import {
+  HubAdminPage,
+  type RolesSectionActions,
+  type MemberRoleManagerActions,
+  type ServerTagsSectionActions,
+  type InviteManagerActions,
+  type NativeBotsSectionActions,
+  type AuditLogSectionActions,
+  type CertificationsSectionActions,
+  type SoundboardAdminSectionActions,
+  type OnboardingAdminSectionActions,
+} from "@wavvon/ui";
+import {
+  createRole, updateRole, deleteRole,
+  createRoleCategory, updateRoleCategory, deleteRoleCategory,
+  getDiscoveryTags, setDiscoveryTags, submitToDirectory,
+  listBadges, listPendingBadges, acceptBadge, declineBadge, removeBadge, grantBadge,
+  createHubIcon, renameHubIcon, deleteHubIcon,
+  listNativeBots, createNativeBot, deleteNativeBot, getNativeBotDetail, setNativeBotWebhook,
+  getAuditLog,
+  listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+  listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip,
+  listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
+  muteMember, timeoutMember, voiceMuteMember, voiceUnmuteMember, listVoiceMutes,
+  getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
+  listAlliances, createAlliance, leaveAlliance,
+  listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
+  listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+  createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
+  getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
+  listAdminRecoveryRequests, approveRecoveryRequest, denyRecoveryRequest,
+  openRotationRequest, getRotationRequestBundle, attestRotationRequest,
+} from "@platform";
+import {
+  adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
+  adminListExternalBots, adminAddExternalBot, adminRemoveExternalBot,
+  adminGetBotChannelScope, adminSetBotChannelScope,
+} from "./platform/commands/bots";
+import { ModerationTab } from "@components/admin/ModerationTab";
+import { OutgoingWebhooksSection } from "@components/admin/OutgoingWebhooksSection";
+import { BotCapabilitiesPanel } from "@components/admin/BotCapabilitiesPanel";
+import { RecoveryContactsSection, type RecoveryContactsSectionActions } from "@wavvon/ui";
+import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
+import { SettingsPage } from "@components/settings/SettingsPage";
+import { UserContextMenu } from "@wavvon/ui";
+import { VideoPipWindow } from "@components/voice/VideoPipWindow";
+import { FriendsModal } from "@wavvon/ui";
+import { listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriendRequest, removeFriend } from "@platform";
+import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
-import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
-import type { ScreenShareViewerRef } from "@components/ScreenShareViewer";
-import { ScreenShareSelfPreview } from "@components/ScreenShareSelfPreview";
-import { listBotCommands, updateDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey } from "@platform";
-import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, uploadFile } from "@platform";
+import { saveDraft, loadDraft, clearDraft, hasDraft } from "./utils/drafts";
+import type { ScreenShareViewerRef } from "@wavvon/ui";
+import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
+import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey, sendBotAppJoin } from "@platform";
+import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, sendSetStatusTo, uploadFile } from "@platform";
 import type { MyChannelPermissions } from "@platform";
 import {
   restorePersistedHubs,
@@ -80,11 +131,28 @@ import {
   listHubs,
   renameSavedHub,
   previewHubInfo,
+  verifyLanFingerprint,
   reorderHubs,
   reauthorizeHub,
   hubFetch,
   HubApiError,
   loadSavedHubs,
+  fetchWithTimeout,
+  getLobbyStatus,
+  getLobbyWelcome,
+  submitLobbyPow,
+  getFarmSettings,
+  patchFarmSettings,
+  getFarmHubsAdmin,
+  suspendFarmHub,
+  deleteFarmHub,
+  getFarmUsers,
+  revokeFarmUserSessions,
+  getFarmServers,
+  generateFarmServerToken,
+  farmTotpSetup,
+  farmTotpConfirm,
+  farmTotpDisable,
 } from "@platform";
 import type { WsHandlers } from "@platform";
 import { getActiveHubId } from "@platform";
@@ -118,19 +186,10 @@ import {
   getDmMessages,
   sendDm,
   publishDhKey,
+  createConversation,
 } from "@platform";
-import { postPairingClaim, getPairingStatus } from "@platform";
-import {
-  loadIdentity,
-  generateIdentity,
-  generateSubkeySeed,
-  publicKeyHex,
-  seedToPhrase,
-  phraseToSeed,
-  validatePhrase,
-  saveIdentity,
-  buildPairingClaim,
-} from "@identity/index";
+import { loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
+import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
 
 // ---- Types ----
 type View = "channels" | "dms";
@@ -140,205 +199,38 @@ type HubPreview =
   | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; welcome_label?: string | null; welcome_invite_url?: string | null }
   | { state: "error"; message: string };
 
-// ---- Identity Setup ----
-
-function IdentitySetupScreen({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair">("choose");
-  const [generatedPhrase, setGeneratedPhrase] = useState("");
-  const [generatedSeed, setGeneratedSeed] = useState("");
-  const [showHexBackup, setShowHexBackup] = useState(false);
-  const [phrase, setPhrase] = useState("");
-  const [hexInput, setHexInput] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pairCode, setPairCode] = useState("");
-  const [pairLabel, setPairLabel] = useState("");
-  const [pairStatus, setPairStatus] = useState<"idle" | "claiming" | "waiting">("idle");
-
-  // New-device pairing: generate a fresh subkey, claim the offer with it, and
-  // poll until the existing device approves. On completion we persist the seed
-  // plus the master-signed cert so this device authenticates as the shared
-  // identity.
-  async function doPair() {
-    setError(null);
-    const label = pairLabel.trim() || "New device";
-    let decoded: { hub: string; token: string };
-    try {
-      decoded = JSON.parse(atob(pairCode.trim()));
-      if (!decoded.hub || !decoded.token) throw new Error("bad code");
-    } catch {
-      setError("That pairing code isn't valid. Copy it again from your other device.");
-      return;
+// The member profile card's own-profile save also propagates to every other
+// hub following the account's default profile (see utils/profiles.ts) — pure
+// module-level plumbing, no App state needed, so it lives beside the import
+// list rather than being rebuilt every render.
+const profileCardActions: UserProfileCardActions = {
+  getUserProfile: (pubkey) => getUserProfile(pubkey),
+  listRoleCategories: () => listRoleCategories(),
+  saveMyProfile: async (hubId, fields) => {
+    await patchMyProfileOnHub(hubId, fields);
+    const follows = loadFollowsDefault();
+    if (follows.includes(hubId)) {
+      const def = loadDefaultProfile();
+      if (def) saveDefaultProfile({ ...def, ...fields });
+      for (const hid of follows) {
+        if (hid !== hubId) {
+          try { await patchMyProfileOnHub(hid, fields); } catch { /* offline hub catches up later */ }
+        }
+      }
     }
-    setPairStatus("claiming");
-    try {
-      const subkeySeed = generateSubkeySeed();
-      const subkeyPubkey = publicKeyHex(subkeySeed);
-      const claim = buildPairingClaim(subkeySeed, decoded.token, subkeyPubkey, label);
-      await postPairingClaim(decoded.hub, claim);
-      setPairStatus("waiting");
-
-      const started = Date.now();
-      const poll = async (): Promise<void> => {
-        if (Date.now() - started > 320_000) {
-          setError("The pairing offer expired before it was approved.");
-          setPairStatus("idle");
-          return;
-        }
-        const status = await getPairingStatus(decoded.hub, decoded.token).catch(() => null);
-        if (status && status.state === "complete") {
-          await saveIdentity({
-            id: "main",
-            seed_hex: subkeySeed,
-            security_nonce: 0,
-            security_level: 0,
-            master_pubkey: status.cert.master_pubkey,
-            device_label: label,
-            subkey_cert: status.cert,
-          });
-          onComplete();
-          return;
-        }
-        if (status && status.state === "expired") {
-          setError("The pairing offer expired.");
-          setPairStatus("idle");
-          return;
-        }
-        setTimeout(() => void poll(), 2000);
-      };
-      void poll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setPairStatus("idle");
-    }
-  }
-
-  async function doGenerate() {
-    const rec = await generateIdentity();
-    setGeneratedSeed(rec.seed_hex);
-    setGeneratedPhrase(seedToPhrase(rec.seed_hex));
-    setStep("generated");
-  }
-
-  async function doRecoverPhrase() {
-    setError(null);
-    if (!validatePhrase(phrase)) { setError("Invalid recovery phrase."); return; }
-    try {
-      const hex = phraseToSeed(phrase);
-      await saveIdentity({ id: "main", seed_hex: hex, security_nonce: 0, security_level: 0 });
-      onComplete();
-    } catch (e) { setError(String(e)); }
-  }
-
-  async function doRecoverHex() {
-    setError(null);
-    if (!/^[0-9a-fA-F]{64}$/.test(hexInput)) { setError("Must be 64 hex chars."); return; }
-    try {
-      await saveIdentity({ id: "main", seed_hex: hexInput.toLowerCase(), security_nonce: 0, security_level: 0 });
-      onComplete();
-    } catch (e) { setError(String(e)); }
-  }
-
-  if (step === "generated") {
-    return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Save your recovery phrase</h2>
-        <p className="muted">Write these 24 words down and store them somewhere safe. Anyone with this phrase can control your identity.</p>
-        <div style={{ background: "var(--bg-elevated)", padding: 16, borderRadius: "var(--r-md)", fontFamily: "monospace", lineHeight: 1.8, marginBottom: 16 }}>{generatedPhrase}</div>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          <button
-            className="btn-ghost"
-            style={{ fontSize: "inherit", padding: 0, textDecoration: "underline" }}
-            onClick={() => setShowHexBackup((v) => !v)}
-          >
-            {showHexBackup ? "Hide" : "Show"} seed hex (alternative backup)
-          </button>
-          {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
-        </p>
-        <button className="btn-primary" onClick={onComplete} style={{ marginTop: 16 }}>
-          I saved my phrase — Continue
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "recover") {
-    return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Recover identity</h2>
-        <label className="settings-label">24-word recovery phrase</label>
-        <textarea rows={3} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder="word1 word2 word3 …" style={{ width: "100%", marginBottom: 8 }} />
-        <button onClick={doRecoverPhrase} style={{ marginBottom: 16 }}>Recover from phrase</button>
-        <label className="settings-label">Or seed hex (64 chars)</label>
-        <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder="a1b2c3d4…" style={{ width: "100%", fontFamily: "monospace", marginBottom: 8 }} />
-        <button onClick={doRecoverHex} style={{ marginBottom: 8 }}>Recover from hex</button>
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-        <br />
-        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>Back</button>
-      </div>
-    );
-  }
-
-  if (step === "pair") {
-    return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
-        <h2>Pair with an existing device</h2>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          On a device you're already signed in on, open Settings → Account → Devices → “Pair a new device”, then paste
-          the code it shows here.
-        </p>
-        <label className="settings-label">Device name</label>
-        <input
-          type="text"
-          value={pairLabel}
-          onChange={(e) => setPairLabel(e.target.value)}
-          placeholder="e.g. Work laptop"
-          aria-label="Device name"
-          style={{ width: "100%", marginBottom: 8 }}
-        />
-        <label className="settings-label">Pairing code</label>
-        <textarea
-          rows={3}
-          value={pairCode}
-          onChange={(e) => setPairCode(e.target.value)}
-          placeholder="Paste the code from your other device"
-          aria-label="Pairing code"
-          style={{ width: "100%", marginBottom: 8, fontFamily: "monospace" }}
-        />
-        <button className="btn-primary" onClick={doPair} disabled={pairStatus !== "idle" || !pairCode.trim()}>
-          {pairStatus === "waiting" ? "Waiting for approval…" : pairStatus === "claiming" ? "Linking…" : "Pair this device"}
-        </button>
-        {pairStatus === "waiting" && (
-          <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
-            Approve this device on your other device to finish.
-          </p>
-        )}
-        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-        <br />
-        <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>Back</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ maxWidth: 400, margin: "120px auto", padding: 32, textAlign: "center" }}>
-      <h1>Wavvon</h1>
-      <p className="muted">Create a new identity or recover an existing one.</p>
-      <button className="btn-primary" style={{ width: "100%", marginBottom: 12 }} onClick={doGenerate}>
-        Create new identity
-      </button>
-      <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setStep("recover")}>
-        Recover existing identity
-      </button>
-      <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setStep("pair")}>
-        Pair with an existing device
-      </button>
-    </div>
-  );
-}
+  },
+};
 
 // ---- App ----
 
-export default function App() {
+export interface AppProps {
+  // Set by AccountRoot right after an in-place account switch initiated from
+  // Settings → Account, so the user lands back there on the new account
+  // instead of the main view.
+  initialView?: "settings-account";
+}
+
+export default function App({ initialView }: AppProps = {}) {
   const { t } = useTranslation();
   // === Identity ===
   const [ready, setReady] = useState<"checking" | "setup" | "ok">("checking");
@@ -352,7 +244,6 @@ export default function App() {
     customThemes,
     activeCustomThemeId,
     recoveryPhrase, setRecoveryPhrase,
-    copiedKey,
     mentionPingEnabled, setMentionPingEnabled,
     handleSetTheme,
     handleSkinChange,
@@ -364,8 +255,7 @@ export default function App() {
     handleImportCustomTheme,
     handleShowRecovery,
     handleRecoverIdentity,
-    handleCopyKey: handleCopyKeyFn,
-  } = useSettingsProfile(setPublicKey);
+  } = useSettingsProfile(setPublicKey, initialView);
 
   // === Hubs ===
   const [hubs, setHubs] = useState<Hub[]>([]);
@@ -382,13 +272,24 @@ export default function App() {
   const [hubPreview, setHubPreview] = useState<HubPreview>({ state: "idle" });
   const [addingHub, setAddingHub] = useState(false);
   const [addHubError, setAddHubError] = useState<string | null>(null);
+  // LAN fingerprint pinning (lan-mode.md §5): set when the parsed invite
+  // carried a `?fp=`/`#fp=` fingerprint, so handleAddHub* can TOFU-verify it
+  // against /info before joining.
+  const [expectedFingerprint, setExpectedFingerprint] = useState<string | undefined>(undefined);
+  const [fingerprintMatch, setFingerprintMatch] = useState(false);
   const [showAddHub, setShowAddHub] = useState(false);
+  const [showQuickInvite, setShowQuickInvite] = useState(false);
   const [homeHubUrl, setHomeHubUrl] = useState<string | undefined>(undefined);
   const [createChannelCtx, setCreateChannelCtx] = useState<{ parentId: string | null; isCategory: boolean } | null>(null);
   const [createChannelLoading, setCreateChannelLoading] = useState(false);
   const [createChannelError, setCreateChannelError] = useState<string | null>(null);
   const [channelCtxMenu, setChannelCtxMenu] = useState<{ channel: Channel; x: number; y: number } | null>(null);
   const [channelSettingsCtx, setChannelSettingsCtx] = useState<Channel | null>(null);
+  // "Create event"/"create poll" from the channel context menu (create-anything
+  // task): both composers are self-contained modals that only need a target
+  // channel id, so they can be opened without switching to that channel first.
+  const [eventComposerChannelId, setEventComposerChannelId] = useState<string | null>(null);
+  const [pollComposerChannelId, setPollComposerChannelId] = useState<string | null>(null);
   // Temp-room owner rename (temp-voice-channels.md §3): a non-admin owner
   // gets a minimal rename modal, not the full channel-settings surface.
   const [renameRoomCtx, setRenameRoomCtx] = useState<Channel | null>(null);
@@ -402,6 +303,29 @@ export default function App() {
   // === Hub data ===
   const [channels, setChannels] = useState<Channel[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  // Own presence — shared across every hub this account is on, not per-hub;
+  // the client is the source of truth and broadcasts it to every session,
+  // re-applying on (re)connect. Distinct from hub mute (notify modes). It's
+  // an account-level preference (per-account storage), not a device-global one.
+  const [myPresence, setMyPresenceState] = useState<{ status: PresenceStatus }>(() => {
+    try {
+      const raw = getScoped("wavvon.presence");
+      if (raw) {
+        const p = JSON.parse(raw) as { status?: string };
+        const s = p.status;
+        if (s === "away" || s === "dnd" || s === "invisible") return { status: s };
+      }
+    } catch { /* storage unavailable or corrupt */ }
+    return { status: "online" };
+  });
+  const setMyPresence = useCallback((p: { status: PresenceStatus }) => {
+    setMyPresenceState(p);
+    try { setScoped("wavvon.presence", JSON.stringify(p)); } catch { /* storage unavailable */ }
+  }, []);
+  // Timer backing the presence "clear after" (TTL): while connected, reverts
+  // to Online when it fires. Presence is online-only anyway, so disconnecting
+  // also naturally resets it; this just handles the still-online case.
+  const presenceTtlRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
@@ -410,7 +334,7 @@ export default function App() {
   const [selfDeafened, setSelfDeafened] = useState(false);
   const voiceSessionRef = useRef<VoiceWsSession | null>(null);
   const [voiceGains, setVoiceGains] = useState<Record<string, number>>(() => {
-    try { return JSON.parse(localStorage.getItem("wavvon.voice_gains") || "{}") as Record<string, number>; }
+    try { return JSON.parse(getScoped("wavvon.voice_gains") || "{}") as Record<string, number>; }
     catch { return {}; }
   });
   const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
@@ -476,18 +400,22 @@ export default function App() {
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const [ignoredUsers, setIgnoredUsers] = useState<Set<string>>(() => {
     try {
-      const raw = localStorage.getItem("wavvon.ignoredUsers");
+      const raw = getScoped("wavvon.ignoredUsers");
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch { return new Set(); }
   });
 
   function toggleBlockUser(pubkey: string) {
-    setBlockedUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(pubkey)) next.delete(pubkey);
-      else next.add(pubkey);
-      updateDmBlocks(Array.from(next)).catch(() => {});
-      return next;
+    const prev = blockedUsers;
+    const next = new Set(prev);
+    if (next.has(pubkey)) next.delete(pubkey);
+    else next.add(pubkey);
+    setBlockedUsers(next);
+    // Optimistic update; on failure revert and say so — a silently
+    // unpersisted block is a safety problem, not a cosmetic one.
+    updateDmBlocks(Array.from(next)).catch((e) => {
+      setBlockedUsers(prev);
+      showHubError(e instanceof HubApiError ? e.message : String(e));
     });
   }
 
@@ -496,7 +424,7 @@ export default function App() {
       const next = new Set(prev);
       if (next.has(pubkey)) next.delete(pubkey);
       else next.add(pubkey);
-      try { localStorage.setItem("wavvon.ignoredUsers", JSON.stringify(Array.from(next))); } catch {}
+      try { setScoped("wavvon.ignoredUsers", JSON.stringify(Array.from(next))); } catch {}
       return next;
     });
   }
@@ -517,6 +445,13 @@ export default function App() {
     hubAdminInvites,
     hubAdminPending,
     maxChannelDepth, setMaxChannelDepth,
+    hubListed,
+    onHubListedChange,
+    voiceMutedKeys,
+    onMuteMember,
+    onTimeoutMember,
+    onVoiceMuteMember,
+    onVoiceUnmuteMember,
     openHubAdmin,
     saveHubAdminSettings,
     addInvite,
@@ -533,47 +468,39 @@ export default function App() {
     },
   });
 
-  // === Profiles (client-only named display-name/avatar presets) ===
-  const [profileStore, setProfileStore] = useState(loadProfiles);
-  const namedProfiles = profileStore.profiles;
-  const defaultProfileId = profileStore.defaultProfileId;
-
-  function mutateProfiles(next: ReturnType<typeof loadProfiles>) {
-    setProfileStore(next);
-    saveProfiles(next);
-  }
-  function handleCreateProfile(label: string, displayName: string, avatar: string | null) {
-    const profile = { id: newProfileId(), label, display_name: displayName, avatar };
-    mutateProfiles({
-      profiles: [...profileStore.profiles, profile],
-      defaultProfileId: profileStore.defaultProfileId ?? profile.id,
-    });
-  }
-  function handleUpdateProfile(id: string, patch: Partial<{ label: string; display_name: string; avatar: string | null }>) {
-    mutateProfiles({
-      ...profileStore,
-      profiles: profileStore.profiles.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-    });
-  }
-  function handleDeleteProfile(id: string) {
-    mutateProfiles({
-      profiles: profileStore.profiles.filter((p) => p.id !== id),
-      defaultProfileId: profileStore.defaultProfileId === id ? null : profileStore.defaultProfileId,
-    });
-  }
-  function handleSetDefaultProfile(id: string) {
-    mutateProfiles({ ...profileStore, defaultProfileId: id });
-  }
-  async function handleApplyProfileToHub(id: string) {
-    const p = profileStore.profiles.find((x) => x.id === id);
-    if (!p) return;
+  // === Profile on the active hub (community-axis; the hub is the source of
+  // truth, PATCH /me writes it). The per-account default profile is read from
+  // scoped storage at use time — no App state to go stale.
+  async function handleUpdateHubProfile(profile: DefaultProfile) {
     try {
-      await hubFetch("/me", { method: "PATCH", body: JSON.stringify({ display_name: p.display_name, avatar: p.avatar }) });
+      await hubFetch("/me", {
+        method: "PATCH",
+        body: JSON.stringify({
+          display_name: profile.display_name,
+          avatar: profile.avatar ?? "",
+          bio: profile.bio ?? "",
+          pronouns: profile.pronouns ?? "",
+          status_message: profile.status_message ?? "",
+          activities: profile.activities ?? "",
+          accent_color: profile.accent_color ?? "",
+          cover: profile.cover ?? "",
+          favorite_hubs: profile.favorite_hubs,
+          show_hubs: profile.show_hubs,
+        }),
+      });
       hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
       hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
     } catch (e) {
       showHubError(e instanceof HubApiError ? e.message : String(e));
     }
+  }
+
+  // The settings profile editor PATCHes any hub itself (via that hub's own
+  // session); App only needs to refresh its active-hub mirrors afterwards.
+  function handleHubProfileSaved(hubId: string) {
+    if (hubId !== activeHubId) return;
+    hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
+    hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
   }
 
   // === Farm admin ===
@@ -593,10 +520,30 @@ export default function App() {
   const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
   const [firstRunName, setFirstRunName] = useState("");
   const [userContextMenu, setUserContextMenu] = useState<{
-    pubkey: string;
-    displayName: string | null;
+    user: User;
     position: { x: number; y: number };
   } | null>(null);
+
+  // === Voice move (events.md §7.1/§7.2) ===
+  const [voiceMoveMenu, setVoiceMoveMenu] = useState<{
+    pubkey: string;
+    displayName: string;
+    position: { x: number; y: number };
+    currentChannelId: string;
+  } | null>(null);
+  // Overrides the sidebar's local-channel-list name lookup for the voice HUD
+  // label — set from a voice_move push's target_channel_name, since that
+  // destination may not be in the local channel list (events.md §7.1/§7.4).
+  const [voiceChannelNameHint, setVoiceChannelNameHint] = useState<string | null>(null);
+  const [voiceMovePrompt, setVoiceMovePrompt] = useState<{
+    targetChannelId: string;
+    targetChannelName: string;
+  } | null>(null);
+  const [voiceMoveToast, setVoiceMoveToast] = useState<{
+    channelName: string;
+    sourceChannelId: string | null;
+  } | null>(null);
+  const voiceMoveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // === Typing ===
   const selectedChannelIdRef = useRef<string | undefined>(undefined);
@@ -605,6 +552,12 @@ export default function App() {
   publicKeyRef.current = publicKey;
   const mentionPingEnabledRef = useRef(mentionPingEnabled);
   mentionPingEnabledRef.current = mentionPingEnabled;
+  // Mirrored for the WS handlers: "dnd" presence and "silent" notify
+  // modes both gate notifications.
+  const myPresenceRef = useRef(myPresence);
+  myPresenceRef.current = myPresence;
+  const effectiveNotifyModeRef = useRef(effectiveNotifyMode);
+  effectiveNotifyModeRef.current = effectiveNotifyMode;
   const { typingByKey, dmTypingByKey, receiveTyping, pingTyping, pingDmTyping } = useTypingIndicators(
     () => selectedChannelIdRef.current,
     () => selectedConvIdRef.current,
@@ -643,6 +596,28 @@ export default function App() {
   const [hubStreams, setHubStreams] = useState<import("./types").HubStreamInfo[]>([]);
   const [showHubStreams, setShowHubStreams] = useState(false);
   const subscribedStreamIds = useRef<Set<string>>(new Set());
+  // Registered so switchAccount can refuse a mid-voice switch at the source
+  // (defense in depth alongside the disabled Switch button in Settings →
+  // Account) — switching accounts while joined to a voice channel is blocked
+  // outright, not auto-left on the caller's behalf.
+  useEffect(() => {
+    setSwitchGuard(() => (voiceChannelId ? t("settings.account.accounts.switch_blocked_voice") : null));
+    return () => setSwitchGuard(null);
+  }, [voiceChannelId, t]);
+
+  // Per-instance resources this App holds that any unmount (a key-remounted
+  // account switch, or otherwise) must tear down explicitly. Module-level
+  // singletons like the hub WebSocket sessions are reset separately, by
+  // AccountRoot's switch handler (platform/session.ts resetHubSessions) —
+  // that reset runs regardless of whether this cleanup does.
+  useEffect(() => {
+    return () => {
+      voiceSessionRef.current?.stop();
+      videoSessionRef.current?.dispose();
+      screenShareSessionRef.current?.stop();
+      backgroundProcessorRef.current?.stop();
+    };
+  }, []);
   // Reload PTT config when the settings screen changes it.
   useEffect(() => {
     const reload = () => setPttConfig(loadPttConfig());
@@ -692,6 +667,18 @@ export default function App() {
     prevVoiceOthersRef.current = others;
   }, [voicePartByChannel, voiceChannelId, publicKey]);
 
+  // What every rendered participant list (sidebar channel rows, the whisper
+  // bar, the event staging panel) should actually show — an invisible
+  // participant is filtered out of everyone's view but their own, same as
+  // they already are in the plain member roster (see onSetStatus above).
+  const visibleVoicePartByChannel = useMemo(() => {
+    const out: Record<string, VoiceParticipant[]> = {};
+    for (const [channelId, participants] of Object.entries(voicePartByChannel)) {
+      out[channelId] = visibleParticipants(participants, users, publicKey);
+    }
+    return out;
+  }, [voicePartByChannel, users, publicKey]);
+
   const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
 
@@ -711,7 +698,10 @@ export default function App() {
     });
   }, []);
 
-  function handleIdentityComplete() {
+  function handleIdentityComplete(result: IdentitySetupCompletion) {
+    // Nickname + avatar chosen during onboarding become the default profile,
+    // which the first-hub effect below applies automatically via PATCH /me.
+    if (result.profile) saveDefaultProfile({ display_name: result.profile.display_name, avatar: result.profile.avatar, bio: null, pronouns: null, status_message: null, activities: null, accent_color: null, cover: null, favorite_hubs: [], show_hubs: false });
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
@@ -747,16 +737,21 @@ export default function App() {
   const meInfoRef = useRef<MeInfo | null>(null);
   useEffect(() => { meInfoRef.current = meInfo; }, [meInfo]);
 
+  // handleVoiceJoin's "already there" guard is called both from JSX (fresh
+  // voiceChannelId) and from the frozen onVoiceMove WS handler below — the
+  // ref keeps that guard correct from either call site.
+  const voiceChannelIdRef = useRef<string | null>(null);
+  useEffect(() => { voiceChannelIdRef.current = voiceChannelId; }, [voiceChannelId]);
+
   useEffect(() => {
     if (hubs.length === 1 && meInfo !== null && !meInfo.display_name) {
       // A default profile means the user already told us who they want to
-      // be — apply it silently instead of asking again. Only fall back to
-      // the prompt when there's truly nothing saved yet (no profiles at
-      // all); if profiles exist but none is marked default, leave it to
-      // the user to pick one in Settings rather than guessing.
-      if (defaultProfileId) {
-        void handleApplyProfileToHub(defaultProfileId);
-      } else if (namedProfiles.length === 0) {
+      // be — apply it silently instead of asking again. Read at fire time so
+      // edits made in Settings since mount are honored.
+      const def = loadDefaultProfile();
+      if (def) {
+        void handleUpdateHubProfile(def);
+      } else {
         setShowDisplayNamePrompt(true);
       }
     }
@@ -838,7 +833,13 @@ export default function App() {
         const myPk = publicKeyRef.current;
         const isMention = (myName && mentionsName(msg.content, myName)) ||
           (myPk && msg.content.includes(myPk));
-        if (isMention && msg.sender !== myPk) {
+        // Read-time notification gate, two independent quiets: "dnd"
+        // presence (global) and a "silent" notify mode on this hub or
+        // channel (hub mute). Either way unreads still accumulate.
+        const silenced = myPresenceRef.current.status === "dnd" ||
+          (!!msgHubId && typeof m.channel_id === "string" &&
+            effectiveNotifyModeRef.current(msgHubId, m.channel_id) === "silent");
+        if (isMention && msg.sender !== myPk && !silenced) {
           if (mentionPingEnabledRef.current) {
             try { playMentionPing(); } catch { /* audio context may not be ready */ }
           }
@@ -916,6 +917,19 @@ export default function App() {
         else next.delete(sender);
         return next;
       });
+    },
+    onVoiceMove: (raw) => {
+      const m = raw as { _hub_id?: string } & Parameters<typeof decideVoiceMove>[0];
+      if (m._hub_id !== activeHubIdRef.current) return;
+      const decision = decideVoiceMove(m);
+      if (decision.kind === "ignore") return;
+      if (decision.kind === "auto") {
+        setVoiceChannelNameHint(decision.targetChannelName);
+        void handleVoiceJoin(decision.targetChannelId);
+        showVoiceMoveToast(decision.targetChannelName, decision.sourceChannelId);
+      } else {
+        setVoiceMovePrompt({ targetChannelId: decision.targetChannelId, targetChannelName: decision.targetChannelName });
+      }
     },
     onVoiceState: (raw) => {
       const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; _hub_id?: string; sender_id?: number };
@@ -1018,6 +1032,15 @@ export default function App() {
     onStatusChange: (connected, hubId) => {
       const hubName = hubsRef.current.find((h) => h.hub_id === hubId)?.hub_name ?? "hub";
       handleStatusChange(hubId, hubName, connected, setAssertiveAnnouncement);
+      if (connected) {
+        // Presence is global: push this device's status to the hub that
+        // just (re)connected, but only if the user ever picked one here —
+        // a fresh device must not stomp a status set elsewhere.
+        const p = myPresenceRef.current;
+        if (p.status !== "online") {
+          try { sendSetStatusTo(hubId, p.status, null); } catch { /* ws not ready */ }
+        }
+      }
       if (connected && hubId === activeHubIdRef.current) {
         hubFetch("/users").then((r) => r.json() as Promise<User[]>).then(setUsers).catch(() => {});
         try { activeSession().ws?.requestStreamList(); } catch {}
@@ -1161,12 +1184,6 @@ export default function App() {
 
   stableHandlersRef.current = stableHandlers;
 
-  function sendBotAppJoin(botId: string, channelId: string) {
-    try {
-      activeSession().ws?.send({ type: "bot_app_join", bot_id: botId, channel_id: channelId });
-    } catch {}
-  }
-
   // === Hub restore on startup ===
 
   useEffect(() => {
@@ -1209,13 +1226,14 @@ export default function App() {
       })
       .catch(() => { /* cosmetic sync only */ });
     try {
-      const [ch, usr, me, convs, cmds, voiceRoster] = await Promise.allSettled([
+      const [ch, usr, me, convs, cmds, voiceRoster, dmBlocks] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
         hubFetch("/users").then((r) => r.json() as Promise<User[]>),
         hubFetch("/me").then((r) => r.json() as Promise<MeInfo>),
         hubFetch("/conversations").then((r) => r.json() as Promise<Conversation[]>),
         listBotCommands().catch(() => [] as Array<{ command: string; description: string; bot_name: string }>),
         fetchVoiceRoster().catch(() => ({} as Record<string, VoiceParticipant[]>)),
+        getDmBlocks().catch(() => null),
       ]);
       // A lobby-scoped session (lobby-bot-survey.md Feature 1) 403s every
       // route outside the lobby allowlist — /channels is always in that
@@ -1289,6 +1307,9 @@ export default function App() {
       if (convs.status === "fulfilled") setConversations(convs.value);
       if (cmds.status === "fulfilled") setSlashCommands(cmds.value);
       if (voiceRoster.status === "fulfilled") setVoicePartByChannel(voiceRoster.value);
+      // The hub is the source of truth for DM blocks; without this seed the
+      // list silently reset to empty on every reload.
+      if (dmBlocks.status === "fulfilled" && dmBlocks.value) setBlockedUsers(new Set(dmBlocks.value));
       const hubId = getActiveHubId();
       if (hubId) {
         getUnreadCounts().then((counts) => seedUnreadFromServer(hubId, counts)).catch(() => {});
@@ -1415,6 +1436,8 @@ export default function App() {
     const p = parseHubInput(v);
     setHubUrl(p?.hubUrl ?? v);
     if (p?.inviteCode) setInviteCode(p.inviteCode);
+    setExpectedFingerprint(p?.fingerprint);
+    setFingerprintMatch(false);
     setHubPreview({ state: "idle" });
     setAddHubError(null);
     if (p?.target) {
@@ -1449,6 +1472,11 @@ export default function App() {
     setAddingHub(true);
     setAddHubError(null);
     try {
+      if (!(await verifyLanFingerprint(hubUrl, expectedFingerprint))) {
+        setAddHubError(t("hub.add_modal.fingerprint_mismatch"));
+        return;
+      }
+      if (expectedFingerprint) setFingerprintMatch(true);
       const hub = await addHub(hubUrl, stableHandlers, { invite_code: inviteCode || undefined });
       setHubs(listHubs());
       setActiveHubIdState(hub.hub_id);
@@ -1476,6 +1504,11 @@ export default function App() {
     setAddingHub(true);
     setAddHubError(null);
     try {
+      if (!(await verifyLanFingerprint(hubUrl, expectedFingerprint))) {
+        setAddHubError(t("hub.add_modal.fingerprint_mismatch"));
+        return;
+      }
+      if (expectedFingerprint) setFingerprintMatch(true);
       const token = await authenticateWithPasskey(hubUrl, publicKey);
       const hub = await addHub(hubUrl, stableHandlers, {
         invite_code: inviteCode || undefined,
@@ -1552,7 +1585,7 @@ export default function App() {
     }
   }
 
-  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, banner?: { url?: string; file?: File | null }) {
+  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, customIconSvg?: string | null, banner?: { url?: string; file?: File | null }) {
     if (!channelSettingsCtx) return;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
@@ -1573,6 +1606,7 @@ export default function App() {
           description: description || null,
           color,
           icon,
+          custom_icon_svg: customIconSvg,
           banner_url: banner?.url,
           banner_file_id: bannerFileId,
         }),
@@ -1815,20 +1849,42 @@ export default function App() {
     }
   }
 
+  // The hub dedupes 1:1 DMs server-side (create_conversation returns the
+  // existing conversation instead of a duplicate), so this is safe to call
+  // even if a conversation with this member already exists locally.
+  async function handleStartConversation(pubkey: string) {
+    try {
+      const conv = await createConversation([pubkey]);
+      setConversations((prev) => prev.some((c) => c.id === conv.id)
+        ? prev.map((c) => c.id === conv.id ? conv : c)
+        : [conv, ...prev]);
+      await handleSelectConversation(conv);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
   async function handleSendDm() {
     if (!selectedConversation || !inputText.trim()) return;
     const text = inputText.trim();
     setInputText("");
     try {
       await sendDm(selectedConversation.id, text);
-    } catch {}
+    } catch (e) {
+      // Losing the message silently is worse than any error: put the text
+      // back in the composer and surface what happened.
+      setInputText(text);
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
   }
 
   // === Voice ===
 
-  async function handleVoiceJoin(ch: Channel) {
-    // Already in this exact voice channel — nothing to do.
-    if (voiceChannelId === ch.id) return;
+  async function handleVoiceJoin(targetChannelId: string) {
+    // Already in this exact voice channel — nothing to do. Read via the ref
+    // (not the voiceChannelId state) so this guard is correct even when
+    // called from the frozen onVoiceMove WS handler (stableHandlers memo).
+    if (voiceChannelIdRef.current === targetChannelId) return;
     // Switching channels: tear down the current session FIRST. Without this,
     // repeated joins stack independent VoiceWsSessions (joining several rooms
     // at once) and only the last is tracked, so leaving leaves the earlier
@@ -1846,7 +1902,7 @@ export default function App() {
     }
     try {
       const sess = activeSession();
-      const session = new VoiceWsSession(sess.hub_url, sess.token, ch.id, {
+      const session = new VoiceWsSession(sess.hub_url, sess.token, targetChannelId, {
         // `channelId` is where the join actually landed — for a spawner
         // channel the hub creates a personal sibling room and the join
         // lands there instead, never in the spawner itself.
@@ -1874,7 +1930,7 @@ export default function App() {
               onPeerGone: (pk) => setRemoteVideoStreams((prev) => { const n = new Map(prev); n.delete(pk); return n; }),
             });
           }
-          if (channelId !== ch.id) {
+          if (channelId !== targetChannelId) {
             hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>).then(setChannels).catch(() => {});
           }
         },
@@ -1885,6 +1941,7 @@ export default function App() {
           backgroundProcessorRef.current?.stop();
           backgroundProcessorRef.current = null;
           setVoiceChannelId(null);
+          setVoiceChannelNameHint(null);
           setLocalVideoStream(null);
           setRemoteVideoStreams(new Map());
           setVideoEnabled(false);
@@ -1948,7 +2005,7 @@ export default function App() {
     screenShareViewerRef.current?.stopStream(streamId);
   }
 
-  async function handleToggleVideo() {
+  async function handleToggleVideo(deviceId?: string) {
     if (videoEnabled) { handleStopVideo(); return; }
     // Video is scoped to the voice channel you're in; the session was created
     // on voice-join so it already knows the participant roster.
@@ -1957,9 +2014,10 @@ export default function App() {
       return;
     }
     try {
-      // Honor the camera chosen in Settings → Voice, if any.
-      let camId: string | null = null;
-      try { camId = localStorage.getItem("wavvon.videoInputDevice"); } catch { /* ignore */ }
+      // A device passed by the caller (e.g. the sidebar's quick-toggle,
+      // which auto-picks a camera) wins over the one saved in Settings.
+      let camId: string | null = deviceId ?? null;
+      if (!camId) { try { camId = localStorage.getItem("wavvon.videoInputDevice"); } catch { /* ignore */ } }
       const raw = await navigator.mediaDevices.getUserMedia({
         video: camId ? { deviceId: { exact: camId } } : true,
         audio: false,
@@ -2039,6 +2097,7 @@ export default function App() {
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
+    setVoiceChannelNameHint(null);
     setSelfMuted(false);
     setSelfDeafened(false);
     try { activeSession().ws?.unwatchVoice(); } catch {}
@@ -2057,6 +2116,44 @@ export default function App() {
     }
   }
 
+  // Mover's side: right-click "Move to channel…" (events.md §7.1) and the
+  // event staging panel (§7.5, eventId set) both funnel through here.
+  function handleMoveMember(targetPubkey: string, targetChannelId: string, eventId?: string) {
+    const ws = activeSession().ws;
+    if (!ws) { showHubError("Not connected"); return; }
+    ws.sendVoiceMove(targetPubkey, targetChannelId, eventId);
+  }
+
+  function showVoiceMoveToast(channelName: string, sourceChannelId: string | null) {
+    if (voiceMoveToastTimerRef.current) clearTimeout(voiceMoveToastTimerRef.current);
+    setVoiceMoveToast({ channelName, sourceChannelId });
+    voiceMoveToastTimerRef.current = setTimeout(() => setVoiceMoveToast(null), 8000);
+  }
+
+  function handleRejoinPreviousVoiceChannel() {
+    const sourceChannelId = voiceMoveToast?.sourceChannelId;
+    setVoiceMoveToast(null);
+    if (voiceMoveToastTimerRef.current) { clearTimeout(voiceMoveToastTimerRef.current); voiceMoveToastTimerRef.current = null; }
+    if (!sourceChannelId) return;
+    // The source is a channel we were just in — no name hint needed, the
+    // local channel list already knows it.
+    void handleVoiceJoin(sourceChannelId);
+  }
+
+  function handleAcceptVoiceMove() {
+    if (!voiceMovePrompt) return;
+    const { targetChannelId, targetChannelName } = voiceMovePrompt;
+    setVoiceMovePrompt(null);
+    setVoiceChannelNameHint(targetChannelName);
+    void handleVoiceJoin(targetChannelId);
+  }
+
+  // Decline is a server no-op (events.md §7.2) — closing the prompt is the
+  // entire client side of it, nothing to send.
+  function handleDeclineVoiceMove() {
+    setVoiceMovePrompt(null);
+  }
+
   function handleToggleMute() {
     const next = !selfMuted;
     setSelfMuted(next);
@@ -2073,7 +2170,7 @@ export default function App() {
   const handleSetVoiceGain = useCallback((pk: string, gainPct: number) => {
     setVoiceGains((prev) => {
       const next = { ...prev, [pk]: gainPct };
-      try { localStorage.setItem("wavvon.voice_gains", JSON.stringify(next)); } catch {}
+      try { setScoped("wavvon.voice_gains", JSON.stringify(next)); } catch {}
       return next;
     });
     voiceSessionRef.current?.setSenderGain(pk, gainPct);
@@ -2134,6 +2231,34 @@ export default function App() {
     [meInfo],
   );
 
+  // Gates the voice roster's "Move to channel…" entry (events.md §7.1). The
+  // hub re-checks channel-scoped against the destination on every voice_move —
+  // this is UX-only, same posture as the other client-side permission gates here.
+  const canMoveMembers = useMemo(
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("move_members")) ?? false,
+    [meInfo],
+  );
+
+  const voiceMoveChannelOptions = useMemo(
+    () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveMenu?.currentChannelId),
+    [channels, voiceMoveMenu],
+  );
+
+  // Same permission the invite endpoints require (routes/invites.rs) — gates
+  // the "Invite people" entry for non-admin members too.
+  const canCreateInvites = useMemo(
+    () => isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes("manage_channels")) ?? false),
+    [isAdmin, meInfo],
+  );
+
+  // Same permission the poll-create endpoint requires (SEND_MESSAGES) —
+  // gates the "Create poll" context-menu entry the same way the composer's
+  // own "+" attach menu is implicitly gated (anyone who can post here).
+  const canSendMessages = useMemo(
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("send_messages")) ?? false,
+    [meInfo],
+  );
+
   // Channel-scoped effective permissions for the joined voice channel, from
   // GET /channels/:id/my-permissions (self-service, no manage_roles needed).
   // Null while unjoined, loading, or on fetch failure — callers fall back to
@@ -2168,6 +2293,42 @@ export default function App() {
     () => myRoles.reduce((m, r) => Math.max(m, r.priority), 0),
     [myRoles],
   );
+
+  const channelPermissionsTabActions: ChannelPermissionsTabActions = {
+    getChannelPermissions,
+    setChannelRolePermissions,
+    clearChannelRolePermissions,
+    listRoles,
+  };
+
+  const channelBansTabActions: ChannelBansTabActions = {
+    listChannelBans,
+    banFromChannel,
+    unbanFromChannel,
+  };
+
+  const channelTalkPowerTabActions: ChannelTalkPowerTabActions = {
+    getTalkPower,
+    setTalkPower,
+  };
+
+  const userContextMenuActions: UserContextMenuActions = {
+    listRoles,
+    listUserRoles,
+    assignRole: assignRoleToUser,
+    removeRole: removeRoleFromUser,
+    muteUser: (pubkey) => hubFetch("/moderation/mutes", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    kickUser: (pubkey) => hubFetch("/moderation/kick", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    banUser: (pubkey) => hubFetch("/moderation/bans", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    dm: (user) => handleStartConversation(user.public_key),
+    addFriend: (user) => {
+      void sendFriendRequest(user.public_key)
+        .then(() => showHubError(`Friend request sent to ${user.display_name ?? user.public_key.slice(0, 8)}`))
+        .catch((e) => showHubError(`Failed to send friend request: ${e}`));
+    },
+    toggleBlock: toggleBlockUser,
+    toggleIgnore: toggleIgnoreUser,
+  };
 
   const knownDisplayNames = useMemo(
     () => new Set(users.map((u) => u.display_name).filter(Boolean) as string[]),
@@ -2300,13 +2461,14 @@ export default function App() {
         if (showFarmSettings) { setShowFarmSettings(false); return; }
         if (showCreateHub) { setShowCreateHub(false); return; }
         if (showAddHub) { setShowAddHub(false); return; }
+        if (showQuickInvite) { setShowQuickInvite(false); return; }
         if (showSearchBar) { setShowSearchBar(false); return; }
         if (searchOpen) { setSearchOpen(false); return; }
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [hubs, channels, selectedChannel, messageInputRef, unreadByChannel, showKeyboardShortcuts, showSettings, showHubAdmin, showFarmSettings, showCreateHub, showAddHub, showSearchBar, searchOpen]);
+  }, [hubs, channels, selectedChannel, messageInputRef, unreadByChannel, showKeyboardShortcuts, showSettings, showHubAdmin, showFarmSettings, showCreateHub, showAddHub, showQuickInvite, showSearchBar, searchOpen]);
 
   // === Render ===
 
@@ -2361,6 +2523,36 @@ export default function App() {
         </div>
       )}
 
+      {voiceMoveToast && (
+        <VoiceMoveToast
+          channelName={voiceMoveToast.channelName}
+          canRejoin={voiceMoveToast.sourceChannelId !== null}
+          onRejoin={handleRejoinPreviousVoiceChannel}
+          onDismiss={() => {
+            setVoiceMoveToast(null);
+            if (voiceMoveToastTimerRef.current) { clearTimeout(voiceMoveToastTimerRef.current); voiceMoveToastTimerRef.current = null; }
+          }}
+        />
+      )}
+
+      {voiceMovePrompt && (
+        <VoiceMovePromptModal
+          channelName={voiceMovePrompt.targetChannelName}
+          onAccept={handleAcceptVoiceMove}
+          onDecline={handleDeclineVoiceMove}
+        />
+      )}
+
+      {voiceMoveMenu && (
+        <VoiceMoveMenu
+          displayName={voiceMoveMenu.displayName}
+          position={voiceMoveMenu.position}
+          channels={voiceMoveChannelOptions}
+          onMove={(channelId) => { handleMoveMember(voiceMoveMenu.pubkey, channelId); setVoiceMoveMenu(null); }}
+          onClose={() => setVoiceMoveMenu(null)}
+        />
+      )}
+
       {sharing && (
         <ScreenShareSelfPreview
           stream={shareLocalStream}
@@ -2383,14 +2575,14 @@ export default function App() {
               setShowDiscover(false);
               setShowAddHub(true);
             }}
+            fetchUrl={fetchWithTimeout}
           />
         </div>
       )}
 
       {showSearchBar && (
         <SearchBar
-          hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
-          activeChannelId={selectedChannel?.id}
+          onSearch={(q) => hubFetch(`/search?q=${encodeURIComponent(q)}`).then((r) => r.json())}
           onClose={() => setShowSearchBar(false)}
           onNavigate={(channelId, _messageId) => {
             const ch = channels.find((c) => c.id === channelId);
@@ -2401,7 +2593,11 @@ export default function App() {
       )}
 
       {showFriends && (
-        <FriendsModal onClose={() => setShowFriends(false)} onToast={(msg) => showHubError(msg)} />
+        <FriendsModal
+          actions={{ listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriendRequest, removeFriend }}
+          onClose={() => setShowFriends(false)}
+          onToast={(msg) => showHubError(msg)}
+        />
       )}
 
       {showHubStreams && (
@@ -2433,8 +2629,6 @@ export default function App() {
             onClose={() => setShowSettings(false)}
             hubs={hubs}
             publicKey={publicKey}
-            copiedKey={copiedKey}
-            onCopyKey={() => handleCopyKeyFn(publicKey)}
             theme={theme}
             onThemeChange={handleSetTheme}
             skin={skin}
@@ -2447,18 +2641,11 @@ export default function App() {
             onDuplicateCustomTheme={handleDuplicateCustomTheme}
             onDeleteCustomTheme={handleDeleteCustomTheme}
             onImportSkin={handleImportCustomTheme}
-            profiles={namedProfiles}
-            defaultProfileId={defaultProfileId}
-            activeDisplayName={meInfo?.display_name ?? null}
-            onCreateProfile={handleCreateProfile}
-            onUpdateProfile={handleUpdateProfile}
-            onDeleteProfile={handleDeleteProfile}
-            onSetDefaultProfile={handleSetDefaultProfile}
-            onApplyProfileToHub={handleApplyProfileToHub}
+            onHubProfileSaved={handleHubProfileSaved}
             mentionPingEnabled={mentionPingEnabled}
             onMentionPingChange={(v) => {
               setMentionPingEnabled(v);
-              try { localStorage.setItem("wavvon.mentionPing", v ? "1" : "0"); } catch {}
+              try { setScoped("wavvon.mentionPing", v ? "1" : "0"); } catch {}
             }}
             recoveryPhrase={recoveryPhrase}
             onShowRecovery={handleShowRecovery}
@@ -2467,18 +2654,22 @@ export default function App() {
             onUnblock={toggleBlockUser}
             onUnignore={toggleIgnoreUser}
             knownNames={pubkeyToName}
+            inVoice={voiceChannelId !== null}
           />
         </div>
       )}
 
       {userContextMenu && (
         <UserContextMenu
-          pubkey={userContextMenu.pubkey}
-          displayName={userContextMenu.displayName}
+          user={userContextMenu.user}
+          publicKey={publicKey}
           isAdmin={isAdmin}
           canManageRoles={canManageRoles}
           myMaxPriority={myMaxPriority}
+          blockedUsers={blockedUsers}
+          ignoredUsers={ignoredUsers}
           position={userContextMenu.position}
+          actions={userContextMenuActions}
           onClose={() => setUserContextMenu(null)}
           onToast={(msg) => showHubError(msg)}
           onRolesChanged={() => {
@@ -2502,6 +2693,20 @@ export default function App() {
           tab={farmAdminTab}
           onTab={setFarmAdminTab}
           onClose={() => setShowFarmSettings(false)}
+          actions={{
+            getSettings: getFarmSettings,
+            patchSettings: patchFarmSettings,
+            getHubs: getFarmHubsAdmin,
+            suspendHub: suspendFarmHub,
+            deleteHub: deleteFarmHub,
+            getUsers: getFarmUsers,
+            revokeUserSessions: revokeFarmUserSessions,
+            getServers: getFarmServers,
+            generateServerToken: generateFarmServerToken,
+            totpSetup: farmTotpSetup,
+            totpConfirm: farmTotpConfirm,
+            totpDisable: farmTotpDisable,
+          }}
         />
       )}
 
@@ -2549,11 +2754,15 @@ export default function App() {
         unreadByHub={unreadByHub}
         pingByHub={pingByHub}
         hubNotifyMode={hubNotifyMode}
+        lobbyHubIds={lobbyHubs}
         hasActiveHub={!!activeHubId}
         isFarmAdmin={isFarmAdmin}
         onSwitchToDms={() => setView("dms")}
         onSwitchHub={handleSwitchHub}
         onRemoveHub={handleRemoveHub}
+        onSetHubNotifyMode={(hubId, mode) =>
+          setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
+        }
         onHubReorder={handleHubReorder}
         onAddHub={() => setShowAddHub(true)}
         onCreateHub={() => setShowCreateHub(true)}
@@ -2569,14 +2778,16 @@ export default function App() {
         selectedChannel={selectedChannel}
         unreadByChannel={unreadByChannel}
         collapsedCategories={collapsedCategories}
-        voicePartByChannel={voicePartByChannel}
+        voicePartByChannel={visibleVoicePartByChannel}
         voiceChannelId={voiceChannelId}
+        voiceChannelNameHint={voiceChannelNameHint}
         selfMuted={selfMuted}
         selfDeafened={selfDeafened}
         users={users}
         publicKey={publicKey}
         pingByHub={pingByHub}
         isAdmin={isAdmin}
+        canCreateInvites={canCreateInvites}
         hubNotifyMode={hubNotifyMode}
         hubDropdownOpen={hubDropdownOpen}
         hideSilenced={hideSilenced}
@@ -2605,25 +2816,48 @@ export default function App() {
         onRemoveHub={handleRemoveHub}
         onOpenHubAdmin={() => void openHubAdmin()}
         onOpenHubAdminInvites={() => { void openHubAdmin(); setHubAdminTab("invites"); }}
+        onOpenQuickInvite={() => setShowQuickInvite(true)}
         onOpenCreateChannel={(parentId, isCategory) => { setCreateChannelCtx({ parentId, isCategory }); setCreateChannelError(null); }}
         onSelectChannel={handleSelectChannel}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         canOpenChannelSettings={isAdmin || canManageRoles}
-        myStatus={users.find((u) => u.public_key === publicKey)?.status ?? null}
-        myStatusCustom={users.find((u) => u.public_key === publicKey)?.status_custom ?? null}
-        onSetStatus={(status, custom) => {
-          try { sendSetStatus(status, custom); } catch { /* ws not ready */ }
-          // Optimistic: the hub's member_status broadcast will confirm.
-          setUsers((prev) => prev.map((u) =>
-            u.public_key === publicKey
-              ? { ...u, status: status === "online" ? null : status, status_custom: custom }
-              : u,
-          ));
+        myStatus={myPresence.status === "online" ? null : myPresence.status}
+        onSetStatus={(status, ttlMinutes) => {
+          if (presenceTtlRef.current) { clearTimeout(presenceTtlRef.current); presenceTtlRef.current = null; }
+          const apply = (s: PresenceStatus) => {
+            setMyPresence({ status: s });
+            try { sendSetStatus(s, null); } catch { /* ws not ready */ }
+            // Optimistic: the hubs' member_status broadcasts will confirm.
+            // Invisible shows the user offline (to everyone, incl. their own
+            // roster view); the footer picker still reflects "invisible".
+            setUsers((prev) => prev.map((u) =>
+              u.public_key === publicKey
+                ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: null }
+                : u,
+            ));
+          };
+          apply(status);
+          if (status !== "online" && ttlMinutes) {
+            presenceTtlRef.current = setTimeout(() => {
+              presenceTtlRef.current = null;
+              apply("online");
+            }, ttlMinutes * 60_000);
+          }
         }}
         onOpenChannelSettings={(channel) => { setChannelSettingsCtx(channel); setChannelSettingsError(null); }}
-        onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch)}
+        onVoiceJoin={(ch) => ch && void handleVoiceJoin(ch.id)}
         onVoiceLeave={handleVoiceLeave}
-        onSelectAllianceChannel={handleSelectAllianceChannel}
+        onParticipantContextMenu={canMoveMembers ? (e, p, channelId) => {
+          e.preventDefault();
+          if (p.public_key === publicKey) return; // hide self — move your own voice by joining directly
+          setVoiceMoveMenu({
+            pubkey: p.public_key,
+            displayName: p.display_name || formatPubkey(p.public_key),
+            position: { x: e.clientX, y: e.clientY },
+            currentChannelId: channelId,
+          });
+        } : undefined}
+        onSelectAllianceChannel={(a, c) => handleSelectAllianceChannel(a, c as AllianceSharedChannel)}
         onOpenFriends={() => setShowFriends(true)}
         onSelectConversation={handleSelectConversation}
         onToggleSelfMute={handleToggleMute}
@@ -2632,7 +2866,11 @@ export default function App() {
         onDragEnd={handleChannelDragEnd}
         voiceGains={voiceGains}
         onSetVoiceGain={handleSetVoiceGain}
+        inboundWhispers={whisperingFrom}
+        hasDraft={hasDraft}
+        onOpenSearch={() => setShowSearchBar(true)}
         canUseSoundboard={canUseSoundboard}
+        onListSoundboardClips={listSoundboardClips}
         onTriggerSoundboardClip={handleTriggerSoundboardClip}
         soundboardPlayingClipId={soundboardPlayingClipId}
         soundboardChips={voiceChannelId ? soundboardChipsByChannel[voiceChannelId] ?? [] : []}
@@ -2643,9 +2881,14 @@ export default function App() {
       />
 
       {activeOpenApp && (
-        <BotMiniAppFrame
-          event={activeOpenApp.event}
+        <GameModal
+          miniAppUrl={activeOpenApp.event.mini_app_url}
+          sessionToken={activeOpenApp.event.session_token}
+          channelId={activeOpenApp.event.channel_id}
+          botId={activeOpenApp.event.bot_id}
           hubUrl={activeOpenApp.hubUrl}
+          title={activeBotApps.get(activeOpenApp.event.bot_id)?.title ?? "Game"}
+          requiresCamera={activeOpenApp.event.requires_camera}
           onClose={() => setActiveOpenApp(null)}
         />
       )}
@@ -2672,6 +2915,11 @@ export default function App() {
             hubId={activeHubId}
             hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
             pubkeyHex={publicKey}
+            actions={{
+              getStatus: getLobbyStatus,
+              getWelcome: getLobbyWelcome,
+              submitProof: submitLobbyPow,
+            }}
             onPromoted={() => void handleLobbyPromoted(activeHubId)}
           />
         </main>
@@ -2705,7 +2953,7 @@ export default function App() {
         })()}
         {voiceChannelId && (
           <WhisperBar
-            participants={(voicePartByChannel[voiceChannelId] ?? []).filter((p) => p.public_key !== publicKey)}
+            participants={(visibleVoicePartByChannel[voiceChannelId] ?? []).filter((p) => p.public_key !== publicKey)}
             whisperingTo={whisperingTo}
             whisperingFrom={whisperingFrom}
             nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
@@ -2719,7 +2967,6 @@ export default function App() {
         hubs={hubs}
         channels={channels}
         onBreadcrumbCategoryClick={handleBreadcrumbCategoryClick}
-        theme={theme}
         selectedChannel={selectedChannel}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={selectedAllianceChannel}
@@ -2732,6 +2979,7 @@ export default function App() {
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}
+        ignoredUsers={ignoredUsers}
         knownDisplayNames={knownDisplayNames}
         myDisplayName={meInfo?.display_name ?? null}
         isAdmin={isAdmin}
@@ -2746,7 +2994,6 @@ export default function App() {
         reconnectingHubs={reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voiceActiveUsers}
-        myAvatar={meInfo?.avatar ?? null}
         inputText={inputText}
         typingByKey={channelTypingByKey}
         dmTypingByKey={convTypingByKey}
@@ -2786,11 +3033,7 @@ export default function App() {
         }}
         onSetUserContextMenu={(menu) => {
           if (!menu) { setUserContextMenu(null); return; }
-          setUserContextMenu({
-            pubkey: menu.user.public_key,
-            displayName: menu.user.display_name,
-            position: { x: menu.x, y: menu.y },
-          });
+          setUserContextMenu({ user: menu.user, position: { x: menu.x, y: menu.y } });
         }}
         onSetEditingDraft={setEditingDraft}
         onInputTextChange={(v) => {
@@ -2805,7 +3048,12 @@ export default function App() {
         activeScreenShares={activeScreenShares}
         screenShareViewerRef={screenShareViewerRef}
         onOpenHubStreams={handleOpenHubStreams}
-        assertiveAnnouncement={assertiveAnnouncement}
+        onStartConversation={handleStartConversation}
+        profileCardActions={profileCardActions}
+        voicePartByChannel={visibleVoicePartByChannel}
+        selfInvisible={myPresence.status === "invisible"}
+        canMoveMembers={canMoveMembers}
+        onMoveMember={handleMoveMember}
       /></>}
       </MobileShell>
 
@@ -2833,11 +3081,19 @@ export default function App() {
             onWelcomeInviteUrlChange={setHubAdminWelcomeInviteUrl}
             saveError={hubAdminSaveError}
             onSave={saveHubAdminSettings}
+            hubListed={hubListed}
+            onHubListedChange={onHubListedChange}
+            submitToDirectory={submitToDirectory}
             pendingMembers={hubAdminPending}
             onApproveMember={(pk) => hubFetch(`/hub/pending/${pk}/approve`, { method: "POST" }).catch(() => {})}
             members={hubAdminMembers}
             onKickMember={(pk) => hubFetch(`/moderation/kick`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}
             onBanMember={(pk) => hubFetch(`/moderation/bans`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}
+            onMuteMember={onMuteMember}
+            onTimeoutMember={onTimeoutMember}
+            onVoiceMuteMember={onVoiceMuteMember}
+            onVoiceUnmuteMember={onVoiceUnmuteMember}
+            voiceMutedKeys={voiceMutedKeys}
             bans={hubAdminBans}
             onUnban={(pk) => hubFetch(`/moderation/bans/${pk}`, { method: "DELETE" }).catch(() => {})}
             invites={hubAdminInvites}
@@ -2849,8 +3105,8 @@ export default function App() {
             canManageRoles={canManageRoles}
             myMaxPriority={myMaxPriority}
             onMemberRolesChanged={setMemberRoles}
-            onCreateInvite={(maxUses, expiresIn) =>
-              hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in: expiresIn }) })
+            onCreateInvite={(maxUses, expiresIn, grantRoleId) =>
+              hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in_seconds: expiresIn, grant_role_id: grantRoleId }) })
                 .then((r) => r.json() as Promise<import("@shared/types").InviteInfo>)
                 .then((inv) => addInvite(inv))
                 .catch(() => {})
@@ -2860,6 +3116,77 @@ export default function App() {
               removeInvite(code);
             }}
             channels={channels}
+            rolesActions={{
+              listRoles, createRole, updateRole, deleteRole,
+              listRoleCategories, createRoleCategory, updateRoleCategory, deleteRoleCategory,
+            } as RolesSectionActions}
+            memberRoleActions={{ listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } as MemberRoleManagerActions}
+            serverTagsActions={{
+              getDiscoveryTags, setDiscoveryTags,
+              listBadges, listPendingBadges, acceptBadge, declineBadge, removeBadge, grantBadge,
+            } as ServerTagsSectionActions}
+            inviteActions={{ listRoles, getHubSettings, saveHubSettings } as InviteManagerActions}
+            webhookActions={{
+              loadWebhooks: adminListWebhooks,
+              createWebhook: adminCreateWebhook,
+              regenerateWebhook: adminRegenerateWebhook,
+              deleteWebhook: adminDeleteWebhook,
+            }}
+            externalBotActions={{
+              loadBots: adminListExternalBots,
+              addBot: adminAddExternalBot,
+              removeBot: adminRemoveExternalBot,
+              getBotChannelScope: adminGetBotChannelScope,
+              setBotChannelScope: adminSetBotChannelScope,
+            }}
+            renderBotCapabilities={(pubkey) => <BotCapabilitiesPanel pubkey={pubkey} />}
+            nativeBotActions={{
+              listNativeBots, createNativeBot, deleteNativeBot,
+              getBotDetail: getNativeBotDetail, setBotWebhook: setNativeBotWebhook,
+            } as NativeBotsSectionActions}
+            auditLogActions={{ getAuditLog } as AuditLogSectionActions}
+            certActions={{
+              listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+            } as CertificationsSectionActions}
+            soundboardActions={{
+              listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip, fetchSoundboardAudioBytes,
+            } as SoundboardAdminSectionActions}
+            onboardingActions={{
+              listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
+            } as OnboardingAdminSectionActions}
+            allianceActions={{
+              listAlliances, createAlliance, leaveAlliance,
+              listPendingAllianceInvites,
+              acceptAllianceInvite: (inviteId, ownHubUrl) => acceptAllianceInvite(inviteId, ownHubUrl).then(() => {}),
+              declineAllianceInvite,
+              listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+              createAllianceInvite, sendAlliancePushInvite,
+              joinAllianceByCode: (inviterHubUrl, allianceId, inviteToken, ownHubUrl) =>
+                joinAllianceByCode(inviterHubUrl, allianceId, inviteToken, ownHubUrl).then(() => {}),
+            }}
+            hubIconActions={{ listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon }}
+            surveyActions={{
+              getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
+              loadAssignableRoles: () =>
+                listRoles().then((roles) => roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))),
+            }}
+            renderModerationTab={() => <ModerationTab />}
+            renderOutgoingWebhooks={() => <OutgoingWebhooksSection channels={channels} />}
+            renderRecoveryContacts={() => {
+              const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
+              const recoveryActions: RecoveryContactsSectionActions = {
+                getContacts: getRecoveryContacts,
+                setContacts: setRecoveryContacts,
+                removeContact: removeRecoveryContact,
+                listAdminRequests: isAdmin ? listAdminRecoveryRequests : undefined,
+                approveRequest: isAdmin ? approveRecoveryRequest : undefined,
+                denyRequest: isAdmin ? denyRecoveryRequest : undefined,
+                openRotationRequest: (oldPubkey, reason) => openRotationRequest(hubUrl, oldPubkey, reason),
+                getRotationRequest: (id) => getRotationRequestBundle(hubUrl, id),
+                attestRotationRequest: (bundle) => attestRotationRequest(hubUrl, bundle),
+              };
+              return <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} showMemberCards={false} />;
+            }}
           />
         </div>
       )}
@@ -2873,9 +3200,27 @@ export default function App() {
           onInviteCodeChange={setInviteCode}
           loading={addingHub}
           error={addHubError}
+          fingerprintMatch={fingerprintMatch}
           onAdd={handleAddHub}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
-          onClose={() => { setShowAddHub(false); setHubPreview({ state: "idle" }); setAddHubError(null); }}
+          passkeySupported={isPasskeySupported()}
+          onClose={() => {
+            setShowAddHub(false);
+            setHubPreview({ state: "idle" });
+            setAddHubError(null);
+            setFingerprintMatch(false);
+          }}
+          onBrowse={() => { setShowAddHub(false); setShowDiscover(true); }}
+        />
+      )}
+
+      {showQuickInvite && activeHubId && (
+        <QuickInviteModal
+          activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+          hubSerial={activeHubId}
+          myMaxPriority={myMaxPriority}
+          onClose={() => setShowQuickInvite(false)}
+          actions={{ listRoles, createInvite }}
         />
       )}
 
@@ -2891,6 +3236,27 @@ export default function App() {
         />
       )}
 
+      {eventComposerChannelId && (
+        <EventComposer
+          channelId={eventComposerChannelId}
+          channels={channels}
+          canHubWide={isAdmin}
+          advancedFieldsSupported
+          onSubmit={createEvent}
+          onCreated={() => {}}
+          onClose={() => setEventComposerChannelId(null)}
+        />
+      )}
+
+      {pollComposerChannelId && (
+        <PollComposer
+          channelId={pollComposerChannelId}
+          onCreatePoll={createPoll}
+          onCreated={() => {}}
+          onClose={() => setPollComposerChannelId(null)}
+        />
+      )}
+
       {channelSettingsCtx && (
         <ChannelSettingsModal
           channel={channelSettingsCtx}
@@ -2900,9 +3266,15 @@ export default function App() {
           canManageRoles={canManageRoles}
           isAdmin={isAdmin}
           myMaxPriority={myMaxPriority}
+          hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
           onSave={handleSaveChannelSettings}
           onDelete={handleDeleteChannel}
           onClose={() => { setChannelSettingsCtx(null); setChannelSettingsError(null); }}
+          permissionsActions={channelPermissionsTabActions}
+          bansActions={channelBansTabActions}
+          bansUsers={users}
+          talkPowerActions={channelTalkPowerTabActions}
+          listHubIcons={listHubIcons}
         />
       )}
 
@@ -2961,6 +3333,34 @@ export default function App() {
                 }}
               >
                 {t("channel.ctx.copy_link")}
+              </button>
+            )}
+            {!channelCtxMenu.channel.is_category &&
+              channelCtxMenu.channel.channel_type !== "forum" &&
+              isAdmin && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  const ch = channelCtxMenu.channel;
+                  setChannelCtxMenu(null);
+                  setEventComposerChannelId(ch.id);
+                }}
+              >
+                {t("channel.ctx.create_event")}
+              </button>
+            )}
+            {!channelCtxMenu.channel.is_category &&
+              channelCtxMenu.channel.channel_type !== "forum" &&
+              canSendMessages && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  const ch = channelCtxMenu.channel;
+                  setChannelCtxMenu(null);
+                  setPollComposerChannelId(ch.id);
+                }}
+              >
+                {t("channel.ctx.create_poll")}
               </button>
             )}
             {!channelCtxMenu.channel.is_category &&

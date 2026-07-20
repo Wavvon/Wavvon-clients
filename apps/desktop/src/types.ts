@@ -6,6 +6,8 @@
 
 // Channel is shared with the channel-tree helpers in @wavvon/utils.
 export type { Channel } from "@wavvon/core";
+import type { FarmSettings, FarmHubEntry, FarmUserEntry, FarmServerEntry } from "@wavvon/ui";
+export type { FarmSettings, FarmHubEntry, FarmUserEntry, FarmServerEntry };
 
 export interface HubIcon {
   id: string;
@@ -27,42 +29,15 @@ export interface Reaction {
   me: boolean;
 }
 
-export interface ReplyContext {
-  message_id: string;
-  sender: string;
-  sender_name: string | null;
-  content_preview: string;
-}
+import type { Message } from "@wavvon/ui";
+export type { ReplyContext, Message, User } from "@wavvon/ui";
 
-export interface Message {
-  id: string;
-  channel_id: string;
-  sender: string;
-  sender_name: string | null;
-  content: string;
-  created_at: number;
-  edited_at: number | null;
-  attachments?: Attachment[];
-  reactions?: Reaction[];
-  reply_to?: ReplyContext | null;
-  visible_to_pubkey?: string | null;
-  embeds?: Embed[];
-  components?: ComponentRow[];
-  is_bot_sender?: boolean;
-  reply_count?: number;
-}
+export type { NotifyMode } from "@wavvon/ui";
+export type { SoundboardClip } from "@wavvon/ui";
 
-export type NotifyMode = "all" | "mentions" | "silent";
-
-export interface User {
-  public_key: string;
-  display_name: string | null;
-  avatar: string | null;
-  online: boolean;
-  group_role: string | null;
-  is_bot?: boolean;
-  is_webhook?: boolean;
-}
+/** Own presence: absent/"online" is the default; away/dnd/invisible are
+ *  explicit picks. Free-text custom status was removed (decisions.md 2026-07-12). */
+export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
 
 export interface BotInfo {
   public_key: string;
@@ -77,28 +52,11 @@ export interface VoiceParticipant {
   display_name: string | null;
 }
 
-export interface Hub {
-  hub_id: string;
-  hub_name: string;
-  hub_url: string;
-  hub_icon: string | null;
-  is_active: boolean;
-}
+export type { Hub } from "@wavvon/ui";
 
-export interface RoleInfo {
-  id: string;
-  name: string;
-  permissions: string[];
-  priority: number;
-  display_separately?: boolean;
-}
+import type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile } from "@wavvon/ui";
+export type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile };
 
-export interface NamedProfile {
-  id: string;
-  label: string;
-  display_name: string;
-  avatar: string | null;
-}
 
 export interface MeInfo {
   public_key: string;
@@ -138,21 +96,13 @@ export interface InviteInfo {
   uses: number;
   expires_at: number | null;
   created_at: number;
+  grant_role_id: string | null;
 }
 
 export interface PendingUser {
   public_key: string;
   display_name: string | null;
   first_seen_at: number;
-}
-
-export interface Friend {
-  public_key: string;
-  display_name: string | null;
-  /** When non-null, this friend lives on another hub. DMs to them will be
-   *  routed to this hub via the federated DM outbox. */
-  hub_url: string | null;
-  since: number;
 }
 
 export interface Conversation {
@@ -225,21 +175,6 @@ export interface AllianceSharedChannel {
   hub_name: string;
 }
 
-export interface PublicHubEntry {
-  hub_url: string;
-  hub_name: string;
-  joined_at: number;
-}
-
-export interface PublicHubProfile {
-  pubkey: string;
-  display_name: string;
-  avatar: string | null;
-  public_hubs: PublicHubEntry[];
-  issued_at: number;
-  signature: string;
-}
-
 export interface WsScreenShareStarted {
   type: "screen_share_started";
   channel_id: string;
@@ -282,27 +217,15 @@ export interface WsStreamSubscriptionEnded {
   stream_id: string;
 }
 
-export interface HubStreamInfo {
-  channel_id: string;
-  stream_id: string;
-  sharer_pubkey: string;
-  kind: string;
-  mime: string;
-  has_audio: boolean;
-}
+import type { HubStreamInfo } from "@wavvon/ui";
+export type { HubStreamInfo };
 
 export interface WsHubStreams {
   type: "hub_streams";
   streams: HubStreamInfo[];
 }
 
-export interface ActiveStream {
-  stream_id: string;
-  sharer_pubkey: string;
-  kind: "screen" | "webcam";
-  mime: string;
-  has_audio: boolean;
-}
+export type { ActiveStream } from "@wavvon/ui";
 
 export interface ScreenShareOpts {
   sourceId?: string;
@@ -444,67 +367,13 @@ export interface BotDetailInfo extends BotAdminInfo {
 
 // ---- Bot message types ----
 
-export interface Embed {
-  title?: string;
-  url?: string;
-  description?: string;
-  color?: string;
-  fields?: EmbedField[];
-  thumbnail_url?: string;
-  image_url?: string;
-  footer?: { text: string };
-}
-
-export interface EmbedField {
-  name: string;
-  value: string;
-  inline?: boolean;
-}
-
-export interface ComponentRow {
-  type: "row";
-  components: BotComponent[];
-}
-
-export type BotComponent = BotButton | BotSelect;
-
-export interface BotButton {
-  type: "button";
-  custom_id: string;
-  label: string;
-  style?: "primary" | "secondary" | "danger";
-  disabled?: boolean;
-}
-
-export interface BotSelect {
-  type: "select";
-  custom_id: string;
-  placeholder?: string;
-  min_values?: number;
-  max_values?: number;
-  options: SelectOption[];
-}
-
-export interface SelectOption {
-  label: string;
-  value: string;
-  description?: string;
-}
+export type {
+  Embed, EmbedField, ComponentRow, BotComponent, BotButton, BotSelect, SelectOption,
+} from "@wavvon/ui";
 
 // ---- Bot profile (public card) ----
 
-export interface BotCommandDef {
-  name: string;
-  description: string;
-}
-
-export interface BotProfile {
-  pubkey: string;
-  name: string;
-  avatar_url: string | null;
-  description: string | null;
-  commands: BotCommandDef[];
-}
+export type { BotCommandDef, BotProfile } from "@wavvon/ui";
 
 // ---- External bots ----
 
@@ -525,44 +394,6 @@ export interface ExternalBotInviteResult {
 
 export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
 
-export interface FarmSettings {
-  name: string;
-  description: string;
-  creation_policy: FarmCreationPolicy;
-  max_hubs_per_user: number;
-  max_hubs_total: number;
-  allow_discovery_listing: boolean;
-  directory_public: boolean;
-  languages: string[];
-  tags: string[];
-  country: string;
-  region: string;
-}
-
-export interface FarmHubEntry {
-  id: string;
-  name: string;
-  description: string | null;
-  owner_pubkey: string;
-  owner_display: string | null;
-  visibility: "public" | "private";
-  member_count: number | null;
-  url: string;
-  hub_pubkey: string;
-  created_at: number;
-  suspended_at: number | null;
-}
-
-export interface FarmUserEntry {
-  public_key: string;
-  master_pubkey: string | null;
-  first_seen_at: number;
-  last_seen_at: number;
-  hubs_owned: number;
-  hubs_member_of: number;
-  active_sessions: number;
-}
-
 export interface FarmUsersResponse {
   users: FarmUserEntry[];
   total: number;
@@ -571,20 +402,7 @@ export interface FarmUsersResponse {
   next_cursor: string | null;
 }
 
-export interface FarmPublicInfo {
-  kind: "wavvon-farm-public";
-  name: string;
-  description: string;
-  creation_policy: FarmCreationPolicy;
-  hub_count: number;
-  max_hubs_total: number;
-  allow_discovery_listing: boolean;
-  country: string;
-  region: string;
-  languages: string[];
-  tags: string[];
-  icon: string | null;
-}
+export type { FarmPublicInfo } from "@wavvon/ui";
 
 export interface FarmInfo {
   kind: "wavvon-farm";
@@ -601,23 +419,7 @@ export interface FarmInfo {
   };
 }
 
-export interface FarmHubQuota {
-  hubs_owned_by_user: number;
-  max_hubs_per_user: number;
-  total_hubs: number;
-  max_hubs_total: number;
-  can_create: boolean;
-  reason: "quota_exceeded" | "policy_admin_only" | "policy_disabled" | null;
-}
-
-export interface CreatedFarmHub {
-  id: string;
-  url: string;
-  hub_pubkey: string;
-  name: string;
-  visibility: "public" | "private";
-  created_at: number;
-}
+export type { FarmHubQuota, CreatedFarmHub } from "@wavvon/ui";
 
 // ---- Webhooks ----
 
@@ -642,37 +444,14 @@ export type ChannelType = "text" | "forum" | "banner";
 
 // ---- Forum ----
 
-export interface PostSummary {
-  id: string;
-  channel_id: string;
-  author_pubkey: string;
-  title: string;
-  created_at: number;
-  edited_at: number | null;
-  is_pinned: boolean;
-  is_locked: boolean;
-  reply_count: number;
-  last_activity_at: number;
-  is_deleted: boolean;
-  unread_reply_count?: number | null;
-}
-
-export interface ReplyView {
-  id: string;
-  post_id: string;
-  author_pubkey: string;
-  body: string;
-  created_at: number;
-  edited_at: number | null;
-  reply_to_id: string | null;
-  is_deleted: boolean;
-}
-
-export interface PostDetail extends PostSummary {
-  body: string;
-  replies: ReplyView[];
-  reply_cursor: string | null;
-}
+export type {
+  ReactionCount,
+  ForumAttachment,
+  PostSummary,
+  ReplyView,
+  PostDetail,
+  PostListResponse,
+} from "@wavvon/ui";
 
 // ---- Server tags / badges ----
 
@@ -728,30 +507,6 @@ export interface CertSettings {
   cert_min_age_days: number;
   cert_validity_days: number;
   cert_trusted_issuers: string[];
-}
-
-// ---- Identity recovery ----
-
-export interface RecoveryContact {
-  pubkey: string;
-  display_name: string | null;
-  added_at: number;
-  hub_url: string;
-}
-
-export interface RotationAttestation {
-  contact_pubkey: string;
-  contact_display: string | null;
-  attested_at: number;
-}
-
-export interface RotationRequest {
-  id: string;
-  new_pubkey: string;
-  hub_url: string;
-  attestations: RotationAttestation[];
-  threshold: number;
-  submitted_at: number;
 }
 
 // ---- Block / Ignore / DND ----
@@ -859,47 +614,13 @@ export interface PinnedMessage {
 
 // ---- User profile card ----
 
-export interface UserProfile {
-  public_key: string;
-  display_name: string;
-  avatar: string | null;
-  joined_at: number;
-  roles: RoleInfo[];
-  badges: Badge[];
-}
+// ---- Polls ----
 
-export interface Badge {
-  label: string;
-  color?: string;
-}
-
-// ---- Polls (extended from PollCard.tsx inline types) ----
-
-export interface PollOption {
-  id: string;
-  text: string;
-  vote_count: number;
-  voted_by_me: boolean;
-}
-
-export interface Poll {
-  id: string;
-  channel_id: string;
-  question: string;
-  options: PollOption[];
-  closes_at?: number;
-  created_at: number;
-  creator_pubkey?: string;
-}
+export type { PollOption, Poll, RsvpStatus, EventRsvp, EventSlot, HubEvent, EventMoveAssignment } from "@wavvon/ui";
 
 // ---- Link preview ----
 
-export interface LinkPreview {
-  url: string;
-  title?: string;
-  description?: string;
-  image_url?: string;
-}
+export type { LinkPreview } from "@wavvon/ui";
 
 // ---- Typed Tauri errors ----
 
@@ -908,35 +629,13 @@ export type AppError = {
   message: string;
 };
 
-// ---- Hub events ----
-
-export interface HubEvent {
-  id: string;
-  title: string;
-  description: string;
-  starts_at: number;
-  ends_at?: number;
-  location?: string;
-  channel_id?: string;
-  created_by: string;
-  my_rsvp?: string;
-  going_count: number;
-  maybe_count: number;
-}
-
 export interface TauriFile extends File {
   path?: string;
 }
 
 // ---- Bot mini-app events ----
 
-export interface BotAppLaunchEvent {
-  type: 'bot_app_launch';
-  bot_id: string;
-  title: string;
-  description: string;
-  channel_id: string;
-}
+export type { BotAppLaunchEvent } from "@wavvon/ui";
 
 export interface BotAppOpenEvent {
   type: 'bot_app_open';

@@ -115,3 +115,46 @@ export async function setBanlistPublish(publish: boolean): Promise<void> {
     body: JSON.stringify({ publish_banlist: publish }),
   });
 }
+
+// ---- Per-member moderation actions (mute / timeout / voice-mute) ----
+
+export async function muteMember(targetPublicKey: string, reason: string | null): Promise<void> {
+  await hubFetch("/moderation/mutes", {
+    method: "POST",
+    body: JSON.stringify({ target_public_key: targetPublicKey, reason }),
+  });
+}
+
+export async function timeoutMember(
+  targetPublicKey: string,
+  durationSeconds: number,
+  reason: string | null,
+): Promise<void> {
+  await hubFetch("/moderation/timeout", {
+    method: "POST",
+    body: JSON.stringify({ target_public_key: targetPublicKey, duration_seconds: durationSeconds, reason }),
+  });
+}
+
+export interface VoiceMuteInfo {
+  target_public_key: string;
+  muted_by: string;
+  reason: string | null;
+  created_at: number;
+}
+
+export async function voiceMuteMember(targetPublicKey: string, reason: string | null): Promise<void> {
+  await hubFetch("/moderation/voice-mutes", {
+    method: "POST",
+    body: JSON.stringify({ target_public_key: targetPublicKey, reason }),
+  });
+}
+
+export async function voiceUnmuteMember(targetPublicKey: string): Promise<void> {
+  await hubFetch(`/moderation/voice-mutes/${targetPublicKey}`, { method: "DELETE" });
+}
+
+export async function listVoiceMutes(): Promise<VoiceMuteInfo[]> {
+  const r = await hubFetch("/moderation/voice-mutes");
+  return r.json() as Promise<VoiceMuteInfo[]>;
+}

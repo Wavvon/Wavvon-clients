@@ -95,6 +95,13 @@ pub(crate) struct VoiceSession {
     /// The registration loop (running in the voice thread) reads this to send
     /// VXRG packets until acked.
     pub udp_reg_token: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    /// Shared with the audio pipeline's send task -- set by
+    /// `soundboard_play_clip` to mix a decoded clip into the outbound
+    /// stream (soundboard.md §1).
+    pub active_clip: std::sync::Arc<std::sync::Mutex<Option<wavvon_voice::soundboard::ActiveClip>>>,
+    /// The pipeline's capture/encode sample rate -- a clip must be
+    /// resampled to this rate before being placed in `active_clip`.
+    pub opus_rate: u32,
 }
 
 // ---------------------------------------------------------------------------

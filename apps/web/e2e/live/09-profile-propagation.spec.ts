@@ -16,9 +16,14 @@ async function openProfileSettings(page: import("@playwright/test").Page) {
 
 async function renameSelf(page: import("@playwright/test").Page, name: string) {
   await openProfileSettings(page);
-  const input = page.locator("#settings-display-name");
+  // The default profile context is local-only (P24) — editing the hub's own
+  // context is what actually PATCHes /me and propagates to the member list
+  // and message authors. Index 0 is the default profile; index 1 is the
+  // (only) joined hub.
+  await page.locator("#profile-context-select").selectOption({ index: 1 });
+  const input = page.locator("#profile-editor-name");
   await input.fill(name);
-  await page.getByRole("button", { name: "Save profile" }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Saved", { exact: false }).first()).toBeVisible({ timeout: 5000 });
   // Close settings overlay.
   await page.locator(".settings-close-x").first().click();

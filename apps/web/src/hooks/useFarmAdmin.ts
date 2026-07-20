@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { rawFetch, getFarmInfo } from "@platform";
 import type { Hub } from "@shared/types";
-import type { FarmAdminTab } from "../components/FarmSettingsPage";
+import type { FarmAdminTab } from "@wavvon/ui";
 
 interface UseFarmAdminParams {
   publicKey: string | null;

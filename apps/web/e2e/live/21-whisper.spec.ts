@@ -6,8 +6,12 @@ import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } 
 // voice_whisper_started and shows the "whispering to you" indicator. (Audio
 // isolation is enforced server-side in voice_ws.rs; not asserted here.)
 
-async function joinVoice(page: Page) {
-  await page.getByRole("button", { name: "Join Voice" }).click();
+// Whisper controls live in the voice-session footer — a channel row is
+// joined by double-click (see the "Double-click to join voice" row tooltip
+// in SortableItems.tsx), not a header button.
+async function joinVoice(page: Page, channel: string) {
+  await channelButton(page, channel).dblclick();
+  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
   await expect(page.locator(".whisper-bar").first()).toBeVisible({ timeout: 15000 });
 }
 
@@ -18,13 +22,11 @@ test("owner whispers to a member; the member sees the indicator", async ({ page,
 
   const channel = uniqueName("whisper");
   await createChannel(page, channel);
-  await channelButton(page, channel).click();
-  await joinVoice(page);
+  await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("WhisperMate"));
   try {
-    await channelButton(member, channel).click();
-    await joinVoice(member);
+    await joinVoice(member, channel);
 
     // Owner opens the whisper picker (enabled once the member is in voice),
     // selects the one participant, and starts whispering.

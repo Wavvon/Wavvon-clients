@@ -1,12 +1,15 @@
 // Wavvon desktop Tauri shell — composition root.
 // All domain logic lives in the modules below. This file wires them together.
 
+mod accounts;
 mod admin;
 mod admin_alliance;
 mod auth_creds;
+mod backup;
 mod bots;
 mod certs;
 mod channels;
+mod deep_link;
 mod devices;
 mod discovery;
 mod dm;
@@ -24,6 +27,7 @@ mod pairing;
 mod passkey_cmd;
 mod prefs_blob;
 mod screen_share;
+mod soundboard;
 mod state;
 mod types;
 mod updater;
@@ -144,8 +148,17 @@ pub fn run() {
             messages::forum_get_post_replies,
             messages::forum_pin_post,
             messages::forum_lock_post,
+            messages::forum_edit_post,
+            messages::forum_delete_post,
+            messages::forum_edit_reply,
+            messages::forum_delete_reply,
+            messages::forum_add_post_reaction,
+            messages::forum_remove_post_reaction,
+            messages::forum_add_reply_reaction,
+            messages::forum_remove_reply_reaction,
             messages::mark_post_read,
             messages::upload_file,
+            messages::upload_file_bytes,
             messages::pin_message,
             messages::unpin_message,
             messages::get_pinned_messages,
@@ -163,12 +176,21 @@ pub fn run() {
             voice_cmd::set_voice_gain,
             voice_cmd::set_voice_position,
             voice_cmd::send_hub_ws_raw,
+            voice_cmd::send_hub_ws_raw_to,
+            voice_cmd::send_all_hubs_ws_raw,
             voice_cmd::mic_test_start,
             voice_cmd::mic_test_stop,
             voice_cmd::start_whisper,
             voice_cmd::stop_whisper,
             voice_cmd::load_whisper_lists,
             voice_cmd::save_whisper_lists,
+            // Soundboard
+            soundboard::soundboard_list_clips,
+            soundboard::soundboard_fetch_audio,
+            soundboard::soundboard_upload_clip,
+            soundboard::soundboard_delete_clip,
+            soundboard::soundboard_play_clip,
+            soundboard::soundboard_stop,
             // Local store
             local_store::load_appearance,
             local_store::save_appearance,
@@ -204,6 +226,11 @@ pub fn run() {
             admin::delete_role,
             admin::assign_role,
             admin::unassign_role,
+            admin::list_user_roles,
+            admin::list_role_categories,
+            admin::create_role_category,
+            admin::update_role_category,
+            admin::delete_role_category,
             admin::get_hub_settings,
             admin::list_pending_members,
             admin::approve_member,
@@ -214,6 +241,7 @@ pub fn run() {
             admin::list_hub_members,
             admin::kick_user_cmd,
             admin::ban_user_cmd,
+            admin::report_message,
             admin::mute_user_cmd,
             admin::timeout_user_cmd,
             admin::voice_mute_user_cmd,
@@ -222,6 +250,9 @@ pub fn run() {
             admin::channel_ban_user,
             admin::channel_unban_user,
             admin::list_channel_bans,
+            admin::get_channel_permissions,
+            admin::set_channel_role_permissions,
+            admin::clear_channel_role_permissions,
             admin::get_talk_power,
             admin::set_talk_power_cmd,
             admin::list_bans,
@@ -230,6 +261,7 @@ pub fn run() {
             admin::create_invite,
             admin::revoke_invite,
             admin::get_user_profile,
+            admin::update_my_profile_on_hub,
             // Alliance / federation
             admin_alliance::list_alliances,
             admin_alliance::create_alliance,
@@ -245,14 +277,22 @@ pub fn run() {
             admin_alliance::send_alliance_channel_message,
             admin_alliance::share_channel_with_alliance,
             admin_alliance::unshare_channel_from_alliance,
+            // Accounts (multi-account switcher)
+            accounts::list_accounts,
+            accounts::create_account,
+            accounts::switch_account,
+            accounts::remove_account,
+            accounts::rename_account,
+            accounts::reorder_accounts,
+            // Identity backup (unified .wavvon-backup, settings-ia.md §4a)
+            backup::export_account_backup,
+            backup::import_account_backup,
             // Identity
             identity_cmd::get_recovery_phrase,
             identity_cmd::recover_identity_from_phrase,
             identity_cmd::get_my_public_key,
             identity_cmd::get_my_pubkey,
             identity_cmd::sign_message,
-            identity_cmd::export_identity_backup,
-            identity_cmd::import_identity_backup,
             identity_cmd::push_prefs_blob,
             identity_cmd::pull_and_apply_prefs_blob,
             identity_cmd::save_public_profile,
@@ -296,6 +336,7 @@ pub fn run() {
             bots::admin_list_external_bots,
             bots::admin_add_external_bot,
             bots::admin_remove_external_bot,
+            bots::admin_get_bot_channel_scope,
             bots::admin_set_bot_channel_scope,
             bots::admin_list_webhooks,
             bots::admin_create_webhook,
@@ -332,11 +373,12 @@ pub fn run() {
             farm::farm_totp_setup,
             farm::farm_totp_confirm,
             farm::farm_totp_disable,
-            farm::list_recovery_contacts,
-            farm::add_recovery_contact,
+            farm::get_recovery_contacts,
+            farm::set_recovery_contacts,
             farm::remove_recovery_contact,
             farm::submit_rotation_request,
-            farm::list_rotation_requests,
+            farm::get_rotation_request_bundle,
+            farm::attest_rotation_request,
             // Events and polls
             events_polls::list_events,
             events_polls::rsvp_event,
@@ -349,6 +391,10 @@ pub fn run() {
             events_polls::get_hub_events,
             events_polls::rsvp_event_hub,
             events_polls::create_event_hub,
+            events_polls::get_event,
+            events_polls::get_event_assignments,
+            events_polls::get_event_rsvps,
+            events_polls::create_event_squad_rooms,
             // Screen capture / PiP
             screen_share::list_capture_sources,
             screen_share::open_pip_window,
@@ -363,6 +409,7 @@ pub fn run() {
             certs::save_cert_settings,
             certs::issue_cert,
             certs::revoke_cert,
+            certs::grant_user_badge,
             certs::fetch_my_certs,
             // Discovery / badges
             discovery::get_discovery_settings,
@@ -378,6 +425,8 @@ pub fn run() {
             // Updater / tray
             updater::install_pending_update,
             updater::set_tray_unread,
+            // Deep links
+            deep_link::get_pending_deep_link,
             // Pairing / home hub / devices
             home_hub::set_home_hub_list,
             home_hub::get_home_hub_list,
@@ -409,7 +458,7 @@ pub fn run() {
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use crate::local_store::{LocalProfile, NamedProfile, StoredVoiceSettings};
+    use crate::local_store::{DefaultProfileFields, LocalProfile, StoredVoiceSettings};
     use crate::messages::urlencoding_emoji;
     use crate::types::{default_approval_status, SavedHub};
 
@@ -438,54 +487,34 @@ mod tests {
     #[test]
     fn local_profile_default_is_empty_with_no_theme() {
         let p = LocalProfile::default();
-        assert!(p.profiles.is_empty());
-        assert!(p.default_profile_id.is_none());
+        assert!(p.default_profile.is_none());
         assert!(p.theme.is_none());
-        assert!(p.default_profile().is_none());
     }
 
     #[test]
-    fn local_profile_default_profile_falls_back_to_first_when_id_stale() {
-        let a = NamedProfile {
-            id: "id-a".to_string(),
-            label: "Profile A".to_string(),
-            display_name: "Alice".to_string(),
-            avatar: None,
-        };
-        let b = NamedProfile {
-            id: "id-b".to_string(),
-            label: "Profile B".to_string(),
-            display_name: "Bob".to_string(),
-            avatar: None,
-        };
+    fn local_profile_round_trips_default_profile_fields() {
         let p = LocalProfile {
-            profiles: vec![a.clone(), b.clone()],
-            default_profile_id: Some("vanished".to_string()),
-            theme: None,
+            default_profile: Some(DefaultProfileFields {
+                display_name: "Alice".to_string(),
+                avatar: Some("data:image/png;base64,xx".to_string()),
+                bio: Some("hi".to_string()),
+                ..Default::default()
+            }),
+            theme: Some("calm".to_string()),
         };
-        assert_eq!(p.default_profile().unwrap().id, "id-a");
+        let json = serde_json::to_string(&p).unwrap();
+        let back: LocalProfile = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.default_profile.unwrap().display_name, "Alice");
+        assert_eq!(back.theme.as_deref(), Some("calm"));
     }
 
     #[test]
-    fn local_profile_default_profile_honors_explicit_id() {
-        let a = NamedProfile {
-            id: "id-a".to_string(),
-            label: "Profile A".to_string(),
-            display_name: "Alice".to_string(),
-            avatar: None,
-        };
-        let b = NamedProfile {
-            id: "id-b".to_string(),
-            label: "Profile B".to_string(),
-            display_name: "Bob".to_string(),
-            avatar: None,
-        };
-        let p = LocalProfile {
-            profiles: vec![a, b.clone()],
-            default_profile_id: Some("id-b".to_string()),
-            theme: None,
-        };
-        assert_eq!(p.default_profile().unwrap().id, "id-b");
+    fn local_profile_ignores_orphaned_pool_fields_from_before_the_2026_07_12_model() {
+        // Alpha rules — no migration (settings-ia.md §5): a pre-convergence
+        // profile.json still parses, just with an empty default_profile.
+        let old = r#"{"profiles":[{"id":"a","label":"A"}],"default_profile_id":"a"}"#;
+        let p: LocalProfile = serde_json::from_str(old).unwrap();
+        assert!(p.default_profile.is_none());
     }
 
     #[test]
@@ -533,9 +562,8 @@ mod tests {
 
     #[test]
     fn local_profile_decodes_with_missing_theme() {
-        let old: LocalProfile = serde_json::from_str(r#"{"profiles":[]}"#).unwrap();
-        assert!(old.profiles.is_empty());
+        let old: LocalProfile = serde_json::from_str(r#"{}"#).unwrap();
+        assert!(old.default_profile.is_none());
         assert!(old.theme.is_none());
-        assert!(old.default_profile_id.is_none());
     }
 }

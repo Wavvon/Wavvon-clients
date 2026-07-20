@@ -1,4 +1,3 @@
-import { hexToBytes } from "@wavvon/core";
 import { rawFetch, hubFetch } from "../http";
 import {
   getSession,
@@ -19,9 +18,10 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { signBytes, publicKeyHex } from "@wavvon/core";
+import { publicKeyHex } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
+import { acquireHubToken as authenticate } from "./hubAuth";
 
 interface InfoResponse {
   public_key: string;
@@ -30,64 +30,12 @@ interface InfoResponse {
   farm_url?: string | null;
   welcome_label?: string | null;
   welcome_invite_url?: string | null;
-}
-
-interface ChallengeResponse {
-  challenge: string;
-}
-
-interface VerifyResponse {
-  token: string;
-  canonical_pubkey?: string;
-  // "lobby" when the hub's lobby is enabled and this identity's PoW level
-  // is below min_security_level (lobby-bot-survey.md Feature 1); "member"
-  // (or absent, for hubs predating the lobby) otherwise.
-  scope?: string;
+  /** SHA-256 hex of the LAN self-signed cert, present when lan_tls === "self". */
+  lan_fingerprint?: string | null;
 }
 
 function authBaseUrl(info: InfoResponse, hub_url: string): string {
   return info.farm_url ?? hub_url;
-}
-
-async function authenticate(
-  auth_url: string,
-  pubkeyHex: string,
-  seedHex: string,
-  security_nonce: number,
-  security_level: number,
-  invite_code?: string,
-  subkey_cert?: unknown,
-): Promise<{ token: string; canonicalPubkey?: string; scope: "member" | "lobby" }> {
-  const challengeRes: ChallengeResponse = await rawFetch(
-    `${auth_url}/auth/challenge`,
-    { method: "POST", body: JSON.stringify({ public_key: pubkeyHex }) },
-  ).then((r) => r.json() as Promise<ChallengeResponse>);
-
-  const challengeBytes = hexToBytes(challengeRes.challenge);
-  const signatureHex = signBytes(challengeBytes, seedHex);
-
-  const body: Record<string, unknown> = {
-    public_key: pubkeyHex,
-    challenge: challengeRes.challenge,
-    signature: signatureHex,
-    security_nonce,
-    security_level,
-  };
-  if (invite_code) body["invite_code"] = invite_code;
-  // Multi-device: presenting the cert lets the hub resolve this subkey to the
-  // shared canonical identity (see resolve_canonical_identity in the hub).
-  if (subkey_cert) body["subkey_cert"] = subkey_cert;
-
-  const verifyRes: VerifyResponse = await rawFetch(`${auth_url}/auth/verify`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  }).then((r) => r.json() as Promise<VerifyResponse>);
-
-  return {
-    token: verifyRes.token,
-    canonicalPubkey: verifyRes.canonical_pubkey,
-    scope: verifyRes.scope === "lobby" ? "lobby" : "member",
-  };
 }
 
 
@@ -319,12 +267,28 @@ export async function getHubInfo(hub_id: string): Promise<Hub | null> {
   };
 }
 
+// LAN fingerprint pinning (lan-mode.md §5): TOFU-verify the hub's
+// self-reported /info fingerprint against the one carried out-of-band in
+// the invite URL. `undefined` expectedFingerprint means the invite carried
+// none — always passes, so normal (non-LAN) hubs are unaffected. Shared by
+// every add-hub call site (App.tsx, WelcomeScreenContainer) so none of them
+// can silently skip the check.
+export async function verifyLanFingerprint(
+  hub_url: string,
+  expectedFingerprint: string | undefined,
+): Promise<boolean> {
+  if (!expectedFingerprint) return true;
+  const info = await previewHubInfo(hub_url);
+  return (info.lan_fingerprint ?? "").toLowerCase() === expectedFingerprint;
+}
+
 export async function previewHubInfo(hub_url: string): Promise<{
   name: string;
   public_key: string;
   icon: string | null;
   welcome_label: string | null;
   welcome_invite_url: string | null;
+  lan_fingerprint: string | null;
 }> {
   const url = hub_url.replace(/\/$/, "");
   const info: InfoResponse = await rawFetch(`${url}/info`).then((r) => r.json() as Promise<InfoResponse>);
@@ -334,6 +298,7 @@ export async function previewHubInfo(hub_url: string): Promise<{
     icon: info.icon,
     welcome_label: info.welcome_label ?? null,
     welcome_invite_url: info.welcome_invite_url ?? null,
+    lan_fingerprint: info.lan_fingerprint ?? null,
   };
 }
 

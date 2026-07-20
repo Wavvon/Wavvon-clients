@@ -1,5 +1,6 @@
-export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId } from "./session";
-export { hubFetch, rawFetch, HubApiError, fetchWithTimeout } from "./http";
+export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId, resetHubSessions } from "./session";
+export { hubFetch, rawFetch, HubApiError, fetchWithTimeout, isNotMemberError } from "./http";
+export { hubFetchAs } from "./hubFetchAs";
 export { HubWebSocket } from "./ws";
 export type { WsHandlers } from "./ws";
 export {
@@ -26,6 +27,7 @@ export {
   upgradeActiveHubIdentity,
   getHubInfo,
   previewHubInfo,
+  verifyLanFingerprint,
   reorderHubs,
   restorePersistedHubs,
   connectHubWebSocket,
@@ -49,12 +51,13 @@ export {
   sendTypingEvent,
   sendDmTypingEvent,
   sendSetStatus,
+  sendSetStatusTo,
   getAllianceChannelMessages,
   sendAllianceChannelMessage,
 } from "./commands/messages";
 export type { UnreadCount } from "./commands/messages";
 
-export { sendComponentInteraction, listBotCommands } from "./commands/bots";
+export { sendComponentInteraction, sendBotAppJoin, listBotCommands, listBots, getBotProfile } from "./commands/bots";
 
 export {
   probeFarm,
@@ -68,7 +71,13 @@ export {
   getFarmUsers,
   revokeFarmUserSessions,
   createHubOnFarm,
+  getFarmServers,
+  generateFarmServerToken,
+  farmTotpSetup,
+  farmTotpConfirm,
+  farmTotpDisable,
 } from "./commands/farms";
+export type { FarmServerEntry } from "./commands/farms";
 
 export {
   listConversations,
@@ -86,6 +95,7 @@ export {
   registerDeviceCert,
   listDeviceRevocations,
   postDeviceRevocation,
+  getPrefsBlob,
   postPairingOffer,
   postPairingClaim,
   postPairingComplete,
@@ -114,11 +124,18 @@ export {
   listAdminRecoveryRequests,
   approveRecoveryRequest,
   denyRecoveryRequest,
+  openRotationRequest,
+  getRotationRequestBundle,
+  attestRotationRequest,
   updateDmBlocks,
+  getDmBlocks,
   moveChannel,
   reorderChannels,
   saveHubSettings,
   getHubSettings,
+  createInvite,
+  getHubListingStatus,
+  setHubListed,
 } from "./commands/hubAdmin";
 
 export {
@@ -137,7 +154,14 @@ export {
   forumRemovePostReaction,
   forumAddReplyReaction,
   forumRemoveReplyReaction,
+  getAllianceChannelPosts,
+  getAllianceChannelPost,
+  createAllianceChannelPost,
+  createAllianceChannelReply,
+  reactAllianceChannelPost,
+  allianceForumWriteErrorCode,
 } from "./commands/forum";
+export type { AllianceForumWriteErrorCode } from "./commands/forum";
 
 export { uploadFile } from "./commands/uploads";
 
@@ -147,10 +171,13 @@ export { pinMessage, unpinMessage, getPins } from "./commands/pins";
 
 export { getUserProfile } from "./commands/profiles";
 
+export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
+
 export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 
 export {
   getEvents,
+  getEvent,
   createEvent,
   rsvpEvent,
   cancelRsvp,
@@ -158,6 +185,9 @@ export {
   createEventSlot,
   updateEventSlot,
   deleteEventSlot,
+  getEventRsvps,
+  getEventAssignments,
+  createEventSquadRooms,
 } from "./commands/events";
 export type { CreateEventSlotInput } from "./commands/events";
 
@@ -189,7 +219,13 @@ export {
   addBanlistOverride,
   removeBanlistOverride,
   setBanlistPublish,
+  muteMember,
+  timeoutMember,
+  voiceMuteMember,
+  voiceUnmuteMember,
+  listVoiceMutes,
 } from "./commands/moderation";
+export type { VoiceMuteInfo } from "./commands/moderation";
 
 export {
   getChannelPermissions,
@@ -214,16 +250,18 @@ export { getAuditLog } from "./commands/audit";
 export type { AuditLogEntry, AuditLogPage } from "./commands/audit";
 export { listChannelBans, banFromChannel, unbanFromChannel } from "./commands/channelBans";
 export type { ChannelBan } from "./commands/channelBans";
+export { getTalkPower, setTalkPower } from "./commands/talkPower";
 export { listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon } from "./commands/hubIcons";
 export type { HubIcon } from "./commands/hubIcons";
-export { listNativeBots, createNativeBot, deleteNativeBot } from "./commands/nativeBots";
-export type { NativeBot, NativeBotCreated } from "./commands/nativeBots";
+export { listNativeBots, createNativeBot, deleteNativeBot, getNativeBotDetail, setNativeBotWebhook } from "./commands/nativeBots";
+export type { NativeBot, NativeBotCreated, NativeBotDetail, NativeBotCommandInfo } from "./commands/nativeBots";
 export {
   listAlliances, createAlliance, getAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+  createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
 } from "./commands/alliances";
-export type { Alliance, AllianceDetail, AllianceMember, PendingAllianceInvite, SharedChannel } from "./commands/alliances";
+export type { Alliance, AllianceDetail, AllianceMember, AllianceInvite, PendingAllianceInvite, SharedChannel } from "./commands/alliances";
 export {
   setLobbySettings, listPendingUsers, approvePendingUser, setChallengeSettings,
 } from "./commands/onboardingAdmin";

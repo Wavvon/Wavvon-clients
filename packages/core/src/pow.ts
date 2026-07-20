@@ -2,10 +2,9 @@ import { sha256 } from "@noble/hashes/sha256";
 
 // Mirrors identity::pow (server/crates/identity/src/pow.rs) byte-for-byte —
 // the hub re-verifies every claim with that Rust implementation, so this
-// must hash the same bytes in the same order. Also used by the desktop and
-// Android Tauri shells conceptually (their PoW runs in Rust instead), but
-// the join-time protocol (SHA256(pubkey_hex_ascii || nonce_le_u64), count
-// leading zero bits) is shared across every client.
+// must hash the same bytes in the same order. (The desktop Tauri shell runs
+// PoW in Rust instead.) The join-time protocol — SHA256(pubkey_hex_ascii ||
+// nonce_le_u64), count leading zero bits — is shared across every client.
 
 /** Count leading zero bits in a hash output. */
 export function leadingZeroBits(hash: Uint8Array): number {

@@ -1,4 +1,5 @@
 import { ed25519 } from "@noble/curves/ed25519";
+import { sha256 } from "@noble/hashes/sha256";
 import { hexToBytes, bytesToHex } from "../hex";
 
 // Byte-for-byte port of the length-prefixed binary encoding in
@@ -74,6 +75,15 @@ export interface RevocationEntry {
   signature: string;
 }
 
+// The home hub stores this ciphertext but never decrypts it — see
+// derivePrefsBlobKey/decryptPrefsBlob in master.ts.
+export interface SignedPrefsBlob {
+  master_pubkey: string;
+  blob_version: number;
+  ciphertext_hex: string;
+  signature: string;
+}
+
 export interface PairingOffer {
   master_pubkey: string;
   home_hubs: string[];
@@ -94,12 +104,23 @@ export interface PairingComplete {
   pairing_token: string;
   cert: SubkeyCert;
   wrapped_blob_key_hex: string;
+  // The canonical (subkey-0/entropy) DM DH X25519 *scalar* (not the Ed25519
+  // seed), ECIES-wrapped for the claiming subkey with the same wrapBlobKey
+  // primitive as wrapped_blob_key_hex — see decisions.md "Paired-device DMs
+  // attribute to canonical via cert-chained envelopes; DH capability is a
+  // wrapped canonical scalar". Absent for hubs/clients predating this field.
+  wrapped_dh_seed_hex?: string;
 }
 
 export type PairingStatus =
   | { state: "pending" }
   | { state: "claimed"; subkey_pubkey: string; device_label: string }
-  | { state: "complete"; cert: SubkeyCert; wrapped_blob_key_hex: string }
+  | {
+      state: "complete";
+      cert: SubkeyCert;
+      wrapped_blob_key_hex: string;
+      wrapped_dh_seed_hex?: string;
+    }
   | { state: "expired" };
 
 // --- HomeHubList ---
@@ -205,6 +226,31 @@ export function buildRevocation(
   return { master_pubkey: masterPubkey, subkey_pubkey: subkeyPubkey, revoked_at: revokedAt, signature: sig };
 }
 
+// --- SignedPrefsBlob ---
+// Matches SignedPrefsBlob::signing_bytes() in wavvon_identity/src/wire.rs.
+export function prefsBlobSigningBytes(
+  masterPubkey: string,
+  blobVersion: number,
+  ciphertext: Uint8Array,
+): Uint8Array {
+  return concat(
+    tag("wavvon/prefs-blob/v1\0"),
+    writeStr(masterPubkey),
+    writeU64Le(blobVersion),
+    sha256(ciphertext),
+  );
+}
+
+/** Verify a SignedPrefsBlob's master signature over its ciphertext. */
+export function verifyPrefsBlob(blob: SignedPrefsBlob): boolean {
+  try {
+    const sb = prefsBlobSigningBytes(blob.master_pubkey, blob.blob_version, hexToBytes(blob.ciphertext_hex));
+    return ed25519.verify(hexToBytes(blob.signature), sb, hexToBytes(blob.master_pubkey));
+  } catch {
+    return false;
+  }
+}
+
 // --- PairingOffer (master-signed) ---
 
 export function pairingOfferSigningBytes(
@@ -271,4 +317,65 @@ export function buildPairingClaim(
 ): PairingClaim {
   const proof = sign(pairingClaimSigningBytes(pairingToken, subkeyPubkey, deviceLabel), subkeySeedHex);
   return { pairing_token: pairingToken, subkey_pubkey: subkeyPubkey, device_label: deviceLabel, proof };
+}
+
+// --- Recovery-attestation bundle (recovery-attestation.md §2, §4) ---
+// Shared encoder parameterized by domain tag, mirroring
+// wavvon_identity::wire::recovery_bundle_bytes (server) — distinct signers
+// (new-key proof vs. contact attestation) can never have their signatures
+// replayed as each other's.
+function recoveryBundleBytes(tagStr: string, hubPubkey: string, oldPubkey: string, newPubkey: string): Uint8Array {
+  return concat(tag(tagStr), writeStr(hubPubkey), writeStr(oldPubkey), writeStr(newPubkey));
+}
+
+/**
+ * Signing bytes for the requester's new-key proof, submitted inline with
+ * `POST /recovery/rotate-key`. Signed by `newPubkey`'s master key, proving
+ * the requester holds the key they're rotating to. No `requestNonce` — the
+ * hub hasn't minted one yet at this point.
+ */
+export function recoveryRequestSigningBytes(hubPubkey: string, oldPubkey: string, newPubkey: string): Uint8Array {
+  return recoveryBundleBytes("wavvon/recovery-request/v1\0", hubPubkey, oldPubkey, newPubkey);
+}
+
+/**
+ * Signing bytes for a recovery-contact attestation. A designated recovery
+ * contact signs these bytes with their master key to vouch for an open
+ * key-rotation request. `requestNonce` is the hub-generated per-request
+ * nonce, binding the signature to one request.
+ */
+export function recoveryAttestationSigningBytes(
+  hubPubkey: string,
+  oldPubkey: string,
+  newPubkey: string,
+  requestNonce: string,
+): Uint8Array {
+  return concat(
+    recoveryBundleBytes("wavvon/recovery-attestation/v1\0", hubPubkey, oldPubkey, newPubkey),
+    writeStr(requestNonce),
+  );
+}
+
+/** Sign the new-key proof for POST /recovery/rotate-key with the requester's master seed. */
+export function signRecoveryRequest(
+  newMasterSeedHex: string,
+  hubPubkey: string,
+  oldPubkey: string,
+  newPubkey: string,
+): string {
+  return sign(recoveryRequestSigningBytes(hubPubkey, oldPubkey, newPubkey), newMasterSeedHex);
+}
+
+/** Sign a recovery-contact attestation with the contact's master seed. */
+export function signRecoveryAttestation(
+  contactMasterSeedHex: string,
+  hubPubkey: string,
+  oldPubkey: string,
+  newPubkey: string,
+  requestNonce: string,
+): string {
+  return sign(
+    recoveryAttestationSigningBytes(hubPubkey, oldPubkey, newPubkey, requestNonce),
+    contactMasterSeedHex,
+  );
 }

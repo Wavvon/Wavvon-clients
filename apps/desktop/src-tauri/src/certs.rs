@@ -29,13 +29,19 @@ pub(crate) async fn get_cert_settings(
 #[tauri::command]
 pub(crate) async fn get_audit_log(
     hub_url: String,
+    cursor: Option<i64>,
+    limit: Option<i64>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
+    let mut query = format!("limit={}", limit.unwrap_or(50));
+    if let Some(c) = cursor {
+        query.push_str(&format!("&cursor={c}"));
+    }
     let res = state
         .http_client
         .get(format!(
-            "{}/admin/audit-log?limit=100",
+            "{}/admin/audit-log?{query}",
             hub_url.trim_end_matches('/')
         ))
         .bearer_auth(&token)
@@ -185,6 +191,32 @@ pub(crate) async fn revoke_cert(
             subject_pubkey
         ))
         .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn grant_user_badge(
+    hub_url: String,
+    subject_pubkey: String,
+    label: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/admin/certs/{}/badge",
+            hub_url.trim_end_matches('/'),
+            subject_pubkey
+        ))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "label": label }))
         .send()
         .await
         .map_err(|e| e.to_string())?;

@@ -1,7 +1,36 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { ScreenShareViewer } from "./ScreenShareViewer";
-import type { ScreenShareViewerRef } from "./ScreenShareViewer";
+import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
+import { ScreenShareViewer } from "@wavvon/ui";
+import type { ScreenShareViewerRef } from "@wavvon/ui";
 import type { ActiveStream } from "../types";
+
+// The native pop-out window is a single OS-level singleton, so every
+// ScreenShareViewer instance can share the same three handlers.
+function openOsPipWindow() {
+  return invoke<void>("open_pip_window");
+}
+function closeOsPipWindow() {
+  return invoke<void>("close_pip_window");
+}
+function sendOsPipChunk(data: ArrayBuffer) {
+  emit("pip-stream-chunk", { data: Array.from(new Uint8Array(data)) }).catch(() => {});
+}
+function stopOsPipStream() {
+  emit("pip-stream-stop", null).catch(() => {});
+}
+function listenOsPipClose(onClosed: () => void) {
+  let unlisten: (() => void) | null = null;
+  let cancelled = false;
+  listen("pip-close", onClosed).then((u) => {
+    if (cancelled) u();
+    else unlisten = u;
+  });
+  return () => {
+    cancelled = true;
+    unlisten?.();
+  };
+}
 
 interface Props {
   streams: ActiveStream[];
@@ -94,6 +123,11 @@ function SharerWindow({
           ref={viewerRef}
           streams={streams}
           mediaOutputDeviceId={mediaOutputDeviceId}
+          onOpenOsPipWindow={openOsPipWindow}
+          onCloseOsPipWindow={closeOsPipWindow}
+          onOsPipChunk={sendOsPipChunk}
+          onOsPipStop={stopOsPipStream}
+          onListenOsPipClose={listenOsPipClose}
         />
       </div>
       {!minimized && (

@@ -53,6 +53,8 @@ pub(crate) async fn voice_join(
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, ZoneInfo>>>,
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<f64>>>>,
             std::sync::Arc<std::sync::Mutex<Option<String>>>,
+            std::sync::Arc<std::sync::Mutex<Option<wavvon_voice::soundboard::ActiveClip>>>,
+            u32,
         ),
         String,
     >;
@@ -109,6 +111,8 @@ pub(crate) async fn voice_join(
             let gain_map = pipeline.gain_map.clone();
             let roster_map = pipeline.roster_map.clone();
             let udp_reg_token = pipeline.udp_reg_token.clone();
+            let active_clip = pipeline.active_clip.clone();
+            let opus_rate = pipeline.opus_rate;
             let voice_zones =
                 std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
                     String,
@@ -128,6 +132,8 @@ pub(crate) async fn voice_join(
                 voice_zones,
                 my_position,
                 udp_reg_token,
+                active_clip,
+                opus_rate,
             )));
 
             let speaking_rx = pipeline.speaking_rx.take();
@@ -193,6 +199,8 @@ pub(crate) async fn voice_join(
         voice_zones,
         my_position,
         udp_reg_token,
+        active_clip,
+        opus_rate,
     ) = ready_rx
         .recv()
         .map_err(|_| "Voice thread died".to_string())??;
@@ -215,6 +223,8 @@ pub(crate) async fn voice_join(
         voice_zones,
         my_position,
         udp_reg_token,
+        active_clip,
+        opus_rate,
     });
 
     Ok(())
@@ -337,6 +347,41 @@ pub(crate) fn send_hub_ws_raw(payload: String, state: State<'_, AppState>) -> Re
         .map_err(|_| "WS closed".to_string())
 }
 
+/// Send a raw WS payload to one specific hub session (not the active one) —
+/// used to re-apply presence to a hub that just (re)connected.
+#[tauri::command]
+pub(crate) fn send_hub_ws_raw_to(
+    hub_id: String,
+    payload: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let tx = {
+        let hubs = state.hubs.lock().unwrap();
+        let s = hubs.get(&hub_id).ok_or("Hub not connected")?;
+        s.ws_tx.clone()
+    };
+    tx.send(WsCommand::Raw(payload))
+        .map_err(|_| "WS closed".to_string())
+}
+
+/// Send a raw WS payload to every connected hub session — presence is
+/// global across hubs, so the status picker broadcasts.
+#[tauri::command]
+pub(crate) fn send_all_hubs_ws_raw(
+    payload: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let txs: Vec<_> = {
+        let hubs = state.hubs.lock().unwrap();
+        hubs.values().map(|s| s.ws_tx.clone()).collect()
+    };
+    for tx in txs {
+        // A closed session shouldn't stop the rest — its task is ending anyway.
+        let _ = tx.send(WsCommand::Raw(payload.clone()));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
     if state.voice.lock().unwrap().is_some() {
@@ -414,6 +459,10 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
         voice_zones: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         my_position: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         udp_reg_token: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        // Mic test is a loopback pipeline, not a real voice session -- the
+        // soundboard has nothing to mix into here.
+        active_clip: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        opus_rate: 48_000,
     });
 
     Ok(())

@@ -22,6 +22,7 @@ export async function onboardWithSeed(
   page: Page,
   seedHex: string,
   displayName: string,
+  inviteCode?: string,
 ): Promise<void> {
   await page.goto("/");
   try {
@@ -35,10 +36,30 @@ export async function onboardWithSeed(
   await page.getByPlaceholder(/a1b2c3d4/).fill(seedHex);
   await page.getByRole("button", { name: "Recover from hex" }).click();
 
+  // Every first-time recover hits two mandatory local-only steps before the
+  // WelcomeScreen: a required account label (clients f93e8c0, 2026-07-11)
+  // and a local profile setup step — neither talks to a hub yet, so a fresh
+  // IndexedDB (every test's browser context) hits both on every run.
+  const labelStep = page.getByRole("heading", { name: "Name this account" });
+  await labelStep.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+  if (await labelStep.isVisible()) {
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+  }
+  const profileStep = page.getByRole("heading", { name: "Set up your profile" });
+  await profileStep.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+  if (await profileStep.isVisible()) {
+    await page.getByPlaceholder("Your name").fill(displayName);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+  }
+
   // WelcomeScreen: single URL input + "Join hub". The main layout is
   // rendered *behind* the welcome overlay, so wait for the overlay itself
-  // to go away — not for layout chrome to appear.
-  await page.getByPlaceholder(/hub\.example\.com/).fill(HUB_URL);
+  // to go away — not for layout chrome to appear. Fresh hubs default to
+  // invite_only=true (hub 10f3e2d, 2026-07-06) — a brand-new identity with
+  // no roles yet needs a `/join/<code>` link (parseHubInput extracts the
+  // code), not the bare host, or /auth/verify 403s.
+  const joinInput = inviteCode ? `${HUB_URL}/join/${inviteCode}` : HUB_URL;
+  await page.getByPlaceholder(/hub\.example\.com/).fill(joinInput);
   await page.getByRole("button", { name: "Join hub" }).click();
   await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({
     timeout: 20000,
@@ -84,7 +105,8 @@ export async function newMemberPage(
     storageState: { cookies: [], origins: [] },
   });
   const page = await context.newPage();
-  await onboardWithSeed(page, seed, displayName);
+  const inviteCode = await ensureInviteCode(browser);
+  await onboardWithSeed(page, seed, displayName, inviteCode);
   return { context, page };
 }
 
@@ -107,13 +129,17 @@ export async function hubApi<T = unknown>(
   return (await page.evaluate(
     async ({ hubUrl, path, method, body }) => {
       // The restored session re-authenticates asynchronously on load —
-      // poll briefly until the fresh token lands in storage.
+      // poll briefly until the fresh token lands in storage. Per-account
+      // namespacing (clients f93e8c0, 2026-07-11 — utils/accountScope.ts)
+      // means every key lives under `wavvon:acct:<accountId>:<key>`, not the
+      // bare key.
       let token: string | null = null;
       for (let i = 0; i < 50 && !token; i++) {
-        const hubId = localStorage.getItem("wavvon:active_hub");
-        token = hubId
-          ? sessionStorage.getItem(`wavvon:token:${hubId}`) ??
-            localStorage.getItem(`wavvon:token:${hubId}`)
+        const accountId = localStorage.getItem("wavvon:active_account_id");
+        const hubId = accountId ? localStorage.getItem(`wavvon:acct:${accountId}:wavvon:active_hub`) : null;
+        token = accountId && hubId
+          ? sessionStorage.getItem(`wavvon:acct:${accountId}:wavvon:token:${hubId}`) ??
+            localStorage.getItem(`wavvon:acct:${accountId}:wavvon:token:${hubId}`)
           : null;
         if (!token) await new Promise((r) => setTimeout(r, 200));
       }
@@ -131,6 +157,48 @@ export async function hubApi<T = unknown>(
     },
     { hubUrl: HUB_URL, path, method: init?.method, body: init?.body },
   )) as T;
+}
+
+// Reads a per-account-scoped localStorage value (utils/accountScope.ts:
+// `wavvon:acct:<accountId>:<key>`), resolving the active account id itself
+// from `wavvon:active_account_id` — the same namespacing hubApi's token
+// lookup relies on. Returns null if there's no active account or no value.
+export async function scopedLocalStorageItem(page: Page, key: string): Promise<string | null> {
+  return page.evaluate((key) => {
+    const accountId = localStorage.getItem("wavvon:active_account_id");
+    return accountId ? localStorage.getItem(`wavvon:acct:${accountId}:${key}`) : null;
+  }, key);
+}
+
+// A single unlimited-use invite code, minted once per test process and
+// reused by every newMemberPage call (fresh hubs default to invite_only=true
+// — see onboardWithSeed). Reuses the owner's saved session (the "live"
+// project's own storageState) rather than a full re-onboard, so this is
+// cheap after the first call.
+let cachedInviteCode: Promise<string> | null = null;
+
+async function ensureInviteCode(browser: Browser): Promise<string> {
+  if (!cachedInviteCode) {
+    cachedInviteCode = (async () => {
+      const context = await browser.newContext({
+        baseURL: "http://localhost:1421",
+        storageState: "e2e/.auth/owner.json",
+      });
+      try {
+        const page = await context.newPage();
+        await page.goto("/");
+        await expectInHub(page);
+        const invite = await hubApi<{ code: string }>(page, "/invites", {
+          method: "POST",
+          body: {},
+        });
+        return invite.code;
+      } finally {
+        await context.close();
+      }
+    })();
+  }
+  return cachedInviteCode;
 }
 
 // Create a channel via the hub-name dropdown → "Create…" modal.

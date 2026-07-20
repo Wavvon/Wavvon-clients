@@ -1,4 +1,4 @@
-import type { HomeHubList, RevocationEntry, SubkeyCert } from "@shared/types";
+import type { HomeHubList, RevocationEntry, SignedPrefsBlob, SubkeyCert } from "@shared/types";
 import type { PairingOffer, PairingClaim, PairingComplete, PairingStatus } from "@wavvon/core";
 import { hubFetch, rawFetch, HubApiError } from "../http";
 
@@ -42,6 +42,17 @@ export async function registerDeviceCert(cert: SubkeyCert): Promise<void> {
 export async function listDeviceRevocations(pubkey: string): Promise<RevocationEntry[]> {
   const res = await hubFetch(`/identity/${pubkey}/revocations`);
   return (await res.json()) as RevocationEntry[];
+}
+
+/** Fetch the master's E2E-encrypted prefs blob — the hub holds ciphertext only. */
+export async function getPrefsBlob(masterPubkey: string): Promise<SignedPrefsBlob | null> {
+  try {
+    const res = await hubFetch(`/identity/${masterPubkey}/prefs`);
+    return (await res.json()) as SignedPrefsBlob;
+  } catch (e) {
+    if (e instanceof HubApiError && e.status === 404) return null;
+    throw e;
+  }
 }
 
 /** Publish a master-signed revocation of a subkey to the active hub. */

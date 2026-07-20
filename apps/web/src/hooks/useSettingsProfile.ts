@@ -1,17 +1,39 @@
 import { useState, useEffect } from "react";
-import type { ThemeId, WavvonSkin } from "../skinValidation";
-import { applySkinTokens, clearSkinTokens } from "../skinValidation";
-import type { SettingsTab } from "../components/SettingsPage";
-import { loadIdentity, seedToPhrase, phraseToSeed, validatePhrase, saveIdentity, publicKeyHex } from "@identity/index";
-import { makeSeed } from "../components/SkinEditor";
+import { useTranslation } from "react-i18next";
+import type { ThemeId, WavvonSkin } from "@wavvon/ui";
+import { applySkinTokens, clearSkinTokens } from "@wavvon/ui";
+import type { SettingsTab } from "@components/settings/SettingsPage";
+import {
+  loadIdentity,
+  seedToPhrase,
+  phraseToSeed,
+  validatePhrase,
+  resolveOrCreateAccount,
+  switchAccount,
+  getPostSwitchReturn,
+  SWITCH_BLOCKED_COOLDOWN,
+} from "@identity/index";
+import { makeSeed } from "@wavvon/ui";
 import type { CustomThemeStore, NamedCustomTheme } from "../utils/customThemes";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "../utils/customThemes";
+import { getScoped } from "../utils/accountScope";
 
 const APPEARANCE_KEY = "wavvon:appearance";
 
-export function useSettingsProfile(setPublicKey: (key: string) => void) {
-  const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
+export function useSettingsProfile(setPublicKey: (key: string) => void, initialView?: "settings-account") {
+  const { t } = useTranslation();
+  // Two ways to land back on Settings → Account after a switch: `initialView`
+  // (the in-place path — AccountRoot forwards it as a prop, set in memory,
+  // no storage involved) or the one-shot `getPostSwitchReturn()` flag (the
+  // reload-fallback path only, written to sessionStorage just before the
+  // reload). Consumed at module init, NOT here — a render-time read+remove
+  // races StrictMode's double render.
+  const postSwitchReturn = getPostSwitchReturn();
+  const effectiveInitialView = initialView ?? (postSwitchReturn === "settings-account" ? "settings-account" : undefined);
+  const [showSettings, setShowSettings] = useState(effectiveInitialView === "settings-account");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(
+    effectiveInitialView === "settings-account" ? "accounts" : "profile",
+  );
   const [theme, setTheme] = useState<ThemeId>(() => {
     try {
       const raw = localStorage.getItem(APPEARANCE_KEY);
@@ -27,9 +49,8 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
   const skin: WavvonSkin | null = theme === "custom" ? activeCustomTheme?.skin ?? null : null;
 
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
   const [mentionPingEnabled, setMentionPingEnabled] = useState<boolean>(() => {
-    try { return localStorage.getItem("wavvon.mentionPing") !== "0"; } catch { return true; }
+    try { return getScoped("wavvon.mentionPing") !== "0"; } catch { return true; }
   });
 
   useEffect(() => {
@@ -129,19 +150,19 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     });
   }
 
+  // Recovering a different phrase here means bringing another account onto
+  // this device (or switching to it, if it's already here) — never silently
+  // overwriting the active identity. Switches to it (in place) when it
+  // differs from the currently active one.
   async function handleRecoverIdentity(ph: string) {
     if (!validatePhrase(ph)) throw new Error("Invalid phrase");
     const hex = phraseToSeed(ph);
-    await saveIdentity({ id: "main", seed_hex: hex, security_nonce: 0, security_level: 0 });
-    setPublicKey(publicKeyHex(hex));
+    const { account } = await resolveOrCreateAccount(hex);
     setRecoveryPhrase(null);
-  }
-
-  function handleCopyKey(publicKey: string | null) {
-    if (!publicKey) return;
-    navigator.clipboard.writeText(publicKey).catch(() => {});
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
+    const refused = switchAccount(account.id, "settings-account");
+    if (refused) {
+      throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+    }
   }
 
   return {
@@ -155,7 +176,6 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     activeCustomThemeId: customThemeStore.activeId,
     recoveryPhrase,
     setRecoveryPhrase,
-    copiedKey,
     mentionPingEnabled,
     setMentionPingEnabled,
     handleSetTheme,
@@ -168,6 +188,5 @@ export function useSettingsProfile(setPublicKey: (key: string) => void) {
     handleImportCustomTheme,
     handleShowRecovery,
     handleRecoverIdentity,
-    handleCopyKey,
   };
 }

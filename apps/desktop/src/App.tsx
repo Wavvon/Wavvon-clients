@@ -21,7 +21,7 @@ import type {
   VoiceParticipant,
   Hub,
   RoleInfo,
-  NamedProfile,
+  RoleCategory,
   MeInfo,
   MemberAdminInfo,
   BanInfo,
@@ -37,20 +37,33 @@ import type {
   SurveySubmitResult,
   BotAdminInfo,
   BotDetailInfo,
+  BotCreatedResult,
   TauriFile,
   BotAppLaunchEvent,
   BotAppOpenEvent,
   BotAppCloseEvent,
+  FarmPublicInfo,
+  FarmHubQuota,
+  CreatedFarmHub,
+  FarmSettings,
+  FarmHubEntry,
+  FarmUserEntry,
+  FarmServerEntry,
+  PublicHubProfile,
+  PresenceStatus,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
-import { HubStreamsPanel } from "./components/HubStreamsPanel";
-import { KeyboardShortcuts } from "@wavvon/ui";
+import { HubStreamsPanel } from "@wavvon/ui";
+import { BotAppLaunchCard, CreateHubWizard, KeyboardShortcuts, DiscoverPage, Lobby, FarmSettingsPage } from "@wavvon/ui";
+import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, decideVoiceMove } from "@wavvon/ui";
+import type { GlobalSearchResult } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
+import { useSoundboard } from "./hooks/useSoundboard";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
-import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
+import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import {
   formatPubkey,
   buildChannelTree,
@@ -59,7 +72,7 @@ import {
   computeDepth,
 } from "@wavvon/core";
 import { parseHubInput } from "@wavvon/core";
-import { saveDraft } from "./utils/drafts";
+import { saveDraft, hasDraft } from "./utils/drafts";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts } from "./hooks/useUnreadCounts";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -73,7 +86,6 @@ import { useAlliances } from "./hooks/useAlliances";
 import { useWsHandlers } from "./hooks/useWsHandlers";
 import { Lightbox } from "./components/Lightbox";
 import { ChannelPalette } from "./components/ChannelPalette";
-import { ChannelBansModal } from "./components/ChannelBansModal";
 import {
   SettingsPage,
   type SettingsTab,
@@ -81,29 +93,63 @@ import {
 import {
   HubAdminPage,
   type HubAdminTab,
-} from "./components/HubAdminPage";
-import { AddHubModal } from "./components/AddHubModal";
-import { FarmSettingsPage, type FarmAdminTab } from "./components/FarmSettingsPage";
-import { CreateHubWizard } from "./components/CreateHubWizard";
-import { CreateChannelModal } from "./components/CreateChannelModal";
-import { FriendsModal } from "./components/FriendsModal";
+  type RolesSectionActions,
+  type MemberRoleManagerActions,
+  type ServerTagsSectionActions,
+  type InviteManagerActions,
+  type NativeBotsSectionActions,
+  type AuditLogSectionActions,
+  type CertificationsSectionActions,
+  type OnboardingAdminSectionActions,
+} from "@wavvon/ui";
+import type {
+  Alliance,
+  AllianceInvite,
+  PendingAllianceInvite,
+  SharedChannel,
+  ExternalBotRow,
+  ExternalBotInviteResult,
+  WebhookInfo,
+  WebhookCreatedResult,
+  SurveyAdmin,
+  SurveyResponseView,
+  HubSelfTagSettings,
+  HubBadge,
+  PendingBadgeOffer,
+  CertIssuance,
+  CertAdmissionSettings,
+  AuditLogPage,
+} from "@wavvon/ui";
+import { AddHubModal } from "@wavvon/ui";
+import { QuickInviteModal } from "@wavvon/ui";
+import type { FarmAdminTab } from "@wavvon/ui";
+import { CreateChannelModal, type BannerSource } from "@wavvon/ui";
+import { ChannelSettingsModal } from "@wavvon/ui";
+import type {
+  ChannelPermissionsTabActions,
+  ChannelBansTabActions,
+  ChannelTalkPowerTabActions,
+  ChannelPermissionsResponse,
+  ChannelRoleOverwrites,
+  ChannelRolePermissions,
+  HubIcon,
+} from "@wavvon/ui";
+import { FriendsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "./components/EditDescriptionModal";
 import { ChannelContextMenu } from "./components/ChannelContextMenu";
-import { ChannelSettingsModal } from "./components/ChannelSettingsModal";
 import { ChannelAppearanceModal } from "./components/ChannelAppearanceModal";
 import { BannerEditModal } from "./components/BannerEditModal";
-import { UserContextMenu } from "./components/UserContextMenu";
-import { HubSidebar } from "./components/HubSidebar";
-import { ChannelSidebar } from "./components/ChannelSidebar";
+import { UserContextMenu } from "@wavvon/ui";
+import { HubSidebar } from "@wavvon/ui";
+import { ChannelSidebar } from "@wavvon/ui";
 import { ContentArea } from "./components/ContentArea";
-import { DiscoverPage } from "./components/DiscoverPage";
+import { fetchWithTimeout } from "./utils/fetchWithTimeout";
 import { HubBrowser } from "./components/HubBrowser";
-import { WelcomeScreen } from "./components/WelcomeScreen";
-import { Lobby } from "./components/Lobby";
+import { WelcomeScreen } from "@wavvon/ui";
 import { BotChallenge } from "./components/BotChallenge";
 import { SurveyComponent } from "./components/Survey";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { BotAppLaunchCard } from "./components/BotAppLaunchCard";
+import { setSwitchGuard } from "./accounts/store";
 
 function App() {
   // Multi-hub state
@@ -112,7 +158,12 @@ function App() {
   useEffect(() => { hubsRef.current = hubs; }, [hubs]);
   const [activeHubId, setActiveHubId] = useState<string | null>(null);
   const [showAddHub, setShowAddHub] = useState(false);
+  const [showQuickInvite, setShowQuickInvite] = useState(false);
   const [hubScope, setHubScope] = useState<Record<string, "lobby" | "member">>({});
+  const lobbyHubIds = useMemo(
+    () => new Set(Object.entries(hubScope).filter(([, scope]) => scope === "lobby").map(([id]) => id)),
+    [hubScope],
+  );
   const [pendingSurveyHubId, setPendingSurveyHubId] = useState<string | null>(null);
   const [botChallenge, setBotChallenge] = useState<{
     hubUrl: string;
@@ -180,22 +231,46 @@ function App() {
     });
   }
 
-  const [dndActive, setDndActive] = useState(false);
-  const [userStatus, setUserStatus] = useState<"online" | "away" | "dnd" | "offline">("online");
+  // Own presence — global across hubs, not per-hub. The device is the
+  // source of truth: the picker broadcasts to every session and each hub
+  // gets it re-applied on (re)connect. Distinct from hub mute (notify modes).
+  // Four states + "clear after" TTL (decisions.md 2026-07-12) — free-text
+  // custom status was removed; the hub column stays dormant.
+  const [myPresence, setMyPresenceState] = useState<{ status: PresenceStatus }>(() => {
+    try {
+      const raw = localStorage.getItem("wavvon.presence");
+      if (raw) return JSON.parse(raw) as { status: PresenceStatus };
+    } catch { /* storage unavailable or corrupt */ }
+    return { status: "online" };
+  });
+  const myPresenceRef = useRef(myPresence);
+  myPresenceRef.current = myPresence;
+  // Timer backing the presence "clear after" (TTL): reverts to Online when it fires.
+  const presenceTtlRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function toggleDnd() {
-    setDndActive((prev) => {
-      invoke("save_dnd_settings", { active: !prev }).catch(() => {});
-      return !prev;
-    });
-  }
-
-  function handleStatusChange(s: "online" | "away" | "dnd" | "offline") {
-    setUserStatus(s);
-    const nextDnd = s === "dnd";
-    if (nextDnd !== dndActive) {
-      setDndActive(nextDnd);
-      invoke("save_dnd_settings", { active: nextDnd }).catch(() => {});
+  function handleSetStatus(status: PresenceStatus, ttlMinutes: number | null) {
+    if (presenceTtlRef.current) { clearTimeout(presenceTtlRef.current); presenceTtlRef.current = null; }
+    const apply = (s: PresenceStatus) => {
+      setMyPresenceState({ status: s });
+      try { localStorage.setItem("wavvon.presence", JSON.stringify({ status: s })); } catch { /* storage unavailable */ }
+      invoke("send_all_hubs_ws_raw", {
+        payload: JSON.stringify({ type: "set_status", status: s, custom: null }),
+      }).catch(() => { /* no hub connected */ });
+      // Optimistic: the hubs' member_status broadcasts will confirm. Invisible
+      // shows the user offline (to everyone, incl. their own roster view); the
+      // footer picker still reflects "invisible".
+      setUsers((prev) => prev.map((u) =>
+        u.public_key === publicKey
+          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: null }
+          : u,
+      ));
+    };
+    apply(status);
+    if (status !== "online" && ttlMinutes) {
+      presenceTtlRef.current = setTimeout(() => {
+        presenceTtlRef.current = null;
+        apply("online");
+      }, ttlMinutes * 60_000);
     }
   }
 
@@ -260,10 +335,6 @@ function App() {
     invoke<string[]>("load_ignored_users")
       .then((s) => setIgnoredUsers(new Set(s ?? [])))
       .catch(() => {});
-
-    invoke<boolean>("load_dnd_settings")
-      .then((active) => { if (active) setDndActive(true); })
-      .catch(() => {});
   }, []);
 
 
@@ -289,7 +360,10 @@ function App() {
     setAdminHubDescription,
     adminHubIcon,
     setAdminHubIcon,
-    adminRoles,
+    adminWelcomeLabel,
+    setAdminWelcomeLabel,
+    adminWelcomeInviteUrl,
+    setAdminWelcomeInviteUrl,
     adminMembers,
     adminBans,
     adminInvites,
@@ -300,16 +374,14 @@ function App() {
     maxChannelDepth,
     setMaxChannelDepth,
     pendingMembers,
+    hubListed,
+    onHubListedChange,
     isAdmin,
     openHubAdmin,
     openHubAdminInvites,
     handleSaveHubBranding,
     refreshPending,
     handleApproveMember,
-    refreshRoles,
-    handleCreateRole,
-    handleUpdateRole,
-    handleDeleteRole,
     refreshMembers,
     handleKickMember,
     handleBanMember,
@@ -320,7 +392,6 @@ function App() {
     refreshInvites,
     handleCreateInvite,
     handleRevokeInvite,
-    handleToggleRoleAssignment,
     loadAdminTabData,
   } = useHubAdmin({
     activeHubId,
@@ -460,6 +531,7 @@ function App() {
     channelsRef,
     hubsRef,
     selectedChannelIdRef,
+    myPresenceRef,
     effectiveNotifyMode,
     bumpUnread,
     clearUnread,
@@ -580,15 +652,6 @@ function App() {
     );
   }
 
-  async function handleCopyUserKey(u: User) {
-    setUserContextMenu(null);
-    try {
-      await navigator.clipboard.writeText(u.public_key);
-      setToast("Public key copied");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
 
   const {
     userAlliances,
@@ -600,13 +663,9 @@ function App() {
 
   // Create channel dialog
   const [showCreateChannel, setShowCreateChannel] = useState(false);
-  const [newChannelName, setNewChannelName] = useState("");
-  const [newChannelDescription, setNewChannelDescription] = useState("");
-  const [newChannelType, setNewChannelType] = useState<"text" | "forum" | "category" | "banner">("text");
-  const [newBannerUrl, setNewBannerUrl] = useState("");
-  const [newBannerSourceMode, setNewBannerSourceMode] = useState<"url" | "upload">("url");
-  const [newBannerFile, setNewBannerFile] = useState<File | null>(null);
   const [newChannelParentId, setNewChannelParentId] = useState<string | null>(null);
+  const [createChannelLoading, setCreateChannelLoading] = useState(false);
+  const [createChannelError, setCreateChannelError] = useState<string | null>(null);
 
   // Edit description dialog
   const [editDescriptionChannel, setEditDescriptionChannel] = useState<Channel | null>(null);
@@ -614,13 +673,10 @@ function App() {
 
   const [appearanceChannel, setAppearanceChannel] = useState<Channel | null>(null);
   const [channelSettingsModal, setChannelSettingsModal] = useState<Channel | null>(null);
+  const [channelSettingsSaving, setChannelSettingsSaving] = useState(false);
+  const [channelSettingsDeleting, setChannelSettingsDeleting] = useState(false);
+  const [channelSettingsError, setChannelSettingsError] = useState<string | null>(null);
   const [bannerEditChannel, setBannerEditChannel] = useState<Channel | null>(null);
-
-  // Channel-bans dialog. Stores the channel we're managing bans for so the
-  // modal can fetch + mutate without round-tripping through context menu state.
-  const [channelBansModal, setChannelBansModal] = useState<
-    { channelId: string; channelName: string } | null
-  >(null);
 
   const [hubDropdownOpen, setHubDropdownOpen] = useState(false);
   const [showHubStreams, setShowHubStreams] = useState(false);
@@ -672,15 +728,22 @@ function App() {
     () => users.find((u) => u.public_key === publicKey)?.display_name ?? null,
     [users, publicKey]
   );
-  const myAvatar = useMemo(
-    () => users.find((u) => u.public_key === publicKey)?.avatar ?? null,
-    [users, publicKey]
-  );
   useEffect(() => {
     myDisplayNameRef.current = myDisplayName;
   }, [myDisplayName]);
 
   const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast });
+
+  // Registered so switchAccountGuarded can refuse a mid-voice account switch
+  // at the source (defense in depth alongside a disabled Switch button in
+  // Settings → Account) — switching while joined to a voice channel is
+  // blocked outright, not auto-left on the caller's behalf (mirrors web's
+  // App.tsx switch guard, decisions.md "Account switching is an in-place
+  // key-remount, guarded, not a reload").
+  useEffect(() => {
+    setSwitchGuard(() => (voice.voiceChannelId ? "Leave the voice channel before switching accounts." : null));
+    return () => setSwitchGuard(null);
+  }, [voice.voiceChannelId]);
 
   const video = useVideo({
     activeHubId,
@@ -690,7 +753,89 @@ function App() {
   });
 
   const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
+  const soundboard = useSoundboard(voice.voiceChannelId);
   const [showWhisperPanel, setShowWhisperPanel] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false);
+
+  // === Voice move (events.md §7.1/§7.2) ===
+  const [voiceMoveMenu, setVoiceMoveMenu] = useState<{
+    pubkey: string;
+    displayName: string;
+    position: { x: number; y: number };
+    currentChannelId: string;
+  } | null>(null);
+  // Overrides the sidebar's local-channel-list name lookup for the voice HUD
+  // label — set from a voice_move push's target_channel_name, since that
+  // destination may not be in the local channel list (events.md §7.1/§7.4).
+  const [voiceChannelNameHint, setVoiceChannelNameHint] = useState<string | null>(null);
+  const [voiceMovePrompt, setVoiceMovePrompt] = useState<{
+    targetChannelId: string;
+    targetChannelName: string;
+  } | null>(null);
+  const [voiceMoveToast, setVoiceMoveToast] = useState<{
+    channelName: string;
+    sourceChannelId: string | null;
+  } | null>(null);
+  const voiceMoveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const canMoveMembers = isAdmin || myRoles.some((r) => r.permissions?.includes("move_members"));
+  const canCreateInvites = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_channels"));
+  const voiceMoveChannelOptions = useMemo(
+    () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveMenu?.currentChannelId),
+    [channels, voiceMoveMenu],
+  );
+
+  // Mover's side: right-click "Move to channel…" (events.md §7.1).
+  function handleMoveMember(targetPubkey: string, targetChannelId: string, eventId?: string) {
+    invoke("send_hub_ws_raw", {
+      payload: JSON.stringify({
+        type: "voice_move",
+        target_pubkey: targetPubkey,
+        target_channel_id: targetChannelId,
+        ...(eventId ? { event_id: eventId } : {}),
+      }),
+    }).catch(() => setToast("Not connected"));
+  }
+
+  function showVoiceMoveToast(channelName: string, sourceChannelId: string | null) {
+    if (voiceMoveToastTimerRef.current) clearTimeout(voiceMoveToastTimerRef.current);
+    setVoiceMoveToast({ channelName, sourceChannelId });
+    voiceMoveToastTimerRef.current = setTimeout(() => setVoiceMoveToast(null), 8000);
+  }
+
+  function handleRejoinPreviousVoiceChannel() {
+    const sourceChannelId = voiceMoveToast?.sourceChannelId;
+    setVoiceMoveToast(null);
+    if (voiceMoveToastTimerRef.current) { clearTimeout(voiceMoveToastTimerRef.current); voiceMoveToastTimerRef.current = null; }
+    if (!sourceChannelId) return;
+    void voice.handleVoiceJoin(sourceChannelId);
+  }
+
+  function handleAcceptVoiceMove() {
+    if (!voiceMovePrompt) return;
+    const { targetChannelId, targetChannelName } = voiceMovePrompt;
+    setVoiceMovePrompt(null);
+    setVoiceChannelNameHint(targetChannelName);
+    void voice.handleVoiceJoin(targetChannelId);
+  }
+
+  // Decline is a server no-op (events.md §7.2) — closing the prompt is the
+  // entire client side of it, nothing to send.
+  function handleDeclineVoiceMove() {
+    setVoiceMovePrompt(null);
+  }
+
+  function handleVoiceMovePush(raw: unknown) {
+    const decision = decideVoiceMove(raw as Parameters<typeof decideVoiceMove>[0]);
+    if (decision.kind === "ignore") return;
+    if (decision.kind === "auto") {
+      setVoiceChannelNameHint(decision.targetChannelName);
+      void voice.handleVoiceJoin(decision.targetChannelId);
+      showVoiceMoveToast(decision.targetChannelName, decision.sourceChannelId);
+    } else {
+      setVoiceMovePrompt({ targetChannelId: decision.targetChannelId, targetChannelName: decision.targetChannelName });
+    }
+  }
 
   function buildTiles(
     remoteStreams: Map<string, MediaStream>,
@@ -742,29 +887,14 @@ function App() {
     setTheme,
     skin,
     setSkin,
-    profiles,
-    setProfiles,
-    defaultProfileId,
-    setDefaultProfileId,
     recoveryPhrase,
     setRecoveryPhrase,
-    copiedKey,
-    persistProfileFile,
-    handleCreateProfile,
-    handleUpdateProfile,
-    handleDeleteProfile,
-    handleSetDefaultProfile,
-    handleApplyProfileToHub,
     handleSetTheme,
     handleSkinChange,
     handleShowRecovery,
     handleClearLocalData,
     handleRecoverIdentity,
-    handleImportBackup,
-    copyPublicKey,
   } = useSettingsProfile({
-    hasActiveHub,
-    setUsers: (updater) => setUsers(updater),
     setPublicKey,
     setError,
     setToast,
@@ -783,17 +913,7 @@ function App() {
   const {
     showFriends,
     setShowFriends,
-    friends,
-    pendingFriends,
-    friendRequestKey,
-    setFriendRequestKey,
-    friendRequestHubUrl,
-    setFriendRequestHubUrl,
-    refreshFriends,
     openFriends,
-    handleSendFriendRequest,
-    handleAcceptFriend,
-    handleRemoveFriend,
     handleUserAddFriend: handleUserAddFriendFromHook,
   } = useFriends({ setError, setToast });
 
@@ -849,6 +969,8 @@ function App() {
     selectedChannelIdRef,
     selectedConversationIdRef,
     users,
+    setUsers,
+    myPresenceRef,
     setHubConnected,
     setAssertiveAnnouncement,
     setToast,
@@ -898,6 +1020,7 @@ function App() {
       });
       invoke("close_mini_app", { label: `mini-app-${ev.bot_id}` }).catch(() => {});
     },
+    onVoiceMove: handleVoiceMovePush,
   });
 
   async function loadHubData() {
@@ -1407,16 +1530,8 @@ function App() {
   async function openSettings() {
     setShowSettings(true);
     setRecoveryPhrase(null);
-    // Pre-fill with current display name if known
-    // Load profiles + theme
     try {
-      const profile = await invoke<{
-        profiles?: NamedProfile[];
-        default_profile_id?: string | null;
-        theme?: string | null;
-      }>("get_profile");
-      setProfiles(profile.profiles ?? []);
-      setDefaultProfileId(profile.default_profile_id ?? null);
+      const profile = await invoke<{ theme?: string | null }>("get_profile");
       const t = profile.theme;
       if (t === "calm" || t === "classic" || t === "linear" || t === "light") {
         setTheme(t);
@@ -1531,24 +1646,29 @@ function App() {
     }
   }
 
-  async function handleCreateChannel() {
-    const name = newChannelName.trim();
-    if (!name) return;
-    const desc = newChannelDescription.trim();
+  async function handleCreateChannel(
+    name: string,
+    channelType: string,
+    isCategory: boolean,
+    description: string,
+    spawnerNameTemplate?: string,
+    banner?: BannerSource,
+  ) {
+    setCreateChannelLoading(true);
+    setCreateChannelError(null);
     try {
       const channel = await invoke<Channel>("create_channel", {
         name,
         parentId: newChannelParentId,
-        isCategory: newChannelType === "category",
-        channelType: newChannelType === "category" ? undefined : newChannelType,
-        description: desc ? desc : null,
-        bannerUrl: newChannelType === "banner" && newBannerSourceMode === "url"
-          ? (newBannerUrl.trim() || null)
-          : null,
+        isCategory,
+        channelType: isCategory ? undefined : channelType,
+        description: description ? description : null,
+        bannerUrl: channelType === "banner" ? (banner?.url || null) : null,
+        spawnerNameTemplate: channelType === "spawner" ? (spawnerNameTemplate ?? null) : null,
       });
 
-      if (newChannelType === "banner" && newBannerSourceMode === "upload" && newBannerFile) {
-        const filePath = (newBannerFile as TauriFile).path;
+      if (channelType === "banner" && banner?.file) {
+        const filePath = (banner.file as TauriFile).path;
         if (filePath) {
           const activeHub = hubs.find((h) => h.hub_id === activeHubId);
           if (activeHub) {
@@ -1569,19 +1689,15 @@ function App() {
       }
 
       setChannels((prev) => [...prev, channel]);
-      setNewChannelName("");
-      setNewChannelDescription("");
-      setNewChannelType("text");
       setNewChannelParentId(null);
-      setNewBannerUrl("");
-      setNewBannerSourceMode("url");
-      setNewBannerFile(null);
       setShowCreateChannel(false);
       if (!channel.is_category && channel.channel_type !== "banner") {
         channelMessages.selectChannel(channel);
       }
     } catch (e) {
-      setError(String(e));
+      setCreateChannelError(String(e));
+    } finally {
+      setCreateChannelLoading(false);
     }
   }
 
@@ -1656,6 +1772,131 @@ function App() {
     }
   }
 
+  // ChannelSettingsModal's onSave — composes the individual PATCH-shaped
+  // Tauri commands the settings tab touches. A banner *file* goes through
+  // upload_file_bytes (base64 over the IPC boundary — webview Files carry
+  // bytes but no filesystem path).
+  async function handleSaveChannelSettings(
+    name: string,
+    description: string,
+    color: string | null,
+    icon: string | null,
+    customIconSvg: string | null,
+    banner?: BannerSource,
+  ) {
+    if (!channelSettingsModal) return;
+    const channel = channelSettingsModal;
+    setChannelSettingsSaving(true);
+    setChannelSettingsError(null);
+    try {
+      if (name !== channel.name) {
+        await invoke("rename_channel", { channelId: channel.id, name });
+      }
+      if (!channel.is_category && (description || null) !== channel.description) {
+        await invoke("update_channel_description", { channelId: channel.id, description: description || null });
+      }
+      if (
+        color !== (channel.color ?? null) ||
+        icon !== (channel.icon ?? null) ||
+        customIconSvg !== (channel.custom_icon_svg ?? null)
+      ) {
+        await invoke("update_channel_appearance", { channelId: channel.id, icon, color, customIconSvg });
+      }
+      const bannerHub = hubs.find((h) => h.hub_id === activeHubId) ?? hubs.find((h) => h.is_active);
+      if (banner?.file && bannerHub) {
+        const buf = await banner.file.arrayBuffer();
+        let bin = "";
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < view.length; i++) bin += String.fromCharCode(view[i]);
+        const up = await invoke<{ file_id: string }>("upload_file_bytes", {
+          hubUrl: bannerHub.hub_url,
+          channelId: channel.id,
+          filename: banner.file.name,
+          mimeType: banner.file.type || "application/octet-stream",
+          bytesB64: btoa(bin),
+        });
+        await invoke("patch_channel_banner_url", { channelId: channel.id, bannerFileId: up.file_id });
+      } else if (banner?.url && banner.url !== (channel.banner_url ?? "")) {
+        await invoke("patch_channel_banner_url", { channelId: channel.id, bannerUrl: banner.url });
+      }
+      setChannels((prev) =>
+        prev.map((c) =>
+          c.id === channel.id
+            ? {
+                ...c,
+                name,
+                description: channel.is_category ? c.description : description || null,
+                color,
+                icon,
+                custom_icon_svg: customIconSvg,
+                banner_url: banner?.url ?? c.banner_url,
+              }
+            : c
+        )
+      );
+      const sel = channelMessages.selectedChannel;
+      if (sel?.id === channel.id) {
+        channelMessages.selectChannel({ ...sel, name, color, icon, custom_icon_svg: customIconSvg });
+      }
+      setChannelSettingsModal(null);
+    } catch (e) {
+      setChannelSettingsError(String(e));
+    } finally {
+      setChannelSettingsSaving(false);
+    }
+  }
+
+  async function handleDeleteChannelSettings() {
+    if (!channelSettingsModal) return;
+    const channelId = channelSettingsModal.id;
+    setChannelSettingsDeleting(true);
+    setChannelSettingsError(null);
+    try {
+      await invoke("delete_channel", { channelId });
+      setChannels((prev) => prev.filter((c) => c.id !== channelId));
+      if (channelMessages.selectedChannel?.id === channelId) {
+        channelMessages.clearSelectedChannel();
+      }
+      setChannelSettingsModal(null);
+    } catch (e) {
+      setChannelSettingsError(String(e));
+    } finally {
+      setChannelSettingsDeleting(false);
+    }
+  }
+
+  const channelPermissionsTabActions: ChannelPermissionsTabActions = {
+    getChannelPermissions: (channelId) => invoke<ChannelPermissionsResponse>("get_channel_permissions", { channelId }),
+    setChannelRolePermissions: (channelId, roleId, overwrites: ChannelRoleOverwrites) =>
+      invoke<ChannelRolePermissions>("set_channel_role_permissions", {
+        channelId,
+        roleId,
+        allow: overwrites.allow,
+        deny: overwrites.deny,
+      }),
+    clearChannelRolePermissions: (channelId, roleId) =>
+      invoke("clear_channel_role_permissions", { channelId, roleId }),
+    listRoles: () => invoke<RoleInfo[]>("list_roles"),
+  };
+
+  const channelBansTabActions: ChannelBansTabActions = {
+    listChannelBans: (channelId) =>
+      invoke<{ target_public_key: string; reason: string | null }[]>("list_channel_bans", { channelId }).then(
+        (rows) => rows.map((r) => ({ pubkey: r.target_public_key, reason: r.reason })),
+      ),
+    banFromChannel: (channelId, pubkey, reason) =>
+      invoke("channel_ban_user", { channelId, targetPublicKey: pubkey, reason: reason ?? null }),
+    unbanFromChannel: (channelId, pubkey) =>
+      invoke("channel_unban_user", { channelId, targetPublicKey: pubkey }),
+  };
+
+  const channelTalkPowerTabActions: ChannelTalkPowerTabActions = {
+    getTalkPower: (channelId) =>
+      invoke<{ min_talk_power: number }>("get_talk_power", { channelId }).then((r) => r.min_talk_power),
+    setTalkPower: (channelId, minTalkPower) =>
+      invoke("set_talk_power_cmd", { channelId, minTalkPower }),
+  };
+
   function openContextMenu(e: React.MouseEvent, channel: Channel) {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, channel });
@@ -1663,7 +1904,6 @@ function App() {
 
   function openCreateChannelUnder(parentId: string | null) {
     setNewChannelParentId(parentId);
-    setNewChannelType("text");
     setShowCreateChannel(true);
     setContextMenu(null);
   }
@@ -1834,6 +2074,22 @@ function App() {
             tab={farmAdminTab}
             onTab={setFarmAdminTab}
             onClose={() => setShowFarmSettings(false)}
+            actions={{
+              getSettings: (farmUrl) => invoke<FarmSettings>("get_farm_settings", { farmUrl }),
+              patchSettings: (farmUrl, settings) => invoke<FarmSettings>("patch_farm_settings", { farmUrl, settings }),
+              getHubs: (farmUrl) => invoke<{ hubs: FarmHubEntry[] }>("get_farm_hubs_admin", { farmUrl }),
+              suspendHub: (farmUrl, hubId, suspended, reason) => invoke("suspend_farm_hub", { farmUrl, hubId, suspended, reason }),
+              deleteHub: (farmUrl, hubId) => invoke("delete_farm_hub", { farmUrl, hubId }),
+              getUsers: (farmUrl, page, limit) =>
+                invoke<{ users: FarmUserEntry[]; total: number; page: number; limit: number }>("get_farm_users", { farmUrl, page, limit }),
+              revokeUserSessions: (farmUrl, pubkey) => invoke("revoke_farm_user_sessions", { farmUrl, pubkey }),
+              getServers: (farmUrl) => invoke<{ servers: FarmServerEntry[] }>("get_farm_servers", { farmUrl }),
+              generateServerToken: (farmUrl, name, region) =>
+                invoke<{ server_id: string; token: string }>("generate_farm_server_token", { farmUrl, name, region }),
+              totpSetup: (farmUrl) => invoke<{ secret: string; qr_url: string }>("farm_totp_setup", { farmUrl }),
+              totpConfirm: (farmUrl, secret, code) => invoke("farm_totp_confirm", { farmUrl, secret, code }),
+              totpDisable: (farmUrl, code) => invoke("farm_totp_disable", { farmUrl, code }),
+            }}
           />
         ) : showHubAdmin ? (
           <HubAdminPage
@@ -1852,13 +2108,19 @@ function App() {
             onMinSecurityLevelChange={setMinSecurityLevel}
             maxChannelDepth={maxChannelDepth}
             onMaxChannelDepthChange={setMaxChannelDepth}
+            welcomeLabel={adminWelcomeLabel}
+            onWelcomeLabelChange={setAdminWelcomeLabel}
+            welcomeInviteUrl={adminWelcomeInviteUrl}
+            onWelcomeInviteUrlChange={setAdminWelcomeInviteUrl}
+            saveError={null}
             onSave={handleSaveHubBranding}
+            hubListed={hubListed}
+            onHubListedChange={onHubListedChange}
+            submitToDirectory={(directoryUrl, tags, language, bio, inviteCode) =>
+              invoke("submit_to_directory", { directoryUrl, tags, language, bio, inviteCode })
+            }
             pendingMembers={pendingMembers}
             onApproveMember={handleApproveMember}
-            roles={adminRoles}
-            onCreateRole={handleCreateRole}
-            onUpdateRole={handleUpdateRole}
-            onDeleteRole={handleDeleteRole}
             members={adminMembers}
             onKickMember={handleKickMember}
             onBanMember={handleBanMember}
@@ -1867,15 +2129,173 @@ function App() {
             onVoiceMuteMember={voice.handleVoiceMuteMember}
             onVoiceUnmuteMember={voice.handleVoiceUnmuteMember}
             voiceMutedKeys={voice.voiceMutedKeys}
-            onToggleRoleAssignment={handleToggleRoleAssignment}
+            canManageRoles={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"))}
+            myMaxPriority={myRoles.reduce((m, r) => Math.max(m, r.priority), 0)}
+            onMemberRolesChanged={() => refreshMembers()}
             bans={adminBans}
             onUnban={handleUnban}
             invites={adminInvites}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+            hubSerial={activeHubId ?? ""}
             myPubkey={publicKey ?? ""}
+            isAdmin={isAdmin}
+            canManageSoundboard={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_soundboard"))}
+            soundboardActions={soundboard.soundboardActions}
             onCreateInvite={handleCreateInvite}
             onRevokeInvite={handleRevokeInvite}
             channels={channels}
+            rolesActions={{
+              listRoles: () => invoke<RoleInfo[]>("list_roles"),
+              createRole: (input) =>
+                invoke<RoleInfo>("create_role", {
+                  name: input.name,
+                  permissions: input.permissions,
+                  priority: input.priority,
+                  displaySeparately: input.display_separately,
+                }),
+              updateRole: (roleId, updates) =>
+                invoke<RoleInfo>("update_role", {
+                  roleId,
+                  name: updates.name ?? null,
+                  permissions: updates.permissions ?? null,
+                  priority: updates.priority ?? null,
+                  displaySeparately: updates.display_separately ?? null,
+                  color: updates.color ?? null,
+                  icon: updates.icon ?? null,
+                  categoryId: updates.category_id ?? null,
+                }),
+              deleteRole: (roleId) => invoke("delete_role", { roleId }),
+              listRoleCategories: () => invoke<RoleCategory[]>("list_role_categories"),
+              createRoleCategory: (input) =>
+                invoke<RoleCategory>("create_role_category", { name: input.name, position: input.position }),
+              updateRoleCategory: (id, updates) =>
+                invoke<RoleCategory>("update_role_category", {
+                  categoryId: id,
+                  name: updates.name ?? null,
+                  color: updates.color ?? null,
+                  icon: updates.icon ?? null,
+                  position: updates.position ?? null,
+                }),
+              deleteRoleCategory: (id) => invoke("delete_role_category", { categoryId: id }),
+            } as RolesSectionActions}
+            memberRoleActions={{
+              listRoles: () => invoke<RoleInfo[]>("list_roles"),
+              listUserRoles: (pubkey) => invoke<RoleInfo[]>("list_user_roles", { targetPublicKey: pubkey }),
+              assignRoleToUser: (pubkey, roleId) => invoke("assign_role", { targetPublicKey: pubkey, roleId }),
+              removeRoleFromUser: (pubkey, roleId) => invoke("unassign_role", { targetPublicKey: pubkey, roleId }),
+            } as MemberRoleManagerActions}
+            serverTagsActions={{
+              getDiscoveryTags: () => invoke<HubSelfTagSettings>("get_discovery_settings"),
+              setDiscoveryTags: (tags, nsfw) => invoke("set_discovery_tags", { tags, nsfw }),
+              listBadges: () => invoke<HubBadge[]>("list_badges"),
+              listPendingBadges: () => invoke<PendingBadgeOffer[]>("list_pending_badges"),
+              acceptBadge: (id) => invoke("accept_badge", { badgeId: id }),
+              declineBadge: (id) => invoke("decline_badge", { badgeId: id }),
+              removeBadge: (id) => invoke("remove_badge", { badgeId: id }),
+              grantBadge: (targetHubUrl, label) => invoke("grant_badge", { targetHubUrl, label }),
+            } as ServerTagsSectionActions}
+            inviteActions={{
+              listRoles: () => invoke<RoleInfo[]>("list_roles"),
+              getHubSettings: () =>
+                invoke<{ default_invite_role_id: string | null }>("get_hub_settings").then((s) => ({
+                  default_invite_role_id: s.default_invite_role_id ?? null,
+                })),
+              saveHubSettings: (settings) =>
+                invoke("update_hub_branding", { defaultInviteRoleId: settings.default_invite_role_id }),
+            } as InviteManagerActions}
+            webhookActions={{
+              loadWebhooks: () => invoke<WebhookInfo[]>("admin_list_webhooks", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+              createWebhook: (channelId, displayName, avatarUrl) =>
+                invoke<WebhookCreatedResult>("admin_create_webhook", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", channelId, displayName, avatarUrl }),
+              regenerateWebhook: (webhookId) =>
+                invoke<WebhookCreatedResult>("admin_regenerate_webhook", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", webhookId }),
+              deleteWebhook: (webhookId) => invoke("admin_delete_webhook", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", webhookId }),
+            }}
+            externalBotActions={{
+              loadBots: () => invoke<ExternalBotRow[]>("admin_list_external_bots", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+              addBot: (pubkey, localNote) =>
+                invoke<ExternalBotInviteResult>("admin_add_external_bot", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", pubkey, localNote }),
+              removeBot: (pubkey) => invoke("admin_remove_external_bot", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", pubkey }),
+              getBotChannelScope: (pubkey) => invoke<string[]>("admin_get_bot_channel_scope", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", pubkey }),
+              setBotChannelScope: (pubkey, channelIds) =>
+                invoke("admin_set_bot_channel_scope", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", pubkey, channelIds }),
+            }}
+            nativeBotActions={{
+              listNativeBots: () => invoke<BotAdminInfo[]>("admin_list_bots", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+              createNativeBot: (input) =>
+                invoke<BotCreatedResult>("admin_create_bot", {
+                  hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "",
+                  displayName: input.display_name,
+                  miniAppUrl: input.mini_app_url ?? null,
+                  requiresCamera: input.requires_camera ?? false,
+                }),
+              deleteNativeBot: (pubkey) => invoke("admin_delete_bot", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", pubkey }),
+              getBotDetail: (pubkey) => invoke<BotDetailInfo>("admin_get_bot_detail", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", pubkey }),
+              setBotWebhook: (pubkey, webhookUrl) =>
+                invoke("admin_set_bot_webhook", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", pubkey, webhookUrl }),
+            } as NativeBotsSectionActions}
+            auditLogActions={{
+              getAuditLog: (opts) =>
+                invoke<AuditLogPage>("get_audit_log", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", cursor: opts.cursor ?? null, limit: opts.limit ?? null }),
+            } as AuditLogSectionActions}
+            certActions={{
+              listCertIssuances: () => invoke<CertIssuance[]>("list_issued_certs", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+              getCertSettings: () => invoke<CertAdmissionSettings>("get_cert_settings", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+              saveCertSettings: (settings) => invoke("save_cert_settings", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", settings }),
+              issueCertManual: (subjectPubkey) => invoke("issue_cert", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", subjectPubkey }),
+              revokeCert: (subjectPubkey) => invoke("revoke_cert", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", subjectPubkey }),
+              grantUserBadge: (subjectPubkey, label) =>
+                invoke("grant_user_badge", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", subjectPubkey, label }),
+            } as CertificationsSectionActions}
+            onboardingActions={{
+              listPendingUsers: () => invoke<PendingUser[]>("list_pending_members"),
+              approvePendingUser: (pk) => invoke("approve_member", { targetPublicKey: pk }),
+              setLobbySettings: (lobbyEnabled, welcomeMd) =>
+                invoke("set_lobby_settings", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", lobbyEnabled, welcomeMd: welcomeMd ?? null }),
+              setChallengeSettings: (mode, difficulty) =>
+                invoke("set_challenge_settings", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", challengeMode: mode, challengeDifficulty: difficulty }),
+              getLobbyWelcome: () =>
+                invoke<{ welcome_md: string }>("lobby_get_welcome", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+            } as OnboardingAdminSectionActions}
+            allianceActions={{
+              listAlliances: () => invoke<Alliance[]>("list_alliances"),
+              createAlliance: (name) => invoke<Alliance>("create_alliance", { name }),
+              leaveAlliance: (allianceId) => invoke("leave_alliance", { allianceId }),
+              listPendingAllianceInvites: () => invoke<PendingAllianceInvite[]>("list_pending_alliance_invites"),
+              acceptAllianceInvite: (inviteId, ownHubUrl) =>
+                invoke("respond_to_alliance_invite", { inviteId, accept: true, ownHubUrl }),
+              declineAllianceInvite: (inviteId) =>
+                invoke("respond_to_alliance_invite", { inviteId, accept: false }),
+              listAllianceSharedChannels: (allianceId) =>
+                invoke<SharedChannel[]>("list_alliance_shared_channels", { allianceId }),
+              shareChannelWithAlliance: (allianceId, channelId, includeDescendants) =>
+                invoke("share_channel_with_alliance", { allianceId, channelId, includeDescendants }),
+              unshareChannelFromAlliance: (allianceId, channelId) =>
+                invoke("unshare_channel_from_alliance", { allianceId, channelId }),
+              createAllianceInvite: (allianceId) => invoke<AllianceInvite>("create_alliance_invite", { allianceId }),
+              sendAlliancePushInvite: (allianceId, targetHubUrl, ownHubUrl, message) =>
+                invoke("send_alliance_push_invite", { allianceId, targetHubUrl, ownHubUrl, message }),
+              joinAllianceByCode: (inviterHubUrl, allianceId, inviteToken, ownHubUrl) =>
+                invoke("join_alliance", {
+                  inviterHubUrl, allianceId, inviteToken, ownHubPublicUrl: ownHubUrl,
+                }).then(() => {}),
+            }}
+            hubIconActions={{
+              listHubIcons: () => invoke<HubIcon[]>("list_hub_icons"),
+              createHubIcon: (name, svgContent) => invoke<HubIcon>("create_hub_icon", { name, svgContent }),
+              renameHubIcon: (iconId, name) => invoke("rename_hub_icon", { iconId, name }),
+              deleteHubIcon: (iconId) => invoke("delete_hub_icon", { iconId }),
+            }}
+            surveyActions={{
+              getSurveyAdmin: () => invoke<SurveyAdmin | null>("survey_admin_get", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+              setSurveyAdmin: (survey) => invoke("survey_admin_put", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", survey }),
+              getSurveyResponses: () =>
+                invoke<SurveyResponseView[]>("survey_admin_responses", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", status: "all" }),
+              loadAssignableRoles: () =>
+                invoke<RoleInfo[]>("list_roles").then((roles) =>
+                  roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))
+                ),
+            }}
           />
         ) : showSettings ? (
           <SettingsPage
@@ -1883,13 +2303,6 @@ function App() {
             onTab={setSettingsTab}
             onClose={closeSettings}
             hubs={hubs}
-            profiles={profiles}
-            defaultProfileId={defaultProfileId}
-            onCreateProfile={handleCreateProfile}
-            onUpdateProfile={handleUpdateProfile}
-            onDeleteProfile={handleDeleteProfile}
-            onSetDefaultProfile={handleSetDefaultProfile}
-            onApplyProfileToHub={handleApplyProfileToHub}
             theme={theme}
             onThemeChange={handleSetTheme}
             skin={skin}
@@ -1897,16 +2310,15 @@ function App() {
             onImportSkin={(s) => { handleSkinChange(s); handleSetTheme("custom"); }}
             backgroundMode={video.backgroundMode}
             backgroundSource={video.backgroundSource}
+            backgroundActive={video.backgroundActive}
             onChangeBackground={video.changeBackground}
             videoInputs={video.videoInputs}
             videoInputDevice={video.videoInputDevice}
             onVideoInputDeviceChange={video.setVideoInputDevice}
-            hasActiveHub={hasActiveHub}
             activeHubId={activeHubId}
             activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+            isAdmin={isAdmin}
             publicKey={publicKey}
-            copiedKey={copiedKey}
-            onCopyKey={() => copyPublicKey(publicKey)}
             audioInputs={voice.audioInputs}
             audioOutputs={voice.audioOutputs}
             voiceInputDevice={voice.voiceInputDevice}
@@ -2009,6 +2421,7 @@ function App() {
               unreadByHub={unreadByHub}
               pingByHub={pingByHub}
               hubNotifyMode={hubNotifyMode}
+              lobbyHubIds={lobbyHubIds}
               hasActiveHub={hasActiveHub}
               onSwitchToDms={() => { setView("dms"); if (hasActiveHub) loadConversations(); }}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
@@ -2025,6 +2438,7 @@ function App() {
               <DiscoverPage
                 onClose={() => setShowDiscover(false)}
                 onJoinHub={handleDiscoverJoin}
+                fetchUrl={(url) => fetchWithTimeout(url)}
               />
             ) : showHubBrowser ? (
               <HubBrowser
@@ -2057,14 +2471,24 @@ function App() {
                   </button>
                 </div>
               )
-            ) : activeHubId && hubScope[activeHubId] === "lobby" ? (
+            ) : activeHubId && hubScope[activeHubId] === "lobby" && publicKey ? (
               <Lobby
-                hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+                hubId={activeHubId}
                 hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
+                pubkeyHex={publicKey}
+                actions={{
+                  getStatus: () => invoke<LobbyStatus>("lobby_status", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+                  getWelcome: () => invoke<{ welcome_md: string }>("lobby_get_welcome", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+                  submitProof: (powProof) => invoke<{ promoted: boolean; new_level: number }>("lobby_submit_proof", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", powProof }),
+                }}
                 onPromoted={() => {
                   setHubScope((prev) => ({ ...prev, [activeHubId]: "member" }));
                   loadHubData();
                   setToast(`You're in. Welcome to ${hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? "the hub"}.`);
+                  const resolvedUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
+                  invoke<{ id: string } | null>("survey_current", { hubUrl: resolvedUrl })
+                    .then((survey) => { if (survey) setPendingSurveyHubId(activeHubId); })
+                    .catch(() => {});
                 }}
               />
             ) : myApprovalStatus === "pending" ? (
@@ -2103,12 +2527,16 @@ function App() {
                   collapsedCategories={collapsedCategories}
                   voicePartByChannel={voice.voicePartByChannel}
                   voiceChannelId={voice.voiceChannelId}
+                  voiceChannelNameHint={voiceChannelNameHint}
                   selfMuted={voice.selfMuted}
                   selfDeafened={voice.selfDeafened}
                   users={users}
                   publicKey={publicKey}
                   pingByHub={pingByHub}
                   isAdmin={isAdmin}
+                  canOpenChannelSettings={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"))}
+                  canCreateInvites={canCreateInvites}
+                  hasDraft={hasDraft}
                   hubNotifyMode={hubNotifyMode}
                   hubDropdownOpen={hubDropdownOpen}
                   hideSilenced={hideSilenced}
@@ -2128,12 +2556,23 @@ function App() {
                   onRemoveHub={handleRemoveHub}
                   onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}
                   onOpenHubAdminInvites={() => { setHubDropdownOpen(false); openHubAdminInvites(); }}
+                  onOpenQuickInvite={() => setShowQuickInvite(true)}
                   onOpenCreateChannel={openCreateChannelUnder}
                   onSelectChannel={channelMessages.selectChannel}
                   onChannelContextMenu={openContextMenu}
                   onOpenChannelSettings={(ch) => setChannelSettingsModal(ch)}
                   onVoiceJoin={voice.handleVoiceJoin}
                   onVoiceLeave={voice.handleVoiceLeave}
+                  onParticipantContextMenu={canMoveMembers ? (e, p, channelId) => {
+                    e.preventDefault();
+                    if (p.public_key === publicKey) return; // hide self — move your own voice by joining directly
+                    setVoiceMoveMenu({
+                      pubkey: p.public_key,
+                      displayName: p.display_name || formatPubkey(p.public_key),
+                      position: { x: e.clientX, y: e.clientY },
+                      currentChannelId: channelId,
+                    });
+                  } : undefined}
                   onSelectAllianceChannel={channelMessages.selectAllianceChannel}
                   onSelectConversation={selectConversation}
                   onOpenFriends={openFriends}
@@ -2144,12 +2583,9 @@ function App() {
                   onToggleHideSilenced={() => setHideSilenced((v) => !v)}
                   sharing={voice.sharing}
                   onScreenShare={voice.handleScreenShare}
-                  hubStreamsCount={voice.hubStreams.filter((s) => s.kind === "screen").length}
-                  onToggleHubStreams={() => setShowHubStreams((v) => !v)}
-                  dndActive={userStatus === "dnd"}
-                  onToggleDnd={toggleDnd}
-                  userStatus={userStatus}
-                  onStatusChange={handleStatusChange}
+                  onOpenSearch={() => setShowSearchBar(true)}
+                  myStatus={myPresence.status === "online" ? null : myPresence.status}
+                  onSetStatus={handleSetStatus}
                   voiceGains={voice.voiceGains}
                   onSetVoiceGain={voice.setVoiceGain}
                   inboundWhispers={whisper.inboundWhispers}
@@ -2164,13 +2600,50 @@ function App() {
                   onSaveWhisperList={whisper.saveWhisperList}
                   onDeleteWhisperList={whisper.deleteWhisperList}
                   videoEnabled={video.videoEnabled}
-                  onVideoToggle={(deviceId) => video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId)}
-                  onCameraDeviceChange={video.switchCamera}
-                  onGlobalSearchNavigate={(channelId, _messageId) => {
-                    const ch = channels.find((c) => c.id === channelId);
-                    if (ch) channelMessages.selectChannel(ch);
-                  }}
+                  onToggleVideo={(deviceId) => video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId)}
+                  canUseSoundboard={isAdmin || myRoles.some((r) => r.permissions?.includes("use_soundboard"))}
+                  onListSoundboardClips={soundboard.listClips}
+                  onTriggerSoundboardClip={soundboard.triggerClip}
+                  soundboardPlayingClipId={soundboard.playingClipId}
                 />
+                {showSearchBar && (
+                  <SearchBar
+                    onSearch={(q) => invoke<GlobalSearchResult[]>("search_messages_global", { q })}
+                    onClose={() => setShowSearchBar(false)}
+                    onNavigate={(channelId, _messageId) => {
+                      const ch = channels.find((c) => c.id === channelId);
+                      if (ch) channelMessages.selectChannel(ch);
+                      setShowSearchBar(false);
+                    }}
+                  />
+                )}
+                {voiceMoveToast && (
+                  <VoiceMoveToast
+                    channelName={voiceMoveToast.channelName}
+                    canRejoin={voiceMoveToast.sourceChannelId !== null}
+                    onRejoin={handleRejoinPreviousVoiceChannel}
+                    onDismiss={() => {
+                      setVoiceMoveToast(null);
+                      if (voiceMoveToastTimerRef.current) { clearTimeout(voiceMoveToastTimerRef.current); voiceMoveToastTimerRef.current = null; }
+                    }}
+                  />
+                )}
+                {voiceMovePrompt && (
+                  <VoiceMovePromptModal
+                    channelName={voiceMovePrompt.targetChannelName}
+                    onAccept={handleAcceptVoiceMove}
+                    onDecline={handleDeclineVoiceMove}
+                  />
+                )}
+                {voiceMoveMenu && (
+                  <VoiceMoveMenu
+                    displayName={voiceMoveMenu.displayName}
+                    position={voiceMoveMenu.position}
+                    channels={voiceMoveChannelOptions}
+                    onMove={(channelId) => { handleMoveMember(voiceMoveMenu.pubkey, channelId); setVoiceMoveMenu(null); }}
+                    onClose={() => setVoiceMoveMenu(null)}
+                  />
+                )}
                 {(video.videoEnabled || video.remoteStreams.size > 0) && (
                   <VideoGrid
                     tiles={buildTiles(
@@ -2208,7 +2681,7 @@ function App() {
                   view={view}
                   activeHubId={activeHubId}
                   hubs={hubs}
-                  theme={theme}
+                  channels={channels}
                   selectedChannel={channelMessages.selectedChannel}
                   selectedConversation={selectedConversation}
                   selectedAllianceChannel={channelMessages.selectedAllianceChannel}
@@ -2236,10 +2709,6 @@ function App() {
                   reconnectingHubs={reconnectingHubs}
                   memberSidebarHidden={memberSidebarHidden}
                   voiceActiveUsers={voice.voiceActiveUsers}
-                  voiceChannelId={voice.voiceChannelId}
-                  onVoiceJoin={() => voice.handleVoiceJoin()}
-                  onVoiceLeave={() => { voice.handleVoiceLeave(); setAssertiveAnnouncement("Left voice"); }}
-                  myAvatar={myAvatar}
                   inputText={channelMessages.inputText}
                   typingByKey={typingByKey}
                   dmTypingByKey={dmTypingByKey}
@@ -2289,22 +2758,22 @@ function App() {
                   onOpenImage={openImage}
                   onToast={setToast}
                   onError={setError}
-                  sharing={voice.sharing}
-                  shareKbps={voice.shareKbps}
-                  onStopShare={voice.stopShare}
-                  assertiveAnnouncement={assertiveAnnouncement}
+                  onOpenHubStreams={() => setShowHubStreams(true)}
+                  voicePartByChannel={voice.voicePartByChannel}
+                  canMoveMembers={canMoveMembers}
+                  onMoveMember={handleMoveMember}
                 />
                 {showHubStreams && (
-                  <div style={{ position: "relative" }}>
-                    <HubStreamsPanel
-                      streams={voice.hubStreams}
-                      subscribedIds={voice.subscribedStreamIds.current}
-                      currentChannelId={channelMessages.selectedChannel?.id ?? null}
-                      onSubscribe={voice.subscribeToStream}
-                      onUnsubscribe={voice.unsubscribeFromStream}
-                      onClose={() => setShowHubStreams(false)}
-                    />
-                  </div>
+                  <HubStreamsPanel
+                    streams={voice.hubStreams}
+                    subscribedIds={voice.subscribedStreamIds.current}
+                    currentChannelId={channelMessages.selectedChannel?.id ?? null}
+                    channels={channels}
+                    nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
+                    onWatch={voice.subscribeToStream}
+                    onStopWatch={voice.unsubscribeFromStream}
+                    onClose={() => setShowHubStreams(false)}
+                  />
                 )}
               </>
             )}
@@ -2355,38 +2824,42 @@ function App() {
           />
         )}
 
+        {showQuickInvite && activeHubId && (
+          <QuickInviteModal
+            activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+            hubSerial={activeHubId}
+            myMaxPriority={myRoles.reduce((m, r) => Math.max(m, r.priority), 0)}
+            onClose={() => setShowQuickInvite(false)}
+            actions={{
+              listRoles: () => invoke<RoleInfo[]>("list_roles"),
+              createInvite: (maxUses, expiresInSeconds, grantRoleId) =>
+                invoke<InviteInfo>("create_invite", { maxUses, expiresInSeconds, grantRoleId }),
+            }}
+          />
+        )}
+
         {showCreateChannel && (
           <CreateChannelModal
-            name={newChannelName}
-            onNameChange={setNewChannelName}
-            description={newChannelDescription}
-            onDescriptionChange={setNewChannelDescription}
-            channelType={newChannelType}
-            onChannelTypeChange={setNewChannelType}
-            bannerUrl={newBannerUrl}
-            onBannerUrlChange={setNewBannerUrl}
-            bannerSourceMode={newBannerSourceMode}
-            onBannerSourceModeChange={setNewBannerSourceMode}
-            bannerFile={newBannerFile}
-            onBannerFileChange={setNewBannerFile}
             parentId={newChannelParentId}
-            onCreate={handleCreateChannel}
-            onClose={() => setShowCreateChannel(false)}
+            parentName={newChannelParentId ? (channels.find((c) => c.id === newChannelParentId)?.name ?? null) : null}
+            loading={createChannelLoading}
+            error={createChannelError}
+            onSubmit={handleCreateChannel}
+            onClose={() => { setShowCreateChannel(false); setCreateChannelError(null); }}
           />
         )}
 
         {showFriends && (
           <FriendsModal
-            friends={friends}
-            pendingFriends={pendingFriends}
-            requestKey={friendRequestKey}
-            onRequestKeyChange={setFriendRequestKey}
-            requestHubUrl={friendRequestHubUrl}
-            onRequestHubUrlChange={setFriendRequestHubUrl}
-            onSendRequest={handleSendFriendRequest}
-            onAcceptFriend={handleAcceptFriend}
+            actions={{
+              listFriends: () => invoke<Friend[]>("list_friends"),
+              listPendingFriendRequests: () => invoke<Friend[]>("list_pending_friends"),
+              sendFriendRequest: (targetPublicKey, hubUrl) =>
+                invoke("send_friend_request", { targetPublicKey, friendHubUrl: hubUrl ?? null, displayName: null }),
+              acceptFriendRequest: (fromPublicKey) => invoke("accept_friend", { fromPublicKey }),
+              removeFriend: (targetPublicKey) => invoke("remove_friend", { targetPublicKey }),
+            }}
             onMessage={startDmWithAndClose}
-            onRemoveFriend={handleRemoveFriend}
             onClose={() => setShowFriends(false)}
           />
         )}
@@ -2435,30 +2908,23 @@ function App() {
         {channelSettingsModal && (
           <ChannelSettingsModal
             channel={channelSettingsModal}
+            saving={channelSettingsSaving}
+            deleting={channelSettingsDeleting}
+            error={channelSettingsError}
+            canManageRoles={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"))}
             isAdmin={isAdmin}
-            onSaveAppearance={(icon, color, svg) => handleSaveAppearance(channelSettingsModal, icon, color, svg)}
-            onSaveDescription={async (desc) => {
-              try {
-                await invoke("update_channel_description", { channelId: channelSettingsModal.id, description: desc ? desc : null });
-                setChannels(prev => prev.map(c => c.id === channelSettingsModal.id ? { ...c, description: desc ? desc : null } : c));
-                const sel = channelMessages.selectedChannel;
-                if (sel?.id === channelSettingsModal.id) {
-                  channelMessages.selectChannel({ ...sel, description: desc ? desc : null });
-                }
-              } catch (e) { setError(String(e)); }
-            }}
-            onManageBans={() => setChannelBansModal({ channelId: channelSettingsModal.id, channelName: channelSettingsModal.name })}
-            onClose={() => setChannelSettingsModal(null)}
-          />
-        )}
-
-        {channelBansModal && (
-          <ChannelBansModal
-            channelId={channelBansModal.channelId}
-            channelName={channelBansModal.channelName}
-            users={users}
-            onClose={() => setChannelBansModal(null)}
-            onError={setError}
+            myMaxPriority={myRoles.reduce((m, r) => Math.max(m, r.priority), 0)}
+            hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
+            onSave={handleSaveChannelSettings}
+            onDelete={handleDeleteChannelSettings}
+            onClose={() => { setChannelSettingsModal(null); setChannelSettingsError(null); }}
+            permissionsActions={channelPermissionsTabActions}
+            bansActions={channelBansTabActions}
+            bansUsers={users}
+            bansSupportReason
+            talkPowerActions={channelTalkPowerTabActions}
+            listHubIcons={() => invoke<HubIcon[]>("list_hub_icons")}
+            bannerUploadSupported={true}
           />
         )}
 
@@ -2480,30 +2946,42 @@ function App() {
 
         {userContextMenu && (
           <UserContextMenu
-            menu={userContextMenu}
+            user={userContextMenu.user}
             publicKey={publicKey}
+            isAdmin={isAdmin}
+            canManageRoles={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"))}
+            myMaxPriority={myRoles.reduce((m, r) => Math.max(m, r.priority), 0)}
             blockedUsers={blockedUsers}
             ignoredUsers={ignoredUsers}
-            activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+            position={{ x: userContextMenu.x, y: userContextMenu.y }}
             onClose={() => setUserContextMenu(null)}
-            onDm={handleUserDm}
-            onAddFriend={handleUserAddFriend}
-            onCopyKey={handleCopyUserKey}
-            onToggleBlock={toggleBlockUser}
-            onToggleIgnore={toggleIgnoreUser}
             onToast={setToast}
-            onJoinHub={handleDiscoverJoin}
-            allRoles={isAdmin ? adminRoles : undefined}
-            memberRoleIds={isAdmin
-              ? new Set(
-                  adminMembers
-                    .find((m) => m.public_key === userContextMenu.user.public_key)
-                    ?.roles.map((r) => r.id) ?? []
-                )
-              : undefined}
-            onToggleRole={isAdmin
-              ? (roleId, hasRole) => handleToggleRoleAssignment(userContextMenu.user.public_key, roleId, hasRole)
-              : undefined}
+            onRolesChanged={() => { void refreshMembers(); }}
+            actions={{
+              listRoles: () => invoke<RoleInfo[]>("list_roles"),
+              listUserRoles: async (pubkey) => {
+                const [all, members] = await Promise.all([
+                  invoke<RoleInfo[]>("list_roles"),
+                  invoke<MemberAdminInfo[]>("list_hub_members"),
+                ]);
+                const ids = new Set(members.find((m) => m.public_key === pubkey)?.roles.map((r) => r.id) ?? []);
+                return all.filter((r) => ids.has(r.id));
+              },
+              assignRole: (pubkey, roleId) => invoke("assign_role", { targetPublicKey: pubkey, roleId }),
+              removeRole: (pubkey, roleId) => invoke("unassign_role", { targetPublicKey: pubkey, roleId }),
+              muteUser: (pubkey) => invoke("mute_user_cmd", { targetPublicKey: pubkey, reason: null }),
+              kickUser: (pubkey) => invoke("kick_user_cmd", { targetPublicKey: pubkey, reason: null }),
+              banUser: (pubkey) => invoke("ban_user_cmd", { targetPublicKey: pubkey, reason: null }),
+              dm: handleUserDm,
+              addFriend: handleUserAddFriend,
+              toggleBlock: toggleBlockUser,
+              toggleIgnore: toggleIgnoreUser,
+              fetchPublicProfile: (pubkey) => invoke<PublicHubProfile | null>("fetch_public_profile", {
+                hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "",
+                pubkey,
+              }),
+              joinHub: handleDiscoverJoin,
+            }}
           />
         )}
 
@@ -2543,6 +3021,12 @@ function App() {
         {showCreateHub && (
           <CreateHubWizard
             knownFarms={knownFarms}
+            onProbeFarm={(farmUrl) => invoke<FarmPublicInfo>("probe_farm", { farmUrl })}
+            onGetFarmHubQuota={(farmUrl) => invoke<FarmHubQuota>("get_farm_hub_quota", { farmUrl })}
+            onCreateHubOnFarm={(farmUrl, name, description, visibility) =>
+              invoke<CreatedFarmHub>("create_hub_on_farm", { farmUrl, name, description, visibility })
+            }
+            onAddHub={(hubUrl) => invoke<Hub>("add_hub_by_url", { hubUrl })}
             onHubCreated={(hub) => {
               setHubs((prev) => {
                 if (prev.some((h) => h.hub_id === hub.hub_id)) return prev;

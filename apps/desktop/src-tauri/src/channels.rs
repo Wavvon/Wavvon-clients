@@ -35,6 +35,7 @@ pub(crate) async fn list_hub_emojis(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn create_channel(
     name: String,
     parent_id: Option<String>,
@@ -42,6 +43,7 @@ pub(crate) async fn create_channel(
     description: Option<String>,
     channel_type: Option<String>,
     banner_url: Option<String>,
+    spawner_name_template: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ChannelInfo, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -56,6 +58,7 @@ pub(crate) async fn create_channel(
             "description": description,
             "channel_type": channel_type,
             "banner_url": banner_url,
+            "spawner_name_template": spawner_name_template,
         }))
         .send()
         .await
@@ -263,15 +266,26 @@ pub(crate) async fn patch_channel_banner_file(
 #[tauri::command]
 pub(crate) async fn patch_channel_banner_url(
     channel_id: String,
-    banner_url: String,
+    banner_url: Option<String>,
+    banner_file_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
+    // Only Some fields go in the body — the hub clears the other banner
+    // source column when one is set, so sending an absent field as null
+    // would wipe it (same omitted-vs-null trap as update_role).
+    let mut body = serde_json::Map::new();
+    if let Some(u) = banner_url {
+        body.insert("banner_url".into(), serde_json::Value::String(u));
+    }
+    if let Some(id) = banner_file_id {
+        body.insert("banner_file_id".into(), serde_json::Value::String(id));
+    }
     let resp = state
         .http_client
         .patch(format!("{hub_url}/channels/{channel_id}"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "banner_url": banner_url }))
+        .json(&serde_json::Value::Object(body))
         .send()
         .await
         .map_err(|e| e.to_string())?;

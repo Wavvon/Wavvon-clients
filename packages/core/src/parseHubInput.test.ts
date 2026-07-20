@@ -138,3 +138,29 @@ describe("parseHubInput — deep link targets (nested-channels-ux.md §1.3)", ()
     expect(parseHubInput("   ")).toBeNull();
   });
 });
+
+describe("parseHubInput — LAN fingerprint pinning (lan-mode.md §5)", () => {
+  const fp = "a".repeat(64);
+
+  it("extracts a fingerprint from the ?fp= query param", () => {
+    const result = parseHubInput(`https://192.168.1.50:3000?fp=${fp}`);
+    expect(result?.fingerprint).toBe(fp);
+  });
+
+  it("extracts a fingerprint from the #fp= hash fragment, case-insensitively", () => {
+    const result = parseHubInput(`https://192.168.1.50:3000#fp=${fp.toUpperCase()}`);
+    expect(result?.fingerprint).toBe(fp);
+  });
+
+  it("is absent when no fp is given", () => {
+    const result = parseHubInput("https://hub.example.com?invite=abc");
+    expect(result?.fingerprint).toBeUndefined();
+  });
+
+  it("ignores a malformed fingerprint (wrong length / non-hex)", () => {
+    expect(parseHubInput("https://hub.example.com?fp=abc123")?.fingerprint).toBeUndefined();
+    expect(
+      parseHubInput(`https://hub.example.com?fp=${"z".repeat(64)}`)?.fingerprint,
+    ).toBeUndefined();
+  });
+});

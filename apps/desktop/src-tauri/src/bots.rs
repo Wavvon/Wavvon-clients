@@ -153,6 +153,8 @@ pub(crate) async fn admin_list_bots(
 pub(crate) async fn admin_create_bot(
     hub_url: String,
     display_name: String,
+    mini_app_url: Option<String>,
+    requires_camera: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<BotCreatedResult, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
@@ -161,7 +163,11 @@ pub(crate) async fn admin_create_bot(
         .http_client
         .post(format!("{base}/admin/bots"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "display_name": display_name }))
+        .json(&serde_json::json!({
+            "display_name": display_name,
+            "mini_app_url": mini_app_url,
+            "requires_camera": requires_camera.unwrap_or(false),
+        }))
         .send()
         .await
         .map_err(|e| format!("Request failed: {e}"))?;
@@ -396,6 +402,36 @@ pub(crate) async fn admin_remove_external_bot(
         return Err(resp.text().await.unwrap_or_default());
     }
     Ok(())
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct BotChannelScopeResult {
+    pub channel_ids: Vec<String>,
+}
+
+#[tauri::command]
+pub(crate) async fn admin_get_bot_channel_scope(
+    hub_url: String,
+    pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/bots/{pubkey}/channels"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let parsed: BotChannelScopeResult = resp
+        .json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))?;
+    Ok(parsed.channel_ids)
 }
 
 #[tauri::command]

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { hubFetch } from "@platform";
-import { getHubSettings, saveHubSettings } from "@platform";
+import { getHubSettings, saveHubSettings, getHubListingStatus, setHubListed as setHubListedRemote } from "@platform";
+import { muteMember, timeoutMember, voiceMuteMember, voiceUnmuteMember, listVoiceMutes } from "@platform";
 import { HubApiError } from "../platform/http";
 import type {
   MemberAdminInfo,
@@ -9,7 +10,7 @@ import type {
   PendingUser,
   RoleInfo,
 } from "@shared/types";
-import type { HubAdminTab } from "../components/HubAdminPage";
+import type { HubAdminTab } from "@wavvon/ui";
 
 interface UseHubAdminParams {
   activeHubId: string | null;
@@ -35,6 +36,8 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
   const [hubAdminInvites, setHubAdminInvites] = useState<InviteInfo[]>([]);
   const [hubAdminPending, setHubAdminPending] = useState<PendingUser[]>([]);
   const [maxChannelDepth, setMaxChannelDepth] = useState(0);
+  const [hubListed, setHubListedState] = useState(false);
+  const [voiceMutedKeys, setVoiceMutedKeys] = useState<Set<string>>(new Set());
 
   async function openHubAdmin() {
     setShowHubAdmin(true);
@@ -62,6 +65,58 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
       if (bans.status === "fulfilled") setHubAdminBans(bans.value);
       if (invites.status === "fulfilled") setHubAdminInvites(invites.value);
       if (pending.status === "fulfilled") setHubAdminPending(pending.value);
+    } catch { /* ignore */ }
+    try {
+      setHubListedState(await getHubListingStatus());
+    } catch { /* ignore */ }
+    await refreshVoiceMutes();
+  }
+
+  async function refreshVoiceMutes() {
+    try {
+      const mutes = await listVoiceMutes();
+      setVoiceMutedKeys(new Set(mutes.map((m) => m.target_public_key)));
+    } catch { /* ignore */ }
+  }
+
+  async function handleHubListedChange(next: boolean) {
+    try {
+      await setHubListedRemote(next);
+      setHubListedState(next);
+    } catch { /* leave state unchanged on error */ }
+  }
+
+  async function handleMuteMember(publicKey: string) {
+    try {
+      await muteMember(publicKey, null);
+    } catch { /* ignore */ }
+  }
+
+  async function handleTimeoutMember(publicKey: string) {
+    const durationStr = prompt("Timeout duration in minutes (1-1440)", "10");
+    if (!durationStr) return;
+    const minutes = Number(durationStr);
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) return;
+    try {
+      await timeoutMember(publicKey, Math.floor(minutes * 60), null);
+    } catch { /* ignore */ }
+  }
+
+  async function handleVoiceMuteMember(publicKey: string) {
+    try {
+      await voiceMuteMember(publicKey, null);
+      setVoiceMutedKeys((prev) => new Set(prev).add(publicKey));
+    } catch { /* ignore */ }
+  }
+
+  async function handleVoiceUnmuteMember(publicKey: string) {
+    try {
+      await voiceUnmuteMember(publicKey);
+      setVoiceMutedKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(publicKey);
+        return next;
+      });
     } catch { /* ignore */ }
   }
 
@@ -122,6 +177,13 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
     hubAdminPending,
     maxChannelDepth,
     setMaxChannelDepth,
+    hubListed,
+    onHubListedChange: handleHubListedChange,
+    voiceMutedKeys,
+    onMuteMember: handleMuteMember,
+    onTimeoutMember: handleTimeoutMember,
+    onVoiceMuteMember: handleVoiceMuteMember,
+    onVoiceUnmuteMember: handleVoiceUnmuteMember,
     openHubAdmin,
     saveHubAdminSettings,
     addInvite,

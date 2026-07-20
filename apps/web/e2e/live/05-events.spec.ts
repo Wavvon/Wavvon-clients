@@ -11,6 +11,15 @@ async function openEventsTab(page: Page, channel: string) {
   await expect(page.getByRole("heading", { name: "Upcoming events" })).toBeVisible();
 }
 
+// A year out so the event always renders as upcoming, regardless of when
+// this suite runs (a fixed past-tense date here previously bit the "Upcoming
+// events" list once the calendar caught up to it).
+function futureEventStart(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 16);
+}
+
 test("event with slots: create, claim, capacity, unclaim", async ({ page, browser }) => {
   test.setTimeout(90000);
   await page.goto("/");
@@ -26,7 +35,7 @@ test("event with slots: create, claim, capacity, unclaim", async ({ page, browse
   await expect(composer).toBeVisible();
   const title = uniqueName("raid");
   await composer.getByPlaceholder("Event title").fill(title);
-  await composer.locator("#event-start").fill("2026-07-10T18:00");
+  await composer.locator("#event-start").fill(futureEventStart());
   await composer.locator("#event-reminder").selectOption({ label: "1 hour before" });
   await composer.getByRole("button", { name: "+ Add slot" }).click();
   await composer.getByPlaceholder("Slot name (e.g. Tank)").fill("Tank");

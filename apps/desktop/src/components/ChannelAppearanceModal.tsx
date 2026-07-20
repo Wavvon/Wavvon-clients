@@ -2,10 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { Channel, HubIcon } from "../types";
-import { ChannelIcon } from "./Icons";
-import { ChannelIconPicker } from "./ChannelIconPicker";
+import { ChannelIcon, ChannelIconPicker, FocusTrap } from "@wavvon/ui";
 import { sanitizeSvg } from "../utils/svgSanitize";
-import { FocusTrap } from "@wavvon/ui";
 
 const ACCENT_COLORS = [
   { id: "red",    hex: "#e74c3c" },

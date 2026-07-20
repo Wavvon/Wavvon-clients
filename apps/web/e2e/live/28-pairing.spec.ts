@@ -15,9 +15,11 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
   // Owner: Settings → Account → Devices → enable multi-device (self-cert +
   // re-auth so the hub records the master on the owner's row).
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: "Devices", exact: true }).click();
+  // Not exact: the section label gains an account-label suffix ("Devices —
+  // <label>") now that naming an account is mandatory (identity_setup.label).
   const devices = page
-    .locator(".settings-section", { has: page.getByText("Devices", { exact: true }) })
+    .locator(".settings-section", { has: page.getByText("Devices") })
     .first();
   await expect(devices).toBeVisible({ timeout: 10000 });
   await devices.getByRole("button", { name: "Enable multi-device" }).click();
@@ -49,6 +51,21 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
     // Owner: the claim arrives → approve it.
     await expect(devices.getByRole("button", { name: "Approve" })).toBeVisible({ timeout: 20000 });
     await devices.getByRole("button", { name: "Approve" }).click();
+
+    // New device: every first-time identity setup (paired or recovered) hits
+    // the mandatory local-only account-label step, then a local profile-setup
+    // step, before anything else. The profile step is skippable — the paired
+    // device inherits the master identity's profile, no nickname needed here.
+    const labelStep = nd.getByRole("heading", { name: "Name this account" });
+    await labelStep.waitFor({ state: "visible", timeout: 20000 }).catch(() => {});
+    if (await labelStep.isVisible()) {
+      await nd.getByRole("button", { name: "Continue", exact: true }).click();
+    }
+    const profileStep = nd.getByRole("heading", { name: "Set up your profile" });
+    await profileStep.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+    if (await profileStep.isVisible()) {
+      await nd.getByRole("button", { name: "Skip for now" }).click();
+    }
 
     // New device: pairing completes → the app leaves setup and shows the
     // WelcomeScreen to join a hub. Join with the stored cert.

@@ -843,6 +843,279 @@ select,
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  padding-top: 10px;
+}
+
+/* Avatar that edits itself: hover/focus darkens it and shows a pencil.
+   Wraps an <Avatar> inside a real <button> for keyboard access. */
+.avatar-edit-btn {
+  position: relative;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.avatar-edit-btn .avatar-edit-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: var(--text-md);
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.avatar-edit-btn:hover .avatar-edit-overlay,
+.avatar-edit-btn:focus-visible .avatar-edit-overlay {
+  opacity: 1;
+}
+
+/* Inline profile fields: read as card text at rest, reveal an editing
+   underline on hover/focus (the WYSIWYG profile editor). */
+.profile-inline-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  border-radius: 0;
+  padding: 0 2px;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  transition: border-color var(--motion-fast);
+}
+
+.profile-inline-input:hover,
+.profile-inline-input:focus {
+  border-bottom-color: var(--border);
+  outline: none;
+  box-shadow: none;
+}
+
+.profile-inline-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* The member profile card renders inside .modal, whose `.modal input/
+   textarea` rule would otherwise box these inline inputs (border, sunken
+   bg, padding, resize handle). Re-assert the transparent inline look with
+   higher specificity so the card's editor matches the settings editor. */
+.modal .profile-inline-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  border-radius: 0;
+  padding: 0 2px;
+  margin: 0;
+  resize: none;
+}
+.modal .profile-inline-input:hover,
+.modal .profile-inline-input:focus {
+  border-bottom-color: var(--border);
+  outline: none;
+  box-shadow: none;
+}
+
+/* Rich profile card: a colored identity banner with the avatar overlapping
+   its lower edge (the familiar profile-header shape). The banner gradient is
+   derived from the account's public key — see identityGradient() — so every
+   identity has its own consistent colors, true to Wavvon's key-is-identity
+   model. Used as the WYSIWYG editor and, read-only, as the member card. */
+.profile-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.profile-card-banner {
+  height: 96px;
+  /* gradient/image set inline (identity gradient, accent, or cover) */
+}
+
+/* Editable banner: a full-width button showing a pencil on hover/focus. */
+.profile-card-banner-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.profile-card-banner-btn .avatar-edit-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-size: var(--text-lg);
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.profile-card-banner-btn:hover .avatar-edit-overlay,
+.profile-card-banner-btn:focus-visible .avatar-edit-overlay {
+  opacity: 1;
+}
+
+.profile-card-body {
+  padding: 0 var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Avatar sits half over the banner, half over the body. */
+.profile-card-avatar-wrap {
+  margin-top: -36px;
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+.profile-card .avatar-edit-btn {
+  border: 3px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+}
+
+.profile-card-idline {
+  font-family: monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Tab bar inside the profile card: Bio / Activities (and later Hubs). */
+.profile-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+  margin-top: var(--space-1);
+}
+
+.profile-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 10px;
+  margin-bottom: -1px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium, 500);
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+
+.profile-tab:hover {
+  color: var(--text);
+}
+
+.profile-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* Small uppercase caption above a field/section inside the profile card. */
+.profile-section-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+/* Tab content area: a consistent floor so the card doesn't resize as you
+   switch tabs (short tabs no longer collapse the card). Taller content
+   still grows, but the jarring per-tab height change is gone. */
+.profile-tab-panel {
+  min-height: 330px;
+  padding-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Status as a thought bubble beside the avatar — the avatar "thinking". */
+.thought-bubble {
+  position: relative;
+  align-self: flex-start;
+  margin-top: 8px;
+  max-width: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 7px 12px;
+}
+
+/* Two trailing dots from the bubble down toward the avatar (to its left). */
+.thought-bubble::before,
+.thought-bubble::after {
+  content: "";
+  position: absolute;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.thought-bubble::before {
+  width: 10px;
+  height: 10px;
+  left: -7px;
+  bottom: 8px;
+}
+
+.thought-bubble::after {
+  width: 6px;
+  height: 6px;
+  left: -13px;
+  bottom: 1px;
+}
+
+/* Profile tab layout: the editor card and the badges/certifications panel
+   sit side by side on wide screens (using the pane's horizontal space) and
+   stack on narrow ones. Each column keeps a readable width rather than
+   stretching one card across the whole pane. */
+.profile-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 560px);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .profile-two-col {
+    grid-template-columns: minmax(0, 560px) minmax(280px, 1fr);
+  }
+}
+
+/* Scope line: "[profile ▾] for [account ▾] [Use default]" on one row. */
+.profile-scope-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+/* The columns are side by side, so the section-separator chrome
+   (bottom border + spacing meant for stacked sections) is spurious here —
+   it would draw a divider under one column with nothing beneath it. The
+   grid gap provides the separation instead. */
+.profile-two-col > .settings-section {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .avatar-chooser {
@@ -1004,6 +1277,40 @@ select,
   animation: slide-in-down var(--transition-base);
 }
 
+/* Voice-move toast (events.md §7.2) — bottom-left, near the voice HUD
+   footer, rather than the top-center `.toast` used for hub errors: it's a
+   notice about where you now are in voice, not an error. */
+.voice-move-toast {
+  position: fixed;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--r-md);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: slide-in-down var(--transition-base);
+}
+
+.voice-move-toast-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.voice-move-toast-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .update-banner {
   position: fixed;
   top: 0;
@@ -1126,6 +1433,32 @@ select,
 .content h3 {
   color: var(--text);
   margin-bottom: var(--space-3);
+}
+
+.content-area-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.content-area-tab {
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-bottom: -1px;
+}
+
+.content-area-tab.active {
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+  color: var(--text);
 }
 
 .error {
@@ -2044,6 +2377,87 @@ select,
   justify-content: flex-end;
 }
 
+/* Account switcher's "#" / drag-handle column */
+.account-order-col {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.account-order-cell {
+  /* Plain table-cell — display:flex on a <td> opts it out of table layout
+     and misaligns it against sibling cells. */
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.account-order-number {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 1.2em;
+  text-align: right;
+}
+
+/* Whole-row dragging: the row is the drag target (except while renaming). */
+tr.account-row-draggable {
+  cursor: grab;
+}
+
+tr.account-row-draggable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+tr.account-row-dragging {
+  cursor: grabbing;
+  opacity: 0.4;
+}
+
+/* Full public key shown in the account table; the text itself copies. */
+.account-key-copy {
+  font-family: monospace;
+  font-size: var(--text-xs);
+  word-break: break-all;
+  cursor: copy;
+  border-radius: var(--r-sm);
+  padding: 1px 3px;
+}
+
+.account-key-copy:hover,
+.account-key-copy:focus-visible {
+  background: var(--surface);
+  outline: none;
+}
+
+.account-key-copied {
+  color: var(--success, var(--accent));
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+/* Hover-revealed affordances in the account table: the copy glyph on the
+   key and the rename pencil on the label appear on cell hover (or keyboard
+   focus) instead of cluttering the resting state. */
+.account-hover-icon {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  margin-left: 4px;
+}
+
+/* The copy glyph needs more breathing room from the dense hex key. */
+.account-key-copy .account-hover-icon {
+  margin-left: 10px;
+}
+
+td:hover .account-hover-icon,
+.account-key-copy:focus-visible .account-hover-icon,
+.account-hover-icon:focus-visible {
+  opacity: 1;
+}
+
+tr.account-drop-target td {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
 .member-gear-btn {
   opacity: 0;
   background: transparent;
@@ -2121,11 +2535,6 @@ select,
 .channel-item:hover {
   background: var(--surface);
   color: var(--text);
-}
-
-.channel-item.selected {
-  background: var(--accent);
-  color: var(--accent-text);
 }
 
 .channel-item.unread:not(.selected) {
@@ -2384,6 +2793,24 @@ select,
 .user-status-dot.status-away    { background: #faa81a; }
 .user-status-dot.status-dnd     { background: var(--danger, #ed4245); }
 .user-status-dot.status-offline { background: var(--text-faint, #555); }
+/* Invisible: a hollow ring — you know you're hidden; others just see offline. */
+.user-status-dot.status-invisible { background: transparent; box-shadow: inset 0 0 0 2px var(--text-muted, #888); }
+
+/* "Clear after" TTL row in the status picker. */
+.status-menu-ttl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 6px 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.status-menu-ttl select {
+  font-size: var(--text-xs);
+}
 
 .status-menu {
   position: absolute;
@@ -2448,6 +2875,11 @@ select,
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
+  /* The base `button` reset's 16px horizontal padding exceeds this 28px
+     square, leaving a 0-width content box: SVG children (overflow:hidden
+     flex items) get flex-shrunk to 0 and vanish, while emoji/text merely
+     overflowed and still painted. */
+  padding: 0;
   border: none;
   border-radius: var(--r-sm);
   background: var(--surface);
@@ -4722,6 +5154,12 @@ select:focus-visible {
   border-radius: var(--r-sm);
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   z-index: 300;
+  /* A long list (e.g. the voice-move channel picker on a hub with many
+     voice channels) would otherwise run off-screen with no way to reach
+     the lower entries — same "never taller than the viewport" posture
+     as .modal. */
+  max-height: min(320px, 70vh);
+  overflow-y: auto;
 }
 
 .hover-submenu-group:hover .hover-submenu-items {
@@ -4838,6 +5276,14 @@ select:focus-visible {
 
 .status-dot.offline {
   background: var(--text-faint);
+}
+
+/* Self, in the member list, while Invisible: same hollow-ring cue as the
+   footer status picker's .user-status-dot.status-invisible — everyone else
+   still just sees plain offline. */
+.status-dot.invisible {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--text-muted, #888);
 }
 
 /* Custom presence text appended after a member's name in the member list. */
@@ -5338,78 +5784,6 @@ select:focus-visible {
   padding: 2px 4px;
   border-radius: var(--r-pill);
   pointer-events: none;
-}
-
-/* Hub Streams discovery panel */
-.hub-streams-panel {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 200;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  min-width: 220px;
-  max-width: 300px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-}
-
-.hub-streams-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border);
-}
-
-.hub-streams-title {
-  font-weight: 600;
-  font-size: var(--text-sm);
-}
-
-.hub-streams-empty {
-  padding: var(--space-3);
-  font-size: var(--text-sm);
-}
-
-.hub-streams-list {
-  list-style: none;
-  margin: 0;
-  padding: var(--space-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.hub-streams-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.hub-streams-meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-
-.hub-streams-sharer {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hub-streams-channel {
-  font-size: var(--text-xs);
-}
-
-.hub-streams-btn--active {
-  color: var(--color-error, red);
 }
 
 .screen-share-volume label {

@@ -1,119 +1,47 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { NamedProfile, User } from "../types";
-import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "../skinValidation";
-import { newProfileId } from "@wavvon/core";
+import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
 
 interface UseSettingsProfileParams {
-  hasActiveHub: boolean;
-  setUsers: (updater: (prev: User[]) => User[]) => void;
   setPublicKey: (key: string) => void;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
 }
 
-export function useSettingsProfile({
-  hasActiveHub,
-  setUsers,
-  setPublicKey,
-  setError,
-  setToast,
-}: UseSettingsProfileParams) {
+interface LocalProfileFile {
+  default_profile?: unknown;
+  theme?: string | null;
+}
+
+// Theme is the only thing left in profile.json that this hook owns — the
+// default profile (display name/avatar/bio/...) is now the shared
+// ProfileEditorSection's concern (utils/profileEditorActions.ts). Reads
+// before writing so a theme change never clobbers the default profile the
+// user is mid-editing in the Profile tab, and vice versa.
+async function persistTheme(theme: ThemeId | "custom", onError: (msg: string) => void) {
+  try {
+    const current = await invoke<LocalProfileFile>("get_profile");
+    await invoke("save_profile", { profile: { ...current, theme } });
+  } catch (e) {
+    onError(String(e));
+  }
+}
+
+export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSettingsProfileParams) {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
   const [theme, setTheme] = useState<ThemeId>("calm");
   const [skin, setSkin] = useState<WavvonSkin | null>(null);
-  const [profiles, setProfiles] = useState<NamedProfile[]>([]);
-  const [defaultProfileId, setDefaultProfileId] = useState<string | null>(null);
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
-
-  async function persistProfileFile(overrides: {
-    profiles?: NamedProfile[];
-    defaultProfileId?: string | null;
-    theme?: "calm" | "classic" | "linear" | "light";
-  } = {}) {
-    const next = {
-      profiles: overrides.profiles ?? profiles,
-      default_profile_id: overrides.defaultProfileId ?? defaultProfileId,
-      theme: overrides.theme ?? theme,
-    };
-    try {
-      await invoke("save_profile", { profile: next });
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function handleCreateProfile() {
-    const fresh: NamedProfile = {
-      id: newProfileId(),
-      label: `Profile ${profiles.length + 1}`,
-      display_name: "",
-      avatar: null,
-    };
-    const next = [...profiles, fresh];
-    setProfiles(next);
-    const nextDefault = profiles.length === 0 ? fresh.id : defaultProfileId;
-    if (nextDefault !== defaultProfileId) setDefaultProfileId(nextDefault);
-    await persistProfileFile({ profiles: next, defaultProfileId: nextDefault });
-  }
-
-  async function handleUpdateProfile(
-    id: string,
-    patch: Partial<Omit<NamedProfile, "id">>,
-  ) {
-    const next = profiles.map((p) => (p.id === id ? { ...p, ...patch } : p));
-    setProfiles(next);
-    await persistProfileFile({ profiles: next });
-  }
-
-  async function handleDeleteProfile(id: string) {
-    if (profiles.length <= 1) {
-      setError("You need at least one profile.");
-      return;
-    }
-    if (!confirm("Delete this profile?")) return;
-    const next = profiles.filter((p) => p.id !== id);
-    setProfiles(next);
-    let nextDefault = defaultProfileId;
-    if (defaultProfileId === id) {
-      nextDefault = next[0]?.id ?? null;
-      setDefaultProfileId(nextDefault);
-    }
-    await persistProfileFile({ profiles: next, defaultProfileId: nextDefault });
-  }
-
-  async function handleSetDefaultProfile(id: string) {
-    setDefaultProfileId(id);
-    await persistProfileFile({ defaultProfileId: id });
-    setToast("Default profile updated");
-  }
-
-  async function handleApplyProfileToHub(id: string) {
-    if (!hasActiveHub) return;
-    const p = profiles.find((x) => x.id === id);
-    if (!p) return;
-    try {
-      if (p.display_name.trim()) {
-        await invoke("update_display_name", { displayName: p.display_name });
-      }
-      await invoke("update_avatar", { avatar: p.avatar ?? "" });
-      const u = await invoke<User[]>("list_users");
-      setUsers(() => u);
-      setToast(`Applied "${p.label}" to this hub`);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
 
   async function handleSetTheme(t: ThemeId) {
     if (t !== "custom") {
       clearSkinTokens();
       setSkin(null);
       document.documentElement.dataset.theme = t;
-      await persistProfileFile({ theme: t });
+      await persistTheme(t, setError);
     }
     setTheme(t);
     if (t !== "custom") {
@@ -172,18 +100,6 @@ export function useSettingsProfile({
     }
   }
 
-  async function handleImportBackup() {
-    const passphrase = window.prompt("Enter the backup passphrase:");
-    if (passphrase === null) return;
-    try {
-      await invoke("import_identity_backup", { passphrase });
-      setToast("Identity restored from backup — reloading…");
-      setTimeout(() => window.location.reload(), 600);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
   async function copyPublicKey(publicKey: string | null) {
     if (!publicKey) return;
     try {
@@ -204,25 +120,14 @@ export function useSettingsProfile({
     setTheme,
     skin,
     setSkin,
-    profiles,
-    setProfiles,
-    defaultProfileId,
-    setDefaultProfileId,
     recoveryPhrase,
     setRecoveryPhrase,
     copiedKey,
-    persistProfileFile,
-    handleCreateProfile,
-    handleUpdateProfile,
-    handleDeleteProfile,
-    handleSetDefaultProfile,
-    handleApplyProfileToHub,
     handleSetTheme,
     handleSkinChange,
     handleShowRecovery,
     handleClearLocalData,
     handleRecoverIdentity,
-    handleImportBackup,
     copyPublicKey,
   };
 }

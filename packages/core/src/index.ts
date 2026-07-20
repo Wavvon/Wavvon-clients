@@ -1,6 +1,7 @@
 export { parseHubInput, buildInviteLink } from "./parseHubInput";
 export type { HubInputResult } from "./parseHubInput";
 export * from "./audio";
+export * from "./bots";
 export * from "./channels";
 export * from "./format";
 export * from "./hex";
@@ -12,3 +13,5 @@ export * from "./identity/recovery";
 export * from "./identity/master";
 export * from "./identity/wire";
 export * from "./identity/ecies";
+export * from "./identity/prf";
+export * from "./identity/backup";

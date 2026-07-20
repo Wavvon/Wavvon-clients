@@ -4,8 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::identity::{HomeHubList, Identity, MasterIdentity};
 
 fn home_hub_list_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("home_hub_list.json"))
+    crate::accounts::active_home_hub_list_path()
 }
 
 fn now_secs() -> u64 {

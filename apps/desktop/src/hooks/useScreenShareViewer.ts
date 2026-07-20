@@ -6,7 +6,7 @@ import type {
   WsScreenShareChunkOut,
   WsScreenShareStopped,
 } from "../types";
-import type { ScreenShareViewerRef } from "../components/ScreenShareViewer";
+import type { ScreenShareViewerRef } from "@wavvon/ui";
 
 interface WsInfo {
   hub_url: string;

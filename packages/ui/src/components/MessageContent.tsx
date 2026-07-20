@@ -10,12 +10,16 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = ["href", "target", "rel"];
 
-DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A") {
-    node.setAttribute("target", "_blank");
-    node.setAttribute("rel", "noopener noreferrer");
-  }
-});
+// Guarded: DOMPurify is a no-op stub without a DOM (Node test envs import
+// this module transitively through the @wavvon/ui barrel).
+if (typeof DOMPurify.addHook === "function") {
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "A") {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+}
 
 function renderMarkdown(text: string): string {
   const raw = marked.parse(text, { async: false }) as string;

@@ -3,7 +3,7 @@ import type {
   ChannelPermissionsResponse,
   ChannelRoleOverwrites,
   ChannelRolePermissions,
-} from "../../types";
+} from "@wavvon/ui";
 
 export async function getChannelPermissions(channelId: string): Promise<ChannelPermissionsResponse> {
   const r = await hubFetch(`/channels/${channelId}/permissions`);

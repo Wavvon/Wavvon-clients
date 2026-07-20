@@ -1,64 +1,58 @@
-import { useState, useEffect } from "react";
-import type { ChangeEvent } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BackgroundMode } from "../utils/backgroundProcessor";
-import type { Hub, NamedProfile } from "../types";
-import { formatPubkey } from "@wavvon/core";
+import type { Hub } from "../types";
 import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
 import { ThemePicker } from "./ThemePicker";
-import { SkinEditor, makeSeed } from "./SkinEditor";
-import { SkinsGallery } from "./SkinsGallery";
-import type { ThemeId, WavvonSkin } from "../skinValidation";
-import { ProfileTab } from "./ProfileTab";
-import { RestoreIdentitySection } from "./RestoreIdentitySection";
-import { PairingSection } from "./PairingSection";
-import { HomeHubSection } from "./HomeHubSection";
-import { IdentityBackupSection } from "./IdentityBackupSection";
-import { RecoveryContactsSection } from "./RecoveryContactsSection";
-import { IdentityCertificationsSection } from "./IdentityCertificationsSection";
-import { DeviceListSection } from "./DeviceListSection";
+import {
+  SkinEditor,
+  makeSeed,
+  SkinsGallery,
+  ProfileTab,
+  SettingsShell,
+  resolveManagingAccount,
+  type ThemeId,
+  type WavvonSkin,
+  type SettingsTabDef,
+  type PerAccountProps,
+  type ProfileAccountRef,
+} from "@wavvon/ui";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { listAccounts, type AccountSummary } from "../accounts/store";
+import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
+import { ManageAccountsTab } from "./settings/ManageAccountsTab";
+import { DevicesTab } from "./settings/DevicesTab";
+import { PrivacyTab } from "./settings/PrivacyTab";
+import { NotificationsTab } from "./settings/NotificationsTab";
+import { CameraTab } from "./settings/CameraTab";
 import type { BlockEntry, IgnoreEntry } from "../types";
-import { BlockIgnoreSection } from "@wavvon/ui";
 
 export type SettingsTab =
   | "profile"
-  | "account"
+  | "accounts"
+  | "devices"
+  | "privacy"
+  | "notifications"
   | "appearance"
   | "voice"
-  | "security"
-  | "devices"
-  | "about";
+  | "camera";
 
 export interface SettingsPageProps {
   tab: SettingsTab;
   onTab: (t: SettingsTab) => void;
   onClose: () => void;
   hubs: Hub[];
-  // Profile system: multiple named profiles with one marked default.
-  profiles: NamedProfile[];
-  defaultProfileId: string | null;
-  onCreateProfile: () => void;
-  onUpdateProfile: (
-    id: string,
-    patch: Partial<Omit<NamedProfile, "id">>,
-  ) => void;
-  onDeleteProfile: (id: string) => void;
-  onSetDefaultProfile: (id: string) => void;
-  onApplyProfileToHub: (id: string) => void;
 
   theme: ThemeId;
   onThemeChange: (t: ThemeId) => void;
   skin: WavvonSkin | null;
   onSkinChange: (skin: WavvonSkin) => void;
-  hasActiveHub: boolean;
   activeHubId: string | null;
   activeHubUrl: string;
+  isAdmin: boolean;
   publicKey: string | null;
-  copiedKey: boolean;
-  onCopyKey: () => void;
   audioInputs: string[];
   audioOutputs: string[];
   voiceInputDevice: string;
@@ -109,6 +103,7 @@ export interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   backgroundMode: BackgroundMode;
   backgroundSource: string | null;
+  backgroundActive: boolean | null;
   onChangeBackground: (mode: BackgroundMode, source?: string | null) => void;
   onImportSkin: (skin: WavvonSkin) => void;
   videoInputs: { deviceId: string; label: string }[];
@@ -116,399 +111,101 @@ export interface SettingsPageProps {
   onVideoInputDeviceChange: (v: string) => void;
 }
 
-// --- Passkey management (view / rename / delete; registration is web-only) ---
-
-interface CredentialInfo {
-  id: string;
-  friendly_name: string | null;
-  aaguid: string | null;
-  created_at: number;
-  last_used_at: number | null;
-}
-
-interface DeviceInfo {
-  id: string;
-  device_name: string | null;
-  created_at: number;
-  expires_at: number;
-  last_used_at: number | null;
-}
-
-function PasskeySection({ hubId }: { hubId: string | null }) {
-  const [passkeys, setPasskeys] = useState<CredentialInfo[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-
-  useEffect(() => {
-    if (!hubId) return;
-    invoke<CredentialInfo[]>("passkey_list", { hubId })
-      .then(setPasskeys)
-      .catch((e: unknown) => setError(String(e)));
-  }, [hubId]);
-
-  async function handleDelete(id: string) {
-    if (!hubId) return;
-    setError(null);
-    try {
-      await invoke("passkey_delete", { hubId, credentialId: id });
-      setPasskeys((prev) => prev?.filter((p) => p.id !== id) ?? null);
-    } catch (e: unknown) {
-      setError(String(e));
-    }
-  }
-
-  async function handleRename(id: string) {
-    if (!hubId) return;
-    setError(null);
-    try {
-      await invoke("passkey_rename", { hubId, credentialId: id, friendlyName: renameValue.trim() });
-      setRenamingId(null);
-      setPasskeys(await invoke("passkey_list", { hubId }));
-    } catch (e: unknown) {
-      setError(String(e));
-    }
-  }
-
-  if (!hubId) return null;
-
-  return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Passkeys</label>
-      <p className="muted" style={{ marginBottom: 12 }}>
-        Passkeys registered for this hub. To add a new passkey, open the hub in the web client and go to Account → Passkeys.
-      </p>
-      {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
-      {passkeys === null ? (
-        <p className="muted">Loading…</p>
-      ) : passkeys.length === 0 ? (
-        <p className="muted">No passkeys registered.</p>
-      ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {passkeys.map((pk) => (
-            <li
-              key={pk.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 6,
-                padding: "8px 10px",
-                background: "var(--bg-elevated)",
-                borderRadius: "var(--r-sm)",
-              }}
-            >
-              {renamingId === pk.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    style={{ flex: 1, fontSize: "var(--text-sm)" }}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRename(pk.id);
-                      if (e.key === "Escape") setRenamingId(null);
-                    }}
-                  />
-                  <button className="btn-primary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => handleRename(pk.id)}>Save</button>
-                  <button className="btn-secondary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => setRenamingId(null)}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <span style={{ flex: 1, fontSize: "var(--text-sm)" }}>
-                    {pk.friendly_name ?? "Unnamed passkey"}
-                  </span>
-                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                    {pk.last_used_at
-                      ? `Used ${new Date(pk.last_used_at * 1000).toLocaleDateString()}`
-                      : `Added ${new Date(pk.created_at * 1000).toLocaleDateString()}`}
-                  </span>
-                  <button
-                    className="btn-secondary"
-                    style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
-                    onClick={() => { setRenamingId(pk.id); setRenameValue(pk.friendly_name ?? ""); }}
-                  >
-                    Rename
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
-                    onClick={() => handleDelete(pk.id)}
-                  >
-                    Remove
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function TrustedDevicesSection({ hubId }: { hubId: string | null }) {
-  const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!hubId) return;
-    invoke<DeviceInfo[]>("trusted_device_list", { hubId })
-      .then(setDevices)
-      .catch((e: unknown) => setError(String(e)));
-  }, [hubId]);
-
-  async function handleRevoke(id: string) {
-    if (!hubId) return;
-    setError(null);
-    try {
-      await invoke("trusted_device_revoke", { hubId, deviceId: id });
-      setDevices((prev) => prev?.filter((d) => d.id !== id) ?? null);
-    } catch (e: unknown) {
-      setError(String(e));
-    }
-  }
-
-  if (!hubId) return null;
-
-  return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Trusted devices</label>
-      <p className="muted" style={{ marginBottom: 12 }}>
-        Devices granted long-lived access to this hub. Revoke any you no longer recognise.
-      </p>
-      {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
-      {devices === null ? (
-        <p className="muted">Loading…</p>
-      ) : devices.length === 0 ? (
-        <p className="muted">No trusted devices.</p>
-      ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {devices.map((d) => (
-            <li
-              key={d.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 6,
-                padding: "8px 10px",
-                background: "var(--bg-elevated)",
-                borderRadius: "var(--r-sm)",
-              }}
-            >
-              <span style={{ flex: 1, fontSize: "var(--text-sm)" }}>
-                {d.device_name ?? "Unnamed device"}
-              </span>
-              <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                Expires {new Date(d.expires_at * 1000).toLocaleDateString()}
-              </span>
-              <button
-                className="btn-secondary"
-                style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
-                onClick={() => handleRevoke(d.id)}
-              >
-                Revoke
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
+  return { id: a.id, account_label: a.label ?? undefined };
 }
 
 export function SettingsPage(props: SettingsPageProps) {
   const { t, i18n } = useTranslation();
-  const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
-  const [publicHubIds, setPublicHubIds] = useState<Set<string>>(new Set());
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | string>("idle");
 
-  async function handleSavePublicProfile() {
-    try {
-      const entries = publicProfileEnabled
-        ? props.hubs
-            .filter((h) => publicHubIds.has(h.hub_id))
-            .map((h) => ({
-              hub_url: h.hub_url,
-              hub_name: h.hub_name,
-              joined_at: Math.floor(Date.now() / 1000),
-            }))
-        : [];
-      const activeProfile =
-        props.profiles.find((p) => p.id === props.defaultProfileId) ??
-        props.profiles[0];
-      await invoke("save_public_profile", {
-        entries,
-        displayName: activeProfile?.display_name ?? "",
-        avatar: activeProfile?.avatar ?? null,
-      });
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch (e) {
-      setSaveStatus(String(e));
-    }
-  }
+  // Desktop's own multi-account list, for the shared ProfileTab's account
+  // scope line — Devices/Privacy stay active-account-only for now (see
+  // DevicesTab/PrivacyTab comments), so they don't need this.
+  const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
+  const [managingId, setManagingId] = useState<string | null>(null);
+  const activeId = accounts?.find((a) => a.is_active)?.id ?? null;
 
-  function selectBackgroundMode(mode: BackgroundMode) {
-    // Keep the existing source when switching to image/video; clear otherwise.
-    props.onChangeBackground(mode, mode === "image" || mode === "video" ? props.backgroundSource : null);
-  }
+  useEffect(() => {
+    listAccounts()
+      .then((list) => {
+        setAccounts(list);
+        setManagingId((prev) => prev ?? list.find((a) => a.is_active)?.id ?? list[0]?.id ?? null);
+      })
+      .catch(() => setAccounts([]));
+    // Warms profileEditorActions' default-profile cache so ProfileTab's
+    // first render already has it (loadDefaultProfile is synchronous).
+    void loadDefaultProfileAsync();
+  }, []);
 
-  function handleBackgroundFile(mode: "image" | "video", e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => props.onChangeBackground(mode, reader.result as string);
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }
+  const profileAccounts = useMemo(() => accounts?.map(toProfileAccountRef) ?? null, [accounts]);
+  const managing = resolveManagingAccount(profileAccounts, managingId, activeId);
+  const perAccount: PerAccountProps<ProfileAccountRef> = {
+    accounts: profileAccounts,
+    activeId,
+    managing,
+    onManagingChange: setManagingId,
+  };
+  const profileEditorActions = useMemo(() => buildProfileEditorActions(props.hubs), [props.hubs]);
 
-  const tabs: { id: SettingsTab; label: string }[] = [
-    { id: "profile", label: t("settings.tabs.profile") },
-    { id: "account", label: t("settings.tabs.account") },
-    { id: "appearance", label: t("settings.tabs.appearance") },
-    { id: "voice", label: t("settings.tabs.voice") },
-    { id: "security", label: t("settings.tabs.security") },
-    { id: "devices", label: t("settings.tabs.devices") },
-    { id: "about", label: t("settings.tabs.about") },
+  const G_ACCOUNTS = t("settings.nav_groups.accounts");
+  const G_APP = t("settings.nav_groups.app");
+  const G_AV = t("settings.nav_groups.audio_video");
+  const TABS: SettingsTabDef<SettingsTab>[] = [
+    { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
+    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS },
+    { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
+    { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
+    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
+    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
+    { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
+    { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
   ];
 
   return (
-    <div className="settings-page">
-      <aside className="settings-nav">
-        <h2>{t("settings.title")}</h2>
-        <ul>
-          {tabs.map((tab) => (
-            <li key={tab.id}>
-              <button
-                className={`settings-nav-item ${props.tab === tab.id ? "active" : ""}`}
-                onClick={() => props.onTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button className="settings-nav-close" onClick={props.onClose}>
-          {t("settings.close")}
-        </button>
-      </aside>
-      <main className="settings-content">
-        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}>
-          ×
-        </button>
+    <SettingsShell title={t("settings.title")} tabs={TABS} activeTab={props.tab} onTab={props.onTab} onClose={props.onClose}>
         {props.tab === "profile" && (
           <ProfileTab
-            hasActiveHub={props.hasActiveHub}
-            profiles={props.profiles}
-            defaultProfileId={props.defaultProfileId}
             hubs={props.hubs}
-            onCreateProfile={props.onCreateProfile}
-            onUpdateProfile={props.onUpdateProfile}
-            onDeleteProfile={props.onDeleteProfile}
-            onSetDefaultProfile={props.onSetDefaultProfile}
-            onApplyProfileToHub={props.onApplyProfileToHub}
+            publicKey={props.publicKey}
+            actions={profileEditorActions}
+            {...perAccount}
           />
         )}
-        {props.tab === "account" && (
-          <section>
-            <h1>{t("settings.tabs.account")}</h1>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.account.pubkey.label")}</label>
-              <p className="muted">
-                {t("settings.account.pubkey.hint")}
-              </p>
-              <div className="settings-row">
-                <code className="pubkey-display" title={props.publicKey ?? ""}>
-                  {formatPubkey(props.publicKey)}
-                </code>
-                <button onClick={props.onCopyKey}>
-                  {props.copiedKey ? t("settings.account.pubkey.copied") : t("settings.account.pubkey.copy")}
-                </button>
-              </div>
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.account.local_data.label")}</label>
-              <p className="muted">
-                {t("settings.account.local_data.hint")}
-              </p>
-              <button
-                className="btn-secondary"
-                onClick={props.onClearLocalData}
-              >
-                {t("settings.account.local_data.button")}
-              </button>
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.account.public_profile.label")}</label>
-              <p className="muted">
-                {t("settings.account.public_profile.hint")}
-              </p>
-              {props.hubs.length === 0 ? (
-                <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-                  {t("settings.account.public_profile.join_first")}
-                </p>
-              ) : (
-                <>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={publicProfileEnabled}
-                      onChange={(e) => setPublicProfileEnabled(e.target.checked)}
-                    />
-                    {t("settings.account.public_profile.make_public")}
-                  </label>
-                  {publicProfileEnabled && (
-                    <div style={{ marginTop: "8px" }}>
-                      {props.hubs.map((h) => (
-                        <div key={h.hub_id} className="settings-row">
-                          <label className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={publicHubIds.has(h.hub_id)}
-                              onChange={(e) => {
-                                setPublicHubIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (e.target.checked) next.add(h.hub_id);
-                                  else next.delete(h.hub_id);
-                                  return next;
-                                });
-                              }}
-                            />
-                            {h.hub_name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="settings-row" style={{ marginTop: "8px" }}>
-                    <button
-                      className="btn-secondary"
-                      onClick={handleSavePublicProfile}
-                      disabled={!props.hasActiveHub}
-                      title={!props.hasActiveHub ? t("settings.account.public_profile.switch_hub") : undefined}
-                    >
-                      {t("settings.account.public_profile.save")}
-                    </button>
-                    {!props.hasActiveHub && (
-                      <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                        {t("settings.account.public_profile.select_hub")}
-                      </span>
-                    )}
-                    {props.hasActiveHub && saveStatus === "saved" && (
-                      <span className="muted">{t("settings.account.public_profile.saved")}</span>
-                    )}
-                    {props.hasActiveHub && saveStatus !== "idle" && saveStatus !== "saved" && (
-                      <span style={{ color: "var(--color-error, red)" }}>{saveStatus}</span>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </section>
+
+        {props.tab === "accounts" && accounts && (
+          <ManageAccountsTab
+            hubs={props.hubs}
+            activeHubUrl={props.activeHubUrl}
+            isAdmin={props.isAdmin}
+            accounts={accounts}
+            recoveryPhrase={props.recoveryPhrase}
+            onShowRecovery={props.onShowRecovery}
+            onRecoverIdentity={props.onRecoverIdentity}
+            onClearLocalData={props.onClearLocalData}
+          />
         )}
+
+        {props.tab === "devices" && (
+          <DevicesTab hubs={props.hubs} activeHubId={props.activeHubId} />
+        )}
+
+        {props.tab === "privacy" && (
+          <PrivacyTab
+            blocks={props.blocks}
+            ignores={props.ignores}
+            onUnblock={props.onUnblock}
+            onUnignore={props.onUnignore}
+            knownNames={props.knownNames}
+          />
+        )}
+
+        {props.tab === "notifications" && (
+          <NotificationsTab
+            mentionPingEnabled={props.mentionPingEnabled}
+            onMentionPingChange={props.onMentionPingChange}
+          />
+        )}
+
         {props.tab === "appearance" && (
           <section>
             <h1>{t("settings.tabs.appearance")}</h1>
@@ -525,7 +222,7 @@ export function SettingsPage(props: SettingsPageProps) {
                 onChange={props.onSkinChange}
               />
             )}
-            <SkinsGallery onImport={props.onImportSkin} />
+            <SkinsGallery fetchWithTimeout={fetchWithTimeout} onImport={props.onImportSkin} />
             <div className="settings-section">
               <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
               <div className="settings-row">
@@ -540,8 +237,14 @@ export function SettingsPage(props: SettingsPageProps) {
                 </select>
               </div>
             </div>
+            {/* About folded in here rather than its own tab (settings-ia.md
+                piece 4) — a static footnote doesn't need a nav slot. */}
+            <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 24 }}>
+              {t("settings.about.description")}
+            </p>
           </section>
         )}
+
         {props.tab === "voice" && (
           <section>
             <h1>{t("settings.tabs.voice")}</h1>
@@ -612,23 +315,6 @@ export function SettingsPage(props: SettingsPageProps) {
                   </div>
                 </div>
               )}
-              {props.videoInputs.length > 0 && (
-                <div className="voice-devices-row" style={{ marginTop: "var(--space-3)" }}>
-                  <div>
-                    <label className="settings-label" htmlFor="settings-camera">{t("settings.voice.camera", "Camera")}</label>
-                    <select
-                      id="settings-camera"
-                      value={props.videoInputDevice}
-                      onChange={(e) => props.onVideoInputDeviceChange(e.target.value)}
-                    >
-                      <option value="">{t("settings.voice.system_default")}</option>
-                      {props.videoInputs.map((d) => (
-                        <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="settings-section">
               <label className="settings-label">
@@ -650,58 +336,6 @@ export function SettingsPage(props: SettingsPageProps) {
                   {t("settings.voice.mic_test.hint")}
                 </span>
               </div>
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">Camera background</label>
-              <div className="settings-row" style={{ gap: "var(--space-2)" }}>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "none" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("none")}
-                >
-                  None
-                </button>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "blur" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("blur")}
-                >
-                  Blur
-                </button>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "image" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("image")}
-                >
-                  Image
-                </button>
-                <button
-                  className={`btn-secondary${props.backgroundMode === "video" ? " active" : ""}`}
-                  onClick={() => selectBackgroundMode("video")}
-                >
-                  Video
-                </button>
-              </div>
-              {props.backgroundMode === "image" && (
-                <input
-                  type="file"
-                  accept="image/*"
-                  aria-label="Background image"
-                  onChange={(e) => handleBackgroundFile("image", e)}
-                  style={{ marginTop: "var(--space-2)" }}
-                />
-              )}
-              {props.backgroundMode === "video" && (
-                <input
-                  type="file"
-                  accept="video/*"
-                  aria-label="Background video"
-                  onChange={(e) => handleBackgroundFile("video", e)}
-                  style={{ marginTop: "var(--space-2)" }}
-                />
-              )}
-              {(props.backgroundMode === "image" || props.backgroundMode === "video") && !props.backgroundSource && (
-                <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: "var(--space-1)" }}>
-                  Pick a {props.backgroundMode} above (until then the background is blurred).
-                </p>
-              )}
             </div>
             <div className="settings-section">
               <label className="settings-label">{t("settings.voice.mode.label")}</label>
@@ -735,81 +369,20 @@ export function SettingsPage(props: SettingsPageProps) {
                 />
               )}
             </div>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.voice.notify_sound.label")}</label>
-              <p className="muted">
-                {t("settings.voice.notify_sound.hint")}
-              </p>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={props.mentionPingEnabled}
-                  onChange={(e) => props.onMentionPingChange(e.target.checked)}
-                />
-                {t("settings.voice.notify_sound.enable")}
-              </label>
-            </div>
           </section>
         )}
-        {props.tab === "security" && (
-          <section>
-            <h1>{t("settings.tabs.security")}</h1>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.security.recovery.label")}</label>
-              <p className="muted">
-                {t("settings.security.recovery.hint")}
-              </p>
-              {props.recoveryPhrase ? (
-                <div className="recovery-phrase">{props.recoveryPhrase}</div>
-              ) : (
-                <button onClick={props.onShowRecovery} className="btn-secondary">
-                  {t("settings.security.recovery.reveal")}
-                </button>
-              )}
-            </div>
-            <IdentityBackupSection />
-            <RestoreIdentitySection onRestore={props.onRecoverIdentity} />
-            {props.hasActiveHub && (
-              <RecoveryContactsSection activeHubUrl={props.activeHubUrl} />
-            )}
-            <IdentityCertificationsSection />
-            <PasskeySection hubId={props.activeHubId} />
-            <TrustedDevicesSection hubId={props.activeHubId} />
-            <BlockIgnoreSection
-              blocks={props.blocks}
-              ignores={props.ignores}
-              onUnblock={props.onUnblock}
-              onUnignore={props.onUnignore}
-              knownNames={props.knownNames}
-            />
-          </section>
+
+        {props.tab === "camera" && (
+          <CameraTab
+            backgroundMode={props.backgroundMode}
+            backgroundSource={props.backgroundSource}
+            backgroundActive={props.backgroundActive}
+            onChangeBackground={props.onChangeBackground}
+            videoInputs={props.videoInputs}
+            videoInputDevice={props.videoInputDevice}
+            onVideoInputDeviceChange={props.onVideoInputDeviceChange}
+          />
         )}
-        {props.tab === "devices" && (
-          <section>
-            <h1>{t("settings.tabs.devices")}</h1>
-            <h2>Linked devices</h2>
-            <DeviceListSection />
-            <h2>{t("settings.devices.home_hubs.title")}</h2>
-            <p className="muted">
-              {t("settings.devices.home_hubs.hint")}
-            </p>
-            <HomeHubSection hubs={props.hubs} />
-            <h2>{t("settings.devices.pairing.title")}</h2>
-            <p className="muted">
-              {t("settings.devices.pairing.hint")}
-            </p>
-            <PairingSection hubs={props.hubs} />
-          </section>
-        )}
-        {props.tab === "about" && (
-          <section>
-            <h1>{t("settings.tabs.about")}</h1>
-            <p className="muted">
-              {t("settings.about.description")}
-            </p>
-          </section>
-        )}
-      </main>
-    </div>
+    </SettingsShell>
   );
 }

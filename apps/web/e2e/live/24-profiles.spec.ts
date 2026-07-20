@@ -1,33 +1,60 @@
 import { test, expect } from "@playwright/test";
 import { expectInHub, hubApi, uniqueName } from "./helpers/live";
 
-// P24 — multi-profile (client-only presets). Create a profile, apply it to
-// the hub (updates /me), verify, then delete.
+// P24 — the profile editor's context dropdown (Discord server-profiles
+// pattern): pick the default profile or any joined hub and edit that
+// context in place. Hub contexts talk to that hub's own session
+// (GET/PATCH /me); the default profile is local per-account storage.
 
-test("create, apply, and delete a saved profile", async ({ page }) => {
+async function openProfileEditor(page: import("@playwright/test").Page) {
+  await page.locator(".btn-icon-gear").click();
+  await page.getByRole("button", { name: "Profile", exact: true }).click();
+  const section = page
+    .locator(".settings-section", { has: page.getByText("Profile to edit", { exact: true }) })
+    .first();
+  await expect(section).toBeVisible({ timeout: 10000 });
+  return section;
+}
+
+test("edit the profile on a hub picked from the context dropdown", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
 
-  await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Profile", exact: true }).click();
-  await expect(page.getByText("Saved profiles", { exact: true })).toBeVisible();
+  const section = await openProfileEditor(page);
 
-  const label = uniqueName("Gaming");
+  // Pick the first hub context (index 0 is the default profile).
+  await section.locator("#profile-context-select").selectOption({ index: 1 });
+
   const dispName = uniqueName("xX_Player");
-  await page.getByRole("textbox", { name: "New profile label" }).fill(label);
-  await page.getByRole("textbox", { name: "New profile display name" }).fill(dispName);
-  await page.getByRole("button", { name: "Create profile" }).click();
+  const nameInput = section.getByPlaceholder("Display name");
+  await expect(nameInput).toBeVisible({ timeout: 10000 });
+  await nameInput.fill(dispName);
+  await section.getByLabel("Pronouns").fill("they/them");
+  await section.getByLabel("About me").fill("Bio set by the live e2e pass.");
+  await section.getByRole("button", { name: /^Save changes/ }).click();
 
-  // The profile appears; apply it to the active hub.
-  const row = page.locator(".settings-section", { hasText: label });
-  await expect(row.first()).toBeVisible({ timeout: 10000 });
-  await row.first().getByRole("button", { name: "Apply to hub" }).click();
+  // /me now reflects the whole profile — the hub stored it.
+  type Me = { display_name: string | null; bio: string | null; pronouns: string | null };
+  await expect.poll(async () => (await hubApi<Me>(page, "/me")).display_name).toBe(dispName);
+  const me = await hubApi<Me>(page, "/me");
+  expect(me.pronouns).toBe("they/them");
+  expect(me.bio).toBe("Bio set by the live e2e pass.");
+});
 
-  // /me now reflects the profile's display name.
-  await expect.poll(async () => (await hubApi<{ display_name: string | null }>(page, "/me")).display_name)
-    .toBe(dispName);
+test("save a default profile for the account", async ({ page }) => {
+  await page.goto("/");
+  await expectInHub(page);
 
-  // Delete it.
-  await row.first().getByRole("button", { name: "Delete" }).click();
-  await expect(page.locator(".settings-section", { hasText: label })).toHaveCount(0);
+  const section = await openProfileEditor(page);
+  // The dropdown starts on the default-profile context.
+  await expect(section.locator("#profile-context-select")).toHaveValue("__default__");
+
+  const name = uniqueName("Default");
+  await section.getByPlaceholder("Display name").fill(name);
+  await section.getByRole("button", { name: /^Save changes/ }).click();
+  await expect(section.getByText("Saved")).toBeVisible();
+
+  // Purely local: nothing on the hub changed because of the default profile.
+  const me = await hubApi<{ display_name: string | null }>(page, "/me");
+  expect(me.display_name).not.toBe(name);
 });

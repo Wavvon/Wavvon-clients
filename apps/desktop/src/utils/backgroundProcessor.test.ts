@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { BackgroundProcessor } from "./backgroundProcessor";
+import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./backgroundProcessor";
+
+// Flip to make the eager initialize() fail, exercising the raw-video fallback.
+let failInitialize = false;
 
 vi.mock("@mediapipe/selfie_segmentation", () => {
   class FakeSelfieSegmentation {
@@ -11,6 +14,9 @@ vi.mock("@mediapipe/selfie_segmentation", () => {
     }
     setOptions() {}
     onResults() {}
+    initialize() {
+      return failInitialize ? Promise.reject(new Error("wasm blocked")) : Promise.resolve();
+    }
     send() {
       return Promise.resolve();
     }
@@ -48,6 +54,7 @@ function fakeStream(onStopTrack?: () => void): MediaStream {
 
 describe("BackgroundProcessor mode switching", () => {
   beforeEach(() => {
+    failInitialize = false;
     mockCanvasApis();
     HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve());
     HTMLMediaElement.prototype.pause = vi.fn();
@@ -57,6 +64,7 @@ describe("BackgroundProcessor mode switching", () => {
     const proc = new BackgroundProcessor(fakeStream());
     await proc.start("none");
     expect((proc as unknown as { segmentation: unknown }).segmentation).toBeNull();
+    expect(proc.activeMode).toBe("none");
     proc.stop();
   });
 
@@ -64,6 +72,16 @@ describe("BackgroundProcessor mode switching", () => {
     const proc = new BackgroundProcessor(fakeStream());
     await proc.start("blur");
     expect((proc as unknown as { segmentation: unknown }).segmentation).not.toBeNull();
+    expect(proc.activeMode).toBe("blur");
+    proc.stop();
+  });
+
+  it("falls back to raw video (activeMode 'none') when segmentation fails to load", async () => {
+    failInitialize = true;
+    const proc = new BackgroundProcessor(fakeStream());
+    await proc.start("blur");
+    expect((proc as unknown as { segmentation: unknown }).segmentation).toBeNull();
+    expect(proc.activeMode).toBe("none");
     proc.stop();
   });
 
@@ -93,5 +111,30 @@ describe("BackgroundProcessor mode switching", () => {
     proc.stop();
     expect((proc as unknown as { stopped: boolean }).stopped).toBe(true);
     expect(stopTrack).toHaveBeenCalled();
+  });
+});
+
+describe("background choice persistence", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("round-trips mode and source through localStorage", () => {
+    saveBg("image", "data:image/png;base64,x");
+    expect(loadBgMode()).toBe("image");
+    expect(loadBgSource()).toBe("data:image/png;base64,x");
+  });
+
+  it("clears the stored source when switching back to none or blur", () => {
+    saveBg("video", "data:video/mp4;base64,x");
+    saveBg("blur");
+    expect(loadBgMode()).toBe("blur");
+    expect(loadBgSource()).toBeNull();
+  });
+
+  it("defaults to none for missing or garbage stored modes", () => {
+    expect(loadBgMode()).toBe("none");
+    localStorage.setItem("wavvon.bgMode", "sparkles");
+    expect(loadBgMode()).toBe("none");
   });
 });

@@ -77,11 +77,15 @@ test("alliance: create, share a channel, unshare, leave", async ({ page }) => {
   const section = page.locator(".alliance-row", { hasText: name });
   await expect(section).toBeVisible({ timeout: 10000 });
 
-  // Expand the alliance and share the channel.
+  // Expand the alliance and share the channel. The select's option label
+  // carries the channel's "# " icon prefix (AlliancesSection.tsx), not the
+  // bare name.
   await section.getByRole("button", { name: new RegExp(name) }).click();
-  await section.locator("select").selectOption({ label: chan });
+  await section.locator("select").selectOption({ label: `# ${chan}` });
   await section.getByRole("button", { name: "Share", exact: true }).click();
-  await expect(section.getByText(`# ${chan}`, { exact: false })).toBeVisible({ timeout: 10000 });
+  // getByText also matches the (still-present) <option> with the same label
+  // in the share select — scope to the shared-channel row itself.
+  await expect(section.locator(".settings-row", { hasText: `# ${chan}` })).toBeVisible({ timeout: 10000 });
 
   // Unshare it.
   await section.getByRole("button", { name: "Unshare" }).click();

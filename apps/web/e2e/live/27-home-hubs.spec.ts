@@ -7,9 +7,11 @@ import { expectInHub, HUB_URL } from "./helpers/live";
 
 async function openHomeHubs(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: "Manage accounts", exact: true }).click();
+  // Not exact: the section label gains an account-label suffix ("Home hubs
+  // — <label>") now that naming an account is mandatory (identity_setup.label).
   const section = page
-    .locator(".settings-section", { has: page.getByText("Home hubs", { exact: true }) })
+    .locator(".settings-section", { has: page.getByText("Home hubs") })
     .first();
   await expect(section).toBeVisible({ timeout: 10000 });
   return section;
