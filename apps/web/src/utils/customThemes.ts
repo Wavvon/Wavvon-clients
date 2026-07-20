@@ -1,4 +1,4 @@
-import type { WavvonSkin } from "../skinValidation";
+import type { WavvonSkin } from "@wavvon/ui";
 import { getScoped, setScoped } from "./accountScope";
 
 // Multi-theme is a client-only, personal-axis feature, mirroring the

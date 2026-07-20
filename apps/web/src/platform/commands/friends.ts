@@ -15,10 +15,10 @@ export async function listPendingFriendRequests(): Promise<Friend[]> {
   return r.json() as Promise<Friend[]>;
 }
 
-export async function sendFriendRequest(targetPublicKey: string): Promise<void> {
+export async function sendFriendRequest(targetPublicKey: string, hubUrl?: string): Promise<void> {
   await hubFetch("/friends", {
     method: "POST",
-    body: JSON.stringify({ target_public_key: targetPublicKey }),
+    body: JSON.stringify({ target_public_key: targetPublicKey, hub_url: hubUrl ?? null }),
   });
 }
 

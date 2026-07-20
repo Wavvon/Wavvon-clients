@@ -1,34 +1,7 @@
 import { hubFetch } from "../http";
+import type { Alliance, AllianceMember, AllianceDetail, PendingAllianceInvite, SharedChannel } from "@wavvon/ui";
 
-export interface Alliance {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: number;
-}
-
-export interface AllianceMember {
-  hub_public_key: string;
-  hub_name: string;
-  hub_url: string;
-  joined_at: number;
-}
-
-export interface AllianceDetail extends Alliance {
-  members: AllianceMember[];
-}
-
-export interface PendingAllianceInvite {
-  id: string;
-  alliance_id: string;
-  alliance_name: string;
-  from_hub_url: string;
-  from_hub_name: string;
-  from_hub_public_key: string;
-  invite_token: string;
-  created_at: number;
-  message: string | null;
-}
+export type { Alliance, AllianceMember, AllianceDetail, PendingAllianceInvite, SharedChannel };
 
 export async function listAlliances(): Promise<Alliance[]> {
   const r = await hubFetch("/alliances");
@@ -64,17 +37,6 @@ export async function acceptAllianceInvite(inviteId: string, ownHubUrl: string):
 
 export async function declineAllianceInvite(inviteId: string): Promise<void> {
   await hubFetch(`/alliances/pending-invites/${inviteId}`, { method: "DELETE" });
-}
-
-export interface SharedChannel {
-  channel_id: string;
-  channel_name: string;
-  hub_public_key: string;
-  hub_name: string;
-  channel_type: "text" | "forum" | "banner" | "spawner";
-  parent_id: string | null;
-  is_category: boolean;
-  forum_remote_write?: "none" | "replies_only" | "posts_and_replies";
 }
 
 export async function listAllianceSharedChannels(allianceId: string): Promise<SharedChannel[]> {

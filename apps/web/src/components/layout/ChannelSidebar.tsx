@@ -25,8 +25,7 @@ import type {
 } from "@shared/types";
 import type { TreeNode, FlatNode } from "@wavvon/core";
 import { channelPath, findTreeNode, formatPubkey } from "@wavvon/core";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon } from "@components/common/Icons";
-import { SortableCategoryItem, SortableChannelItem } from "@components/common/SortableItems";
+import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, SortableCategoryItem, SortableChannelItem } from "@wavvon/ui";
 import { SoundboardPopover } from "@components/voice/SoundboardPopover";
 import { HoverSubmenu } from "@wavvon/ui";
 import {
@@ -34,6 +33,7 @@ import {
   flattenAllianceChannels, allianceChannelIcon,
 } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "@shared/utils/spawnerChannels";
+import { hasDraft } from "@shared/utils/drafts";
 
 interface SidebarFlatNode extends FlatNode {
   indentDepth: number;
@@ -66,100 +66,6 @@ function loadSidebarWidth(): number {
     if (Number.isFinite(n)) return Math.min(SIDEBAR_MAX_W, Math.max(SIDEBAR_MIN_W, n));
   } catch { /* ignore */ }
   return SIDEBAR_DEFAULT_W;
-}
-
-function gainIcon(gainPct: number): string {
-  if (gainPct === 0) return "🔇";
-  if (gainPct < 100) return "🔉";
-  if (gainPct === 100) return "🔊";
-  return "⬆️";
-}
-
-function VoiceParticipantGainRow({
-  participant,
-  gainPct,
-  onSetGain,
-  isSelf,
-}: {
-  participant: VoiceParticipant;
-  gainPct: number;
-  onSetGain?: (g: number) => void;
-  isSelf: boolean;
-}) {
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const rowRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!popoverOpen) return;
-    function onOutside(e: MouseEvent) {
-      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
-        setPopoverOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, [popoverOpen]);
-
-  const displayName = participant.display_name || participant.public_key.slice(0, 12);
-
-  return (
-    <div
-      ref={rowRef}
-      style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px", position: "relative" }}
-    >
-      <span
-        style={{ flex: 1, fontSize: "var(--text-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-        title={participant.public_key}
-      >
-        {displayName}
-      </span>
-      {!isSelf && onSetGain && (
-        <>
-          <button
-            className="btn-icon-gear"
-            style={{ fontSize: 12, padding: "0 2px" }}
-            title={`Volume: ${gainPct}%`}
-            onClick={() => setPopoverOpen((v) => !v)}
-          >
-            {gainIcon(gainPct)}
-          </button>
-          {popoverOpen && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: "100%",
-                right: 0,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--r-sm)",
-                padding: "8px 10px",
-                zIndex: 100,
-                minWidth: 160,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
-            >
-              <div style={{ fontSize: "var(--text-xs)", marginBottom: 6, color: "var(--text-muted)" }}>
-                Volume: {gainPct}%
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={200}
-                value={gainPct}
-                onChange={(e) => onSetGain(Number(e.target.value))}
-                style={{ width: "100%" }}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>
-                <span>0%</span>
-                <span>100%</span>
-                <span>200%</span>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
 }
 
 interface SelectedAllianceChannel {
@@ -243,6 +149,8 @@ interface Props {
   onToggleVideo?: () => void;
   voiceGains?: Record<string, number>;
   onSetVoiceGain?: (pk: string, gainPct: number) => void;
+  /** Pubkeys currently whispering to the local user. */
+  inboundWhispers?: Set<string>;
   canUseSoundboard?: boolean;
   onTriggerSoundboardClip?: (clip: SoundboardClip) => void;
   soundboardPlayingClipId?: string | null;
@@ -266,7 +174,7 @@ export function ChannelSidebar({
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
-  voiceGains, onSetVoiceGain,
+  voiceGains, onSetVoiceGain, inboundWhispers,
   canUseSoundboard, onTriggerSoundboardClip, soundboardPlayingClipId, soundboardChips,
 }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -655,6 +563,10 @@ export function ChannelSidebar({
                         depthOverflow={indent.overflow}
                         tabIndex={channelFocusIndex === index ? 0 : -1}
                         itemRef={(el) => { channelItemRefs.current[index] = el; }}
+                        voiceGains={voiceGains}
+                        onSetVoiceGain={onSetVoiceGain}
+                        inboundWhispers={inboundWhispers}
+                        hasDraft={hasDraft}
                         onClick={() => {
                           setChannelFocusIndex(index);
                           if (isSpawnerChannel(n.node)) {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
-import { readBaseToken } from "../../skinValidation";
+import { readBaseToken } from "@wavvon/ui";
 
 interface Props {
   themes: NamedCustomTheme[];

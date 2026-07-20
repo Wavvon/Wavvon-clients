@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { ThemeId, WavvonSkin } from "../skinValidation";
-import { applySkinTokens, clearSkinTokens } from "../skinValidation";
+import type { ThemeId, WavvonSkin } from "@wavvon/ui";
+import { applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "@components/settings/SettingsPage";
 import {
   loadIdentity,
@@ -13,7 +13,7 @@ import {
   getPostSwitchReturn,
   SWITCH_BLOCKED_COOLDOWN,
 } from "@identity/index";
-import { makeSeed } from "@components/settings/SkinEditor";
+import { makeSeed } from "@wavvon/ui";
 import type { CustomThemeStore, NamedCustomTheme } from "../utils/customThemes";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "../utils/customThemes";
 import { getScoped } from "../utils/accountScope";

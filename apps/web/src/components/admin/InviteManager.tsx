@@ -4,7 +4,7 @@ import type { InviteInfo, RoleInfo } from "@shared/types";
 import { formatRelativeSigned, buildInviteLink } from "@wavvon/core";
 import { listRoles, getHubSettings, saveHubSettings } from "@platform";
 import { HubApiError } from "../../platform/http";
-import { safeRoleColor } from "@shared/utils/roleAppearance";
+import { safeRoleColor } from "@wavvon/ui";
 import { grantableRoles, roleGrantsAdmin, defaultInviteRoleOptions } from "@shared/utils/inviteRoles";
 
 // Mirrors hub/src/routes/invites.rs::ADMIN_GRANT_DEFAULT_EXPIRY_SECS — for

@@ -141,6 +141,62 @@ export async function revokeFarmUserSessions(
   });
 }
 
+export interface FarmServerEntry {
+  id: string;
+  name: string;
+  region: string | null;
+  connected: boolean;
+  last_seen_at: number | null;
+}
+
+export async function getFarmServers(
+  farmUrl: string,
+): Promise<{ servers: FarmServerEntry[] }> {
+  return farmFetch(farmUrl, "/farm/admin/servers").then(
+    (r) => r.json() as Promise<{ servers: FarmServerEntry[] }>,
+  );
+}
+
+export async function generateFarmServerToken(
+  farmUrl: string,
+  name: string,
+  region: string | null,
+): Promise<{ server_id: string; token: string }> {
+  return farmFetch(farmUrl, "/farm/admin/server-token", {
+    method: "POST",
+    body: JSON.stringify({ name, region }),
+  }).then((r) => r.json() as Promise<{ server_id: string; token: string }>);
+}
+
+export async function farmTotpSetup(
+  farmUrl: string,
+): Promise<{ secret: string; qr_url: string }> {
+  return farmFetch(farmUrl, "/farm/admin/totp/setup", { method: "POST" }).then(
+    (r) => r.json() as Promise<{ secret: string; qr_url: string }>,
+  );
+}
+
+export async function farmTotpConfirm(
+  farmUrl: string,
+  secret: string,
+  code: string,
+): Promise<void> {
+  await farmFetch(farmUrl, "/farm/admin/totp/confirm", {
+    method: "POST",
+    body: JSON.stringify({ secret, code }),
+  });
+}
+
+export async function farmTotpDisable(
+  farmUrl: string,
+  code: string,
+): Promise<void> {
+  await farmFetch(farmUrl, "/farm/admin/totp/disable", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
 export async function createHubOnFarm(
   farmUrl: string,
   name: string,

@@ -42,6 +42,10 @@ pub(crate) struct AllianceSharedChannel {
     pub channel_name: String,
     pub hub_public_key: String,
     pub hub_name: String,
+    pub channel_type: String,
+    pub parent_id: Option<String>,
+    pub is_category: bool,
+    pub forum_remote_write: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -344,6 +348,7 @@ pub(crate) async fn send_alliance_channel_message(
 pub(crate) async fn share_channel_with_alliance(
     alliance_id: String,
     channel_id: String,
+    include_descendants: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
@@ -351,7 +356,10 @@ pub(crate) async fn share_channel_with_alliance(
     let resp = client
         .post(format!("{hub_url}/alliances/{alliance_id}/channels"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "channel_id": channel_id }))
+        .json(&serde_json::json!({
+            "channel_id": channel_id,
+            "include_descendants": include_descendants.unwrap_or(false),
+        }))
         .send()
         .await
         .map_err(|e| format!("Failed: {e}"))?;

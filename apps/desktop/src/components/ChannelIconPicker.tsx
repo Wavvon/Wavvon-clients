@@ -1,5 +1,5 @@
 import React from "react";
-import { CHANNEL_ICONS, ChannelIconGlyph } from "./Icons";
+import { CHANNEL_ICONS, ChannelIconGlyph } from "@wavvon/ui";
 
 interface Props {
   value: string | null;

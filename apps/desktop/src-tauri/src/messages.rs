@@ -415,6 +415,195 @@ pub(crate) async fn forum_lock_post(
 }
 
 #[tauri::command]
+pub(crate) async fn forum_edit_post(
+    channel_id: String,
+    post_id: String,
+    title: Option<String>,
+    body: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .patch(format!("{hub_url}/channels/{channel_id}/posts/{post_id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "title": title, "body": body }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_delete_post(
+    channel_id: String,
+    post_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .delete(format!("{hub_url}/channels/{channel_id}/posts/{post_id}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_edit_reply(
+    channel_id: String,
+    post_id: String,
+    reply_id: String,
+    body: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .patch(format!(
+            "{hub_url}/channels/{channel_id}/posts/{post_id}/replies/{reply_id}"
+        ))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "body": body }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_delete_reply(
+    channel_id: String,
+    post_id: String,
+    reply_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .delete(format!(
+            "{hub_url}/channels/{channel_id}/posts/{post_id}/replies/{reply_id}"
+        ))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_add_post_reaction(
+    channel_id: String,
+    post_id: String,
+    emoji: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .post(format!(
+            "{hub_url}/channels/{channel_id}/posts/{post_id}/reactions"
+        ))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "emoji": emoji }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_remove_post_reaction(
+    channel_id: String,
+    post_id: String,
+    emoji: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let encoded = urlencoding_emoji(&emoji);
+    let resp = state
+        .http_client
+        .delete(format!(
+            "{hub_url}/channels/{channel_id}/posts/{post_id}/reactions/{encoded}"
+        ))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_add_reply_reaction(
+    channel_id: String,
+    post_id: String,
+    reply_id: String,
+    emoji: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .post(format!(
+            "{hub_url}/channels/{channel_id}/posts/{post_id}/replies/{reply_id}/reactions"
+        ))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "emoji": emoji }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_remove_reply_reaction(
+    channel_id: String,
+    post_id: String,
+    reply_id: String,
+    emoji: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let encoded = urlencoding_emoji(&emoji);
+    let resp = state
+        .http_client
+        .delete(format!(
+            "{hub_url}/channels/{channel_id}/posts/{post_id}/replies/{reply_id}/reactions/{encoded}"
+        ))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub(crate) async fn mark_post_read(
     channel_id: String,
     post_id: String,

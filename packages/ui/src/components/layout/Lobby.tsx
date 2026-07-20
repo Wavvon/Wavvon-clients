@@ -1,0 +1,178 @@
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { powProofString } from "@wavvon/core";
+import type { PowOutMessage } from "../../workers/powWorker";
+import { decideLobbyView, applyPowSubmitResult, computeLobbyProgress } from "../../utils/lobbyDecision";
+import type { LobbyStatusInfo, LobbyWelcomeInfo, SubmitPowResultInfo } from "../../types";
+
+export interface LobbyActions {
+  getStatus: () => Promise<LobbyStatusInfo>;
+  getWelcome: () => Promise<LobbyWelcomeInfo>;
+  submitProof: (powProof: string) => Promise<SubmitPowResultInfo>;
+}
+
+export interface LobbyProps {
+  hubId: string;
+  hubName: string;
+  pubkeyHex: string;
+  actions: LobbyActions;
+  onPromoted: () => void;
+}
+
+type ViewState = "loading" | "active" | "promoted";
+
+// Confined lobby screen for a scope="lobby" session (lobby-bot-survey.md
+// Feature 1). Mines the PoW proof off the main thread via a Worker and
+// submits it through `actions` — the caller supplies the hub transport
+// (HTTP for web, Tauri invoke for desktop) and only hears back via
+// onPromoted once the hub confirms this session moved lobby -> member.
+export function Lobby({ hubId, hubName, pubkeyHex, actions, onPromoted }: LobbyProps) {
+  const { t } = useTranslation();
+  const [viewState, setViewState] = useState<ViewState>("loading");
+  const [welcomeMd, setWelcomeMd] = useState<string | null>(null);
+  const [requiredLevel, setRequiredLevel] = useState(0);
+  const [currentLevel, setCurrentLevel] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  const currentLevelRef = useRef(0);
+  useEffect(() => { currentLevelRef.current = currentLevel; }, [currentLevel]);
+
+  const workerRef = useRef<Worker | null>(null);
+  const pendingProofRef = useRef<{ nonce: string; level: number } | null>(null);
+  const submittingRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      try {
+        const [welcome, status] = await Promise.all([
+          actions.getWelcome().catch(() => null),
+          actions.getStatus(),
+        ]);
+        if (cancelled) return;
+        setWelcomeMd(welcome?.welcome_md || null);
+        setRequiredLevel(status.required_level);
+        setCurrentLevel(status.current_level);
+        if (decideLobbyView(status) === "promoted") {
+          setViewState("promoted");
+          setTimeout(onPromoted, 800);
+          return;
+        }
+        setViewState("active");
+      } catch {
+        setViewState("active");
+      }
+    }
+    void init();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hubId]);
+
+  async function drainSubmitQueue() {
+    if (submittingRef.current) return;
+    const proof = pendingProofRef.current;
+    if (!proof) return;
+    submittingRef.current = true;
+    pendingProofRef.current = null;
+    try {
+      const result = await actions.submitProof(powProofString(BigInt(proof.nonce), proof.level));
+      const { level, promoted } = applyPowSubmitResult(currentLevelRef.current, result);
+      setCurrentLevel(level);
+      if (promoted) {
+        workerRef.current?.postMessage({ type: "stop" });
+        setViewState("promoted");
+        setTimeout(onPromoted, 800);
+        submittingRef.current = false;
+        return;
+      }
+    } catch {
+      // Transient network failure — retry this level; nothing is lost since
+      // the worker keeps mining independently of submission outcome.
+      pendingProofRef.current = pendingProofRef.current ?? proof;
+    }
+    submittingRef.current = false;
+    if (pendingProofRef.current) void drainSubmitQueue();
+  }
+
+  useEffect(() => {
+    if (viewState !== "active" || paused || requiredLevel === 0) return;
+
+    const worker = new Worker(new URL("../../workers/powWorker.ts", import.meta.url), { type: "module" });
+    workerRef.current = worker;
+
+    worker.onmessage = (ev: MessageEvent<PowOutMessage>) => {
+      const msg = ev.data;
+      setCurrentLevel((prev) => Math.max(prev, msg.level));
+      pendingProofRef.current = { nonce: msg.nonce, level: msg.level };
+      void drainSubmitQueue();
+    };
+
+    worker.postMessage({
+      type: "start",
+      pubkeyHex,
+      targetLevel: requiredLevel,
+      startNonce: "0",
+      bestLevel: currentLevelRef.current,
+    });
+
+    return () => {
+      worker.postMessage({ type: "stop" });
+      worker.terminate();
+      workerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewState, paused, requiredLevel, pubkeyHex]);
+
+  if (viewState === "loading") {
+    return (
+      <div className="lobby-view">
+        <div className="lobby-card">
+          <p className="muted">{t("modal.loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (viewState === "promoted") {
+    return (
+      <div className="lobby-view">
+        <div className="lobby-card">
+          <div className="lobby-promoted-badge">{t("lobby.verified_title")}</div>
+          <p className="muted">{t("lobby.welcome", { hub: hubName })}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { pct, etaMinutes: etaMin } = computeLobbyProgress(currentLevel, requiredLevel);
+
+  return (
+    <div className="lobby-view">
+      <div className="lobby-card">
+        <h2 className="lobby-hub-name">{hubName}</h2>
+        <p className="lobby-subtitle muted">{t("lobby.title")}</p>
+
+        {welcomeMd && <pre className="lobby-welcome-md">{welcomeMd}</pre>}
+
+        <div className="lobby-progress-card">
+          <p className="lobby-progress-label">
+            {t("lobby.verifying", { current: currentLevel, required: requiredLevel })}
+          </p>
+          <div className="lobby-progress-bar">
+            <div className="lobby-progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+          {etaMin > 0 && <p className="lobby-eta muted">{t("lobby.eta_min", { min: etaMin })}</p>}
+          <div className="lobby-progress-actions">
+            {paused ? (
+              <button onClick={() => setPaused(false)}>{t("lobby.resume")}</button>
+            ) : (
+              <button className="btn-secondary" onClick={() => setPaused(true)}>{t("lobby.pause")}</button>
+            )}
+          </div>
+        </div>
+
+        <p className="lobby-footer muted">{t("lobby.auto_promote")}</p>
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,6 @@
 import { hexToBytes, signBytes } from "@wavvon/core";
 import { rawFetch } from "../http";
-import { resolveSessionScope } from "../../utils/lobbyDecision";
+import { resolveSessionScope } from "@wavvon/ui";
 
 // Token-acquisition core for the Ed25519 challenge-response auth flow
 // (hub/src/auth/handlers.rs). Factored out of commands/hubs.ts so

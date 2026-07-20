@@ -5,8 +5,8 @@ import type { Channel } from "@shared/types";
 import { ChannelPermissionsTab } from "./ChannelPermissionsTab";
 import { ChannelBansTab } from "./ChannelBansTab";
 import { ColorSwatchPicker } from "@components/common/ColorSwatchPicker";
-import { safeRoleColor } from "@shared/utils/roleAppearance";
-import { BANNER_MAX_BYTES, BANNER_MIME_TYPES, type BannerSource } from "./CreateChannelModal";
+import { safeRoleColor } from "@wavvon/ui";
+import { BANNER_MAX_BYTES, BANNER_MIME_TYPES, type BannerSource } from "@wavvon/ui";
 import { activeSession } from "@platform";
 
 type Tab = "settings" | "permissions" | "bans";

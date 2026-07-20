@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ROLE_ACCENT_COLORS } from "@shared/constants";
-import { HEX_RE } from "@shared/utils/roleAppearance";
+import { HEX_RE } from "@wavvon/ui";
 
 interface Props {
   value: string | null;

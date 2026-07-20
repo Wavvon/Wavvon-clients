@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { NamedProfile, User } from "../types";
-import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "../skinValidation";
+import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import { newProfileId } from "@wavvon/core";
 import type { SettingsTab } from "../components/SettingsPage";
 

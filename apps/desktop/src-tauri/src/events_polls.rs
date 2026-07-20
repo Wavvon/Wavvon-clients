@@ -200,14 +200,26 @@ pub(crate) async fn create_poll(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let url = format!("{}/polls", hub_url.trim_end_matches('/'));
+    // Route is channel-scoped (hub/src/routes/polls.rs: POST
+    // /channels/{channel_id}/polls — there is no bare /polls create route),
+    // and the hub's CreatePollRequest wants `{id, text}` option objects plus
+    // `ends_at`, not a bare string array / `closes_at`.
+    let url = format!(
+        "{}/channels/{}/polls",
+        hub_url.trim_end_matches('/'),
+        channel_id
+    );
+    let option_objects: Vec<serde_json::Value> = options
+        .iter()
+        .enumerate()
+        .map(|(i, text)| serde_json::json!({ "id": i.to_string(), "text": text }))
+        .collect();
     let mut body = serde_json::json!({
-        "channel_id": channel_id,
         "question": question,
-        "options": options,
+        "options": option_objects,
     });
     if let Some(ts) = closes_at {
-        body["closes_at"] = serde_json::Value::Number(ts.into());
+        body["ends_at"] = serde_json::Value::Number(ts.into());
     }
     let res = state
         .http_client

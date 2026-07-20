@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
-import type { ThemeId, WavvonSkin } from "../../../skinValidation";
+import type { ThemeId, WavvonSkin } from "@wavvon/ui";
+import { SkinEditor, SkinsGallery } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
-import { SkinEditor } from "../SkinEditor";
-import { SkinsGallery } from "../SkinsGallery";
+import { fetchWithTimeout } from "@platform";
 import { CustomThemesSection } from "../CustomThemesSection";
 
 const THEMES: { value: ThemeId; label: string }[] = [
@@ -95,7 +95,7 @@ export function AppearanceTab(props: Props) {
           </>
         )}
       </div>
-      <SkinsGallery onImport={props.onImportSkin} />
+      <SkinsGallery fetchWithTimeout={fetchWithTimeout} onImport={props.onImportSkin} />
     </section>
   );
 }

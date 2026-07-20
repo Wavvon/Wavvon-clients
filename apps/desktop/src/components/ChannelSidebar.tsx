@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { SearchBar } from "./SearchBar";
+import { invoke } from "@tauri-apps/api/core";
 import { WhisperPanel } from "./WhisperPanel";
 import type { WhisperTarget, WhisperList } from "../hooks/useWhisper";
 import {
@@ -27,9 +27,9 @@ import type {
   Conversation,
 } from "../types";
 import type { TreeNode, FlatNode } from "@wavvon/core";
-import { PhoneOffIcon, ChannelIcon, PingIcon } from "./Icons";
-import { SortableBannerItem, SortableCategoryItem, SortableChannelItem } from "./SortableItems";
-import { HoverSubmenu } from "@wavvon/ui";
+import { PhoneOffIcon, ChannelIcon, PingIcon, SortableCategoryItem, SortableChannelItem, HoverSubmenu, SearchBar } from "@wavvon/ui";
+import type { GlobalSearchResult } from "@wavvon/ui";
+import { hasDraft } from "../utils/drafts";
 
 const CHANNEL_INDENT_PX = 16;
 
@@ -141,6 +141,7 @@ export function ChannelSidebar({
   onGlobalSearchNavigate,
 }: Props) {
   const { t } = useTranslation();
+  const [searchBarOpen, setSearchBarOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [hubCtxMenu, setHubCtxMenu] = useState<{ x: number; y: number } | null>(null);
@@ -363,7 +364,24 @@ export function ChannelSidebar({
       )}
 
       {view === "channels" && (
-        <SearchBar onNavigate={onGlobalSearchNavigate} />
+        <button
+          className="btn-ghost"
+          style={{ width: "100%", textAlign: "left", padding: "6px 12px" }}
+          onClick={() => setSearchBarOpen(true)}
+        >
+          🔍 {t("search.placeholder")}
+        </button>
+      )}
+
+      {searchBarOpen && (
+        <SearchBar
+          onSearch={(q) => invoke<GlobalSearchResult[]>("search_messages_global", { q })}
+          onClose={() => setSearchBarOpen(false)}
+          onNavigate={(channelId, messageId) => {
+            onGlobalSearchNavigate(channelId, messageId);
+            setSearchBarOpen(false);
+          }}
+        />
       )}
 
       <div
@@ -404,19 +422,7 @@ export function ChannelSidebar({
                         onAdd={() => onOpenCreateChannel(n.node.id)}
                         onSettings={isAdmin ? (_e) => onOpenChannelSettings(n.node) : undefined}
                       />
-                    ) : n.node.channel_type === "banner" ? (() => {
-                      const hubUrl = activeHub?.hub_url ?? "";
-                      const src = n.node.banner_url ?? (n.node.banner_file_id ? `${hubUrl}/uploads/${n.node.banner_file_id}` : null);
-                      if (!src) return null;
-                      return (
-                        <SortableBannerItem
-                          key={n.node.id}
-                          channel={n.node}
-                          src={src}
-                          onContextMenu={isAdmin ? (e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); } : undefined}
-                        />
-                      );
-                    })() : (
+                    ) : (
                       <SortableChannelItem
                         key={n.node.id}
                         channel={n.node}
@@ -427,10 +433,12 @@ export function ChannelSidebar({
                         muted={!!activeHubId && effectiveNotifyMode(activeHubId, n.node.id) === "silent"}
                         participants={voicePartByChannel[n.node.id] ?? []}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
+                        hubUrl={activeHub?.hub_url}
                         style={{ paddingLeft: n.depth * CHANNEL_INDENT_PX }}
                         tabIndex={channelFocusIndex === idx ? 0 : -1}
                         voiceGains={voiceGains}
                         inboundWhispers={inboundWhispers}
+                        hasDraft={hasDraft}
                         onClick={() => { setChannelFocusIndex(idx); onSelectChannel(n.node); }}
                         onDoubleClick={() => { if (voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}

@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { initI18n } from "@wavvon/i18n";
 import App from "./App";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorBoundary } from "@wavvon/ui";
 import "@wavvon/ui/styles.css";
 
 const storedLang = localStorage.getItem('wavvon_language');

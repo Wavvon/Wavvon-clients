@@ -71,7 +71,13 @@ export {
   getFarmUsers,
   revokeFarmUserSessions,
   createHubOnFarm,
+  getFarmServers,
+  generateFarmServerToken,
+  farmTotpSetup,
+  farmTotpConfirm,
+  farmTotpDisable,
 } from "./commands/farms";
+export type { FarmServerEntry } from "./commands/farms";
 
 export {
   listConversations,

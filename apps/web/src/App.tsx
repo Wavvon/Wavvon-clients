@@ -39,40 +39,39 @@ import type {
   SoundboardClip,
 } from "@shared/types";
 import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus } from "./types";
-import { HubSidebar } from "@components/layout/HubSidebar";
+import { HubSidebar } from "@wavvon/ui";
 import { ChannelSidebar } from "@components/layout/ChannelSidebar";
 import { ContentArea } from "@components/layout/ContentArea";
 import { WhisperBar } from "@components/voice/WhisperBar";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
-import { loadDefaultProfile, saveDefaultProfile, type DefaultProfile } from "./utils/profiles";
+import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, type DefaultProfile } from "./utils/profiles";
+import { getUserProfile, listRoleCategories, patchMyProfileOnHub, listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } from "@platform";
+import type { UserProfileCardActions, UserContextMenuActions } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
-import { Lobby } from "@components/layout/Lobby";
-import { HubStreamsPanel } from "@components/voice/HubStreamsPanel";
+import { HubStreamsPanel } from "@wavvon/ui";
 import type { HubStreamInfo } from "./types";
-import { AddHubModal } from "@components/hubs/AddHubModal";
+import { AddHubModal } from "@wavvon/ui";
+import { isPasskeySupported } from "@platform";
 import { QuickInviteModal } from "@components/hubs/QuickInviteModal";
-import { CreateChannelModal } from "@components/channels/CreateChannelModal";
-import { EventComposer } from "@components/events/EventComposer";
-import { PollComposer } from "@components/polls/PollComposer";
+import { CreateChannelModal } from "@wavvon/ui";
 import { ChannelSettingsModal } from "@components/channels/ChannelSettingsModal";
-import { FarmSettingsPage } from "@components/admin/FarmSettingsPage";
 import { CreateHubFork } from "@components/hubs/CreateHubFork";
-import { BotAppLaunchCard, FocusTrap, GameModal, KeyboardShortcuts, HoverSubmenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal } from "@wavvon/ui";
+import { BotAppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, HoverSubmenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, FarmSettingsPage } from "@wavvon/ui";
+import { createEvent, createPoll } from "@platform";
 import { moveChannelOptions, decideVoiceMove } from "./utils/voiceMove";
 import { HubAdminPage } from "@components/admin/HubAdminPage";
-import { SearchBar } from "@components/layout/SearchBar";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
 import { SettingsPage } from "@components/settings/SettingsPage";
-import { UserContextMenu } from "@components/users/UserContextMenu";
+import { UserContextMenu } from "@wavvon/ui";
 import { VideoPipWindow } from "@components/voice/VideoPipWindow";
-import { FriendsModal } from "@components/users/FriendsModal";
-import { MobileShell } from "@components/layout/MobileShell";
-import { DiscoverPage } from "@components/hubs/DiscoverPage";
+import { FriendsModal } from "@wavvon/ui";
+import { listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriendRequest, removeFriend } from "@platform";
+import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "./utils/drafts";
-import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
+import type { ScreenShareViewerRef } from "@wavvon/ui";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
 import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, authenticateWithPasskey, sendBotAppJoin } from "@platform";
 import { markSoundboardPlayed, fetchSoundboardAudioBytes, getMyChannelPermissions, sendSetStatus, sendSetStatusTo, uploadFile } from "@platform";
@@ -91,6 +90,22 @@ import {
   hubFetch,
   HubApiError,
   loadSavedHubs,
+  fetchWithTimeout,
+  getLobbyStatus,
+  getLobbyWelcome,
+  submitLobbyPow,
+  getFarmSettings,
+  patchFarmSettings,
+  getFarmHubsAdmin,
+  suspendFarmHub,
+  deleteFarmHub,
+  getFarmUsers,
+  revokeFarmUserSessions,
+  getFarmServers,
+  generateFarmServerToken,
+  farmTotpSetup,
+  farmTotpConfirm,
+  farmTotpDisable,
 } from "@platform";
 import type { WsHandlers } from "@platform";
 import { getActiveHubId } from "@platform";
@@ -136,6 +151,28 @@ type HubPreview =
   | { state: "loading" }
   | { state: "ok"; url: string; name: string; description?: string | null; icon?: string | null; invite_only?: boolean; min_security_level?: number; welcome_label?: string | null; welcome_invite_url?: string | null }
   | { state: "error"; message: string };
+
+// The member profile card's own-profile save also propagates to every other
+// hub following the account's default profile (see utils/profiles.ts) — pure
+// module-level plumbing, no App state needed, so it lives beside the import
+// list rather than being rebuilt every render.
+const profileCardActions: UserProfileCardActions = {
+  getUserProfile: (pubkey) => getUserProfile(pubkey),
+  listRoleCategories: () => listRoleCategories(),
+  saveMyProfile: async (hubId, fields) => {
+    await patchMyProfileOnHub(hubId, fields);
+    const follows = loadFollowsDefault();
+    if (follows.includes(hubId)) {
+      const def = loadDefaultProfile();
+      if (def) saveDefaultProfile({ ...def, ...fields });
+      for (const hid of follows) {
+        if (hid !== hubId) {
+          try { await patchMyProfileOnHub(hid, fields); } catch { /* offline hub catches up later */ }
+        }
+      }
+    }
+  },
+};
 
 // ---- App ----
 
@@ -429,8 +466,7 @@ export default function App({ initialView }: AppProps = {}) {
   const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
   const [firstRunName, setFirstRunName] = useState("");
   const [userContextMenu, setUserContextMenu] = useState<{
-    pubkey: string;
-    displayName: string | null;
+    user: User;
     position: { x: number; y: number };
   } | null>(null);
 
@@ -2202,6 +2238,24 @@ export default function App({ initialView }: AppProps = {}) {
     [myRoles],
   );
 
+  const userContextMenuActions: UserContextMenuActions = {
+    listRoles,
+    listUserRoles,
+    assignRole: assignRoleToUser,
+    removeRole: removeRoleFromUser,
+    muteUser: (pubkey) => hubFetch("/moderation/mutes", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    kickUser: (pubkey) => hubFetch("/moderation/kick", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    banUser: (pubkey) => hubFetch("/moderation/bans", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    dm: (user) => handleStartConversation(user.public_key),
+    addFriend: (user) => {
+      void sendFriendRequest(user.public_key)
+        .then(() => showHubError(`Friend request sent to ${user.display_name ?? user.public_key.slice(0, 8)}`))
+        .catch((e) => showHubError(`Failed to send friend request: ${e}`));
+    },
+    toggleBlock: toggleBlockUser,
+    toggleIgnore: toggleIgnoreUser,
+  };
+
   const knownDisplayNames = useMemo(
     () => new Set(users.map((u) => u.display_name).filter(Boolean) as string[]),
     [users],
@@ -2447,14 +2501,14 @@ export default function App({ initialView }: AppProps = {}) {
               setShowDiscover(false);
               setShowAddHub(true);
             }}
+            fetchUrl={fetchWithTimeout}
           />
         </div>
       )}
 
       {showSearchBar && (
         <SearchBar
-          hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
-          activeChannelId={selectedChannel?.id}
+          onSearch={(q) => hubFetch(`/search?q=${encodeURIComponent(q)}`).then((r) => r.json())}
           onClose={() => setShowSearchBar(false)}
           onNavigate={(channelId, _messageId) => {
             const ch = channels.find((c) => c.id === channelId);
@@ -2465,7 +2519,11 @@ export default function App({ initialView }: AppProps = {}) {
       )}
 
       {showFriends && (
-        <FriendsModal onClose={() => setShowFriends(false)} onToast={(msg) => showHubError(msg)} />
+        <FriendsModal
+          actions={{ listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriendRequest, removeFriend }}
+          onClose={() => setShowFriends(false)}
+          onToast={(msg) => showHubError(msg)}
+        />
       )}
 
       {showHubStreams && (
@@ -2529,12 +2587,15 @@ export default function App({ initialView }: AppProps = {}) {
 
       {userContextMenu && (
         <UserContextMenu
-          pubkey={userContextMenu.pubkey}
-          displayName={userContextMenu.displayName}
+          user={userContextMenu.user}
+          publicKey={publicKey}
           isAdmin={isAdmin}
           canManageRoles={canManageRoles}
           myMaxPriority={myMaxPriority}
+          blockedUsers={blockedUsers}
+          ignoredUsers={ignoredUsers}
           position={userContextMenu.position}
+          actions={userContextMenuActions}
           onClose={() => setUserContextMenu(null)}
           onToast={(msg) => showHubError(msg)}
           onRolesChanged={() => {
@@ -2558,6 +2619,20 @@ export default function App({ initialView }: AppProps = {}) {
           tab={farmAdminTab}
           onTab={setFarmAdminTab}
           onClose={() => setShowFarmSettings(false)}
+          actions={{
+            getSettings: getFarmSettings,
+            patchSettings: patchFarmSettings,
+            getHubs: getFarmHubsAdmin,
+            suspendHub: suspendFarmHub,
+            deleteHub: deleteFarmHub,
+            getUsers: getFarmUsers,
+            revokeUserSessions: revokeFarmUserSessions,
+            getServers: getFarmServers,
+            generateServerToken: generateFarmServerToken,
+            totpSetup: farmTotpSetup,
+            totpConfirm: farmTotpConfirm,
+            totpDisable: farmTotpDisable,
+          }}
         />
       )}
 
@@ -2611,6 +2686,9 @@ export default function App({ initialView }: AppProps = {}) {
         onSwitchToDms={() => setView("dms")}
         onSwitchHub={handleSwitchHub}
         onRemoveHub={handleRemoveHub}
+        onSetHubNotifyMode={(hubId, mode) =>
+          setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
+        }
         onHubReorder={handleHubReorder}
         onAddHub={() => setShowAddHub(true)}
         onCreateHub={() => setShowCreateHub(true)}
@@ -2714,6 +2792,7 @@ export default function App({ initialView }: AppProps = {}) {
         onDragEnd={handleChannelDragEnd}
         voiceGains={voiceGains}
         onSetVoiceGain={handleSetVoiceGain}
+        inboundWhispers={whisperingFrom}
         canUseSoundboard={canUseSoundboard}
         onTriggerSoundboardClip={handleTriggerSoundboardClip}
         soundboardPlayingClipId={soundboardPlayingClipId}
@@ -2759,6 +2838,11 @@ export default function App({ initialView }: AppProps = {}) {
             hubId={activeHubId}
             hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
             pubkeyHex={publicKey}
+            actions={{
+              getStatus: getLobbyStatus,
+              getWelcome: getLobbyWelcome,
+              submitProof: submitLobbyPow,
+            }}
             onPromoted={() => void handleLobbyPromoted(activeHubId)}
           />
         </main>
@@ -2819,6 +2903,7 @@ export default function App({ initialView }: AppProps = {}) {
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}
+        ignoredUsers={ignoredUsers}
         knownDisplayNames={knownDisplayNames}
         myDisplayName={meInfo?.display_name ?? null}
         isAdmin={isAdmin}
@@ -2873,11 +2958,7 @@ export default function App({ initialView }: AppProps = {}) {
         }}
         onSetUserContextMenu={(menu) => {
           if (!menu) { setUserContextMenu(null); return; }
-          setUserContextMenu({
-            pubkey: menu.user.public_key,
-            displayName: menu.user.display_name,
-            position: { x: menu.x, y: menu.y },
-          });
+          setUserContextMenu({ user: menu.user, position: { x: menu.x, y: menu.y } });
         }}
         onSetEditingDraft={setEditingDraft}
         onInputTextChange={(v) => {
@@ -2894,6 +2975,7 @@ export default function App({ initialView }: AppProps = {}) {
         onOpenHubStreams={handleOpenHubStreams}
         assertiveAnnouncement={assertiveAnnouncement}
         onStartConversation={handleStartConversation}
+        profileCardActions={profileCardActions}
         voicePartByChannel={visibleVoicePartByChannel}
         selfInvisible={myPresence.status === "invisible"}
         canMoveMembers={canMoveMembers}
@@ -2968,12 +3050,14 @@ export default function App({ initialView }: AppProps = {}) {
           fingerprintMatch={fingerprintMatch}
           onAdd={handleAddHub}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
+          passkeySupported={isPasskeySupported()}
           onClose={() => {
             setShowAddHub(false);
             setHubPreview({ state: "idle" });
             setAddHubError(null);
             setFingerprintMatch(false);
           }}
+          onBrowse={() => { setShowAddHub(false); setShowDiscover(true); }}
         />
       )}
 
@@ -3003,6 +3087,8 @@ export default function App({ initialView }: AppProps = {}) {
           channelId={eventComposerChannelId}
           channels={channels}
           canHubWide={isAdmin}
+          advancedFieldsSupported
+          onSubmit={createEvent}
           onCreated={() => {}}
           onClose={() => setEventComposerChannelId(null)}
         />
@@ -3011,6 +3097,7 @@ export default function App({ initialView }: AppProps = {}) {
       {pollComposerChannelId && (
         <PollComposer
           channelId={pollComposerChannelId}
+          onCreatePoll={createPoll}
           onCreated={() => {}}
           onClose={() => setPollComposerChannelId(null)}
         />

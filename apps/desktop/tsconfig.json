@@ -23,5 +23,5 @@
     }
   },
   "include": ["src", "../../web/i18n", "../../packages/ui/src"],
-  "exclude": ["../../web/i18n/check-coverage.ts"]
+  "exclude": ["../../web/i18n/check-coverage.ts", "../../packages/ui/src/**/__tests__/**"]
 }

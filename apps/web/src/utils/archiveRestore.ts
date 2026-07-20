@@ -1,5 +1,5 @@
 import type { SavedHub } from "@platform";
-import type { WavvonSkin } from "../skinValidation";
+import type { WavvonSkin } from "@wavvon/ui";
 import type { NamedCustomTheme } from "./customThemes";
 import { getScoped, setScoped } from "./accountScope";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "./customThemes";

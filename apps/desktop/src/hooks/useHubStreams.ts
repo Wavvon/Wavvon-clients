@@ -8,7 +8,7 @@ import type {
   WsStreamSubscriptionEnded,
   WsHubStreams,
 } from "../types";
-import type { ScreenShareViewerRef } from "../components/ScreenShareViewer";
+import type { ScreenShareViewerRef } from "@wavvon/ui";
 
 interface WsInfo {
   hub_url: string;
@@ -98,7 +98,7 @@ export function useHubStreams(
               channel_id: ev.channel_id,
               stream_id: ev.stream_id,
               sharer_pubkey: ev.sharer_pubkey,
-              kind: ev.kind,
+              kind: (ev.kind === "webcam" ? "webcam" : "screen") as "screen" | "webcam",
               mime: ev.mime,
               has_audio: ev.has_audio,
             }];

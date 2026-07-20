@@ -1,8 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub } from "../../types";
-import { MessageRow } from "./MessageRow";
-import { TypingIndicator } from "@wavvon/ui";
+import { MessageRow, TypingIndicator, type MessageRowActions } from "@wavvon/ui";
 
 type HubEmojiEntry = { id: string; name: string; url: string };
 type TypingEntry = { name: string; ts: number };
@@ -50,11 +49,13 @@ interface Props {
   onOpenImage: (src: string, alt: string) => void;
   onOpenBotCard: (pubkey: string, e: React.MouseEvent) => void;
   onOpenProfileCard: (pubkey: string, e: React.MouseEvent) => void;
+  onAuthorContextMenu: (e: React.MouseEvent, pubkey: string, fallbackName: string | null) => void;
   onMessagesScroll: () => void;
   onJumpToBottom: () => void;
   onClearFirstNotify: () => void;
   onMessageKeyDown: (e: React.KeyboardEvent<HTMLLIElement>, index: number, displayedMessages: Message[]) => void;
   onComponentInteract: (messageId: string, customId: string, values: string[]) => void;
+  actions: MessageRowActions;
 }
 
 export function ChannelMessageList({
@@ -100,11 +101,13 @@ export function ChannelMessageList({
   onOpenImage,
   onOpenBotCard,
   onOpenProfileCard,
+  onAuthorContextMenu,
   onMessagesScroll,
   onJumpToBottom,
   onClearFirstNotify,
   onMessageKeyDown,
   onComponentInteract,
+  actions,
 }: Props) {
   const { t } = useTranslation();
   const displayedMessages = (searchResults ?? messages).filter((msg) => !blockedUsers.has(msg.sender));
@@ -150,13 +153,17 @@ export function ChannelMessageList({
             editingMessageId={editingMessageId}
             editingDraft={editingDraft}
             focusedMessageIndex={focusedMessageIndex}
-            activeHub={activeHub}
             hubEmojiMap={hubEmojiMap}
+            hubBaseUrl={activeHub?.hub_url}
             expandedThreads={expandedThreads}
             threadReplies={threadReplies}
             hubs={hubs}
             activeHubId={activeHubId}
             isAdmin={isAdmin}
+            sessionHubUrl={activeHub?.hub_url ?? null}
+            actions={actions}
+            onPollUpdate={() => {}}
+            onPollDelete={() => {}}
             displayedMessages={displayedMessages}
             messageRowRef={(el) => { messageRowRefs.current[i] = el; }}
             onToggleReaction={onToggleReaction}
@@ -172,7 +179,8 @@ export function ChannelMessageList({
             onToggleThread={onToggleThread}
             onOpenImage={onOpenImage}
             onOpenBotCard={onOpenBotCard}
-            onOpenProfileCard={onOpenProfileCard}
+            onAuthorClick={(pubkey, e) => { if (e) onOpenProfileCard(pubkey, e); }}
+            onAuthorContextMenu={onAuthorContextMenu}
             onMessageKeyDown={onMessageKeyDown}
             onComponentInteract={onComponentInteract}
           />

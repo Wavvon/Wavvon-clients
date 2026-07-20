@@ -12,21 +12,60 @@ import type {
   Conversation,
   AllianceSharedChannel,
   VoiceParticipant,
-  PostSummary,
   LinkPreview,
   BotProfile,
+  PostListResponse,
+  PostDetail,
+  UserProfile,
 } from "../types";
-import { ForumView } from "./content/ForumView";
-import { UserListGrouped } from "./UserListGrouped";
-import { UserProfileCard } from "./UserProfileCard";
+import { UserListGrouped } from "@wavvon/ui";
+import { UserProfileCard } from "@wavvon/ui";
 import { PinnedMessages } from "./PinnedMessages";
-import { PollComposer } from "./PollComposer";
-import { EventsPanel } from "./EventsPanel";
 import { DmView } from "./content/DmView";
-import { ChannelHeader } from "./content/ChannelHeader";
 import { ChannelMessageList } from "./content/ChannelMessageList";
-import { ChannelComposer } from "./content/ChannelComposer";
-import { AllianceView, BotCard, ReconnectBanner } from "@wavvon/ui";
+import {
+  AllianceView, BotCard, ReconnectBanner, ForumView, type ForumActions,
+  PollComposer, EventsPanel, type Poll, type HubEvent,
+  ChannelHeader, ChannelComposer, type MessageRowActions,
+} from "@wavvon/ui";
+
+function domainOf(url: string): string {
+  try { return new URL(url).hostname; } catch { return url; }
+}
+
+// Desktop has no alliance-forum access yet (federation write-proxy is a
+// web-only surface so far), so the alliance-prefixed actions stay unset.
+// Reply-thread pagination (the old desktop forum_get_post_replies command)
+// is dropped here -- the hub never registered a GET route for
+// /channels/:cid/posts/:pid/replies, so that command 404'd already.
+const forumActions: ForumActions = {
+  listPosts: (channelId, cursor) => invoke<PostListResponse>("forum_list_posts", { channelId, cursor }),
+  getPost: (channelId, postId) => invoke<PostDetail>("forum_get_post", { channelId, postId }),
+  createPost: (channelId, title, body) => invoke<{ id: string }>("forum_create_post", { channelId, title, body }),
+  createReply: (channelId, postId, body, replyToId) =>
+    invoke<{ id: string }>("forum_create_reply", { channelId, postId, body, replyToId }),
+  // ponytail: these 8 don't have a #[tauri::command] on the Rust side yet --
+  // wired against the hub's real channel/post-scoped routes so backend-engineer
+  // can add forum_edit_post/forum_delete_post/forum_edit_reply/forum_delete_reply/
+  // forum_add_post_reaction/forum_remove_post_reaction/forum_add_reply_reaction/
+  // forum_remove_reply_reaction by mirroring forum_pin_post's pattern.
+  editPost: (channelId, postId, title, body) => invoke<void>("forum_edit_post", { channelId, postId, title, body }),
+  deletePost: (channelId, postId) => invoke<void>("forum_delete_post", { channelId, postId }),
+  editReply: (channelId, postId, replyId, body) =>
+    invoke<void>("forum_edit_reply", { channelId, postId, replyId, body }),
+  deleteReply: (channelId, postId, replyId) => invoke<void>("forum_delete_reply", { channelId, postId, replyId }),
+  pinPost: (channelId, postId, pin) => invoke<void>("forum_pin_post", { channelId, postId, pin }),
+  lockPost: (channelId, postId, lock) => invoke<void>("forum_lock_post", { channelId, postId, lock }),
+  markPostRead: (channelId, postId) => invoke<void>("mark_post_read", { channelId, postId }),
+  addPostReaction: (channelId, postId, emoji) =>
+    invoke<void>("forum_add_post_reaction", { channelId, postId, emoji }),
+  removePostReaction: (channelId, postId, emoji) =>
+    invoke<void>("forum_remove_post_reaction", { channelId, postId, emoji }),
+  addReplyReaction: (channelId, postId, replyId, emoji) =>
+    invoke<void>("forum_add_reply_reaction", { channelId, postId, replyId, emoji }),
+  removeReplyReaction: (channelId, postId, replyId, emoji) =>
+    invoke<void>("forum_remove_reply_reaction", { channelId, postId, replyId, emoji }),
+};
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -47,6 +86,7 @@ interface Props {
   activeHubId: string | null;
   hubs: Hub[];
   theme: string;
+  channels: Channel[];
   selectedChannel: Channel | null;
   selectedConversation: Conversation | null;
   selectedAllianceChannel: SelectedAllianceChannel | null;
@@ -125,7 +165,7 @@ interface Props {
 }
 
 export function ContentArea({
-  view, activeHubId, hubs, theme,
+  view, activeHubId, hubs, theme, channels,
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
   dmMessages, allianceMessages,
@@ -158,19 +198,13 @@ export function ContentArea({
   const [mentionSelectedIdx, setMentionSelectedIdx] = useState(0);
   const [mentionAnchor, setMentionAnchor] = useState<number>(-1);
   const [botCard, setBotCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
-  const [profileCard, setProfileCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
+  const [profileCard, setProfileCard] = useState<{ pubkey: string } | null>(null);
   const [showPinned, setShowPinned] = useState(false);
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [showEventsPanel, setShowEventsPanel] = useState(false);
-  const [forumSelectedPost, setForumSelectedPost] = useState<PostSummary | null>(null);
-  const [forumComposing, setForumComposing] = useState(false);
   // Track IME composition so we don't reset the input value mid-emoji on Windows.
   const isComposing = React.useRef(false);
 
-  useEffect(() => {
-    setForumSelectedPost(null);
-    setForumComposing(false);
-  }, [selectedChannel?.id]);
   const [focusedMessageIndex, setFocusedMessageIndex] = useState<number>(-1);
   const messageRowRefs = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -261,11 +295,53 @@ export function ContentArea({
     setBotCard({ pubkey, rect });
   }, []);
 
-  const openProfileCard = useCallback((pubkey: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setProfileCard({ pubkey, rect });
+  const openProfileCard = useCallback((pubkey: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setProfileCard({ pubkey });
   }, []);
+
+  // Same member menu the sidebar member list opens on right-click — folded
+  // in from web, a real feature desktop's message rows lacked (right-click
+  // on a message author previously did nothing).
+  function handleAuthorContextMenu(e: React.MouseEvent, pubkey: string, fallbackName: string | null) {
+    e.preventDefault();
+    const user = users.find((u) => u.public_key === pubkey) ?? {
+      public_key: pubkey,
+      display_name: fallbackName,
+      avatar: null,
+      online: false,
+      group_role: null,
+    };
+    onSetUserContextMenu({ x: e.clientX, y: e.clientY, user });
+  }
+
+  async function fetchLinkPreviewAction(hubUrl: string, url: string): Promise<LinkPreview> {
+    const raw = await invoke<{ url: string; title?: string; description?: string; image_url?: string }>(
+      "fetch_link_preview", { hubUrl, url },
+    );
+    return {
+      url: raw.url,
+      title: raw.title ?? null,
+      description: raw.description ?? null,
+      image: raw.image_url ?? null,
+      domain: domainOf(raw.url),
+    };
+  }
+
+  const messageRowActions: MessageRowActions = {
+    pinMessage: (channelId, messageId) => invoke("pin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
+    unpinMessage: (channelId, messageId) => invoke("unpin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
+    sendBotAppJoin: (botId, channelId) => {
+      invoke("send_hub_ws_raw", {
+        payload: JSON.stringify({ type: "bot_app_join", bot_id: botId, channel_id: channelId }),
+      }).catch(() => {});
+    },
+    fetchLinkPreview: fetchLinkPreviewAction,
+    muteUser: (pubkey) => invoke("mute_user_cmd", { targetPublicKey: pubkey, reason: null }),
+    kickUser: (pubkey) => invoke("kick_user_cmd", { targetPublicKey: pubkey, reason: null }),
+    banUser: (pubkey) => invoke("ban_user_cmd", { targetPublicKey: pubkey, reason: null }),
+    // votePoll/deletePoll and reportMessage omitted — see MessageRowActions doc comment.
+  };
 
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
 
@@ -313,11 +389,11 @@ export function ContentArea({
     setMentionAnchor(-1);
   }
 
-  function fillMention(user: User) {
-    if (mentionAnchor < 0 || !user.display_name) return;
+  function fillMention(displayName: string) {
+    if (mentionAnchor < 0 || !displayName) return;
     const before = inputText.slice(0, mentionAnchor);
     const after = inputText.slice(mentionAnchor + 1 + (inputText.slice(mentionAnchor + 1).split(" ")[0].length));
-    onInputTextChange(`${before}@${user.display_name} ${after}`);
+    onInputTextChange(`${before}@${displayName} ${after}`);
     setMentionSuggestions([]);
     setMentionAnchor(-1);
     setMentionSelectedIdx(0);
@@ -361,7 +437,8 @@ export function ContentArea({
       }
       if (e.key === "Tab" || e.key === "Enter") {
         e.preventDefault();
-        fillMention(mentionSuggestions[mentionSelectedIdx]);
+        const u = mentionSuggestions[mentionSelectedIdx];
+        if (u?.display_name) fillMention(u.display_name);
         return;
       }
       if (e.key === "Escape") {
@@ -445,39 +522,43 @@ export function ContentArea({
           )
         ) : selectedChannel && selectedChannel.channel_type === "forum" ? (
           <ForumView
-            selectedChannel={selectedChannel}
-            activeHubUrl={activeHub?.hub_url ?? ""}
-            users={users}
+            channelId={selectedChannel.id}
             myRoles={myRoles}
             myPubkey={publicKey}
-            forumSelectedPost={forumSelectedPost}
-            forumComposing={forumComposing}
-            onSetForumSelectedPost={setForumSelectedPost}
-            onSetForumComposing={setForumComposing}
+            isAdmin={isAdmin}
+            actions={forumActions}
           />
         ) : selectedChannel ? (
           <div className="chat-column">
             <ChannelHeader
               selectedChannel={selectedChannel}
-              voiceChannelId={voiceChannelId}
+              channels={channels}
               memberSidebarHidden={memberSidebarHidden}
               searchOpen={searchOpen}
               searchQuery={searchQuery}
               searchResults={searchResults}
-              sharing={sharing}
-              shareKbps={shareKbps}
               isAdmin={isAdmin}
-              onVoiceJoin={onVoiceJoin}
-              onVoiceLeave={onVoiceLeave}
               onShowPinned={() => setShowPinned(true)}
-              onShowEvents={() => setShowEventsPanel(true)}
               onToggleSearch={() => searchOpen ? onCloseSearch() : onSetSearchOpen(true)}
               onCloseSearch={onCloseSearch}
               onSetSearchQuery={onSetSearchQuery}
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
-              onStopShare={onStopShare}
+              // Desktop's sidebar doesn't track collapsed-category state the
+              // way web's does (ChannelSidebar collapse persistence), so the
+              // breadcrumb renders but a crumb click is a no-op here for now.
+              onBreadcrumbCategoryClick={() => {}}
             />
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px" }}>
+              <button
+                onClick={() => setShowEventsPanel(true)}
+                className="btn-icon-header"
+                title="Events"
+                aria-label="Events"
+              >
+                📅
+              </button>
+            </div>
             <ChannelMessageList
               selectedChannelName={selectedChannel.name}
               selectedChannelDescription={selectedChannel.description}
@@ -521,11 +602,13 @@ export function ContentArea({
               onOpenImage={onOpenImage}
               onOpenBotCard={openBotCard}
               onOpenProfileCard={openProfileCard}
+              onAuthorContextMenu={handleAuthorContextMenu}
               onMessagesScroll={onMessagesScroll}
               onJumpToBottom={onJumpToBottom}
               onClearFirstNotify={onClearFirstNotify}
               onMessageKeyDown={handleMessageKeyDown}
               onComponentInteract={handleComponentInteract}
+              actions={messageRowActions}
             />
             <ChannelComposer
               channelName={selectedChannel.name}
@@ -534,14 +617,15 @@ export function ContentArea({
               replyTarget={replyTarget}
               pendingAttachments={pendingAttachments}
               users={users}
-              publicKey={publicKey}
               slashSuggestions={slashSuggestions}
               slashSelectedIdx={slashSelectedIdx}
               mentionSuggestions={mentionSuggestions}
               mentionSelectedIdx={mentionSelectedIdx}
+              mentionQuery={mentionAnchor >= 0 ? inputText.slice(mentionAnchor + 1) : null}
               showPollButton={!!(selectedChannel && activeHub)}
               isComposing={isComposing}
               messageInputRef={messageInputRef}
+              loadHubEmojis={() => invoke("list_hub_emojis")}
               onInputTextChange={handleSlashInputChange}
               onKeyDown={handleSlashKeyDown}
               onSend={onSend}
@@ -575,6 +659,8 @@ export function ContentArea({
           <UserListGrouped
             users={users}
             inVoice={voiceActiveUsers}
+            myPubkey={publicKey}
+            onUserClick={(pubkey) => openProfileCard(pubkey)}
             onContextMenu={(e, u) => {
               e.preventDefault();
               onSetUserContextMenu({ x: e.clientX, y: e.clientY, user: u });
@@ -596,21 +682,10 @@ export function ContentArea({
       {profileCard && activeHub && (
         <UserProfileCard
           pubkey={profileCard.pubkey}
-          hubUrl={activeHub.hub_url}
-          anchorRect={profileCard.rect}
           myPubkey={publicKey}
-          isAdmin={isAdmin}
-          myRoles={myRoles}
+          activeHubId={activeHubId}
+          actions={{ getUserProfile: (pubkey) => invoke<UserProfile>("get_user_profile", { hubUrl: activeHub.hub_url, pubkey }) }}
           onClose={() => setProfileCard(null)}
-          onKick={(pk) => {
-            invoke("kick_user_cmd", { hubUrl: activeHub.hub_url, pubkey: pk }).catch(() => {});
-          }}
-          onBan={(pk) => {
-            invoke("ban_user_cmd", { hubUrl: activeHub.hub_url, pubkey: pk, reason: null }).catch(() => {});
-          }}
-          onMute={(pk) => {
-            invoke("voice_mute_user_cmd", { hubUrl: activeHub.hub_url, pubkey: pk, reason: null }).catch(() => {});
-          }}
         />
       )}
 
@@ -627,8 +702,26 @@ export function ContentArea({
 
       {showPollComposer && activeHub && selectedChannel && (
         <PollComposer
-          hubUrl={activeHub.hub_url}
           channelId={selectedChannel.id}
+          onCreatePoll={async (channelId, question, options) => {
+            const raw = await invoke<{
+              id: string; channel_id: string; creator_pubkey: string; question: string;
+              options: string; ends_at: number | null; created_at: number;
+            }>("create_poll", { hubUrl: activeHub.hub_url, channelId, question, options, closesAt: null });
+            const rawOptions: Array<{ id: string; text: string }> = JSON.parse(raw.options);
+            const poll: Poll = {
+              id: raw.id,
+              channel_id: raw.channel_id,
+              question: raw.question,
+              options: rawOptions.map((o) => ({ id: o.id, text: o.text, vote_count: 0, voted: false })),
+              total_votes: 0,
+              created_by: raw.creator_pubkey,
+              created_at: raw.created_at,
+              ends_at: raw.ends_at,
+              is_deleted: false,
+            };
+            return poll;
+          }}
           onCreated={() => {
             setShowPollComposer(false);
             onToast("Poll created");
@@ -638,11 +731,33 @@ export function ContentArea({
       )}
 
       {showEventsPanel && activeHub && (
-        <EventsPanel
-          hubUrl={activeHub.hub_url}
-          isAdmin={isAdmin}
-          onClose={() => setShowEventsPanel(false)}
-        />
+        <div className="modal-overlay" onClick={() => setShowEventsPanel(false)}>
+          <div className="modal" style={{ maxWidth: 640, maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button className="btn-ghost" onClick={() => setShowEventsPanel(false)} aria-label="Close">✕</button>
+            </div>
+            <EventsPanel
+              channelId={selectedChannel?.id ?? ""}
+              myPubkey={publicKey}
+              isAdmin={isAdmin}
+              channels={channels}
+              getEvents={() => invoke<HubEvent[]>("get_hub_events", { hubUrl: activeHub.hub_url })}
+              deleteEvent={(eventId) => invoke<void>("delete_event", { hubUrl: activeHub.hub_url, eventId })}
+              rsvpEvent={(eventId, status) => invoke<void>("rsvp_event_hub", { hubUrl: activeHub.hub_url, eventId, status })}
+              createEvent={(payload) =>
+                invoke<HubEvent>("create_event_hub", {
+                  hubUrl: activeHub.hub_url,
+                  title: payload.title,
+                  description: payload.description ?? "",
+                  startsAt: payload.starts_at,
+                  endsAt: payload.ends_at ?? null,
+                  channelId: payload.channel_id,
+                  location: payload.location ?? null,
+                })
+              }
+            />
+          </div>
+        </div>
       )}
 
     </>

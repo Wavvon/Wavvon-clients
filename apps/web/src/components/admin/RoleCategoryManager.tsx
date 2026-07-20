@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { RoleCategory } from "@shared/types";
 import { createRoleCategory, updateRoleCategory, deleteRoleCategory } from "@platform";
 import { HubApiError } from "../../platform/http";
-import { safeRoleColor } from "@shared/utils/roleAppearance";
+import { safeRoleColor } from "@wavvon/ui";
 import { EmojiPicker } from "@wavvon/ui";
 import { ColorSwatchPicker } from "@components/common/ColorSwatchPicker";
 

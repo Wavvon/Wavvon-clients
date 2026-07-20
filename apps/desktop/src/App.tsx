@@ -44,16 +44,21 @@ import type {
   FarmPublicInfo,
   FarmHubQuota,
   CreatedFarmHub,
+  FarmSettings,
+  FarmHubEntry,
+  FarmUserEntry,
+  FarmServerEntry,
+  PublicHubProfile,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
-import { HubStreamsPanel } from "./components/HubStreamsPanel";
-import { BotAppLaunchCard, CreateHubWizard, KeyboardShortcuts } from "@wavvon/ui";
+import { HubStreamsPanel } from "@wavvon/ui";
+import { BotAppLaunchCard, CreateHubWizard, KeyboardShortcuts, DiscoverPage, Lobby, FarmSettingsPage } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
 import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
 import { VideoGrid } from "./components/VideoGrid";
-import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "./skinValidation";
+import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import {
   formatPubkey,
   buildChannelTree,
@@ -85,23 +90,22 @@ import {
   HubAdminPage,
   type HubAdminTab,
 } from "./components/HubAdminPage";
-import { AddHubModal } from "./components/AddHubModal";
-import { FarmSettingsPage, type FarmAdminTab } from "./components/FarmSettingsPage";
-import { CreateChannelModal } from "./components/CreateChannelModal";
-import { FriendsModal } from "./components/FriendsModal";
+import { AddHubModal } from "@wavvon/ui";
+import type { FarmAdminTab } from "@wavvon/ui";
+import { CreateChannelModal, type BannerSource } from "@wavvon/ui";
+import { FriendsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "./components/EditDescriptionModal";
 import { ChannelContextMenu } from "./components/ChannelContextMenu";
 import { ChannelSettingsModal } from "./components/ChannelSettingsModal";
 import { ChannelAppearanceModal } from "./components/ChannelAppearanceModal";
 import { BannerEditModal } from "./components/BannerEditModal";
-import { UserContextMenu } from "./components/UserContextMenu";
-import { HubSidebar } from "./components/HubSidebar";
+import { UserContextMenu } from "@wavvon/ui";
+import { HubSidebar } from "@wavvon/ui";
 import { ChannelSidebar } from "./components/ChannelSidebar";
 import { ContentArea } from "./components/ContentArea";
-import { DiscoverPage } from "./components/DiscoverPage";
+import { fetchWithTimeout } from "./utils/fetchWithTimeout";
 import { HubBrowser } from "./components/HubBrowser";
-import { WelcomeScreen } from "./components/WelcomeScreen";
-import { Lobby } from "./components/Lobby";
+import { WelcomeScreen } from "@wavvon/ui";
 import { BotChallenge } from "./components/BotChallenge";
 import { SurveyComponent } from "./components/Survey";
 import { UpdateBanner } from "./components/UpdateBanner";
@@ -586,15 +590,6 @@ function App() {
     );
   }
 
-  async function handleCopyUserKey(u: User) {
-    setUserContextMenu(null);
-    try {
-      await navigator.clipboard.writeText(u.public_key);
-      setToast("Public key copied");
-    } catch (e) {
-      setError(String(e));
-    }
-  }
 
   const {
     userAlliances,
@@ -606,13 +601,9 @@ function App() {
 
   // Create channel dialog
   const [showCreateChannel, setShowCreateChannel] = useState(false);
-  const [newChannelName, setNewChannelName] = useState("");
-  const [newChannelDescription, setNewChannelDescription] = useState("");
-  const [newChannelType, setNewChannelType] = useState<"text" | "forum" | "category" | "banner">("text");
-  const [newBannerUrl, setNewBannerUrl] = useState("");
-  const [newBannerSourceMode, setNewBannerSourceMode] = useState<"url" | "upload">("url");
-  const [newBannerFile, setNewBannerFile] = useState<File | null>(null);
   const [newChannelParentId, setNewChannelParentId] = useState<string | null>(null);
+  const [createChannelLoading, setCreateChannelLoading] = useState(false);
+  const [createChannelError, setCreateChannelError] = useState<string | null>(null);
 
   // Edit description dialog
   const [editDescriptionChannel, setEditDescriptionChannel] = useState<Channel | null>(null);
@@ -789,17 +780,7 @@ function App() {
   const {
     showFriends,
     setShowFriends,
-    friends,
-    pendingFriends,
-    friendRequestKey,
-    setFriendRequestKey,
-    friendRequestHubUrl,
-    setFriendRequestHubUrl,
-    refreshFriends,
     openFriends,
-    handleSendFriendRequest,
-    handleAcceptFriend,
-    handleRemoveFriend,
     handleUserAddFriend: handleUserAddFriendFromHook,
   } = useFriends({ setError, setToast });
 
@@ -1539,24 +1520,33 @@ function App() {
     }
   }
 
-  async function handleCreateChannel() {
-    const name = newChannelName.trim();
-    if (!name) return;
-    const desc = newChannelDescription.trim();
+  async function handleCreateChannel(
+    name: string,
+    channelType: string,
+    isCategory: boolean,
+    description: string,
+    spawnerNameTemplate?: string,
+    banner?: BannerSource,
+  ) {
+    setCreateChannelLoading(true);
+    setCreateChannelError(null);
     try {
+      // create_channel's Rust command has no spawner_name_template parameter
+      // yet (hub-src/routes/channels.rs supports it, the Tauri wrapper
+      // doesn't) — a spawner channel still creates fine, just always with
+      // the hub's default "{user}'s room" naming until that param is added.
+      void spawnerNameTemplate;
       const channel = await invoke<Channel>("create_channel", {
         name,
         parentId: newChannelParentId,
-        isCategory: newChannelType === "category",
-        channelType: newChannelType === "category" ? undefined : newChannelType,
-        description: desc ? desc : null,
-        bannerUrl: newChannelType === "banner" && newBannerSourceMode === "url"
-          ? (newBannerUrl.trim() || null)
-          : null,
+        isCategory,
+        channelType: isCategory ? undefined : channelType,
+        description: description ? description : null,
+        bannerUrl: channelType === "banner" ? (banner?.url || null) : null,
       });
 
-      if (newChannelType === "banner" && newBannerSourceMode === "upload" && newBannerFile) {
-        const filePath = (newBannerFile as TauriFile).path;
+      if (channelType === "banner" && banner?.file) {
+        const filePath = (banner.file as TauriFile).path;
         if (filePath) {
           const activeHub = hubs.find((h) => h.hub_id === activeHubId);
           if (activeHub) {
@@ -1577,19 +1567,15 @@ function App() {
       }
 
       setChannels((prev) => [...prev, channel]);
-      setNewChannelName("");
-      setNewChannelDescription("");
-      setNewChannelType("text");
       setNewChannelParentId(null);
-      setNewBannerUrl("");
-      setNewBannerSourceMode("url");
-      setNewBannerFile(null);
       setShowCreateChannel(false);
       if (!channel.is_category && channel.channel_type !== "banner") {
         channelMessages.selectChannel(channel);
       }
     } catch (e) {
-      setError(String(e));
+      setCreateChannelError(String(e));
+    } finally {
+      setCreateChannelLoading(false);
     }
   }
 
@@ -1671,7 +1657,6 @@ function App() {
 
   function openCreateChannelUnder(parentId: string | null) {
     setNewChannelParentId(parentId);
-    setNewChannelType("text");
     setShowCreateChannel(true);
     setContextMenu(null);
   }
@@ -1842,6 +1827,22 @@ function App() {
             tab={farmAdminTab}
             onTab={setFarmAdminTab}
             onClose={() => setShowFarmSettings(false)}
+            actions={{
+              getSettings: (farmUrl) => invoke<FarmSettings>("get_farm_settings", { farmUrl }),
+              patchSettings: (farmUrl, settings) => invoke<FarmSettings>("patch_farm_settings", { farmUrl, settings }),
+              getHubs: (farmUrl) => invoke<{ hubs: FarmHubEntry[] }>("get_farm_hubs_admin", { farmUrl }),
+              suspendHub: (farmUrl, hubId, suspended, reason) => invoke("suspend_farm_hub", { farmUrl, hubId, suspended, reason }),
+              deleteHub: (farmUrl, hubId) => invoke("delete_farm_hub", { farmUrl, hubId }),
+              getUsers: (farmUrl, page, limit) =>
+                invoke<{ users: FarmUserEntry[]; total: number; page: number; limit: number }>("get_farm_users", { farmUrl, page, limit }),
+              revokeUserSessions: (farmUrl, pubkey) => invoke("revoke_farm_user_sessions", { farmUrl, pubkey }),
+              getServers: (farmUrl) => invoke<{ servers: FarmServerEntry[] }>("get_farm_servers", { farmUrl }),
+              generateServerToken: (farmUrl, name, region) =>
+                invoke<{ server_id: string; token: string }>("generate_farm_server_token", { farmUrl, name, region }),
+              totpSetup: (farmUrl) => invoke<{ secret: string; qr_url: string }>("farm_totp_setup", { farmUrl }),
+              totpConfirm: (farmUrl, secret, code) => invoke("farm_totp_confirm", { farmUrl, secret, code }),
+              totpDisable: (farmUrl, code) => invoke("farm_totp_disable", { farmUrl, code }),
+            }}
           />
         ) : showHubAdmin ? (
           <HubAdminPage
@@ -2034,6 +2035,7 @@ function App() {
               <DiscoverPage
                 onClose={() => setShowDiscover(false)}
                 onJoinHub={handleDiscoverJoin}
+                fetchUrl={(url) => fetchWithTimeout(url)}
               />
             ) : showHubBrowser ? (
               <HubBrowser
@@ -2066,14 +2068,24 @@ function App() {
                   </button>
                 </div>
               )
-            ) : activeHubId && hubScope[activeHubId] === "lobby" ? (
+            ) : activeHubId && hubScope[activeHubId] === "lobby" && publicKey ? (
               <Lobby
-                hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+                hubId={activeHubId}
                 hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
+                pubkeyHex={publicKey}
+                actions={{
+                  getStatus: () => invoke<LobbyStatus>("lobby_status", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+                  getWelcome: () => invoke<{ welcome_md: string }>("lobby_get_welcome", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "" }),
+                  submitProof: (powProof) => invoke<{ promoted: boolean; new_level: number }>("lobby_submit_proof", { hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "", powProof }),
+                }}
                 onPromoted={() => {
                   setHubScope((prev) => ({ ...prev, [activeHubId]: "member" }));
                   loadHubData();
                   setToast(`You're in. Welcome to ${hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? "the hub"}.`);
+                  const resolvedUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
+                  invoke<{ id: string } | null>("survey_current", { hubUrl: resolvedUrl })
+                    .then((survey) => { if (survey) setPendingSurveyHubId(activeHubId); })
+                    .catch(() => {});
                 }}
               />
             ) : myApprovalStatus === "pending" ? (
@@ -2217,6 +2229,7 @@ function App() {
                   activeHubId={activeHubId}
                   hubs={hubs}
                   theme={theme}
+                  channels={channels}
                   selectedChannel={channelMessages.selectedChannel}
                   selectedConversation={selectedConversation}
                   selectedAllianceChannel={channelMessages.selectedAllianceChannel}
@@ -2303,16 +2316,16 @@ function App() {
                   assertiveAnnouncement={assertiveAnnouncement}
                 />
                 {showHubStreams && (
-                  <div style={{ position: "relative" }}>
-                    <HubStreamsPanel
-                      streams={voice.hubStreams}
-                      subscribedIds={voice.subscribedStreamIds.current}
-                      currentChannelId={channelMessages.selectedChannel?.id ?? null}
-                      onSubscribe={voice.subscribeToStream}
-                      onUnsubscribe={voice.unsubscribeFromStream}
-                      onClose={() => setShowHubStreams(false)}
-                    />
-                  </div>
+                  <HubStreamsPanel
+                    streams={voice.hubStreams}
+                    subscribedIds={voice.subscribedStreamIds.current}
+                    currentChannelId={channelMessages.selectedChannel?.id ?? null}
+                    channels={channels}
+                    nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
+                    onWatch={voice.subscribeToStream}
+                    onStopWatch={voice.unsubscribeFromStream}
+                    onClose={() => setShowHubStreams(false)}
+                  />
                 )}
               </>
             )}
@@ -2365,36 +2378,26 @@ function App() {
 
         {showCreateChannel && (
           <CreateChannelModal
-            name={newChannelName}
-            onNameChange={setNewChannelName}
-            description={newChannelDescription}
-            onDescriptionChange={setNewChannelDescription}
-            channelType={newChannelType}
-            onChannelTypeChange={setNewChannelType}
-            bannerUrl={newBannerUrl}
-            onBannerUrlChange={setNewBannerUrl}
-            bannerSourceMode={newBannerSourceMode}
-            onBannerSourceModeChange={setNewBannerSourceMode}
-            bannerFile={newBannerFile}
-            onBannerFileChange={setNewBannerFile}
             parentId={newChannelParentId}
-            onCreate={handleCreateChannel}
-            onClose={() => setShowCreateChannel(false)}
+            parentName={newChannelParentId ? (channels.find((c) => c.id === newChannelParentId)?.name ?? null) : null}
+            loading={createChannelLoading}
+            error={createChannelError}
+            onSubmit={handleCreateChannel}
+            onClose={() => { setShowCreateChannel(false); setCreateChannelError(null); }}
           />
         )}
 
         {showFriends && (
           <FriendsModal
-            friends={friends}
-            pendingFriends={pendingFriends}
-            requestKey={friendRequestKey}
-            onRequestKeyChange={setFriendRequestKey}
-            requestHubUrl={friendRequestHubUrl}
-            onRequestHubUrlChange={setFriendRequestHubUrl}
-            onSendRequest={handleSendFriendRequest}
-            onAcceptFriend={handleAcceptFriend}
+            actions={{
+              listFriends: () => invoke<Friend[]>("list_friends"),
+              listPendingFriendRequests: () => invoke<Friend[]>("list_pending_friends"),
+              sendFriendRequest: (targetPublicKey, hubUrl) =>
+                invoke("send_friend_request", { targetPublicKey, friendHubUrl: hubUrl ?? null, displayName: null }),
+              acceptFriendRequest: (fromPublicKey) => invoke("accept_friend", { fromPublicKey }),
+              removeFriend: (targetPublicKey) => invoke("remove_friend", { targetPublicKey }),
+            }}
             onMessage={startDmWithAndClose}
-            onRemoveFriend={handleRemoveFriend}
             onClose={() => setShowFriends(false)}
           />
         )}
@@ -2488,30 +2491,42 @@ function App() {
 
         {userContextMenu && (
           <UserContextMenu
-            menu={userContextMenu}
+            user={userContextMenu.user}
             publicKey={publicKey}
+            isAdmin={isAdmin}
+            canManageRoles={isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"))}
+            myMaxPriority={myRoles.reduce((m, r) => Math.max(m, r.priority), 0)}
             blockedUsers={blockedUsers}
             ignoredUsers={ignoredUsers}
-            activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
+            position={{ x: userContextMenu.x, y: userContextMenu.y }}
             onClose={() => setUserContextMenu(null)}
-            onDm={handleUserDm}
-            onAddFriend={handleUserAddFriend}
-            onCopyKey={handleCopyUserKey}
-            onToggleBlock={toggleBlockUser}
-            onToggleIgnore={toggleIgnoreUser}
             onToast={setToast}
-            onJoinHub={handleDiscoverJoin}
-            allRoles={isAdmin ? adminRoles : undefined}
-            memberRoleIds={isAdmin
-              ? new Set(
-                  adminMembers
-                    .find((m) => m.public_key === userContextMenu.user.public_key)
-                    ?.roles.map((r) => r.id) ?? []
-                )
-              : undefined}
-            onToggleRole={isAdmin
-              ? (roleId, hasRole) => handleToggleRoleAssignment(userContextMenu.user.public_key, roleId, hasRole)
-              : undefined}
+            onRolesChanged={() => { void refreshMembers(); }}
+            actions={{
+              listRoles: () => invoke<RoleInfo[]>("list_roles"),
+              listUserRoles: async (pubkey) => {
+                const [all, members] = await Promise.all([
+                  invoke<RoleInfo[]>("list_roles"),
+                  invoke<MemberAdminInfo[]>("list_hub_members"),
+                ]);
+                const ids = new Set(members.find((m) => m.public_key === pubkey)?.roles.map((r) => r.id) ?? []);
+                return all.filter((r) => ids.has(r.id));
+              },
+              assignRole: (pubkey, roleId) => invoke("assign_role", { targetPublicKey: pubkey, roleId }),
+              removeRole: (pubkey, roleId) => invoke("unassign_role", { targetPublicKey: pubkey, roleId }),
+              muteUser: (pubkey) => invoke("mute_user_cmd", { targetPublicKey: pubkey, reason: null }),
+              kickUser: (pubkey) => invoke("kick_user_cmd", { targetPublicKey: pubkey, reason: null }),
+              banUser: (pubkey) => invoke("ban_user_cmd", { targetPublicKey: pubkey, reason: null }),
+              dm: handleUserDm,
+              addFriend: handleUserAddFriend,
+              toggleBlock: toggleBlockUser,
+              toggleIgnore: toggleIgnoreUser,
+              fetchPublicProfile: (pubkey) => invoke<PublicHubProfile | null>("fetch_public_profile", {
+                hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "",
+                pubkey,
+              }),
+              joinHub: handleDiscoverJoin,
+            }}
           />
         )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
-import type { ThemeId, WavvonSkin } from "../../skinValidation";
+import type { ThemeId, WavvonSkin } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
 import { ProfileTab } from "./tabs/ProfileTab";

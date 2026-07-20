@@ -18,7 +18,7 @@ import {
 } from "@platform";
 import { loadIdentity as platformLoadIdentity, publicKeyHex, masterPublicKeyHex, masterSeedHex } from "@identity/index";
 import { derivePrefsBlobKey, decryptPrefsBlob, verifyPrefsBlob, type PrefsBlobContents } from "@wavvon/core";
-import type { WavvonSkin } from "../skinValidation";
+import type { WavvonSkin } from "@wavvon/ui";
 import { loadAllDrafts } from "./drafts";
 import { loadCustomThemeStore } from "./customThemes";
 import { getScoped } from "./accountScope";

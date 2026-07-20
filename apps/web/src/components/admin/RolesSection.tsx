@@ -4,7 +4,7 @@ import type { RoleCategory, RoleInfo } from "@shared/types";
 import { listRoles, listRoleCategories, updateRole, createRole, deleteRole } from "@platform";
 import { HubApiError } from "../../platform/http";
 import { ALL_PERMISSIONS } from "@shared/constants";
-import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "@shared/utils/roleAppearance";
+import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "@wavvon/ui";
 import { RoleCategoryManager } from "./RoleCategoryManager";
 import { ColorSwatchPicker } from "@components/common/ColorSwatchPicker";
 import { EmojiPicker, ErrorRetry } from "@wavvon/ui";

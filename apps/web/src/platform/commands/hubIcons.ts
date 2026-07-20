@@ -1,12 +1,7 @@
 import { hubFetch } from "../http";
+import type { HubIcon } from "@wavvon/ui";
 
-export interface HubIcon {
-  id: string;
-  name: string;
-  svg_content: string;
-  uploaded_by: string;
-  created_at: number;
-}
+export type { HubIcon };
 
 // Hub SVG icon library (MANAGE_HUB_ICONS to write).
 export async function listHubIcons(): Promise<HubIcon[]> {

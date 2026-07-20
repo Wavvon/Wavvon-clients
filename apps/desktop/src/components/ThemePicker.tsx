@@ -1,5 +1,5 @@
 import { THEMES } from "../constants";
-import type { ThemeId, WavvonSkin } from "../skinValidation";
+import type { ThemeId, WavvonSkin } from "@wavvon/ui";
 
 export function ThemePicker({
   value,

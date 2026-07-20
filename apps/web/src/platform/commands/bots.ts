@@ -1,12 +1,12 @@
 import { hubFetch } from "../http";
 import { activeSession } from "../session";
+import type { BotProfile } from "@shared/types";
 import type {
-  BotProfile,
   ExternalBotRow,
   ExternalBotInviteResult,
   WebhookInfo,
   WebhookCreatedResult,
-} from "@shared/types";
+} from "@wavvon/ui";
 import type { BotCapabilityGrants, GameLaunchCard } from "@wavvon/core";
 
 /** GET /admin/bots/external -- admin management view (bots.md §4): every

@@ -14,23 +14,56 @@ import type {
   ActiveStream,
   Poll,
 } from "@shared/types";
-import { UserListGrouped } from "@components/users/UserListGrouped";
-import { UserProfileCard } from "@components/users/UserProfileCard";
+import { UserListGrouped, UserProfileCard, type UserProfileCardActions } from "@wavvon/ui";
 import { PinnedMessagesModal } from "@components/content/PinnedMessagesModal";
-import { hubFetch, getPolls, getBotProfile, sendBotAppJoin } from "@platform";
+import {
+  hubFetch, getPolls, createPoll, getBotProfile, sendBotAppJoin,
+  pinMessage, unpinMessage, votePoll, deletePoll, fetchLinkPreview, reportMessage,
+  forumListPosts, forumGetPost, forumCreatePost, forumEditPost, forumDeletePost,
+  forumCreateReply, forumEditReply, forumDeleteReply, forumPinPost, forumLockPost,
+  markPostRead, forumAddPostReaction, forumRemovePostReaction, forumAddReplyReaction,
+  forumRemoveReplyReaction, getAllianceChannelPosts, getAllianceChannelPost,
+  createAllianceChannelPost, createAllianceChannelReply, reactAllianceChannelPost,
+  getEvents, getEvent, createEvent, rsvpEvent, deleteEvent,
+  getEventRsvps, getEventAssignments, createEventSquadRooms,
+} from "@platform";
 import { activeSession } from "../../platform/session";
-import { ScreenShareViewer } from "@components/voice/ScreenShareViewer";
-import type { ScreenShareViewerRef } from "@components/voice/ScreenShareViewer";
+import { ScreenShareViewer } from "@wavvon/ui";
+import type { ScreenShareViewerRef } from "@wavvon/ui";
 import { DmView } from "@components/content/DmView";
-import { ForumView } from "@components/forum/ForumView";
-import { ChannelHeader } from "@components/content/ChannelHeader";
 import { ChannelMessageList } from "@components/content/ChannelMessageList";
-import { ChannelComposer } from "@components/content/ChannelComposer";
-import { PollComposer } from "@components/polls/PollComposer";
-import { EventsPanel } from "@components/events/EventsPanel";
-import { AllianceView, BotCard, ReconnectBanner } from "@wavvon/ui";
+import {
+  AllianceView, BotCard, ReconnectBanner, ForumView, type ForumActions, PollComposer, EventsPanel, type EventStagingCapability,
+  ChannelHeader, ChannelComposer, type MessageRowActions, type HubEmoji,
+} from "@wavvon/ui";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 import { getScoped, setScoped } from "@shared/utils/accountScope";
+
+// Every non-alliance op is channel-scoped to match the hub's REST routes and
+// desktop's Tauri command shape; the underlying platform functions here
+// don't all need channelId themselves, so it's simply ignored where unused.
+const forumActions: ForumActions = {
+  listPosts: (channelId, cursor) => forumListPosts(channelId, cursor),
+  listAlliancePosts: getAllianceChannelPosts,
+  getPost: (_channelId, postId) => forumGetPost(postId),
+  getAlliancePost: getAllianceChannelPost,
+  createPost: (channelId, title, body) => forumCreatePost(channelId, title, body),
+  createAlliancePost: createAllianceChannelPost,
+  createReply: (_channelId, postId, body, replyToId) => forumCreateReply(postId, body, replyToId),
+  createAllianceReply: createAllianceChannelReply,
+  editPost: (_channelId, postId, title, body) => forumEditPost(postId, title, body),
+  deletePost: (_channelId, postId) => forumDeletePost(postId),
+  editReply: (_channelId, _postId, replyId, body) => forumEditReply(replyId, body),
+  deleteReply: (_channelId, _postId, replyId) => forumDeleteReply(replyId),
+  pinPost: (_channelId, postId, pin) => forumPinPost(postId, pin),
+  lockPost: (_channelId, postId, lock) => forumLockPost(postId, lock),
+  markPostRead: (channelId, postId) => markPostRead(channelId, postId),
+  addPostReaction: (_channelId, postId, emoji) => forumAddPostReaction(postId, emoji),
+  removePostReaction: (_channelId, postId, emoji) => forumRemovePostReaction(postId, emoji),
+  addReplyReaction: (_channelId, _postId, replyId, emoji) => forumAddReplyReaction(replyId, emoji),
+  removeReplyReaction: (_channelId, _postId, replyId, emoji) => forumRemoveReplyReaction(replyId, emoji),
+  reactAlliancePost: reactAllianceChannelPost,
+};
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -65,6 +98,7 @@ interface Props {
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
+  ignoredUsers?: Set<string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   isAdmin: boolean;
@@ -128,6 +162,7 @@ interface Props {
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   onOpenUserProfile?: (pubkey: string) => void;
   onStartConversation?: (pubkey: string) => void;
+  profileCardActions: UserProfileCardActions;
   // Event staging panel (events.md §7.5)
   voicePartByChannel: Record<string, VoiceParticipant[]>;
   canMoveMembers: boolean;
@@ -139,7 +174,7 @@ export function ContentArea({
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
   dmMessages, allianceMessages,
-  users, publicKey, blockedUsers, knownDisplayNames, myDisplayName,
+  users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers,
@@ -165,6 +200,7 @@ export function ContentArea({
   onPinToggle,
   onOpenUserProfile,
   onStartConversation,
+  profileCardActions,
   voicePartByChannel,
   canMoveMembers,
   onMoveMember,
@@ -222,6 +258,19 @@ export function ContentArea({
       getPolls(selectedChannel.id).then(setChannelPolls).catch(() => {});
     }
   }, [selectedChannel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hub custom-emoji `:name:` shortcode resolution for message content
+  // (folded in from desktop, which already tracked this at ContentArea scope).
+  const [hubEmojis, setHubEmojis] = useState<HubEmoji[]>([]);
+  useEffect(() => {
+    if (!activeHubId) return;
+    hubFetch("/emojis").then((r) => r.json()).then(setHubEmojis).catch(() => setHubEmojis([]));
+  }, [activeHubId]);
+  const hubEmojiMap = useMemo(() => {
+    const map = new Map<string, HubEmoji>();
+    for (const e of hubEmojis) map.set(e.name, e);
+    return map;
+  }, [hubEmojis]);
 
   function persistExpandedThreads(next: Set<string>) {
     if (!selectedChannel) return;
@@ -407,9 +456,25 @@ export function ContentArea({
     onKeyDown(e);
   }
 
-  function handleComponentInteract(_messageId: string, _customId: string, _values: string[]) {
-    // Actual WS send is handled inside MessageComponents via platform session.
+  function handleComponentInteract(messageId: string, customId: string, values: string[]) {
+    try {
+      const { ws } = activeSession();
+      ws?.send({ type: "component_interaction", message_id: messageId, custom_id: customId, values });
+    } catch { /* no active session to send over */ }
   }
+
+  async function moderateAuthor(kind: "mute" | "kick" | "ban", pubkey: string) {
+    const path = kind === "mute" ? "/moderation/mutes" : kind === "kick" ? "/moderation/kick" : "/moderation/bans";
+    await hubFetch(path, { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) });
+  }
+
+  const messageRowActions: MessageRowActions = {
+    pinMessage, unpinMessage, votePoll, deletePoll, sendBotAppJoin, reportMessage,
+    fetchLinkPreview: (hubUrl, url, token) => fetchLinkPreview(hubUrl, url, token ?? ""),
+    muteUser: (pubkey) => moderateAuthor("mute", pubkey),
+    kickUser: (pubkey) => moderateAuthor("kick", pubkey),
+    banUser: (pubkey) => moderateAuthor("ban", pubkey),
+  };
 
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
 
@@ -466,6 +531,7 @@ export function ContentArea({
             myRoles={myRoles}
             myPubkey={publicKey}
             isAdmin={isAdmin}
+            actions={forumActions}
           />
         ) : selectedChannel ? (
           <div className="chat-column">
@@ -476,8 +542,6 @@ export function ContentArea({
               searchOpen={searchOpen}
               searchQuery={searchQuery}
               searchResults={searchResults}
-              activeScreenShares={activeScreenShares}
-              screenShareViewerRef={screenShareViewerRef}
               isAdmin={isAdmin}
               onShowPinned={() => setShowPinsModal(true)}
               onToggleSearch={() => searchOpen ? onCloseSearch() : onSetSearchOpen(true)}
@@ -488,6 +552,12 @@ export function ContentArea({
               onOpenHubStreams={onOpenHubStreams}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
+            {activeScreenShares.length > 0 && (
+              <ScreenShareViewer
+                ref={screenShareViewerRef}
+                streams={activeScreenShares}
+              />
+            )}
             <div style={{ display: "flex", gap: 4, padding: "0 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               {(["messages", "events"] as const).map((tab) => (
                 <button
@@ -516,10 +586,16 @@ export function ContentArea({
                 myPubkey={publicKey}
                 isAdmin={isAdmin}
                 channels={channels}
-                users={users}
-                voicePartByChannel={voicePartByChannel}
-                canMoveMembers={canMoveMembers}
-                onMoveMember={onMoveMember}
+                getEvents={getEvents}
+                deleteEvent={deleteEvent}
+                rsvpEvent={rsvpEvent}
+                createEvent={createEvent}
+                advancedFieldsSupported
+                slotClaimSupported
+                staging={{
+                  channels, users, voicePartByChannel, canMoveMembers, onMoveMember,
+                  getEvent, getEventAssignments, getEventRsvps, createEventSquadRooms,
+                } satisfies EventStagingCapability}
               />
             ) : null}
 
@@ -529,6 +605,7 @@ export function ContentArea({
               messages={messages}
               searchResults={searchResults}
               blockedUsers={blockedUsers}
+              ignoredUsers={ignoredUsers ?? new Set()}
               publicKey={publicKey}
               myDisplayName={myDisplayName}
               myRoles={myRoles}
@@ -545,6 +622,9 @@ export function ContentArea({
               pinnedMessageIds={pinnedMessageIds}
               sessionHubUrl={sessionInfo?.hubUrl ?? null}
               sessionToken={sessionInfo?.token ?? null}
+              hubEmojiMap={hubEmojiMap}
+              hubBaseUrl={activeHub?.hub_url}
+              actions={messageRowActions}
               stickToBottom={stickToBottom}
               newWhileScrolledUp={newWhileScrolledUp}
               firstNotifyingMessageId={firstNotifyingMessageId}
@@ -584,13 +664,13 @@ export function ContentArea({
               replyTarget={replyTarget}
               pendingAttachments={pendingAttachments}
               users={users}
-              publicKey={publicKey}
               slashSuggestions={slashSuggestions}
               slashSelectedIdx={slashSelectedIdx}
               mentionSuggestions={mentionSuggestions}
               mentionSelectedIdx={mentionSelectedIdx}
               mentionQuery={mentionQuery}
               messageInputRef={messageInputRef}
+              loadHubEmojis={() => hubFetch("/emojis").then((r) => r.json())}
               onInputTextChange={handleSlashInputChange}
               onKeyDown={handleSlashKeyDown}
               onSend={onSend}
@@ -609,6 +689,7 @@ export function ContentArea({
             myRoles={myRoles}
             myPubkey={publicKey}
             isAdmin={isAdmin}
+            actions={forumActions}
             allianceContext={{
               allianceId: selectedAllianceChannel.alliance_id,
               allianceName: selectedAllianceChannel.alliance_name,
@@ -673,6 +754,8 @@ export function ContentArea({
         <UserProfileCard
           pubkey={profileCardPubkey}
           myPubkey={publicKey}
+          activeHubId={activeHubId}
+          actions={profileCardActions}
           onClose={() => setProfileCardPubkey(null)}
           onStartConversation={onStartConversation ? (pubkey) => {
             setProfileCardPubkey(null);
@@ -684,6 +767,7 @@ export function ContentArea({
       {showPollComposer && selectedChannel && (
         <PollComposer
           channelId={selectedChannel.id}
+          onCreatePoll={createPoll}
           onCreated={(poll) => {
             setChannelPolls((prev) => [...prev, poll]);
             setShowPollComposer(false);

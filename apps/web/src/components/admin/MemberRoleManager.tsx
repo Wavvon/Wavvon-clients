@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } from "@platform";
 import type { RoleInfo } from "@shared/types";
-import { safeRoleColor } from "@shared/utils/roleAppearance";
+import { safeRoleColor } from "@wavvon/ui";
 
 interface Props {
   pubkey: string;

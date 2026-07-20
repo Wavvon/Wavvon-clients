@@ -1,8 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
-import { MessageRow } from "./MessageRow";
-import { TypingIndicator } from "@wavvon/ui";
+import { MessageRow, TypingIndicator, type MessageRowActions } from "@wavvon/ui";
+
+type HubEmojiEntry = { id: string; name: string; url: string };
 
 type TypingEntry = { name: string; ts: number };
 
@@ -12,6 +13,7 @@ interface Props {
   messages: Message[];
   searchResults: Message[] | null;
   blockedUsers: Set<string>;
+  ignoredUsers: Set<string>;
   publicKey: string | null;
   myDisplayName: string | null;
   myRoles: RoleInfo[];
@@ -28,6 +30,9 @@ interface Props {
   pinnedMessageIds: Set<string>;
   sessionHubUrl: string | null;
   sessionToken: string | null;
+  hubEmojiMap: Map<string, HubEmojiEntry>;
+  hubBaseUrl?: string;
+  actions: MessageRowActions;
   stickToBottom: boolean;
   newWhileScrolledUp: number;
   firstNotifyingMessageId: string | null;
@@ -67,6 +72,7 @@ export function ChannelMessageList({
   messages,
   searchResults,
   blockedUsers,
+  ignoredUsers,
   publicKey,
   myDisplayName,
   myRoles,
@@ -83,6 +89,9 @@ export function ChannelMessageList({
   pinnedMessageIds,
   sessionHubUrl,
   sessionToken,
+  hubEmojiMap,
+  hubBaseUrl,
+  actions,
   stickToBottom,
   newWhileScrolledUp,
   firstNotifyingMessageId,
@@ -155,6 +164,7 @@ export function ChannelMessageList({
             myRoles={myRoles}
             users={users}
             knownDisplayNames={knownDisplayNames}
+            ignoredUsers={ignoredUsers}
             editingMessageId={editingMessageId}
             editingDraft={editingDraft}
             focusedMessageIndex={focusedMessageIndex}
@@ -166,6 +176,9 @@ export function ChannelMessageList({
             pinnedMessageIds={pinnedMessageIds}
             sessionHubUrl={sessionHubUrl}
             sessionToken={sessionToken}
+            hubEmojiMap={hubEmojiMap}
+            hubBaseUrl={hubBaseUrl}
+            actions={actions}
             displayedMessages={displayedMessages}
             channelPolls={channelPolls}
             messageRowRef={(el) => { messageRowRefs.current[i] = el; }}

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 import { initI18n } from "@wavvon/i18n";
 import AccountRoot from "./AccountRoot";
-import { ErrorBoundary } from "@components/common/ErrorBoundary";
+import { ErrorBoundary } from "@wavvon/ui";
 import "@wavvon/ui/styles.css";
 
 const storedLang = localStorage.getItem('wavvon_language');

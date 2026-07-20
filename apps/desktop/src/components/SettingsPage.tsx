@@ -9,9 +9,9 @@ import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
 import { ThemePicker } from "./ThemePicker";
-import { SkinEditor, makeSeed } from "./SkinEditor";
-import { SkinsGallery } from "./SkinsGallery";
-import type { ThemeId, WavvonSkin } from "../skinValidation";
+import { SkinEditor, makeSeed, SkinsGallery } from "@wavvon/ui";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import type { ThemeId, WavvonSkin } from "@wavvon/ui";
 import { ProfileTab } from "./ProfileTab";
 import { RestoreIdentitySection } from "./RestoreIdentitySection";
 import { PairingSection } from "./PairingSection";
@@ -512,7 +512,7 @@ export function SettingsPage(props: SettingsPageProps) {
                 onChange={props.onSkinChange}
               />
             )}
-            <SkinsGallery onImport={props.onImportSkin} />
+            <SkinsGallery fetchWithTimeout={fetchWithTimeout} onImport={props.onImportSkin} />
             <div className="settings-section">
               <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
               <div className="settings-row">

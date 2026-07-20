@@ -9,22 +9,32 @@ import type {
   RoleInfo,
 } from "@shared/types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
+import { AlliancesSection, ExternalBotSection, WebhooksSection, HubIconsSection, SurveyAdminSection } from "@wavvon/ui";
 import { ServerTagsSection } from "./ServerTagsSection";
 import { CertificationsSection } from "./CertificationsSection";
 import { RecoveryContactsSection } from "@components/settings/RecoveryContactsSection";
-import { WebhooksSection } from "./WebhooksSection";
 import { submitToDirectory } from "../../platform/commands/hubAdmin";
-import { ExternalBotSection } from "./ExternalBotSection";
+import {
+  listAlliances, createAlliance, leaveAlliance,
+  listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
+  listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+  listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon,
+  getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
+  listRoles,
+} from "@platform";
+import {
+  adminListExternalBots, adminAddExternalBot, adminRemoveExternalBot,
+  adminGetBotChannelScope, adminSetBotChannelScope,
+  adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
+} from "../../platform/commands/bots";
+import { BotCapabilitiesPanel } from "./BotCapabilitiesPanel";
 import { ModerationTab } from "./ModerationTab";
 import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
 import { RolesSection } from "./RolesSection";
 import { SoundboardAdminSection } from "./SoundboardAdminSection";
 import { AuditLogSection } from "./AuditLogSection";
 import { NativeBotsSection } from "./NativeBotsSection";
-import { AlliancesSection } from "./AlliancesSection";
-import { HubIconsSection } from "./HubIconsSection";
 import { OnboardingAdminSection } from "./OnboardingAdminSection";
-import { SurveyAdminSection } from "./SurveyAdminSection";
 import { MemberRoleManager } from "./MemberRoleManager";
 import { InviteManager } from "./InviteManager";
 
@@ -418,13 +428,31 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "integrations" && (
           <>
-            <WebhooksSection channels={props.channels} />
+            <WebhooksSection
+              channels={props.channels}
+              actions={{
+                loadWebhooks: adminListWebhooks,
+                createWebhook: adminCreateWebhook,
+                regenerateWebhook: adminRegenerateWebhook,
+                deleteWebhook: adminDeleteWebhook,
+              }}
+            />
             <OutgoingWebhooksSection channels={props.channels} />
           </>
         )}
 
         {props.tab === "external-bots" && (
-          <ExternalBotSection channels={props.channels} />
+          <ExternalBotSection
+            channels={props.channels}
+            actions={{
+              loadBots: adminListExternalBots,
+              addBot: adminAddExternalBot,
+              removeBot: adminRemoveExternalBot,
+              getBotChannelScope: adminGetBotChannelScope,
+              setBotChannelScope: adminSetBotChannelScope,
+            }}
+            renderCapabilities={(pubkey) => <BotCapabilitiesPanel pubkey={pubkey} />}
+          />
         )}
 
         {props.tab === "certifications" && (
@@ -451,10 +479,38 @@ export function HubAdminPage(props: HubAdminPageProps) {
         )}
 
         {props.tab === "native-bots" && props.isAdmin && <NativeBotsSection />}
-        {props.tab === "alliances" && props.isAdmin && <AlliancesSection activeHubUrl={props.activeHubUrl} channels={props.channels} />}
-        {props.tab === "hub-icons" && props.isAdmin && <HubIconsSection />}
+        {props.tab === "alliances" && props.isAdmin && (
+          <AlliancesSection
+            activeHubUrl={props.activeHubUrl}
+            channels={props.channels}
+            actions={{
+              listAlliances,
+              createAlliance,
+              leaveAlliance,
+              listPendingAllianceInvites,
+              acceptAllianceInvite: (inviteId, ownHubUrl) => acceptAllianceInvite(inviteId, ownHubUrl).then(() => {}),
+              declineAllianceInvite,
+              listAllianceSharedChannels,
+              shareChannelWithAlliance,
+              unshareChannelFromAlliance,
+            }}
+          />
+        )}
+        {props.tab === "hub-icons" && props.isAdmin && (
+          <HubIconsSection actions={{ listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon }} />
+        )}
         {props.tab === "onboarding" && props.isAdmin && <OnboardingAdminSection />}
-        {props.tab === "survey" && props.isAdmin && <SurveyAdminSection />}
+        {props.tab === "survey" && props.isAdmin && (
+          <SurveyAdminSection
+            actions={{
+              getSurveyAdmin,
+              setSurveyAdmin,
+              getSurveyResponses,
+              loadAssignableRoles: () =>
+                listRoles().then((roles) => roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))),
+            }}
+          />
+        )}
         {props.tab === "audit-log" && props.isAdmin && <AuditLogSection />}
       </main>
     </div>

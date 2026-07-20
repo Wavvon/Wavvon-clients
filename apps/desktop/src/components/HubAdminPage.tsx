@@ -10,18 +10,25 @@ import type {
   RoleInfo,
 } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
-import { ImagePicker } from "@wavvon/ui";
+import { ImagePicker, AlliancesSection, ExternalBotSection, WebhooksSection, HubIconsSection, SurveyAdminSection } from "@wavvon/ui";
+import type {
+  Alliance,
+  AllianceDetail,
+  PendingAllianceInvite,
+  SharedChannel,
+  ExternalBotRow,
+  ExternalBotInviteResult,
+  WebhookInfo,
+  WebhookCreatedResult,
+  HubIcon as SharedHubIcon,
+  SurveyAdmin as SharedSurveyAdmin,
+  SurveyResponseView,
+} from "@wavvon/ui";
 import { InvitesSection } from "./InvitesSection";
 import { MemberRow } from "./MemberRow";
 import { RoleCreator } from "./RoleCreator";
 import { RoleEditor } from "./RoleEditor";
-import { AlliancesSection } from "./AlliancesSection";
-import { AllianceInvitesSection } from "./AllianceInvitesSection";
-import { HubIconsSection } from "./HubIconsSection";
 import { BotAdminSection } from "./BotAdminSection";
-import { ExternalBotSection } from "./ExternalBotSection";
-import { WebhooksSection } from "./WebhooksSection";
-import { SurveyAdminSection } from "./SurveyAdminSection";
 import { LobbySettingsSection } from "./LobbySettingsSection";
 import { ChallengeSettingsSection } from "./ChallengeSettingsSection";
 import { HubTagsSection } from "./HubTagsSection";
@@ -37,7 +44,6 @@ export type HubAdminTab =
   | "bans"
   | "invites"
   | "alliances"
-  | "alliance-invites"
   | "icons"
   | "bots"
   | "survey"
@@ -190,7 +196,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "bans", label: t("hub.admin.tabs.bans") },
     { id: "invites", label: t("hub.admin.tabs.invites") },
     { id: "alliances", label: t("hub.admin.tabs.alliances") },
-    { id: "alliance-invites", label: t("hub.admin.tabs.alliance_invites") },
     { id: "icons", label: t("hub.admin.tabs.icons") },
     { id: "bots", label: t("hub.admin.tabs.bots") },
     { id: "integrations", label: t("hub.admin.tabs.integrations") },
@@ -624,11 +629,24 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "alliances" && (
           <AlliancesSection
             channels={props.channels}
-            ownHubUrl={props.activeHubUrl}
+            activeHubUrl={props.activeHubUrl}
+            actions={{
+              listAlliances: () => invoke<Alliance[]>("list_alliances"),
+              createAlliance: (name) => invoke<Alliance>("create_alliance", { name }),
+              leaveAlliance: (allianceId) => invoke("leave_alliance", { allianceId }),
+              listPendingAllianceInvites: () => invoke<PendingAllianceInvite[]>("list_pending_alliance_invites"),
+              acceptAllianceInvite: (inviteId, ownHubUrl) =>
+                invoke("respond_to_alliance_invite", { inviteId, accept: true, ownHubUrl }),
+              declineAllianceInvite: (inviteId) =>
+                invoke("respond_to_alliance_invite", { inviteId, accept: false }),
+              listAllianceSharedChannels: (allianceId) =>
+                invoke<SharedChannel[]>("list_alliance_shared_channels", { allianceId }),
+              shareChannelWithAlliance: (allianceId, channelId, includeDescendants) =>
+                invoke("share_channel_with_alliance", { allianceId, channelId, includeDescendants }),
+              unshareChannelFromAlliance: (allianceId, channelId) =>
+                invoke("unshare_channel_from_alliance", { allianceId, channelId }),
+            }}
           />
-        )}
-        {props.tab === "alliance-invites" && (
-          <AllianceInvitesSection ownHubUrl={props.activeHubUrl} />
         )}
         {props.tab === "icons" && (
           <section>
@@ -636,7 +654,14 @@ export function HubAdminPage(props: HubAdminPageProps) {
             <p className="muted">
               {t("hub.admin.icons.hint")}
             </p>
-            <HubIconsSection />
+            <HubIconsSection
+              actions={{
+                listHubIcons: () => invoke<SharedHubIcon[]>("list_hub_icons"),
+                createHubIcon: (name, svgContent) => invoke<SharedHubIcon>("create_hub_icon", { name, svgContent }),
+                renameHubIcon: (iconId, name) => invoke("rename_hub_icon", { iconId, name }),
+                deleteHubIcon: (iconId) => invoke("delete_hub_icon", { iconId }),
+              }}
+            />
           </section>
         )}
         {props.tab === "bots" && (
@@ -646,19 +671,46 @@ export function HubAdminPage(props: HubAdminPageProps) {
               myPubkey={props.myPubkey}
             />
             <ExternalBotSection
-              hubUrl={props.activeHubUrl}
               channels={props.channels}
+              actions={{
+                loadBots: () => invoke<ExternalBotRow[]>("admin_list_external_bots", { hubUrl: props.activeHubUrl }),
+                addBot: (pubkey, localNote) =>
+                  invoke<ExternalBotInviteResult>("admin_add_external_bot", { hubUrl: props.activeHubUrl, pubkey, localNote }),
+                removeBot: (pubkey) => invoke("admin_remove_external_bot", { hubUrl: props.activeHubUrl, pubkey }),
+                setBotChannelScope: (pubkey, channelIds) =>
+                  invoke("admin_set_bot_channel_scope", { hubUrl: props.activeHubUrl, pubkey, channelIds }),
+                // ponytail: no admin_get_bot_channel_scope invoke command yet on desktop —
+                // scope editor opens without pre-filling saved restrictions (see report).
+              }}
             />
           </>
         )}
         {props.tab === "integrations" && (
           <WebhooksSection
-            hubUrl={props.activeHubUrl}
             channels={props.channels}
+            actions={{
+              loadWebhooks: () => invoke<WebhookInfo[]>("admin_list_webhooks", { hubUrl: props.activeHubUrl }),
+              createWebhook: (channelId, displayName, avatarUrl) =>
+                invoke<WebhookCreatedResult>("admin_create_webhook", { hubUrl: props.activeHubUrl, channelId, displayName, avatarUrl }),
+              regenerateWebhook: (webhookId) =>
+                invoke<WebhookCreatedResult>("admin_regenerate_webhook", { hubUrl: props.activeHubUrl, webhookId }),
+              deleteWebhook: (webhookId) => invoke("admin_delete_webhook", { hubUrl: props.activeHubUrl, webhookId }),
+            }}
           />
         )}
         {props.tab === "survey" && (
-          <SurveyAdminSection hubUrl={props.activeHubUrl} />
+          <SurveyAdminSection
+            actions={{
+              getSurveyAdmin: () => invoke<SharedSurveyAdmin | null>("survey_admin_get", { hubUrl: props.activeHubUrl }),
+              setSurveyAdmin: (survey) => invoke("survey_admin_put", { hubUrl: props.activeHubUrl, survey }),
+              getSurveyResponses: () =>
+                invoke<SurveyResponseView[]>("survey_admin_responses", { hubUrl: props.activeHubUrl, status: "all" }),
+              loadAssignableRoles: () =>
+                invoke<RoleInfo[]>("list_roles").then((roles) =>
+                  roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))
+                ),
+            }}
+          />
         )}
         {props.tab === "lobby" && (
           <LobbySettingsSection hubUrl={props.activeHubUrl} />

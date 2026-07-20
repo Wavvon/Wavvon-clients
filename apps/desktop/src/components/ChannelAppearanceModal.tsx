@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { Channel, HubIcon } from "../types";
-import { ChannelIcon } from "./Icons";
+import { ChannelIcon } from "@wavvon/ui";
 import { ChannelIconPicker } from "./ChannelIconPicker";
 import { sanitizeSvg } from "../utils/svgSanitize";
 import { FocusTrap } from "@wavvon/ui";

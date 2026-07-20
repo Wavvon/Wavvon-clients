@@ -1,31 +1,8 @@
 import { hubFetch } from "../http";
+import type { SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView } from "@wavvon/ui";
 
-export interface SurveyChoice {
-  id: string;
-  label: string;
-  display_order: number;
-  role_ids: string[];
-}
-export interface SurveyQuestion {
-  id: string;
-  prompt: string;
-  kind: "text" | "choice";
-  required: boolean;
-  display_order: number;
-  choices?: SurveyChoice[];
-}
-export interface SurveyAdmin {
-  id: string;
-  enabled: boolean;
-  questions: SurveyQuestion[];
-}
-export interface SurveyResponseView {
-  response_id: string;
-  pubkey: string;
-  display_name?: string;
-  submitted_at: number;
-  answers: { question_id: string; prompt: string; choice_label?: string; text_answer?: string }[];
-}
+export type { SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView };
+
 export interface SurveyAnswerInput {
   question_id: string;
   choice_id?: string;
