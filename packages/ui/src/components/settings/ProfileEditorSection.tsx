@@ -229,8 +229,13 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
 
   // Load a context's baseline the first time it's opened. Already-loaded
   // contexts keep their draft — that's what lets edits survive switching.
+  // A month alone can't live in the draft (composeBirthday collapses a
+  // month-without-day to ""), so it parks here until a day completes it.
+  const [pendingMonth, setPendingMonth] = useState("");
+
   useEffect(() => {
     setChoosingAvatar(false);
+    setPendingMonth("");
     if (error === "no_session" || (error && error !== "name_required")) setError(null);
     if (baselines[context]) return;
     if (context === DEFAULT_CONTEXT) {
@@ -321,9 +326,12 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   // the default draft from now on — including edits made to the default
   // afterwards — until a field here is edited (detach) or settings closes.
   // Still nothing persisted until "Save changes".
-  const { month: birthdayMonth, day: birthdayDay } = parseBirthday(draft?.birthday ?? "");
+  const parsedBirthday = parseBirthday(draft?.birthday ?? "");
+  const birthdayMonth = parsedBirthday.month || pendingMonth;
+  const birthdayDay = parsedBirthday.day;
 
   function updateBirthdayMonth(month: string) {
+    setPendingMonth(month);
     const maxDay = DAYS_IN_MONTH[Number(month) - 1] ?? 31;
     const day = birthdayDay && Number(birthdayDay) <= maxDay ? birthdayDay : "";
     update({ birthday: composeBirthday(month, day) });
@@ -582,7 +590,10 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     <button
                       type="button"
                       className="btn-small btn-secondary"
-                      onClick={() => update({ birthday: "" })}
+                      onClick={() => {
+                        setPendingMonth("");
+                        update({ birthday: "" });
+                      }}
                     >
                       {t("settings.profile.fields.birthday_clear", "Clear")}
                     </button>
