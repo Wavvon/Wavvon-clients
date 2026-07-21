@@ -31,6 +31,7 @@ interface Props {
   pinnedMessageIds?: Set<string>;
   sessionHubUrl: string | null;
   sessionToken?: string | null;
+  hideBirthdays?: boolean;
   hubEmojiMap: Map<string, HubEmojiEntry>;
   hubBaseUrl?: string;
   actions: MessageRowActions;
@@ -90,6 +91,7 @@ export function ChannelMessageList({
   pinnedMessageIds,
   sessionHubUrl,
   sessionToken,
+  hideBirthdays,
   hubEmojiMap,
   hubBaseUrl,
   actions,
@@ -177,6 +179,7 @@ export function ChannelMessageList({
             pinnedMessageIds={pinnedMessageIds}
             sessionHubUrl={sessionHubUrl}
             sessionToken={sessionToken}
+            hideBirthdays={hideBirthdays}
             hubEmojiMap={hubEmojiMap}
             hubBaseUrl={hubBaseUrl}
             actions={actions}

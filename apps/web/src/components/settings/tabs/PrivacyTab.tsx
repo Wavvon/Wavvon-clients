@@ -11,6 +11,8 @@ interface Props extends PerAccountProps<IdentityRecord> {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
+  hideBirthdays: boolean;
+  onToggleHideBirthdays: () => void;
 }
 
 // Who the selected account has blocked or ignored — about other people,
@@ -39,6 +41,17 @@ export function PrivacyTab(props: Props) {
           knownNames={props.knownNames}
         />
       )}
+      <div className="settings-section">
+        <label className="settings-label">Birthdays</label>
+        <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={props.hideBirthdays}
+            onChange={props.onToggleHideBirthdays}
+          />
+          Hide the 🎂 badge on members' birthdays
+        </label>
+      </div>
     </section>
   );
 }

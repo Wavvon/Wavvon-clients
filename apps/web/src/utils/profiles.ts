@@ -19,6 +19,7 @@ export interface DefaultProfile {
   cover: string | null;
   favorite_hubs: FavoriteHub[];
   show_hubs: boolean;
+  birthday: string | null;
 }
 
 const DEFAULT_PROFILE_KEY = "wavvon.defaultProfile";
@@ -40,6 +41,7 @@ export function loadDefaultProfile(accountId?: string | null): DefaultProfile | 
           cover: p.cover ?? null,
           favorite_hubs: Array.isArray(p.favorite_hubs) ? p.favorite_hubs : [],
           show_hubs: p.show_hubs ?? false,
+          birthday: p.birthday ?? null,
         };
       }
     }

@@ -10,6 +10,7 @@ import {
   formatDayLabel,
   formatFullTimestamp,
   formatRelative,
+  isBirthdayToday,
   parseGameLaunchCard,
 } from "@wavvon/core";
 import { MessageReactions } from "./MessageReactions";
@@ -70,6 +71,8 @@ interface Props {
   pinnedMessageIds?: Set<string>;
   sessionHubUrl: string | null;
   sessionToken?: string | null;
+  /** Viewer opt-out from the 🎂 badge next to a birthday author's name. */
+  hideBirthdays?: boolean;
   /** Hub custom-emoji `:name:` shortcode resolution — desktop feature web
    * lacked, so a custom emoji inserted via the composer rendered as literal
    * text instead of an image. Omit to skip substitution. */
@@ -126,6 +129,7 @@ export function MessageRow({
   pinnedMessageIds = new Set<string>(),
   sessionHubUrl,
   sessionToken,
+  hideBirthdays,
   hubEmojiMap,
   hubBaseUrl,
   displayedMessages,
@@ -172,6 +176,7 @@ export function MessageRow({
   const isEditing = editingMessageId === m.id;
   const senderUser = users.find((u) => u.public_key === m.sender);
   const senderLabel = senderUser?.display_name || m.sender_name || formatPubkey(m.sender);
+  const showBirthdayBadge = !hideBirthdays && isBirthdayToday(senderUser?.birthday);
   const isMentioned = m.sender !== publicKey && mentionsName(m.content, myDisplayName);
   const isEphemeral = !!m.visible_to_pubkey && m.visible_to_pubkey === publicKey;
   const actionText = meAction(m.content);
@@ -288,6 +293,7 @@ export function MessageRow({
           >
             {senderLabel}
           </span>
+          {showBirthdayBadge && <span title="Birthday today" aria-label="Birthday today">🎂</span>}
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} hubEmojiMap={hubEmojiMap} hubBaseUrl={hubBaseUrl ?? activeHub?.hub_url} />
           </span>
@@ -337,6 +343,7 @@ export function MessageRow({
         >
           {senderLabel}
         </span>
+        {showBirthdayBadge && <span title="Birthday today" aria-label="Birthday today">🎂</span>}
         {senderUser?.is_bot && !senderUser?.is_webhook && (
           <span className="bot-badge" aria-hidden="true">{t("bot.badge")}</span>
         )}

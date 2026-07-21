@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { User } from "../../types";
-import { formatPubkey } from "@wavvon/core";
+import { formatPubkey, isBirthdayToday } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 
 export function UserListGrouped({
@@ -9,6 +9,7 @@ export function UserListGrouped({
   inVoice,
   myPubkey,
   selfInvisible,
+  hideBirthdays,
   onUserClick,
   onContextMenu,
   onBotClick,
@@ -21,6 +22,9 @@ export function UserListGrouped({
    * here (same as everyone else sees them) but with a hollow-ring dot rather
    * than plain offline gray, so it doesn't look like a connection problem. */
   selfInvisible?: boolean;
+  /** Viewer opt-out from the 🎂 badge (the third of three independent
+   *  opt-ins — see decisions.md). */
+  hideBirthdays?: boolean;
   onUserClick?: (pubkey: string) => void;
   onContextMenu?: (e: React.MouseEvent, user: User) => void;
   onBotClick?: (pubkey: string, e: React.MouseEvent) => void;
@@ -157,6 +161,9 @@ export function UserListGrouped({
                   />
                   <span className="user-name" title={u.status_custom ?? undefined}>
                     {u.display_name || u.public_key.slice(0, 16)}
+                    {!hideBirthdays && isBirthdayToday(u.birthday) && (
+                      <span title="Birthday today" aria-label="Birthday today"> 🎂</span>
+                    )}
                     {u.status_custom && (
                       <span className="user-custom-status"> — {u.status_custom}</span>
                     )}
@@ -199,6 +206,9 @@ export function UserListGrouped({
                   />
                   <span className="user-name">
                     {u.display_name || u.public_key.slice(0, 16)}
+                    {!hideBirthdays && isBirthdayToday(u.birthday) && (
+                      <span title="Birthday today" aria-label="Birthday today"> 🎂</span>
+                    )}
                     {isSelfInvisible && (
                       <span className="user-custom-status"> — {t("presence.invisible")}</span>
                     )}

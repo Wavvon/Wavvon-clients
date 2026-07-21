@@ -21,6 +21,9 @@ export interface MyHubProfile {
   // Earned on that hub, read-only — shown in the editor card as members
   // would see them (labels only).
   badges: string[];
+  // MM-DD, never a year. Absent/null when unset or the hub has birthdays
+  // disabled (the server omits it entirely in that case).
+  birthday: string | null;
 }
 
 // The subset of a profile the editor writes back.
@@ -35,6 +38,7 @@ export interface MyProfileUpdate {
   cover: string | null;
   favorite_hubs: FavoriteHub[];
   show_hubs: boolean;
+  birthday: string | null;
 }
 
 // Thrown when the hub has no live session this run (saved but never
@@ -64,6 +68,7 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
     favorite_hubs?: FavoriteHub[];
     show_hubs?: boolean;
     badges?: { id: string; label: string }[];
+    birthday?: string | null;
   };
   return {
     display_name: p.display_name ?? null,
@@ -77,6 +82,7 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
     favorite_hubs: p.favorite_hubs ?? [],
     show_hubs: p.show_hubs ?? false,
     badges: (p.badges ?? []).map((b) => b.label),
+    birthday: p.birthday ?? null,
   };
 }
 
@@ -86,7 +92,7 @@ export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<
 // resend the whole profile.
 export async function patchMyProfileOnHub(
   hubId: string,
-  fields: Partial<Record<"display_name" | "bio" | "pronouns" | "status_message" | "activities", string | null>>,
+  fields: Partial<Record<"display_name" | "bio" | "pronouns" | "status_message" | "activities" | "birthday", string | null>>,
 ): Promise<void> {
   const s = sessionOf(hubId);
   const body: Record<string, string> = {};
@@ -111,6 +117,7 @@ export async function updateMyProfileOnHub(hubId: string, profile: MyProfileUpda
       cover: profile.cover ?? "",
       favorite_hubs: profile.favorite_hubs,
       show_hubs: profile.show_hubs,
+      birthday: profile.birthday ?? "",
     }),
   });
 }

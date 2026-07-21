@@ -51,6 +51,10 @@ const PREFS_BLOB_KEY_INFO = "wavvon/prefs-blob-key/v1";
 export interface PrefsBlobContents {
   blocked_users: string[];
   voice_settings: Record<string, unknown>;
+  /** Viewer opt-out from the 🎂 birthday badge (decisions.md "triple opt-in"
+   *  — the third layer, after the owner sharing and the hub allowing it).
+   *  Optional so blobs written before this field existed still decode. */
+  hide_birthdays?: boolean;
 }
 
 /** Derive the 32-byte prefs-blob AES-256-GCM key from the master signing seed (hex). */

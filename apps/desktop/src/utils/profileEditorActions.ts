@@ -86,6 +86,7 @@ interface RawHubProfile {
   favorite_hubs?: ProfileDraftFields["favorite_hubs"];
   show_hubs?: boolean;
   badges?: { id: string; label: string }[] | string[];
+  birthday?: string | null;
 }
 
 function shapeHubProfile(raw: RawHubProfile): HubProfileSnapshot {
@@ -102,6 +103,7 @@ function shapeHubProfile(raw: RawHubProfile): HubProfileSnapshot {
     favorite_hubs: raw.favorite_hubs ?? [],
     show_hubs: raw.show_hubs ?? false,
     badges,
+    birthday: raw.birthday ?? null,
   };
 }
 
@@ -129,6 +131,7 @@ export function buildProfileEditorActions(hubs: Hub[]): ProfileEditorActions {
           cover: profile.cover ?? "",
           favorite_hubs: profile.favorite_hubs,
           show_hubs: profile.show_hubs,
+          birthday: profile.birthday ?? "",
         },
       });
     },

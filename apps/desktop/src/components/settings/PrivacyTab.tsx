@@ -8,10 +8,12 @@ interface Props {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
+  hideBirthdays: boolean;
+  onToggleHideBirthdays: () => void;
 }
 
 // Who the active account has blocked or ignored.
-export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames }: Props) {
+export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames, hideBirthdays, onToggleHideBirthdays }: Props) {
   const { t } = useTranslation();
   return (
     <section>
@@ -23,6 +25,13 @@ export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames 
         onUnignore={onUnignore}
         knownNames={knownNames}
       />
+      <div className="settings-section">
+        <label className="settings-label">Birthdays</label>
+        <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" checked={hideBirthdays} onChange={onToggleHideBirthdays} />
+          Hide the 🎂 badge on members' birthdays
+        </label>
+      </div>
     </section>
   );
 }

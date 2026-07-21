@@ -12,6 +12,7 @@ const STORAGE_KEY_CHANNEL = "wavvon.notifyMode.channel";
 const STORAGE_KEY_PINNED = "wavvon.pinnedChannels";
 const STORAGE_KEY_COLLAPSED = "wavvon.collapsedCategories";
 const STORAGE_KEY_HIDE_SILENCED = "wavvon.hideSilenced";
+const STORAGE_KEY_HIDE_BIRTHDAYS = "wavvon.hideBirthdays";
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -45,6 +46,14 @@ export function useNotificationPrefs() {
   );
   const [hideSilenced, setHideSilencedState] = useState<boolean>(
     () => readJson(STORAGE_KEY_HIDE_SILENCED, false),
+  );
+  // Viewer opt-out from the 🎂 birthday badge — the third of three
+  // independent opt-ins (decisions.md). Device-local storage for now: the
+  // hub-synced prefs blob (packages/core PrefsBlobContents.hide_birthdays)
+  // only has a push/pull round trip on desktop today — see
+  // docs/docs/client-parity.md.
+  const [hideBirthdays, setHideBirthdaysState] = useState<boolean>(
+    () => readJson(STORAGE_KEY_HIDE_BIRTHDAYS, false),
   );
 
   const setHubNotifyMode = useCallback((updater: (prev: HubNotifyMode) => HubNotifyMode) => {
@@ -87,6 +96,14 @@ export function useNotificationPrefs() {
     });
   }, []);
 
+  const toggleHideBirthdays = useCallback(() => {
+    setHideBirthdaysState((prev) => {
+      const next = !prev;
+      writeJson(STORAGE_KEY_HIDE_BIRTHDAYS, next);
+      return next;
+    });
+  }, []);
+
   function effectiveNotifyMode(hubId: string, channelId: string): NotifyMode {
     return channelNotifyMode[hubId]?.[channelId] ?? hubNotifyMode[hubId] ?? "all";
   }
@@ -97,11 +114,13 @@ export function useNotificationPrefs() {
     pinnedChannels,
     collapsedCategories,
     hideSilenced,
+    hideBirthdays,
     setHubNotifyMode,
     setChannelNotifyMode,
     setPinnedChannels,
     setCollapsedCategories,
     toggleHideSilenced,
+    toggleHideBirthdays,
     effectiveNotifyMode,
   };
 }

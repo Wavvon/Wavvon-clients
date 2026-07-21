@@ -93,6 +93,10 @@ pub(crate) struct DefaultProfileFields {
     pub favorite_hubs: Vec<FavoriteHubEntry>,
     #[serde(default)]
     pub show_hubs: bool,
+    /// MM-DD, never a year. Optional so a profile.json written before this
+    /// field existed still deserializes.
+    #[serde(default)]
+    pub birthday: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]

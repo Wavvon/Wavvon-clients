@@ -42,6 +42,8 @@ export function useHubAdmin({
   const [requireApproval, setRequireApproval] = useState(false);
   const [minSecurityLevel, setMinSecurityLevel] = useState(0);
   const [maxChannelDepth, setMaxChannelDepth] = useState(0);
+  const [hubTimezone, setHubTimezone] = useState("");
+  const [birthdaysEnabled, setBirthdaysEnabled] = useState(true);
   const [pendingMembers, setPendingMembers] = useState<PendingUser[]>([]);
   const [hubListed, setHubListedState] = useState(false);
 
@@ -73,10 +75,14 @@ export function useHubAdmin({
         invite_only: boolean;
         min_security_level: number;
         max_channel_depth: number;
+        timezone?: string | null;
+        birthdays_enabled?: boolean;
       }>("get_hub_settings");
       setRequireApproval(settings.require_approval);
       setMinSecurityLevel(settings.min_security_level ?? 0);
       setMaxChannelDepth(settings.max_channel_depth ?? 0);
+      setHubTimezone(settings.timezone ?? "");
+      setBirthdaysEnabled(settings.birthdays_enabled ?? true);
     } catch (e) {
       setError(String(e));
     }
@@ -106,6 +112,8 @@ export function useHubAdmin({
         maxChannelDepth,
         welcomeLabel: adminWelcomeLabel,
         welcomeInviteUrl: adminWelcomeInviteUrl,
+        timezone: hubTimezone,
+        birthdaysEnabled,
       });
       const refreshed = await invoke<Hub[]>("list_hubs");
       setHubs(() => refreshed);
@@ -312,6 +320,10 @@ export function useHubAdmin({
     setMinSecurityLevel,
     maxChannelDepth,
     setMaxChannelDepth,
+    hubTimezone,
+    setHubTimezone,
+    birthdaysEnabled,
+    setBirthdaysEnabled,
     pendingMembers,
     hubListed,
     onHubListedChange: handleHubListedChange,

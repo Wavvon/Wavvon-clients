@@ -57,6 +57,7 @@ export { FocusTrap } from "./components/FocusTrap";
 export { GameCard } from "./components/GameCard";
 export { GameModal } from "./components/GameModal";
 export { HoverSubmenu } from "./components/HoverSubmenu";
+export { HubClock } from "./components/HubClock";
 export { ImagePicker } from "./components/ImagePicker";
 export { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 export { MessageContent } from "./components/MessageContent";

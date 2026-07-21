@@ -59,6 +59,12 @@ export interface HubAdminPageProps {
   onWelcomeLabelChange: (v: string) => void;
   welcomeInviteUrl: string;
   onWelcomeInviteUrlChange: (v: string) => void;
+  /** IANA name, or "" for unset — matches the empty-string-clears convention
+   *  used across the rest of this page's PATCH-backed fields. */
+  timezone: string;
+  onTimezoneChange: (v: string) => void;
+  birthdaysEnabled: boolean;
+  onBirthdaysEnabledChange: (v: boolean) => void;
   saveError: string | null;
   onSave: () => void;
 
@@ -131,6 +137,12 @@ export interface HubAdminPageProps {
   renderOutgoingWebhooks?: () => ReactNode;
   renderRecoveryContacts?: () => ReactNode;
 }
+
+// `Intl.supportedValuesOf` isn't in every configured lib target here yet
+// (TS lib.esnext.intl); cast locally rather than widen the whole app's lib
+// set for one feature-detected call.
+const supportedTimeZones = (Intl as unknown as { supportedValuesOf?: (key: "timeZone") => string[] })
+  .supportedValuesOf;
 
 function hubToWavvonUrl(hubUrl: string): string {
   try {
@@ -277,6 +289,34 @@ export function HubAdminPage(props: HubAdminPageProps) {
             <div className="settings-section">
               <label className="settings-label" htmlFor="admin-antispam">Minimum proof-of-work level</label>
               <input id="admin-antispam" type="number" min={0} max={9999} value={props.minSecurityLevel} onChange={(e) => props.onMinSecurityLevelChange(Number(e.target.value))} />
+            </div>
+            <div className="settings-section">
+              <label className="settings-label" htmlFor="admin-hub-timezone">Hub timezone</label>
+              <p className="muted">
+                Ambient flavor for members (a hub-local clock) — message and event times always stay in each viewer's own local time.
+              </p>
+              {typeof supportedTimeZones === "function" ? (
+                <select
+                  id="admin-hub-timezone"
+                  value={props.timezone}
+                  onChange={(e) => props.onTimezoneChange(e.target.value)}
+                >
+                  <option value="">Not set</option>
+                  {supportedTimeZones("timeZone").map((tz) => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="muted">Timezone picker isn't supported by this browser.</p>
+              )}
+              <label className="checkbox-label" style={{ marginTop: "var(--space-2)" }}>
+                <input
+                  type="checkbox"
+                  checked={props.birthdaysEnabled}
+                  onChange={(e) => props.onBirthdaysEnabledChange(e.target.checked)}
+                />
+                Show member birthdays (🎂 badge on the day, if the member shared one)
+              </label>
             </div>
             <div className="settings-section">
               <label className="settings-label" htmlFor="admin-max-depth">Max channel nesting depth</label>

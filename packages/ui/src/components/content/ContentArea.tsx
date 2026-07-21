@@ -83,6 +83,8 @@ interface Props {
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
   selfInvisible?: boolean;
+  /** Viewer opt-out from the 🎂 badge (member list + message author rows). */
+  hideBirthdays?: boolean;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;
   dmTypingByKey: Record<string, TypingEntry>;
@@ -173,6 +175,7 @@ export function ContentArea({
   pendingAttachments, stickToBottom, newWhileScrolledUp,
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers,
   selfInvisible,
+  hideBirthdays,
   inputText, typingByKey, dmTypingByKey,
   messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
   onReconnect, onToggleReaction, onSetReplyTarget,
@@ -589,6 +592,7 @@ export function ContentArea({
               isAdmin={isAdmin}
               pinnedMessageIds={pinnedMessageIds}
               sessionHubUrl={activeHub?.hub_url ?? null}
+              hideBirthdays={hideBirthdays}
               hubEmojiMap={hubEmojiMap}
               hubBaseUrl={activeHub?.hub_url}
               actions={messageRowActions}
@@ -688,6 +692,7 @@ export function ContentArea({
             inVoice={voiceActiveUsers}
             myPubkey={publicKey}
             selfInvisible={selfInvisible}
+            hideBirthdays={hideBirthdays}
             onUserClick={(pubkey) => handleAuthorClick(pubkey)}
             onContextMenu={(e, u) => {
               e.preventDefault();

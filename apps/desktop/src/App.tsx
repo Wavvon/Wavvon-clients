@@ -154,6 +154,10 @@ import { setSwitchGuard } from "./accounts/store";
 function App() {
   // Multi-hub state
   const [hubs, setHubs] = useState<Hub[]>([]);
+  // Active hub's ambient IANA timezone (HubClock in the sidebar header) —
+  // member-facing, fetched alongside the rest of loadHubData rather than
+  // gated behind opening the admin panel.
+  const [activeHubTimezone, setActiveHubTimezone] = useState<string | null>(null);
   const hubsRef = useRef<Hub[]>([]);
   useEffect(() => { hubsRef.current = hubs; }, [hubs]);
   const [activeHubId, setActiveHubId] = useState<string | null>(null);
@@ -373,6 +377,10 @@ function App() {
     setMinSecurityLevel,
     maxChannelDepth,
     setMaxChannelDepth,
+    hubTimezone,
+    setHubTimezone,
+    birthdaysEnabled,
+    setBirthdaysEnabled,
     pendingMembers,
     hubListed,
     onHubListedChange,
@@ -918,6 +926,7 @@ function App() {
   } = useFriends({ setError, setToast });
 
   const [hideSilenced, setHideSilenced] = useState(false);
+  const [hideBirthdays, setHideBirthdays] = useState(false);
 
   // Auto-dismiss toast after 5 seconds
   useEffect(() => {
@@ -1070,6 +1079,10 @@ function App() {
         setAllianceChannels({});
         return;
       }
+
+      invoke<{ timezone?: string | null }>("get_hub_branding")
+        .then((b) => setActiveHubTimezone(b.timezone ?? null))
+        .catch(() => setActiveHubTimezone(null));
 
       const ch = await invoke<Channel[]>("list_channels");
       setChannels(ch);
@@ -2112,6 +2125,10 @@ function App() {
             onWelcomeLabelChange={setAdminWelcomeLabel}
             welcomeInviteUrl={adminWelcomeInviteUrl}
             onWelcomeInviteUrlChange={setAdminWelcomeInviteUrl}
+            timezone={hubTimezone}
+            onTimezoneChange={setHubTimezone}
+            birthdaysEnabled={birthdaysEnabled}
+            onBirthdaysEnabledChange={setBirthdaysEnabled}
             saveError={null}
             onSave={handleSaveHubBranding}
             hubListed={hubListed}
@@ -2409,6 +2426,8 @@ function App() {
             onUnblock={toggleBlockUser}
             onUnignore={toggleIgnoreUser}
             knownNames={pubkeyToName}
+            hideBirthdays={hideBirthdays}
+            onToggleHideBirthdays={() => setHideBirthdays((v) => !v)}
           />
         ) : (
           <div className="main-layout">
@@ -2539,6 +2558,7 @@ function App() {
                   hasDraft={hasDraft}
                   hubNotifyMode={hubNotifyMode}
                   hubDropdownOpen={hubDropdownOpen}
+                  hubTimezone={activeHubTimezone}
                   hideSilenced={hideSilenced}
                   silencedChannelIds={silencedChannelIds}
                   userAlliances={userAlliances}
@@ -2709,6 +2729,7 @@ function App() {
                   reconnectingHubs={reconnectingHubs}
                   memberSidebarHidden={memberSidebarHidden}
                   voiceActiveUsers={voice.voiceActiveUsers}
+                  hideBirthdays={hideBirthdays}
                   inputText={channelMessages.inputText}
                   typingByKey={typingByKey}
                   dmTypingByKey={dmTypingByKey}

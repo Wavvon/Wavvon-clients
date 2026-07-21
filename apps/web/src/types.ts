@@ -113,6 +113,7 @@ export interface MeInfo {
   show_hubs: boolean;
   approval_status: "approved" | "pending";
   roles: RoleInfo[];
+  birthday: string | null;
 }
 
 export interface MemberAdminInfo {

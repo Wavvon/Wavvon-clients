@@ -165,6 +165,7 @@ interface Props {
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
   selfInvisible: boolean;
+  hideBirthdays?: boolean;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;
   dmTypingByKey: Record<string, TypingEntry>;

@@ -98,6 +98,9 @@ export interface User {
   group_role: string | null;
   is_bot?: boolean;
   is_webhook?: boolean;
+  /** MM-DD (never a year) — null/absent when unset or the hub has birthdays
+   *  disabled (the server omits it entirely in that case). */
+  birthday?: string | null;
 }
 
 export interface LinkPreview {
@@ -699,6 +702,8 @@ export interface ProfileDraftFields {
   cover: string | null;
   favorite_hubs: FavoriteHub[];
   show_hubs: boolean;
+  /** MM-DD, never a year. null = unset/cleared. */
+  birthday: string | null;
 }
 
 export interface HubProfileSnapshot extends Omit<ProfileDraftFields, "display_name"> {
@@ -764,6 +769,7 @@ export interface UserProfile {
   joined_at: number;
   roles: RoleInfo[];
   badges: BadgeSummary[];
+  birthday: string | null;
 }
 
 export interface PublicHubEntry {

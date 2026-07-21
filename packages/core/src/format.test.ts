@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { formatRelativeSigned } from "./format";
+import { formatRelativeSigned, isBirthdayToday } from "./format";
 
 const NOW = 1_700_000_000;
 
@@ -32,5 +32,22 @@ describe("formatRelativeSigned", () => {
   it("handles a future timestamp about a day away, matching the reported bug", () => {
     // ~24h invite expiry reported as "-85797s ago" before the fix.
     expect(formatRelativeSigned(NOW + 85797)).toEqual({ future: true, duration: "23h" });
+  });
+});
+
+describe("isBirthdayToday", () => {
+  const jun15 = new Date(2026, 5, 15);
+
+  it("matches an MM-DD equal to today, regardless of year", () => {
+    expect(isBirthdayToday("06-15", jun15)).toBe(true);
+  });
+
+  it("does not match a different day", () => {
+    expect(isBirthdayToday("06-16", jun15)).toBe(false);
+  });
+
+  it("returns false for null/undefined", () => {
+    expect(isBirthdayToday(null, jun15)).toBe(false);
+    expect(isBirthdayToday(undefined, jun15)).toBe(false);
   });
 });

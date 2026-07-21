@@ -66,6 +66,8 @@ interface SettingsPageProps {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
+  hideBirthdays: boolean;
+  onToggleHideBirthdays: () => void;
   onImportSkin: (skin: WavvonSkin) => void;
   inVoice: boolean;
 }
@@ -157,6 +159,8 @@ export function SettingsPage(props: SettingsPageProps) {
             onUnblock={props.onUnblock}
             onUnignore={props.onUnignore}
             knownNames={props.knownNames}
+            hideBirthdays={props.hideBirthdays}
+            onToggleHideBirthdays={props.onToggleHideBirthdays}
             {...perAccount}
           />
         )}

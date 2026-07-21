@@ -83,6 +83,14 @@ pub(crate) struct InfoResponse {
     pub welcome_label: Option<String>,
     #[serde(default)]
     pub welcome_invite_url: Option<String>,
+    #[serde(default)]
+    pub timezone: Option<String>,
+    #[serde(default = "default_birthdays_enabled")]
+    pub birthdays_enabled: bool,
+}
+
+pub(crate) fn default_birthdays_enabled() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -122,6 +130,8 @@ pub(crate) struct MeInfo {
     #[serde(default = "default_approval_status")]
     pub approval_status: String,
     pub roles: Vec<RoleInfo>,
+    #[serde(default)]
+    pub birthday: Option<String>,
 }
 
 pub(crate) fn default_approval_status() -> String {
@@ -137,6 +147,10 @@ pub(crate) struct HubBranding {
     pub welcome_label: Option<String>,
     #[serde(default)]
     pub welcome_invite_url: Option<String>,
+    /// Member-facing (unlike the rest of this admin-overview struct): read by
+    /// every joined member for the ambient hub-local clock, not just admins.
+    #[serde(default)]
+    pub timezone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -147,6 +161,10 @@ pub(crate) struct HubSettings {
     pub max_channel_depth: u32,
     #[serde(default)]
     pub default_invite_role_id: Option<String>,
+    #[serde(default)]
+    pub timezone: Option<String>,
+    #[serde(default = "default_birthdays_enabled")]
+    pub birthdays_enabled: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -200,6 +218,8 @@ pub(crate) struct UserInfo {
     pub group_role: Option<String>,
     #[serde(default)]
     pub is_bot: bool,
+    #[serde(default)]
+    pub birthday: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

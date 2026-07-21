@@ -79,6 +79,16 @@ export function formatFullTimestamp(unixSec: number): string {
   });
 }
 
+/** True when `birthday` (MM-DD, never a year) matches `now`'s local calendar
+ *  day — a floating calendar date, not an instant, so this is always the
+ *  viewer's own local date rather than any UTC/hub-relative comparison. */
+export function isBirthdayToday(birthday: string | null | undefined, now: Date = new Date()): boolean {
+  if (!birthday) return false;
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return birthday === `${mm}-${dd}`;
+}
+
 export function newProfileId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();

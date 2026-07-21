@@ -139,6 +139,7 @@ pub(crate) async fn get_hub_branding(state: State<'_, AppState>) -> Result<HubBr
         icon: info.icon,
         welcome_label: info.welcome_label,
         welcome_invite_url: info.welcome_invite_url,
+        timezone: info.timezone,
     })
 }
 
@@ -154,6 +155,8 @@ pub(crate) async fn update_hub_branding(
     welcome_label: Option<String>,
     welcome_invite_url: Option<String>,
     default_invite_role_id: Option<String>,
+    timezone: Option<String>,
+    birthdays_enabled: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
@@ -171,6 +174,8 @@ pub(crate) async fn update_hub_branding(
             "welcome_label": welcome_label,
             "welcome_invite_url": welcome_invite_url,
             "default_invite_role_id": default_invite_role_id,
+            "timezone": timezone,
+            "birthdays_enabled": birthdays_enabled,
         }))
         .send()
         .await

@@ -259,6 +259,10 @@ export default function App({ initialView }: AppProps = {}) {
 
   // === Hubs ===
   const [hubs, setHubs] = useState<Hub[]>([]);
+  // Active hub's ambient IANA timezone (HubClock in the sidebar header) —
+  // member-facing, so fetched from /info alongside the loadHubData self-heal
+  // rather than gated behind the admin settings fetch.
+  const [activeHubTimezone, setActiveHubTimezone] = useState<string | null>(null);
   const [activeHubId, setActiveHubIdState] = useState<string | null>(null);
   const { hubConnected, reconnectingHubs, handleStatusChange } = useHubConnection();
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
@@ -382,6 +386,7 @@ export default function App({ initialView }: AppProps = {}) {
   } = useUnreadCounts();
   const {
     hubNotifyMode, channelNotifyMode, pinnedChannels, collapsedCategories, hideSilenced,
+    hideBirthdays, toggleHideBirthdays,
     setHubNotifyMode, setChannelNotifyMode, setCollapsedCategories, toggleHideSilenced, effectiveNotifyMode,
   } = useNotificationPrefs();
   const silencedChannelIds = useMemo(() => {
@@ -439,6 +444,8 @@ export default function App({ initialView }: AppProps = {}) {
     hubAdminMinLevel, setHubAdminMinLevel,
     hubAdminWelcomeLabel, setHubAdminWelcomeLabel,
     hubAdminWelcomeInviteUrl, setHubAdminWelcomeInviteUrl,
+    hubAdminTimezone, setHubAdminTimezone,
+    hubAdminBirthdaysEnabled, setHubAdminBirthdaysEnabled,
     hubAdminSaveError,
     hubAdminMembers,
     hubAdminBans,
@@ -486,6 +493,7 @@ export default function App({ initialView }: AppProps = {}) {
           cover: profile.cover ?? "",
           favorite_hubs: profile.favorite_hubs,
           show_hubs: profile.show_hubs,
+          birthday: profile.birthday ?? "",
         }),
       });
       hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
@@ -701,7 +709,7 @@ export default function App({ initialView }: AppProps = {}) {
   function handleIdentityComplete(result: IdentitySetupCompletion) {
     // Nickname + avatar chosen during onboarding become the default profile,
     // which the first-hub effect below applies automatically via PATCH /me.
-    if (result.profile) saveDefaultProfile({ display_name: result.profile.display_name, avatar: result.profile.avatar, bio: null, pronouns: null, status_message: null, activities: null, accent_color: null, cover: null, favorite_hubs: [], show_hubs: false });
+    if (result.profile) saveDefaultProfile({ display_name: result.profile.display_name, avatar: result.profile.avatar, bio: null, pronouns: null, status_message: null, activities: null, accent_color: null, cover: null, favorite_hubs: [], show_hubs: false, birthday: null });
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
@@ -1217,12 +1225,13 @@ export default function App({ initialView }: AppProps = {}) {
     // done in hub admin — possibly on another device — otherwise never
     // reaches the sidebar, not even across reloads. Fire-and-forget.
     hubFetch("/info")
-      .then((r) => r.json() as Promise<{ name?: string }>)
+      .then((r) => r.json() as Promise<{ name?: string; timezone?: string | null }>)
       .then((info) => {
         const hubId = getActiveHubId();
         if (hubId && info?.name && renameSavedHub(hubId, info.name)) {
           setHubs(listHubs());
         }
+        setActiveHubTimezone(info?.timezone ?? null);
       })
       .catch(() => { /* cosmetic sync only */ });
     try {
@@ -2654,6 +2663,8 @@ export default function App({ initialView }: AppProps = {}) {
             onUnblock={toggleBlockUser}
             onUnignore={toggleIgnoreUser}
             knownNames={pubkeyToName}
+            hideBirthdays={hideBirthdays}
+            onToggleHideBirthdays={toggleHideBirthdays}
             inVoice={voiceChannelId !== null}
           />
         </div>
@@ -2790,6 +2801,7 @@ export default function App({ initialView }: AppProps = {}) {
         canCreateInvites={canCreateInvites}
         hubNotifyMode={hubNotifyMode}
         hubDropdownOpen={hubDropdownOpen}
+        hubTimezone={activeHubTimezone}
         hideSilenced={hideSilenced}
         silencedChannelIds={silencedChannelIds}
         userAlliances={userAlliances}
@@ -3052,6 +3064,7 @@ export default function App({ initialView }: AppProps = {}) {
         profileCardActions={profileCardActions}
         voicePartByChannel={visibleVoicePartByChannel}
         selfInvisible={myPresence.status === "invisible"}
+        hideBirthdays={hideBirthdays}
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}
       /></>}
@@ -3079,6 +3092,10 @@ export default function App({ initialView }: AppProps = {}) {
             onWelcomeLabelChange={setHubAdminWelcomeLabel}
             welcomeInviteUrl={hubAdminWelcomeInviteUrl}
             onWelcomeInviteUrlChange={setHubAdminWelcomeInviteUrl}
+            timezone={hubAdminTimezone}
+            onTimezoneChange={setHubAdminTimezone}
+            birthdaysEnabled={hubAdminBirthdaysEnabled}
+            onBirthdaysEnabledChange={setHubAdminBirthdaysEnabled}
             saveError={hubAdminSaveError}
             onSave={saveHubAdminSettings}
             hubListed={hubListed}

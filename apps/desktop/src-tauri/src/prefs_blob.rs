@@ -13,6 +13,12 @@ use sha2::Sha256;
 pub struct LocalPrefs {
     pub blocked_users: Vec<String>,
     pub voice_settings: crate::local_store::StoredVoiceSettings,
+    /// Viewer opt-out from the 🎂 birthday badge. Not yet wired to a local
+    /// setting on this client (the in-app toggle is session-only, matching
+    /// the existing "hide silenced channels" precedent) — carried here so
+    /// the wire shape matches packages/core's PrefsBlobContents.
+    #[serde(default)]
+    pub hide_birthdays: Option<bool>,
 }
 
 // ---- Blob key derivation ----
@@ -87,6 +93,7 @@ pub async fn push_prefs_blob(
     let prefs = LocalPrefs {
         blocked_users: blocked,
         voice_settings: voice,
+        hide_birthdays: None,
     };
 
     let ciphertext = encrypt_prefs(blob_key, &prefs)?;

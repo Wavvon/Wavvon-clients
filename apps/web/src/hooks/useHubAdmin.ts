@@ -30,6 +30,8 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
   const [hubAdminMinLevel, setHubAdminMinLevel] = useState(0);
   const [hubAdminWelcomeLabel, setHubAdminWelcomeLabel] = useState("");
   const [hubAdminWelcomeInviteUrl, setHubAdminWelcomeInviteUrl] = useState("");
+  const [hubAdminTimezone, setHubAdminTimezone] = useState("");
+  const [hubAdminBirthdaysEnabled, setHubAdminBirthdaysEnabled] = useState(true);
   const [hubAdminSaveError, setHubAdminSaveError] = useState<string | null>(null);
   const [hubAdminMembers, setHubAdminMembers] = useState<MemberAdminInfo[]>([]);
   const [hubAdminBans, setHubAdminBans] = useState<BanInfo[]>([]);
@@ -53,6 +55,8 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
       setMaxChannelDepth(s.max_channel_depth ?? 0);
       setHubAdminWelcomeLabel(s.welcome_label ?? "");
       setHubAdminWelcomeInviteUrl(s.welcome_invite_url ?? "");
+      setHubAdminTimezone(s.timezone ?? "");
+      setHubAdminBirthdaysEnabled(s.birthdays_enabled ?? true);
     } catch { /* prefill skipped */ }
     try {
       const [members, bans, invites, pending] = await Promise.allSettled([
@@ -132,6 +136,8 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
         max_channel_depth: maxChannelDepth,
         welcome_label: hubAdminWelcomeLabel,
         welcome_invite_url: hubAdminWelcomeInviteUrl,
+        timezone: hubAdminTimezone,
+        birthdays_enabled: hubAdminBirthdaysEnabled,
       });
       onSaved?.(hubAdminName);
     } catch (e) {
@@ -170,6 +176,10 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
     setHubAdminWelcomeLabel,
     hubAdminWelcomeInviteUrl,
     setHubAdminWelcomeInviteUrl,
+    hubAdminTimezone,
+    setHubAdminTimezone,
+    hubAdminBirthdaysEnabled,
+    setHubAdminBirthdaysEnabled,
     hubAdminSaveError,
     hubAdminMembers,
     hubAdminBans,

@@ -29,6 +29,7 @@ import type {
   WhisperList,
 } from "../../types";
 import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon } from "../Icons";
+import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
 import { HoverSubmenu } from "../HoverSubmenu";
 import { SoundboardPopover } from "../voice/SoundboardPopover";
@@ -113,6 +114,9 @@ interface Props {
   onSetStatus?: (status: "online" | "away" | "dnd" | "invisible", ttlMinutes: number | null) => void;
   hubNotifyMode: Record<string, NotifyMode>;
   hubDropdownOpen: boolean;
+  /** Active hub's IANA timezone, for the ambient hub-local clock — absent/null
+   *  when the hub hasn't set one. */
+  hubTimezone?: string | null;
   hideSilenced?: boolean;
   silencedChannelIds?: Set<string>;
   userAlliances: AllianceInfo[];
@@ -186,6 +190,7 @@ export function ChannelSidebar({
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened,
   users, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
+  hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
   conversations, selectedConversation, unreadDms,
@@ -455,6 +460,7 @@ export function ChannelSidebar({
             onClick={() => onHubDropdownOpenChange(!hubDropdownOpen)}
           >
             <span className="hub-header-name">{activeHub?.hub_name ?? "Hub"}</span>
+            <HubClock timezone={hubTimezone} />
             <span className="hub-header-chevron">{hubDropdownOpen ? "▴" : "▾"}</span>
           </button>
           {hubDropdownOpen && (

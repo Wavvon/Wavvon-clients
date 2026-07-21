@@ -251,6 +251,10 @@ export async function saveHubSettings(settings: {
   /** Role auto-granted at invite redemption when the invite carries no
    *  explicit grant_role_id. null clears it (newcomers get only @everyone). */
   default_invite_role_id?: string | null;
+  /** IANA name; "" clears it (matches this route's other empty-string-clears
+   *  fields). */
+  timezone?: string;
+  birthdays_enabled?: boolean;
 }): Promise<void> {
   await hubFetch("/hub", {
     method: "PATCH",
@@ -268,6 +272,8 @@ export async function getHubSettings(): Promise<{
   welcome_label: string;
   welcome_invite_url: string;
   default_invite_role_id: string | null;
+  timezone: string;
+  birthdays_enabled: boolean;
 }> {
   const [settingsRes, infoRes] = await Promise.all([
     hubFetch("/hub/settings").then((r) => r.json() as Promise<{
@@ -276,6 +282,8 @@ export async function getHubSettings(): Promise<{
       min_security_level: number;
       max_channel_depth: number;
       default_invite_role_id?: string | null;
+      timezone?: string | null;
+      birthdays_enabled?: boolean;
     }>),
     hubFetch("/info").then((r) => r.json() as Promise<{
       name: string;
@@ -295,6 +303,8 @@ export async function getHubSettings(): Promise<{
     welcome_label: infoRes.welcome_label ?? "",
     welcome_invite_url: infoRes.welcome_invite_url ?? "",
     default_invite_role_id: settingsRes.default_invite_role_id ?? null,
+    timezone: settingsRes.timezone ?? "",
+    birthdays_enabled: settingsRes.birthdays_enabled ?? true,
   };
 }
 
