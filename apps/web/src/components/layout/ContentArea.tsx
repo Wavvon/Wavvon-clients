@@ -41,29 +41,29 @@ import {
 import { activeSession } from "../../platform/session";
 import { getScoped, setScoped } from "@shared/utils/accountScope";
 
-// Every non-alliance op is channel-scoped to match the hub's REST routes and
-// desktop's Tauri command shape; the underlying platform functions here
-// don't all need channelId themselves, so it's simply ignored where unused.
+// Every op is channel-scoped: the hub registers ONLY nested routes
+// (/channels/{cid}/posts/{pid}/…), so channelId is required all the way down.
 const forumActions: ForumActions = {
   listPosts: (channelId, cursor, tagId) => forumListPosts(channelId, cursor, tagId),
   listAlliancePosts: getAllianceChannelPosts,
-  getPost: (_channelId, postId) => forumGetPost(postId),
+  getPost: (channelId, postId) => forumGetPost(channelId, postId),
   getAlliancePost: getAllianceChannelPost,
   createPost: (channelId, title, body, tagIds) => forumCreatePost(channelId, title, body, tagIds),
   createAlliancePost: createAllianceChannelPost,
-  createReply: (_channelId, postId, body, replyToId) => forumCreateReply(postId, body, replyToId),
+  createReply: (channelId, postId, body, replyToId) => forumCreateReply(channelId, postId, body, replyToId),
   createAllianceReply: createAllianceChannelReply,
-  editPost: (_channelId, postId, title, body, tagIds) => forumEditPost(postId, title, body, tagIds),
-  deletePost: (_channelId, postId) => forumDeletePost(postId),
-  editReply: (_channelId, _postId, replyId, body) => forumEditReply(replyId, body),
-  deleteReply: (_channelId, _postId, replyId) => forumDeleteReply(replyId),
-  pinPost: (_channelId, postId, pin) => forumPinPost(postId, pin),
-  lockPost: (_channelId, postId, lock) => forumLockPost(postId, lock),
+  editPost: (channelId, postId, title, body, tagIds) => forumEditPost(channelId, postId, title, body, tagIds),
+  deletePost: (channelId, postId) => forumDeletePost(channelId, postId),
+  editReply: (channelId, postId, replyId, body) => forumEditReply(channelId, postId, replyId, body),
+  deleteReply: (channelId, postId, replyId) => forumDeleteReply(channelId, postId, replyId),
+  pinPost: (channelId, postId, pin) => forumPinPost(channelId, postId, pin),
+  lockPost: (channelId, postId, lock) => forumLockPost(channelId, postId, lock),
   markPostRead: (channelId, postId) => markPostRead(channelId, postId),
-  addPostReaction: (_channelId, postId, emoji) => forumAddPostReaction(postId, emoji),
-  removePostReaction: (_channelId, postId, emoji) => forumRemovePostReaction(postId, emoji),
-  addReplyReaction: (_channelId, _postId, replyId, emoji) => forumAddReplyReaction(replyId, emoji),
-  removeReplyReaction: (_channelId, _postId, replyId, emoji) => forumRemoveReplyReaction(replyId, emoji),
+  addPostReaction: (channelId, postId, emoji) => forumAddPostReaction(channelId, postId, emoji),
+  removePostReaction: (channelId, postId, emoji) => forumRemovePostReaction(channelId, postId, emoji),
+  addReplyReaction: (channelId, postId, replyId, emoji) => forumAddReplyReaction(channelId, postId, replyId, emoji),
+  removeReplyReaction: (channelId, postId, replyId, emoji) =>
+    forumRemoveReplyReaction(channelId, postId, replyId, emoji),
   reactAlliancePost: reactAllianceChannelPost,
   listTags: (channelId) => forumListTags(channelId),
   createTag: (channelId, label, color, position) => forumCreateTag(channelId, label, color, position),

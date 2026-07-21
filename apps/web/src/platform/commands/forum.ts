@@ -9,8 +9,8 @@ export async function forumListPosts(channelId: string, cursor?: string, tagId?:
   return r.json() as Promise<PostListResponse>;
 }
 
-export async function forumGetPost(postId: string): Promise<PostDetail> {
-  const r = await hubFetch(`/posts/${postId}`);
+export async function forumGetPost(channelId: string, postId: string): Promise<PostDetail> {
+  const r = await hubFetch(`/channels/${channelId}/posts/${postId}`);
   return r.json() as Promise<PostDetail>;
 }
 
@@ -29,10 +29,16 @@ export async function forumCreatePost(
 
 // tagIds omitted means "unchanged" (forum.md §10.2 -- the omitted-vs-null
 // trap, CLAUDE.md); only pass it when the caller actually touched the picker.
-export async function forumEditPost(postId: string, title?: string, body?: string, tagIds?: string[]): Promise<void> {
+export async function forumEditPost(
+  channelId: string,
+  postId: string,
+  title?: string,
+  body?: string,
+  tagIds?: string[],
+): Promise<void> {
   const body_: Record<string, unknown> = { title, body };
   if (tagIds !== undefined) body_.tag_ids = tagIds;
-  await hubFetch(`/posts/${postId}`, {
+  await hubFetch(`/channels/${channelId}/posts/${postId}`, {
     method: "PATCH",
     body: JSON.stringify(body_),
   });
@@ -71,61 +77,87 @@ export async function forumDeleteTag(tagId: string): Promise<void> {
   await hubFetch(`/tags/${tagId}`, { method: "DELETE" });
 }
 
-export async function forumDeletePost(postId: string): Promise<void> {
-  await hubFetch(`/posts/${postId}`, { method: "DELETE" });
+export async function forumDeletePost(channelId: string, postId: string): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}`, { method: "DELETE" });
 }
 
-export async function forumCreateReply(postId: string, body: string, replyToId?: string): Promise<{ id: string }> {
-  const r = await hubFetch(`/posts/${postId}/replies`, {
+export async function forumCreateReply(
+  channelId: string,
+  postId: string,
+  body: string,
+  replyToId?: string,
+): Promise<{ id: string }> {
+  const r = await hubFetch(`/channels/${channelId}/posts/${postId}/replies`, {
     method: "POST",
     body: JSON.stringify({ body, reply_to_id: replyToId }),
   });
   return r.json() as Promise<{ id: string }>;
 }
 
-export async function forumEditReply(replyId: string, body: string): Promise<void> {
-  await hubFetch(`/replies/${replyId}`, {
+export async function forumEditReply(channelId: string, postId: string, replyId: string, body: string): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}/replies/${replyId}`, {
     method: "PATCH",
     body: JSON.stringify({ body }),
   });
 }
 
-export async function forumDeleteReply(replyId: string): Promise<void> {
-  await hubFetch(`/replies/${replyId}`, { method: "DELETE" });
+export async function forumDeleteReply(channelId: string, postId: string, replyId: string): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}/replies/${replyId}`, { method: "DELETE" });
 }
 
-export async function forumPinPost(postId: string, pin: boolean): Promise<void> {
-  await hubFetch(`/posts/${postId}/pin`, { method: pin ? "POST" : "DELETE", body: JSON.stringify({}) });
+export async function forumPinPost(channelId: string, postId: string, pin: boolean): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}/pin`, {
+    method: pin ? "POST" : "DELETE",
+    body: JSON.stringify({}),
+  });
 }
 
-export async function forumLockPost(postId: string, lock: boolean): Promise<void> {
-  await hubFetch(`/posts/${postId}/lock`, { method: lock ? "POST" : "DELETE", body: JSON.stringify({}) });
+export async function forumLockPost(channelId: string, postId: string, lock: boolean): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}/lock`, {
+    method: lock ? "POST" : "DELETE",
+    body: JSON.stringify({}),
+  });
 }
 
 export async function markPostRead(channelId: string, postId: string): Promise<void> {
   await hubFetch(`/channels/${channelId}/posts/${postId}/read`, { method: "POST" });
 }
 
-export async function forumAddPostReaction(postId: string, emoji: string): Promise<void> {
-  await hubFetch(`/posts/${postId}/reactions`, {
+export async function forumAddPostReaction(channelId: string, postId: string, emoji: string): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}/reactions`, {
     method: "POST",
     body: JSON.stringify({ emoji }),
   });
 }
 
-export async function forumRemovePostReaction(postId: string, emoji: string): Promise<void> {
-  await hubFetch(`/posts/${postId}/reactions/${encodeURIComponent(emoji)}`, { method: "DELETE" });
+export async function forumRemovePostReaction(channelId: string, postId: string, emoji: string): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}/reactions/${encodeURIComponent(emoji)}`, {
+    method: "DELETE",
+  });
 }
 
-export async function forumAddReplyReaction(replyId: string, emoji: string): Promise<void> {
-  await hubFetch(`/replies/${replyId}/reactions`, {
+export async function forumAddReplyReaction(
+  channelId: string,
+  postId: string,
+  replyId: string,
+  emoji: string,
+): Promise<void> {
+  await hubFetch(`/channels/${channelId}/posts/${postId}/replies/${replyId}/reactions`, {
     method: "POST",
     body: JSON.stringify({ emoji }),
   });
 }
 
-export async function forumRemoveReplyReaction(replyId: string, emoji: string): Promise<void> {
-  await hubFetch(`/replies/${replyId}/reactions/${encodeURIComponent(emoji)}`, { method: "DELETE" });
+export async function forumRemoveReplyReaction(
+  channelId: string,
+  postId: string,
+  replyId: string,
+  emoji: string,
+): Promise<void> {
+  await hubFetch(
+    `/channels/${channelId}/posts/${postId}/replies/${replyId}/reactions/${encodeURIComponent(emoji)}`,
+    { method: "DELETE" },
+  );
 }
 
 export async function getAllianceChannelPosts(
