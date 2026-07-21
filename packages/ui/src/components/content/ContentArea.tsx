@@ -514,6 +514,7 @@ export function ContentArea({
             myPubkey={publicKey}
             isAdmin={isAdmin}
             actions={forumActions}
+            forumRequireTag={selectedChannel.forum_require_tag ?? false}
           />
         ) : selectedChannel ? (
           <div className="chat-column">

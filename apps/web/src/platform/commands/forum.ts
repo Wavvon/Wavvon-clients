@@ -1,9 +1,10 @@
 import { hubFetch } from "../http";
-import type { PostListResponse, PostDetail, ReplyView } from "../../types";
+import type { PostListResponse, PostDetail, ReplyView, ForumTagDef } from "../../types";
 
-export async function forumListPosts(channelId: string, cursor?: string): Promise<PostListResponse> {
+export async function forumListPosts(channelId: string, cursor?: string, tagId?: string): Promise<PostListResponse> {
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
+  if (tagId) params.set("tag", tagId);
   const r = await hubFetch(`/channels/${channelId}/posts?${params.toString()}`);
   return r.json() as Promise<PostListResponse>;
 }
@@ -13,19 +14,61 @@ export async function forumGetPost(postId: string): Promise<PostDetail> {
   return r.json() as Promise<PostDetail>;
 }
 
-export async function forumCreatePost(channelId: string, title: string, body: string): Promise<{ id: string }> {
+export async function forumCreatePost(
+  channelId: string,
+  title: string,
+  body: string,
+  tagIds?: string[],
+): Promise<{ id: string }> {
   const r = await hubFetch(`/channels/${channelId}/posts`, {
     method: "POST",
-    body: JSON.stringify({ title, body }),
+    body: JSON.stringify({ title, body, tag_ids: tagIds }),
   });
   return r.json() as Promise<{ id: string }>;
 }
 
-export async function forumEditPost(postId: string, title?: string, body?: string): Promise<void> {
+// tagIds omitted means "unchanged" (forum.md §10.2 -- the omitted-vs-null
+// trap, CLAUDE.md); only pass it when the caller actually touched the picker.
+export async function forumEditPost(postId: string, title?: string, body?: string, tagIds?: string[]): Promise<void> {
+  const body_: Record<string, unknown> = { title, body };
+  if (tagIds !== undefined) body_.tag_ids = tagIds;
   await hubFetch(`/posts/${postId}`, {
     method: "PATCH",
-    body: JSON.stringify({ title, body }),
+    body: JSON.stringify(body_),
   });
+}
+
+export async function forumListTags(channelId: string): Promise<ForumTagDef[]> {
+  const r = await hubFetch(`/channels/${channelId}/tags`);
+  return r.json() as Promise<ForumTagDef[]>;
+}
+
+export async function forumCreateTag(
+  channelId: string,
+  label: string,
+  color?: string | null,
+  position?: number,
+): Promise<ForumTagDef> {
+  const r = await hubFetch(`/channels/${channelId}/tags`, {
+    method: "POST",
+    body: JSON.stringify({ label, color, position }),
+  });
+  return r.json() as Promise<ForumTagDef>;
+}
+
+export async function forumEditTag(
+  tagId: string,
+  updates: { label?: string; color?: string | null; position?: number },
+): Promise<ForumTagDef> {
+  const r = await hubFetch(`/tags/${tagId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+  return r.json() as Promise<ForumTagDef>;
+}
+
+export async function forumDeleteTag(tagId: string): Promise<void> {
+  await hubFetch(`/tags/${tagId}`, { method: "DELETE" });
 }
 
 export async function forumDeletePost(postId: string): Promise<void> {
@@ -89,9 +132,11 @@ export async function getAllianceChannelPosts(
   allianceId: string,
   channelId: string,
   cursor?: string,
+  tagId?: string,
 ): Promise<PostListResponse> {
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
+  if (tagId) params.set("tag", tagId);
   const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts?${params.toString()}`);
   return r.json() as Promise<PostListResponse>;
 }

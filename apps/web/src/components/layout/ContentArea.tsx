@@ -32,7 +32,8 @@ import {
   forumListPosts, forumGetPost, forumCreatePost, forumEditPost, forumDeletePost,
   forumCreateReply, forumEditReply, forumDeleteReply, forumPinPost, forumLockPost,
   markPostRead, forumAddPostReaction, forumRemovePostReaction, forumAddReplyReaction,
-  forumRemoveReplyReaction, getAllianceChannelPosts, getAllianceChannelPost,
+  forumRemoveReplyReaction, forumListTags, forumCreateTag, forumEditTag, forumDeleteTag,
+  getAllianceChannelPosts, getAllianceChannelPost,
   createAllianceChannelPost, createAllianceChannelReply, reactAllianceChannelPost,
   getEvents, getEvent, createEvent, rsvpEvent, deleteEvent,
   getEventRsvps, getEventAssignments, createEventSquadRooms, previewHubInfo,
@@ -44,15 +45,15 @@ import { getScoped, setScoped } from "@shared/utils/accountScope";
 // desktop's Tauri command shape; the underlying platform functions here
 // don't all need channelId themselves, so it's simply ignored where unused.
 const forumActions: ForumActions = {
-  listPosts: (channelId, cursor) => forumListPosts(channelId, cursor),
+  listPosts: (channelId, cursor, tagId) => forumListPosts(channelId, cursor, tagId),
   listAlliancePosts: getAllianceChannelPosts,
   getPost: (_channelId, postId) => forumGetPost(postId),
   getAlliancePost: getAllianceChannelPost,
-  createPost: (channelId, title, body) => forumCreatePost(channelId, title, body),
+  createPost: (channelId, title, body, tagIds) => forumCreatePost(channelId, title, body, tagIds),
   createAlliancePost: createAllianceChannelPost,
   createReply: (_channelId, postId, body, replyToId) => forumCreateReply(postId, body, replyToId),
   createAllianceReply: createAllianceChannelReply,
-  editPost: (_channelId, postId, title, body) => forumEditPost(postId, title, body),
+  editPost: (_channelId, postId, title, body, tagIds) => forumEditPost(postId, title, body, tagIds),
   deletePost: (_channelId, postId) => forumDeletePost(postId),
   editReply: (_channelId, _postId, replyId, body) => forumEditReply(replyId, body),
   deleteReply: (_channelId, _postId, replyId) => forumDeleteReply(replyId),
@@ -64,6 +65,10 @@ const forumActions: ForumActions = {
   addReplyReaction: (_channelId, _postId, replyId, emoji) => forumAddReplyReaction(replyId, emoji),
   removeReplyReaction: (_channelId, _postId, replyId, emoji) => forumRemoveReplyReaction(replyId, emoji),
   reactAlliancePost: reactAllianceChannelPost,
+  listTags: (channelId) => forumListTags(channelId),
+  createTag: (channelId, label, color, position) => forumCreateTag(channelId, label, color, position),
+  editTag: (tagId, updates) => forumEditTag(tagId, updates),
+  deleteTag: (tagId) => forumDeleteTag(tagId),
 };
 
 async function moderateAuthor(kind: "mute" | "kick" | "ban", pubkey: string) {

@@ -1,16 +1,21 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { ForumTagDef } from "../../types";
 import { describeForumWriteError } from "./forumErrors";
+import { ForumTagPicker } from "./ForumTagPicker";
+import { toggleTagSelection } from "../../utils/forumTags";
 import type { ForumActions } from "./ForumView";
 
 interface Props {
   channelId: string;
-  actions: Pick<ForumActions, "createPost" | "createAlliancePost">;
+  actions: Pick<ForumActions, "createPost" | "createAlliancePost" | "listTags">;
   onCreated: (postId: string) => void;
   onCancel: () => void;
   /** Set when posting into an alliance-shared forum channel -- routes the
    * create through the alliance write-proxy instead of the local endpoint. */
   allianceId?: string;
+  /** Channel setting (forum.md §10.1) -- block submit with no tags chosen. */
+  forumRequireTag?: boolean;
 }
 
 interface PendingFile {
@@ -18,7 +23,7 @@ interface PendingFile {
   objectUrl: string;
 }
 
-export function ForumComposer({ channelId, actions, onCreated, onCancel, allianceId }: Props) {
+export function ForumComposer({ channelId, actions, onCreated, onCancel, allianceId, forumRequireTag }: Props) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -26,6 +31,16 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
   const [error, setError] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [tags, setTags] = useState<ForumTagDef[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Alliance composers never carry tags (forum.md §10.4 -- remote writes
+    // don't assign the owner's tags in v1).
+    if (allianceId || !actions.listTags) return;
+    actions.listTags(channelId).then(setTags).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId, allianceId, actions.listTags]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
@@ -45,13 +60,17 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
 
   async function handleSubmit() {
     if (!title.trim() || !body.trim()) return;
+    if (!allianceId && forumRequireTag && selectedTagIds.length === 0) {
+      setError("Pick at least one tag before posting.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       // TODO: upload before submit
       const result = allianceId
         ? await actions.createAlliancePost!(allianceId, channelId, title.trim(), body.trim())
-        : await actions.createPost(channelId, title.trim(), body.trim());
+        : await actions.createPost(channelId, title.trim(), body.trim(), selectedTagIds);
       pendingFiles.forEach((f) => URL.revokeObjectURL(f.objectUrl));
       onCreated(result.id);
     } catch (e) {
@@ -87,6 +106,13 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
           style={{ width: "100%" }}
         />
       </div>
+      {!allianceId && (
+        <ForumTagPicker
+          tags={tags}
+          selected={selectedTagIds}
+          onToggle={(id) => setSelectedTagIds((prev) => toggleTagSelection(prev, id))}
+        />
+      )}
       <div className="settings-section">
         <label className="settings-label">Attachments</label>
         <input

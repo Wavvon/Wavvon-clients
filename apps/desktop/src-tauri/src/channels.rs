@@ -159,6 +159,27 @@ pub(crate) async fn update_channel_appearance(
 }
 
 #[tauri::command]
+pub(crate) async fn set_forum_require_tag(
+    channel_id: String,
+    require_tag: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .patch(format!("{hub_url}/channels/{channel_id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "forum_require_tag": require_tag }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub(crate) async fn reorder_channels(
     channel_ids: Vec<String>,
     state: State<'_, AppState>,

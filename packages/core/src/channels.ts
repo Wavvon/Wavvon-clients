@@ -21,6 +21,8 @@ export interface Channel {
   spawner_name_template?: string | null;
   /** Set only on auto-spawned squad rooms (events.md §7.5): the event this room was created for. */
   event_id?: string | null;
+  /** Forum channels only (forum.md §10.1): require at least one tag on new posts. */
+  forum_require_tag?: boolean;
 }
 
 export interface TreeNode {

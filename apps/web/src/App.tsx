@@ -51,6 +51,7 @@ import {
   getChannelPermissions, setChannelRolePermissions, clearChannelRolePermissions,
   listChannelBans, banFromChannel, unbanFromChannel,
   listHubIcons, getTalkPower, setTalkPower,
+  forumListTags, forumCreateTag, forumEditTag, forumDeleteTag,
 } from "@platform";
 import type { UserProfileCardActions, UserContextMenuActions } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket } from "@platform";
@@ -1594,7 +1595,7 @@ export default function App({ initialView }: AppProps = {}) {
     }
   }
 
-  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, customIconSvg?: string | null, banner?: { url?: string; file?: File | null }) {
+  async function handleSaveChannelSettings(name: string, description: string, color?: string | null, icon?: string | null, customIconSvg?: string | null, banner?: { url?: string; file?: File | null }, forumRequireTag?: boolean) {
     if (!channelSettingsCtx) return;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
@@ -1618,6 +1619,7 @@ export default function App({ initialView }: AppProps = {}) {
           custom_icon_svg: customIconSvg,
           banner_url: banner?.url,
           banner_file_id: bannerFileId,
+          forum_require_tag: forumRequireTag,
         }),
       });
       setChannelSettingsCtx(null);
@@ -3292,6 +3294,8 @@ export default function App({ initialView }: AppProps = {}) {
           bansUsers={users}
           talkPowerActions={channelTalkPowerTabActions}
           listHubIcons={listHubIcons}
+          listForumTags={forumListTags}
+          forumTagsActions={{ createTag: forumCreateTag, editTag: forumEditTag, deleteTag: forumDeleteTag }}
         />
       )}
 

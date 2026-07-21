@@ -5074,6 +5074,51 @@ select:focus-visible {
   line-height: 1;
 }
 
+.forum-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.forum-tag-row.inline {
+  display: inline-flex;
+  margin: 0 0 0 var(--space-2);
+  vertical-align: middle;
+}
+
+.forum-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.forum-tag-chip.toggle {
+  cursor: pointer;
+}
+
+.forum-tag-chip.toggle:hover {
+  border-color: var(--accent);
+}
+
+.forum-tag-chip.toggle.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.forum-tag-chip.toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ============================================================
    CHECKBOX LABEL
    ============================================================ */

@@ -51,6 +51,7 @@ import type {
   FarmServerEntry,
   PublicHubProfile,
   PresenceStatus,
+  ForumTagDef,
 } from "./types";
 import { ScreenShareModal } from "./components/ScreenShareModal";
 import { ScreenShareOverlay } from "./components/ScreenShareOverlay";
@@ -1796,12 +1797,16 @@ function App() {
     icon: string | null,
     customIconSvg: string | null,
     banner?: BannerSource,
+    forumRequireTag?: boolean,
   ) {
     if (!channelSettingsModal) return;
     const channel = channelSettingsModal;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
     try {
+      if (forumRequireTag !== undefined && forumRequireTag !== (channel.forum_require_tag ?? false)) {
+        await invoke("set_forum_require_tag", { channelId: channel.id, requireTag: forumRequireTag });
+      }
       if (name !== channel.name) {
         await invoke("rename_channel", { channelId: channel.id, name });
       }
@@ -1843,6 +1848,7 @@ function App() {
                 icon,
                 custom_icon_svg: customIconSvg,
                 banner_url: banner?.url ?? c.banner_url,
+                forum_require_tag: forumRequireTag ?? c.forum_require_tag,
               }
             : c
         )
@@ -2946,6 +2952,19 @@ function App() {
             talkPowerActions={channelTalkPowerTabActions}
             listHubIcons={() => invoke<HubIcon[]>("list_hub_icons")}
             bannerUploadSupported={true}
+            listForumTags={(channelId) => invoke<ForumTagDef[]>("forum_list_tags", { channelId })}
+            forumTagsActions={{
+              createTag: (channelId, label, color, position) =>
+                invoke<ForumTagDef>("forum_create_tag", { channelId, label, color: color ?? null, position: position ?? null }),
+              editTag: (tagId, updates) =>
+                invoke<ForumTagDef>("forum_edit_tag", {
+                  tagId,
+                  label: updates.label ?? null,
+                  color: updates.color ?? null,
+                  position: updates.position ?? null,
+                }),
+              deleteTag: (tagId) => invoke<void>("forum_delete_tag", { tagId }),
+            }}
           />
         )}
 

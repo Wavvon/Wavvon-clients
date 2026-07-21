@@ -10,7 +10,8 @@ import { ChannelIconPicker } from "./ChannelIconPicker";
 import { ChannelPermissionsTab, type ChannelPermissionsTabActions } from "./ChannelPermissionsTab";
 import { ChannelBansTab, type ChannelBansTabActions, type ChannelBansTabUser } from "./ChannelBansTab";
 import { ChannelTalkPowerTab, type ChannelTalkPowerTabActions } from "./ChannelTalkPowerTab";
-import type { HubIcon } from "../../types";
+import { ForumTagManager, type ForumTagManagerActions } from "../forum/ForumTagManager";
+import type { HubIcon, ForumTagDef } from "../../types";
 
 // Small preset palette shared by both clients for channel/category accent
 // colors. Free hex input is offered alongside these for anything more
@@ -33,6 +34,8 @@ export interface ChannelSettingsModalChannel {
   channel_type?: string;
   banner_url?: string | null;
   banner_file_id?: string | null;
+  /** Forum channels only (forum.md §10.1). */
+  forum_require_tag?: boolean;
 }
 
 interface Props {
@@ -57,6 +60,7 @@ interface Props {
     icon: string | null,
     customIconSvg: string | null,
     banner?: BannerSource,
+    forumRequireTag?: boolean,
   ) => void;
   onDelete: () => void;
   onClose: () => void;
@@ -71,6 +75,10 @@ interface Props {
    * field — set by clients whose upload plumbing can't yet take a browser
    * File object (see client-parity notes on banner file upload). */
   bannerUploadSupported?: boolean;
+  /** Forum channels only (forum.md §10.3) -- tag definitions editor. Unset
+   * hides the section (e.g. a client that hasn't wired tag CRUD yet). */
+  forumTagsActions?: ForumTagManagerActions;
+  listForumTags?: (channelId: string) => Promise<ForumTagDef[]>;
 }
 
 export function ChannelSettingsModal({
@@ -78,6 +86,7 @@ export function ChannelSettingsModal({
   onSave, onDelete, onClose,
   permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, listHubIcons,
   bannerUploadSupported = true,
+  forumTagsActions, listForumTags,
 }: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>(isAdmin ? "settings" : "permissions");
@@ -90,12 +99,22 @@ export function ChannelSettingsModal({
   const [hubIcons, setHubIcons] = useState<HubIcon[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [requireTag, setRequireTag] = useState(channel.forum_require_tag ?? false);
+  const [forumTags, setForumTags] = useState<ForumTagDef[]>([]);
 
   useEffect(() => {
     if (!listHubIcons) return;
     listHubIcons().then(setHubIcons).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const isForum = channel.channel_type === "forum";
+
+  useEffect(() => {
+    if (!isForum || !listForumTags) return;
+    listForumTags(channel.id).then(setForumTags).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isForum]);
 
   const isBanner = channel.channel_type === "banner";
   const [bannerSourceMode, setBannerSourceMode] = useState<"url" | "upload">(
@@ -160,7 +179,8 @@ export function ChannelSettingsModal({
     color !== (channel.color ?? null) ||
     icon !== (channel.icon ?? null) ||
     customIconSvg !== (channel.custom_icon_svg ?? null) ||
-    bannerDirty;
+    bannerDirty ||
+    requireTag !== (channel.forum_require_tag ?? false);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -250,6 +270,27 @@ export function ChannelSettingsModal({
                     style={{ display: "block", width: "100%", marginTop: 4 }}
                   />
                 </label>
+              )}
+
+              {isForum && (
+                <div className="settings-section">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={requireTag}
+                      onChange={(e) => setRequireTag(e.target.checked)}
+                    />
+                    Require a tag on new posts
+                  </label>
+                  {forumTagsActions && (
+                    <ForumTagManager
+                      channelId={channel.id}
+                      tags={forumTags}
+                      onChange={setForumTags}
+                      actions={forumTagsActions}
+                    />
+                  )}
+                </div>
               )}
 
               {isBanner && (
@@ -450,6 +491,7 @@ export function ChannelSettingsModal({
                               ? { url: bannerUrl.trim() }
                               : { file: bannerFile }
                             : undefined,
+                          isForum ? requireTag : undefined,
                         )
                       }
                       disabled={saving || !name.trim() || !dirty}

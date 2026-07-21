@@ -416,6 +416,27 @@ export interface ForumAttachment {
   size: number;
 }
 
+/** Tag assignment as it rides along a post (forum.md §10.2) — just enough
+ * to render a chip; the full definition (position, created_at) lives in
+ * ForumTagDef and is only needed by the admin tag editor. */
+export interface TagRef {
+  id: string;
+  label: string;
+  color?: string | null;
+}
+
+/** A channel's tag vocabulary entry (forum.md §10.1), admin-curated via
+ * `manage_posts`. `channel_id`/`position`/`created_at` matter to the admin
+ * editor and list ordering; post-facing chips only need `TagRef`. */
+export interface ForumTagDef {
+  id: string;
+  channel_id: string;
+  label: string;
+  color: string | null;
+  position: number;
+  created_at: number;
+}
+
 export interface PostSummary {
   id: string;
   channel_id: string;
@@ -434,6 +455,8 @@ export interface PostSummary {
   /** Origin hub public key hex when authored through the alliance forum
    * write-proxy (forum federation phase 2); absent for locally-authored posts. */
   author_hub?: string | null;
+  /** Absent on older hubs that haven't shipped tags yet — default to []. */
+  tags?: TagRef[];
 }
 
 export interface ReplyView {

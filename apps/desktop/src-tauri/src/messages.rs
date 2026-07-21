@@ -242,17 +242,25 @@ pub(crate) async fn delete_message(
 pub(crate) async fn forum_list_posts(
     channel_id: String,
     cursor: Option<String>,
+    tag_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let mut req = state
+    let mut query = Vec::new();
+    if let Some(c) = cursor {
+        query.push(("cursor", c));
+    }
+    if let Some(t) = tag_id {
+        query.push(("tag", t));
+    }
+    let resp = state
         .http_client
         .get(format!("{hub_url}/channels/{channel_id}/posts"))
-        .bearer_auth(&token);
-    if let Some(c) = cursor {
-        req = req.query(&[("cursor", c)]);
-    }
-    let resp = req.send().await.map_err(|e| e.to_string())?;
+        .bearer_auth(&token)
+        .query(&query)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
@@ -284,6 +292,7 @@ pub(crate) async fn forum_create_post(
     channel_id: String,
     title: String,
     body: String,
+    tag_ids: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -291,7 +300,7 @@ pub(crate) async fn forum_create_post(
         .http_client
         .post(format!("{hub_url}/channels/{channel_id}/posts"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "title": title, "body": body }))
+        .json(&serde_json::json!({ "title": title, "body": body, "tag_ids": tag_ids }))
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -420,14 +429,21 @@ pub(crate) async fn forum_edit_post(
     post_id: String,
     title: Option<String>,
     body: String,
+    tag_ids: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
+    // tag_ids omitted means "unchanged" (forum.md §10.2 -- the omitted-vs-null
+    // trap, CLAUDE.md); only include it in the body when the caller passed one.
+    let mut json_body = serde_json::json!({ "title": title, "body": body });
+    if let Some(ids) = tag_ids {
+        json_body["tag_ids"] = serde_json::json!(ids);
+    }
     let resp = state
         .http_client
         .patch(format!("{hub_url}/channels/{channel_id}/posts/{post_id}"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "title": title, "body": body }))
+        .json(&json_body)
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -617,6 +633,103 @@ pub(crate) async fn mark_post_read(
         ))
         .bearer_auth(&token)
         .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_list_tags(
+    channel_id: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .get(format!("{hub_url}/channels/{channel_id}/tags"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_create_tag(
+    channel_id: String,
+    label: String,
+    color: Option<String>,
+    position: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .post(format!("{hub_url}/channels/{channel_id}/tags"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "label": label, "color": color, "position": position }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_edit_tag(
+    tag_id: String,
+    label: Option<String>,
+    color: Option<String>,
+    position: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    // Only Some fields ride the PATCH -- an omitted field must stay
+    // unchanged (the tag editor calls this once per touched field), same
+    // omitted-vs-null trap as update_role.
+    let mut body = serde_json::Map::new();
+    if let Some(l) = label {
+        body.insert("label".into(), serde_json::Value::String(l));
+    }
+    if let Some(c) = color {
+        body.insert("color".into(), serde_json::Value::String(c));
+    }
+    if let Some(p) = position {
+        body.insert("position".into(), serde_json::json!(p));
+    }
+    let resp = state
+        .http_client
+        .patch(format!("{hub_url}/tags/{tag_id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::Value::Object(body))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn forum_delete_tag(
+    tag_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .delete(format!("{hub_url}/tags/{tag_id}"))
+        .bearer_auth(&token)
         .send()
         .await
         .map_err(|e| e.to_string())?;

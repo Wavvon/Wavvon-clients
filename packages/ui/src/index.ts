@@ -19,6 +19,8 @@ export type {
   CreatedFarmHub,
   ReactionCount,
   ForumAttachment,
+  TagRef,
+  ForumTagDef,
   PostSummary,
   ReplyView,
   PostDetail,
@@ -74,6 +76,10 @@ export { ReconnectBanner } from "./components/content/ReconnectBanner";
 export { EMOJI_CATALOG, QUICK_REACTIONS } from "./emojiCatalog";
 export { ForumView } from "./components/forum/ForumView";
 export type { ForumActions, ForumAllianceContext } from "./components/forum/ForumView";
+export { ForumTagPicker } from "./components/forum/ForumTagPicker";
+export { ForumTagManager } from "./components/forum/ForumTagManager";
+export type { ForumTagManagerActions } from "./components/forum/ForumTagManager";
+export { toggleTagSelection } from "./utils/forumTags";
 export { EventCard } from "./components/events/EventCard";
 export type { EventStagingCapability } from "./components/events/EventCard";
 export { EventComposer } from "./components/events/EventComposer";

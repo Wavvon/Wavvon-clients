@@ -447,6 +447,8 @@ export type ChannelType = "text" | "forum" | "banner";
 export type {
   ReactionCount,
   ForumAttachment,
+  TagRef,
+  ForumTagDef,
   PostSummary,
   ReplyView,
   PostDetail,

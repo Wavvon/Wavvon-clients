@@ -17,6 +17,7 @@ import type {
   BotProfile,
   PostListResponse,
   PostDetail,
+  ForumTagDef,
   UserProfile,
 } from "../types";
 import {
@@ -66,9 +67,11 @@ function dismissWelcome(hubId: string): void {
 // is dropped here -- the hub never registered a GET route for
 // /channels/:cid/posts/:pid/replies, so that command 404'd already.
 const forumActions: ForumActions = {
-  listPosts: (channelId, cursor) => invoke<PostListResponse>("forum_list_posts", { channelId, cursor }),
+  listPosts: (channelId, cursor, tagId) =>
+    invoke<PostListResponse>("forum_list_posts", { channelId, cursor, tagId }),
   getPost: (channelId, postId) => invoke<PostDetail>("forum_get_post", { channelId, postId }),
-  createPost: (channelId, title, body) => invoke<{ id: string }>("forum_create_post", { channelId, title, body }),
+  createPost: (channelId, title, body, tagIds) =>
+    invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds }),
   createReply: (channelId, postId, body, replyToId) =>
     invoke<{ id: string }>("forum_create_reply", { channelId, postId, body, replyToId }),
   // ponytail: these 8 don't have a #[tauri::command] on the Rust side yet --
@@ -76,7 +79,8 @@ const forumActions: ForumActions = {
   // can add forum_edit_post/forum_delete_post/forum_edit_reply/forum_delete_reply/
   // forum_add_post_reaction/forum_remove_post_reaction/forum_add_reply_reaction/
   // forum_remove_reply_reaction by mirroring forum_pin_post's pattern.
-  editPost: (channelId, postId, title, body) => invoke<void>("forum_edit_post", { channelId, postId, title, body }),
+  editPost: (channelId, postId, title, body, tagIds) =>
+    invoke<void>("forum_edit_post", { channelId, postId, title, body, tagIds }),
   deletePost: (channelId, postId) => invoke<void>("forum_delete_post", { channelId, postId }),
   editReply: (channelId, postId, replyId, body) =>
     invoke<void>("forum_edit_reply", { channelId, postId, replyId, body }),
@@ -92,6 +96,17 @@ const forumActions: ForumActions = {
     invoke<void>("forum_add_reply_reaction", { channelId, postId, replyId, emoji }),
   removeReplyReaction: (channelId, postId, replyId, emoji) =>
     invoke<void>("forum_remove_reply_reaction", { channelId, postId, replyId, emoji }),
+  listTags: (channelId) => invoke<ForumTagDef[]>("forum_list_tags", { channelId }),
+  createTag: (channelId, label, color, position) =>
+    invoke<ForumTagDef>("forum_create_tag", { channelId, label, color: color ?? null, position: position ?? null }),
+  editTag: (tagId, updates) =>
+    invoke<ForumTagDef>("forum_edit_tag", {
+      tagId,
+      label: updates.label ?? null,
+      color: updates.color ?? null,
+      position: updates.position ?? null,
+    }),
+  deleteTag: (tagId) => invoke<void>("forum_delete_tag", { tagId }),
 };
 
 interface SelectedAllianceChannel {

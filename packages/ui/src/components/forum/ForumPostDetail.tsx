@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { PostDetail, ReplyView, ReactionCount, ForumAttachment } from "../../types";
+import type { PostDetail, ReplyView, ReactionCount, ForumAttachment, ForumTagDef } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
 import { describeForumWriteError } from "./forumErrors";
+import { ForumTagPicker } from "./ForumTagPicker";
+import { toggleTagSelection } from "../../utils/forumTags";
 import type { ForumActions } from "./ForumView";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -26,6 +28,8 @@ interface Props {
    * context (forum_remote_write !== "none"). Ignored when `allianceId` is
    * unset -- local channels are always writable per the caller's roles. */
   canWrite?: boolean;
+  /** Channel setting (forum.md §10.1) -- block a retag-to-zero edit. */
+  forumRequireTag?: boolean;
 }
 
 interface ReactionBarProps {
@@ -116,6 +120,7 @@ function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
 
 export function ForumPostDetail({
   postId, channelId, publicKey, isAdmin, canManagePosts, actions, onBack, allianceId, readOnly, canWrite = true,
+  forumRequireTag,
 }: Props) {
   const { t } = useTranslation();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -127,6 +132,15 @@ export function ForumPostDetail({
   const [editingPostBody, setEditingPostBody] = useState<string | null>(null);
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editingReplyBody, setEditingReplyBody] = useState("");
+  const [channelTags, setChannelTags] = useState<ForumTagDef[]>([]);
+  // undefined = untouched -> editPost omits tagIds (unchanged, forum.md §10.2).
+  const [editingTagIds, setEditingTagIds] = useState<string[] | undefined>(undefined);
+
+  useEffect(() => {
+    if (allianceId || !actions.listTags) return;
+    actions.listTags(channelId).then(setChannelTags).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId, allianceId, actions.listTags]);
 
   async function reload() {
     try {
@@ -171,9 +185,14 @@ export function ForumPostDetail({
 
   async function handleSavePostEdit() {
     if (!post || editingPostBody === null) return;
+    if (editingTagIds !== undefined && forumRequireTag && editingTagIds.length === 0) {
+      setError("Pick at least one tag before saving.");
+      return;
+    }
     try {
-      await actions.editPost(channelId, post.id, post.title ?? undefined, editingPostBody);
+      await actions.editPost(channelId, post.id, post.title ?? undefined, editingPostBody, editingTagIds);
       setEditingPostBody(null);
+      setEditingTagIds(undefined);
       await reload();
     } catch (e) {
       setError(String(e));
@@ -305,7 +324,15 @@ export function ForumPostDetail({
           <div className="forum-author-actions">
             <button
               className="btn-secondary"
-              onClick={() => setEditingPostBody(editingPostBody === null ? (post.body ?? "") : null)}
+              onClick={() => {
+                if (editingPostBody === null) {
+                  setEditingPostBody(post.body ?? "");
+                  setEditingTagIds(undefined);
+                } else {
+                  setEditingPostBody(null);
+                  setEditingTagIds(undefined);
+                }
+              }}
             >
               Edit
             </button>
@@ -322,9 +349,20 @@ export function ForumPostDetail({
             onChange={(e) => setEditingPostBody(e.target.value)}
             style={{ width: "100%" }}
           />
+          {!allianceId && channelTags.length > 0 && (
+            <ForumTagPicker
+              tags={channelTags}
+              selected={editingTagIds ?? (post.tags?.map((t) => t.id) ?? [])}
+              onToggle={(id) =>
+                setEditingTagIds((prev) =>
+                  toggleTagSelection(prev ?? post.tags?.map((t) => t.id) ?? [], id),
+                )
+              }
+            />
+          )}
           <div className="forum-edit-actions">
             <button onClick={handleSavePostEdit}>Save</button>
-            <button className="btn-secondary" onClick={() => setEditingPostBody(null)}>Cancel</button>
+            <button className="btn-secondary" onClick={() => { setEditingPostBody(null); setEditingTagIds(undefined); }}>Cancel</button>
           </div>
         </div>
       ) : (
