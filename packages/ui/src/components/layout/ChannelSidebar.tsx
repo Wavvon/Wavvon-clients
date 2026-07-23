@@ -891,7 +891,9 @@ export function ChannelSidebar({
                     <WhisperPanel
                       voiceParticipants={
                         voiceChannelId
-                          ? (voicePartByChannel[voiceChannelId] ?? [])
+                          ? (voicePartByChannel[voiceChannelId] ?? []).filter(
+                              (p) => p.public_key !== publicKey,
+                            )
                           : []
                       }
                       voiceChannels={channels.filter(c => !c.is_category)}

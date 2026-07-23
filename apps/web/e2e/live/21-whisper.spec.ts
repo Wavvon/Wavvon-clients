@@ -36,12 +36,19 @@ test("owner whispers to a member; the member sees the indicator", async ({ page,
     const panel = page.locator(".whisper-panel");
     await expect(panel).toBeVisible({ timeout: 15000 });
     await panel.locator('input[type="checkbox"]').first().check();
+    // Starting the whisper closes the panel (by design — see WhisperPanel's
+    // start button). The active banner lives inside the panel, so it is
+    // asserted after re-opening below.
     await panel.getByRole("button", { name: /Whisper to \d+ target/ }).click();
-    await expect(page.locator(".whisper-active-banner")).toBeVisible();
+    await expect(panel).toBeHidden();
 
     // The member receives voice_whisper_started → sees the badge on the
     // owner's participant row.
     await expect(member.locator(".participant-whisper-badge").first()).toBeVisible({ timeout: 15000 });
+
+    // Re-open the panel: it shows the active-whisper banner.
+    await page.getByTitle("Whisper").click();
+    await expect(page.locator(".whisper-active-banner")).toBeVisible();
 
     // Owner stops → the member's indicator clears.
     await page.locator(".whisper-active-banner").getByRole("button", { name: "Stop" }).click();
