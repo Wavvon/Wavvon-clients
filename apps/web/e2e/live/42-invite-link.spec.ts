@@ -17,7 +17,7 @@ test("a created invite shows a farm-ready link with hub serial + code", async ({
   await expectInHub(page);
   await openInvites(page);
 
-  await page.getByRole("button", { name: "Create", exact: true }).first().click();
+  await page.getByRole("button", { name: "Create invite", exact: true }).first().click();
 
   const link = page.locator("code.pubkey-display", { hasText: "wavvon://" }).first();
   await expect(link).toBeVisible({ timeout: 10000 });
@@ -33,7 +33,7 @@ test("the invite link's serial is the hub's own public key", async ({ page }) =>
   const info = await hubApi<{ public_key: string }>(page, "/info");
 
   await openInvites(page);
-  await page.getByRole("button", { name: "Create", exact: true }).first().click();
+  await page.getByRole("button", { name: "Create invite", exact: true }).first().click();
   const link = page.locator("code.pubkey-display", { hasText: "wavvon://" }).first();
   await expect(link).toBeVisible({ timeout: 10000 });
   const text = (await link.textContent()) ?? "";

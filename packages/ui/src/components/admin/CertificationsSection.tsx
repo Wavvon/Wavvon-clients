@@ -9,8 +9,9 @@ export interface CertificationsSectionActions {
   issueCertManual: (subjectPubkey: string) => Promise<void>;
   revokeCert: (subjectPubkey: string) => Promise<void>;
   /** Member-badge grants use a separate hub route from hub-to-hub badges
-   *  (ServerTagsSection); omitted where the Tauri command doesn't exist yet. */
-  grantUserBadge?: (subjectPubkey: string, label: string) => Promise<void>;
+   *  (ServerTagsSection); omitted where the Tauri command doesn't exist yet.
+   *  `icon` is optional — desktop's Tauri command doesn't accept it yet. */
+  grantUserBadge?: (subjectPubkey: string, label: string, description?: string, icon?: string) => Promise<void>;
 }
 
 interface Props {
@@ -27,6 +28,7 @@ export function CertificationsSection({ actions }: Props) {
   const [trustedInput, setTrustedInput] = useState("");
   const [badgeTarget, setBadgeTarget] = useState("");
   const [badgeLabel, setBadgeLabel] = useState("");
+  const [badgeIcon, setBadgeIcon] = useState("");
   const [badgeStatus, setBadgeStatus] = useState("");
 
   async function load() {
@@ -83,10 +85,11 @@ export function CertificationsSection({ actions }: Props) {
     if (!actions.grantUserBadge || !badgeTarget.trim() || !badgeLabel.trim()) return;
     setBadgeStatus("Granting…");
     try {
-      await actions.grantUserBadge(badgeTarget.trim(), badgeLabel.trim());
+      await actions.grantUserBadge(badgeTarget.trim(), badgeLabel.trim(), undefined, badgeIcon.trim() || undefined);
       setBadgeStatus(`Granted "${badgeLabel.trim()}"`);
       setBadgeTarget("");
       setBadgeLabel("");
+      setBadgeIcon("");
       setTimeout(() => setBadgeStatus(""), 2500);
     } catch (e) {
       setBadgeStatus(String(e));
@@ -249,6 +252,14 @@ export function CertificationsSection({ actions }: Props) {
               placeholder="Badge name"
               aria-label="Badge name"
               style={{ flex: 1, minWidth: 140 }}
+            />
+            <input
+              type="text"
+              value={badgeIcon}
+              onChange={(e) => setBadgeIcon(e.target.value)}
+              placeholder="Icon (optional)"
+              aria-label="Badge icon"
+              style={{ width: 90 }}
             />
             <button onClick={handleGrantBadge} disabled={!badgeTarget.trim() || !badgeLabel.trim()}>Grant badge</button>
           </div>

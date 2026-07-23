@@ -9,7 +9,11 @@ test("a long channel name truncates and its settings gear stays reachable", asyn
   await page.goto("/");
   await expectInHub(page);
 
-  const longName = uniqueName("this-is-an-extremely-long-channel-name-that-would-overflow");
+  // Kept under the channel-name field's 64-char maxLength (with room for the
+  // uniqueName() timestamp+random suffix) so the name isn't itself clipped
+  // before it ever reaches the sidebar — this test is about CSS truncation,
+  // not the input's hard length cap.
+  const longName = uniqueName("this-is-an-extremely-long-channel-name-that");
   await createChannel(page, longName);
 
   const row = page.locator(".channel-item", { hasText: longName }).first();

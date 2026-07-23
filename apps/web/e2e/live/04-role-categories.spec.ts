@@ -31,15 +31,15 @@ test("role category grouping, color, and icon persist", async ({ page }) => {
 
   // Create a category; it shows up as an (empty) group.
   const cat = uniqueName("teams");
-  await page.getByPlaceholder("Category name").fill(cat);
-  await page.getByRole("button", { name: "Add category" }).click();
+  await page.getByPlaceholder("New category name").fill(cat);
+  await page.getByRole("button", { name: "Create category" }).click();
   // hasText would also match other groups through their rows' category
   // <select> options — anchor on the group header instead.
   const group = page
     .locator(".role-category-group")
     .filter({ has: page.locator(".role-category-header", { hasText: cat }) });
   await expect(group).toBeVisible();
-  await expect(group.getByText("No roles in this category yet.")).toBeVisible();
+  await expect(group.getByText("No roles in this category.")).toBeVisible();
 
   // File the custom role under the new category via its row's select.
   const roleRow = page.locator(".settings-row").filter({ hasText: role });

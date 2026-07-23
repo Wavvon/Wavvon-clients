@@ -116,9 +116,6 @@ test("channel bans: ban and unban a real member", async ({ page, browser }) => {
   const memberName = uniqueName("Banned");
   const { context } = await newMemberPage(browser, memberName);
   try {
-    const users = await hubApi<Array<{ public_key: string; display_name: string | null }>>(page, "/users");
-    const pk = users.find((u) => u.display_name === memberName)!.public_key;
-
     const channel = uniqueName("banch");
     await createChannel(page, channel);
     const row = channelButton(page, channel);
@@ -127,7 +124,9 @@ test("channel bans: ban and unban a real member", async ({ page, browser }) => {
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Bans", exact: true }).click();
 
-    await dialog.getByPlaceholder("Public key to ban").fill(pk);
+    // The bans tab picks the target from the member list (a select), not a
+    // raw pubkey field, when the caller (App.tsx) supplies the users prop.
+    await dialog.getByLabel("User to ban").selectOption({ label: memberName });
     await dialog.getByRole("button", { name: "Ban", exact: true }).click();
 
     // The ban entry renders with an Unban button (pubkey is formatted, so

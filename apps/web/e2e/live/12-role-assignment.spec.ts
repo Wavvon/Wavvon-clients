@@ -68,13 +68,13 @@ test("assign and remove a role via the member right-click menu", async ({ page, 
 
     const menu = page.locator(".context-menu");
     await expect(menu.getByText("Roles", { exact: true })).toBeVisible();
-    const roleToggle = menu.getByRole("menuitemcheckbox", { name: roleName });
+    const roleToggle = menu.getByRole("checkbox", { name: roleName });
     await expect(roleToggle).toBeVisible();
-    await expect(roleToggle).toHaveAttribute("aria-checked", "false");
+    await expect(roleToggle).not.toBeChecked();
 
     // Assign: the toggle checks, and the hub reflects it.
     await roleToggle.click();
-    await expect(roleToggle).toHaveAttribute("aria-checked", "true");
+    await expect(roleToggle).toBeChecked();
     const pk = (await hubApi<Array<{ public_key: string; display_name: string | null }>>(page, "/users"))
       .find((u) => u.display_name === memberName)!.public_key;
     let roles = await hubApi<Role[]>(page, `/users/${pk}/roles`);
@@ -82,7 +82,7 @@ test("assign and remove a role via the member right-click menu", async ({ page, 
 
     // Remove: the toggle unchecks, and the hub reflects it.
     await roleToggle.click();
-    await expect(roleToggle).toHaveAttribute("aria-checked", "false");
+    await expect(roleToggle).not.toBeChecked();
     roles = await hubApi<Role[]>(page, `/users/${pk}/roles`);
     expect(roles.some((r) => r.name === roleName), "removed via UI").toBe(false);
   } finally {

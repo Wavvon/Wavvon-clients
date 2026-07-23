@@ -26,7 +26,7 @@ test("owner grants a badge via the admin UI; it lands in the member's portfolio"
 
     const grant = page.locator(".settings-section", { has: page.getByText("Grant a badge") }).first();
     await expect(grant).toBeVisible({ timeout: 10000 });
-    await grant.locator("select").selectOption({ label: memberName });
+    await grant.getByPlaceholder("Member pubkey (hex)").fill(me.public_key);
     await grant.getByLabel("Badge icon").fill("🏆");
     await grant.getByLabel("Badge name").fill("Raid Leader");
     await grant.getByRole("button", { name: "Grant badge" }).click();
