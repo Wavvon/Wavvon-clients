@@ -12,6 +12,7 @@ import type {
   AllianceSharedChannel,
   VoiceParticipant,
   ActiveStream,
+  ForumAttachment,
 } from "@shared/types";
 import {
   ContentArea as SharedContentArea,
@@ -37,6 +38,7 @@ import {
   createAllianceChannelPost, createAllianceChannelReply, reactAllianceChannelPost,
   getEvents, getEvent, createEvent, rsvpEvent, deleteEvent,
   getEventRsvps, getEventAssignments, createEventSquadRooms, previewHubInfo,
+  uploadFile,
 } from "@platform";
 import { activeSession } from "../../platform/session";
 import { getScoped, setScoped } from "@shared/utils/accountScope";
@@ -48,8 +50,13 @@ const forumActions: ForumActions = {
   listAlliancePosts: getAllianceChannelPosts,
   getPost: (channelId, postId) => forumGetPost(channelId, postId),
   getAlliancePost: getAllianceChannelPost,
-  createPost: (channelId, title, body, tagIds) => forumCreatePost(channelId, title, body, tagIds),
+  createPost: (channelId, title, body, tagIds, attachments) =>
+    forumCreatePost(channelId, title, body, tagIds, attachments),
   createAlliancePost: createAllianceChannelPost,
+  uploadAttachment: async (channelId, file): Promise<ForumAttachment> => {
+    const uploaded = await uploadFile(channelId, file);
+    return { url: uploaded.url, name: uploaded.filename, mime: uploaded.mime_type, size: uploaded.size_bytes };
+  },
   createReply: (channelId, postId, body, replyToId) => forumCreateReply(channelId, postId, body, replyToId),
   createAllianceReply: createAllianceChannelReply,
   editPost: (channelId, postId, title, body, tagIds) => forumEditPost(channelId, postId, title, body, tagIds),

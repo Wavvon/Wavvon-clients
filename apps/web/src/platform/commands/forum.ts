@@ -1,5 +1,5 @@
 import { hubFetch } from "../http";
-import type { PostListResponse, PostDetail, ReplyView, ForumTagDef } from "../../types";
+import type { PostListResponse, PostDetail, ReplyView, ForumTagDef, ForumAttachment } from "../../types";
 
 export async function forumListPosts(channelId: string, cursor?: string, tagId?: string): Promise<PostListResponse> {
   const params = new URLSearchParams();
@@ -19,10 +19,11 @@ export async function forumCreatePost(
   title: string,
   body: string,
   tagIds?: string[],
+  attachments?: ForumAttachment[],
 ): Promise<{ id: string }> {
   const r = await hubFetch(`/channels/${channelId}/posts`, {
     method: "POST",
-    body: JSON.stringify({ title, body, tag_ids: tagIds }),
+    body: JSON.stringify({ title, body, tag_ids: tagIds, attachments }),
   });
   return r.json() as Promise<{ id: string }>;
 }

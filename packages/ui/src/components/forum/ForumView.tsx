@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PostDetail, PostListResponse, ReplyView, ForumTagDef, User } from "../../types";
+import type { PostDetail, PostListResponse, ReplyView, ForumTagDef, ForumAttachment, User } from "../../types";
 import { ForumComposer } from "./ForumComposer";
 import { ForumPostDetail } from "./ForumPostDetail";
 import { ForumPostList } from "./ForumPostList";
@@ -29,9 +29,20 @@ export interface ForumActions {
   listAlliancePosts?: (allianceId: string, channelId: string, cursor?: string, tagId?: string) => Promise<PostListResponse>;
   getPost: (channelId: string, postId: string) => Promise<PostDetail>;
   getAlliancePost?: (allianceId: string, channelId: string, postId: string) => Promise<PostDetail>;
-  createPost: (channelId: string, title: string, body: string, tagIds?: string[]) => Promise<{ id: string }>;
+  createPost: (
+    channelId: string,
+    title: string,
+    body: string,
+    tagIds?: string[],
+    attachments?: ForumAttachment[],
+  ) => Promise<{ id: string }>;
   createAlliancePost?: (allianceId: string, channelId: string, title: string, body: string) => Promise<{ id: string }>;
   createReply: (channelId: string, postId: string, body: string, replyToId?: string) => Promise<{ id: string }>;
+  /** Uploads a single file to the channel's attachment storage before post
+   * creation; unset on platforms/contexts with no upload endpoint wired
+   * (desktop, and the alliance write-proxy) -- ForumComposer hides the
+   * attach UI entirely when this is absent. */
+  uploadAttachment?: (channelId: string, file: File) => Promise<ForumAttachment>;
   createAllianceReply?: (
     allianceId: string,
     channelId: string,

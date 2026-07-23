@@ -8,7 +8,7 @@ import type { ForumActions } from "./ForumView";
 
 interface Props {
   channelId: string;
-  actions: Pick<ForumActions, "createPost" | "createAlliancePost" | "listTags">;
+  actions: Pick<ForumActions, "createPost" | "createAlliancePost" | "listTags" | "uploadAttachment">;
   onCreated: (postId: string) => void;
   onCancel: () => void;
   /** Set when posting into an alliance-shared forum channel -- routes the
@@ -67,10 +67,14 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
     setSubmitting(true);
     setError(null);
     try {
-      // TODO: upload before submit
+      // Upload every pending file before creating the post -- a partial
+      // upload failure must not leave a post with some attachments missing.
+      const attachments = actions.uploadAttachment && pendingFiles.length > 0
+        ? await Promise.all(pendingFiles.map((f) => actions.uploadAttachment!(channelId, f.file)))
+        : undefined;
       const result = allianceId
         ? await actions.createAlliancePost!(allianceId, channelId, title.trim(), body.trim())
-        : await actions.createPost(channelId, title.trim(), body.trim(), selectedTagIds);
+        : await actions.createPost(channelId, title.trim(), body.trim(), selectedTagIds, attachments);
       pendingFiles.forEach((f) => URL.revokeObjectURL(f.objectUrl));
       onCreated(result.id);
     } catch (e) {
@@ -113,40 +117,42 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
           onToggle={(id) => setSelectedTagIds((prev) => toggleTagSelection(prev, id))}
         />
       )}
-      <div className="settings-section">
-        <label className="settings-label">Attachments</label>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          Attach file
-        </button>
-        {pendingFiles.length > 0 && (
-          <ul className="forum-pending-attachments">
-            {pendingFiles.map((f) => (
-              <li key={f.objectUrl} className="forum-pending-attachment-row">
-                <span>{f.file.name}</span>
-                <button
-                  type="button"
-                  className="btn-ghost danger"
-                  onClick={() => removeFile(f.objectUrl)}
-                  aria-label={`Remove ${f.file.name}`}
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {actions.uploadAttachment && !allianceId && (
+        <div className="settings-section">
+          <label className="settings-label">Attachments</label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Attach file
+          </button>
+          {pendingFiles.length > 0 && (
+            <ul className="forum-pending-attachments">
+              {pendingFiles.map((f) => (
+                <li key={f.objectUrl} className="forum-pending-attachment-row">
+                  <span>{f.file.name}</span>
+                  <button
+                    type="button"
+                    className="btn-ghost danger"
+                    onClick={() => removeFile(f.objectUrl)}
+                    aria-label={`Remove ${f.file.name}`}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {error && <p className="error-text">{error}</p>}
       <div className="settings-row" style={{ gap: 8 }}>
         <button
