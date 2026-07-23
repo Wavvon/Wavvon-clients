@@ -52,6 +52,18 @@ export function renameSavedHub(hubId: string, name: string): boolean {
   return true;
 }
 
+/** Update the stored name AND icon of a hub (see renameSavedHub for why this
+ * isn't upsertSavedHub). Returns true if either field changed. */
+export function updateSavedHub(hubId: string, name: string, icon: string | null): boolean {
+  const list = loadSavedHubs();
+  const hub = list.find((h) => h.hub_id === hubId);
+  if (!hub || (hub.hub_name === name && hub.hub_icon === icon)) return false;
+  hub.hub_name = name;
+  hub.hub_icon = icon;
+  saveSavedHubs(list);
+  return true;
+}
+
 export function loadActiveHubId(): string | null {
   return getScoped(ACTIVE_HUB_KEY);
 }

@@ -876,6 +876,8 @@
   "channel.appearance.predefined": "Icona predefinita",
   "channel.appearance.color": "Colore accento",
   "channel.appearance.no_color": "Nessuno",
+  "channel.appearance.category_color": "Colore categoria (intestazione barra laterale)",
+  "channel.appearance.emoji": "Emoji",
   "channel.settings.tab_settings": "Impostazioni",
   "channel.settings.tab_moderation": "Moderazione",
   "channel.settings.tab_permissions": "Permessi",

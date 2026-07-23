@@ -26,6 +26,7 @@ export {
   reauthorizeHub,
   upgradeActiveHubIdentity,
   getHubInfo,
+  refreshHubInfo,
   previewHubInfo,
   verifyLanFingerprint,
   reorderHubs,

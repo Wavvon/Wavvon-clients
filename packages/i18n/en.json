@@ -1018,6 +1018,8 @@
   "channel.appearance.predefined": "Predefined icon",
   "channel.appearance.color": "Accent color",
   "channel.appearance.no_color": "None",
+  "channel.appearance.category_color": "Category color (sidebar header)",
+  "channel.appearance.emoji": "Emoji",
   "channel.settings.tab_settings": "Settings",
   "channel.settings.tab_moderation": "Moderation",
   "channel.settings.tab_permissions": "Permissions",

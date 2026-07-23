@@ -1,11 +1,18 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { PostDetail, ReplyView, ReactionCount, ForumAttachment, ForumTagDef } from "../../types";
+import type { PostDetail, ReplyView, ReactionCount, ForumAttachment, ForumTagDef, User } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
 import { describeForumWriteError } from "./forumErrors";
 import { ForumTagPicker } from "./ForumTagPicker";
 import { toggleTagSelection } from "../../utils/forumTags";
+import { MessageContent } from "../MessageContent";
 import type { ForumActions } from "./ForumView";
+
+const NO_MENTIONS = new Set<string>();
+
+function authorLabel(users: User[], pubkey: string): string {
+  return users.find((u) => u.public_key === pubkey)?.display_name || formatPubkey(pubkey);
+}
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
@@ -30,6 +37,9 @@ interface Props {
   canWrite?: boolean;
   /** Channel setting (forum.md §10.1) -- block a retag-to-zero edit. */
   forumRequireTag?: boolean;
+  /** Local hub roster, used to resolve `author_pubkey` to a display name
+   * the same way MessageRow resolves message senders. */
+  users: User[];
 }
 
 interface ReactionBarProps {
@@ -120,7 +130,7 @@ function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
 
 export function ForumPostDetail({
   postId, channelId, publicKey, isAdmin, canManagePosts, actions, onBack, allianceId, readOnly, canWrite = true,
-  forumRequireTag,
+  forumRequireTag, users,
 }: Props) {
   const { t } = useTranslation();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -306,6 +316,7 @@ export function ForumPostDetail({
           {post.is_locked && <span className="forum-badge lock" title="Locked"> 🔒</span>}
         </h1>
         <div className="forum-post-submeta muted">
+          {!post.is_deleted && <span className="forum-post-author">{authorLabel(users, post.author_pubkey)} · </span>}
           {formatRelative(post.created_at)}
           {post.edited_at && ` · edited ${formatRelative(post.edited_at)}`}
           {post.author_hub && <span title={post.author_hub}> · via {formatPubkey(post.author_hub)}</span>}
@@ -367,7 +378,11 @@ export function ForumPostDetail({
         </div>
       ) : (
         <div className="forum-post-body">
-          {post.is_deleted ? <p className="muted">[Content removed]</p> : <p>{post.body}</p>}
+          {post.is_deleted ? (
+            <p className="muted">[Content removed]</p>
+          ) : (
+            <MessageContent content={post.body ?? ""} knownNames={NO_MENTIONS} myName={null} />
+          )}
         </div>
       )}
 
@@ -403,6 +418,7 @@ export function ForumPostDetail({
             onReaction={(emoji, me) => void handleReplyReaction(reply.id, emoji, me)}
             readOnly={readOnly}
             canWrite={canWrite}
+            users={users}
           />
         ))}
       </div>
@@ -460,13 +476,14 @@ interface ReplyRowProps {
   onReaction: (emoji: string, me: boolean) => void;
   readOnly?: boolean;
   canWrite?: boolean;
+  users: User[];
 }
 
 function ForumReplyRow({
   reply, replies, publicKey, canModerate,
   editingId, editingBody, replyingTo,
   onEditStart, onEditSave, onEditCancel, onEditBodyChange, onDelete, onReplyTo, onReaction,
-  readOnly, canWrite = true,
+  readOnly, canWrite = true, users,
 }: ReplyRowProps) {
   const quotedReply = reply.reply_to_id ? replies.find((r) => r.id === reply.reply_to_id) : null;
   const isEditing = editingId === reply.id;
@@ -479,6 +496,7 @@ function ForumReplyRow({
         </div>
       )}
       <div className="forum-reply-meta muted">
+        {!reply.is_deleted && <span className="forum-post-author">{authorLabel(users, reply.author_pubkey)} · </span>}
         {formatRelative(reply.created_at)}
         {reply.edited_at && " · edited"}
         {reply.author_hub && <span title={reply.author_hub}> · via {formatPubkey(reply.author_hub)}</span>}
@@ -498,7 +516,11 @@ function ForumReplyRow({
         </div>
       ) : (
         <div className="forum-reply-body">
-          {reply.is_deleted ? <p className="muted">[deleted]</p> : <p>{reply.body}</p>}
+          {reply.is_deleted ? (
+            <p className="muted">[deleted]</p>
+          ) : (
+            <MessageContent content={reply.body ?? ""} knownNames={NO_MENTIONS} myName={null} />
+          )}
         </div>
       )}
       {!reply.is_deleted && !isEditing && (

@@ -2,24 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "../FocusTrap";
 import { EmojiPicker } from "../content/EmojiPicker";
-import { ChannelIcon } from "../Icons";
-import { safeRoleColor } from "../../utils/roleAppearance";
+import { ChannelIcon, CHANNEL_ICONS, ChannelIconGlyph } from "../Icons";
+import { ColorSwatchPicker } from "../admin/ColorSwatchPicker";
 import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
 import { BANNER_MAX_BYTES, BANNER_MIME_TYPES, type BannerSource } from "./CreateChannelModal";
-import { ChannelIconPicker } from "./ChannelIconPicker";
 import { ChannelPermissionsTab, type ChannelPermissionsTabActions } from "./ChannelPermissionsTab";
 import { ChannelBansTab, type ChannelBansTabActions, type ChannelBansTabUser } from "./ChannelBansTab";
 import { ChannelTalkPowerTab, type ChannelTalkPowerTabActions } from "./ChannelTalkPowerTab";
 import { ForumTagManager, type ForumTagManagerActions } from "../forum/ForumTagManager";
 import type { HubIcon, ForumTagDef } from "../../types";
-
-// Small preset palette shared by both clients for channel/category accent
-// colors. Free hex input is offered alongside these for anything more
-// specific (matches the role-color picker's ROLE_ACCENT_COLORS palette).
-const ACCENT_COLORS = [
-  "#e74c3c", "#e67e22", "#f39c12", "#27ae60", "#16a085",
-  "#2980b9", "#8e44ad", "#e91e63", "#7f8c8d",
-];
 
 type Tab = "settings" | "permissions" | "bans" | "moderation";
 
@@ -172,6 +163,9 @@ export function ChannelSettingsModal({
     reader.readAsText(file);
     e.target.value = "";
   }
+
+  const isEmojiIcon = icon !== null && !CHANNEL_ICONS.some((d) => d.id === icon);
+  const isUploadedSvg = customIconSvg !== null && !hubIcons.some((hi) => hi.svg_content === customIconSvg);
 
   const dirty =
     name.trim() !== channel.name ||
@@ -350,88 +344,47 @@ export function ChannelSettingsModal({
               )}
 
               {/* Appearance (requires manage_channel_icons; server enforces). */}
-              <div style={{ marginBottom: "var(--space-3)" }}>
-                <span className="label-text">Appearance</span>
-                <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)", marginTop: 4 }}>
-                  <span style={{ minWidth: 20, textAlign: "center" }}>{icon ?? ""}</span>
-                  <EmojiPicker onPick={(e) => { setIcon(e); setCustomIconSvg(null); }} unicodeOnly />
-                  {icon && (
-                    <button type="button" className="btn-small btn-secondary" onClick={() => setIcon(null)}>
-                      {t("modal.clear")}
-                    </button>
-                  )}
-                  <span style={{ flex: 1 }} />
-                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}>Color</span>
+              {channel.is_category && (
+                <div style={{ marginBottom: "var(--space-3)" }}>
+                  <span className="label-text">{t("channel.appearance.category_color")}</span>
+                  <ColorSwatchPicker value={color} onChange={setColor} noColorLabel={t("channel.appearance.no_color")} />
                 </div>
-                <div className="color-swatch-row">
-                  <button
-                    type="button"
-                    className={`color-swatch color-swatch-none ${color === null ? "selected" : ""}`}
-                    onClick={() => setColor(null)}
-                    title={t("channel.appearance.no_color")}
-                  >
-                    ✕
-                  </button>
-                  {ACCENT_COLORS.map((hex) => (
-                    <button
-                      key={hex}
-                      type="button"
-                      className={`color-swatch ${color === hex ? "selected" : ""}`}
-                      style={{ background: hex }}
-                      onClick={() => setColor(hex)}
-                      title={hex}
-                    />
-                  ))}
-                </div>
-                {safeRoleColor(color) && (
-                  <span aria-hidden="true" style={{ display: "inline-block", width: 14, height: 14, borderRadius: 3, background: safeRoleColor(color)!, marginTop: 4 }} />
-                )}
-              </div>
+              )}
 
               <div className="settings-section">
-                <label className="settings-label">{t("channel.appearance.custom_svg")}</label>
-                <p className="muted">
-                  Upload your own .svg file. Scripts and external references are
-                  stripped automatically.
-                </p>
-                {hubIcons.length > 0 && (
-                  <div className="hub-icon-library">
-                    <p className="muted" style={{ marginBottom: "6px" }}>{t("channel.appearance.hub_library")}</p>
-                    <div className="icon-picker-grid">
-                      {hubIcons.map((hi) => {
-                        const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(hi.svg_content)}`;
-                        const isSelected = customIconSvg === hi.svg_content;
-                        return (
-                          <button
-                            key={hi.id}
-                            type="button"
-                            className={`icon-picker-tile ${isSelected ? "selected" : ""}`}
-                            onClick={() => { setCustomIconSvg(hi.svg_content); setIcon(null); }}
-                            title={hi.name}
-                          >
-                            <span className="icon-picker-glyph">
-                              <img src={dataUri} width={18} height={18} style={{ objectFit: "contain" }} aria-hidden="true" />
-                            </span>
-                            <span className="icon-picker-label">{hi.name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                <label className="settings-label">{t("channel.appearance.title")}</label>
+                <div className="icon-picker-grid">
+                  <button
+                    type="button"
+                    className={`icon-picker-tile ${icon === null && customIconSvg === null ? "selected" : ""}`}
+                    onClick={() => { setIcon(null); setCustomIconSvg(null); }}
+                    title={t("modal.clear")}
+                  >
+                    <span className="icon-picker-glyph">✕</span>
+                    <span className="icon-picker-label">{t("modal.clear")}</span>
+                  </button>
+
+                  <div className={`icon-picker-tile icon-picker-emoji-tile ${isEmojiIcon ? "selected" : ""}`}>
+                    <EmojiPicker
+                      onPick={(e) => { setIcon(e); setCustomIconSvg(null); }}
+                      unicodeOnly
+                      buttonClassName="icon-picker-emoji-btn"
+                    />
+                    <span className="icon-picker-label">{isEmojiIcon ? icon : t("channel.appearance.emoji")}</span>
                   </div>
-                )}
-                <div className="custom-icon-upload-row">
-                  {customIconSvg && (
-                    <>
-                      <div className="custom-icon-preview">
-                        <ChannelIcon icon={null} customIconSvg={customIconSvg} size={32} />
-                      </div>
-                      <button type="button" className="btn-secondary" onClick={() => setCustomIconSvg(null)}>
-                        {t("modal.delete")}
-                      </button>
-                    </>
-                  )}
-                  <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()}>
-                    {customIconSvg ? t("channel.appearance.replace_svg") : t("channel.appearance.upload_svg")}
+
+                  <button
+                    type="button"
+                    className={`icon-picker-tile ${isUploadedSvg ? "selected" : ""}`}
+                    onClick={() => fileRef.current?.click()}
+                    title={t("channel.appearance.upload_svg")}
+                  >
+                    <span className="icon-picker-glyph">
+                      {isUploadedSvg
+                        ? <ChannelIcon icon={null} customIconSvg={customIconSvg} size={18} />
+                        : "⬆"}
+                    </span>
+                    <span className="icon-picker-label">{t("channel.appearance.upload_svg")}</span>
                   </button>
                   <input
                     ref={fileRef}
@@ -440,19 +393,48 @@ export function ChannelSettingsModal({
                     style={{ display: "none" }}
                     onChange={handleSvgFileChange}
                   />
+
+                  {hubIcons.map((hi) => {
+                    const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(hi.svg_content)}`;
+                    const isSelected = customIconSvg === hi.svg_content;
+                    return (
+                      <button
+                        key={hi.id}
+                        type="button"
+                        className={`icon-picker-tile ${isSelected ? "selected" : ""}`}
+                        onClick={() => { setCustomIconSvg(hi.svg_content); setIcon(null); }}
+                        title={hi.name}
+                      >
+                        <span className="icon-picker-glyph">
+                          <img src={dataUri} width={18} height={18} style={{ objectFit: "contain" }} aria-hidden="true" />
+                        </span>
+                        <span className="icon-picker-label">{hi.name}</span>
+                      </button>
+                    );
+                  })}
+
+                  {CHANNEL_ICONS.map((def) => (
+                    <button
+                      key={def.id}
+                      type="button"
+                      className={`icon-picker-tile ${icon === def.id ? "selected" : ""}`}
+                      onClick={() => { setIcon(def.id); setCustomIconSvg(null); }}
+                      title={def.label}
+                    >
+                      <span className="icon-picker-glyph">
+                        <ChannelIconGlyph icon={def.id} size={18} />
+                      </span>
+                      <span className="icon-picker-label">{def.label}</span>
+                    </button>
+                  ))}
                 </div>
+                <p className="muted">
+                  Upload your own .svg file. Scripts and external references are
+                  stripped automatically.
+                </p>
                 {uploadError && (
                   <p style={{ color: "var(--danger)", marginTop: "4px" }}>{uploadError}</p>
                 )}
-              </div>
-
-              <div className="settings-section">
-                <label className="settings-label">
-                  {t("channel.appearance.predefined")}{customIconSvg ? " (overridden by custom SVG)" : ""}
-                </label>
-                <div style={{ opacity: customIconSvg ? 0.4 : 1, pointerEvents: customIconSvg ? "none" : "auto" }}>
-                  <ChannelIconPicker value={icon} onChange={(id) => { setIcon(id); }} />
-                </div>
               </div>
 
               <div className="modal-actions" style={{ alignItems: "center" }}>

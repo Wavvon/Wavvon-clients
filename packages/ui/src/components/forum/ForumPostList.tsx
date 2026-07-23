@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { PostSummary, ForumTagDef } from "../../types";
+import type { PostSummary, ForumTagDef, User } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
 import type { ForumActions } from "./ForumView";
 
@@ -13,9 +13,10 @@ interface Props {
   /** Set when this channel is a read-through alliance-shared forum, not a
    * locally-owned one -- routes list fetches through the alliance proxy. */
   allianceId?: string;
+  users: User[];
 }
 
-export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, onNewPost, allianceId }: Props) {
+export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, onNewPost, allianceId, users }: Props) {
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
@@ -93,15 +94,15 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
       {pinned.length > 0 && (
         <div className="forum-pinned-band">
           <span className="forum-section-label muted">Pinned</span>
-          {pinned.map((p) => <ForumPostRow key={p.id} post={p} onClick={() => onOpenPost(p)} />)}
+          {pinned.map((p) => <ForumPostRow key={p.id} post={p} users={users} onClick={() => onOpenPost(p)} />)}
         </div>
       )}
       <div className="forum-post-rows">
-        {rest.map((p) => <ForumPostRow key={p.id} post={p} onClick={() => onOpenPost(p)} />)}
+        {rest.map((p) => <ForumPostRow key={p.id} post={p} users={users} onClick={() => onOpenPost(p)} />)}
       </div>
       {deleted.length > 0 && (
         <div className="forum-post-rows">
-          {deleted.map((p) => <ForumPostRow key={p.id} post={p} onClick={() => onOpenPost(p)} />)}
+          {deleted.map((p) => <ForumPostRow key={p.id} post={p} users={users} onClick={() => onOpenPost(p)} />)}
         </div>
       )}
       {posts.length === 0 && !loading && !error && (
@@ -115,7 +116,9 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
   );
 }
 
-function ForumPostRow({ post, onClick }: { post: PostSummary; onClick: () => void }) {
+function ForumPostRow({ post, users, onClick }: { post: PostSummary; users: User[]; onClick: () => void }) {
+  const author = users.find((u) => u.public_key === post.author_pubkey)?.display_name
+    || formatPubkey(post.author_pubkey);
   return (
     <div
       className={`forum-post-row ${post.is_deleted ? "deleted" : ""}`}
@@ -144,6 +147,7 @@ function ForumPostRow({ post, onClick }: { post: PostSummary; onClick: () => voi
           )}
         </span>
         <span className="forum-post-meta muted">
+          {!post.is_deleted && <span className="forum-post-author">{author} · </span>}
           {formatRelative(post.last_activity_at)} · {post.reply_count} {post.reply_count === 1 ? "reply" : "replies"}
           {post.author_hub && <span title={post.author_hub}> · via {formatPubkey(post.author_hub)}</span>}
           {post.unread_reply_count != null && post.unread_reply_count > 0 && (

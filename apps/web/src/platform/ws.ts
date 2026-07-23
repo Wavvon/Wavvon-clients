@@ -19,6 +19,8 @@ export interface WsHandlers {
   onError?: (e: object) => void;
   onReauthNeeded?: (hubId: string) => void;
   onChannelsUpdated?: (hubId: string) => void;
+  /** Hub name/icon/settings changed (e.g. a rename via hub admin). */
+  onHubUpdated?: (hubId: string) => void;
   onMemberOnline?: (publicKey: string, hubId: string) => void;
   onMemberOffline?: (publicKey: string, hubId: string) => void;
   onMemberUpdated?: (
@@ -157,6 +159,8 @@ export class HubWebSocket {
       this.handlers.onChannelsUpdated?.(this.hub_id);
     } else if (type === "channels_updated") {
       this.handlers.onChannelsUpdated?.(this.hub_id);
+    } else if (type === "hub_updated") {
+      this.handlers.onHubUpdated?.(this.hub_id);
     } else if (type === "member_online") {
       this.handlers.onMemberOnline?.(tagged.public_key as string, this.hub_id);
     } else if (type === "member_offline") {

@@ -12,6 +12,7 @@ import { HubWebSocket, type WsHandlers } from "../ws";
 import {
   upsertSavedHub,
   removeSavedHub,
+  updateSavedHub,
   saveActiveHubId,
   saveToken,
   clearToken,
@@ -142,6 +143,28 @@ export function listHubs(): Hub[] {
     hub_icon: s.hub_icon,
     is_active: s.hub_id === getActiveHubId(),
   }));
+}
+
+// Chokepoint for syncing a hub's name+icon from its /info into both the live
+// session and the localStorage SavedHub — used by the post-admin-save sync,
+// the hub_updated WS handler, and the loadHubData self-heal, so none of them
+// re-implement the fetch. Returns the fetched info (incl. timezone, read by
+// loadHubData) or null if the hub has no session or the fetch failed.
+export async function refreshHubInfo(
+  hub_id: string,
+): Promise<{ name: string; icon: string | null; timezone: string | null } | null> {
+  const s = getSession(hub_id);
+  if (!s) return null;
+  try {
+    const info = await rawFetch(`${s.hub_url}/info`).then(
+      (r) => r.json() as Promise<InfoResponse & { timezone?: string | null }>,
+    );
+    setSession(hub_id, { ...s, hub_name: info.name, hub_icon: info.icon });
+    updateSavedHub(hub_id, info.name, info.icon);
+    return { name: info.name, icon: info.icon, timezone: info.timezone ?? null };
+  } catch {
+    return null;
+  }
 }
 
 export function setActiveHub(hub_id: string): void {

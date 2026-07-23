@@ -14,10 +14,10 @@ import type { HubAdminTab } from "@wavvon/ui";
 
 interface UseHubAdminParams {
   activeHubId: string | null;
-  /** Called after settings save on the hub succeeds, with the saved name —
-   * the caller owns the locally-stored hub list (whose hub_name is written
-   * at add-time and otherwise never refreshed) and must sync it. */
-  onSaved?: (name: string) => void;
+  /** Called after settings save on the hub succeeds — the caller owns the
+   * locally-stored hub list (whose hub_name/hub_icon are written at add-time
+   * and otherwise never refreshed) and must sync it. */
+  onSaved?: () => void;
 }
 
 export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
@@ -139,7 +139,7 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
         timezone: hubAdminTimezone,
         birthdays_enabled: hubAdminBirthdaysEnabled,
       });
-      onSaved?.(hubAdminName);
+      onSaved?.();
     } catch (e) {
       setHubAdminSaveError(e instanceof HubApiError ? e.message : String(e));
     }

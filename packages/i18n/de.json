@@ -876,6 +876,8 @@
   "channel.appearance.predefined": "Vordefiniertes Symbol",
   "channel.appearance.color": "Akzentfarbe",
   "channel.appearance.no_color": "Keine",
+  "channel.appearance.category_color": "Kategoriefarbe (Seitenleisten-Kopfzeile)",
+  "channel.appearance.emoji": "Emoji",
   "channel.settings.tab_settings": "Einstellungen",
   "channel.settings.tab_moderation": "Moderation",
   "channel.settings.tab_permissions": "Berechtigungen",

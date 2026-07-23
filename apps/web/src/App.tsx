@@ -9,6 +9,7 @@ import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useAlliances } from "./hooks/useAlliances";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useFarmAdmin } from "./hooks/useFarmAdmin";
+import { useWhisper } from "./hooks/useWhisper";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { flattenTree, descendantIds, computeDepth, mentionsName, playMentionPing, playVoiceTone, channelPath, formatPubkey } from "@wavvon/core";
@@ -42,7 +43,6 @@ import type { ActiveStream, BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus }
 import { HubSidebar } from "@wavvon/ui";
 import { ChannelSidebar } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
-import { WhisperBar } from "@components/voice/WhisperBar";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, type DefaultProfile } from "./utils/profiles";
 import { getUserProfile, listRoleCategories, patchMyProfileOnHub, listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
@@ -130,7 +130,7 @@ import {
   removeHub,
   setActiveHub,
   listHubs,
-  renameSavedHub,
+  refreshHubInfo,
   previewHubInfo,
   verifyLanFingerprint,
   reorderHubs,
@@ -467,12 +467,14 @@ export default function App({ initialView }: AppProps = {}) {
     setMemberRoles,
   } = useHubAdmin({
     activeHubId,
-    // The sidebar renders the locally-stored hub list, whose hub_name is
-    // written at add-time — sync it or a rename never shows up there.
-    onSaved: (name) => {
-      if (activeHubId && renameSavedHub(activeHubId, name)) {
-        setHubs(listHubs());
-      }
+    // The sidebar renders the locally-stored hub list, whose hub_name/hub_icon
+    // are written at add-time — sync them or a rename/icon change never shows
+    // up there.
+    onSaved: () => {
+      if (!activeHubId) return;
+      refreshHubInfo(activeHubId).then((info) => {
+        if (info) setHubs(listHubs());
+      }).catch(() => {});
     },
   });
 
@@ -595,9 +597,8 @@ export default function App({ initialView }: AppProps = {}) {
   videoEnabledRef.current = videoEnabled;
   const [localVideoStream, setLocalVideoStream] = useState<MediaStream | null>(null);
   const [remoteVideoStreams, setRemoteVideoStreams] = useState<Map<string, MediaStream>>(new Map());
-  // Whisper: set of pubkeys currently whispering to me + whether I'm whispering.
-  const [whisperingFrom, setWhisperingFrom] = useState<Set<string>>(new Set());
-  const [whisperingTo, setWhisperingTo] = useState<string[]>([]);
+  const whisper = useWhisper({ activeHubId, voiceChannelId });
+  const [showWhisperPanel, setShowWhisperPanel] = useState(false);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
   const [surveyToShow, setSurveyToShow] = useState<import("@platform").SurveyAdmin | null>(null);
   const surveyDismissedRef = useRef<Set<string>>(new Set());
@@ -919,13 +920,7 @@ export default function App({ initialView }: AppProps = {}) {
     onWhisper: (raw) => {
       const m = raw as { type?: string; sender_pubkey?: string; _hub_id?: string };
       if (m._hub_id !== activeHubIdRef.current || !m.sender_pubkey) return;
-      const sender = m.sender_pubkey;
-      setWhisperingFrom((prev) => {
-        const next = new Set(prev);
-        if (m.type === "voice_whisper_started") next.add(sender);
-        else next.delete(sender);
-        return next;
-      });
+      whisper.receiveWhisperEvent(m.sender_pubkey, m.type === "voice_whisper_started");
     },
     onVoiceMove: (raw) => {
       const m = raw as { _hub_id?: string } & Parameters<typeof decideVoiceMove>[0];
@@ -1093,6 +1088,13 @@ export default function App({ initialView }: AppProps = {}) {
         setChannels(list);
       }).catch(() => {});
     },
+    onHubUpdated: (hubId) => {
+      refreshHubInfo(hubId).then((info) => {
+        if (!info) return;
+        setHubs(listHubs());
+        if (hubId === activeHubIdRef.current) setActiveHubTimezone(info.timezone);
+      }).catch(() => {});
+    },
     onMemberOnline: (publicKey, hubId) => {
       if (hubId !== activeHubIdRef.current) return;
       setUsers((prev) => {
@@ -1222,19 +1224,21 @@ export default function App({ initialView }: AppProps = {}) {
   async function loadHubData() {
     if (loadingHub.current) return;
     loadingHub.current = true;
-    // Self-heal the locally-cached hub name (stored at add-time): a rename
-    // done in hub admin — possibly on another device — otherwise never
-    // reaches the sidebar, not even across reloads. Fire-and-forget.
-    hubFetch("/info")
-      .then((r) => r.json() as Promise<{ name?: string; timezone?: string | null }>)
-      .then((info) => {
-        const hubId = getActiveHubId();
-        if (hubId && info?.name && renameSavedHub(hubId, info.name)) {
-          setHubs(listHubs());
-        }
-        setActiveHubTimezone(info?.timezone ?? null);
-      })
-      .catch(() => { /* cosmetic sync only */ });
+    // Self-heal the locally-cached hub name+icon (stored at add-time): a
+    // rename or icon change done in hub admin — possibly on another device —
+    // otherwise never reaches the sidebar, not even across reloads.
+    // Fire-and-forget.
+    {
+      const hubId = getActiveHubId();
+      if (hubId) {
+        refreshHubInfo(hubId).then((info) => {
+          if (info) {
+            setHubs(listHubs());
+            setActiveHubTimezone(info.timezone);
+          }
+        }).catch(() => { /* cosmetic sync only */ });
+      }
+    }
     try {
       const [ch, usr, me, convs, cmds, voiceRoster, dmBlocks] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
@@ -2080,19 +2084,6 @@ export default function App({ initialView }: AppProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleStartWhisper(targetPubkeys: string[]) {
-    if (!voiceChannelId || targetPubkeys.length === 0) return;
-    const ws = activeSession().ws;
-    if (!ws) { showHubError("Not connected"); return; }
-    ws.startWhisper(targetPubkeys.map((id) => ({ type: "user", id })));
-    setWhisperingTo(targetPubkeys);
-  }
-
-  function handleStopWhisper() {
-    try { activeSession().ws?.stopWhisper(); } catch {}
-    setWhisperingTo([]);
-  }
-
   function handleVoiceLeave() {
     if (voiceChannelId && voiceSoundsOn()) { try { playVoiceTone("down"); } catch { /* audio not ready */ } }
     const channelId = voiceChannelId;
@@ -2104,7 +2095,7 @@ export default function App({ initialView }: AppProps = {}) {
     setLocalVideoStream(null);
     setRemoteVideoStreams(new Map());
     setVideoEnabled(false);
-    if (whisperingTo.length > 0) handleStopWhisper();
+    if (whisper.isWhispering) whisper.stopWhisper();
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
@@ -2880,7 +2871,7 @@ export default function App({ initialView }: AppProps = {}) {
         onDragEnd={handleChannelDragEnd}
         voiceGains={voiceGains}
         onSetVoiceGain={handleSetVoiceGain}
-        inboundWhispers={whisperingFrom}
+        inboundWhispers={whisper.inboundWhispers}
         hasDraft={hasDraft}
         onOpenSearch={() => setShowSearchBar(true)}
         canUseSoundboard={canUseSoundboard}
@@ -2892,6 +2883,16 @@ export default function App({ initialView }: AppProps = {}) {
         onScreenShare={() => (sharing ? handleStopShare() : void handleStartShare())}
         videoEnabled={videoEnabled}
         onToggleVideo={handleToggleVideo}
+        isWhispering={whisper.isWhispering}
+        whisperTargets={whisper.whisperTargets}
+        whisperLists={whisper.whisperLists}
+        showWhisperPanel={showWhisperPanel}
+        onToggleWhisperPanel={() => setShowWhisperPanel((p) => !p)}
+        onCloseWhisperPanel={() => setShowWhisperPanel(false)}
+        onStartWhisper={whisper.startWhisper}
+        onStopWhisper={whisper.stopWhisper}
+        onSaveWhisperList={whisper.saveWhisperList}
+        onDeleteWhisperList={whisper.deleteWhisperList}
       />
 
       {activeOpenApp && (
@@ -2965,16 +2966,6 @@ export default function App({ initialView }: AppProps = {}) {
             </div>
           );
         })()}
-        {voiceChannelId && (
-          <WhisperBar
-            participants={(visibleVoicePartByChannel[voiceChannelId] ?? []).filter((p) => p.public_key !== publicKey)}
-            whisperingTo={whisperingTo}
-            whisperingFrom={whisperingFrom}
-            nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
-            onStart={handleStartWhisper}
-            onStop={handleStopWhisper}
-          />
-        )}
         <ContentArea
         view={view as "channels" | "dms"}
         activeHubId={activeHubId}

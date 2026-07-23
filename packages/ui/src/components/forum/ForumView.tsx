@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PostDetail, PostListResponse, ReplyView, ForumTagDef } from "../../types";
+import type { PostDetail, PostListResponse, ReplyView, ForumTagDef, User } from "../../types";
 import { ForumComposer } from "./ForumComposer";
 import { ForumPostDetail } from "./ForumPostDetail";
 import { ForumPostList } from "./ForumPostList";
@@ -81,9 +81,14 @@ interface Props {
    * tags when true. Alliance-proxied channels never set this (§10.4: remote
    * writes don't carry tags). */
   forumRequireTag?: boolean;
+  /** Local hub roster, used to resolve post/reply `author_pubkey` to a
+   * display name the same way MessageRow resolves message senders. Alliance
+   * post authors live on another hub and won't be found here -- falls back
+   * to the formatted pubkey, same as an unknown local user would. */
+  users: User[];
 }
 
-export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, allianceContext, forumRequireTag }: Props) {
+export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, allianceContext, forumRequireTag, users }: Props) {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   // `alliance` gates moderation/edit/delete, which never have a write-proxy.
@@ -125,6 +130,7 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, alli
           canWrite={canWrite}
           forumRequireTag={forumRequireTag}
           actions={actions}
+          users={users}
           onBack={() => setSelectedPostId(null)}
         />
       ) : (
@@ -134,6 +140,7 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, alli
           publicKey={myPubkey}
           allianceId={allianceContext?.allianceId}
           actions={actions}
+          users={users}
           onOpenPost={(post) => setSelectedPostId(post.id)}
           onNewPost={() => setComposing(true)}
         />

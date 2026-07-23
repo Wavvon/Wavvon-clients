@@ -515,6 +515,7 @@ export function ContentArea({
             isAdmin={isAdmin}
             actions={forumActions}
             forumRequireTag={selectedChannel.forum_require_tag ?? false}
+            users={users}
           />
         ) : selectedChannel ? (
           <div className="chat-column">
@@ -663,6 +664,7 @@ export function ContentArea({
             myPubkey={publicKey}
             isAdmin={isAdmin}
             actions={forumActions}
+            users={users}
             allianceContext={{
               allianceId: selectedAllianceChannel.alliance_id,
               allianceName: selectedAllianceChannel.alliance_name,
