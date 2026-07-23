@@ -139,7 +139,7 @@ test.describe("Viewing a post", () => {
       reply_count: 2,
       replies: [REPLY_1, REPLY_2],
     };
-    await mockJson(page, `${HUB_URL}/posts/post1`, postDetail);
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts/post1`, postDetail);
     await mockEmpty(page, `${HUB_URL}/channels/ch1/posts/post1/read`, "POST");
 
     await page.goto("/");
@@ -165,12 +165,12 @@ test.describe("Reactions on a post", () => {
       replies: [],
       reactions: [{ emoji: "👍", count: 3, me: false }],
     };
-    await mockJson(page, `${HUB_URL}/posts/post1`, postWithReaction);
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts/post1`, postWithReaction);
     await mockEmpty(page, `${HUB_URL}/channels/ch1/posts/post1/read`, "POST");
 
     let reactionBody: string | null = null;
     let reacted = false;
-    await page.route(`${HUB_URL}/posts/post1/reactions`, (route) => {
+    await page.route(`${HUB_URL}/channels/ch1/posts/post1/reactions`, (route) => {
       if (route.request().method() === "POST") {
         reactionBody = route.request().postData();
         reacted = true;
@@ -182,7 +182,7 @@ test.describe("Reactions on a post", () => {
     // Return the pre-reaction post until the reaction POST lands, then the
     // updated one. Keyed on the POST (not a call counter) so it's robust to the
     // detail view fetching more than once, e.g. under React StrictMode.
-    await page.route(`${HUB_URL}/posts/post1`, (route) => {
+    await page.route(`${HUB_URL}/channels/ch1/posts/post1`, (route) => {
       if (route.request().method() === "GET") {
         const body = reacted ? { ...postWithReaction, reactions: [{ emoji: "👍", count: 4, me: true }] } : postWithReaction;
         void route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
@@ -216,11 +216,11 @@ test.describe("Toggling off a reaction", () => {
       replies: [],
       reactions: [{ emoji: "👍", count: 2, me: true }],
     };
-    await mockJson(page, `${HUB_URL}/posts/post1`, postWithMyReaction);
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts/post1`, postWithMyReaction);
     await mockEmpty(page, `${HUB_URL}/channels/ch1/posts/post1/read`, "POST");
 
     let deleteCalled = false;
-    await page.route(`${HUB_URL}/posts/post1/reactions/**`, (route) => {
+    await page.route(`${HUB_URL}/channels/ch1/posts/post1/reactions/**`, (route) => {
       if (route.request().method() === "DELETE") {
         deleteCalled = true;
         void route.fulfill({ status: 204, body: "" });
@@ -258,7 +258,7 @@ test.describe("Reactions on a reply", () => {
       reply_count: 1,
       replies: [replyWithReaction],
     };
-    await mockJson(page, `${HUB_URL}/posts/post1`, postDetail);
+    await mockJson(page, `${HUB_URL}/channels/ch1/posts/post1`, postDetail);
     await mockEmpty(page, `${HUB_URL}/channels/ch1/posts/post1/read`, "POST");
 
     await page.goto("/");
