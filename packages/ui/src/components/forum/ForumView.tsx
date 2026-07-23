@@ -37,7 +37,13 @@ export interface ForumActions {
     attachments?: ForumAttachment[],
   ) => Promise<{ id: string }>;
   createAlliancePost?: (allianceId: string, channelId: string, title: string, body: string) => Promise<{ id: string }>;
-  createReply: (channelId: string, postId: string, body: string, replyToId?: string) => Promise<{ id: string }>;
+  createReply: (
+    channelId: string,
+    postId: string,
+    body: string,
+    replyToId?: string,
+    attachments?: ForumAttachment[],
+  ) => Promise<{ id: string }>;
   /** Uploads a single file to the channel's attachment storage before post
    * creation; unset on platforms/contexts with no upload endpoint wired
    * (desktop, and the alliance write-proxy) -- ForumComposer hides the

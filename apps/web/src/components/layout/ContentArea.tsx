@@ -57,7 +57,8 @@ const forumActions: ForumActions = {
     const uploaded = await uploadFile(channelId, file);
     return { url: uploaded.url, name: uploaded.filename, mime: uploaded.mime_type, size: uploaded.size_bytes };
   },
-  createReply: (channelId, postId, body, replyToId) => forumCreateReply(channelId, postId, body, replyToId),
+  createReply: (channelId, postId, body, replyToId, attachments) =>
+    forumCreateReply(channelId, postId, body, replyToId, attachments),
   createAllianceReply: createAllianceChannelReply,
   editPost: (channelId, postId, title, body, tagIds) => forumEditPost(channelId, postId, title, body, tagIds),
   deletePost: (channelId, postId) => forumDeletePost(channelId, postId),

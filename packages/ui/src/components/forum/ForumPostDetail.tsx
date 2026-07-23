@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { PostDetail, ReplyView, ReactionCount, ForumAttachment, ForumTagDef, User } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
@@ -106,6 +106,11 @@ function ReactionBar({ reactions, onToggle, readOnly }: ReactionBarProps) {
   );
 }
 
+interface PendingFile {
+  file: File;
+  objectUrl: string;
+}
+
 function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
   if (!attachments.length) return null;
   return (
@@ -139,6 +144,8 @@ export function ForumPostDetail({
   const [replyBody, setReplyBody] = useState("");
   const [replyTo, setReplyTo] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingPostBody, setEditingPostBody] = useState<string | null>(null);
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editingReplyBody, setEditingReplyBody] = useState("");
@@ -174,6 +181,22 @@ export function ForumPostDetail({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId, channelId, allianceId]);
 
+  function handleReplyFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    if (!picked.length) return;
+    const next = picked.map((f) => ({ file: f, objectUrl: URL.createObjectURL(f) }));
+    setPendingFiles((prev) => [...prev, ...next]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeReplyFile(objectUrl: string) {
+    setPendingFiles((prev) => {
+      const removed = prev.find((f) => f.objectUrl === objectUrl);
+      if (removed) URL.revokeObjectURL(removed.objectUrl);
+      return prev.filter((f) => f.objectUrl !== objectUrl);
+    });
+  }
+
   async function handleSendReply() {
     if (!post || !replyBody.trim()) return;
     setSubmitting(true);
@@ -181,8 +204,15 @@ export function ForumPostDetail({
       if (allianceId) {
         await actions.createAllianceReply!(allianceId, channelId, post.id, replyBody.trim(), replyTo);
       } else {
-        await actions.createReply(channelId, post.id, replyBody.trim(), replyTo);
+        // Upload every pending file before creating the reply -- a partial
+        // upload failure must not leave a reply with some attachments missing.
+        const attachments = actions.uploadAttachment && pendingFiles.length > 0
+          ? await Promise.all(pendingFiles.map((f) => actions.uploadAttachment!(channelId, f.file)))
+          : undefined;
+        await actions.createReply(channelId, post.id, replyBody.trim(), replyTo, attachments);
       }
+      pendingFiles.forEach((f) => URL.revokeObjectURL(f.objectUrl));
+      setPendingFiles([]);
       setReplyBody("");
       setReplyTo(undefined);
       await reload();
@@ -446,6 +476,41 @@ export function ForumPostDetail({
             onChange={(e) => setReplyBody(e.target.value)}
             style={{ width: "100%" }}
           />
+          {!allianceId && actions.uploadAttachment && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={handleReplyFileChange}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Attach file
+              </button>
+              {pendingFiles.length > 0 && (
+                <ul className="forum-pending-attachments">
+                  {pendingFiles.map((f) => (
+                    <li key={f.objectUrl} className="forum-pending-attachment-row">
+                      <span>{f.file.name}</span>
+                      <button
+                        type="button"
+                        className="btn-ghost danger"
+                        onClick={() => removeReplyFile(f.objectUrl)}
+                        aria-label={`Remove ${f.file.name}`}
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
           <button
             className="btn-primary"
             onClick={handleSendReply}

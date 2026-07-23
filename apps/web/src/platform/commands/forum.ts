@@ -87,10 +87,11 @@ export async function forumCreateReply(
   postId: string,
   body: string,
   replyToId?: string,
+  attachments?: ForumAttachment[],
 ): Promise<{ id: string }> {
   const r = await hubFetch(`/channels/${channelId}/posts/${postId}/replies`, {
     method: "POST",
-    body: JSON.stringify({ body, reply_to_id: replyToId }),
+    body: JSON.stringify({ body, reply_to_id: replyToId, attachments }),
   });
   return r.json() as Promise<{ id: string }>;
 }
