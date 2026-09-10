@@ -289,7 +289,14 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       loadVoiceAudioProfile(),
       myPk,
       identity.seed_hex,
-      fetchDhKey,
+      // Against the hub the *room* is on, not the hub we are logged into.
+      // A DH key is published per hub, and in an alliance room every other
+      // participant is a member of the owning hub and a stranger to ours —
+      // so looking them up here answered 404, which the voice key manager
+      // reads as "skip this peer". The visitor could then neither wrap its
+      // key for them nor unwrap theirs, so every datagram was discarded at
+      // the key lookup: roster, transport and relay all correct, and silence.
+      (pk: string) => fetchDhKey(pk, voiceVisitRef.current?.hubUrl),
       // Same identity-resolution rule as the DM path (commands/dms.ts):
       // the wrap/unwrap scalar must be the one behind the DH key published
       // under our roster pubkey — on a paired device that's the unwrapped

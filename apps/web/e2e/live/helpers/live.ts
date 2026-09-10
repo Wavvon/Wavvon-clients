@@ -47,6 +47,7 @@ export async function onboardWithSeed(
   seedHex: string,
   displayName: string,
   inviteCode?: string,
+  hubUrl: string = HUB_URL,
 ): Promise<void> {
   await page.goto("/");
   await claimPrefsReload(page);
@@ -83,7 +84,11 @@ export async function onboardWithSeed(
   // invite_only=true (hub 10f3e2d, 2026-07-06) — a brand-new identity with
   // no roles yet needs a `/join/<code>` link (parseHubInput extracts the
   // code), not the bare host, or /auth/verify 403s.
-  const joinInput = inviteCode ? `${HUB_URL}/join/${inviteCode}` : HUB_URL;
+  // `hubUrl` defaults to the suite's own hub. It is a parameter because the
+  // far side of an alliance needs a browser on the *other* hub, and one
+  // identity cannot stand on both ends of a room — the relay keys its
+  // participants by pubkey, so the same identity twice is one participant.
+  const joinInput = inviteCode ? `${hubUrl}/join/${inviteCode}` : hubUrl;
   await page.getByPlaceholder(/hub\.example\.com/).fill(joinInput);
   await page.getByRole("button", { name: "Join hub" }).click();
   await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({
@@ -146,15 +151,25 @@ export async function expectInHub(page: Page): Promise<void> {
   });
 }
 
+/** A 32-byte hex seed nobody else in the run will have. */
+export function randomSeedHex(): string {
+  return Array.from({ length: 32 }, () =>
+    Math.floor(Math.random() * 256).toString(16).padStart(2, "0"),
+  ).join("");
+}
+
 // Onboard a brand-new random identity in a fresh context (a plain member,
 // not the owner). Caller is responsible for context.close().
+//
+// `hub` points it at another hub — the allied one, for the specs that need a
+// real client on both ends of a federated room. That hub mints its own
+// invite, so it is passed in rather than looked up here.
 export async function newMemberPage(
   browser: Browser,
   displayName: string,
+  hub?: { url: string; inviteCode: string },
 ): Promise<{ context: BrowserContext; page: Page }> {
-  const seed = Array.from({ length: 32 }, () =>
-    Math.floor(Math.random() * 256).toString(16).padStart(2, "0"),
-  ).join("");
+  const seed = randomSeedHex();
   // @playwright/test applies the project's use{} options (including the
   // owner storageState!) to browser.newContext — override with a blank
   // state so this really is a first-run identity.
@@ -163,8 +178,8 @@ export async function newMemberPage(
     storageState: { cookies: [], origins: [] },
   });
   const page = await context.newPage();
-  const inviteCode = await ensureInviteCode(browser);
-  await onboardWithSeed(page, seed, displayName, inviteCode);
+  const inviteCode = hub ? hub.inviteCode : await ensureInviteCode(browser);
+  await onboardWithSeed(page, seed, displayName, inviteCode, hub?.url);
   return { context, page };
 }
 

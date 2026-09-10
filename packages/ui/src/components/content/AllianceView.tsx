@@ -21,6 +21,12 @@ interface Props {
   onInputTextChange: (v: string) => void;
   onSendAllianceMessage: () => void;
   onOpenImage: (src: string, alt: string) => void;
+  /** The live connection readout. Here as well as in ChannelHeader because a
+   *  control with one fixed home has to be in every view that can be the
+   *  active one — and an alliance channel is where a *voice* room on someone
+   *  else's hub lives, so the inbound-loss row is the only thing in the app
+   *  that says whether that room's audio is arriving at all. */
+  connectionStatus?: React.ReactNode;
 }
 
 export function AllianceView({
@@ -32,6 +38,7 @@ export function AllianceView({
   onInputTextChange,
   onSendAllianceMessage,
   onOpenImage,
+  connectionStatus,
 }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +59,7 @@ export function AllianceView({
             {selectedAllianceChannel.channel.hub_name}
           </p>
         </div>
+        {connectionStatus}
       </div>
       <div className="messages">
         {allianceMessages.map((m) => {

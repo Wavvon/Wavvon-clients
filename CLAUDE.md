@@ -267,6 +267,19 @@ bugs on 2026-09-07 were one shape — a `catch` that turned "could not ask" into
   moment sent a DM **in the clear**;
 - and the demo bot exited outright on a 429 while waiting to be invited.
 
+**Its cross-hub cousin, 2026-09-10: a lookup pointed at the wrong hub.** In an
+alliance voice room every other participant is a member of the *owning* hub and
+a stranger to ours, and a DH key is published per hub — so resolving peers
+through `activeSession()` answered 404, which voice key distribution reads as
+the (correct, deliberate) "skip this peer". Nobody could wrap for anybody, and
+the room came up silent with every assertion green. Two rules fall out: a
+lookup that happens *during* an alliance visit belongs to
+`voiceVisitRef.current?.hubUrl`, not the active session; and anything we
+publish for peers to read has to be published **where those peers will look**,
+which for a visit means the hub we just authenticated to with a voice-only
+token. The hub's visitor allowlist had carried both DH routes from the start
+for exactly this.
+
 The tell is a fallback that is indistinguishable from a legitimate state:
 empty list, no key, not a member, disconnected. When you write one, ask what
 else produces that state — and if a network failure is on the list, either

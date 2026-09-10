@@ -103,6 +103,7 @@ describe("openAllianceVoiceVisit", () => {
 
   it("carries the grant to the owner's /auth/verify and opens a socket there", async () => {
     const verifyBodies: Record<string, unknown>[] = [];
+    const dhPublishes: { url: string; auth: string | undefined }[] = [];
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === `${OWNER_URL}/info`) {
         return new Response(
@@ -116,6 +117,13 @@ describe("openAllianceVoiceVisit", () => {
       if (url === `${OWNER_URL}/auth/verify`) {
         verifyBodies.push(JSON.parse(init!.body as string) as Record<string, unknown>);
         return new Response(JSON.stringify({ token: "visit-token", scope: "alliance_voice" }), { status: 200 });
+      }
+      if (url.startsWith(`${OWNER_URL}/identity/`) && url.endsWith("/dh-key")) {
+        dhPublishes.push({
+          url,
+          auth: (init?.headers as Record<string, string> | undefined)?.Authorization,
+        });
+        return new Response(null, { status: 204 });
       }
       throw new Error(`unexpected fetch: ${url}`);
     });
@@ -155,6 +163,20 @@ describe("openAllianceVoiceVisit", () => {
     // The socket goes to the owner, not to us — a visitor's voice never
     // touches its own hub.
     expect(opened[0]).toBe("wss://owner.example/ws?token=visit-token");
+
+    // Our DH key has to be readable *on the owning hub*: that is where our
+    // peers in the room look it up, and without it nobody can wrap a voice
+    // key for us — the room comes up and we hear nothing. It goes with the
+    // voice-only token, which the hub's visitor allowlist accepts for exactly
+    // these two routes.
+    expect(dhPublishes).toHaveLength(1);
+    expect(dhPublishes[0].auth).toBe("Bearer visit-token");
+    // And before the socket, since a key offer can arrive as soon as we join.
+    const publishCall = fetchMock.mock.calls.findIndex(([u]) =>
+      String(u).endsWith("/dh-key"),
+    );
+    expect(publishCall).toBeGreaterThanOrEqual(0);
+    expect(opened).toHaveLength(1);
     visit.close();
   });
 

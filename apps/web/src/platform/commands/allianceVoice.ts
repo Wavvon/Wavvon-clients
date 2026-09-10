@@ -2,6 +2,7 @@ import { publicKeyHex } from "@wavvon/core";
 import { hubFetch, rawFetch, HubApiError } from "../http";
 import { HubWebSocket, type WsHandlers } from "../ws";
 import { acquireHubToken } from "./hubAuth";
+import { publishDhKeyTo } from "./dms";
 import { loadIdentity } from "../../identity/store";
 
 // Voice in an alliance channel (alliances.md, "Voice in alliance channels").
@@ -108,6 +109,12 @@ export async function openAllianceVoiceVisit(
     identity.subkey_cert,
     minted.grant,
   );
+
+  // Before the socket, because a key offer can arrive the moment we join and
+  // whoever sends it needs our DH key readable *here*. Not best-effort: a
+  // failed publish means a room we can talk into and hear nothing from, which
+  // is worse than a refused join that says so.
+  await publishDhKeyTo(minted.owner_hub_url, token);
 
   const ws = new HubWebSocket(minted.owner_hub_url, token, minted.owner_hub_pubkey, handlers);
   // Not returned until it is open. The caller sends `voice_join` on the next

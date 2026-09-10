@@ -422,25 +422,55 @@ export function canPublishDhKey(
   return !identity.canonical_pubkey || identity.canonical_pubkey === myPubkeyHex;
 }
 
-export async function publishDhKey(): Promise<void> {
+/** The signed record itself, plus where it goes. Null when this device may
+ *  not publish (a paired device — see `canPublishDhKey`). */
+async function dhKeyRecord(): Promise<{ path: string; body: string } | null> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
-  if (!canPublishDhKey(identity)) return;
+  if (!canPublishDhKey(identity)) return null;
 
   const seedHex = identity.seed_hex;
   const myPubkeyHex = publicKeyHex(seedHex);
   const { dhPub } = dhKeypairFromSeed(seedHex);
   const dhPubkeyHex = bytesToHex(dhPub);
+  const signatureHex = signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex);
 
-  const sigMsg = dhKeySigningBytes(myPubkeyHex, dhPubkeyHex);
-  const signatureHex = signBytes(sigMsg, seedHex);
+  return {
+    path: `/identity/${myPubkeyHex}/dh-key`,
+    body: JSON.stringify({ dh_pubkey_hex: dhPubkeyHex, signature_hex: signatureHex }),
+  };
+}
 
+export async function publishDhKey(): Promise<void> {
+  const record = await dhKeyRecord();
+  if (!record) return;
   // The active hub, deliberately, not the DM hub: a sender looks this key up
   // on *their own* hub, so it has to exist on every hub we actually use.
   // Publishing it only where our DMs are read would leave someone on a shared
   // community hub unable to encrypt to us.
-  await hubFetch(`/identity/${myPubkeyHex}/dh-key`, {
+  await hubFetch(record.path, { method: "PUT", body: record.body });
+}
+
+/**
+ * Publish the same record to a hub we are not a member of, with the
+ * voice-only token that let us in.
+ *
+ * The other half of the rule above, for the one case where "every hub we
+ * actually use" includes a hub we never joined: in an alliance voice room our
+ * peers are members of the *owning* hub and look our key up there. Without
+ * this the room is one-directional — they hear us (we can read their keys and
+ * wrap for them) and we hear nothing, because nobody can wrap for a key that
+ * is not published where they are looking. The hub's visitor allowlist has
+ * carried both DH routes from the start for exactly this
+ * (auth/middleware.rs, `ALLIANCE_VOICE_ALLOWED_PATHS`); no client ever used
+ * the publish half.
+ */
+export async function publishDhKeyTo(hubUrl: string, token: string): Promise<void> {
+  const record = await dhKeyRecord();
+  if (!record) return;
+  await rawFetch(`${hubUrl}${record.path}`, {
     method: "PUT",
-    body: JSON.stringify({ dh_pubkey_hex: dhPubkeyHex, signature_hex: signatureHex }),
+    headers: { Authorization: `Bearer ${token}` },
+    body: record.body,
   });
 }

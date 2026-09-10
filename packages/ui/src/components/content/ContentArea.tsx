@@ -678,6 +678,7 @@ export function ContentArea({
           />
         ) : selectedAllianceChannel ? (
           <AllianceView
+            connectionStatus={connectionStatus}
             selectedAllianceChannel={selectedAllianceChannel}
             allianceMessages={allianceMessages}
             inputText={inputText}
