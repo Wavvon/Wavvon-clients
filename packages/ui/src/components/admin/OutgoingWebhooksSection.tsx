@@ -1,23 +1,38 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatRelative } from "@wavvon/core";
-import type { Channel, EventSubscription, OutgoingWebhookDelivery, OutgoingWebhookSummary } from "@shared/types";
-import {
-  adminListOutgoingWebhooks,
-  adminCreateOutgoingWebhook,
-  adminUpdateOutgoingWebhook,
-  adminDeleteOutgoingWebhook,
-  adminGetOutgoingWebhookSubscriptions,
-  adminSetOutgoingWebhookSubscriptions,
-  adminRotateOutgoingWebhookSecret,
-  adminEnableOutgoingWebhook,
-  adminListOutgoingWebhookDeliveries,
-} from "../../platform/commands/outgoingWebhooks";
-import { HubApiError } from "../../platform/http";
-import { EventSubscriptionEditor, eventSubscriptionsAreValid } from "@components/events/EventSubscriptionEditor";
+import type { Channel } from "@wavvon/core";
+import type {
+  EventSubscription,
+  OutgoingWebhookCreatedResult,
+  OutgoingWebhookDelivery,
+  OutgoingWebhookSummary,
+} from "../../types";
+import { EventSubscriptionEditor, eventSubscriptionsAreValid } from "../events/EventSubscriptionEditor";
+
+/** Every hub call this section makes, injected — the same shape the other
+ *  admin sections use, so the component itself has no transport. */
+export interface OutgoingWebhookActions {
+  list: () => Promise<OutgoingWebhookSummary[]>;
+  create: (url: string, displayName: string | null) => Promise<OutgoingWebhookCreatedResult>;
+  update: (
+    id: string,
+    patch: { url?: string; display_name?: string; active?: boolean },
+  ) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  getSubscriptions: (id: string) => Promise<EventSubscription[]>;
+  setSubscriptions: (id: string, subscriptions: EventSubscription[]) => Promise<{ count: number }>;
+  rotateSecret: (id: string) => Promise<{ secret: string }>;
+  enable: (id: string) => Promise<void>;
+  listDeliveries: (
+    id: string,
+    params: { limit?: number; offset?: number; eventType?: string; success?: boolean },
+  ) => Promise<OutgoingWebhookDelivery[]>;
+}
 
 interface Props {
   channels: Channel[];
+  actions: OutgoingWebhookActions;
 }
 
 interface PanelState {
@@ -99,7 +114,7 @@ function SecretRevealDialog({
   );
 }
 
-export function OutgoingWebhooksSection({ channels }: Props) {
+export function OutgoingWebhooksSection({ channels, actions }: Props) {
   const { t } = useTranslation();
   const [webhooks, setWebhooks] = useState<OutgoingWebhookSummary[]>([]);
   const [url, setUrl] = useState("");
@@ -114,10 +129,10 @@ export function OutgoingWebhooksSection({ channels }: Props) {
 
   async function loadWebhooks() {
     try {
-      const list = await adminListOutgoingWebhooks();
+      const list = await actions.list();
       setWebhooks(list);
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -139,13 +154,13 @@ export function OutgoingWebhooksSection({ channels }: Props) {
     setError(null);
     setCreatedSecret(null);
     try {
-      const result = await adminCreateOutgoingWebhook(url.trim(), displayName.trim() || null);
+      const result = await actions.create(url.trim(), displayName.trim() || null);
       setCreatedSecret(result.secret);
       setUrl("");
       setDisplayName("");
       await loadWebhooks();
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setCreating(false);
     }
@@ -154,37 +169,37 @@ export function OutgoingWebhooksSection({ channels }: Props) {
   async function handleDelete(id: string) {
     if (!window.confirm(t("hub.admin.owh.delete_confirm"))) return;
     try {
-      await adminDeleteOutgoingWebhook(id);
+      await actions.remove(id);
       await loadWebhooks();
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleEnable(id: string) {
     try {
-      await adminEnableOutgoingWebhook(id);
+      await actions.enable(id);
       await loadWebhooks();
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleDisable(id: string) {
     try {
-      await adminUpdateOutgoingWebhook(id, { active: false });
+      await actions.update(id, { active: false });
       await loadWebhooks();
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
   async function handleRotateSecret(id: string) {
     try {
-      const result = await adminRotateOutgoingWebhookSecret(id);
+      const result = await actions.rotateSecret(id);
       setRotatedSecret({ id, secret: result.secret });
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -194,10 +209,10 @@ export function OutgoingWebhooksSection({ channels }: Props) {
     updatePanel(id, { expanded });
     if (expanded && !panel.subscriptionsLoaded) {
       try {
-        const subscriptions = await adminGetOutgoingWebhookSubscriptions(id);
+        const subscriptions = await actions.getSubscriptions(id);
         updatePanel(id, { subscriptions, subscriptionsLoaded: true });
       } catch (e) {
-        setError(e instanceof HubApiError ? e.message : String(e));
+        setError(e instanceof Error ? e.message : String(e));
       }
     }
     if (expanded && !panel.deliveriesLoaded) {
@@ -215,10 +230,10 @@ export function OutgoingWebhooksSection({ channels }: Props) {
     updatePanel(id, { savingSubscriptions: true });
     setError(null);
     try {
-      await adminSetOutgoingWebhookSubscriptions(id, panel.subscriptions);
+      await actions.setSubscriptions(id, panel.subscriptions);
       await loadWebhooks();
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       updatePanel(id, { savingSubscriptions: false });
     }
@@ -230,7 +245,7 @@ export function OutgoingWebhooksSection({ channels }: Props) {
   ) {
     updatePanel(id, { loadingDeliveries: true });
     try {
-      const rows = await adminListOutgoingWebhookDeliveries(id, {
+      const rows = await actions.listDeliveries(id, {
         limit: 50,
         offset: opts.offset,
         eventType: opts.eventType || undefined,
@@ -244,7 +259,7 @@ export function OutgoingWebhooksSection({ channels }: Props) {
         deliveryOffset: opts.offset,
       });
     } catch (e) {
-      setError(e instanceof HubApiError ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       updatePanel(id, { loadingDeliveries: false });
     }

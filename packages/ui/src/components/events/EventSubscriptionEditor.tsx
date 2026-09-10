@@ -1,4 +1,5 @@
-import type { Channel, EventSubscription } from "@shared/types";
+import type { Channel } from "@wavvon/core";
+import type { EventSubscription } from "../../types";
 import { useTranslation } from "react-i18next";
 
 const EVENT_TYPES = [

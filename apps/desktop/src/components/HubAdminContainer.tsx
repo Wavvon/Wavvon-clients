@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { HubAdminPage, type HubAdminPageProps } from "@wavvon/ui";
+import { HubAdminPage, OutgoingWebhooksSection, type HubAdminPageProps } from "@wavvon/ui";
 import { ModerationTab } from "./ModerationTab";
 import type { Hub, RoleInfo } from "../types";
 import {
@@ -10,6 +10,7 @@ import {
   allianceActions,
   hubIconActions,
   submitToDirectory,
+  outgoingWebhookActions,
   makeWebhookActions,
   makeExternalBotActions,
   makeAuditLogActions,
@@ -69,6 +70,9 @@ export function HubAdminContainer({
       {...rest}
       isAdmin={isAdmin}
       renderModerationTab={() => <ModerationTab />}
+      renderOutgoingWebhooks={() => (
+        <OutgoingWebhooksSection channels={rest.channels} actions={outgoingWebhookActions} />
+      )}
       saveError={null}
       activeHubUrl={activeHubUrl}
       myPubkey={publicKey ?? ""}

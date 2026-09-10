@@ -43,6 +43,11 @@ import type {
   BanlistOverride,
   ModerationSettings,
   Report,
+  OutgoingWebhookActions,
+  OutgoingWebhookSummary,
+  OutgoingWebhookCreatedResult,
+  OutgoingWebhookDelivery,
+  EventSubscription,
 } from "@wavvon/ui";
 
 // Pure invoke wrappers for HubAdminPage's sections that take no hub-url
@@ -262,4 +267,43 @@ export const banlistActions: FederatedBanlistActions = {
   removeBanlistOverride: (targetPubkey) =>
     invoke("remove_banlist_override", { targetPubkey }),
   setBanlistPublish: (publish) => invoke("set_banlist_publish", { publish }),
+};
+
+// Outgoing webhooks. Active-session calls like the rest of the moderation
+// surface, so this is a module-level const: the section loads on mount, and a
+// fresh object every render would reload it every render.
+//
+// `update` passes only the fields it was given — the Rust side builds the
+// PATCH body from the ones that are Some, because the hub reads an absent
+// field as "leave it alone" and Tauri cannot tell an omitted argument from an
+// explicit null.
+export const outgoingWebhookActions: OutgoingWebhookActions = {
+  list: () => invoke<OutgoingWebhookSummary[]>("admin_list_outgoing_webhooks"),
+  create: (url, displayName) =>
+    invoke<OutgoingWebhookCreatedResult>("admin_create_outgoing_webhook", {
+      url,
+      displayName,
+    }),
+  update: (id, patch) =>
+    invoke("admin_update_outgoing_webhook", {
+      id,
+      url: patch.url ?? null,
+      displayName: patch.display_name ?? null,
+      active: patch.active ?? null,
+    }),
+  remove: (id) => invoke("admin_delete_outgoing_webhook", { id }),
+  getSubscriptions: (id) =>
+    invoke<EventSubscription[]>("admin_get_outgoing_webhook_subscriptions", { id }),
+  setSubscriptions: (id, subscriptions) =>
+    invoke<{ count: number }>("admin_set_outgoing_webhook_subscriptions", { id, subscriptions }),
+  rotateSecret: (id) => invoke<{ secret: string }>("admin_rotate_outgoing_webhook_secret", { id }),
+  enable: (id) => invoke("admin_enable_outgoing_webhook", { id }),
+  listDeliveries: (id, params) =>
+    invoke<OutgoingWebhookDelivery[]>("admin_list_outgoing_webhook_deliveries", {
+      id,
+      limit: params.limit ?? null,
+      offset: params.offset ?? null,
+      eventType: params.eventType ?? null,
+      success: params.success ?? null,
+    }),
 };

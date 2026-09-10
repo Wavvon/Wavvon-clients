@@ -10,8 +10,9 @@ import { contentReportActions, automodActions, banlistActions } from "../hooks/h
  *  shipped; desktop had no surface for any of it, so a moderator here could
  *  not see what members had flagged.
  *
- *  Reports, the automod webhook and federated ban lists so far — the
- *  outgoing-webhook manager is the last section still web-only. */
+ *  Reports, the automod webhook and federated ban lists. The
+ *  outgoing-webhook manager is here too, in its own admin tab rather than
+ *  this one — same place web keeps it. */
 export function ModerationTab() {
   const { t } = useTranslation();
   return (

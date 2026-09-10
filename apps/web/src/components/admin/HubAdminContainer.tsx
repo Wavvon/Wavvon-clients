@@ -5,7 +5,7 @@ import {
   listAdminRecoveryRequests, approveRecoveryRequest, denyRecoveryRequest,
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
-import { HubAdminPage, RecoveryContactsSection } from "@wavvon/ui";
+import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection } from "@wavvon/ui";
 import type { RecoveryContactsSectionActions } from "@wavvon/ui";
 import {
   rolesActions, memberRoleActions, serverTagsActions, inviteActions,
@@ -14,7 +14,7 @@ import {
   hubIconActions, surveyActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
-import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
+import { outgoingWebhookActions } from "./outgoingWebhookActions";
 import { BotCapabilitiesPanel } from "./BotCapabilitiesPanel";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
 import type { Channel, Hub, InviteInfo } from "@shared/types";
@@ -132,7 +132,9 @@ export function HubAdminContainer({
         hubIconActions={hubIconActions}
         surveyActions={surveyActions}
         renderModerationTab={() => <ModerationTab />}
-        renderOutgoingWebhooks={() => <OutgoingWebhooksSection channels={channels} />}
+        renderOutgoingWebhooks={() => (
+          <OutgoingWebhooksSection channels={channels} actions={outgoingWebhookActions} />
+        )}
         renderRecoveryContacts={() => {
           const recoveryActions: RecoveryContactsSectionActions = {
             getContacts: getRecoveryContacts,

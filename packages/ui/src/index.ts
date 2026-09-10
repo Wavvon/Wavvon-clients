@@ -94,6 +94,10 @@ export type {
   ExternalBotInviteResult,
   WebhookInfo,
   WebhookCreatedResult,
+  EventSubscription,
+  OutgoingWebhookSummary,
+  OutgoingWebhookCreatedResult,
+  OutgoingWebhookDelivery,
   HubIcon,
   SurveyChoice,
   SurveyQuestion,
@@ -360,6 +364,13 @@ export { ContentReportsSection } from "./components/admin/ContentReportsSection"
 export { AutomodWebhookSection } from "./components/admin/AutomodWebhookSection";
 export { FederatedBanlistSection } from "./components/admin/FederatedBanlistSection";
 export type { FederatedBanlistActions } from "./components/admin/FederatedBanlistSection";
+export { OutgoingWebhooksSection } from "./components/admin/OutgoingWebhooksSection";
+export type { OutgoingWebhookActions } from "./components/admin/OutgoingWebhooksSection";
+export {
+  EventSubscriptionEditor,
+  eventSubscriptionsAreValid,
+} from "./components/events/EventSubscriptionEditor";
+export type { EventSubscriptionEditorProps } from "./components/events/EventSubscriptionEditor";
 export type { AutomodWebhookActions } from "./components/admin/AutomodWebhookSection";
 export type { ContentReportsActions } from "./components/admin/ContentReportsSection";
 export type { EncryptionWarning } from "./components/EncryptionWarningModal";

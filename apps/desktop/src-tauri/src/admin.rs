@@ -1566,3 +1566,305 @@ fn percent_encode(s: &str) -> String {
     }
     out
 }
+
+// ── Outgoing webhooks (webhooks.md "Outgoing webhooks") ─────────────────────
+//
+// The last section of the admin surface that was web-only. Nine routes, all
+// on the active session like the rest of the moderation tab. Shapes are
+// deserialized straight through: the hub owns them, and re-declaring the
+// fields here would be a second place to keep in sync for no gain — the
+// section reads them in TypeScript.
+
+/// One outgoing webhook as the admin list reports it.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookSummary {
+    pub id: String,
+    pub url: String,
+    pub display_name: Option<String>,
+    pub active: bool,
+    pub failure_count: i64,
+    pub last_delivery_at: Option<i64>,
+    pub last_failure_at: Option<i64>,
+    pub created_at: i64,
+    pub created_by_pubkey: String,
+    pub subscription_count: i64,
+}
+
+/// Carries the signing secret, which the hub shows once and never again.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookCreatedResult {
+    pub id: String,
+    pub url: String,
+    pub display_name: Option<String>,
+    pub secret: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookDelivery {
+    pub id: String,
+    pub webhook_id: String,
+    pub event_type: String,
+    pub event_seq: Option<i64>,
+    pub attempted_at: i64,
+    pub attempt_number: i64,
+    pub status_code: Option<i64>,
+    pub success: bool,
+    pub error_msg: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct EventSubscription {
+    pub event: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channels: Option<Vec<String>>,
+}
+
+#[derive(serde::Deserialize)]
+struct SubscriptionsBody {
+    subscriptions: Vec<EventSubscription>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct SubscriptionCount {
+    pub count: i64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct RotatedSecret {
+    pub secret: String,
+}
+
+#[tauri::command]
+pub(crate) async fn admin_list_outgoing_webhooks(
+    state: State<'_, AppState>,
+) -> Result<Vec<OutgoingWebhookSummary>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/outgoing-webhooks"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn admin_create_outgoing_webhook(
+    url: String,
+    display_name: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<OutgoingWebhookCreatedResult, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/outgoing-webhooks"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "url": url, "display_name": display_name }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// PATCH with a hand-built body, for the reason `set_moderation_settings` has
+/// one: Tauri gives the same `None` for an omitted argument and an explicit
+/// null, and this endpoint reads an absent field as "leave it alone". Sending
+/// nulls for the two fields the caller did not touch would clear them.
+#[tauri::command]
+pub(crate) async fn admin_update_outgoing_webhook(
+    id: String,
+    url: Option<String>,
+    display_name: Option<String>,
+    active: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let mut body = serde_json::Map::new();
+    if let Some(url) = url {
+        body.insert("url".into(), serde_json::Value::String(url));
+    }
+    if let Some(name) = display_name {
+        body.insert("display_name".into(), serde_json::Value::String(name));
+    }
+    if let Some(active) = active {
+        body.insert("active".into(), serde_json::Value::Bool(active));
+    }
+    let resp = state
+        .http_client
+        .patch(format!("{base}/admin/outgoing-webhooks/{id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::Value::Object(body))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn admin_delete_outgoing_webhook(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .delete(format!("{base}/admin/outgoing-webhooks/{id}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn admin_get_outgoing_webhook_subscriptions(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<EventSubscription>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/outgoing-webhooks/{id}/subscriptions"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let body: SubscriptionsBody = resp
+        .json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))?;
+    Ok(body.subscriptions)
+}
+
+#[tauri::command]
+pub(crate) async fn admin_set_outgoing_webhook_subscriptions(
+    id: String,
+    subscriptions: Vec<EventSubscription>,
+    state: State<'_, AppState>,
+) -> Result<SubscriptionCount, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .put(format!("{base}/admin/outgoing-webhooks/{id}/subscriptions"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "subscriptions": subscriptions }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn admin_rotate_outgoing_webhook_secret(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<RotatedSecret, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/outgoing-webhooks/{id}/rotate-secret"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn admin_enable_outgoing_webhook(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/outgoing-webhooks/{id}/enable"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn admin_list_outgoing_webhook_deliveries(
+    id: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+    event_type: Option<String>,
+    success: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<Vec<OutgoingWebhookDelivery>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let mut query: Vec<(&str, String)> = Vec::new();
+    if let Some(limit) = limit {
+        query.push(("limit", limit.to_string()));
+    }
+    if let Some(offset) = offset {
+        query.push(("offset", offset.to_string()));
+    }
+    if let Some(event_type) = event_type.as_deref() {
+        query.push(("event_type", event_type.to_string()));
+    }
+    if let Some(success) = success {
+        query.push(("success", success.to_string()));
+    }
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/outgoing-webhooks/{id}/deliveries"))
+        .query(&query)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
