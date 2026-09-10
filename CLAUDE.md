@@ -315,6 +315,22 @@ desktop Rust shell has `cargo test` under `apps/desktop/src-tauri`.
 July 2026 passed every suite and was caught only by driving the real apps. Use
 the `run-web` skill; say plainly when you could not verify something visually.
 
+**And an e2e that asserts hub-pushed state proves admission, not delivery.**
+Every media spec here used to stop at a roster row, a video tile or a
+screen-share panel — all of which render from what the hub broadcasts over the
+WebSocket, so they pass identically whether the media arrived or none of it
+did. Two complete voice failures hid behind exactly that (shipped log,
+2026-09-10): every voice spec green, and nobody could hear anybody.
+
+The fix is to assert on something that only a decoded frame can move.
+`videoWidth` is read off a decoded frame and is 0 until one exists;
+`currentTime` only advances while decoded media plays; the voice session's
+inbound packet-loss readout is null until two datagrams have been parsed,
+unsealed with a key that arrived over the WebSocket, and Opus-decoded. P62–P65
+use those. **When you write a spec for anything carrying media, ask what in it
+would still pass with the transport unplugged** — and if the answer is "all of
+it", the spec is about admission and the feature has no coverage.
+
 ---
 
 ## Conventions
