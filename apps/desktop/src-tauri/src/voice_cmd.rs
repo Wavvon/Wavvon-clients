@@ -31,6 +31,11 @@ pub(crate) async fn voice_join(
             std::sync::Arc<std::sync::atomic::AtomicBool>,
             std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<u16, f32>>>,
             std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<u16, String>>>,
+            std::sync::Arc<
+                tokio::sync::RwLock<
+                    std::collections::HashMap<u16, wavvon_voice::pipeline::LossTracker>,
+                >,
+            >,
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, ZoneInfo>>>,
             std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<f64>>>>,
             std::sync::Arc<
@@ -103,6 +108,7 @@ pub(crate) async fn voice_join(
             let deafened_arc = pipeline.deafened.clone();
             let gain_map = pipeline.gain_map.clone();
             let roster_map = pipeline.roster_map.clone();
+            let inbound_loss = pipeline.inbound_loss.clone();
             let transport = pipeline.transport.clone();
             let voice_keys = pipeline.voice_keys.clone();
             let active_clip = pipeline.active_clip.clone();
@@ -122,6 +128,7 @@ pub(crate) async fn voice_join(
                 deafened_arc,
                 gain_map,
                 roster_map,
+                inbound_loss,
                 voice_zones,
                 my_position,
                 transport,
@@ -189,6 +196,7 @@ pub(crate) async fn voice_join(
         deafened,
         gain_map,
         roster_map,
+        inbound_loss,
         voice_zones,
         my_position,
         transport,
@@ -213,6 +221,7 @@ pub(crate) async fn voice_join(
         deafened,
         gain_map,
         roster_map,
+        inbound_loss,
         voice_zones,
         my_position,
         transport,
@@ -420,6 +429,9 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
         deafened: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         gain_map: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         roster_map: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+        inbound_loss: std::sync::Arc::new(tokio::sync::RwLock::new(
+            std::collections::HashMap::new(),
+        )),
         voice_zones: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         my_position: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         // Mic test is a loopback pipeline, not a real voice session -- no

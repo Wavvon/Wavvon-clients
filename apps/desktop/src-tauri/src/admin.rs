@@ -1435,15 +1435,25 @@ async fn banlist_request<T: serde::de::DeserializeOwned>(
     }
     // A 204 has no body, and the routes that answer one are typed `()` here.
     let text = resp.text().await.unwrap_or_default();
-    serde_json::from_str(if text.trim().is_empty() { "null" } else { &text })
-        .map_err(|e| format!("Invalid response: {e}"))
+    serde_json::from_str(if text.trim().is_empty() {
+        "null"
+    } else {
+        &text
+    })
+    .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
 pub(crate) async fn get_banlist_settings(
     state: State<'_, AppState>,
 ) -> Result<BanlistSettings, String> {
-    banlist_request(&state, reqwest::Method::GET, "/admin/settings/banlist", None).await
+    banlist_request(
+        &state,
+        reqwest::Method::GET,
+        "/admin/settings/banlist",
+        None,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1462,7 +1472,13 @@ pub(crate) async fn get_banlist_entries(
 pub(crate) async fn get_banlist_overrides(
     state: State<'_, AppState>,
 ) -> Result<Vec<BanlistOverride>, String> {
-    banlist_request(&state, reqwest::Method::GET, "/admin/banlist/overrides", None).await
+    banlist_request(
+        &state,
+        reqwest::Method::GET,
+        "/admin/banlist/overrides",
+        None,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1534,7 +1550,10 @@ pub(crate) async fn remove_banlist_override(
     target_pubkey: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let path = format!("/admin/banlist/overrides/{}", percent_encode(&target_pubkey));
+    let path = format!(
+        "/admin/banlist/overrides/{}",
+        percent_encode(&target_pubkey)
+    );
     banlist_request::<()>(&state, reqwest::Method::DELETE, &path, None).await
 }
 

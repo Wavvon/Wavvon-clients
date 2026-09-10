@@ -1055,6 +1055,16 @@ pub(crate) enum WsServerMessage {
         clip_name: String,
         public_key: String,
     },
+    /// Echo of our own `ping`. The nonce is the millisecond we sent it, so
+    /// the round trip needs no table of outstanding probes. `outbound_loss_pct`
+    /// is the relay's own count of gaps in our packet counter — absent on a
+    /// hub without `voice.loss` and while we are sending no voice, and both of
+    /// those must read as "no number" rather than as zero.
+    #[serde(rename = "pong")]
+    Pong {
+        nonce: Option<i64>,
+        outbound_loss_pct: Option<f32>,
+    },
     #[serde(other)]
     Other,
 }

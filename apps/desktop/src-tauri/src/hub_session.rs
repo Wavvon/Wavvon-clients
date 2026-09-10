@@ -293,3 +293,78 @@ pub(crate) async fn get_hub_ws_info(
         "hub_icon": s.hub_icon,
     }))
 }
+
+/// What the connection chip shows: latency to the active hub with its
+/// spread, inbound voice loss as this client measured it, and outbound loss
+/// as the relay measured it.
+///
+/// Polled rather than pushed, like web's: all three sources already keep
+/// rolling state, so a subscription would mean re-rendering on every pong and
+/// every audio frame to move a number that changes on a human timescale.
+///
+/// Every field is nullable and a null means "no number", never zero. Latency
+/// is null before the first pong; inbound loss is null when we are not in
+/// voice or are hearing nobody; outbound loss is null on a hub that does not
+/// measure it. A reassuring 0.0% on a hub measuring nothing is exactly the
+/// fabricated number this readout exists to avoid.
+#[derive(serde::Serialize)]
+pub(crate) struct ConnectionStats {
+    pub rtt_ms: Option<u32>,
+    pub jitter_ms: Option<f32>,
+    pub samples: usize,
+    pub inbound_loss_percent: Option<f32>,
+    pub outbound_loss_percent: Option<f32>,
+}
+
+#[tauri::command]
+pub(crate) async fn connection_stats(
+    state: State<'_, AppState>,
+) -> Result<ConnectionStats, String> {
+    let active_id = state.active_hub.lock().unwrap().clone();
+    let (rtt_ms, jitter_ms, samples, outbound_loss_percent) = match active_id {
+        Some(id) => {
+            let stats = state.conn_stats.lock().unwrap();
+            match stats.get(&id) {
+                Some(entry) => {
+                    let (rtt, jitter, n) = entry.rtt();
+                    (rtt, jitter, n, entry.outbound_loss_pct)
+                }
+                None => (None, None, 0, None),
+            }
+        }
+        None => (None, None, 0, None),
+    };
+
+    // The worst sender rather than the average: one badly-reaching
+    // participant is the thing you want to see, and averaging it against
+    // three clean streams hides it.
+    // The Arc comes out from under the lock before anything is awaited: a
+    // std MutexGuard held across an await makes the whole command future
+    // non-Send, and Tauri will not take it.
+    let loss_handle = state
+        .voice
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|session| session.inbound_loss.clone());
+    let inbound_loss_percent = match loss_handle {
+        Some(handle) => {
+            let losses = handle.read().await;
+            losses
+                .values()
+                .filter_map(|t| t.percent())
+                .fold(None::<f32>, |worst, pct| {
+                    Some(worst.map_or(pct, |w: f32| w.max(pct)))
+                })
+        }
+        None => None,
+    };
+
+    Ok(ConnectionStats {
+        rtt_ms,
+        jitter_ms,
+        samples,
+        inbound_loss_percent,
+        outbound_loss_percent,
+    })
+}

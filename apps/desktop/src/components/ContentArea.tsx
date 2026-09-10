@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useConnectionStats } from "../hooks/useConnectionStats";
 import type React from "react";
 import type {
   Channel,
@@ -21,6 +22,7 @@ import type {
   UserProfile,
 } from "../types";
 import {
+  ConnectionStatus,
   ContentArea as SharedContentArea,
   type ForumActions,
   type MessageRowActions,
@@ -209,6 +211,7 @@ export function ContentArea(props: Props) {
   } = props;
   const [showPinned, setShowPinned] = useState(false);
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
+  const conn = useConnectionStats();
 
   async function fetchLinkPreviewAction(hubUrl: string, url: string): Promise<LinkPreview> {
     const raw = await invoke<{ url: string; title?: string; description?: string; image_url?: string }>(
@@ -340,6 +343,15 @@ export function ContentArea(props: Props) {
     <>
       <SharedContentArea
         {...props}
+        connectionStatus={
+          <ConnectionStatus
+            rttMs={conn.rttMs}
+            jitterMs={conn.jitterMs}
+            inboundLossPercent={conn.inboundLossPercent}
+            outboundLossPercent={conn.outboundLossPercent}
+            connected={!!activeHub}
+          />
+        }
         // Desktop's sidebar doesn't track collapsed-category state the way
         // web's does (ChannelSidebar collapse persistence), so the
         // breadcrumb renders but a crumb click is a no-op here for now.

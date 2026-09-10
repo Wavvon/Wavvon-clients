@@ -215,6 +215,54 @@ impl VoiceKeys {
     }
 }
 
+/// Inbound voice loss for one sender, folded from the packet counter.
+///
+/// The counter is the sender's own monotonic sequence and sits in the
+/// cleartext header, so gaps are visible without decrypting anything.
+/// Out-of-order and replayed packets count as received but never move the
+/// high-water mark backwards — reordering is not loss on a datagram path, and
+/// treating it as loss is how a healthy call reads as a broken one.
+///
+/// Mirrors the web client's `connectionStats.ts` deliberately: the same
+/// number under the same name on both clients, or the two answer the same
+/// question differently.
+#[derive(Debug, Clone, Copy)]
+pub struct LossTracker {
+    highest_ctr: u64,
+    first_ctr: u64,
+    received: u64,
+}
+
+impl LossTracker {
+    pub fn first(ctr: u64) -> Self {
+        Self {
+            highest_ctr: ctr,
+            first_ctr: ctr,
+            received: 1,
+        }
+    }
+
+    pub fn track(&mut self, ctr: u64) {
+        self.highest_ctr = self.highest_ctr.max(ctr);
+        self.first_ctr = self.first_ctr.min(ctr);
+        self.received += 1;
+    }
+
+    /// Loss as a percentage, or `None` until there is a span to judge.
+    ///
+    /// Expected comes from the counter span rather than from elapsed time: a
+    /// sender who is simply silent sends nothing, and time-based arithmetic
+    /// would report that silence as total loss.
+    pub fn percent(&self) -> Option<f32> {
+        let expected = self.highest_ctr.saturating_sub(self.first_ctr) + 1;
+        if expected <= 1 {
+            return None;
+        }
+        let lost = expected.saturating_sub(self.received);
+        Some(((lost as f32 / expected as f32) * 1000.0).round() / 10.0)
+    }
+}
+
 fn resolve_opus_rate(device_rate: u32) -> u32 {
     match device_rate {
         8000 | 12000 | 16000 | 24000 | 48000 => device_rate,
@@ -252,6 +300,10 @@ pub struct AudioPipeline {
     pub gain_map: Arc<TokioRwLock<HashMap<u16, f32>>>,
     /// Roster map: sender_id → pubkey. Updated by the Tauri WS handler on voice_roster_update.
     pub roster_map: Arc<TokioRwLock<HashMap<u16, String>>>,
+    /// Per-sender inbound loss, folded from the cleartext `ctr` of every
+    /// packet that opened and decoded. Read by the shell for the connection
+    /// readout; empty until something has actually been heard.
+    pub inbound_loss: Arc<TokioRwLock<HashMap<u16, LossTracker>>>,
     /// The WebTransport voice session. `None` until the WS layer's
     /// `voice_joined` handler connects it (voice-transport-v2.md) -- mirrors
     /// the old `udp_reg_token` hand-off point, but here the value itself is
@@ -358,6 +410,7 @@ impl AudioPipeline {
             deafened: Arc::new(AtomicBool::new(false)),
             gain_map: Arc::new(TokioRwLock::new(HashMap::new())),
             roster_map: Arc::new(TokioRwLock::new(HashMap::new())),
+            inbound_loss: Arc::new(TokioRwLock::new(HashMap::new())),
             transport: Arc::new(TokioRwLock::new(None)),
             voice_keys: Arc::new(TokioRwLock::new(VoiceKeys::new())),
             active_clip: Arc::new(Mutex::new(None)),
@@ -404,6 +457,7 @@ impl AudioPipeline {
 
         let gain_map = Arc::new(TokioRwLock::new(HashMap::<u16, f32>::new()));
         let roster_map = Arc::new(TokioRwLock::new(HashMap::<u16, String>::new()));
+        let inbound_loss = Arc::new(TokioRwLock::new(HashMap::<u16, LossTracker>::new()));
         let voice_keys = Arc::new(TokioRwLock::new(VoiceKeys::new()));
 
         let active_clip: Arc<Mutex<Option<ActiveClip>>> = Arc::new(Mutex::new(None));
@@ -553,6 +607,7 @@ impl AudioPipeline {
         let recv_transport = transport.clone();
         let recv_voice_keys = voice_keys.clone();
         let recv_roster = roster_map.clone();
+        let recv_inbound_loss = inbound_loss.clone();
         let recv_deafened = deafened.clone();
         let recv_gain_map = gain_map.clone();
         let recv_task = tokio::spawn(async move {
@@ -631,7 +686,17 @@ impl AudioPipeline {
                     &gen.nonce_salt,
                     &packet.sealed,
                 ) {
-                    Ok((_, _, _, opus)) => opus,
+                    Ok((_, _, _, opus)) => {
+                        // Counted here and nowhere earlier: a packet that
+                        // failed to open is not a packet this sender sent us,
+                        // and counting it would make a wrong key look like a
+                        // clean line.
+                        let mut loss = recv_inbound_loss.write().await;
+                        loss.entry(packet.sender_id)
+                            .and_modify(|t| t.track(ctr))
+                            .or_insert_with(|| LossTracker::first(ctr));
+                        opus
+                    }
                     Err(e) => {
                         tracing::warn!(
                             sender_id = packet.sender_id,
@@ -703,6 +768,7 @@ impl AudioPipeline {
             deafened,
             gain_map,
             roster_map,
+            inbound_loss,
             transport,
             voice_keys,
             active_clip,
@@ -776,5 +842,42 @@ mod tests {
         assert!(keys.find_remote("pk1", 1).is_none());
         assert!(keys.find_remote("pk1", 2).is_some());
         assert!(keys.find_remote("pk1", 3).is_some());
+    }
+}
+
+#[cfg(test)]
+mod loss_tests {
+    use super::LossTracker;
+
+    #[test]
+    fn one_packet_is_not_enough_to_judge() {
+        assert_eq!(LossTracker::first(0).percent(), None);
+    }
+
+    #[test]
+    fn a_clean_run_is_zero_and_a_gap_is_counted() {
+        let mut t = LossTracker::first(0);
+        for ctr in 1..=9 {
+            t.track(ctr);
+        }
+        assert_eq!(t.percent(), Some(0.0));
+
+        // 10 sent, one of them never arrived.
+        let mut gappy = LossTracker::first(0);
+        for ctr in [1, 2, 3, 4, 6, 7, 8, 9] {
+            gappy.track(ctr);
+        }
+        assert_eq!(gappy.percent(), Some(10.0));
+    }
+
+    #[test]
+    fn reordering_is_not_loss() {
+        // The same ten packets, delivered out of order. A tracker that let the
+        // high-water mark move backwards would report loss on a clean line.
+        let mut t = LossTracker::first(3);
+        for ctr in [1, 0, 2, 5, 4, 9, 6, 8, 7] {
+            t.track(ctr);
+        }
+        assert_eq!(t.percent(), Some(0.0));
     }
 }

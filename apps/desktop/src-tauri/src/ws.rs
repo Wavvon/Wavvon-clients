@@ -39,8 +39,22 @@ pub(crate) async fn spawn_ws_task(
     let status_app = app.clone();
     let status_hub_id = hub_id_for_task.clone();
     let task = tokio::spawn(async move {
+        // Round-trip probe. The hub echoes the nonce untouched and keeps no
+        // state, so the nonce is simply the millisecond we sent it.
+        let mut probe = tokio::time::interval(std::time::Duration::from_secs(2));
+        probe.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
+                _ = probe.tick() => {
+                    let nonce = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    let json = serde_json::json!({ "type": "ping", "nonce": nonce }).to_string();
+                    if ws_tx.send(WsMessage::Text(json.into())).await.is_err() {
+                        break;
+                    }
+                }
                 maybe_msg = ws_rx.next() => {
                     match maybe_msg {
                         Some(Ok(WsMessage::Text(text))) => {
@@ -74,6 +88,27 @@ pub(crate) async fn spawn_ws_task(
                                             "message_id": message_id,
                                             "reactions": reactions,
                                         }));
+                                    }
+                                    WsServerMessage::Pong { nonce, outbound_loss_pct } => {
+                                        let now = std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .map(|d| d.as_millis() as i64)
+                                            .unwrap_or(0);
+                                        // A pong for a probe sent before a
+                                        // reconnect reads as one large sample
+                                        // and ages out of the window.
+                                        if let Some(sent_at) = nonce {
+                                            let rtt = (now - sent_at).clamp(0, 60_000) as u32;
+                                            if let Some(state) = app.try_state::<crate::state::AppState>() {
+                                                if let Ok(mut stats) = state.conn_stats.lock() {
+                                                    let entry = stats
+                                                        .entry(hub_id_for_task.clone())
+                                                        .or_default();
+                                                    entry.push_sample(rtt);
+                                                    entry.outbound_loss_pct = outbound_loss_pct;
+                                                }
+                                            }
+                                        }
                                     }
                                     WsServerMessage::Typing { channel_id, public_key, display_name, typing } => {
                                         let _ = app.emit("chat-typing", serde_json::json!({

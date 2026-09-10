@@ -16,9 +16,71 @@ pub(crate) type VoiceRosterMaps = Option<(
 // Shared application state
 // ---------------------------------------------------------------------------
 
+/// Latency samples kept for the rolling figures, one every two seconds.
+/// A twenty-second window: long enough to be steady, short enough to react.
+pub(crate) const RTT_WINDOW: usize = 10;
+
+/// What the connection readout shows, per hub, as its socket measures it.
+///
+/// Deliberately the same two numbers under the same names as the web
+/// client's `connectionStats.ts` — median round trip with its mean absolute
+/// deviation — because two clients answering "how is my connection" with
+/// differently-computed numbers is worse than one client not answering.
+#[derive(Default)]
+pub(crate) struct ConnStats {
+    /// Round-trip samples in milliseconds, oldest first.
+    pub rtt_samples: Vec<u32>,
+    /// The relay's outbound-loss figure from the most recent pong.
+    pub outbound_loss_pct: Option<f32>,
+}
+
+impl ConnStats {
+    pub fn push_sample(&mut self, ms: u32) {
+        self.rtt_samples.push(ms);
+        if self.rtt_samples.len() > RTT_WINDOW {
+            self.rtt_samples.remove(0);
+        }
+    }
+
+    /// Median, and the mean absolute deviation around it.
+    ///
+    /// Median rather than mean, and MAD rather than standard deviation: one
+    /// stalled probe on a flaky link should not move the headline number, and
+    /// squaring the outlier the median just ignored would put it back.
+    pub fn rtt(&self) -> (Option<u32>, Option<f32>, usize) {
+        if self.rtt_samples.is_empty() {
+            return (None, None, 0);
+        }
+        let mut sorted = self.rtt_samples.clone();
+        sorted.sort_unstable();
+        let mid = sorted.len() / 2;
+        let median = if sorted.len() % 2 == 0 {
+            (sorted[mid - 1] as f32 + sorted[mid] as f32) / 2.0
+        } else {
+            sorted[mid] as f32
+        };
+        if sorted.len() == 1 {
+            return (Some(median.round() as u32), None, 1);
+        }
+        let mad = self
+            .rtt_samples
+            .iter()
+            .map(|s| (*s as f32 - median).abs())
+            .sum::<f32>()
+            / self.rtt_samples.len() as f32;
+        (
+            Some(median.round() as u32),
+            Some((mad * 10.0).round() / 10.0),
+            self.rtt_samples.len(),
+        )
+    }
+}
+
 pub(crate) struct AppState {
     /// Live hub sessions keyed by hub_id (the hub's public_key).
     pub hubs: Mutex<HashMap<String, HubSession>>,
+    /// Connection figures per hub_id, written by that hub's socket task.
+    pub conn_stats: Mutex<HashMap<String, ConnStats>>,
     /// Currently active hub_id (what the UI is showing).
     pub active_hub: Mutex<Option<String>>,
     /// Voice session (only one at a time across all hubs).
@@ -99,6 +161,12 @@ pub(crate) struct VoiceSession {
     pub gain_map: std::sync::Arc<tokio::sync::RwLock<HashMap<u16, f32>>>,
     /// sender_id → pubkey, updated on voice_roster_update WS messages.
     pub roster_map: std::sync::Arc<tokio::sync::RwLock<HashMap<u16, String>>>,
+    /// sender_id → inbound loss, folded by the pipeline's receive task from
+    /// every packet that opened and decoded. What the connection readout
+    /// shows, and the only thing in the app that says whether voice is
+    /// actually arriving.
+    pub inbound_loss:
+        std::sync::Arc<tokio::sync::RwLock<HashMap<u16, wavvon_voice::pipeline::LossTracker>>>,
     /// Active voice zones: zone_id → ZoneInfo
     pub voice_zones: std::sync::Arc<std::sync::Mutex<HashMap<String, ZoneInfo>>>,
     /// My own position per zone: zone_id → Vec<f64>

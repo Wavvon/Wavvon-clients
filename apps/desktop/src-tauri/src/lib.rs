@@ -52,6 +52,7 @@ pub fn run() {
         .setup(|app| {
             app.manage(AppState {
                 hubs: Default::default(),
+                conn_stats: Default::default(),
                 active_hub: Default::default(),
                 voice: Default::default(),
                 http_client: reqwest::Client::new(),
@@ -331,6 +332,7 @@ pub fn run() {
             bots::admin_remove_external_bot,
             bots::admin_get_bot_channel_scope,
             bots::admin_set_bot_channel_scope,
+            hub_session::connection_stats,
             admin::admin_list_outgoing_webhooks,
             admin::admin_create_outgoing_webhook,
             admin::admin_update_outgoing_webhook,
