@@ -1,0 +1,15 @@
+{
+  "_comment": "Shared feature props that reach only one client. Each line is a control the other client does not render. Delete a line when the feature is ported; check-parity-props.mjs fails on anything not listed here.",
+  "known": [
+    "onEditBanner",
+    "onHubProfileSaved",
+    "onJoinAllianceVoice",
+    "onLeaveHub",
+    "onListWhisperRoles",
+    "onSavedOffDevice",
+    "onStartConversation",
+    "onTrustIssuer",
+    "renderBotCapabilities",
+    "renderRecoveryContacts"
+  ]
+}

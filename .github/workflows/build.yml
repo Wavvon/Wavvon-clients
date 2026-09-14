@@ -54,3 +54,6 @@ jobs:
 
       - name: No new hardcoded UI strings
         run: pnpm --filter wavvon-web run check-hardcoded
+
+      - name: Shared feature props reach both clients
+        run: pnpm run check-parity
