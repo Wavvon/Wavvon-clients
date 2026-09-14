@@ -87,7 +87,7 @@ Two things survive that carry the word, and both are deliberate:
   its canonical address, and renaming it is a **wire-format change** — three
   mirrors and the shared test vectors, per the `wire-format-change` skill. Not
   something to tidy up in passing.
-- `splitHubPathPrefix` in `packages/core/parseHubInput.ts`. One host can serve
+- `splitHubPathPrefix` in `packages/core/src/parseHubInput.ts`. One host can serve
   several hubs under `/hub/<slug>` paths, and a client has to parse that to
   join them. It handles a URL shape, not a feature.
 

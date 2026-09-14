@@ -86,8 +86,8 @@ so run both builds first.
 |---|---|
 | `apps/web/` *(this dir)* | The React client (Vite) |
 | `packages/i18n/` | `@wavvon/i18n` — shared locale strings + ICU machinery |
-| `packages/utils/` | `@wavvon/utils` — shared utilities |
 | `packages/core/` | `@wavvon/core` — shared platform-agnostic TS |
+| `packages/ui/` | `@wavvon/ui` — the shared components and the canonical stylesheet |
 
 ## The Wavvon project
 
