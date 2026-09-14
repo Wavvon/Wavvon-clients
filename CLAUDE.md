@@ -187,6 +187,7 @@ encode/decode) -> ringbuf (bridges the real-time audio thread and tokio async)
 This is the part most likely to trip you up.
 
 - **Web is the source of truth.** New components ship straight into `packages/ui`.
+- **Desktop opens a mini-app in a native window** (`open_mini_app`) where web promotes it to `GameModal`. Same `bot_app_open` event, different presentation, and not a parity gap — do not "fix" it by adding the modal to desktop.
 - **A shared component hides a control when its optional prop is absent**, which is how a feature goes missing on one client with nothing failing. `pnpm run check-parity` (`scripts/check-parity-props.mjs`) lists every optional `on*`/`render*` prop only one app supplies; `scripts/parity-baseline.json` holds the known gaps and CI fails on anything new. Porting a feature means deleting its line from the baseline.
 - Components in `packages/ui` are **prop-only**: no closures over App state, no app imports, no platform imports. Data access travels in through callback / actions-object props (`ForumActions`, `MessageRowActions`, ...). Platform-bound features are optional props an app may omit.
 - Parity work on an existing component means **hoisting the web copy into `packages/ui`** and adapting desktop — not hand-porting into desktop's own copy.

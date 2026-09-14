@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { FocusTrap } from "@wavvon/ui";
+import { FocusTrap } from "./FocusTrap";
 
 export function Lightbox({
   src,

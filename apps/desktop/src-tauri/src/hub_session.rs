@@ -185,6 +185,36 @@ pub(crate) fn set_active_hub(hub_id: String, state: State<'_, AppState>) -> Resu
     Ok(())
 }
 
+/// Ask the hub to delete this identity's membership, then forget it locally.
+///
+/// Distinct from `remove_hub`, which only forgets: this one is not reversible
+/// and the hub drops the profile and the roles. Gated at the call site on the
+/// `hub.leave` capability — a hub without it answers 404, and offering the
+/// action there would leave someone believing they left.
+///
+/// Ordering matters on failure: the hub goes first, so a refusal (the owner
+/// gets 409) leaves this client untouched rather than half-left.
+#[tauri::command]
+pub(crate) async fn leave_hub(hub_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let (hub_url, token) = {
+        let hubs = state.hubs.lock().unwrap();
+        let s = hubs.get(&hub_id).ok_or("Hub not connected")?;
+        (s.hub_url.clone(), s.token.clone())
+    };
+    let resp = state
+        .http_client
+        .delete(format!("{hub_url}/me"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    remove_hub(hub_id, state)
+}
+
+
 #[tauri::command]
 pub(crate) fn remove_hub(hub_id: String, state: State<'_, AppState>) -> Result<(), String> {
     if let Some(session) = state.hubs.lock().unwrap().remove(&hub_id) {

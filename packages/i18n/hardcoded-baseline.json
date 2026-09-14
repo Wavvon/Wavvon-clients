@@ -1,9 +1,8 @@
 {
-  "total": 34,
+  "total": 33,
   "files": {
     "apps/desktop/src/AccountRoot.tsx": 1,
     "apps/desktop/src/components/SettingsPage.tsx": 4,
-    "apps/web/src/components/admin/BotCapabilitiesPanel.tsx": 1,
     "apps/web/src/components/identity/IdentitySetupScreen.tsx": 1,
     "apps/web/src/components/settings/tabs/AppearanceTab.tsx": 4,
     "apps/web/src/components/settings/tabs/ManageAccountsTab.tsx": 1,

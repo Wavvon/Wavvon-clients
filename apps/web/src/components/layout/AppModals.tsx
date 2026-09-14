@@ -12,6 +12,8 @@ import {
   QuickInviteModal,
   RemoveHubModal,
   EncryptionWarningModal,
+  Lightbox,
+  BannerEditModal,
 } from "@wavvon/ui";
 import {
   createEvent,
@@ -264,6 +266,7 @@ export function AppModals(p: AppModalsProps) {
               showHubError(String(e));
             }
           }}
+          onEditBanner={p.setBannerEditChannel}
           onCreateEvent={isAdmin ? (channel) => setEventComposerChannelId(channel.id) : undefined}
           onCreatePoll={canSendMessages ? (channel) => setPollComposerChannelId(channel.id) : undefined}
           onRenameTempRoom={
@@ -326,6 +329,18 @@ export function AppModals(p: AppModalsProps) {
           onSave={handleSaveFirstRunName}
           onSkip={() => setShowDisplayNamePrompt(false)}
         />
+      )}
+
+      {p.bannerEditChannel && (
+        <BannerEditModal
+          channel={p.bannerEditChannel}
+          onSave={p.handleSaveBannerUrl}
+          onClose={() => p.setBannerEditChannel(null)}
+        />
+      )}
+
+      {p.lightbox && (
+        <Lightbox src={p.lightbox.src} alt={p.lightbox.alt} onClose={p.onCloseLightbox} />
       )}
 
       {p.encryptionWarning && <EncryptionWarningModal {...p.encryptionWarning} />}

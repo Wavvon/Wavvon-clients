@@ -183,6 +183,7 @@ interface Props {
   onSetMemberSidebarHidden: (v: boolean) => void;
   selfInvisible: boolean;
   onSetUserContextMenu: (menu: { x: number; y: number; user: User } | null) => void;
+  onOpenImage: (src: string, alt: string) => void;
   onToast: (msg: string) => void;
   slashCommands?: SlashCommandEntry[];
   canMoveMembers: boolean;
@@ -320,7 +321,7 @@ export function ContentArea(props: Props) {
         onSetEditingDraft={channelMessages.setEditingDraft}
         onInputTextChange={channelMessages.handleInputTextChange}
         onKeyDown={channelMessages.handleKeyDown}
-        onOpenImage={() => {}}
+        onOpenImage={props.onOpenImage}
         onToast={onToast}
         onError={(msg) => onToast(typeof msg === "string" ? msg : String((msg as Record<string, unknown>).message ?? msg))}
         slashCommands={slashCommands}

@@ -5,7 +5,8 @@ import {
   listAdminRecoveryRequests, approveRecoveryRequest, denyRecoveryRequest,
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
-import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection } from "@wavvon/ui";
+import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection, BotCapabilitiesPanel } from "@wavvon/ui";
+import { adminGetBotCapabilities, adminSetBotCapabilities } from "../../platform/commands/bots";
 import type { RecoveryContactsSectionActions } from "@wavvon/ui";
 import {
   rolesActions, memberRoleActions, serverTagsActions, inviteActions,
@@ -15,7 +16,6 @@ import {
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
 import { outgoingWebhookActions } from "./outgoingWebhookActions";
-import { BotCapabilitiesPanel } from "./BotCapabilitiesPanel";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
 import type { Channel, Hub, InviteInfo } from "@shared/types";
 
@@ -123,7 +123,12 @@ export function HubAdminContainer({
         inviteActions={inviteActions}
         webhookActions={webhookActions}
         externalBotActions={externalBotActions}
-        renderBotCapabilities={(pubkey) => <BotCapabilitiesPanel pubkey={pubkey} />}
+        renderBotCapabilities={(pubkey) => (
+          <BotCapabilitiesPanel
+            pubkey={pubkey}
+            actions={{ get: adminGetBotCapabilities, set: adminSetBotCapabilities }}
+          />
+        )}
         auditLogActions={auditLogActions}
         certActions={certActions}
         soundboardActions={soundboardActions}

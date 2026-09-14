@@ -7,6 +7,7 @@ import type { useSettingsProfile } from "../hooks/useSettingsProfile";
 
 interface Props {
   onClose: () => void;
+  onHubProfileSaved: (hubId: string) => void;
   hubs: Hub[];
   activeHubId: string | null;
   isAdmin: boolean;
@@ -32,7 +33,7 @@ interface Props {
 // `voice` fields, so they move in wholesale rather than staying as
 // individually-threaded props in App.
 export function SettingsPageContainer({
-  onClose, hubs, activeHubId, isAdmin, publicKey,
+  onClose, onHubProfileSaved, hubs, activeHubId, isAdmin, publicKey,
   blockedUsers, ignoredUsers, onUnblock, onUnignore, knownNames,
   hideBirthdays, onToggleHideBirthdays,
   voice, video, channelMessages, settingsProfile,
@@ -42,6 +43,7 @@ export function SettingsPageContainer({
       tab={settingsProfile.settingsTab}
       onTab={settingsProfile.setSettingsTab}
       onClose={onClose}
+      onHubProfileSaved={onHubProfileSaved}
       hubs={hubs}
       theme={settingsProfile.theme}
       onThemeChange={settingsProfile.handleSetTheme}

@@ -403,6 +403,10 @@ export default function App({ initialView }: AppProps = {}) {
   const [showDiscover, setShowDiscover] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
+  // Full-screen image overlay, opened by clicking an image attachment. The
+  // attachment renders inside a button either way, so without this the button
+  // was there and did nothing.
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [userContextMenu, setUserContextMenu] = useState<{
     user: User;
     position: { x: number; y: number };
@@ -1086,6 +1090,8 @@ export default function App({ initialView }: AppProps = {}) {
     activeHubId, closeHubSetupWizard,
   });
   const {
+    bannerEditChannel, setBannerEditChannel,
+    handleSaveBannerUrl,
     createChannelCtx, setCreateChannelCtx,
     createChannelLoading,
     createChannelError, setCreateChannelError,
@@ -1555,6 +1561,7 @@ export default function App({ initialView }: AppProps = {}) {
           view={view as "channels" | "dms"}
           channels={channels}
           onBreadcrumbCategoryClick={handleBreadcrumbCategoryClick}
+          onOpenImage={(src, alt) => setLightbox({ src, alt })}
           users={users}
           publicKey={publicKey}
           blockedUsers={blockedUsers}
@@ -1578,6 +1585,8 @@ export default function App({ initialView }: AppProps = {}) {
       </MobileShell>
 
       <AppModals
+        lightbox={lightbox}
+        onCloseLightbox={() => setLightbox(null)}
         removeHub={removeHubConfirm}
         encryptionWarning={dms.encryptionWarning}
         onOpenHomeHubSettings={() => {
@@ -1608,6 +1617,9 @@ export default function App({ initialView }: AppProps = {}) {
         channelTalkPowerTabActions={channelTalkPowerTabActions}
         channels={channels}
         closeHubSetupWizard={closeHubSetupWizard}
+        bannerEditChannel={bannerEditChannel}
+        setBannerEditChannel={setBannerEditChannel}
+        handleSaveBannerUrl={handleSaveBannerUrl}
         createChannelCtx={createChannelCtx}
         createChannelError={createChannelError}
         createChannelForWizard={createChannelForWizard}

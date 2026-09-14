@@ -114,6 +114,15 @@ export interface AppModalsProps {
     typeof import("@wavvon/ui").ChannelSettingsModal
   >["talkPowerActions"];
 
+  // Banner channel retarget
+  bannerEditChannel: Channel | null;
+  setBannerEditChannel: (channel: Channel | null) => void;
+  handleSaveBannerUrl: (channelId: string, bannerUrl: string) => void | Promise<void>;
+
+  // Image attachment overlay
+  lightbox: { src: string; alt: string } | null;
+  onCloseLightbox: () => void;
+
   // First-run wizard and prompt
   showHubSetupWizard: boolean;
   closeHubSetupWizard: (hubId: string) => void;

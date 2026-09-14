@@ -356,3 +356,52 @@ pub(crate) async fn admin_delete_webhook(
     }
     Ok(())
 }
+
+/// GET /admin/bots/:pubkey/capabilities — the requested, granted and effective
+/// sets for one bot (bot-capability-layer.md §1).
+#[tauri::command]
+pub(crate) async fn admin_get_bot_capabilities(
+    hub_url: String,
+    pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/bots/{pubkey}/capabilities"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// PUT /admin/bots/:pubkey/capabilities — replaces the granted set atomically.
+#[tauri::command]
+pub(crate) async fn admin_set_bot_capabilities(
+    hub_url: String,
+    pubkey: String,
+    capabilities: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .put(format!("{base}/admin/bots/{pubkey}/capabilities"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "capabilities": capabilities }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}

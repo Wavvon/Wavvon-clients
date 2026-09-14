@@ -71,6 +71,7 @@ import { useAlliances } from "./hooks/useAlliances";
 import { useWsHandlers } from "./hooks/useWsHandlers";
 import { useUpdateBanner } from "./hooks/useUpdateBanner";
 import { useFirstNotify } from "./hooks/useFirstNotify";
+import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { buildVideoTiles } from "./utils/buildVideoTiles";
 import { useSlashCommands } from "./hooks/useSlashCommands";
 import { SettingsPageContainer } from "./components/SettingsPageContainer";
@@ -414,6 +415,7 @@ function App() {
 
   // Ctrl+K quick-switcher palette.
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Above useChannelMessages: the alliance state it wires to the composer now
@@ -1518,6 +1520,13 @@ function App() {
         ) : showSettings ? (
           <SettingsPageContainer
             onClose={closeSettings}
+            onHubProfileSaved={(hubId) => {
+              // The hub keeps its own copy of the profile, so what it reports
+              // about me and about the member list both go stale on save.
+              if (hubId !== activeHubId) return;
+              void invoke<MeInfo>("get_me").then((me) => setMyRoles(me.roles)).catch(() => {});
+              void invoke<User[]>("list_users").then(setUsers).catch(() => {});
+            }}
             hubs={hubs}
             activeHubId={activeHubId}
             isAdmin={isAdmin}
@@ -1549,7 +1558,7 @@ function App() {
               hasActiveHub={hasActiveHub}
               onSwitchToDms={() => { setView("dms"); if (hasActiveHub) loadConversations(); }}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
-              onRemoveHub={handleRemoveHub}
+              onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
               onSetHubNotifyMode={setHubMode}
               onHubReorder={handleHubReorder}
               onAddHub={() => setShowAddHub(true)}
@@ -1638,6 +1647,7 @@ function App() {
             ) : (
               <>
                 <ChannelSidebarContainer
+                  onRequestRemoveHub={(hubId) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
                   view={view}
                   soundboardChipsByChannel={soundboardChipsByChannel}
                   whisperReplyBind={whisperReplyBind}
@@ -1801,6 +1811,12 @@ function App() {
         )}
 
         <AppModals
+          removeHubConfirm={removeHubConfirm}
+          onOpenHomeHubSettings={() => {
+            removeHubConfirm.cancel();
+            settingsProfile.setSettingsTab("accounts");
+            setShowSettings(true);
+          }}
           addHub={addHubFlow}
           channelCrud={channelCrud}
           voice={voice}

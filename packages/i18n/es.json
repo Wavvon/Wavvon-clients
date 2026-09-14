@@ -1814,6 +1814,8 @@
   "hub.admin.reports.delete_message": "Eliminar el mensaje",
   "hub.admin.reports.ban_user": "Vetar al usuario",
   "bot.cap.loading": "Cargando…",
+  "bot.cap.effective": "Efectivas (lo que el bot puede usar ahora mismo): {list}",
+  "bot.cap.effective_none": "ninguna",
   "bot.cap.none_requested": "Este bot no ha solicitado ninguna capacidad.",
   "bot.cap.col.capability": "Capacidad",
   "bot.cap.col.risk": "Riesgo",

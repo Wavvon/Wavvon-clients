@@ -1814,6 +1814,8 @@
   "hub.admin.reports.delete_message": "Nachricht löschen",
   "hub.admin.reports.ban_user": "Nutzer sperren",
   "bot.cap.loading": "Wird geladen…",
+  "bot.cap.effective": "Effektiv (was der Bot gerade wirklich nutzen kann): {list}",
+  "bot.cap.effective_none": "keine",
   "bot.cap.none_requested": "Dieser Bot hat keine Berechtigungen angefragt.",
   "bot.cap.col.capability": "Berechtigung",
   "bot.cap.col.risk": "Risiko",

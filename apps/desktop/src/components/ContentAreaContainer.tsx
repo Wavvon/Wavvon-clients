@@ -155,6 +155,7 @@ export function ContentAreaContainer({
         voicePartByChannel={voice.voicePartByChannel}
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}
+        onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
       />
       {showHubStreams && (
         <HubStreamsPanel

@@ -202,6 +202,7 @@ interface Props {
   voicePartByChannel: Record<string, VoiceParticipant[]>;
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
+  onStartConversation?: (pubkey: string) => void;
 }
 
 export function ContentArea(props: Props) {

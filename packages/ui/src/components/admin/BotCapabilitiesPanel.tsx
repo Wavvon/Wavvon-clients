@@ -2,17 +2,26 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BotCapabilityGrants } from "@wavvon/core";
 import { toggleBotCapability } from "@wavvon/core";
-import { adminGetBotCapabilities, adminSetBotCapabilities } from "../../platform/commands/bots";
+
+/** Reading and replacing the granted set. Each app supplies its own transport
+ *  — `hubFetch` on web, a Tauri command on desktop — the way every other
+ *  shared admin section takes its actions. */
+export interface BotCapabilitiesActions {
+  get: (pubkey: string) => Promise<BotCapabilityGrants>;
+  set: (pubkey: string, capabilities: string[]) => Promise<void>;
+}
 
 interface Props {
   pubkey: string;
+  actions: BotCapabilitiesActions;
 }
 
 // Registry copy per bot-capability-layer.md §1 "Capability registry". Baseline
 // UI (components, embeds, the launch card) is ungated and never appears here.
 // Risk and the presence of a note are the only per-capability facts left here;
-// the words live in the catalogs as `bot.cap.<id>.label` / `.unlocks` / `.note`,
-// so a capability the hub knows and this build does not still renders its id.
+// the words live in the catalogs under the bot.cap prefix, keyed by capability
+// id, so a capability the hub knows and this build does not still renders its
+// id rather than nothing.
 const CAPABILITY_RISK: Record<string, "medium" | "high"> = {
   can_read_message_content: "medium",
   can_use_interactive_ui: "medium",
@@ -23,7 +32,7 @@ const CAPABILITY_RISK: Record<string, "medium" | "high"> = {
 
 const CAPABILITIES_WITH_NOTE = new Set(["can_inject_video", "can_use_camera"]);
 
-export function BotCapabilitiesPanel({ pubkey }: Props) {
+export function BotCapabilitiesPanel({ pubkey, actions }: Props) {
   const { t } = useTranslation();
   const [data, setData] = useState<BotCapabilityGrants | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +41,7 @@ export function BotCapabilitiesPanel({ pubkey }: Props) {
   async function load() {
     setError(null);
     try {
-      setData(await adminGetBotCapabilities(pubkey));
+      setData(await actions.get(pubkey));
     } catch (e) {
       setError(String(e));
     }
@@ -46,7 +55,7 @@ export function BotCapabilitiesPanel({ pubkey }: Props) {
     setSavingCap(capability);
     setError(null);
     try {
-      await adminSetBotCapabilities(pubkey, nextGranted);
+      await actions.set(pubkey, nextGranted);
       await load();
     } catch (e) {
       setError(String(e));
@@ -105,7 +114,9 @@ export function BotCapabilitiesPanel({ pubkey }: Props) {
         </tbody>
       </table>
       <p className="muted" style={{ marginTop: "var(--space-2)" }}>
-        Effective (what the bot can actually use right now): {data.effective.length > 0 ? data.effective.join(", ") : "none"}
+        {t("bot.cap.effective", {
+          list: data.effective.length > 0 ? data.effective.join(", ") : t("bot.cap.effective_none"),
+        })}
       </p>
     </div>
   );

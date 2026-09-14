@@ -1,6 +1,16 @@
 import { useMemo } from "react";
-import { HubAdminPage, OutgoingWebhooksSection, type HubAdminPageProps } from "@wavvon/ui";
+import { invoke } from "@tauri-apps/api/core";
+import {
+  HubAdminPage,
+  OutgoingWebhooksSection,
+  BotCapabilitiesPanel,
+  RecoveryContactsSection,
+  type HubAdminPageProps,
+  type RecoveryContactsSectionActions,
+} from "@wavvon/ui";
+import type { BotCapabilityGrants } from "@wavvon/core";
 import { ModerationTab } from "./ModerationTab";
+import { buildRecoveryActions } from "../utils/recoveryActions";
 import type { Hub, RoleInfo } from "../types";
 import {
   rolesActions,
@@ -70,6 +80,31 @@ export function HubAdminContainer({
       {...rest}
       isAdmin={isAdmin}
       renderModerationTab={() => <ModerationTab />}
+      renderRecoveryContacts={() => (
+        <RecoveryContactsSection
+          isAdmin={isAdmin}
+          actions={buildRecoveryActions(activeHubUrl)}
+          showMemberCards={false}
+        />
+      )}
+      renderBotCapabilities={(pubkey) => (
+        <BotCapabilitiesPanel
+          pubkey={pubkey}
+          actions={{
+            get: (pk) =>
+              invoke<BotCapabilityGrants>("admin_get_bot_capabilities", {
+                hubUrl: activeHubUrl,
+                pubkey: pk,
+              }),
+            set: (pk, capabilities) =>
+              invoke("admin_set_bot_capabilities", {
+                hubUrl: activeHubUrl,
+                pubkey: pk,
+                capabilities,
+              }),
+          }}
+        />
+      )}
       renderOutgoingWebhooks={() => (
         <OutgoingWebhooksSection channels={rest.channels} actions={outgoingWebhookActions} />
       )}

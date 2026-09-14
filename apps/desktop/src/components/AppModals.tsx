@@ -8,7 +8,10 @@ import {
   EventComposer,
   FriendsModal,
   HubSetupWizard,
+  BannerEditModal,
   KeyboardShortcuts,
+  RemoveHubModal,
+  Lightbox,
   PollComposer,
   QuickInviteModal,
   UserContextMenu,
@@ -36,8 +39,6 @@ import type { useAddHubFlow } from "../hooks/useAddHubFlow";
 import type { useChannelCrud } from "../hooks/useChannelCrud";
 import type { useVoice } from "../hooks/useVoice";
 import type { EncryptionWarning } from "@wavvon/ui";
-import { Lightbox } from "./Lightbox";
-import { BannerEditModal } from "./BannerEditModal";
 import { ScreenShareModal } from "./ScreenShareModal";
 import { ScreenShareOverlay } from "./ScreenShareOverlay";
 import { ChannelPalette } from "./ChannelPalette";
@@ -125,6 +126,8 @@ export interface AppModalsProps {
   // Image lightbox
   lightbox: { src: string; alt: string } | null;
   setLightbox: (v: null) => void;
+  removeHubConfirm: ReturnType<typeof import("../hooks/useRemoveHubConfirm").useRemoveHubConfirm>;
+  onOpenHomeHubSettings: () => void;
 
   // DM encryption warning
   encryptionWarning: EncryptionWarning | null;
@@ -461,6 +464,21 @@ export function AppModals(p: AppModalsProps) {
         <ScreenShareModal
           onStart={voice.handleShareStart}
           onCancel={() => voice.setShowSharePicker(false)}
+        />
+      )}
+
+      {p.removeHubConfirm.pending && (
+        <RemoveHubModal
+          hubName={p.removeHubConfirm.pending.hubName}
+          homeHub={p.removeHubConfirm.homeHub}
+          hubFarewell={p.removeHubConfirm.farewell}
+          onLeaveHub={
+            p.removeHubConfirm.canLeave ? () => void p.removeHubConfirm.leave() : undefined
+          }
+          leaveNeedsInvite={p.removeHubConfirm.leaveNeedsInvite}
+          onOpenHomeHubSettings={p.onOpenHomeHubSettings}
+          onConfirm={() => void p.removeHubConfirm.confirm()}
+          onCancel={p.removeHubConfirm.cancel}
         />
       )}
 

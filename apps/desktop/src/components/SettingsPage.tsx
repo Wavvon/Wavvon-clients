@@ -25,6 +25,8 @@ import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { listAccounts, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
+import { loadTrustRoots, saveTrustRoots } from "../utils/trustRoots";
+import { addTrustRoot, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
 import { PrivacyTab } from "./settings/PrivacyTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
@@ -45,6 +47,8 @@ export type SettingsTab =
 export interface SettingsPageProps {
   tab: SettingsTab;
   onTab: (t: SettingsTab) => void;
+  /** A hub-context profile was saved; refresh what the hub now reports. */
+  onHubProfileSaved?: (hubId: string) => void;
   onClose: () => void;
   hubs: Hub[];
 
@@ -152,6 +156,14 @@ export function SettingsPage(props: SettingsPageProps) {
   };
   const profileEditorActions = useMemo(() => buildProfileEditorActions(props.hubs), [props.hubs]);
 
+  // Loaded per account, so switching identity switches whom you believe.
+  const [trustRoots, setTrustRoots] = useState<TrustRoot[]>([]);
+  useEffect(() => setTrustRoots(loadTrustRoots(activeId)), [activeId]);
+  function updateTrustRoots(roots: TrustRoot[]) {
+    setTrustRoots(roots);
+    saveTrustRoots(activeId, roots);
+  }
+
   const G_ACCOUNTS = t("settings.nav_groups.accounts");
   const G_APP = t("settings.nav_groups.app");
   const G_AV = t("settings.nav_groups.audio_video");
@@ -174,6 +186,9 @@ export function SettingsPage(props: SettingsPageProps) {
             hubs={props.hubs}
             publicKey={props.publicKey}
             actions={profileEditorActions}
+            onHubProfileSaved={props.onHubProfileSaved}
+            trustRoots={trustRoots}
+            onTrustIssuer={(pubkey, label) => updateTrustRoots(addTrustRoot(trustRoots, pubkey, label))}
             {...perAccount}
           />
         )}
@@ -204,6 +219,8 @@ export function SettingsPage(props: SettingsPageProps) {
             knownNames={props.knownNames}
             hideBirthdays={props.hideBirthdays}
             onToggleHideBirthdays={props.onToggleHideBirthdays}
+            trustRoots={trustRoots}
+            onTrustRootsChange={updateTrustRoots}
           />
         )}
 

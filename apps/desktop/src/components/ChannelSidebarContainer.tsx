@@ -1,4 +1,5 @@
 import type React from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { Dispatch, SetStateAction } from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { ChannelSidebar } from "@wavvon/ui";
@@ -23,6 +24,7 @@ import type { useChannelMessages } from "../hooks/useChannelMessages";
 import type { useDms } from "../hooks/useDms";
 
 interface Props {
+  onRequestRemoveHub: (hubId: string) => void;
   view: "channels" | "dms";
   channels: Channel[];
   users: User[];
@@ -97,6 +99,7 @@ export function ChannelSidebarContainer({
   setShowSearchBar, myPresence, onSetStatus,
   showWhisperPanel, setShowWhisperPanel, soundboardChipsByChannel,
   whisperReplyBind, onSetWhisperReplyBind,
+  onRequestRemoveHub,
   voice, video, whisper, soundboard, notifyPrefs, hubLifecycle, channelMessages,
   unreadCounts, dms,
 }: Props) {
@@ -142,7 +145,7 @@ export function ChannelSidebarContainer({
       onHubDropdownOpenChange={setHubDropdownOpen}
       onSetHubMode={notifyPrefs.setHubMode}
       onClearHubUnread={(hubId) => { unreadCounts.clearHubUnread(hubId); clearHubFirstNotify(hubId); }}
-      onRemoveHub={hubLifecycle.handleRemoveHub}
+      onRemoveHub={onRequestRemoveHub}
       onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}
       onOpenHubAdminInvites={() => { setHubDropdownOpen(false); openHubAdminInvites(); }}
       onOpenQuickInvite={() => setShowQuickInvite(true)}
@@ -187,6 +190,9 @@ export function ChannelSidebarContainer({
       onStartWhisper={whisper.startWhisper}
       onStopWhisper={whisper.stopWhisper}
       onSaveWhisperList={whisper.saveWhisperList}
+      onListWhisperRoles={() =>
+        invoke<RoleInfo[]>("list_roles").then((rs) => rs.map((r) => ({ id: r.id, name: r.name })))
+      }
       onDeleteWhisperList={whisper.deleteWhisperList}
       whisperReplyBind={whisperReplyBind}
       onSetWhisperReplyBind={onSetWhisperReplyBind}

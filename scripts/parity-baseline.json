@@ -1,15 +1,7 @@
 {
   "_comment": "Shared feature props that reach only one client. Each line is a control the other client does not render. Delete a line when the feature is ported; check-parity-props.mjs fails on anything not listed here.",
+  "_onJoinAllianceVoice": "Desktop cannot join an allied hub's voice channel. Not a wiring gap like the others were: web opens a second, visitor WebSocket to the *owning* hub with a minted grant and runs the voice session against it, while desktop's voice_join is bound to the active hub's existing socket in Rust and has no notion of a visitor session. It is a Rust feature port, and two real clients are the only thing that proves it.",
   "known": [
-    "onEditBanner",
-    "onHubProfileSaved",
-    "onJoinAllianceVoice",
-    "onLeaveHub",
-    "onListWhisperRoles",
-    "onSavedOffDevice",
-    "onStartConversation",
-    "onTrustIssuer",
-    "renderBotCapabilities",
-    "renderRecoveryContacts"
+    "onJoinAllianceVoice"
   ]
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FocusTrap } from "@wavvon/ui";
+import { FocusTrap } from "../FocusTrap";
 import type { Channel } from "@wavvon/core";
 
 interface Props {
