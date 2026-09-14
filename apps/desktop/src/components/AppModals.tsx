@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { allianceActions } from "../hooks/hubAdminActions";
 import {
   AddHubModal,
   ChannelContextMenu,
@@ -379,6 +380,7 @@ export function AppModals(p: AppModalsProps) {
           bansUsers={users}
           bansSupportReason
           talkPowerActions={channelCrud.channelTalkPowerTabActions}
+          allianceActions={allianceActions}
           listHubIcons={() => invoke<HubIcon[]>("list_hub_icons")}
           bannerUploadSupported={true}
           listForumTags={(channelId) => invoke<ForumTagDef[]>("forum_list_tags", { channelId })}

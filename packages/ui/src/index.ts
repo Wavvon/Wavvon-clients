@@ -55,6 +55,8 @@ export { FocusTrap } from "./components/FocusTrap";
 export { Lightbox } from "./components/Lightbox";
 export { BannerEditModal } from "./components/channels/BannerEditModal";
 export { BotCapabilitiesPanel } from "./components/admin/BotCapabilitiesPanel";
+export { ChannelAlliancesTab } from "./components/channels/ChannelAlliancesTab";
+export type { ChannelAlliancesTabActions } from "./components/channels/ChannelAlliancesTab";
 export type { BotCapabilitiesActions } from "./components/admin/BotCapabilitiesPanel";
 export { GameCard } from "./components/GameCard";
 export { GameModal } from "./components/GameModal";

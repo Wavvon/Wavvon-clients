@@ -27,6 +27,7 @@ import {
   listRoles,
 } from "@platform";
 import { passkeysUsableWith } from "@platform";
+import { allianceActions } from "../../platform/adminActions";
 import { DISCOVERY_URL, MULTI_HUB } from "../../constants";
 import { HubAdminContainer } from "../admin/HubAdminContainer";
 import type { AppModalsProps } from "./appModalsProps";
@@ -228,6 +229,7 @@ export function AppModals(p: AppModalsProps) {
           bansActions={channelBansTabActions}
           bansUsers={users}
           talkPowerActions={channelTalkPowerTabActions}
+          allianceActions={allianceActions}
           listHubIcons={listHubIcons}
           listForumTags={forumListTags}
           forumTagsActions={{ createTag: forumCreateTag, editTag: forumEditTag, deleteTag: forumDeleteTag }}

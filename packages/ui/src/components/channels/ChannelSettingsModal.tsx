@@ -8,10 +8,11 @@ import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
 import { ChannelPermissionsTab, type ChannelPermissionsTabActions } from "./ChannelPermissionsTab";
 import { ChannelBansTab, type ChannelBansTabActions, type ChannelBansTabUser } from "./ChannelBansTab";
 import { ChannelTalkPowerTab, type ChannelTalkPowerTabActions } from "./ChannelTalkPowerTab";
+import { ChannelAlliancesTab, type ChannelAlliancesTabActions } from "./ChannelAlliancesTab";
 import { ForumTagManager, type ForumTagManagerActions } from "../forum/ForumTagManager";
 import type { HubIcon, ForumTagDef } from "../../types";
 
-type Tab = "settings" | "permissions" | "bans" | "moderation";
+type Tab = "settings" | "permissions" | "bans" | "moderation" | "alliances";
 
 // Hub-side banner upload cap (banner-channels.md): 512 KB, image formats only.
 export const BANNER_MAX_BYTES = 512 * 1024;
@@ -88,6 +89,10 @@ interface Props {
   /** True only where the ban action actually persists a reason. */
   bansSupportReason?: boolean;
   talkPowerActions?: ChannelTalkPowerTabActions;
+  /** Which alliances carry this channel, edited here as well as from the hub
+   *  admin panel. Admin-only, because sharing is an admin action on the hub.
+   *  Omitted where a platform has no wrapper for it, and then no tab. */
+  allianceActions?: ChannelAlliancesTabActions;
   listHubIcons?: () => Promise<HubIcon[]>;
   /** False hides the "Upload image" banner option, leaving only the URL
    * field — set by clients whose upload plumbing can't yet take a browser
@@ -104,7 +109,7 @@ export function ChannelSettingsModal({
   channel, createParentId, createParentName, createInitialIsCategory,
   saving, deleting, error, canManageRoles, isAdmin, myMaxPriority, hubUrl,
   onSave, onDelete, onClose,
-  permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, listHubIcons,
+  permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, allianceActions, listHubIcons,
   bannerUploadSupported = true,
   forumTagsActions, listForumTags,
 }: Props) {
@@ -296,10 +301,24 @@ export function ChannelSettingsModal({
                   {t("channel.settings.tab_moderation")}
                 </button>
               )}
+              {isAdmin && allianceActions && (
+                <button
+                  className={tab === "alliances" ? "btn-primary" : "btn-secondary"}
+                  onClick={() => setTab("alliances")}
+                >
+                  {t("channel.settings.tab_alliances")}
+                </button>
+              )}
             </div>
           )}
 
-          {!isCreate && tab === "bans" && bansActions && canManageRoles && !channel.is_category ? (
+          {!isCreate && tab === "alliances" && allianceActions && isAdmin ? (
+            <ChannelAlliancesTab
+              channelId={channel.id}
+              isCategory={channel.is_category}
+              actions={allianceActions}
+            />
+          ) : !isCreate && tab === "bans" && bansActions && canManageRoles && !channel.is_category ? (
             <ChannelBansTab
               channelId={channel.id}
               actions={bansActions}
