@@ -56,9 +56,29 @@ function looksHuman(s) {
   return true;
 }
 
+// Comments are not UI, and this scan is regexes over raw source with no parser
+// to tell them apart. The ternary rule below (`cond ? "Saving…" : "Save"`)
+// fires on any colon followed by a quoted phrase, which ordinary prose in a
+// doc comment produces all the time — `develop` sat red for two days over
+// `the question being asked: "what does this alliance carry"`.
+//
+// Blanked rather than removed: every finding's line number comes from a slice
+// offset into this same string, so the length has to survive.
+//
+// `(?<!:)` keeps the `//` in an `https://` URL from blanking the rest of its
+// line. A `//` inside some other string literal still would, which costs a
+// missed finding rather than a false one — the safe direction for a check
+// whose baseline only ratchets down.
+const blankComments = (s) =>
+  s
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(?<!:)\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+
 const findings = [];
 for (const f of files) {
-  const src = readFileSync(join(repoRoot, f), "utf8").replace(/\r\n/g, "\n");
+  const src = blankComments(
+    readFileSync(join(repoRoot, f), "utf8").replace(/\r\n/g, "\n"),
+  );
   const lineOf = (i) => src.slice(0, i).split("\n").length;
   const add = (i, what, text) => findings.push({ f, line: lineOf(i), what, text });
 
