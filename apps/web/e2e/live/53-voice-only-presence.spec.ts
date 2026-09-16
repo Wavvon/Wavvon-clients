@@ -54,7 +54,7 @@ test("a member moved into a channel they can't read gets voice-only presence, ne
   await createChannel(page, anchor);
   await createChannel(page, hidden);
 
-  // Deny read_messages for @everyone on the destination — the member must
+  // Deny messages.read *and* voice.join for @everyone on the destination — the member must
   // never see it in their sidebar, before or after the move.
   const permDialog = await openPermissionsTab(page, hidden);
   await permDialog.getByRole("button", { name: "everyone" }).click();

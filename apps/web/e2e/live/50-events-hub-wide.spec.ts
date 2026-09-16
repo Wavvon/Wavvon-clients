@@ -51,7 +51,7 @@ test("hub-wide event bypasses read-gating; a plain event on the same anchor stay
   await createChannel(page, control);
   await createChannel(page, restricted);
 
-  // Deny read_messages for @everyone on the restricted anchor.
+  // Deny messages.read *and* voice.join for @everyone on the restricted anchor.
   const dialog = await openPermissionsTab(page, restricted);
   await dialog.getByRole("button", { name: "everyone" }).click();
   const readRow = dialog.locator(".settings-row").filter({ hasText: "Read messages" });
