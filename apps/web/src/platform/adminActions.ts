@@ -2,7 +2,7 @@
 // so they're built once at module scope instead of every render. Anything
 // that closes over App state (userContextMenuActions, the various
 // render*/onSave callbacks) stays in App.tsx or its container wrappers.
-import { getUserProfile, listRoleCategories, patchMyProfileOnHub } from "@platform";
+import { getUserProfile, listRoleCategories, patchMyProfileOnHub, activeHubCapabilities } from "@platform";
 import { getHubSettings, saveHubSettings } from "@platform";
 import {
   getChannelPermissions, setChannelRolePermissions, clearChannelRolePermissions,
@@ -70,6 +70,10 @@ export const channelPermissionsTabActions: ChannelPermissionsTabActions = {
   setChannelRolePermissions,
   clearChannelRolePermissions,
   listRoles,
+  // Capability-gated rows are dropped rather than offered and then refused on
+  // save: a hub that does not advertise the capability answers 400 for the
+  // permission id it has never heard of.
+  hubCapabilities: () => activeHubCapabilities() ?? [],
 };
 
 export const channelBansTabActions: ChannelBansTabActions = {

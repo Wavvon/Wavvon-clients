@@ -24,7 +24,25 @@ export const CHANNEL_OVERWRITE_PERMISSIONS: { id: string; label: string }[] = [
   { id: "create_events", label: "Create events" },
   { id: "use_soundboard", label: "Use soundboard" },
   { id: "move_members", label: "Move members between voice channels" },
+  { id: "voice.join", label: "Join voice" },
 ];
+
+// Permissions the hub only understands behind a capability. Offering one to a
+// hub that does not advertise it gets a 400 from the overwrite validator, so
+// the row is dropped rather than rendered and refused on save.
+const CAPABILITY_GATED: Record<string, string> = {
+  // Voice admission independent of reading. On a hub without this, denying
+  // `read_messages` still closes voice, and `voice.join` is an unknown id.
+  "voice.join": "voice.permissions",
+};
+
+/** The overwrite rows to render against a hub advertising `capabilities`. */
+export function overwritePermissionsFor(capabilities: string[]): { id: string; label: string }[] {
+  return CHANNEL_OVERWRITE_PERMISSIONS.filter((p) => {
+    const needed = CAPABILITY_GATED[p.id];
+    return !needed || capabilities.includes(needed);
+  });
+}
 
 export function deriveRowStates(role: ChannelRolePermissions): Record<string, TriState> {
   const rows: Record<string, TriState> = {};

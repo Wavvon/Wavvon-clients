@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChannelRoleOverwrites, ChannelRolePermissions, ChannelPermissionsResponse, RoleInfo } from "../../types";
-import { CHANNEL_OVERWRITE_PERMISSIONS, deriveRowStates, buildOverwritePayload, type TriState } from "../../utils/channelPermissions";
+import { overwritePermissionsFor, deriveRowStates, buildOverwritePayload, type TriState } from "../../utils/channelPermissions";
 
 export interface ChannelPermissionsTabActions {
   getChannelPermissions: (channelId: string) => Promise<ChannelPermissionsResponse>;
@@ -12,6 +12,10 @@ export interface ChannelPermissionsTabActions {
   ) => Promise<ChannelRolePermissions>;
   clearChannelRolePermissions: (channelId: string, roleId: string) => Promise<void>;
   listRoles: () => Promise<RoleInfo[]>;
+  /** Capability strings the hub being edited advertises. Absent means "none
+   * known", which drops every capability-gated row — the safe direction for
+   * rendering, and the same default `hubSupports` documents. */
+  hubCapabilities?: () => string[];
 }
 
 interface Props {
@@ -144,7 +148,7 @@ export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Pro
         <div className="roles-panel">
           {selectedRole ? (
             <>
-              {CHANNEL_OVERWRITE_PERMISSIONS.map((perm) => {
+              {overwritePermissionsFor(actions.hubCapabilities?.() ?? []).map((perm) => {
                 const state = rows[perm.id] ?? "inherit";
                 const inheritedAllow = selectedRole.inherited.includes(perm.id);
                 const overridden = state !== "inherit";

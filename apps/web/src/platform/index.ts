@@ -1,4 +1,4 @@
-export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId, resetHubSessions, getSession, allSessions, hubSupports } from "./session";
+export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId, resetHubSessions, getSession, allSessions, hubSupports, activeHubCapabilities } from "./session";
 export { hubFetch, rawFetch, HubApiError, fetchWithTimeout, isNotMemberError } from "./http";
 export { hubFetchAs } from "./hubFetchAs";
 export { HubWebSocket } from "./ws";
