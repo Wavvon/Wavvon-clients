@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ChannelRolePermissions } from "../../types";
-import { deriveRowStates, buildOverwritePayload } from "../channelPermissions";
+import { deriveRowStates, buildOverwritePayload, overwritePermissionsFor } from "../channelPermissions";
 
 function makeRole(overrides: Partial<ChannelRolePermissions> = {}): ChannelRolePermissions {
   return {
@@ -66,5 +66,27 @@ describe("buildOverwritePayload", () => {
     const payload = buildOverwritePayload(rows);
     expect(payload.allow).toEqual(["manage_channels"]);
     expect(payload.deny).toEqual(["kick_members"]);
+  });
+});
+
+describe("overwritePermissionsFor", () => {
+  it("drops voice.join against a hub that does not advertise voice.permissions", () => {
+    const ids = overwritePermissionsFor(["list.cursor", "voice.wt"]).map((p) => p.id);
+    expect(ids).not.toContain("voice.join");
+    // Everything ungated is still there.
+    expect(ids).toContain("read_messages");
+    expect(ids).toContain("move_members");
+  });
+
+  it("offers voice.join once the hub advertises it", () => {
+    const ids = overwritePermissionsFor(["voice.permissions"]).map((p) => p.id);
+    expect(ids).toContain("voice.join");
+  });
+
+  it("treats an empty capability list as none known", () => {
+    // Unknown resolves to absent, not present: offering a row the hub has
+    // never heard of gets a 400 on save, and the admin cannot tell that from
+    // a permission that simply failed to apply.
+    expect(overwritePermissionsFor([]).map((p) => p.id)).not.toContain("voice.join");
   });
 });
