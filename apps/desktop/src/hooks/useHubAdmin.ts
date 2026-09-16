@@ -52,7 +52,7 @@ export function useHubAdmin({
   const [pendingMembers, setPendingMembers] = useState<PendingUser[]>([]);
   const [hubListed, setHubListedState] = useState(false);
 
-  const isAdmin = myRoles.some((r) => r.permissions.includes("admin"));
+  const isAdmin = myRoles.some((r) => r.id === "builtin-owner");
 
   function activeHubUrl(): string {
     return hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";

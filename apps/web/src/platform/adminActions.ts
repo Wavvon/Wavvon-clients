@@ -2,7 +2,10 @@
 // so they're built once at module scope instead of every render. Anything
 // that closes over App state (userContextMenuActions, the various
 // render*/onSave callbacks) stays in App.tsx or its container wrappers.
-import { getUserProfile, listRoleCategories, patchMyProfileOnHub, activeHubCapabilities } from "@platform";
+import {
+  getUserProfile, listRoleCategories, patchMyProfileOnHub,
+  activeHubSupports, listPermissionCatalogue,
+} from "@platform";
 import { getHubSettings, saveHubSettings } from "@platform";
 import {
   getChannelPermissions, setChannelRolePermissions, clearChannelRolePermissions,
@@ -70,10 +73,10 @@ export const channelPermissionsTabActions: ChannelPermissionsTabActions = {
   setChannelRolePermissions,
   clearChannelRolePermissions,
   listRoles,
-  // Capability-gated rows are dropped rather than offered and then refused on
-  // save: a hub that does not advertise the capability answers 400 for the
-  // permission id it has never heard of.
-  hubCapabilities: () => activeHubCapabilities() ?? [],
+  // The hub owns the catalogue; this build only knows how to name the ids.
+  // Gated on the capability because an older hub has no such route at all.
+  listPermissionCatalogue: async () =>
+    activeHubSupports("permissions.catalogue") ? listPermissionCatalogue() : [],
 };
 
 export const channelBansTabActions: ChannelBansTabActions = {
@@ -147,6 +150,6 @@ export const hubIconActions = { listHubIcons, createHubIcon, renameHubIcon, dele
 export const surveyActions = {
   getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
   loadAssignableRoles: () =>
-    listRoles().then((roles) => roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))),
+    listRoles().then((roles) => roles.filter((r) => r.id !== "builtin-owner").map((r) => ({ id: r.id, name: r.name }))),
 };
 
