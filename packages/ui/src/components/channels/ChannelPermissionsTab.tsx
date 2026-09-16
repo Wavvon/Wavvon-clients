@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChannelRoleOverwrites, ChannelRolePermissions, ChannelPermissionsResponse, RoleInfo } from "../../types";
-import { overwritePermissionsFor, deriveRowStates, buildOverwritePayload, type TriState } from "../../utils/channelPermissions";
+import {
+  overwritableIds, deriveRowStates, buildOverwritePayload,
+  type TriState, type PermissionCatalogueEntry,
+} from "../../utils/channelPermissions";
 
 export interface ChannelPermissionsTabActions {
   getChannelPermissions: (channelId: string) => Promise<ChannelPermissionsResponse>;
@@ -12,10 +15,11 @@ export interface ChannelPermissionsTabActions {
   ) => Promise<ChannelRolePermissions>;
   clearChannelRolePermissions: (channelId: string, roleId: string) => Promise<void>;
   listRoles: () => Promise<RoleInfo[]>;
-  /** Capability strings the hub being edited advertises. Absent means "none
-   * known", which drops every capability-gated row — the safe direction for
-   * rendering, and the same default `hubSupports` documents. */
-  hubCapabilities?: () => string[];
+  /** The hub's permission catalogue. Absent, or rejected, means this hub does
+   * not serve one — it is on the older snake_case ids, which share no spelling
+   * with these, so there is nothing this build can offer and the list renders
+   * empty rather than showing checkboxes the hub would refuse. */
+  listPermissionCatalogue?: () => Promise<PermissionCatalogueEntry[]>;
 }
 
 interface Props {
@@ -35,6 +39,7 @@ function errorMessage(e: unknown): string {
 export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Props) {
   const { t } = useTranslation();
   const [roles, setRoles] = useState<ChannelRolePermissions[] | null>(null);
+  const [catalogue, setCatalogue] = useState<PermissionCatalogueEntry[]>([]);
   const [rolePriorities, setRolePriorities] = useState<Record<string, number> | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [rows, setRows] = useState<Record<string, TriState>>({});
@@ -88,8 +93,8 @@ export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Pro
     (rolePriorities[selectedRole.role_id] ?? 0) >= myMaxPriority;
 
   useEffect(() => {
-    if (selectedRole) setRows(deriveRowStates(selectedRole));
-  }, [selectedRole?.role_id, selectedRole?.overwrites.allow.join(","), selectedRole?.overwrites.deny.join(",")]);
+    if (selectedRole) setRows(deriveRowStates(selectedRole, overwritableIds(catalogue)));
+  }, [selectedRole?.role_id, selectedRole?.overwrites.allow.join(","), selectedRole?.overwrites.deny.join(","), catalogue.length]);
 
   function updateRoleInPlace(updated: ChannelRolePermissions) {
     setRoles((prev) => (prev ? prev.map((r) => (r.role_id === updated.role_id ? updated : r)) : prev));
@@ -148,19 +153,24 @@ export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Pro
         <div className="roles-panel">
           {selectedRole ? (
             <>
-              {overwritePermissionsFor(actions.hubCapabilities?.() ?? []).map((perm) => {
-                const state = rows[perm.id] ?? "inherit";
-                const inheritedAllow = selectedRole.inherited.includes(perm.id);
+              {overwritableIds(catalogue).map((permId) => {
+                const state = rows[permId] ?? "inherit";
+                const inheritedAllow = selectedRole.inherited.includes(permId);
                 const overridden = state !== "inherit";
                 return (
                   <div
-                    key={perm.id}
+                    key={permId}
                     className="settings-row"
                     style={{ justifyContent: "space-between", alignItems: "center" }}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {overridden && <span className="status-dot" style={{ background: "var(--accent)" }} />}
-                      {perm.label}
+                      {/* Labelled by id from the same catalog the roles screen
+                          uses. An id this build has no label for shows as the
+                          id: a hub newer than the client is a normal state
+                          when every client is multi-hub, and hiding the row
+                          would hide a permission that exists. */}
+                      {t(`hub.admin.roles.perm.${permId}`, { defaultValue: permId })}
                       {state === "inherit" && (
                         <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
                           {inheritedAllow
@@ -173,21 +183,21 @@ export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Pro
                       <button
                         className={state === "inherit" ? "btn-primary" : "btn-secondary"}
                         disabled={selectedLocked}
-                        onClick={() => setRows((prev) => ({ ...prev, [perm.id]: "inherit" }))}
+                        onClick={() => setRows((prev) => ({ ...prev, [permId]: "inherit" }))}
                       >
                         {t("channel.permissions.inherit")}
                       </button>
                       <button
                         className={state === "allow" ? "btn-primary" : "btn-secondary"}
                         disabled={selectedLocked}
-                        onClick={() => setRows((prev) => ({ ...prev, [perm.id]: "allow" }))}
+                        onClick={() => setRows((prev) => ({ ...prev, [permId]: "allow" }))}
                       >
                         {t("channel.permissions.allow")}
                       </button>
                       <button
                         className={state === "deny" ? "btn-primary" : "btn-secondary"}
                         disabled={selectedLocked}
-                        onClick={() => setRows((prev) => ({ ...prev, [perm.id]: "deny" }))}
+                        onClick={() => setRows((prev) => ({ ...prev, [permId]: "deny" }))}
                       >
                         {t("channel.permissions.deny")}
                       </button>

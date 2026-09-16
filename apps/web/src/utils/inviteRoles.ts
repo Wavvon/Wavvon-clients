@@ -5,7 +5,7 @@ import type { RoleInfo } from "../types";
  *  single-use/short-expiry on admin-granting invites and to keep the hub's
  *  default invite role from ever being an admin role. */
 export function roleGrantsAdmin(role: RoleInfo): boolean {
-  return role.permissions.includes("admin");
+  return role.id === "builtin-owner";
 }
 
 /** Roles a user with `myMaxPriority` may grant via invite — mirrors the

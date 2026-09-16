@@ -9,7 +9,7 @@ import { FocusTrap } from "../FocusTrap";
 const ADMIN_GRANT_DEFAULT_EXPIRY_SECS = 24 * 3600;
 
 function roleGrantsAdmin(role: RoleInfo): boolean {
-  return role.permissions.includes("admin");
+  return role.id === "builtin-owner";
 }
 
 function grantableRoles(roles: RoleInfo[], myMaxPriority: number): RoleInfo[] {

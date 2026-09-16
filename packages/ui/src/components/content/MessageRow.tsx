@@ -173,7 +173,7 @@ export function MessageRow({
   const isMine = m.sender === publicKey;
   const canDelete =
     isMine ||
-    myRoles.some((r) => r.permissions.some((p) => p === "admin" || p === "manage_messages"));
+    myRoles.some((r) => r.permissions.some((p) => p === "messages.manage"));
   const isEditing = editingMessageId === m.id;
   const senderUser = users.find((u) => u.public_key === m.sender);
   const senderLabel = senderUser?.display_name || m.sender_name || formatPubkey(m.sender);

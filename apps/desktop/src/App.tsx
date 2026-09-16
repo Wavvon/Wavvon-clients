@@ -668,7 +668,7 @@ function App() {
     setVoiceChannelNameHint(null);
   }
 
-  const canMoveMembers = isAdmin || myRoles.some((r) => r.permissions?.includes("move_members"));
+  const canMoveMembers = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.move_members"));
   const voiceMoveChannelOptions = useMemo(
     () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveMenu?.currentChannelId),
     [channels, voiceMoveMenu],

@@ -195,7 +195,7 @@ export function AppModals(p: AppModalsProps) {
   } = p;
   const { t } = useTranslation();
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
-  const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"));
+  const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
 
   return (
     <>
@@ -312,7 +312,7 @@ export function AppModals(p: AppModalsProps) {
           }}
           onCreateEvent={isAdmin ? (channel) => setEventComposerChannelId(channel.id) : undefined}
           onCreatePoll={
-            isAdmin || myRoles.some((r) => r.permissions?.includes("send_messages"))
+            isAdmin || myRoles.some((r) => r.permissions?.includes("messages.send"))
               ? (channel) => setPollComposerChannelId(channel.id)
               : undefined
           }

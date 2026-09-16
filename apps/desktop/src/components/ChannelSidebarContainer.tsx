@@ -103,9 +103,9 @@ export function ChannelSidebarContainer({
   voice, video, whisper, soundboard, notifyPrefs, hubLifecycle, channelMessages,
   unreadCounts, dms,
 }: Props) {
-  const canOpenChannelSettings = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"));
-  const canCreateInvites = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_channels"));
-  const canUseSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("use_soundboard"));
+  const canOpenChannelSettings = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
+  const canCreateInvites = isAdmin || myRoles.some((r) => r.permissions?.includes("channels.manage"));
+  const canUseSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.soundboard.use"));
 
   return (
     <ChannelSidebar

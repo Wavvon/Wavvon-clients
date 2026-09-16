@@ -223,7 +223,7 @@ export function makeSurveyActions(getHubUrl: () => string): SurveyAdminSectionAc
       invoke<SurveyResponseView[]>("survey_admin_responses", { hubUrl: getHubUrl(), status: "all" }),
     loadAssignableRoles: () =>
       invoke<RoleInfo[]>("list_roles").then((roles) =>
-        roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))
+        roles.filter((r) => r.id !== "builtin-owner").map((r) => ({ id: r.id, name: r.name }))
       ),
   };
 }

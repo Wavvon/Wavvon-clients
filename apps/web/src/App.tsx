@@ -1070,7 +1070,7 @@ export default function App({ initialView }: AppProps = {}) {
   }
 
   const isAdmin = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin")) ?? false,
+    () => meInfo?.roles?.some((r) => r.id === "builtin-owner") ?? false,
     [meInfo],
   );
 
@@ -1115,7 +1115,7 @@ export default function App({ initialView }: AppProps = {}) {
   } = channelCrud;
 
   const canManageRoles = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_roles")) ?? false,
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("roles.manage")) ?? false,
     [meInfo],
   );
 
@@ -1123,7 +1123,7 @@ export default function App({ initialView }: AppProps = {}) {
   // hub re-checks channel-scoped against the destination on every voice_move —
   // this is UX-only, same posture as the other client-side permission gates here.
   const canMoveMembers = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("move_members")) ?? false,
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("voice.move_members")) ?? false,
     [meInfo],
   );
 
@@ -1135,7 +1135,7 @@ export default function App({ initialView }: AppProps = {}) {
   // Same permission the invite endpoints require (routes/invites.rs) — gates
   // the "Invite people" entry for non-admin members too.
   const canCreateInvites = useMemo(
-    () => isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes("manage_channels")) ?? false),
+    () => isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes("channels.manage")) ?? false),
     [isAdmin, meInfo],
   );
 
@@ -1143,19 +1143,19 @@ export default function App({ initialView }: AppProps = {}) {
   // gates the "Create poll" context-menu entry the same way the composer's
   // own "+" attach menu is implicitly gated (anyone who can post here).
   const canSendMessages = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("send_messages")) ?? false,
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("messages.send")) ?? false,
     [meInfo],
   );
 
   const canUseSoundboard = useMemo(() => {
     if (voice.myVoicePerms && voice.myVoicePerms.channel_id === voice.voiceChannelId) {
-      return voice.myVoicePerms.is_admin || voice.myVoicePerms.permissions.includes("use_soundboard");
+      return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes("voice.soundboard.use");
     }
-    return meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("use_soundboard")) ?? false;
+    return meInfo?.roles?.some((r) => r.permissions?.includes("voice.soundboard.use")) ?? false;
   }, [voice.myVoicePerms, voice.voiceChannelId, meInfo]);
 
   const canManageSoundboard = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_soundboard")) ?? false,
+    () => meInfo?.roles?.some((r) => r.permissions?.includes("voice.soundboard.manage")) ?? false,
     [meInfo],
   );
 

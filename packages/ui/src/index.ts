@@ -240,7 +240,7 @@ export type {
 } from "./types";
 export { sanitizeSvgMarkup } from "./utils/svgSanitize";
 export {
-  CHANNEL_OVERWRITE_PERMISSIONS,
+  overwritableIds,
   deriveRowStates,
   buildOverwritePayload,
 } from "./utils/channelPermissions";

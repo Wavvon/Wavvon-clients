@@ -10,23 +10,70 @@ import { RoleCategoryManager, type RoleCategoryManagerActions } from "./RoleCate
 /** Permission ids, in display order. Each label is the catalog key
  *  `hub.admin.roles.perm.<id>`, so a new permission is one id here plus one
  *  key in the four catalogs. */
+/** Permission ids this build ships a label for.
+ *
+ * **Not the catalogue.** The hub owns that and serves it at `GET /permissions`
+ * (capability `permissions.catalogue`), because four hand-maintained copies is
+ * how six enforced permissions ended up missing from this screen and four that
+ * gated nothing ended up on it.
+ *
+ * What stays here is the set this client can *name*. A hub newer than this
+ * build can send an id with no label, and the screen shows the id rather than
+ * hiding a permission that exists — being multi-hub, that is a normal state
+ * and not an error.
+ *
+ * Also the fallback list for a hub too old to serve a catalogue, which has
+ * none of these ids: it shows nothing to tick, which is the honest answer.
+ */
 export const ALL_PERMISSIONS: string[] = [
-  "admin",
-  "manage_channels",
-  "manage_roles",
-  "manage_messages",
-  "kick_members",
-  "ban_members",
-  "mute_members",
-  "timeout_members",
-  "manage_hub_icons",
-  "manage_channel_icons",
-  "manage_bots",
-  "read_messages",
-  "send_messages",
-  "manage_soundboard",
-  "move_members",
+  "messages.read",
+  "messages.send",
+  "messages.manage",
+  "forum.posts.create",
+  "forum.posts.manage",
+  "channels.manage",
+  "channels.appearance",
+  "channels.permissions",
+  "voice.join",
+  "voice.soundboard.use",
+  "voice.soundboard.manage",
+  "voice.move_members",
+  "moderation.kick",
+  "moderation.mute",
+  "moderation.timeout",
+  "moderation.ban.temporary",
+  "moderation.ban.permanent",
+  "moderation.reports.read",
+  "moderation.reports.review",
+  "moderation.settings",
+  "banlist.read",
+  "banlist.sources.manage",
+  "banlist.overrides",
+  "banlist.settings",
+  "roles.manage",
+  "members.read",
+  "hub.settings",
+  "hub.appearance",
+  "hub.admission",
+  "invites.manage",
+  "events.create",
+  "events.manage",
+  "certs.issue",
+  "certs.revoke",
+  "certs.settings",
+  "badges.manage",
+  "alliances.manage",
+  "alliances.peers",
+  "directory.publish",
+  "webhooks.incoming.manage",
+  "webhooks.outgoing.manage",
+  "bots.admit",
+  "bots.capabilities",
+  "bots.audit.read",
+  "surveys.manage",
+  "surveys.responses.read",
 ];
+
 
 export interface RoleUpdateInput {
   name?: string;

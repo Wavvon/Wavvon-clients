@@ -13,7 +13,7 @@ export async function getChannelPermissions(channelId: string): Promise<ChannelP
 export interface MyChannelPermissions {
   channel_id: string;
   permissions: string[];
-  is_admin: boolean;
+  is_owner: boolean;
 }
 
 /** The caller's own effective channel-scoped permissions — unlike
@@ -38,4 +38,25 @@ export async function setChannelRolePermissions(
 
 export async function clearChannelRolePermissions(channelId: string, roleId: string): Promise<void> {
   await hubFetch(`/channels/${channelId}/permissions/${roleId}`, { method: "DELETE" });
+}
+
+export interface PermissionCatalogueEntry {
+  id: string;
+  /** `hub_and_channel` may also be set as a channel overwrite; `hub` may not,
+   *  and the hub answers 400 for one that tries. */
+  scope: "hub" | "hub_and_channel";
+  /** Dotted prefix, so a screen groups without re-splitting the id. */
+  group: string;
+}
+
+/** The permission catalogue this hub can express.
+ *
+ *  Gated on the `permissions.catalogue` capability by the caller: a hub
+ *  without it has no such route, and its ids are the older snake_case set,
+ *  which shares no spelling with these.
+ */
+export async function listPermissionCatalogue(): Promise<PermissionCatalogueEntry[]> {
+  const r = await hubFetch("/permissions");
+  const body = (await r.json()) as { permissions: PermissionCatalogueEntry[] };
+  return body.permissions ?? [];
 }

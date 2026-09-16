@@ -71,9 +71,9 @@ export function HubAdminContainer({
   const onboardingActions = useMemo(() => makeOnboardingActions(getActiveHubUrl), [activeHubUrl]);
   const surveyActions = useMemo(() => makeSurveyActions(getActiveHubUrl), [activeHubUrl]);
 
-  const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"));
+  const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
-  const canManageSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_soundboard"));
+  const canManageSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.soundboard.manage"));
 
   return (
     <HubAdminPage
