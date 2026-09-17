@@ -62,6 +62,20 @@ export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Without this the catalogue stays empty and the tab renders no rows at
+  // all — every overwrite id comes from the hub now, so not asking for them
+  // is an empty screen rather than a stale one.
+  useEffect(() => {
+    let cancelled = false;
+    const load = actions.listPermissionCatalogue?.();
+    if (!load) return;
+    load
+      .then((entries) => { if (!cancelled) setCatalogue(entries); })
+      .catch(() => { /* hub too old to serve one — the empty list is the honest answer */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);

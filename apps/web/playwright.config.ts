@@ -9,7 +9,11 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // One retry, not two. The live project runs serially, so every failed spec
+  // costs its full timeout again — a broken run used to spend an hour past
+  // the 13 minutes a green one takes, and the second retry never once turned
+  // a real failure into a pass.
+  retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: APP_URL,
