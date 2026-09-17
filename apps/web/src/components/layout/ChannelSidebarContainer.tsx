@@ -64,6 +64,7 @@ export interface ChannelSidebarContainerProps {
   isAdmin: boolean;
   canCreateInvites: boolean;
   canManageRoles: boolean;
+  canEditChannelPermissions: boolean;
   canMoveMembers: boolean;
   canUseSoundboard: boolean;
   silencedChannelIds: Set<string>;
@@ -88,7 +89,7 @@ export function ChannelSidebarContainer({
   voice, video, whisper, voiceMoveUx, notifyPrefs, hubLifecycle, unreadCounts, onRequestRemoveHub,
   dms, alliances, presence, screenShare, channelCrud, channelMessages, hubAdmin,
   view, channels, channelTree, users, publicKey, isAdmin, canCreateInvites,
-  canManageRoles, canMoveMembers, canUseSoundboard, silencedChannelIds,
+  canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
   onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenSettings, settingsNeedsAttention,
   onOpenSearch, onDragEnd,
@@ -161,7 +162,7 @@ export function ChannelSidebarContainer({
       }}
       onSelectChannel={handleSelectChannel}
       onChannelContextMenu={onChannelContextMenu}
-      canOpenChannelSettings={isAdmin || canManageRoles}
+      canOpenChannelSettings={isAdmin || canEditChannelPermissions}
       myStatus={presence.myPresence.status === "online" ? null : presence.myPresence.status}
       onSetStatus={presence.handleSetStatus}
       onOpenChannelSettings={(channel) => {

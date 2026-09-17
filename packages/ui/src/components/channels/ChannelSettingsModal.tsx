@@ -70,10 +70,16 @@ interface Props {
   saving: boolean;
   deleting: boolean;
   error: string | null;
-  canManageRoles: boolean;
-  /** Rename/appearance/delete are admin-only; a manage_roles-only member
-   * opens straight into the Permissions tab and never sees the settings
-   * form (the server rejects those actions for them anyway). */
+  /** Reaching the channel-permission surfaces: the tab bar, the Permissions
+   * tab and the channel ban list. `channels.permissions` as well as
+   * `roles.manage` — editing one channel is a channel act, and splitting it
+   * from hub-wide role management is the point of having both
+   * (permissions.md §3, Channels). */
+  canEditChannelPermissions: boolean;
+  /** Rename/appearance/delete are admin-only; a member who only holds
+   * `channels.permissions` opens straight into the Permissions tab and never
+   * sees the settings form (the server rejects those actions for them
+   * anyway). */
   isAdmin: boolean;
   /** Viewer's highest role priority — rows at/above it render read-only in
    * the Permissions tab (the hub rejects those edits). */
@@ -107,7 +113,7 @@ interface Props {
 
 export function ChannelSettingsModal({
   channel, createParentId, createParentName, createInitialIsCategory,
-  saving, deleting, error, canManageRoles, isAdmin, myMaxPriority, hubUrl,
+  saving, deleting, error, canEditChannelPermissions, isAdmin, myMaxPriority, hubUrl,
   onSave, onDelete, onClose,
   permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, allianceActions, listHubIcons,
   bannerUploadSupported = true,
@@ -267,7 +273,7 @@ export function ChannelSettingsModal({
               : channel.is_category ? t("channel.settings.title_category") : t("channel.settings.title_channel")}
           </h3>
 
-          {!isCreate && canManageRoles && (
+          {!isCreate && canEditChannelPermissions && (
             <div style={{ display: "flex", gap: 8, marginBottom: "var(--space-3)", flexWrap: "wrap" }}>
               {isAdmin && (
                 <button
@@ -318,7 +324,7 @@ export function ChannelSettingsModal({
               isCategory={channel.is_category}
               actions={allianceActions}
             />
-          ) : !isCreate && tab === "bans" && bansActions && canManageRoles && !channel.is_category ? (
+          ) : !isCreate && tab === "bans" && bansActions && canEditChannelPermissions && !channel.is_category ? (
             <ChannelBansTab
               channelId={channel.id}
               actions={bansActions}
@@ -327,7 +333,7 @@ export function ChannelSettingsModal({
             />
           ) : !isCreate && tab === "moderation" && talkPowerActions && isAdmin && !channel.is_category ? (
             <ChannelTalkPowerTab channelId={channel.id} actions={talkPowerActions} />
-          ) : !isCreate && (tab === "permissions" || !isAdmin) && permissionsActions && canManageRoles ? (
+          ) : !isCreate && (tab === "permissions" || !isAdmin) && permissionsActions && canEditChannelPermissions ? (
             <ChannelPermissionsTab channelId={channel.id} actions={permissionsActions} myMaxPriority={myMaxPriority} />
           ) : (
             <>

@@ -50,6 +50,7 @@ export function AppModals(p: AppModalsProps) {
     addHubError,
     addingHub,
     canManageRoles,
+    canEditChannelPermissions,
     canManageSoundboard,
     canSendMessages,
     channelBansTabActions,
@@ -215,7 +216,7 @@ export function AppModals(p: AppModalsProps) {
           saving={channelSettingsCtx ? channelSettingsSaving : createChannelLoading}
           deleting={channelSettingsDeleting}
           error={channelSettingsCtx ? channelSettingsError : createChannelError}
-          canManageRoles={canManageRoles}
+          canEditChannelPermissions={canEditChannelPermissions}
           isAdmin={isAdmin}
           myMaxPriority={myMaxPriority}
           hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
