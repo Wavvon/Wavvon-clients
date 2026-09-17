@@ -1074,6 +1074,18 @@ export default function App({ initialView }: AppProps = {}) {
     [meInfo],
   );
 
+  // Every client-side permission gate, with the owner short-circuit the hub
+  // itself applies (permissions.rs, `UserPermissions::has`). `builtin-owner`
+  // carries no `role_permissions` rows at all since the catalogue rebuild —
+  // the explicit rows it used to hold beside the wildcard went with it — so a
+  // gate that only reads the role list hides from the owner what the hub
+  // would happily let them do.
+  const can = useCallback(
+    (permission: string) =>
+      isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes(permission)) ?? false),
+    [isAdmin, meInfo],
+  );
+
   // First-run hub setup wizard (decisions.md 2026-07-25): shown once per hub
   // when an admin lands on an empty channel list. "Done" covers both
   // "picked a template" and "started blank" — never re-nag either way.
@@ -1114,18 +1126,20 @@ export default function App({ initialView }: AppProps = {}) {
     handleHubSetupWizardComplete,
   } = channelCrud;
 
-  const canManageRoles = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("roles.manage")) ?? false,
-    [meInfo],
+  const canManageRoles = useMemo(() => can("roles.manage"), [can]);
+
+  // The channel-settings gear and every tab behind it. Wider than
+  // `canManageRoles`: a member given only `channels.permissions` edits this
+  // channel’s overwrites without touching the hub’s roles.
+  const canEditChannelPermissions = useMemo(
+    () => can("roles.manage") || can("channels.permissions"),
+    [can],
   );
 
   // Gates the voice roster's "Move to channel…" entry (events.md §7.1). The
   // hub re-checks channel-scoped against the destination on every voice_move —
   // this is UX-only, same posture as the other client-side permission gates here.
-  const canMoveMembers = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("voice.move_members")) ?? false,
-    [meInfo],
-  );
+  const canMoveMembers = useMemo(() => can("voice.move_members"), [can]);
 
   const voiceMoveChannelOptions = useMemo(
     () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveUx.voiceMoveMenu?.currentChannelId),
@@ -1134,30 +1148,21 @@ export default function App({ initialView }: AppProps = {}) {
 
   // Same permission the invite endpoints require (routes/invites.rs) — gates
   // the "Invite people" entry for non-admin members too.
-  const canCreateInvites = useMemo(
-    () => isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes("channels.manage")) ?? false),
-    [isAdmin, meInfo],
-  );
+  const canCreateInvites = useMemo(() => can("channels.manage"), [can]);
 
   // Same permission the poll-create endpoint requires (SEND_MESSAGES) —
   // gates the "Create poll" context-menu entry the same way the composer's
   // own "+" attach menu is implicitly gated (anyone who can post here).
-  const canSendMessages = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("messages.send")) ?? false,
-    [meInfo],
-  );
+  const canSendMessages = useMemo(() => can("messages.send"), [can]);
 
   const canUseSoundboard = useMemo(() => {
     if (voice.myVoicePerms && voice.myVoicePerms.channel_id === voice.voiceChannelId) {
       return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes("voice.soundboard.use");
     }
-    return meInfo?.roles?.some((r) => r.permissions?.includes("voice.soundboard.use")) ?? false;
-  }, [voice.myVoicePerms, voice.voiceChannelId, meInfo]);
+    return can("voice.soundboard.use");
+  }, [voice.myVoicePerms, voice.voiceChannelId, can]);
 
-  const canManageSoundboard = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("voice.soundboard.manage")) ?? false,
-    [meInfo],
-  );
+  const canManageSoundboard = useMemo(() => can("voice.soundboard.manage"), [can]);
 
   const myRoles = useMemo(() => meInfo?.roles ?? [], [meInfo]);
 
@@ -1455,6 +1460,7 @@ export default function App({ initialView }: AppProps = {}) {
         publicKey={publicKey}
         isAdmin={isAdmin}
         canCreateInvites={canCreateInvites}
+        canEditChannelPermissions={canEditChannelPermissions}
         canManageRoles={canManageRoles}
         canMoveMembers={canMoveMembers}
         canUseSoundboard={canUseSoundboard}
@@ -1604,6 +1610,7 @@ export default function App({ initialView }: AppProps = {}) {
         activeHubId={activeHubId}
         addHubError={addHubError}
         addingHub={addingHub}
+        canEditChannelPermissions={canEditChannelPermissions}
         canManageRoles={canManageRoles}
         canManageSoundboard={canManageSoundboard}
         canSendMessages={canSendMessages}

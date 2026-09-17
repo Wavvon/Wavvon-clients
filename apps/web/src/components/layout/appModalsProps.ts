@@ -146,6 +146,7 @@ export interface AppModalsProps {
   publicKey: string | null;
   isAdmin: boolean;
   canManageRoles: boolean;
+  canEditChannelPermissions: boolean;
   canSendMessages: boolean;
   myMaxPriority: number;
   showHubError: (msg: string) => void;

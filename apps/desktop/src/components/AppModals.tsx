@@ -196,6 +196,8 @@ export function AppModals(p: AppModalsProps) {
   const { t } = useTranslation();
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
+  const canEditChannelPermissions =
+    canManageRoles || myRoles.some((r) => r.permissions?.includes("channels.permissions"));
 
   return (
     <>
@@ -365,7 +367,7 @@ export function AppModals(p: AppModalsProps) {
           saving={channelCrud.channelSettingsModal ? channelCrud.channelSettingsSaving : channelCrud.createChannelLoading}
           deleting={channelCrud.channelSettingsDeleting}
           error={channelCrud.channelSettingsModal ? channelCrud.channelSettingsError : channelCrud.createChannelError}
-          canManageRoles={canManageRoles}
+          canEditChannelPermissions={canEditChannelPermissions}
           isAdmin={isAdmin}
           myMaxPriority={myMaxPriority}
           hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
