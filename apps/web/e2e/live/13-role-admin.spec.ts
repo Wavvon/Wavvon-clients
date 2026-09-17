@@ -31,14 +31,14 @@ test("create a role with a permission, edit its permissions, then delete it", as
   await expect(row).toBeVisible({ timeout: 10000 });
   const findRole = async () =>
     (await hubApi<Role[]>(page, "/roles")).find((r) => r.name === roleName);
-  await expect.poll(async () => (await findRole())?.permissions).toContain("kick_members");
+  await expect.poll(async () => (await findRole())?.permissions).toContain("moderation.kick");
 
   // Edit permissions: expand the role's Permissions and add one. This
   // checkbox is server-controlled (flips only after the PATCH round-trips),
   // so click and poll the API rather than using check()'s immediate assert.
   await row.getByRole("button", { name: /^Permissions/ }).click();
-  await page.getByRole("checkbox", { name: "Ban members" }).click();
-  await expect.poll(async () => (await findRole())?.permissions).toContain("ban_members");
+  await page.getByRole("checkbox", { name: "Ban members permanently" }).click();
+  await expect.poll(async () => (await findRole())?.permissions).toContain("moderation.ban.permanent");
 
   // Delete (native confirm → accept).
   page.on("dialog", (d) => d.accept());

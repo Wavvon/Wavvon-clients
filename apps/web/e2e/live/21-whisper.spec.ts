@@ -174,7 +174,7 @@ test("role-target whisper via the Roles tab reaches a role member in voice", asy
     const roleName = uniqueName("Raider");
     const role = await hubApi<{ id: string }>(page, "/roles", {
       method: "POST",
-      body: { name: roleName, permissions: ["send_messages"], priority: 3 },
+      body: { name: roleName, permissions: ["messages.send"], priority: 3 },
     });
     await hubApi(page, `/users/${memberPk}/roles/${role.id}`, { method: "PUT" });
 

@@ -22,7 +22,7 @@ test("hub role assign/remove endpoints work (backend)", async ({ page, browser }
 
     const role = await hubApi<Role>(page, "/roles", {
       method: "POST",
-      body: { name: uniqueName("VIP"), permissions: ["send_messages"], priority: 3 },
+      body: { name: uniqueName("VIP"), permissions: ["messages.send"], priority: 3 },
     });
     await hubApi(page, `/users/${pk}/roles/${role.id}`, { method: "PUT" });
     let roles = await hubApi<Role[]>(page, `/users/${pk}/roles`);
@@ -49,7 +49,7 @@ test("assign and remove a role via the member right-click menu", async ({ page, 
   const roleName = uniqueName("Raider");
   await hubApi(page, "/roles", {
     method: "POST",
-    body: { name: roleName, permissions: ["send_messages"], priority: 3 },
+    body: { name: roleName, permissions: ["messages.send"], priority: 3 },
   });
 
   const memberName = uniqueName("Grantee");
