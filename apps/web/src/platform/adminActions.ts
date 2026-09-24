@@ -93,6 +93,11 @@ export const channelTalkPowerTabActions: ChannelTalkPowerTabActions = {
 export const rolesActions = {
   listRoles, createRole, updateRole, deleteRole,
   listRoleCategories, createRoleCategory, updateRoleCategory, deleteRoleCategory,
+  // What this screen offers to tick comes from the hub, exactly as it does on
+  // the channel overwrite tab. Gated on the capability because an older hub
+  // has no such route at all.
+  listPermissionCatalogue: async () =>
+    activeHubSupports("permissions.catalogue") ? listPermissionCatalogue() : [],
 } as RolesSectionActions;
 
 export const memberRoleActions = { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } as MemberRoleManagerActions;

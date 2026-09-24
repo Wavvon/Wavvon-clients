@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RoleCategory, RoleInfo } from "../../types";
+import type { PermissionCatalogueEntry } from "../../utils/channelPermissions";
 import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../../utils/roleAppearance";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ErrorRetry } from "../ErrorRetry";
@@ -22,8 +23,13 @@ import { RoleCategoryManager, type RoleCategoryManagerActions } from "./RoleCate
  * hiding a permission that exists — being multi-hub, that is a normal state
  * and not an error.
  *
- * Also the fallback list for a hub too old to serve a catalogue, which has
- * none of these ids: it shows nothing to tick, which is the honest answer.
+ * It is **not** the fallback either. A hub too old to serve a catalogue is on
+ * the snake_case ids, which share no spelling with these, so offering them
+ * would be checkboxes that hub refuses: the screen shows nothing to tick, plus
+ * whatever each role already holds so an existing grant can still be removed.
+ *
+ * Nothing renders from this array. It exists so `templateLabels` can prove the
+ * four catalogs name the same set.
  */
 export const ALL_PERMISSIONS: string[] = [
   "messages.read",
@@ -75,6 +81,14 @@ export const ALL_PERMISSIONS: string[] = [
 ];
 
 
+/** What the editor for one role offers: the hub's catalogue, plus whatever
+ *  that role already holds. The second half matters on a hub that serves no
+ *  catalogue — without it the editor is empty and an existing grant cannot
+ *  even be taken away. Order is the catalogue's, extras last. */
+export function roleEditorIds(catalogueIds: string[], rolePermissions: string[]): string[] {
+  return [...catalogueIds, ...rolePermissions.filter((p) => !catalogueIds.includes(p))];
+}
+
 export interface RoleUpdateInput {
   name?: string;
   permissions?: string[];
@@ -99,6 +113,13 @@ export interface RolesSectionActions extends Partial<RoleCategoryManagerActions>
    *  desktop Tauri-command gap (docs/docs/client-parity.md) — omitted
    *  entirely there until those commands exist. */
   listRoleCategories?: () => Promise<RoleCategory[]>;
+  /** The hub's own permission catalogue, which is what this screen offers.
+   *  Absent, or rejected, means the hub serves none — it is on the older
+   *  snake_case ids, which share no spelling with the ones this build knows,
+   *  so there is nothing to offer and the list renders empty rather than
+   *  checkboxes the hub would refuse. Same shape as
+   *  `ChannelPermissionsTabActions`. */
+  listPermissionCatalogue?: () => Promise<PermissionCatalogueEntry[]>;
 }
 
 interface Props {
@@ -111,6 +132,11 @@ export function RolesSection({ actions }: Props) {
   const { t } = useTranslation();
   const [roles, setRoles] = useState<RoleInfo[] | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
+  // What this screen offers to tick. It comes from the hub, not from
+  // ALL_PERMISSIONS above: a hub newer than this build enforces ids this
+  // build has never heard of, and a screen that cannot offer them is how a
+  // permission ends up enforced but ungrantable.
+  const [permissionIds, setPermissionIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
@@ -139,6 +165,27 @@ export function RolesSection({ actions }: Props) {
   }
 
   useEffect(() => { void load(); }, []);
+
+  // Its own effect, not part of `load()`: a hub that cannot serve a catalogue
+  // must leave the roles themselves readable rather than turning the screen
+  // into an error.
+  useEffect(() => {
+    let cancelled = false;
+    const pending = actions.listPermissionCatalogue?.();
+    if (!pending) return;
+    pending
+      .then((entries) => { if (!cancelled) setPermissionIds(entries.map((e) => e.id)); })
+      .catch(() => { /* hub too old to serve one — nothing to offer is the honest answer */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** A label for `perm`, or the id itself when this build has no name for it.
+   *  A hub newer than this one is a normal state, not an error: showing the
+   *  raw id offers the permission instead of hiding that it exists. */
+  const permLabel = (perm: string) => t(`hub.admin.roles.perm.${perm}`, { defaultValue: perm });
+
+  const editableIdsFor = (role: RoleInfo) => roleEditorIds(permissionIds, role.permissions);
 
   function replaceRole(updated: RoleInfo) {
     setRoles((prev) => (prev ? prev.map((r) => (r.id === updated.id ? updated : r)) : prev));
@@ -239,7 +286,7 @@ export function RolesSection({ actions }: Props) {
             />
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", margin: "var(--space-2) 0" }}>
-            {ALL_PERMISSIONS.map((perm) => (
+            {permissionIds.map((perm) => (
               <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
                 <input
                   type="checkbox"
@@ -250,7 +297,7 @@ export function RolesSection({ actions }: Props) {
                     return n;
                   })}
                 />
-                {t(`hub.admin.roles.perm.${perm}`)}
+                {permLabel(perm)}
               </label>
             ))}
           </div>
@@ -380,14 +427,14 @@ export function RolesSection({ actions }: Props) {
 
               {permsOpenFor === role.id && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", padding: "var(--space-2) 0 var(--space-3) var(--space-4)" }}>
-                  {ALL_PERMISSIONS.map((perm) => (
+                  {editableIdsFor(role).map((perm) => (
                     <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
                       <input
                         type="checkbox"
                         checked={role.permissions.includes(perm)}
                         onChange={() => toggleRolePerm(role, perm)}
                       />
-                      {t(`hub.admin.roles.perm.${perm}`)}
+                      {permLabel(perm)}
                     </label>
                   ))}
                 </div>
