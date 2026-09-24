@@ -214,7 +214,6 @@ pub(crate) async fn leave_hub(hub_id: String, state: State<'_, AppState>) -> Res
     remove_hub(hub_id, state)
 }
 
-
 #[tauri::command]
 pub(crate) fn remove_hub(hub_id: String, state: State<'_, AppState>) -> Result<(), String> {
     if let Some(session) = state.hubs.lock().unwrap().remove(&hub_id) {

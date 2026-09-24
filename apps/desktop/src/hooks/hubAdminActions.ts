@@ -6,6 +6,7 @@ import type {
   PendingUser,
 } from "../types";
 import type {
+  PermissionCatalogueEntry,
   RolesSectionActions,
   MemberRoleManagerActions,
   ServerTagsSectionActions,
@@ -75,6 +76,9 @@ export const rolesActions: RolesSectionActions = {
       categoryId: updates.category_id ?? null,
     }),
   deleteRole: (roleId) => invoke("delete_role", { roleId }),
+  // What this screen offers to tick is the hub's catalogue, not a list this
+  // build carries — same command the channel overwrite tab uses.
+  listPermissionCatalogue: () => invoke<PermissionCatalogueEntry[]>("list_permission_catalogue"),
   listRoleCategories: () => invoke<RoleCategory[]>("list_role_categories"),
   createRoleCategory: (input) =>
     invoke<RoleCategory>("create_role_category", { name: input.name, position: input.position }),

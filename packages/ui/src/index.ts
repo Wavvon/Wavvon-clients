@@ -244,7 +244,7 @@ export {
   deriveRowStates,
   buildOverwritePayload,
 } from "./utils/channelPermissions";
-export type { TriState } from "./utils/channelPermissions";
+export type { TriState, PermissionCatalogueEntry } from "./utils/channelPermissions";
 export { EditDescriptionModal } from "./components/channels/EditDescriptionModal";
 export { ChannelPermissionsTab } from "./components/channels/ChannelPermissionsTab";
 export type { ChannelPermissionsTabActions } from "./components/channels/ChannelPermissionsTab";
