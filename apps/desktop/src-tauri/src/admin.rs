@@ -951,6 +951,52 @@ pub(crate) async fn clear_channel_role_permissions(
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct PermissionCatalogueEntry {
+    pub id: String,
+    /// `hub_and_channel` may also be set as a channel overwrite; `hub` may not,
+    /// and the hub answers 400 for one that tries.
+    pub scope: String,
+    /// Dotted prefix, so a screen groups without re-splitting the id.
+    pub group: String,
+}
+
+#[derive(serde::Deserialize)]
+struct PermissionCatalogueResponse {
+    #[serde(default)]
+    permissions: Vec<PermissionCatalogueEntry>,
+}
+
+/// GET /permissions — the permission catalogue this hub can express.
+///
+/// A hub too old to serve one has no such route and answers 404. The honest
+/// reading of that is an empty catalogue rather than an error: its ids are the
+/// older snake_case set, which share no spelling with these, so there is
+/// nothing this build could offer against it anyway. **Any other failure stays
+/// an error** — "could not ask" must not come back as "there are none".
+#[tauri::command]
+pub(crate) async fn list_permission_catalogue(
+    state: State<'_, AppState>,
+) -> Result<Vec<PermissionCatalogueEntry>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .get(format!("{hub_url}/permissions"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(Vec::new());
+    }
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let body: PermissionCatalogueResponse =
+        resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    Ok(body.permissions)
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) struct VoiceMuteInfo {
     pub target_public_key: String,
     pub muted_by: String,

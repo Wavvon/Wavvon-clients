@@ -7,6 +7,7 @@ import type {
   ChannelPermissionsResponse,
   ChannelRoleOverwrites,
   ChannelRolePermissions,
+  PermissionCatalogueEntry,
 } from "@wavvon/ui";
 
 // Pure invoke wrappers for ChannelSettingsModal's permissions/bans/talk-power
@@ -24,6 +25,11 @@ export const channelPermissionsTabActions: ChannelPermissionsTabActions = {
   clearChannelRolePermissions: (channelId, roleId) =>
     invoke("clear_channel_role_permissions", { channelId, roleId }),
   listRoles: () => invoke<RoleInfo[]>("list_roles"),
+  // Without this the tab renders no rows at all: every overwrite id comes from
+  // the hub's catalogue. The command answers an empty list for a hub too old
+  // to serve one, which is the same reading the web wrapper's capability check
+  // produces.
+  listPermissionCatalogue: () => invoke<PermissionCatalogueEntry[]>("list_permission_catalogue"),
 };
 
 export const channelBansTabActions: ChannelBansTabActions = {

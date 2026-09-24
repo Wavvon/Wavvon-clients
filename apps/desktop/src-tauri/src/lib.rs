@@ -267,6 +267,7 @@ pub fn run() {
             admin::get_channel_permissions,
             admin::set_channel_role_permissions,
             admin::clear_channel_role_permissions,
+            admin::list_permission_catalogue,
             admin::get_talk_power,
             admin::set_talk_power_cmd,
             admin::list_bans,
