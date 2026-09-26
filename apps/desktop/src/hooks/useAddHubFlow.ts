@@ -46,7 +46,7 @@ export function useAddHubFlow({
   const [loading, setLoading] = useState(false);
   const [hubUrl, setHubUrl] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [botChallenge, setBotChallenge] = useState<{
+  const [admissionChallenge, setAdmissionChallenge] = useState<{
     hubUrl: string;
     pubkey: string;
     resolvedUrl: string;
@@ -147,7 +147,7 @@ export function useAddHubFlow({
           setError("Identity not loaded yet. Try again in a moment.");
           return;
         }
-        setBotChallenge({ hubUrl: resolvedUrl, pubkey: publicKey, resolvedUrl });
+        setAdmissionChallenge({ hubUrl: resolvedUrl, pubkey: publicKey, resolvedUrl });
         return;
       }
 
@@ -168,7 +168,7 @@ export function useAddHubFlow({
       setShowAddHub(false);
       setHubUrl("");
       setInviteCode("");
-      setBotChallenge(null);
+      setAdmissionChallenge(null);
       // Publish to every connected hub (the command loops all sessions) —
       // the startup-only publish misses hubs joined mid-session, leaving
       // DMs on them plaintext-inbound / undecryptable-outbound until the
@@ -204,8 +204,8 @@ export function useAddHubFlow({
     setHubUrl,
     inviteCode,
     setInviteCode,
-    botChallenge,
-    setBotChallenge,
+    admissionChallenge,
+    setAdmissionChallenge,
     hubPreview,
     handleHubUrlChange,
     handleAddHub,

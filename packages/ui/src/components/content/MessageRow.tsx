@@ -41,7 +41,7 @@ export interface MessageRowActions {
   unpinMessage: (channelId: string, messageId: string) => Promise<void>;
   votePoll?: (pollId: string, optionId: string) => Promise<Poll>;
   deletePoll?: (pollId: string) => Promise<void>;
-  sendBotAppJoin: (botId: string, channelId: string) => void;
+  sendAppJoin: (appId: string, channelId: string) => void;
   fetchLinkPreview: (hubUrl: string, url: string, token?: string | null) => Promise<LinkPreview>;
   muteUser: (pubkey: string) => Promise<void>;
   kickUser: (pubkey: string) => Promise<void>;
@@ -94,7 +94,6 @@ interface Props {
   onError: (msg: string) => void;
   onToggleThread: (messageId: string) => void;
   onOpenImage: (src: string, alt: string) => void;
-  onOpenBotCard: (pubkey: string, e: React.MouseEvent) => void;
   /** `e` is unset when triggered from the message context menu's "View
    * profile" item, which has no originating click to anchor a positioned
    * popover to — desktop's rect-based profile card skips opening in that
@@ -148,7 +147,6 @@ export function MessageRow({
   onError,
   onToggleThread,
   onOpenImage,
-  onOpenBotCard,
   onAuthorClick,
   onAuthorContextMenu,
   onPinToggle,
@@ -335,27 +333,20 @@ export function MessageRow({
             <span className="reply-snippet">{m.reply_to.content_preview}</span>
           </div>
         )}
-        <span
-          style={{ cursor: senderUser?.is_bot ? "pointer" : undefined }}
-          onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : undefined}
-          onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
-        >
+        <span onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
           <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={28} />
         </span>
         <span
           className={senderNameClass}
           style={{ ...senderNameStyle, cursor: "pointer" }}
-          onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : (e) => onAuthorClick(m.sender, e)}
+          onClick={(e) => onAuthorClick(m.sender, e)}
           onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
         >
           {senderLabel}
         </span>
         {showBirthdayBadge && <span title={t("message.birthday")} aria-label={t("message.birthday")}>🎂</span>}
-        {senderUser?.is_bot && !senderUser?.is_webhook && (
-          <span className="bot-badge" aria-hidden="true">{t("bot.badge")}</span>
-        )}
         {senderUser?.is_webhook && (
-          <span className="bot-badge bot-badge--app" aria-hidden="true">{t("app.badge")}</span>
+          <span className="app-badge" aria-hidden="true">{t("app.badge")}</span>
         )}
         {isEditing ? (
           <span className="message-edit">
@@ -516,16 +507,14 @@ export function MessageRow({
               />
             )}
             {(() => {
-              // Bot-authored, so parsed defensively rather than trusted outright
-              // (bot-capability-layer.md §5 third-party-content threat model).
-              // A result embed patched onto this same message (bot-capability-
-              // layer.md §7 step 5) means the game already ended — there's no
-              // PATCH shape to clear `game` itself (routes/chat_models.rs
-              // EditMessageRequest has no such field), so the launch card is
-              // hidden client-side instead of leaving a dead "Play" button
-              // pointing at a session the bot already closed.
+              // Written by whoever authored the message, so parsed
+              // defensively rather than trusted outright. A result embed
+              // patched onto this same message means the game already ended —
+              // there is no PATCH shape that clears `game` itself, so the
+              // launch card is hidden client-side instead of leaving a dead
+              // "Play" button pointing at a session that is over.
               const game = m.embeds && m.embeds.length > 0 ? null : parseGameLaunchCard(m.game);
-              return game && <GameCard game={game} botId={m.sender} channelId={m.channel_id} onPlay={actions.sendBotAppJoin} />;
+              return game && <GameCard game={game} appId={m.sender} channelId={m.channel_id} onPlay={actions.sendAppJoin} />;
             })()}
             {isEphemeral && (
               <div className="message-ephemeral-label">{t("message.ephemeral")}</div>

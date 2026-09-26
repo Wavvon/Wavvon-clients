@@ -86,11 +86,11 @@ function SecretRevealDialog({
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   return (
-    <div className="bot-token-reveal">
-      <p className="bot-token-warning">{title}</p>
+    <div className="secret-reveal">
+      <p className="secret-warning">{title}</p>
       <p className="muted">{warning}</p>
-      <code className="bot-token-value">{secret}</code>
-      <div className="bot-token-actions">
+      <code className="secret-value">{secret}</code>
+      <div className="secret-actions">
         <button
           onClick={() => {
             navigator.clipboard.writeText(secret);
@@ -105,7 +105,7 @@ function SecretRevealDialog({
         <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
         {t("hub.admin.owh.secret.confirm")}
       </label>
-      <div className="bot-token-actions">
+      <div className="secret-actions">
         <button className="btn-secondary" disabled={!confirmed} onClick={onDismiss}>
           {t("hub.admin.owh.secret.dismiss")}
         </button>

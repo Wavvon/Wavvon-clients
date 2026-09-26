@@ -1,9 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
-// P18 — admin features ported from desktop: audit log, native bots, hub
-// icon library, alliances, onboarding (lobby/challenge), and per-channel
-// bans. Each is gated on admin (the owner session is admin).
+// P18 — admin features ported from desktop: audit log, hub icon library,
+// alliances, onboarding (lobby/challenge), and per-channel bans. Each is
+// gated on admin (the owner session is admin).
 
 async function openAdminTab(page: Page, tab: string) {
   await page.locator(".hub-header-button").click();
@@ -18,44 +18,6 @@ test("audit log lists administrative events", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Audit log" })).toBeVisible();
   // The suite has generated plenty of audit activity by now.
   await expect(page.locator("table.members-table tbody tr").first()).toBeVisible({ timeout: 10000 });
-});
-
-// This used to create and delete a "native bot" -- a bot the hub minted a
-// token for, through POST /admin/bots. That model is gone: there is one bot
-// model now, an externally operated bot invited by its Ed25519 pubkey, which is
-// what the hub advertises as the `bots.external` capability. The old test kept
-// asserting a tab, a heading and a form that no longer exist, and nothing
-// noticed because this suite has never run anywhere but a laptop.
-test("invite an external bot and remove it", async ({ page }) => {
-  await page.goto("/");
-  await expectInHub(page);
-  await openAdminTab(page, "Bots");
-  await expect(page.getByRole("heading", { name: "External Bots" })).toBeVisible();
-
-  // A bot is identified by its pubkey, so the unique-per-run value has to be
-  // one: 64 hex chars, unique via the run suffix rather than a name.
-  const suffix = uniqueName("").replace(/[^0-9a-f]/g, "");
-  const botPubkey = (suffix + "0".repeat(64)).slice(0, 64);
-  const note = uniqueName("Botty");
-
-  await page.getByPlaceholder(/hex pubkey/).fill(botPubkey);
-  await page.getByPlaceholder(/moderation bot/).fill(note);
-  await page.getByRole("button", { name: "Generate invite token" }).click();
-
-  // The token is shown once and only once, which is the whole point of it.
-  await expect(page.getByText(/expires in 24 hours/)).toBeVisible({ timeout: 10000 });
-  await page.getByRole("button", { name: "Dismiss" }).click();
-
-  const row = page.locator("table.members-table tr", { hasText: note });
-  await expect(row).toBeVisible({ timeout: 10000 });
-  page.on("dialog", (d) => d.accept());
-  await row.getByRole("button", { name: "Remove" }).click();
-
-  // Removing does not delete the row, it moves the bot to "Removed" — the
-  // grant stays visible so an admin can see a bot was once trusted here. The
-  // first version of this test asserted the row disappeared and was wrong
-  // about the feature, not about the app.
-  await expect(row).toContainText("Removed", { timeout: 10000 });
 });
 
 test("create and delete a hub SVG icon", async ({ page }) => {

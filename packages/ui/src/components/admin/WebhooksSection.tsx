@@ -142,12 +142,12 @@ export function WebhooksSection({ channels, actions }: Props) {
       </div>
 
       {createdResult && (
-        <div className="bot-token-reveal">
-          <p className="bot-token-warning">
+        <div className="secret-reveal">
+          <p className="secret-warning">
             {t("webhooks.secret_warning")}
           </p>
-          <code className="bot-token-value">{createdResult.webhook_url}</code>
-          <div className="bot-token-actions">
+          <code className="secret-value">{createdResult.webhook_url}</code>
+          <div className="secret-actions">
             <button
               onClick={() => {
                 navigator.clipboard.writeText(createdResult.webhook_url);
@@ -165,12 +165,12 @@ export function WebhooksSection({ channels, actions }: Props) {
       )}
 
       {regeneratedUrl && (
-        <div className="bot-token-reveal">
-          <p className="bot-token-warning">
+        <div className="secret-reveal">
+          <p className="secret-warning">
             {t("webhooks.regen_warning")}
           </p>
-          <code className="bot-token-value">{regeneratedUrl}</code>
-          <div className="bot-token-actions">
+          <code className="secret-value">{regeneratedUrl}</code>
+          <div className="secret-actions">
             <button
               onClick={() => {
                 navigator.clipboard.writeText(regeneratedUrl);

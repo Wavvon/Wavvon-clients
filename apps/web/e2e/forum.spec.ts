@@ -102,7 +102,7 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
   await mockJson(page, `${HUB_URL}/unread`, []);
   await page.route(`${HUB_URL}/**`, (route) => {
     const url = route.request().url();
-    if (url.includes("/bots") || url.includes("/voice") || url.includes("/dh-key") || url.includes("/unread")) {
+    if (url.includes("/apps") || url.includes("/voice") || url.includes("/dh-key") || url.includes("/unread")) {
       void route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
     } else {
       // This catch-all is registered last, so Playwright runs it first. Fall

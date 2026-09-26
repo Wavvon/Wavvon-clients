@@ -15,15 +15,12 @@ import type {
   CertificationsSectionActions,
   OnboardingAdminSectionActions,
   WebhooksSectionActions,
-  ExternalBotSectionActions,
   AlliancesSectionActions,
   HubIconsSectionActions,
   SurveyAdminSectionActions,
   HubIcon,
   WebhookInfo,
   WebhookCreatedResult,
-  ExternalBotRow,
-  ExternalBotInviteResult,
   SurveyAdmin,
   SurveyResponseView,
   HubSelfTagSettings,
@@ -172,18 +169,6 @@ export function makeWebhookActions(getHubUrl: () => string): WebhooksSectionActi
     regenerateWebhook: (webhookId) =>
       invoke<WebhookCreatedResult>("admin_regenerate_webhook", { hubUrl: getHubUrl(), webhookId }),
     deleteWebhook: (webhookId) => invoke("admin_delete_webhook", { hubUrl: getHubUrl(), webhookId }),
-  };
-}
-
-export function makeExternalBotActions(getHubUrl: () => string): ExternalBotSectionActions {
-  return {
-    loadBots: () => invoke<ExternalBotRow[]>("admin_list_external_bots", { hubUrl: getHubUrl() }),
-    addBot: (pubkey, localNote) =>
-      invoke<ExternalBotInviteResult>("admin_add_external_bot", { hubUrl: getHubUrl(), pubkey, localNote }),
-    removeBot: (pubkey) => invoke("admin_remove_external_bot", { hubUrl: getHubUrl(), pubkey }),
-    getBotChannelScope: (pubkey) => invoke<string[]>("admin_get_bot_channel_scope", { hubUrl: getHubUrl(), pubkey }),
-    setBotChannelScope: (pubkey, channelIds) =>
-      invoke("admin_set_bot_channel_scope", { hubUrl: getHubUrl(), pubkey, channelIds }),
   };
 }
 

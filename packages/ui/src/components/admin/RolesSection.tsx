@@ -73,9 +73,8 @@ export const ALL_PERMISSIONS: string[] = [
   "directory.publish",
   "webhooks.incoming.manage",
   "webhooks.outgoing.manage",
-  "bots.admit",
-  "bots.capabilities",
-  "bots.audit.read",
+  "apps.register",
+  "audit.read",
   "surveys.manage",
   "surveys.responses.read",
 ];

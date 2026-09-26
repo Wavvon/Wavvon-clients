@@ -1,27 +1,27 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { BotProfile } from "../types";
+import type { AppProfile } from "../types";
 
 export interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
-// Slash command autocomplete entries — populated after hub load. The bot
-// directory already carries each bot's commands, so this is one call.
+// Slash command autocomplete entries — populated after hub load. The app
+// listing already carries each app's commands, so this is one call.
 export function useSlashCommands() {
   const [slashCommands, setSlashCommands] = useState<SlashCommandEntry[]>([]);
 
   async function loadSlashCommands(hubUrl: string) {
     try {
-      const bots = await invoke<BotProfile[]>("list_bots", { hubUrl });
+      const apps = await invoke<AppProfile[]>("list_apps", { hubUrl });
       setSlashCommands(
-        bots.flatMap((bot) =>
-          bot.commands.map((cmd) => ({
+        apps.flatMap((app) =>
+          app.commands.map((cmd) => ({
             command: cmd.name,
             description: cmd.description,
-            bot_name: bot.name,
+            app_name: app.name,
           }))
         )
       );

@@ -13,7 +13,7 @@ import type { useFirstNotify } from "../hooks/useFirstNotify";
 interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
 interface Props {

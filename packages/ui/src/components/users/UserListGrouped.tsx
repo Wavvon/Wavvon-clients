@@ -13,7 +13,6 @@ export function UserListGrouped({
   hideBirthdays,
   onUserClick,
   onContextMenu,
-  onBotClick,
 }: {
   users: User[];
   /** Members currently *speaking*, not merely connected to voice — the hub
@@ -31,11 +30,9 @@ export function UserListGrouped({
   hideBirthdays?: boolean;
   onUserClick?: (pubkey: string) => void;
   onContextMenu?: (e: React.MouseEvent, user: User) => void;
-  onBotClick?: (pubkey: string, e: React.MouseEvent) => void;
 }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
-  const [botsExpanded, setBotsExpanded] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -48,14 +45,12 @@ export function UserListGrouped({
       )
     : users;
 
-  const bots = matched.filter((u) => u.is_bot && !u.is_webhook);
-  const humans = matched.filter((u) => !u.is_bot);
 
   // Online first, then offline. Within each, bucket by group_role (the name of
   // the highest-priority role with display_separately=true), with null-role
   // members falling into a generic "Online" / "Offline" bucket.
-  const online = humans.filter((u) => u.online);
-  const offline = humans.filter((u) => !u.online);
+  const online = matched.filter((u) => u.online);
+  const offline = matched.filter((u) => !u.online);
 
   function bucket(group: User[], fallback: string): [string, User[]][] {
     const grouped = new Map<string, User[]>();
@@ -114,14 +109,14 @@ export function UserListGrouped({
     }
   }, [allUsers, onContextMenu]);
 
-  const onlineCount = humans.filter((u) => u.online).length;
+  const onlineCount = online.length;
   let globalIdx = 0;
 
   return (
     <>
       <div className="user-list-header">
         <span className="user-list-total">
-          {humans.length} {humans.length === 1 ? "member" : "members"}
+          {matched.length} {matched.length === 1 ? "member" : "members"}
         </span>
         <span className="user-list-online" title={t("presence.online")}>
           <span className="status-dot online" />
@@ -235,33 +230,6 @@ export function UserListGrouped({
           </ul>
         </div>
       ))}
-      {bots.length > 0 && (
-        <div className="member-section member-section-bots">
-          <button
-            className="member-section-header"
-            onClick={() => setBotsExpanded((prev) => !prev)}
-          >
-            {botsExpanded ? "▼" : "▶"} Bots — {bots.length}
-          </button>
-          {botsExpanded && bots.map((bot) => (
-            <div
-              key={bot.public_key}
-              className="member-list-item"
-              style={{ cursor: onBotClick ? "pointer" : undefined }}
-              onClick={onBotClick ? (e) => onBotClick(bot.public_key, e) : undefined}
-            >
-              <Avatar src={bot.avatar} name={bot.display_name ?? bot.public_key} pubkey={bot.public_key} size={22} />
-              <span
-                className={`member-name${safeRoleColor(bot.name_color) ? " name-colored" : ""}`}
-                style={nameColorStyle(bot.name_color)}
-              >
-                {bot.display_name ?? formatPubkey(bot.public_key)}
-              </span>
-              <span className="bot-badge">BOT</span>
-            </div>
-          ))}
-        </div>
-      )}
     </>
   );
 }

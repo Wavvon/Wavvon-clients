@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { ChallengePrompt, ChallengeResult } from "../types";
 
-export interface BotChallengeProps {
+export interface AdmissionChallengeProps {
   hubUrl: string;
   pubkey: string;
   onPassed: (token: string) => void;
@@ -12,7 +12,7 @@ export interface BotChallengeProps {
 
 type ChallengePhase = "loading" | "click" | "puzzle" | "submitting" | "passed" | "error";
 
-export function BotChallenge({ hubUrl, pubkey, onPassed, onCancel }: BotChallengeProps) {
+export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: AdmissionChallengeProps) {
   const { t } = useTranslation();
   const [phase, setPhase] = useState<ChallengePhase>("loading");
   const [prompt, setPrompt] = useState<ChallengePrompt | null>(null);
@@ -98,8 +98,8 @@ export function BotChallenge({ hubUrl, pubkey, onPassed, onCancel }: BotChalleng
         } else {
           setWrongMsg(
             remaining !== null
-              ? t("bot.challenge.wrong_remaining", { count: remaining })
-              : t("bot.challenge.wrong_retry")
+              ? t("challenge.wrong_remaining", { count: remaining })
+              : t("challenge.wrong_retry")
           );
           setPhase("puzzle");
         }
@@ -130,7 +130,7 @@ export function BotChallenge({ hubUrl, pubkey, onPassed, onCancel }: BotChalleng
         {phase === "click" && (
           <div className="challenge-click-content">
             <p className="muted challenge-subtext">{t("challenge.prompt")}</p>
-            <button className="challenge-not-a-bot-btn" onClick={handleClick}>
+            <button className="challenge-confirm-btn" onClick={handleClick}>
               {t("challenge.confirm")}
             </button>
             <div className="modal-actions">

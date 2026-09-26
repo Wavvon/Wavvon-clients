@@ -15,7 +15,7 @@ import type {
   AllianceSharedChannel,
   VoiceParticipant,
   LinkPreview,
-  BotProfile,
+  AppProfile,
   PostListResponse,
   PostDetail,
   ForumTagDef,
@@ -123,7 +123,7 @@ interface TypingEntry { name: string; ts: number }
 interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
 interface Props {
@@ -230,9 +230,9 @@ export function ContentArea(props: Props) {
   const messageRowActions: MessageRowActions = {
     pinMessage: (channelId, messageId) => invoke("pin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
     unpinMessage: (channelId, messageId) => invoke("unpin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
-    sendBotAppJoin: (botId, channelId) => {
+    sendAppJoin: (appId, channelId) => {
       invoke("send_hub_ws_raw", {
-        payload: JSON.stringify({ type: "bot_app_join", bot_id: botId, channel_id: channelId }),
+        payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
       }).catch(() => {});
     },
     fetchLinkPreview: fetchLinkPreviewAction,
@@ -250,10 +250,6 @@ export function ContentArea(props: Props) {
     saveMyProfile: (_hubId, fields) =>
       invoke<void>("update_my_profile_on_hub", { hubUrl: activeHub?.hub_url ?? "", profile: fields }),
   };
-
-  function loadBotProfile(pubkey: string): Promise<BotProfile> {
-    return invoke<BotProfile>("get_bot_profile", { hubUrl: activeHub?.hub_url ?? "", pubkey });
-  }
 
   function loadHubEmojis(): Promise<HubEmoji[]> {
     return invoke<HubEmoji[]>("list_hub_emojis");
@@ -360,7 +356,6 @@ export function ContentArea(props: Props) {
         forumActions={forumActions}
         messageRowActions={messageRowActions}
         profileCardActions={profileCardActions}
-        loadBotProfile={loadBotProfile}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={loadChannelPolls}
         loadThreadReplies={loadThreadReplies}

@@ -5,9 +5,9 @@ export type {
   AllianceSharedChannel,
   BlockEntry,
   IgnoreEntry,
-  BotAppLaunchEvent,
-  BotCommandDef,
-  BotProfile,
+  AppLaunchEvent,
+  AppCommandDef,
+  AppProfile,
   HubEmoji,
   ClaimantVoiceStatus,
   StagingGroup,
@@ -47,17 +47,14 @@ export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
-export { BotAppLaunchCard } from "./components/BotAppLaunchCard";
-export { BotCard } from "./components/BotCard";
+export { AppLaunchCard } from "./components/AppLaunchCard";
 export { ErrorRetry } from "./components/ErrorRetry";
 export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
 export { Lightbox } from "./components/Lightbox";
 export { BannerEditModal } from "./components/channels/BannerEditModal";
-export { BotCapabilitiesPanel } from "./components/admin/BotCapabilitiesPanel";
 export { ChannelAlliancesTab } from "./components/channels/ChannelAlliancesTab";
 export type { ChannelAlliancesTabActions } from "./components/channels/ChannelAlliancesTab";
-export type { BotCapabilitiesActions } from "./components/admin/BotCapabilitiesPanel";
 export { GameCard } from "./components/GameCard";
 export { GameModal } from "./components/GameModal";
 export { HoverSubmenu } from "./components/HoverSubmenu";
@@ -96,8 +93,6 @@ export type {
   AllianceInvite,
   PendingAllianceInvite,
   SharedChannel,
-  ExternalBotRow,
-  ExternalBotInviteResult,
   WebhookInfo,
   WebhookCreatedResult,
   EventSubscription,
@@ -112,8 +107,6 @@ export type {
 } from "./types";
 export { AlliancesSection } from "./components/admin/AlliancesSection";
 export type { AlliancesSectionActions } from "./components/admin/AlliancesSection";
-export { ExternalBotSection } from "./components/admin/ExternalBotSection";
-export type { ExternalBotSectionActions } from "./components/admin/ExternalBotSection";
 export { WebhooksSection } from "./components/admin/WebhooksSection";
 export type { WebhooksSectionActions } from "./components/admin/WebhooksSection";
 export { HubIconsSection } from "./components/admin/HubIconsSection";
@@ -137,9 +130,9 @@ export type {
   Embed,
   EmbedField,
   ComponentRow,
-  BotComponent,
-  BotButton,
-  BotSelect,
+  MessageComponent,
+  MessageButton,
+  MessageSelect,
   SelectOption,
   User,
   LinkPreview,

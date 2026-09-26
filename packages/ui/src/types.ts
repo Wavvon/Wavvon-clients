@@ -33,9 +33,8 @@ export interface Message {
   visible_to_pubkey?: string | null;
   embeds?: Embed[];
   components?: ComponentRow[];
-  is_bot_sender?: boolean;
   reply_count?: number;
-  /** Bot-authored "Play" launch card (bot-capability-layer.md §2). Bot messages only. */
+  /** "Play" launch card; needs `apps.register` to author. */
   game?: GameLaunchCard | null;
 }
 
@@ -58,12 +57,12 @@ export interface EmbedField {
 
 export interface ComponentRow {
   type: "row";
-  components: BotComponent[];
+  components: MessageComponent[];
 }
 
-export type BotComponent = BotButton | BotSelect;
+export type MessageComponent = MessageButton | MessageSelect;
 
-export interface BotButton {
+export interface MessageButton {
   type: "button";
   custom_id: string;
   label: string;
@@ -71,7 +70,7 @@ export interface BotButton {
   disabled?: boolean;
 }
 
-export interface BotSelect {
+export interface MessageSelect {
   type: "select";
   custom_id: string;
   placeholder?: string;
@@ -96,7 +95,6 @@ export interface User {
   /** Optional short custom status text (only present while online). */
   status_custom?: string | null;
   group_role: string | null;
-  is_bot?: boolean;
   is_webhook?: boolean;
   /** MM-DD (never a year) — null/absent when unset or the hub has birthdays
    *  disabled (the server omits it entirely in that case). */
@@ -173,27 +171,27 @@ export interface IgnoreEntry {
   since: number;
 }
 
-export interface BotAppLaunchEvent {
-  type: "bot_app_launch";
-  bot_id: string;
+export interface AppLaunchEvent {
+  type: "app_launch";
+  app_id: string;
   title: string;
   description: string;
   channel_id: string;
 }
 
-export interface BotCommandDef {
+export interface AppCommandDef {
   name: string;
   description: string;
 }
 
-export interface BotProfile {
+export interface AppProfile {
   pubkey: string;
   name: string;
   avatar_url: string | null;
   description: string | null;
-  commands: BotCommandDef[];
-  /** Profile-declared game descriptor (bot-capability-layer.md §11): drives
-   *  the directory card's Play affordance. Absent = bot never declared one. */
+  commands: AppCommandDef[];
+  /** Profile-declared game descriptor: what a client needs to offer Play
+   *  without a launch-card message in view. Absent = none declared. */
   game?: GameLaunchCard | null;
 }
 
@@ -476,19 +474,6 @@ export interface SharedChannel {
    *  Absent from peers that have not upgraded; treat as "allowed", the
    *  hub-side column default. */
   voice_remote_join?: "allowed" | "none";
-}
-
-export interface ExternalBotRow {
-  public_key: string;
-  local_note: string | null;
-  display_name: string | null;
-  approval_status: "pending" | "active" | "removed";
-  last_seen_at: number | null;
-}
-
-export interface ExternalBotInviteResult {
-  bot_invite_token: string;
-  pubkey: string;
 }
 
 export interface WebhookInfo {

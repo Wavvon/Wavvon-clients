@@ -3,12 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   HubAdminPage,
   OutgoingWebhooksSection,
-  BotCapabilitiesPanel,
   RecoveryContactsSection,
   type HubAdminPageProps,
   type RecoveryContactsSectionActions,
 } from "@wavvon/ui";
-import type { BotCapabilityGrants } from "@wavvon/core";
 import { ModerationTab } from "./ModerationTab";
 import { buildRecoveryActions } from "../utils/recoveryActions";
 import type { Hub, RoleInfo } from "../types";
@@ -22,7 +20,6 @@ import {
   submitToDirectory,
   outgoingWebhookActions,
   makeWebhookActions,
-  makeExternalBotActions,
   makeAuditLogActions,
   makeCertActions,
   makeOnboardingActions,
@@ -34,7 +31,7 @@ type PassthroughProps = Omit<
   | "saveError"
   | "rolesActions" | "memberRoleActions" | "serverTagsActions" | "inviteActions"
   | "allianceActions" | "hubIconActions" | "submitToDirectory"
-  | "webhookActions" | "externalBotActions"
+  | "webhookActions"
   | "auditLogActions" | "certActions" | "onboardingActions" | "surveyActions"
   | "activeHubUrl" | "myPubkey"
   | "canManageRoles" | "myMaxPriority" | "canManageSoundboard"
@@ -65,7 +62,6 @@ export function HubAdminContainer({
   const getActiveHubUrl = () => activeHubUrl;
 
   const webhookActions = useMemo(() => makeWebhookActions(getActiveHubUrl), [activeHubUrl]);
-  const externalBotActions = useMemo(() => makeExternalBotActions(getActiveHubUrl), [activeHubUrl]);
   const auditLogActions = useMemo(() => makeAuditLogActions(getActiveHubUrl), [activeHubUrl]);
   const certActions = useMemo(() => makeCertActions(getActiveHubUrl), [activeHubUrl]);
   const onboardingActions = useMemo(() => makeOnboardingActions(getActiveHubUrl), [activeHubUrl]);
@@ -87,24 +83,6 @@ export function HubAdminContainer({
           showMemberCards={false}
         />
       )}
-      renderBotCapabilities={(pubkey) => (
-        <BotCapabilitiesPanel
-          pubkey={pubkey}
-          actions={{
-            get: (pk) =>
-              invoke<BotCapabilityGrants>("admin_get_bot_capabilities", {
-                hubUrl: activeHubUrl,
-                pubkey: pk,
-              }),
-            set: (pk, capabilities) =>
-              invoke("admin_set_bot_capabilities", {
-                hubUrl: activeHubUrl,
-                pubkey: pk,
-                capabilities,
-              }),
-          }}
-        />
-      )}
       renderOutgoingWebhooks={() => (
         <OutgoingWebhooksSection channels={rest.channels} actions={outgoingWebhookActions} />
       )}
@@ -122,7 +100,6 @@ export function HubAdminContainer({
       hubIconActions={hubIconActions}
       submitToDirectory={submitToDirectory}
       webhookActions={webhookActions}
-      externalBotActions={externalBotActions}
       auditLogActions={auditLogActions}
       certActions={certActions}
       onboardingActions={onboardingActions}

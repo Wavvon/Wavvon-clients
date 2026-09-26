@@ -37,7 +37,7 @@ import type {
   MeInfo,
   Conversation,
 } from "@shared/types";
-import type { BotAppLaunchEvent, BotAppOpenEvent } from "./types";
+import type { AppLaunchEvent, AppOpenEvent } from "./types";
 import { HubSidebar } from "@wavvon/ui";
 import { useSoundboardChips } from "@wavvon/ui";
 import { WhisperInbox } from "@wavvon/ui";
@@ -62,7 +62,7 @@ import { passkeysUsableWith } from "@platform";
 import { QuickInviteModal } from "@wavvon/ui";
 import { ChannelSettingsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "@wavvon/ui";
-import { BotAppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard } from "@wavvon/ui";
+import { AppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard } from "@wavvon/ui";
 import { createEvent, createPoll } from "@platform";
 import { moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate } from "@wavvon/ui";
@@ -80,7 +80,7 @@ import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
-import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, sendBotAppJoin, listConversations } from "@platform";
+import { listAppCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, sendAppJoin, listConversations } from "@platform";
 import { sendSetStatus } from "@platform";
 import {
   restorePersistedHubs,
@@ -193,7 +193,7 @@ export default function App({ initialView }: AppProps = {}) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
-  const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
+  const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; app_name: string }>>([]);
   const alliances = useAlliances(showHubError);
   const {
     userAlliances, setUserAlliances, allianceChannels, setAllianceChannels,
@@ -506,8 +506,8 @@ export default function App({ initialView }: AppProps = {}) {
     return () => setSwitchGuard(null);
   }, [voice.voiceChannelId, t]);
 
-  const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
-  const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
+  const [activeApps, setActiveApps] = useState<Map<string, AppLaunchEvent>>(new Map());
+  const [activeOpenApp, setActiveOpenApp] = useState<{ event: AppOpenEvent; hubUrl: string } | null>(null);
 
   const loadingHub = useRef(false);
 
@@ -645,7 +645,7 @@ export default function App({ initialView }: AppProps = {}) {
     handleVideoMessage: video.handleVideoMessage,
     receiveWhisperEvent: whisper.receiveWhisperEvent,
     onVoiceMovePush: voiceMoveUx.onVoiceMovePush,
-    setActiveBotApps, setActiveOpenApp,
+    setActiveApps, setActiveOpenApp,
   });
 
   // === Hub restore on startup ===
@@ -735,11 +735,11 @@ export default function App({ initialView }: AppProps = {}) {
         fetchAllUsers(),
         hubFetch("/me").then((r) => r.json() as Promise<MeInfo>),
         listConversations(),
-        listBotCommands().catch(() => [] as Array<{ command: string; description: string; bot_name: string }>),
+        listAppCommands().catch(() => [] as Array<{ command: string; description: string; app_name: string }>),
         fetchVoiceRoster().catch(() => ({} as Record<string, VoiceParticipant[]>)),
         getDmBlocks().catch(() => null),
       ]);
-      // A lobby-scoped session (lobby-bot-survey.md Feature 1) 403s every
+      // A lobby-scoped session (lobby-survey.md Feature 1) 403s every
       // route outside the lobby allowlist — /channels is always in that
       // batch, so its rejection reason is the signal. Checked before
       // touching any other settled promise; the others 403 the same way and
@@ -835,7 +835,7 @@ export default function App({ initialView }: AppProps = {}) {
     }
   }
 
-  // Lobby -> member transition in place (lobby-bot-survey.md Feature 1):
+  // Lobby -> member transition in place (lobby-survey.md Feature 1):
   // /lobby/submit-pow already flipped the session's scope server-side on the
   // same token, so there's no re-auth here — just open the WS the hub had
   // been rejecting, drop the lobby screen, and pull the now-unlocked hub
@@ -1482,9 +1482,9 @@ export default function App({ initialView }: AppProps = {}) {
           miniAppUrl={activeOpenApp.event.mini_app_url}
           sessionToken={activeOpenApp.event.session_token}
           channelId={activeOpenApp.event.channel_id}
-          botId={activeOpenApp.event.bot_id}
+          appId={activeOpenApp.event.app_id}
           hubUrl={activeOpenApp.hubUrl}
-          title={activeBotApps.get(activeOpenApp.event.bot_id)?.title ?? t("bot.app.default_title")}
+          title={activeApps.get(activeOpenApp.event.app_id)?.title ?? t("app.default_title")}
           requiresCamera={activeOpenApp.event.requires_camera}
           onClose={() => setActiveOpenApp(null)}
         />
@@ -1537,17 +1537,17 @@ export default function App({ initialView }: AppProps = {}) {
       ) : <>
         {(() => {
           if (!selectedChannel) return null;
-          const cards = Array.from(activeBotApps.values()).filter(
+          const cards = Array.from(activeApps.values()).filter(
             (ev) => ev.channel_id === selectedChannel.id,
           );
           if (cards.length === 0) return null;
           return (
-            <div className="bot-app-launch-cards">
+            <div className="app-launch-cards">
               {cards.map((ev) => (
-                <BotAppLaunchCard
-                  key={ev.bot_id}
+                <AppLaunchCard
+                  key={ev.app_id}
                   event={ev}
-                  onJoin={sendBotAppJoin}
+                  onJoin={sendAppJoin}
                 />
               ))}
             </div>

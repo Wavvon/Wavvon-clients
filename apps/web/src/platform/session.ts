@@ -11,7 +11,7 @@ export interface HubSession {
   token: string;
   ws: HubWebSocket | null;
   /**
-   * "lobby" while this session is confined to the lobby-bot-survey.md
+   * "lobby" while this session is confined to the lobby-survey.md
    * Feature 1 allowlist (the hub rejects a lobby-scoped token's WS
    * handshake, so `ws` is deliberately left null until promotion).
    * Defaults to "member" for every pre-lobby code path.

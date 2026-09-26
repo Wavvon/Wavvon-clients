@@ -29,11 +29,11 @@ import type {
   AllianceSharedChannel,
   ActiveStream,
   LobbyStatus,
-  BotAppLaunchEvent,
-  BotAppOpenEvent,
-  BotAppCloseEvent,
+  AppLaunchEvent,
+  AppOpenEvent,
+  AppCloseEvent,
 } from "./types";
-import { BotAppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll } from "@wavvon/ui";
+import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll } from "@wavvon/ui";
 import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
 import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
@@ -562,12 +562,12 @@ function App() {
 
   const { slashCommands, loadSlashCommands, clearSlashCommands } = useSlashCommands();
 
-  const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
+  const [activeApps, setActiveApps] = useState<Map<string, AppLaunchEvent>>(new Map());
 
-  function sendBotAppJoin(botId: string, channelId: string) {
+  function sendAppJoin(appId: string, channelId: string) {
     if (!activeHubId) return;
     invoke("send_hub_ws_raw", {
-      payload: JSON.stringify({ type: "bot_app_join", bot_id: botId, channel_id: channelId }),
+      payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
     }).catch(() => {});
   }
 
@@ -817,32 +817,32 @@ function App() {
     setVoicePoliteAnnouncement,
     hubs,
     channelsRef,
-    onBotAppLaunch: (ev: BotAppLaunchEvent) => {
-      setActiveBotApps((prev) => {
+    onBotAppLaunch: (ev: AppLaunchEvent) => {
+      setActiveApps((prev) => {
         const next = new Map(prev);
-        next.set(ev.bot_id, ev);
+        next.set(ev.app_id, ev);
         return next;
       });
     },
-    onBotAppOpen: (ev: BotAppOpenEvent, hubUrl: string) => {
-      const label = `mini-app-${ev.bot_id}`;
+    onBotAppOpen: (ev: AppOpenEvent, hubUrl: string) => {
+      const label = `mini-app-${ev.app_id}`;
       invoke("open_mini_app", {
         label,
         url: ev.mini_app_url,
         hubUrl,
         token: ev.session_token,
         channelId: ev.channel_id,
-        botId: ev.bot_id,
+        appId: ev.app_id,
         requiresCamera: ev.requires_camera,
       }).catch(() => {});
     },
-    onBotAppClose: (ev: BotAppCloseEvent) => {
-      setActiveBotApps((prev) => {
+    onBotAppClose: (ev: AppCloseEvent) => {
+      setActiveApps((prev) => {
         const next = new Map(prev);
-        next.delete(ev.bot_id);
+        next.delete(ev.app_id);
         return next;
       });
-      invoke("close_mini_app", { label: `mini-app-${ev.bot_id}` }).catch(() => {});
+      invoke("close_mini_app", { label: `mini-app-${ev.app_id}` }).catch(() => {});
     },
     onVoiceMove: onVoiceMovePush,
     onChannelsChanged: () => {
@@ -1750,17 +1750,17 @@ function App() {
                 )}
                 {channelMessages.selectedChannel && (() => {
                   const channelId = channelMessages.selectedChannel.id;
-                  const cards = Array.from(activeBotApps.values()).filter(
+                  const cards = Array.from(activeApps.values()).filter(
                     (e) => e.channel_id === channelId
                   );
                   if (cards.length === 0) return null;
                   return (
-                    <div className="bot-app-launch-cards">
+                    <div className="app-launch-cards">
                       {cards.map((ev) => (
-                        <BotAppLaunchCard
-                          key={ev.bot_id}
+                        <AppLaunchCard
+                          key={ev.app_id}
                           event={ev}
-                          onJoin={sendBotAppJoin}
+                          onJoin={sendAppJoin}
                         />
                       ))}
                     </div>

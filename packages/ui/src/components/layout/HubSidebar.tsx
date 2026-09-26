@@ -21,7 +21,7 @@ interface Props {
   unreadByHub: Record<string, number>;
   pingByHub: Record<string, number | null>;
   hubNotifyMode: Record<string, NotifyMode>;
-  /** Hubs whose session is confined to the lobby (lobby-bot-survey.md
+  /** Hubs whose session is confined to the lobby (lobby-survey.md
    * Feature 1) — rendered with a small persistent badge that disappears
    * once the background PoW promotes the session, even for hubs the user
    * has navigated away from. */

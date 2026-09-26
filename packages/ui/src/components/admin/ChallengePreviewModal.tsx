@@ -7,7 +7,7 @@ interface Props {
   onClose: () => void;
 }
 
-// APPROXIMATION: the real member-facing challenge (the "not a bot" click
+// APPROXIMATION: the real member-facing challenge (the "I am human" click
 // button, and the puzzle image + answer field) is rendered at join time by
 // each client's own onboarding flow — this preview reproduces that UI's shape
 // and CSS classes faithfully, but the puzzle graphic below is a static
@@ -45,7 +45,7 @@ export function ChallengePreviewModal({ mode, difficulty, onClose }: Props) {
         {mode !== "off" && showsClickFirst && (
           <div className="challenge-click-content">
             <p className="muted challenge-subtext">{t("hub.admin.challenge_preview.click_subtext")}</p>
-            <button className="challenge-not-a-bot-btn" disabled>{t("hub.admin.challenge_preview.not_a_bot")}</button>
+            <button className="challenge-confirm-btn" disabled>{t("hub.admin.challenge_preview.confirm")}</button>
           </div>
         )}
 

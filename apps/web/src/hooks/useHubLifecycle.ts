@@ -28,7 +28,7 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
   const [activeHubTimezone, setActiveHubTimezone] = useState<string | null>(null);
   const [activeHubId, setActiveHubIdState] = useState<string | null>(null);
   const [pingByHub, setPingByHub] = useState<Record<string, number | null>>({});
-  // lobby-bot-survey.md Feature 1 — hubs whose session is confined to the
+  // lobby-survey.md Feature 1 — hubs whose session is confined to the
   // lobby (PoW below the hub's min_security_level). Detected reactively via
   // the 403 lobby_scope_confined body loadHubData() gets back from
   // /channels, which covers both the initial join and reconnect-after-close
