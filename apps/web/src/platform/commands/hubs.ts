@@ -11,6 +11,7 @@ import {
 import { HubWebSocket, type WsHandlers } from "../ws";
 import {
   loadSavedHubs,
+  rekeySavedHub,
   upsertSavedHub,
   removeSavedHub,
   updateSavedHub,
@@ -22,7 +23,7 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { publicKeyHex } from "@wavvon/core";
+import { publicKeyHex, rotationAppliesTo, type HubKeyRotation } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
 import { acquireHubToken as authenticate } from "./hubAuth";
@@ -46,6 +47,9 @@ interface InfoResponse {
   welcome_invite_url?: string | null;
   /** SHA-256 hex of the LAN self-signed cert, present when lan_tls === "self". */
   lan_fingerprint?: string | null;
+  /** Present while a key rotation's transition window is open: the old key's
+   * signed endorsement of the new one. See `followKeyRotation`. */
+  rotation?: HubKeyRotation | null;
 }
 
 /** Where this identity's `/auth/*` calls go.
@@ -63,9 +67,61 @@ interface InfoResponse {
  * the join succeeded and the device was simply somebody else. Authenticating
  * at the hub costs that one device farm SSO and is otherwise identical.
  */
+/**
+ * How much of a pubkey a log line carries. Enough to recognise which hub a
+ * message is about, short enough to stay readable — never used to compare or
+ * match anything, only to print.
+ */
+const LOG_KEY_CHARS = 8;
+const logKey = (key: string): string => key.slice(0, LOG_KEY_CHARS);
+
 function authBaseUrl(info: InfoResponse, hub_url: string, subkeyCert?: unknown): string {
   if (subkeyCert) return hub_url;
   return info.farm_url ?? hub_url;
+}
+
+/**
+ * Follow a hub that has rotated its identity key, and return the id to carry
+ * on with.
+ *
+ * A hub's pubkey is its name here — the list entry, the cached token and the
+ * active-hub pointer are all filed under it. So when the key changes there
+ * are exactly two honest outcomes: we can prove it is the same hub and move
+ * everything across, or we cannot and it is a different hub, which is the
+ * case worth refusing rather than quietly adopting.
+ *
+ * The proof is the endorsement the old key signed
+ * (`rotationAppliesTo`, verified against the key we already hold). Without
+ * one, or with one we cannot verify, this does nothing and the caller carries
+ * on under the old id — a hub presenting an unexplained new key is a stranger
+ * at a familiar address, and today nothing else in the client would notice.
+ *
+ * Sibling of the `canonical_url` follow below: that one moves *where* we
+ * look while the identity holds still, this one moves *who* we think we are
+ * talking to while the address holds still. Neither is allowed to do both.
+ */
+function followKeyRotation(info: InfoResponse, hub_id: string): string {
+  if (info.public_key === hub_id) return hub_id;
+  if (!rotationAppliesTo(info.rotation, hub_id)) {
+    if (info.public_key) {
+      console.warn(
+        `[hubs] ${logKey(hub_id)} now presents ${logKey(info.public_key)} with no verifiable endorsement — not following`,
+      );
+    }
+    return hub_id;
+  }
+
+  const newId = info.public_key;
+  if (!rekeySavedHub(hub_id, newId)) return hub_id;
+
+  const s = getSession(hub_id);
+  if (s) {
+    removeSession(hub_id);
+    setSession(newId, { ...s, hub_id: newId });
+  }
+  if (getActiveHubId() === hub_id) setActiveHubId(newId);
+  console.info(`[hubs] ${logKey(hub_id)} rotated its key to ${logKey(newId)}`);
+  return newId;
 }
 
 
@@ -222,7 +278,7 @@ export function listHubs(): Hub[] {
 // runs on connect and on every hub_updated, which is exactly when what a hub
 // can do could have changed (it was restarted onto a new version).
 export async function refreshHubInfo(
-  hub_id: string,
+  hubIdIn: string,
 ): Promise<{
   name: string;
   icon: string | null;
@@ -230,6 +286,7 @@ export async function refreshHubInfo(
   capabilities: string[];
   version: string | null;
 } | null> {
+  let hub_id = hubIdIn;
   const s = getSession(hub_id);
   if (!s) return null;
   try {
@@ -237,6 +294,10 @@ export async function refreshHubInfo(
       (r) => r.json() as Promise<InfoResponse & { timezone?: string | null }>,
     );
     const capabilities = info.capabilities ?? [];
+
+    // Identity first, address second: a rotation renames the hub we are
+    // holding, and everything below this line is filed under that name.
+    hub_id = followKeyRotation(info, hub_id);
 
     // Follow the hub if it has moved. A path-hosted hub lives at an
     // owner-chosen name that can change, and `canonical_url` is how it tells
@@ -249,7 +310,7 @@ export async function refreshHubInfo(
     const movedTo =
       info.canonical_url && info.canonical_url !== s.hub_url ? info.canonical_url : null;
     if (movedTo) {
-      console.info(`[hubs] ${hub_id.slice(0, 8)} moved to ${movedTo}`);
+      console.info(`[hubs] ${logKey(hub_id)} moved to ${movedTo}`);
       updateSavedHubUrl(hub_id, movedTo);
     }
 
@@ -490,6 +551,9 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
         );
+        // This branch re-authenticates from scratch, which is exactly where an
+        // unfollowed rotation would file the same hub a second time.
+        hub.hub_id = followKeyRotation(hubInfo, hub.hub_id);
         const authRes = await authenticateForRestore(
           authBaseUrl(hubInfo, hub.hub_url, identity.subkey_cert),
           pubkeyHex,
