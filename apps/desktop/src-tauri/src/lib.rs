@@ -6,7 +6,7 @@ mod admin;
 mod admin_alliance;
 mod auth_creds;
 mod backup;
-mod bots;
+mod apps;
 mod certs;
 mod channels;
 mod deep_link;
@@ -113,8 +113,6 @@ pub fn run() {
             hub_session::set_active_hub,
             hub_session::remove_hub,
             hub_session::leave_hub,
-            bots::admin_get_bot_capabilities,
-            bots::admin_set_bot_capabilities,
             hub_session::auto_connect_saved,
             hub_session::reconnect_hub,
             hub_session::reorder_hubs,
@@ -327,15 +325,9 @@ pub fn run() {
             dm::encrypt_group_dm,
             dm::init_dr_session,
             dm::encrypt_dm_dr,
-            // Bots / webhooks
-            bots::list_bots,
-            bots::send_component_interaction,
-            bots::get_bot_profile,
-            bots::admin_list_external_bots,
-            bots::admin_add_external_bot,
-            bots::admin_remove_external_bot,
-            bots::admin_get_bot_channel_scope,
-            bots::admin_set_bot_channel_scope,
+            // Apps / webhooks
+            apps::list_apps,
+            apps::send_component_interaction,
             hub_session::connection_stats,
             admin::admin_list_outgoing_webhooks,
             admin::admin_create_outgoing_webhook,
@@ -346,10 +338,10 @@ pub fn run() {
             admin::admin_rotate_outgoing_webhook_secret,
             admin::admin_enable_outgoing_webhook,
             admin::admin_list_outgoing_webhook_deliveries,
-            bots::admin_list_webhooks,
-            bots::admin_create_webhook,
-            bots::admin_regenerate_webhook,
-            bots::admin_delete_webhook,
+            apps::admin_list_webhooks,
+            apps::admin_create_webhook,
+            apps::admin_regenerate_webhook,
+            apps::admin_delete_webhook,
             // Lobby / challenge / survey
             lobby::lobby_status,
             lobby::lobby_submit_proof,

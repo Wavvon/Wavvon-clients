@@ -5,7 +5,7 @@ interface Props {
   miniAppUrl: string;
   sessionToken: string;
   channelId: string;
-  botId: string;
+  appId: string;
   hubUrl: string;
   title: string;
   requiresCamera?: boolean;
@@ -14,13 +14,13 @@ interface Props {
 
 /** The mini-app webview promoted to a focus-taking modal
  *  (bot-capability-layer.md §2 "the game modal = mini-app, promoted").
- *  Same sandbox, same scoped token, same `bot_app_open` wire shape as the
+ *  Same sandbox, same scoped token, same `app_open` wire shape as the
  *  inline launch panel -- only the presentation changes. */
 export function GameModal({
   miniAppUrl,
   sessionToken,
   channelId,
-  botId,
+  appId,
   hubUrl,
   title,
   requiresCamera,
@@ -39,14 +39,14 @@ export function GameModal({
           hub_url: hubUrl,
           token: sessionToken,
           channel_id: channelId,
-          bot_id: botId,
+          app_id: appId,
         },
         "*",
       );
     };
     iframe.addEventListener("load", onLoad);
     return () => iframe.removeEventListener("load", onLoad);
-  }, [miniAppUrl, sessionToken, channelId, botId, hubUrl]);
+  }, [miniAppUrl, sessionToken, channelId, appId, hubUrl]);
 
   return (
     <div className="game-modal-overlay" role="dialog" aria-modal="true" aria-label={title}>

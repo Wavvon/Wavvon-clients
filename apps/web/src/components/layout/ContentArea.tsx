@@ -31,7 +31,7 @@ import {
   typingForScope,
 } from "@wavvon/ui";
 import {
-  hubFetch, getPolls, createPoll, getBotProfile, sendBotAppJoin,
+  hubFetch, getPolls, createPoll, sendAppJoin,
   pinMessage, unpinMessage, getPins, votePoll, deletePoll, fetchLinkPreview, reportMessage,
   forumListPosts, forumGetPost, forumCreatePost, forumEditPost, forumDeletePost,
   forumCreateReply, forumEditReply, forumDeleteReply, forumPinPost, forumLockPost,
@@ -100,7 +100,7 @@ async function moderateAuthor(kind: "mute" | "kick" | "ban", pubkey: string) {
 }
 
 const messageRowActions: MessageRowActions = {
-  pinMessage, unpinMessage, votePoll, deletePoll, sendBotAppJoin, reportMessage,
+  pinMessage, unpinMessage, votePoll, deletePoll, sendAppJoin, reportMessage,
   fetchLinkPreview: (hubUrl, url, token) => fetchLinkPreview(hubUrl, url, token ?? ""),
   muteUser: (pubkey) => moderateAuthor("mute", pubkey),
   kickUser: (pubkey) => moderateAuthor("kick", pubkey),
@@ -150,7 +150,7 @@ interface TypingEntry { name: string; ts: number }
 interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
 // App.tsx passes whole hook-result objects here instead of ~85 flat props
@@ -332,7 +332,6 @@ export function ContentArea(props: Props) {
         profileCardActions={profileCardActions}
         forumActions={forumActions}
         messageRowActions={messageRowActions}
-        loadBotProfile={getBotProfile}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}
         loadThreadReplies={loadThreadReplies}

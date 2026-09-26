@@ -534,31 +534,31 @@ pub(crate) async fn spawn_ws_task(
                                             "sender_pubkey": sender_pubkey,
                                         }));
                                     }
-                                    WsServerMessage::BotAppLaunch { bot_id, title, description, channel_id } => {
-                                        let _ = app.emit("bot-app-launch", serde_json::json!({
+                                    WsServerMessage::AppLaunch { app_id, title, description, channel_id } => {
+                                        let _ = app.emit("app-launch", serde_json::json!({
                                             "hub_id": hub_id_for_task,
-                                            "type": "bot_app_launch",
-                                            "bot_id": bot_id,
+                                            "type": "app_launch",
+                                            "app_id": app_id,
                                             "title": title,
                                             "description": description,
                                             "channel_id": channel_id,
                                         }));
                                     }
-                                    WsServerMessage::BotAppOpen { bot_id, channel_id, mini_app_url, session_token } => {
-                                        let _ = app.emit("bot-app-open", serde_json::json!({
+                                    WsServerMessage::AppOpen { app_id, channel_id, mini_app_url, session_token } => {
+                                        let _ = app.emit("app-open", serde_json::json!({
                                             "hub_id": hub_id_for_task,
-                                            "type": "bot_app_open",
-                                            "bot_id": bot_id,
+                                            "type": "app_open",
+                                            "app_id": app_id,
                                             "channel_id": channel_id,
                                             "mini_app_url": mini_app_url,
                                             "session_token": session_token,
                                         }));
                                     }
-                                    WsServerMessage::BotAppClose { bot_id, channel_id } => {
-                                        let _ = app.emit("bot-app-close", serde_json::json!({
+                                    WsServerMessage::AppClose { app_id, channel_id } => {
+                                        let _ = app.emit("app-close", serde_json::json!({
                                             "hub_id": hub_id_for_task,
-                                            "type": "bot_app_close",
-                                            "bot_id": bot_id,
+                                            "type": "app_close",
+                                            "app_id": app_id,
                                             "channel_id": channel_id,
                                         }));
                                     }

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import type { ComponentRow, BotButton, BotSelect } from "../../types";
+import type { ComponentRow, MessageButton, MessageSelect } from "../../types";
 
 interface Props {
   rows: ComponentRow[];
@@ -36,7 +36,7 @@ export function MessageComponents({ rows, messageId, onInteract }: Props) {
         <div key={ri} className="component-row">
           {row.components.map((c, ci) => {
             if (c.type === "button") {
-              const btn = c as BotButton;
+              const btn = c as MessageButton;
               const isDisabled = btn.disabled || disabledIds.has(btn.custom_id);
               return (
                 <button
@@ -50,7 +50,7 @@ export function MessageComponents({ rows, messageId, onInteract }: Props) {
               );
             }
             if (c.type === "select") {
-              const sel = c as BotSelect;
+              const sel = c as MessageSelect;
               const isDisabled = disabledIds.has(sel.custom_id);
               return (
                 <select

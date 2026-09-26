@@ -7067,7 +7067,7 @@ select:focus-visible {
 /* ============================================================
    BOT BADGE
    ============================================================ */
-.bot-badge {
+.app-badge {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -7083,32 +7083,11 @@ select:focus-visible {
 /* ============================================================
    BOT MANAGEMENT — HubBotsSection
    ============================================================ */
-.bot-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 
-.bot-row-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
 
-.bot-row-name {
-  font-weight: var(--weight-bold);
-}
 
-.bot-row-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
 
-.bot-token-reveal {
+.secret-reveal {
   border: 2px solid var(--color-warn, #e6a817);
   background: color-mix(in srgb, var(--color-warn, #e6a817) 10%, transparent);
   border-radius: var(--r-md);
@@ -7119,13 +7098,13 @@ select:focus-visible {
   gap: 8px;
 }
 
-.bot-token-warning {
+.secret-warning {
   font-weight: var(--weight-bold);
   color: var(--color-warn, #e6a817);
   margin: 0;
 }
 
-.bot-token-value {
+.secret-value {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   word-break: break-all;
@@ -7135,7 +7114,7 @@ select:focus-visible {
   display: block;
 }
 
-.bot-token-actions {
+.secret-actions {
   display: flex;
   gap: 8px;
 }
@@ -7163,7 +7142,7 @@ select:focus-visible {
 }
 
 /* ============================================================
-   EVENT SUBSCRIPTION EDITOR (shared by outgoing webhooks, bots)
+   EVENT SUBSCRIPTION EDITOR (shared by outgoing webhooks and apps)
    ============================================================ */
 .event-subscription-editor {
   display: flex;
@@ -7435,7 +7414,7 @@ select:focus-visible {
   text-align: center;
 }
 
-.challenge-not-a-bot-btn {
+.challenge-confirm-btn {
   padding: var(--space-3) var(--space-7);
   font-size: var(--text-lg);
   border-radius: var(--r-md);
@@ -7760,7 +7739,7 @@ select:focus-visible {
 }
 
 /* ---- Bots ---- */
-.bot-badge {
+.app-badge {
   font-size: var(--text-xs);
   background: var(--accent);
   color: var(--bg);
@@ -7793,14 +7772,6 @@ select:focus-visible {
   color: var(--text);
 }
 
-.member-section-bots .member-list-item {
-  opacity: 0.7;
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) 0;
-  font-size: var(--text-sm);
-}
 
 .slash-command-popup {
   position: absolute;
@@ -7846,14 +7817,14 @@ select:focus-visible {
   flex: 1;
 }
 
-.slash-command-bot {
+.slash-command-app {
   color: var(--text-muted);
   font-size: var(--text-xs);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.bot-token-box {
+.secret-box {
   font-family: monospace;
   font-size: var(--text-sm);
   background: var(--bg-secondary, rgba(0,0,0,0.2));
@@ -7866,7 +7837,7 @@ select:focus-visible {
   display: block;
 }
 
-.bot-token-warning {
+.secret-warning {
   color: var(--color-warning, #f59e0b);
   font-size: var(--text-sm);
   margin-bottom: var(--space-2);
@@ -7875,7 +7846,7 @@ select:focus-visible {
 /* ============================================================
    BOT / APP BADGES
    ============================================================ */
-.bot-badge {
+.app-badge {
   display: inline-block;
   background: var(--accent);
   color: var(--accent-text, #1c1a1f);
@@ -7890,9 +7861,6 @@ select:focus-visible {
   user-select: none;
 }
 
-.bot-badge--app {
-  background: var(--info);
-}
 
 /* ============================================================
    EPHEMERAL MESSAGES
@@ -8085,83 +8053,15 @@ a.embed-title:hover {
 /* ============================================================
    BOT CARD POPOVER
    ============================================================ */
-.bot-card {
-  background: var(--bg-elevated, var(--bg));
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-height: 420px;
-  overflow-y: auto;
-}
 
-.bot-card-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
 
-.bot-card-identity {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-}
 
-.bot-card-name {
-  font-weight: var(--weight-bold);
-  font-size: var(--text-md, 1rem);
-}
 
-.bot-card-desc {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-}
 
-.bot-card-section-label {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin: 0 0 var(--space-1);
-}
 
-.bot-card-commands ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
 
-.bot-card-command-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-}
 
-.bot-card-command-name {
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 
-.bot-card-footer {
-  font-size: var(--text-xs);
-  font-style: italic;
-  margin: 0;
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-2);
-}
 
 .dm-group-ack-overlay {
   position: absolute;
@@ -9489,7 +9389,7 @@ a.embed-title:hover {
   flex: 1;
 }
 
-.slash-command-bot {
+.slash-command-app {
   color: var(--text-muted);
   font-size: var(--text-xs);
   white-space: nowrap;
@@ -9600,7 +9500,7 @@ a.embed-title:hover {
   text-decoration: underline;
 }
 
-.bot-app-launch-cards {
+.app-launch-cards {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -9609,11 +9509,11 @@ a.embed-title:hover {
   background: var(--bg-elevated);
 }
 
-.bot-app-launch-card {
+.app-launch-card {
   max-width: 480px;
 }
 
-.bot-mini-app-overlay {
+.mini-app-overlay {
   position: fixed;
   inset: 0;
   z-index: 8000;
@@ -9622,7 +9522,7 @@ a.embed-title:hover {
   background: var(--bg);
 }
 
-.bot-mini-app-header {
+.mini-app-header {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -9632,7 +9532,7 @@ a.embed-title:hover {
   flex-shrink: 0;
 }
 
-.bot-mini-app-header button {
+.mini-app-header button {
   background: none;
   border: none;
   cursor: pointer;
@@ -9643,7 +9543,7 @@ a.embed-title:hover {
   line-height: 1;
 }
 
-.bot-mini-app-header button:hover {
+.mini-app-header button:hover {
   background: var(--bg-hover);
   color: var(--text);
 }

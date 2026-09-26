@@ -4,7 +4,6 @@ import { formatPubkey, formatRelative, type Channel } from "@wavvon/core";
 import type { BanInfo, InviteInfo, MemberAdminInfo, NameColorMode, PendingUser, RoleInfo } from "../../types";
 import { ImagePicker } from "../ImagePicker";
 import { AlliancesSection, type AlliancesSectionActions } from "./AlliancesSection";
-import { ExternalBotSection, type ExternalBotSectionActions } from "./ExternalBotSection";
 import { WebhooksSection, type WebhooksSectionActions } from "./WebhooksSection";
 import { HubIconsSection, type HubIconsSectionActions } from "./HubIconsSection";
 import { SurveyAdminSection, type SurveyAdminSectionActions } from "./SurveyAdminSection";
@@ -27,7 +26,6 @@ export type HubAdminTab =
   | "bans"
   | "invites"
   | "integrations"
-  | "external-bots"
   | "certifications"
   | "recovery"
   | "moderation"
@@ -137,8 +135,6 @@ export interface HubAdminPageProps {
   serverTagsActions: ServerTagsSectionActions;
   inviteActions: InviteManagerActions;
   webhookActions: WebhooksSectionActions;
-  externalBotActions: ExternalBotSectionActions;
-  renderBotCapabilities?: (pubkey: string) => ReactNode;
   auditLogActions: AuditLogSectionActions;
   certActions: CertificationsSectionActions;
   /** Soundboard hub routes (upload/list/delete/fetch-audio) — omitted where
@@ -236,13 +232,12 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ] : []),
     { id: "certifications", label: t("hub.admin.tabs.certifications"), group: G_MEMBERS },
     ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MEMBERS }] : []),
-    // Alliances is cross-hub channel sharing, not a bot/webhook integration —
+    // Alliances is cross-hub channel sharing, not an app/webhook integration —
     // grouped with other cross-hub features instead. The federated ban list
     // lives inside the Moderation tab, not its own nav entry, so it doesn't
     // move here.
     ...(admin ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_FEDERATION }] : []),
     { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_INTEGRATIONS },
-    { id: "external-bots", label: t("hub.admin.tabs.bots"), group: G_INTEGRATIONS },
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
     ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_ADVANCED }] : []),
@@ -692,14 +687,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
             <WebhooksSection channels={props.channels} actions={props.webhookActions} />
             {props.renderOutgoingWebhooks?.()}
           </>
-        )}
-
-        {props.tab === "external-bots" && (
-          <ExternalBotSection
-            channels={props.channels}
-            actions={props.externalBotActions}
-            renderCapabilities={props.renderBotCapabilities}
-          />
         )}
 
         {props.tab === "certifications" && (

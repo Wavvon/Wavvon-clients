@@ -77,14 +77,6 @@ export type { ReplyContext, Message, User } from "@wavvon/ui";
 
 export type { NotifyMode } from "@wavvon/ui";
 
-export interface BotInfo {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  token?: string;
-}
-
 export type { Hub } from "@wavvon/ui";
 
 export type { ChannelRoleOverwrites, ChannelRolePermissions, ChannelPermissionsResponse } from "@wavvon/ui";
@@ -337,7 +329,7 @@ export interface LobbyStatus {
   welcome_md: string | null;
 }
 
-// ---- Bot Challenge ----
+// ---- Admission challenge ----
 
 export interface ChallengePrompt {
   id: string;
@@ -414,13 +406,12 @@ export interface SurveyResponseAdmin {
   }>;
 }
 
-// ---- Bot message types ----
+// ---- Rich message content ----
 
 export type {
-  Embed, EmbedField, ComponentRow, BotComponent, BotButton, BotSelect, SelectOption,
-  BotCommandDef, BotProfile,
+  Embed, EmbedField, ComponentRow, MessageComponent, MessageButton, MessageSelect,
+  SelectOption, AppCommandDef, AppProfile,
 } from "@wavvon/ui";
-export type { ExternalBotRow, ExternalBotInviteResult } from "@wavvon/ui";
 
 // ---- Webhooks ----
 
@@ -533,22 +524,22 @@ export interface IgnoreEntry {
 
 export type { LinkPreview } from "@wavvon/ui";
 
-// ---- Bot mini-app events ----
+// ---- Mini-app events ----
 
-export type { BotAppLaunchEvent } from "@wavvon/ui";
+export type { AppLaunchEvent } from "@wavvon/ui";
 
-export interface BotAppOpenEvent {
-  type: 'bot_app_open';
-  bot_id: string;
+export interface AppOpenEvent {
+  type: 'app_open';
+  app_id: string;
   channel_id: string;
   mini_app_url: string;
   session_token: string;
   requires_camera: boolean;
 }
 
-export interface BotAppCloseEvent {
-  type: 'bot_app_close';
-  bot_id: string;
+export interface AppCloseEvent {
+  type: 'app_close';
+  app_id: string;
   channel_id: string;
 }
 

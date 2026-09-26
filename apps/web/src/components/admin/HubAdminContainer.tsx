@@ -5,12 +5,11 @@ import {
   listAdminRecoveryRequests, approveRecoveryRequest, denyRecoveryRequest,
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
-import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection, BotCapabilitiesPanel } from "@wavvon/ui";
-import { adminGetBotCapabilities, adminSetBotCapabilities } from "../../platform/commands/bots";
+import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection } from "@wavvon/ui";
 import type { RecoveryContactsSectionActions } from "@wavvon/ui";
 import {
   rolesActions, memberRoleActions, serverTagsActions, inviteActions,
-  webhookActions, externalBotActions, auditLogActions,
+  webhookActions, auditLogActions,
   certActions, soundboardActions, onboardingActions, allianceActions,
   hubIconActions, surveyActions,
 } from "../../platform/adminActions";
@@ -122,13 +121,6 @@ export function HubAdminContainer({
         serverTagsActions={serverTagsActions}
         inviteActions={inviteActions}
         webhookActions={webhookActions}
-        externalBotActions={externalBotActions}
-        renderBotCapabilities={(pubkey) => (
-          <BotCapabilitiesPanel
-            pubkey={pubkey}
-            actions={{ get: adminGetBotCapabilities, set: adminSetBotCapabilities }}
-          />
-        )}
         auditLogActions={auditLogActions}
         certActions={certActions}
         soundboardActions={soundboardActions}

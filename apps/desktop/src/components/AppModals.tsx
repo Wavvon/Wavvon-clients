@@ -43,7 +43,7 @@ import type { EncryptionWarning } from "@wavvon/ui";
 import { ScreenShareModal } from "./ScreenShareModal";
 import { ScreenShareOverlay } from "./ScreenShareOverlay";
 import { ChannelPalette } from "./ChannelPalette";
-import { BotChallenge } from "./BotChallenge";
+import { AdmissionChallenge } from "./AdmissionChallenge";
 import { SurveyComponent } from "./Survey";
 
 // Every modal, overlay and context menu the app can put over itself.
@@ -75,7 +75,7 @@ export interface AppModalsProps {
   error: string | null;
   setToast: (v: string | null) => void;
 
-  // Add a hub / bot challenge / approval survey
+  // Add a hub / admission challenge / approval survey
   setShowHubBrowser: (v: boolean) => void;
   pendingSurveyHubId: string | null;
   setPendingSurveyHubId: (v: string | null) => void;
@@ -201,16 +201,16 @@ export function AppModals(p: AppModalsProps) {
 
   return (
     <>
-      {addHub.botChallenge && (
-        <BotChallenge
-          hubUrl={addHub.botChallenge.hubUrl}
-          pubkey={addHub.botChallenge.pubkey}
+      {addHub.admissionChallenge && (
+        <AdmissionChallenge
+          hubUrl={addHub.admissionChallenge.hubUrl}
+          pubkey={addHub.admissionChallenge.pubkey}
           onPassed={(token) => {
-            addHub.setBotChallenge(null);
+            addHub.setAdmissionChallenge(null);
             addHub.handleAddHub(token);
           }}
           onCancel={() => {
-            addHub.setBotChallenge(null);
+            addHub.setAdmissionChallenge(null);
             addHub.setLoading(false);
           }}
         />

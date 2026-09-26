@@ -730,40 +730,6 @@ pub(crate) struct ChallengeResult {
 }
 
 // ---------------------------------------------------------------------------
-// Bots
-// ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct BotCommandDef {
-    pub name: String,
-    pub description: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct BotProfileResult {
-    pub pubkey: String,
-    pub name: String,
-    pub avatar_url: Option<String>,
-    pub description: Option<String>,
-    pub commands: Vec<BotCommandDef>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct ExternalBotRow {
-    pub public_key: String,
-    pub display_name: Option<String>,
-    pub local_note: Option<String>,
-    pub approval_status: String,
-    pub last_seen_at: Option<i64>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct ExternalBotInviteResult {
-    pub bot_invite_token: String,
-    pub pubkey: String,
-}
-
-// ---------------------------------------------------------------------------
 // Webhooks
 // ---------------------------------------------------------------------------
 
@@ -1013,22 +979,22 @@ pub(crate) enum WsServerMessage {
         new_sender_id: u16,
         new_pubkey: String,
     },
-    #[serde(rename = "bot_app_launch")]
-    BotAppLaunch {
-        bot_id: String,
+    #[serde(rename = "app_launch")]
+    AppLaunch {
+        app_id: String,
         title: String,
         description: String,
         channel_id: String,
     },
-    #[serde(rename = "bot_app_open")]
-    BotAppOpen {
-        bot_id: String,
+    #[serde(rename = "app_open")]
+    AppOpen {
+        app_id: String,
         channel_id: String,
         mini_app_url: String,
         session_token: String,
     },
-    #[serde(rename = "bot_app_close")]
-    BotAppClose { bot_id: String, channel_id: String },
+    #[serde(rename = "app_close")]
+    AppClose { app_id: String, channel_id: String },
     /// Hub branding/settings changed; re-fetch the hub info.
     #[serde(rename = "hub_updated")]
     HubUpdated,

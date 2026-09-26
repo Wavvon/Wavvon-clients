@@ -16,7 +16,7 @@ interface VerifyResponse {
   token: string;
   canonical_pubkey?: string;
   // "lobby" when the hub's lobby is enabled and this identity's PoW level
-  // is below min_security_level (lobby-bot-survey.md Feature 1); "member"
+  // is below min_security_level (lobby-survey.md Feature 1); "member"
   // (or absent, for hubs predating the lobby) otherwise.
   scope?: string;
 }

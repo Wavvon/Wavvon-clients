@@ -33,9 +33,7 @@ import {
 import { fetchSoundboardAudioBytes } from "@platform";
 import {
   adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
-  adminListExternalBots, adminAddExternalBot, adminRemoveExternalBot,
-  adminGetBotChannelScope, adminSetBotChannelScope,
-} from "./commands/bots";
+} from "./commands/apps";
 import {
 } from "@platform";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault } from "../utils/profiles";
@@ -114,14 +112,6 @@ export const webhookActions = {
   createWebhook: adminCreateWebhook,
   regenerateWebhook: adminRegenerateWebhook,
   deleteWebhook: adminDeleteWebhook,
-};
-
-export const externalBotActions = {
-  loadBots: adminListExternalBots,
-  addBot: adminAddExternalBot,
-  removeBot: adminRemoveExternalBot,
-  getBotChannelScope: adminGetBotChannelScope,
-  setBotChannelScope: adminSetBotChannelScope,
 };
 
 export const auditLogActions = { getAuditLog } as AuditLogSectionActions;

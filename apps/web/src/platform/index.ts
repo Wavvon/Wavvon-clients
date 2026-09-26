@@ -58,7 +58,7 @@ export {
 } from "./commands/messages";
 export type { UnreadCount } from "./commands/messages";
 
-export { sendBotAppJoin, listBotCommands, listBots, getBotProfile } from "./commands/bots";
+export { sendAppJoin, listAppCommands, listApps } from "./commands/apps";
 
 export {
   listConversations,

@@ -46,7 +46,7 @@ export interface WsHandlers {
     custom: string | null,
     hubId: string,
   ) => void;
-  onBotApp?: (e: object) => void;
+  onAppEvent?: (e: object) => void;
   /** Hub-pushed voice_move (events.md §7.1) — targeted-by-pubkey, like whisper. */
   onVoiceMove?: (e: object) => void;
   /** voice-transport-v2.md E2E key distribution — a peer's key offer for us. */
@@ -218,8 +218,8 @@ export class HubWebSocket {
         (tagged.custom as string | null) ?? null,
         this.hub_id,
       );
-    } else if (type === "bot_app_launch" || type === "bot_app_open" || type === "bot_app_close") {
-      this.handlers.onBotApp?.(tagged);
+    } else if (type === "app_launch" || type === "app_open" || type === "app_close") {
+      this.handlers.onAppEvent?.(tagged);
     } else if (type === "voice_zone_created") {
       this.handlers.onVoiceZoneCreated?.(tagged);
     } else if (type === "voice_zone_destroyed") {
