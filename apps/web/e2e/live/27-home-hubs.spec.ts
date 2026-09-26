@@ -23,14 +23,30 @@ test("publish a home-hub list and read it back", async ({ page }) => {
 
   let section = await openHomeHubs(page);
 
-  // Add the current hub and publish.
-  await section.getByRole("button", { name: "Add this hub" }).click();
-  await expect(section.getByText(HUB_URL, { exact: false }).first()).toBeVisible();
+  // Signing in publishes this hub as the first home hub on its own, so there
+  // is no first write left to make and no "Add this hub" button to click.
+  // The round-trip is proven by emptying the published list and putting it
+  // back: every assertion below reads what the hub serves, since the section
+  // loads from getHomeHubDesignation rather than from local state.
+  await expect(section.getByText(HUB_URL, { exact: false }).first()).toBeVisible({ timeout: 10000 });
+  await section.getByRole("button", { name: "Remove" }).first().click();
   await section.getByRole("button", { name: "Publish home hubs" }).click();
   await expect(section.getByText("Published ✓")).toBeVisible({ timeout: 10000 });
 
-  // Reload: the section re-fetches the designation from the hub. The hub must
-  // appear, marked preferred (★), which only happens if the signed write stuck.
+  // An emptied list stays empty — nothing is added back on the next load.
+  await page.reload();
+  await expectInHub(page);
+  section = await openHomeHubs(page);
+  await expect(section.getByText(HUB_URL, { exact: false })).toHaveCount(0);
+
+  // Put it back, so the DM specs later in the file still have a home hub.
+  await section.getByRole("textbox", { name: "Home hub URL" }).fill(HUB_URL);
+  await section.getByRole("button", { name: "Add", exact: true }).click();
+  await section.getByRole("button", { name: "Publish home hubs" }).click();
+  await expect(section.getByText("Published ✓")).toBeVisible({ timeout: 10000 });
+
+  // Reload: the hub must serve it again, marked preferred (★), which only
+  // happens if the signed write stuck.
   await page.reload();
   await expectInHub(page);
   section = await openHomeHubs(page);

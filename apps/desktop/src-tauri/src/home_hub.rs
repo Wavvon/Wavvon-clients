@@ -154,6 +154,53 @@ pub fn get_home_hub_list() -> Option<HomeHubList> {
     read_cached_designation()
 }
 
+/// The first hub an identity signs in to becomes its home hub.
+///
+/// Personal-axis state — the prefs blob, the DM inbox — needs a published list
+/// to live in, and a list only ever created by hand in the Home Hubs screen
+/// stays empty for almost everyone. Then no hub can resolve where to deliver a
+/// DM, and fan-out and mirroring skip the identity in silence.
+///
+/// Only for an identity that has **no list at all**. A paired device is
+/// skipped (a subkey cannot sign a `HomeHubList`), and so is a device that
+/// already holds one locally — joining a hub that has not seen your list yet
+/// is not a reason to replace it.
+///
+/// That second guard is load-bearing, not defensive. `set_home_hub_list` signs
+/// with `cached sequence + 1`, and consumers take the highest sequence, so
+/// publishing a single-hub list from here would *win* against the user's real
+/// one everywhere — turning "I joined another hub" into "my home hub list was
+/// silently reset to that hub". The hub answering 404 means only that this hub
+/// has not seen the designation; it says nothing about whether one exists.
+///
+/// Best-effort by design — a hub too old to serve designations, or simply
+/// unreachable, must not fail a join.
+pub(crate) async fn ensure_designation(hub_url: &str, client: &reqwest::Client) {
+    if crate::pairing::get_paired_identity().is_some() {
+        return;
+    }
+    if read_cached_designation().is_some() {
+        return;
+    }
+    let Ok(master) = load_master() else { return };
+    let hub_url = hub_url.trim_end_matches('/').to_string();
+
+    let endpoint = format!(
+        "{}/identity/{}/designation",
+        hub_url,
+        master.public_key_hex()
+    );
+    match client.get(&endpoint).send().await {
+        // Anything the hub answers with other than "nothing here" means we
+        // must not write: a 200 is the user's existing list, and a 5xx or a
+        // transport error is a hub we cannot conclude anything about.
+        Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND => {}
+        _ => return,
+    }
+
+    let _ = set_home_hub_list(vec![hub_url]).await;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

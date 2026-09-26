@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { validateSkin } from "../skinValidation";
 import type { WavvonSkin } from "../skinValidation";
 
-const DISCOVERY_URL = "https://discovery.wavvon.app";
+// Supplied by the app (prop-only package); the literal that used to be here
+// did not resolve.
 
 interface SkinListItem {
   id: string;
@@ -21,23 +23,23 @@ interface Props {
    *  (kept app-side since packages/ui stays network-free). Only ever called
    *  here with a bare URL, so any richer app-side signature still fits. */
   fetchWithTimeout: (url: string) => Promise<Response>;
+  /** Base URL of the hub directory that hosts the gallery. The app does not
+   *  render this component when it has none, so this is required rather than
+   *  defaulted — a default is how the dead hostname got here. */
+  discoveryUrl: string;
   onImport: (skin: WavvonSkin) => void;
 }
 
-const BASE_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "calm", label: "Calm" },
-  { value: "classic", label: "Classic" },
-  { value: "linear", label: "Linear" },
-  { value: "light", label: "Light" },
-];
+// "" is the no-filter option; the rest reuse the skin editor's base names.
+const BASE_OPTIONS = ["", "calm", "classic", "linear", "light"];
 
 function truncatePubkey(pk: string): string {
   if (pk.length <= 20) return pk;
   return pk.slice(0, 10) + "…" + pk.slice(-6);
 }
 
-export function SkinsGallery({ fetchWithTimeout, onImport }: Props) {
+export function SkinsGallery({ fetchWithTimeout, onImport, discoveryUrl }: Props) {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
   const [base, setBase] = useState("");
   const [page, setPage] = useState(1);
@@ -57,7 +59,7 @@ export function SkinsGallery({ fetchWithTimeout, onImport }: Props) {
     if (query.trim()) params.set("q", query.trim());
     if (baseFilter) params.set("base", baseFilter);
     params.set("page", String(pageNum));
-    fetchWithTimeout(`${DISCOVERY_URL}/api/skins?${params.toString()}`)
+    fetchWithTimeout(`${discoveryUrl}/api/skins?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<{ skins: SkinListItem[]; total: number }>;
@@ -93,7 +95,7 @@ export function SkinsGallery({ fetchWithTimeout, onImport }: Props) {
   async function handleCardClick(skin: SkinListItem) {
     setImportingId(skin.id);
     try {
-      const res = await fetchWithTimeout(`${DISCOVERY_URL}/api/skins/${skin.id}`);
+      const res = await fetchWithTimeout(`${discoveryUrl}/api/skins/${skin.id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const full = await res.json() as { payload: string };
       const parsed = JSON.parse(full.payload) as unknown;
@@ -110,11 +112,11 @@ export function SkinsGallery({ fetchWithTimeout, onImport }: Props) {
 
   return (
     <div style={{ marginTop: 24 }}>
-      <label className="settings-label">Browse skins</label>
+      <label className="settings-label">{t("settings.skins.browse")}</label>
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <input
           type="search"
-          placeholder="Search skins…"
+          placeholder={t("settings.skins.search")}
           value={q}
           onChange={(e) => handleQChange(e.target.value)}
           style={{ flex: 1, minWidth: 140 }}
@@ -125,16 +127,18 @@ export function SkinsGallery({ fetchWithTimeout, onImport }: Props) {
           style={{ minWidth: 100 }}
         >
           {BASE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o} value={o}>
+              {o === "" ? t("settings.skins.filter_all") : t(`settings.skin.base.${o}`)}
+            </option>
           ))}
         </select>
       </div>
 
       {loading && (
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>Loading…</p>
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.skins.loading")}</p>
       )}
       {!loading && skins.length === 0 && (
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>No skins found.</p>
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.skins.empty")}</p>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
@@ -188,15 +192,15 @@ export function SkinsGallery({ fetchWithTimeout, onImport }: Props) {
         <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
           {page > 1 && (
             <button className="btn-secondary" onClick={() => setPage((p) => p - 1)}>
-              Previous
+              {t("settings.skins.previous")}
             </button>
           )}
           <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
-            Page {page} of {Math.ceil(total / 20)}
+            {t("settings.skins.page", { page, total: Math.ceil(total / 20) })}
           </span>
           {page * 20 < total && (
             <button className="btn-secondary" onClick={() => setPage((p) => p + 1)}>
-              Load more
+              {t("settings.skins.load_more")}
             </button>
           )}
         </div>

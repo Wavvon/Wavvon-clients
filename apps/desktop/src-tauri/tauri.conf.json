@@ -1,6 +1,6 @@
 {
   "productName": "Wavvon",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "identifier": "com.wavvon.desktop",
   "build": {
     "frontendDist": "../dist",

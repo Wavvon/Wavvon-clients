@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import type { SurveyAdmin, SurveyQuestion, SurveyChoice, SurveyResponseView } from "../../types";
 
@@ -25,6 +26,7 @@ interface Props {
 // roles (role assignment on choices is a further follow-up — this builds the
 // questions/choices and enables the survey).
 export function SurveyAdminSection({ actions }: Props) {
+  const { t } = useTranslation();
   const [survey, setSurvey] = useState<SurveyAdmin | null>(null);
   const [responses, setResponses] = useState<SurveyResponseView[] | null>(null);
   const [showResponses, setShowResponses] = useState(false);
@@ -115,7 +117,7 @@ export function SurveyAdminSection({ actions }: Props) {
     setBusy(true); setError(null); setStatus(null);
     try {
       await actions.setSurveyAdmin(survey);
-      setStatus("Survey saved");
+      setStatus(t("hub.admin.survey.saved"));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -123,41 +125,37 @@ export function SurveyAdminSection({ actions }: Props) {
     }
   }
 
-  if (!survey) return <section><h1>Survey</h1><p className="muted">Loading…</p></section>;
+  if (!survey) return <section><h1>{t("hub.admin.survey.tab_title")}</h1><p className="muted">{t("hub.admin.survey.loading")}</p></section>;
 
   return (
     <section>
-      <h1>Onboarding survey</h1>
-      <p className="muted">New members answer this when they join.</p>
+      <h1>{t("hub.admin.survey.title")}</h1>
+      <p className="muted">{t("hub.admin.survey.hint")}</p>
       {error && <p className="error-text">{error}</p>}
       {status && <p className="muted">{status}</p>}
 
       <label className="checkbox-label">
         <input type="checkbox" checked={survey.enabled} onChange={(e) => patch({ enabled: e.target.checked })} />
-        Enable this survey
+        {t("hub.admin.survey.enable")}
       </label>
-      <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-        Roles assigned to choices below are granted automatically on submission, but only when every
-        question the member answered is multiple-choice. Surveys with any free-text answer go to manual
-        review instead.
-      </p>
+      <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("hub.admin.survey.autogrant_hint")}</p>
 
       {survey.questions.map((q, i) => (
         <div key={q.id} className="settings-section" style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "var(--space-2)" }}>
           <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)" }}>
-            <span className="muted">{i + 1}. {q.kind}</span>
+            <span className="muted">{i + 1}. {t(`hub.admin.survey.kind.${q.kind}`)}</span>
             <input
               type="text"
               value={q.prompt}
               onChange={(e) => patchQuestion(q.id, { prompt: e.target.value })}
-              placeholder="Question prompt"
-              aria-label={`Question ${i + 1} prompt`}
+              placeholder={t("hub.admin.survey.prompt_placeholder")}
+              aria-label={t("hub.admin.survey.question_aria", { n: i + 1 })}
               style={{ flex: 1 }}
             />
             <label className="checkbox-label" style={{ fontSize: "var(--text-xs)" }}>
-              <input type="checkbox" checked={q.required} onChange={(e) => patchQuestion(q.id, { required: e.target.checked })} /> required
+              <input type="checkbox" checked={q.required} onChange={(e) => patchQuestion(q.id, { required: e.target.checked })} /> {t("hub.admin.survey.required")}
             </label>
-            <button className="btn-small btn-secondary danger" onClick={() => removeQuestion(q.id)}>Remove</button>
+            <button className="btn-small btn-secondary danger" onClick={() => removeQuestion(q.id)}>{t("hub.admin.survey.remove")}</button>
           </div>
           {q.kind === "choice" && (
             <div style={{ paddingLeft: "var(--space-3)", marginTop: 4 }}>
@@ -167,12 +165,12 @@ export function SurveyAdminSection({ actions }: Props) {
                     type="text"
                     value={c.label}
                     onChange={(e) => patchChoice(q.id, c.id, e.target.value)}
-                    placeholder="Choice label"
-                    aria-label="Choice label"
+                    placeholder={t("hub.admin.survey.choice_placeholder")}
+                    aria-label={t("hub.admin.survey.choice_placeholder")}
                     style={{ width: "100%", maxWidth: 320 }}
                   />
                   <label className="muted" style={{ fontSize: "var(--text-xs)" }} htmlFor={`choice-roles-${c.id}`}>
-                    Auto-grant roles
+                    {t("hub.admin.survey.autogrant_roles")}
                   </label>
                   <select
                     id={`choice-roles-${c.id}`}
@@ -188,34 +186,34 @@ export function SurveyAdminSection({ actions }: Props) {
                   </select>
                 </div>
               ))}
-              <button className="btn-small btn-secondary" onClick={() => addChoice(q.id)}>+ Add choice</button>
+              <button className="btn-small btn-secondary" onClick={() => addChoice(q.id)}>{t("hub.admin.survey.add_choice")}</button>
             </div>
           )}
         </div>
       ))}
 
       <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-        <button className="btn-secondary" onClick={() => addQuestion("text")}>+ Text question</button>
-        <button className="btn-secondary" onClick={() => addQuestion("choice")}>+ Choice question</button>
+        <button className="btn-secondary" onClick={() => addQuestion("text")}>{t("hub.admin.survey.add_text_question")}</button>
+        <button className="btn-secondary" onClick={() => addQuestion("choice")}>{t("hub.admin.survey.add_choice_question")}</button>
         <span style={{ flex: 1 }} />
-        <button onClick={save} disabled={busy}>Save survey</button>
+        <button onClick={save} disabled={busy}>{t("hub.admin.survey.save")}</button>
       </div>
 
       <div className="settings-section" style={{ marginTop: "var(--space-4)" }}>
         <button className="btn-secondary" onClick={toggleResponses}>
-          {showResponses ? "Hide responses" : "View responses"}
+          {showResponses ? t("hub.admin.survey.hide_responses") : t("hub.admin.survey.view_responses")}
         </button>
         {showResponses && (
           responses === null ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{t("hub.admin.survey.loading")}</p>
           ) : responses.length === 0 ? (
-            <p className="muted">No responses yet.</p>
+            <p className="muted">{t("hub.admin.survey.responses_empty")}</p>
           ) : (
             <table className="members-table" style={{ marginTop: "var(--space-3)" }}>
               <thead>
                 <tr>
-                  <th>Member</th>
-                  <th>Submitted</th>
+                  <th>{t("hub.admin.survey.col.member")}</th>
+                  <th>{t("hub.admin.survey.col.submitted")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -227,7 +225,7 @@ export function SurveyAdminSection({ actions }: Props) {
                       onClick={() => setExpandedResponseId((prev) => (prev === r.response_id ? null : r.response_id))}
                     >
                       <td>
-                        <div>{r.display_name || <span className="muted">(no name)</span>}</div>
+                        <div>{r.display_name || <span className="muted">{t("hub.admin.survey.no_name")}</span>}</div>
                         <div className="member-pk">{formatPubkey(r.pubkey)}</div>
                       </td>
                       <td>{formatRelative(r.submitted_at)}</td>

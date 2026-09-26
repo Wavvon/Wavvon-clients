@@ -8,6 +8,9 @@ interface Props {
   selectedChannel: Channel;
   channels: Channel[];
   memberSidebarHidden: boolean;
+  /** Live connection readout, supplied by the app (this package is
+   *  network-free, so it cannot measure anything itself). */
+  connectionStatus?: React.ReactNode;
   searchOpen: boolean;
   searchQuery: string;
   searchResults: Message[] | null;
@@ -28,6 +31,7 @@ export function ChannelHeader({
   selectedChannel,
   channels,
   memberSidebarHidden,
+  connectionStatus,
   searchOpen,
   searchQuery,
   searchResults,
@@ -68,7 +72,7 @@ export function ChannelHeader({
           <h3>
             # {selectedChannel.name}
             {selectedChannel.nsfw && (
-              <span className="channel-temp-badge" style={{ marginLeft: 8 }} title="NSFW / mature content">NSFW</span>
+              <span className="channel-temp-badge" style={{ marginLeft: 8 }} title={t("channel.sidebar.nsfw_badge")}>NSFW</span>
             )}
           </h3>
           {selectedChannel.description ? (
@@ -89,12 +93,13 @@ export function ChannelHeader({
             </p>
           ) : null}
         </div>
+        {connectionStatus}
         {onOpenHubStreams && (
           <button
             onClick={onOpenHubStreams}
             className="btn-icon-header"
-            title="Live screen shares"
-            aria-label="Live screen shares"
+            title={t("content.streams.title")}
+            aria-label={t("content.streams.title")}
           >
             📡
           </button>
@@ -102,7 +107,8 @@ export function ChannelHeader({
         <button
           onClick={onShowPinned}
           className="btn-icon-header"
-          title="Pinned messages"
+          title={t("content.pinned.title")}
+          aria-label={t("content.pinned.title")}
         >
           📌
         </button>

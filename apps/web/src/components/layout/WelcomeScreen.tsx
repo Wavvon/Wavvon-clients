@@ -6,6 +6,7 @@ import type { Hub } from "@shared/types";
 import { parseHubInput } from "@wavvon/core";
 import type { HubInputResult } from "@wavvon/core";
 import { WelcomeScreen } from "@wavvon/ui";
+import { MULTI_HUB } from "../../constants";
 
 type HubPreview =
   | { state: "idle" }
@@ -28,6 +29,12 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hubPreview, setHubPreview] = useState<HubPreview>({ state: "idle" });
+
+  // The invite deep-link handler in App.tsx can set this after we have
+  // already mounted, so it is a prop to follow, not just a seed.
+  useEffect(() => {
+    if (initialHubUrl) setHubUrl(initialHubUrl);
+  }, [initialHubUrl]);
 
   useEffect(() => {
     const trimmed = hubUrl.trim();
@@ -81,6 +88,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
       onJoin={handleJoin}
       onBrowse={onBrowse}
       homeHubHint={initialHubUrl}
+      hubUrlLocked={!MULTI_HUB}
     />
   );
 }

@@ -115,15 +115,14 @@ pub(crate) async fn list_conversations(
 ) -> Result<Vec<ConversationInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    client
-        .get(format!("{hub_url}/conversations"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?
-        .json()
-        .await
-        .map_err(|e| format!("Invalid: {e}"))
+    crate::paging::fetch_all_pages_as(
+        &client,
+        &token,
+        &format!("{hub_url}/conversations"),
+        "id",
+        "list_conversations",
+    )
+    .await
 }
 
 #[tauri::command]
@@ -381,23 +380,41 @@ pub(crate) async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), Str
     let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
     let (_, dh_pub) = identity.dh_keypair();
     let dh_pubkey_hex = hex::encode(dh_pub.as_bytes());
-    let sig_bytes = {
-        let msg =
-            crate::identity::DhKeyRecord::signing_bytes(&identity.public_key_hex(), &dh_pubkey_hex);
-        identity.sign(&msg).to_bytes()
-    };
-    let signature_hex = hex::encode(sig_bytes);
-    let pubkey_hex = identity.public_key_hex();
 
-    let hub_sessions: Vec<(String, String)> = {
+    // Per hub, not once for all of them: the hub verifies the record against
+    // the pubkey in the URL and that must be the identity *it* seated us as,
+    // which is not the same on every hub (see HubSession::canonical_pubkey).
+    // Published under the wrong one the row fails its foreign key and nobody
+    // can encrypt to this device at all — which is why a DM to a fresh
+    // desktop identity arrived in plaintext until 2026-09-06.
+    let hub_sessions: Vec<(String, String, String)> = {
         let sessions = state.hubs.lock().unwrap();
         sessions
             .values()
-            .map(|s| (s.hub_url.clone(), s.token.clone()))
+            .map(|s| {
+                (
+                    s.hub_url.clone(),
+                    s.token.clone(),
+                    s.canonical_pubkey.clone(),
+                )
+            })
             .collect()
     };
 
-    for (hub_url, token) in hub_sessions {
+    for (hub_url, token, canonical) in hub_sessions {
+        let me = crate::auth_creds::hub_identity(Some(&canonical))?;
+        let pubkey_hex = me.pubkey();
+        // A paired device holds a subkey, and a DH record carries no cert to
+        // chain it — only the device that holds the canonical seed can sign
+        // one. The enrolling device already published it. (Web skips for the
+        // same reason: canPublishDhKey in platform/commands/dms.ts.)
+        if pubkey_hex != canonical {
+            continue;
+        }
+        let signature_hex = hex::encode(me.sign(&crate::identity::DhKeyRecord::signing_bytes(
+            &pubkey_hex,
+            &dh_pubkey_hex,
+        )));
         let url = format!("{}/identity/{}/dh-key", hub_url, pubkey_hex);
         let client = state.http_client.clone();
         let _ = client
@@ -461,16 +478,6 @@ pub(crate) async fn fetch_dh_key(
     Ok(body["dh_pubkey_hex"].as_str().map(|s| s.to_string()))
 }
 
-#[tauri::command]
-pub(crate) async fn decrypt_dm(
-    conv_id: String,
-    envelope: serde_json::Value,
-) -> Result<String, String> {
-    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
-    decrypt_dm_inner(&conv_id, &envelope, &identity)
-}
-
 // ---------------------------------------------------------------------------
 // Group E2E sender-key commands
 // ---------------------------------------------------------------------------
@@ -510,6 +517,110 @@ pub(crate) fn dm_envelope_signing_bytes(
         out.extend_from_slice(b);
     }
     out
+}
+
+/// One member's copy of a sender key: the wrapped key and the nonce that
+/// wrapped it, kept apart.
+///
+/// They used to be packed into one `"wrapped:nonce"` string and passed as the
+/// `wrapped_hex` half of the signing pairs, so this side signed over the pair
+/// *including* the nonce while the hub signs over the wrapped key alone
+/// (identity crate, `sender_key_dist_signing_bytes`). Every distribution was
+/// rejected, which is every group conversation: nobody can send under a
+/// sender key nobody could be given.
+pub(crate) struct WrappedForRecipient {
+    pub pubkey: String,
+    pub wrapped_hex: String,
+    pub nonce_hex: String,
+}
+
+/// Wrap the chain key for every member but ourselves.
+///
+/// One function for both the first distribution and the leave-triggered
+/// rotation: they were copies, and the copies had already drifted — the
+/// rotation signed with this device's own `Identity` instead of routing
+/// through `auth_creds::hub_identity`, so it claimed the canonical pubkey and
+/// signed with a key that is not it.
+///
+/// A member whose DH key cannot be fetched is skipped, deliberately: they get
+/// no copy of this key and cannot read the messages under it, which is the
+/// same outcome as any absent key and is repaired by the next rotation.
+#[allow(clippy::too_many_arguments)]
+async fn wrap_for_members(
+    client: &reqwest::Client,
+    hub_url: &str,
+    token: &str,
+    members: &[String],
+    my_pubkey: &str,
+    my_dh_sec: &x25519_dalek::StaticSecret,
+    conv_id: &str,
+    chain_key: &[u8; 32],
+    iteration: u32,
+) -> Vec<WrappedForRecipient> {
+    let mut out = Vec::new();
+    for member in members {
+        if member == my_pubkey {
+            continue;
+        }
+        let dh_resp: serde_json::Value = match client
+            .get(format!("{hub_url}/identity/{member}/dh-key"))
+            .bearer_auth(token)
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
+            _ => continue,
+        };
+        let Some(dh_hex) = dh_resp["dh_pubkey_hex"].as_str() else {
+            continue;
+        };
+        let Ok(dh_bytes) = hex::decode(dh_hex) else {
+            continue;
+        };
+        let Ok(dh_arr) = <[u8; 32]>::try_from(dh_bytes) else {
+            continue;
+        };
+        let rec_pub = x25519_dalek::PublicKey::from(dh_arr);
+        let Ok((wrapped_hex, nonce_hex)) =
+            wrap_chain_key(my_dh_sec, &rec_pub, conv_id, chain_key, iteration)
+        else {
+            continue;
+        };
+        out.push(WrappedForRecipient {
+            pubkey: member.clone(),
+            wrapped_hex,
+            nonce_hex,
+        });
+    }
+    out
+}
+
+/// The `(pubkey, wrapped_hex)` pairs the signature covers — the nonce is not
+/// among them, which is the whole point of keeping the two apart.
+fn dist_signing_pairs(recipients: &[WrappedForRecipient]) -> Vec<(String, String)> {
+    recipients
+        .iter()
+        .map(|r| (r.pubkey.clone(), r.wrapped_hex.clone()))
+        .collect()
+}
+
+/// The request blobs. `iteration` is required by the hub and was missing, so
+/// the body failed to deserialize before any signature was even looked at.
+fn dist_recipients_json(
+    recipients: &[WrappedForRecipient],
+    iteration: u32,
+) -> Vec<serde_json::Value> {
+    recipients
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "recipient_pubkey": r.pubkey,
+                "wrapped_key_hex": r.wrapped_hex,
+                "wrap_nonce_hex": r.nonce_hex,
+                "iteration": iteration,
+            })
+        })
+        .collect()
 }
 
 pub(crate) fn sender_key_dist_signing_bytes(
@@ -630,15 +741,16 @@ pub(crate) async fn push_group_sender_key(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
 
-    let convs: Vec<serde_json::Value> = client
-        .get(format!("{hub_url}/conversations"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?
-        .json()
-        .await
-        .map_err(|e| format!("Invalid: {e}"))?;
+    // Walked to exhaustion: this looks a conversation up by id, and a single
+    // page would silently miss it for anyone with more DM partners than fit.
+    let convs = crate::paging::fetch_all_pages(
+        &client,
+        &token,
+        &format!("{hub_url}/conversations"),
+        "id",
+        "conversation lookup",
+    )
+    .await?;
 
     let members: Vec<String> = convs
         .iter()
@@ -651,57 +763,19 @@ pub(crate) async fn push_group_sender_key(
         })
         .unwrap_or_default();
 
-    let my_pubkey = identity.public_key_hex();
-    let mut recipients: Vec<(String, String)> = Vec::new();
+    let me = crate::auth_creds::hub_identity(
+        crate::state::canonical_for_url(&state, &hub_url).as_deref(),
+    )?;
+    let my_pubkey = me.pubkey();
+    let recipients = wrap_for_members(
+        &client, &hub_url, &token, &members, &my_pubkey, &my_dh_sec, &conv_id, &chain_key,
+        iteration,
+    )
+    .await;
 
-    for member in &members {
-        if member == &my_pubkey {
-            continue;
-        }
-        let dh_resp: serde_json::Value = match client
-            .get(format!("{hub_url}/identity/{member}/dh-key"))
-            .bearer_auth(&token)
-            .send()
-            .await
-        {
-            Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
-            _ => continue,
-        };
-        let dh_hex = match dh_resp["dh_pubkey_hex"].as_str() {
-            Some(h) => h.to_string(),
-            None => continue,
-        };
-        let dh_bytes = match hex::decode(&dh_hex) {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        let dh_arr: [u8; 32] = match dh_bytes.try_into() {
-            Ok(a) => a,
-            Err(_) => continue,
-        };
-        let rec_pub = x25519_dalek::PublicKey::from(dh_arr);
-        let (wrapped_hex, nonce_hex) =
-            match wrap_chain_key(&my_dh_sec, &rec_pub, &conv_id, &chain_key, iteration) {
-                Ok(v) => v,
-                Err(_) => continue,
-            };
-        recipients.push((member.clone(), format!("{}:{}", wrapped_hex, nonce_hex)));
-    }
-
-    let signing_bytes = sender_key_dist_signing_bytes(&conv_id, version, &recipients);
-    let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
-
-    let recipients_json: Vec<serde_json::Value> = recipients
-        .iter()
-        .map(|(pubkey, packed)| {
-            let parts: Vec<&str> = packed.splitn(2, ':').collect();
-            serde_json::json!({
-                "recipient_pubkey": pubkey,
-                "wrapped_key_hex": parts[0],
-                "wrap_nonce_hex": parts[1],
-            })
-        })
-        .collect();
+    let signing_bytes =
+        sender_key_dist_signing_bytes(&conv_id, version, &dist_signing_pairs(&recipients));
+    let signature_hex = hex::encode(me.sign(&signing_bytes));
 
     let resp = client
         .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
@@ -710,8 +784,11 @@ pub(crate) async fn push_group_sender_key(
             "sender_pubkey": my_pubkey,
             "sender_key_version": version,
             "iteration": iteration,
-            "recipients": recipients_json,
+            "recipients": dist_recipients_json(&recipients, iteration),
             "signature_hex": signature_hex,
+            // A paired device signs with its subkey; the cert is what ties
+            // that signature to the canonical pubkey claimed above.
+            "signer_cert": me.signer_cert(),
         }))
         .send()
         .await
@@ -758,15 +835,16 @@ pub(crate) async fn rotate_group_sender_key(
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
 
-    let convs: Vec<serde_json::Value> = client
-        .get(format!("{hub_url}/conversations"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?
-        .json()
-        .await
-        .map_err(|e| format!("Invalid: {e}"))?;
+    // Walked to exhaustion: this looks a conversation up by id, and a single
+    // page would silently miss it for anyone with more DM partners than fit.
+    let convs = crate::paging::fetch_all_pages(
+        &client,
+        &token,
+        &format!("{hub_url}/conversations"),
+        "id",
+        "conversation lookup",
+    )
+    .await?;
 
     let members: Vec<String> = convs
         .iter()
@@ -779,57 +857,26 @@ pub(crate) async fn rotate_group_sender_key(
         })
         .unwrap_or_default();
 
-    let my_pubkey = identity.public_key_hex();
-    let mut recipients: Vec<(String, String)> = Vec::new();
+    let me = crate::auth_creds::hub_identity(
+        crate::state::canonical_for_url(&state, &hub_url).as_deref(),
+    )?;
+    let my_pubkey = me.pubkey();
+    let recipients = wrap_for_members(
+        &client,
+        &hub_url,
+        &token,
+        &members,
+        &my_pubkey,
+        &my_dh_sec,
+        &conv_id,
+        &new_chain_key,
+        iteration,
+    )
+    .await;
 
-    for member in &members {
-        if member == &my_pubkey {
-            continue;
-        }
-        let dh_resp: serde_json::Value = match client
-            .get(format!("{hub_url}/identity/{member}/dh-key"))
-            .bearer_auth(&token)
-            .send()
-            .await
-        {
-            Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
-            _ => continue,
-        };
-        let dh_hex = match dh_resp["dh_pubkey_hex"].as_str() {
-            Some(h) => h.to_string(),
-            None => continue,
-        };
-        let dh_bytes = match hex::decode(&dh_hex) {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        let dh_arr: [u8; 32] = match dh_bytes.try_into() {
-            Ok(a) => a,
-            Err(_) => continue,
-        };
-        let rec_pub = x25519_dalek::PublicKey::from(dh_arr);
-        let (wrapped_hex, nonce_hex) =
-            match wrap_chain_key(&my_dh_sec, &rec_pub, &conv_id, &new_chain_key, iteration) {
-                Ok(v) => v,
-                Err(_) => continue,
-            };
-        recipients.push((member.clone(), format!("{}:{}", wrapped_hex, nonce_hex)));
-    }
-
-    let signing_bytes = sender_key_dist_signing_bytes(&conv_id, new_version, &recipients);
-    let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
-
-    let recipients_json: Vec<serde_json::Value> = recipients
-        .iter()
-        .map(|(pubkey, packed)| {
-            let parts: Vec<&str> = packed.splitn(2, ':').collect();
-            serde_json::json!({
-                "recipient_pubkey": pubkey,
-                "wrapped_key_hex": parts[0],
-                "wrap_nonce_hex": parts[1],
-            })
-        })
-        .collect();
+    let signing_bytes =
+        sender_key_dist_signing_bytes(&conv_id, new_version, &dist_signing_pairs(&recipients));
+    let signature_hex = hex::encode(me.sign(&signing_bytes));
 
     let resp = client
         .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
@@ -838,8 +885,9 @@ pub(crate) async fn rotate_group_sender_key(
             "sender_pubkey": my_pubkey,
             "sender_key_version": new_version,
             "iteration": iteration,
-            "recipients": recipients_json,
+            "recipients": dist_recipients_json(&recipients, iteration),
             "signature_hex": signature_hex,
+            "signer_cert": me.signer_cert(),
         }))
         .send()
         .await
@@ -986,14 +1034,12 @@ pub(crate) async fn fetch_group_sender_keys(
 pub(crate) async fn encrypt_group_dm(
     conv_id: String,
     content: String,
+    state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
     use hkdf::Hkdf;
     use sha2::Sha256;
-
-    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
 
     let mut key_state = load_sender_key_state()?;
 
@@ -1047,27 +1093,23 @@ pub(crate) async fn encrypt_group_dm(
     let nonce_hex = hex::encode(nonce_bytes);
     let signing_bytes =
         group_envelope_signing_bytes(&conv_id, version, iteration, &ciphertext_hex, &nonce_hex);
-    let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
+    let me =
+        crate::auth_creds::hub_identity(crate::state::active_canonical_pubkey(&state).as_deref())?;
+    let signature_hex = hex::encode(me.sign(&signing_bytes));
 
     Ok(serde_json::json!({
-        "sender_pubkey": identity.public_key_hex(),
+        "sender_pubkey": me.pubkey(),
         "conv_id": conv_id,
         "sender_key_version": version,
         "iteration": iteration,
         "ciphertext_hex": ciphertext_hex,
         "nonce_hex": nonce_hex,
         "signature_hex": signature_hex,
+        // Same as the 1:1 envelope: on a paired device `me.sign` is the
+        // subkey, and this is what ties it to the canonical pubkey claimed
+        // above. `None` on a device that signs as itself.
+        "signer_cert": me.signer_cert(),
     }))
-}
-
-#[tauri::command]
-pub(crate) async fn decrypt_group_dm(
-    conv_id: String,
-    envelope: serde_json::Value,
-) -> Result<String, String> {
-    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
-    decrypt_group_dm_inner(&conv_id, &envelope, &identity)
 }
 
 // ---------------------------------------------------------------------------
@@ -1105,6 +1147,10 @@ pub struct DrDmEnvelope {
     pub sender_pubkey: String,
     pub conv_id: String,
     pub ciphertext_hex: String,
+    /// Always empty for v2 — the nonce is derived from the message key and is
+    /// not transmitted. Present because the hub's `EncryptedDmEnvelope`
+    /// requires the field; web sends the same empty string.
+    pub nonce_hex: String,
     /// Sender's current ratchet DH public key.
     pub dh_pubkey_hex: String,
     pub signature_hex: String,
@@ -1112,6 +1158,13 @@ pub struct DrDmEnvelope {
     pub v: u8,
     pub message_index: u32,
     pub prev_count: u32,
+    /// Present when the signing key is not the sender: a paired device signs
+    /// with its subkey and chains it to the canonical identity through this
+    /// cert (decisions.md, "Paired-device DMs attribute to canonical via
+    /// cert-chained envelopes"). Omitted otherwise, which keeps a
+    /// single-device envelope byte-identical to what the vectors pin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signer_cert: Option<crate::identity::SubkeyCert>,
 }
 
 fn dr_sessions_path() -> Result<std::path::PathBuf, String> {
@@ -1377,12 +1430,15 @@ pub(crate) async fn init_dr_session(
 pub(crate) async fn encrypt_dm_dr(
     conv_id: String,
     content: String,
+    state: State<'_, AppState>,
 ) -> Result<DrDmEnvelope, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
 
-    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
+    // Who the hub seated this session as, not who this device is: it verifies
+    // the signature against that pubkey and refuses the message otherwise.
+    let me =
+        crate::auth_creds::hub_identity(crate::state::active_canonical_pubkey(&state).as_deref())?;
 
     let mut sessions = load_dr_sessions()?;
     let session = sessions
@@ -1420,7 +1476,7 @@ pub(crate) async fn encrypt_dm_dr(
         &ciphertext_hex,
         &dhs_pub,
     );
-    let signature_hex = hex::encode(identity.sign(&signing_bytes).to_bytes());
+    let signature_hex = hex::encode(me.sign(&signing_bytes));
 
     // Advance state
     session.cks = Some(hex::encode(new_cks));
@@ -1429,36 +1485,17 @@ pub(crate) async fn encrypt_dm_dr(
     save_dr_sessions(&sessions)?;
 
     Ok(DrDmEnvelope {
-        sender_pubkey: identity.public_key_hex(),
+        sender_pubkey: me.pubkey(),
         conv_id,
         ciphertext_hex,
+        nonce_hex: String::new(),
         dh_pubkey_hex: dhs_pub,
         signature_hex,
         v: 2,
         message_index,
         prev_count,
+        signer_cert: me.signer_cert(),
     })
-}
-
-/// Decrypt a Double Ratchet v2 DM from a JSON-serialised `DrDmEnvelope`.
-///
-/// `sender_dh_pub_hex` (the sender's published static DH key) enables the
-/// responder init when no session exists yet; without it a missing session
-/// returns `Err("dr_session_not_initialised")`.
-#[tauri::command]
-pub(crate) async fn decrypt_dm_dr(
-    conv_id: String,
-    envelope_json: String,
-    sender_dh_pub_hex: Option<String>,
-) -> Result<String, String> {
-    let env: DrDmEnvelope =
-        serde_json::from_str(&envelope_json).map_err(|e| format!("bad envelope: {e}"))?;
-    let result = decrypt_dm_dr_inner(
-        &conv_id,
-        &serde_json::to_value(&env).map_err(|e| e.to_string())?,
-        sender_dh_pub_hex.as_deref(),
-    )?;
-    Ok(result)
 }
 
 /// Inner synchronous DR decrypt used both by `decrypt_dm_dr` and `get_dm_messages`.
@@ -1700,6 +1737,65 @@ fn decrypt_group_dm_inner(
 
 #[cfg(test)]
 mod tests {
+    use super::{dist_recipients_json, dist_signing_pairs, WrappedForRecipient};
+
+    fn wrapped() -> Vec<WrappedForRecipient> {
+        vec![
+            WrappedForRecipient {
+                pubkey: "bb".repeat(32),
+                wrapped_hex: "11".repeat(48),
+                nonce_hex: "0102030405060708090a0b0c".to_string(),
+            },
+            WrappedForRecipient {
+                pubkey: "cc".repeat(32),
+                wrapped_hex: "22".repeat(48),
+                nonce_hex: "0c0b0a090807060504030201".to_string(),
+            },
+        ]
+    }
+
+    /// The signature covers the wrapped key, and not the nonce beside it.
+    ///
+    /// The two used to be packed into one `"wrapped:nonce"` string that was
+    /// passed as the `wrapped_hex` half of the pairs, so this side signed over
+    /// something the hub — which signs over `wrapped_key_hex` alone — could
+    /// never reproduce. Every sender-key distribution was refused, and with it
+    /// every group conversation, since nobody can send under a key nobody
+    /// could be handed. The mirror of the signing function was correct all
+    /// along; the caller was not, which is why no wire vector caught it.
+    #[test]
+    fn the_signed_pairs_carry_the_wrapped_key_and_not_the_nonce() {
+        let pairs = dist_signing_pairs(&wrapped());
+        assert_eq!(pairs.len(), 2);
+        for (_, wrapped_hex) in &pairs {
+            assert!(
+                !wrapped_hex.contains(':'),
+                "the nonce must not be packed into the signed value: {wrapped_hex}"
+            );
+        }
+        assert_eq!(pairs[0].1, "11".repeat(48));
+        assert_eq!(pairs[1].1, "22".repeat(48));
+    }
+
+    /// Every blob carries its iteration.
+    ///
+    /// The hub's `SenderKeyRecipientBlob` requires it and has no default, so a
+    /// body without it was refused as unprocessable before any signature was
+    /// looked at — a second, independent reason the same request could never
+    /// succeed.
+    #[test]
+    fn every_recipient_blob_carries_its_iteration() {
+        let blobs = dist_recipients_json(&wrapped(), 7);
+        assert_eq!(blobs.len(), 2);
+        for blob in &blobs {
+            assert_eq!(blob["iteration"], 7);
+            assert!(blob["recipient_pubkey"].is_string());
+            assert!(blob["wrapped_key_hex"].is_string());
+            assert!(blob["wrap_nonce_hex"].is_string());
+        }
+        assert_eq!(blobs[0]["wrap_nonce_hex"], "0102030405060708090a0b0c");
+    }
+
     use super::*;
 
     fn static_keypair(seed_byte: u8) -> (x25519_dalek::StaticSecret, String) {
@@ -1770,5 +1866,39 @@ mod tests {
             .expect("TS-initiator envelope must decrypt under the Rust responder chain");
         let v: serde_json::Value = serde_json::from_slice(&plaintext_bytes).unwrap();
         assert_eq!(v["content"], "cross-language vector");
+    }
+
+    /// The hub's `EncryptedDmEnvelope` requires every field, `nonce_hex`
+    /// included, so an envelope that omits it is rejected at
+    /// deserialization: 422, no row, nothing stored. That is how desktop DMs
+    /// reached nothing silently until 2026-09-06. Web sends the same empty
+    /// string.
+    #[test]
+    fn dr_envelope_carries_every_field_the_hub_requires() {
+        let env = DrDmEnvelope {
+            sender_pubkey: "aa".into(),
+            conv_id: "conv-shape".into(),
+            ciphertext_hex: "bb".into(),
+            nonce_hex: String::new(),
+            dh_pubkey_hex: "cc".into(),
+            signature_hex: "dd".into(),
+            v: 2,
+            message_index: 0,
+            prev_count: 0,
+            signer_cert: None,
+        };
+        let json: serde_json::Value = serde_json::to_value(&env).unwrap();
+        for field in [
+            "sender_pubkey",
+            "conv_id",
+            "ciphertext_hex",
+            "nonce_hex",
+            "dh_pubkey_hex",
+            "signature_hex",
+            "v",
+        ] {
+            assert!(json.get(field).is_some(), "missing {field}");
+        }
+        assert_eq!(json["nonce_hex"], "");
     }
 }

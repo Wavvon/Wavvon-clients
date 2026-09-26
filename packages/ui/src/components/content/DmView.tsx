@@ -119,7 +119,7 @@ export function DmView({
             const failedBadge = showFailed ? (
               <span
                 className="dm-delivery-failed"
-                title="The sender's hub couldn't deliver this to one or more recipients after retries."
+                title={t("dm.undelivered")}
               >
                 {t("dm.delivery_failed")}
               </span>

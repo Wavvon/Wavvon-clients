@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ForumTagDef } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 import { ColorSwatchPicker } from "../admin/ColorSwatchPicker";
@@ -23,6 +24,7 @@ interface Props {
  * (forum.md §10.3) — mirrors RoleCategoryManager's label/color/reorder/delete
  * pattern one-for-one. */
 export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
+  const { t } = useTranslation();
   const [newLabel, setNewLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
   }
 
   async function handleDelete(tag: ForumTagDef) {
-    if (!window.confirm(`Delete tag "${tag.label}"? It will be removed from every post.`)) return;
+    if (!window.confirm(t("forum.tags.delete_confirm", { label: tag.label }))) return;
     await runMutation(async () => {
       await actions.deleteTag(tag.id);
       onChange(tags.filter((t) => t.id !== tag.id));
@@ -86,11 +88,11 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
 
   return (
     <div className="settings-section">
-      <label className="settings-label">Tags</label>
-      <p className="muted">Define the tags members can pick when posting.</p>
+      <label className="settings-label">{t("forum.tags.title")}</label>
+      <p className="muted">{t("forum.tags.hint")}</p>
       {error && <p className="error-text">{error}</p>}
 
-      {sorted.length === 0 && <p className="muted">No tags yet.</p>}
+      {sorted.length === 0 && <p className="muted">{t("forum.tags.empty")}</p>}
 
       {sorted.map((tag, index) => (
         <div key={tag.id} className="settings-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -99,8 +101,8 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
             className="btn-small btn-secondary"
             onClick={() => handleMove(index, -1)}
             disabled={index === 0}
-            aria-label="Move up"
-            title="Move up"
+            aria-label={t("forum.tags.move_up")}
+            title={t("forum.tags.move_up")}
           >
             ↑
           </button>
@@ -109,8 +111,8 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
             className="btn-small btn-secondary"
             onClick={() => handleMove(index, 1)}
             disabled={index === sorted.length - 1}
-            aria-label="Move down"
-            title="Move down"
+            aria-label={t("forum.tags.move_down")}
+            title={t("forum.tags.move_down")}
           >
             ↓
           </button>
@@ -133,19 +135,19 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
               border: safeRoleColor(tag.color) ? undefined : "1px solid var(--border)",
             }}
             onClick={() => setColorPickerFor(colorPickerFor === tag.id ? null : tag.id)}
-            title="Tag color"
+            title={t("forum.tags.color")}
           />
           <button
             type="button"
             className="btn-small btn-secondary danger"
             onClick={() => handleDelete(tag)}
           >
-            Delete
+            {t("forum.tags.delete")}
           </button>
           {colorPickerFor === tag.id && (
             <ColorSwatchPicker
               value={tag.color}
-              noColorLabel="No color"
+              noColorLabel={t("hub.admin.roles.no_color")}
               onChange={(color) => runMutation(async () => replace(await actions.editTag(tag.id, { color })))}
             />
           )}
@@ -157,10 +159,10 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
           type="text"
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}
-          placeholder="New tag label"
+          placeholder={t("forum.tags.new_placeholder")}
         />
         <button type="button" onClick={handleCreate} disabled={creating || !newLabel.trim()}>
-          Create tag
+          {t("forum.tags.create")}
         </button>
       </div>
     </div>

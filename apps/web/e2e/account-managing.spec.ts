@@ -41,7 +41,7 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
   await page.route(`${HUB_URL}/**`, (route) => {
     const url = route.request().url();
     if (
-      url.includes("/bots") ||
+      url.includes("/apps") ||
       url.includes("/voice") ||
       url.includes("/dh-key") ||
       url.includes("/unread") ||

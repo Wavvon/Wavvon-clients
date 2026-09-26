@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FocusTrap } from "@wavvon/ui";
 import type { SurveyAdmin, SurveyAnswerInput } from "@platform";
 import { submitSurvey } from "@platform";
@@ -10,6 +11,7 @@ export function SurveyModal({ survey, onDone, onSkip }: {
   onDone: () => void;
   onSkip: () => void;
 }) {
+  const { t } = useTranslation();
   const [answers, setAnswers] = useState<Record<string, string>>({}); // question_id → choice_id | text
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export function SurveyModal({ survey, onDone, onSkip }: {
     <div className="modal-overlay">
       <FocusTrap>
         <div className="modal" role="dialog" aria-modal="true" aria-labelledby="survey-title" style={{ maxWidth: 480 }}>
-          <h3 id="survey-title">A few questions before you join</h3>
+          <h3 id="survey-title">{t("survey.modal.title")}</h3>
           {error && <div className="error" style={{ marginBottom: "var(--space-2)" }}>{error}</div>}
 
           {survey.questions.map((q) => (
@@ -71,8 +73,8 @@ export function SurveyModal({ survey, onDone, onSkip }: {
           ))}
 
           <div className="modal-actions">
-            <button className="btn-secondary" onClick={onSkip} disabled={busy}>Skip for now</button>
-            <button onClick={submit} disabled={busy || missingRequired}>Submit</button>
+            <button className="btn-secondary" onClick={onSkip} disabled={busy}>{t("onboarding.display_name.skip")}</button>
+            <button onClick={submit} disabled={busy || missingRequired}>{t("survey.modal.submit")}</button>
           </div>
         </div>
       </FocusTrap>

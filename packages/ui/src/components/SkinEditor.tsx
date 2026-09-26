@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   SKINNABLE_TOKENS,
   WavvonSkin,
@@ -13,12 +14,7 @@ import {
 } from "../skinValidation";
 
 const BASES: SkinBase[] = ["calm", "classic", "linear", "light"];
-const BASE_LABELS: Record<SkinBase, string> = {
-  calm: "Calm",
-  classic: "Classic",
-  linear: "Linear",
-  light: "Light",
-};
+
 
 interface Props {
   skin: WavvonSkin;
@@ -46,6 +42,7 @@ function TokenRow({
   onChange: (v: string) => void;
   onReset: () => void;
 }) {
+  const { t } = useTranslation();
   const effective = value ?? readBaseToken(tokenName, base);
   const isOverridden = value !== undefined;
 
@@ -66,7 +63,7 @@ function TokenRow({
         />
         <span style={{ width: 36, textAlign: "right", fontSize: "var(--text-xs)" }}>{numVal.toFixed(2)}×</span>
         {isOverridden && (
-          <button className="btn-icon" onClick={onReset} title="Reset to base" aria-label={`Reset ${label}`} style={{ marginLeft: 4 }}>
+          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
             ↺
           </button>
         )}
@@ -86,7 +83,7 @@ function TokenRow({
           aria-label={label}
         />
         {isOverridden && (
-          <button className="btn-icon" onClick={onReset} title="Reset to base" aria-label={`Reset ${label}`} style={{ marginLeft: 4 }}>
+          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
             ↺
           </button>
         )}
@@ -118,7 +115,7 @@ function TokenRow({
         />
         <span style={{ width: 32, fontSize: "var(--text-xs)", textAlign: "right" }}>{Math.round(alpha * 100)}%</span>
         {isOverridden && (
-          <button className="btn-icon" onClick={onReset} title="Reset to base" aria-label={`Reset ${label}`} style={{ marginLeft: 4 }}>
+          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
             ↺
           </button>
         )}
@@ -146,7 +143,7 @@ function TokenRow({
         aria-label={`${label} hex`}
       />
       {isOverridden && (
-        <button className="btn-icon" onClick={onReset} title="Reset to base" aria-label={`Reset ${label}`} style={{ marginLeft: 4 }}>
+        <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
           ↺
         </button>
       )}
@@ -155,6 +152,7 @@ function TokenRow({
 }
 
 export function SkinEditor({ skin, onChange }: Props) {
+  const { t } = useTranslation();
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -213,7 +211,7 @@ export function SkinEditor({ skin, onChange }: Props) {
         setImportError(null);
         onChange(validated);
       } catch (err) {
-        setImportError(err instanceof Error ? err.message : "Invalid skin file");
+        setImportError(err instanceof Error ? err.message : t("settings.skin.invalid"));
       }
     };
     reader.readAsText(file);
@@ -225,33 +223,33 @@ export function SkinEditor({ skin, onChange }: Props) {
     <div style={{ marginTop: 16 }}>
       <div className="settings-section">
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <label className="settings-label" style={{ marginBottom: 0 }}>Skin name</label>
+          <label className="settings-label" style={{ marginBottom: 0 }}>{t("settings.skin.name")}</label>
           <input
             type="text"
             value={skin.name}
             onChange={(e) => updateName(e.target.value)}
             maxLength={48}
             style={{ flex: 1 }}
-            aria-label="Skin name"
+            aria-label={t("settings.skin.name")}
           />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <label className="settings-label" htmlFor="skin-base-select" style={{ marginBottom: 0 }}>Base theme</label>
+          <label className="settings-label" htmlFor="skin-base-select" style={{ marginBottom: 0 }}>{t("settings.skin.base")}</label>
           <select
             id="skin-base-select"
             value={skin.base}
             onChange={(e) => updateBase(e.target.value as SkinBase)}
           >
-            {BASES.map((b) => <option key={b} value={b}>{BASE_LABELS[b]}</option>)}
+            {BASES.map((b) => <option key={b} value={b}>{t(`settings.skin.base.${b}`)}</option>)}
           </select>
           <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-            Unset tokens inherit from this theme.
+            {t("settings.skin.base_hint")}
           </span>
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn-secondary" onClick={handleExport}>Export .wavvonskin</button>
-          <button className="btn-secondary" onClick={handleImportClick}>Import .wavvonskin</button>
+          <button className="btn-secondary" onClick={handleExport}>{t("settings.skin.export")}</button>
+          <button className="btn-secondary" onClick={handleImportClick}>{t("settings.skin.import")}</button>
           {overrideCount > 0 && (
             <button className="btn-secondary" onClick={resetAll}>Reset all ({overrideCount})</button>
           )}
@@ -262,7 +260,7 @@ export function SkinEditor({ skin, onChange }: Props) {
           accept=".wavvonskin,application/json"
           style={{ display: "none" }}
           onChange={handleFileChange}
-          aria-label="Import skin file"
+          aria-label={t("settings.skin.import_aria")}
         />
         {importError && (
           <p style={{ color: "var(--danger)", fontSize: "var(--text-xs)", marginTop: 6 }}>{importError}</p>

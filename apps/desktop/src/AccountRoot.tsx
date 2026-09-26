@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import App from "./App";
 import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSummary } from "./accounts/store";
 
@@ -17,6 +18,7 @@ import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSumma
 // (ManageAccountsTab) is a later pass — see the AccountSwitcherSection in
 // SettingsPage's Account tab for the equivalent of web's trigger meanwhile.
 export default function AccountRoot() {
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,28 +63,25 @@ export default function AccountRoot() {
   if (accounts.length === 0) {
     return (
       <div className="account-gate" style={{ maxWidth: 480, margin: "10vh auto", padding: "0 16px" }}>
-        <h1>Welcome to Wavvon</h1>
-        <p className="muted">
-          Create a new identity, or import an existing one from its 24-word recovery phrase, to get
-          started.
-        </p>
+        <h1>{t("account_gate.title")}</h1>
+        <p className="muted">{t("account_gate.hint")}</p>
         {error && <p style={{ color: "var(--color-error, red)" }}>{error}</p>}
         <div className="settings-section">
           <button disabled={busy} onClick={() => handleCreate(false)}>
-            Create new identity
+            {t("identity_setup.choose.create")}
           </button>
         </div>
         <div className="settings-section">
-          <label className="settings-label">Or import from recovery phrase</label>
+          <label className="settings-label">{t("account_gate.import_label")}</label>
           <textarea
             className="recovery-input"
-            placeholder="word1 word2 word3 …"
+            placeholder={t("identity_setup.recover.phrase_placeholder")}
             value={phrase}
             onChange={(e) => setPhrase(e.target.value)}
             rows={3}
           />
           <button disabled={busy || wordCount !== 24} onClick={() => handleCreate(true)}>
-            Import
+            {t("settings.account.accounts.import_button")}
           </button>
         </div>
       </div>

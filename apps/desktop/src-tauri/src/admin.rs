@@ -99,46 +99,6 @@ pub(crate) async fn list_users(
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub(crate) async fn update_display_name(
-    display_name: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
-    let client = state.http_client.clone();
-    let resp = client
-        .patch(format!("{hub_url}/me"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "display_name": display_name }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) async fn update_avatar(
-    avatar: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
-    let client = state.http_client.clone();
-    let resp = client
-        .patch(format!("{hub_url}/me"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "avatar": avatar }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    Ok(())
-}
-
-#[tauri::command]
 pub(crate) async fn get_me(state: State<'_, AppState>) -> Result<MeInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
@@ -174,6 +134,7 @@ pub(crate) async fn get_hub_branding(state: State<'_, AppState>) -> Result<HubBr
         description: info.description,
         icon: info.icon,
         welcome_label: info.welcome_label,
+        farewell_label: info.farewell_label,
         welcome_invite_url: info.welcome_invite_url,
         timezone: info.timezone,
     })
@@ -189,6 +150,7 @@ pub(crate) async fn update_hub_branding(
     min_security_level: Option<u32>,
     max_channel_depth: Option<u32>,
     welcome_label: Option<String>,
+    farewell_label: Option<String>,
     welcome_invite_url: Option<String>,
     default_invite_role_id: Option<String>,
     timezone: Option<String>,
@@ -196,6 +158,7 @@ pub(crate) async fn update_hub_branding(
     afk_channel_id: Option<String>,
     afk_timeout_secs: Option<u32>,
     name_color_mode: Option<String>,
+    max_attachment_bytes: Option<u64>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
@@ -211,6 +174,7 @@ pub(crate) async fn update_hub_branding(
             "min_security_level": min_security_level,
             "max_channel_depth": max_channel_depth,
             "welcome_label": welcome_label,
+            "farewell_label": farewell_label,
             "welcome_invite_url": welcome_invite_url,
             "default_invite_role_id": default_invite_role_id,
             "timezone": timezone,
@@ -218,6 +182,7 @@ pub(crate) async fn update_hub_branding(
             "afk_channel_id": afk_channel_id,
             "afk_timeout_secs": afk_timeout_secs,
             "name_color_mode": name_color_mode,
+            "max_attachment_bytes": max_attachment_bytes,
         }))
         .send()
         .await
@@ -567,16 +532,14 @@ pub(crate) async fn list_pending_members(
 ) -> Result<Vec<PendingUser>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/hub/pending"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::paging::fetch_all_pages_as(
+        &client,
+        &token,
+        &format!("{hub_url}/hub/pending"),
+        "public_key",
+        "list_pending_members",
+    )
+    .await
 }
 
 #[tauri::command]
@@ -988,6 +951,52 @@ pub(crate) async fn clear_channel_role_permissions(
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct PermissionCatalogueEntry {
+    pub id: String,
+    /// `hub_and_channel` may also be set as a channel overwrite; `hub` may not,
+    /// and the hub answers 400 for one that tries.
+    pub scope: String,
+    /// Dotted prefix, so a screen groups without re-splitting the id.
+    pub group: String,
+}
+
+#[derive(serde::Deserialize)]
+struct PermissionCatalogueResponse {
+    #[serde(default)]
+    permissions: Vec<PermissionCatalogueEntry>,
+}
+
+/// GET /permissions — the permission catalogue this hub can express.
+///
+/// A hub too old to serve one has no such route and answers 404. The honest
+/// reading of that is an empty catalogue rather than an error: its ids are the
+/// older snake_case set, which share no spelling with these, so there is
+/// nothing this build could offer against it anyway. **Any other failure stays
+/// an error** — "could not ask" must not come back as "there are none".
+#[tauri::command]
+pub(crate) async fn list_permission_catalogue(
+    state: State<'_, AppState>,
+) -> Result<Vec<PermissionCatalogueEntry>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let resp = client
+        .get(format!("{hub_url}/permissions"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(Vec::new());
+    }
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let body: PermissionCatalogueResponse =
+        resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    Ok(body.permissions)
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) struct VoiceMuteInfo {
     pub target_public_key: String,
     pub muted_by: String,
@@ -1113,16 +1122,14 @@ pub(crate) struct BanInfo {
 pub(crate) async fn list_bans(state: State<'_, AppState>) -> Result<Vec<BanInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/moderation/bans"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::paging::fetch_all_pages_as(
+        &client,
+        &token,
+        &format!("{hub_url}/moderation/bans"),
+        "target_public_key",
+        "list_bans",
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1160,16 +1167,14 @@ pub(crate) struct InviteInfo {
 pub(crate) async fn list_invites(state: State<'_, AppState>) -> Result<Vec<InviteInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/invites"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::paging::fetch_all_pages_as(
+        &client,
+        &token,
+        &format!("{hub_url}/invites"),
+        "code",
+        "list_invites",
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1262,4 +1267,669 @@ pub(crate) async fn update_my_profile_on_hub(
         return Err(resp.text().await.unwrap_or_default());
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Content reports (moderation queue)
+//
+// Web has had these since the moderation suite shipped; desktop had no surface
+// for them at all, so a moderator on desktop could not see what members had
+// flagged. Parity pass 2026-09-08 — the UI is the shared
+// `ContentReportsSection`, and this is the transport half.
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct Report {
+    pub id: String,
+    pub message_id: String,
+    pub message_content: Option<String>,
+    pub channel_id: String,
+    pub reporter_pubkey: String,
+    pub reason: String,
+    pub reported_at: i64,
+    pub status: String,
+}
+
+#[tauri::command]
+pub(crate) async fn list_reports(
+    status: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<Report>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    // The vocabulary is ours ("pending", "reviewed"), so this validates rather
+    // than escapes: anything else is a caller bug, and silently encoding it
+    // would send the hub a filter nobody meant.
+    let query = match status.as_deref() {
+        None | Some("") => String::new(),
+        Some(s) if s.chars().all(|c| c.is_ascii_lowercase() || c == '_') => {
+            format!("?status={s}")
+        }
+        Some(other) => return Err(format!("unsupported report status: {other}")),
+    };
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/reports{query}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn review_report(
+    report_id: String,
+    action: String,
+    note: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/reports/{report_id}/review"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "action": action, "note": note }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct ModerationSettings {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhook_url: Option<String>,
+    pub webhook_secret_set: bool,
+    pub circuit_open: bool,
+    pub circuit_open_until: Option<i64>,
+}
+
+#[tauri::command]
+pub(crate) async fn get_moderation_settings(
+    state: State<'_, AppState>,
+) -> Result<ModerationSettings, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/settings/moderation"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// Tri-state PATCH, and the reason this builds its body by hand: Tauri gives
+/// the same `None` for an argument the caller omitted and one it passed as
+/// null, while this endpoint reads an **absent** field as "leave it alone" and
+/// an empty string as "clear it". Serializing the Options directly would send
+/// `webhook_url: null` for an untouched field, and saving a secret alone would
+/// wipe the URL. (clients CLAUDE.md, the omitted-vs-null trap — it has bitten
+/// role colour/icon and banner sources before.)
+#[tauri::command]
+pub(crate) async fn set_moderation_settings(
+    webhook_url: Option<String>,
+    webhook_secret: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+
+    let mut body = serde_json::Map::new();
+    if let Some(url) = webhook_url {
+        body.insert("webhook_url".into(), serde_json::Value::String(url));
+    }
+    if let Some(secret) = webhook_secret {
+        body.insert("webhook_secret".into(), serde_json::Value::String(secret));
+    }
+
+    let resp = state
+        .http_client
+        .patch(format!("{base}/admin/settings/moderation"))
+        .bearer_auth(&token)
+        .json(&serde_json::Value::Object(body))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Federated ban lists (federated-bans.md)
+//
+// Opt-in per hub: which peers' lists this hub subscribes to, whether it
+// publishes its own, and the local overrides that win over both. Desktop had
+// no surface for any of it.
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct BanlistSource {
+    pub url: String,
+    pub policy: String,
+    pub added_at: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer_pubkey: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct BanlistSettings {
+    pub publish_banlist: bool,
+    pub sources: Vec<BanlistSource>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct FederatedBanEntry {
+    pub source_hub_pubkey: String,
+    pub target_master_pubkey: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub added_at: i64,
+    pub synced_at: i64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct BanlistOverride {
+    pub target_pubkey: String,
+    pub override_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub created_at: i64,
+}
+
+/// Every banlist call is the same shape: admin auth on the active session, a
+/// JSON body or none, and the hub's own message on failure.
+async fn banlist_request<T: serde::de::DeserializeOwned>(
+    state: &AppState,
+    method: reqwest::Method,
+    path: &str,
+    body: Option<serde_json::Value>,
+) -> Result<T, String> {
+    let (hub_url, token) = active_session(state)?;
+    let base = hub_url.trim_end_matches('/');
+    let mut req = state
+        .http_client
+        .request(method, format!("{base}{path}"))
+        .bearer_auth(&token);
+    if let Some(b) = body {
+        req = req.json(&b);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    // A 204 has no body, and the routes that answer one are typed `()` here.
+    let text = resp.text().await.unwrap_or_default();
+    serde_json::from_str(if text.trim().is_empty() {
+        "null"
+    } else {
+        &text
+    })
+    .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn get_banlist_settings(
+    state: State<'_, AppState>,
+) -> Result<BanlistSettings, String> {
+    banlist_request(
+        &state,
+        reqwest::Method::GET,
+        "/admin/settings/banlist",
+        None,
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_banlist_entries(
+    source: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<FederatedBanEntry>, String> {
+    let path = match source.as_deref().filter(|s| !s.is_empty()) {
+        Some(s) => format!("/admin/banlist/entries?source={}", percent_encode(s)),
+        None => "/admin/banlist/entries".to_string(),
+    };
+    banlist_request(&state, reqwest::Method::GET, &path, None).await
+}
+
+#[tauri::command]
+pub(crate) async fn get_banlist_overrides(
+    state: State<'_, AppState>,
+) -> Result<Vec<BanlistOverride>, String> {
+    banlist_request(
+        &state,
+        reqwest::Method::GET,
+        "/admin/banlist/overrides",
+        None,
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn add_banlist_source(
+    url: String,
+    policy: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::POST,
+        "/admin/banlist/sources",
+        Some(serde_json::json!({ "url": url, "policy": policy })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn remove_banlist_source(
+    url: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::DELETE,
+        "/admin/banlist/sources",
+        Some(serde_json::json!({ "url": url })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn update_banlist_source_policy(
+    url: String,
+    policy: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::PATCH,
+        "/admin/banlist/sources",
+        Some(serde_json::json!({ "url": url, "policy": policy })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn add_banlist_override(
+    target_pubkey: String,
+    override_type: String,
+    reason: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::POST,
+        "/admin/banlist/overrides",
+        Some(serde_json::json!({
+            "target_pubkey": target_pubkey,
+            "override_type": override_type,
+            "reason": reason,
+        })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn remove_banlist_override(
+    target_pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let path = format!(
+        "/admin/banlist/overrides/{}",
+        percent_encode(&target_pubkey)
+    );
+    banlist_request::<()>(&state, reqwest::Method::DELETE, &path, None).await
+}
+
+#[tauri::command]
+pub(crate) async fn set_banlist_publish(
+    publish: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    banlist_request::<()>(
+        &state,
+        reqwest::Method::PATCH,
+        "/admin/settings/banlist",
+        Some(serde_json::json!({ "publish_banlist": publish })),
+    )
+    .await
+}
+
+/// Percent-encode everything outside the unreserved set. A hub URL used as a
+/// query value carries `:` and `/`, and a pubkey is hex — but both arrive from
+/// a text field, so neither is worth trusting to be what it should.
+fn percent_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.as_bytes() {
+        if b.is_ascii_alphanumeric() || b"-_.~".contains(b) {
+            out.push(*b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+// ── Outgoing webhooks (webhooks.md "Outgoing webhooks") ─────────────────────
+//
+// The last section of the admin surface that was web-only. Nine routes, all
+// on the active session like the rest of the moderation tab. Shapes are
+// deserialized straight through: the hub owns them, and re-declaring the
+// fields here would be a second place to keep in sync for no gain — the
+// section reads them in TypeScript.
+
+/// One outgoing webhook as the admin list reports it.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookSummary {
+    pub id: String,
+    pub url: String,
+    pub display_name: Option<String>,
+    pub active: bool,
+    pub failure_count: i64,
+    pub last_delivery_at: Option<i64>,
+    pub last_failure_at: Option<i64>,
+    pub created_at: i64,
+    pub created_by_pubkey: String,
+    pub subscription_count: i64,
+}
+
+/// Carries the signing secret, which the hub shows once and never again.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookCreatedResult {
+    pub id: String,
+    pub url: String,
+    pub display_name: Option<String>,
+    pub secret: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookDelivery {
+    pub id: String,
+    pub webhook_id: String,
+    pub event_type: String,
+    pub event_seq: Option<i64>,
+    pub attempted_at: i64,
+    pub attempt_number: i64,
+    pub status_code: Option<i64>,
+    pub success: bool,
+    pub error_msg: Option<String>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct EventSubscription {
+    pub event: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channels: Option<Vec<String>>,
+}
+
+#[derive(serde::Deserialize)]
+struct SubscriptionsBody {
+    subscriptions: Vec<EventSubscription>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct SubscriptionCount {
+    pub count: i64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct RotatedSecret {
+    pub secret: String,
+}
+
+#[tauri::command]
+pub(crate) async fn admin_list_outgoing_webhooks(
+    state: State<'_, AppState>,
+) -> Result<Vec<OutgoingWebhookSummary>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/outgoing-webhooks"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn admin_create_outgoing_webhook(
+    url: String,
+    display_name: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<OutgoingWebhookCreatedResult, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/outgoing-webhooks"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "url": url, "display_name": display_name }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// PATCH with a hand-built body, for the reason `set_moderation_settings` has
+/// one: Tauri gives the same `None` for an omitted argument and an explicit
+/// null, and this endpoint reads an absent field as "leave it alone". Sending
+/// nulls for the two fields the caller did not touch would clear them.
+#[tauri::command]
+pub(crate) async fn admin_update_outgoing_webhook(
+    id: String,
+    url: Option<String>,
+    display_name: Option<String>,
+    active: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let mut body = serde_json::Map::new();
+    if let Some(url) = url {
+        body.insert("url".into(), serde_json::Value::String(url));
+    }
+    if let Some(name) = display_name {
+        body.insert("display_name".into(), serde_json::Value::String(name));
+    }
+    if let Some(active) = active {
+        body.insert("active".into(), serde_json::Value::Bool(active));
+    }
+    let resp = state
+        .http_client
+        .patch(format!("{base}/admin/outgoing-webhooks/{id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::Value::Object(body))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn admin_delete_outgoing_webhook(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .delete(format!("{base}/admin/outgoing-webhooks/{id}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn admin_get_outgoing_webhook_subscriptions(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<EventSubscription>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/outgoing-webhooks/{id}/subscriptions"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let body: SubscriptionsBody = resp
+        .json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))?;
+    Ok(body.subscriptions)
+}
+
+#[tauri::command]
+pub(crate) async fn admin_set_outgoing_webhook_subscriptions(
+    id: String,
+    subscriptions: Vec<EventSubscription>,
+    state: State<'_, AppState>,
+) -> Result<SubscriptionCount, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .put(format!("{base}/admin/outgoing-webhooks/{id}/subscriptions"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "subscriptions": subscriptions }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn admin_rotate_outgoing_webhook_secret(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<RotatedSecret, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/outgoing-webhooks/{id}/rotate-secret"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn admin_enable_outgoing_webhook(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/admin/outgoing-webhooks/{id}/enable"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn admin_list_outgoing_webhook_deliveries(
+    id: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+    event_type: Option<String>,
+    success: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<Vec<OutgoingWebhookDelivery>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let base = hub_url.trim_end_matches('/');
+    let mut query: Vec<(&str, String)> = Vec::new();
+    if let Some(limit) = limit {
+        query.push(("limit", limit.to_string()));
+    }
+    if let Some(offset) = offset {
+        query.push(("offset", offset.to_string()));
+    }
+    if let Some(event_type) = event_type.as_deref() {
+        query.push(("event_type", event_type.to_string()));
+    }
+    if let Some(success) = success {
+        query.push(("success", success.to_string()));
+    }
+    let resp = state
+        .http_client
+        .get(format!("{base}/admin/outgoing-webhooks/{id}/deliveries"))
+        .query(&query)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
 }

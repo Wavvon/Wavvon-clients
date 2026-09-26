@@ -10,6 +10,7 @@ import {
   REMINDER_OFFSETS,
   type ReminderOffset,
 } from "../../utils/events";
+import { nextHalfHourValue } from "../../utils/calendar";
 import { EventSlotEditor, type SlotRow } from "./EventSlotEditor";
 
 type EventScope = "channel" | "hub_wide";
@@ -55,7 +56,12 @@ export function EventComposer({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
-  const [startAt, setStartAt] = useState("");
+  // Seeded, not empty: an empty datetime-local makes the native picker
+  // highlight a time it has not committed, so a user who only set the date
+  // hit "a start time is required" while looking at one. Kept in a memo so
+  // the dirty check below can tell "untouched default" from "chosen".
+  const initialStartAt = useMemo(() => nextHalfHourValue(), []);
+  const [startAt, setStartAt] = useState(initialStartAt);
   const [endAt, setEndAt] = useState("");
   const [slots, setSlots] = useState<SlotRow[]>([]);
   const [reminderOffset, setReminderOffset] = useState<ReminderOffset>("off");
@@ -66,6 +72,16 @@ export function EventComposer({
   const [propagateToChildren, setPropagateToChildren] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // "Is there anything here worth protecting from a stray backdrop click."
+  // The seeded start time does not count until the user changes it.
+  const isDirty =
+    title.trim() !== "" ||
+    description.trim() !== "" ||
+    location.trim() !== "" ||
+    endAt !== "" ||
+    slots.length > 0 ||
+    startAt !== initialStartAt;
 
   const announcementCandidates = useMemo(() => announcementChannelCandidates(channels), [channels]);
   const anchorChannelId = advancedFieldsSupported && scope === "hub_wide" ? announcementChannelId : channelId;
@@ -127,10 +143,16 @@ export function EventComposer({
   return (
     <div
       className="modal-overlay"
-      onClick={onClose}
+      // A backdrop click used to close and discard everything, which is a lot
+      // of typing to lose to a stray click. It still dismisses an untouched
+      // composer; once there is anything to lose it does nothing, and Cancel
+      // is the deliberate way out.
+      onClick={() => {
+        if (!isDirty) onClose();
+      }}
       role="dialog"
       aria-modal="true"
-      aria-label="Create event"
+      aria-label={t("events.composer.title")}
     >
       {/* .modal, not the undefined .modal-box (same fix as UserProfileCard) —
           without it the composer has no max-height/overflow, so Phase 3's
@@ -142,43 +164,43 @@ export function EventComposer({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 style={{ margin: "0 0 16px", fontSize: "var(--text-md)", fontWeight: 600 }}>
-          Create event
+          {t("events.composer.title")}
         </h2>
 
         <form onSubmit={handleSubmit}>
           <div className="settings-section" style={{ marginBottom: 10 }}>
-            <label className="settings-label" htmlFor="event-title">Title</label>
+            <label className="settings-label" htmlFor="event-title">{t("events.composer.title_label")}</label>
             <input
               id="event-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Event title"
+              placeholder={t("events.composer.title_placeholder")}
               style={{ width: "100%" }}
               autoFocus
             />
           </div>
 
           <div className="settings-section" style={{ marginBottom: 10 }}>
-            <label className="settings-label" htmlFor="event-description">Description</label>
+            <label className="settings-label" htmlFor="event-description">{t("events.composer.description_label")}</label>
             <textarea
               id="event-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t("events.composer.description_placeholder")}
               rows={3}
               style={{ width: "100%", resize: "vertical" }}
             />
           </div>
 
           <div className="settings-section" style={{ marginBottom: 10 }}>
-            <label className="settings-label" htmlFor="event-location">Location</label>
+            <label className="settings-label" htmlFor="event-location">{t("events.composer.location_label")}</label>
             <input
               id="event-location"
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Optional location"
+              placeholder={t("events.composer.location_placeholder")}
               style={{ width: "100%" }}
             />
           </div>
@@ -236,7 +258,7 @@ export function EventComposer({
               and renders wider than the single-column fields above. */}
           <div className="settings-row" style={{ display: "flex", gap: 12, marginBottom: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label className="settings-label" htmlFor="event-start">Start</label>
+              <label className="settings-label" htmlFor="event-start">{t("events.composer.start")}</label>
               <input
                 id="event-start"
                 type="datetime-local"
@@ -246,7 +268,7 @@ export function EventComposer({
               />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label className="settings-label" htmlFor="event-end">End (optional)</label>
+              <label className="settings-label" htmlFor="event-end">{t("events.composer.end")}</label>
               <input
                 id="event-end"
                 type="datetime-local"
@@ -285,10 +307,10 @@ export function EventComposer({
 
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button type="button" className="btn-secondary" onClick={onClose}>
-              Cancel
+              {t("events.composer.cancel")}
             </button>
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? "Creating…" : "Create event"}
+              {saving ? t("events.composer.creating") : t("events.composer.submit")}
             </button>
           </div>
         </form>

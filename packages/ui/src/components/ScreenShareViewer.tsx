@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type { ActiveStream } from "../types";
 
 export interface ScreenShareViewerRef {
@@ -51,6 +52,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     },
     ref,
   ) => {
+    const { t } = useTranslation();
     const streamStates = useRef<Map<string, StreamState>>(new Map());
     const videoRefs = useRef<Map<string, HTMLVideoElement | null>>(new Map());
     const webrtcStreams = useRef<Map<string, MediaStream>>(new Map());
@@ -284,7 +286,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
               {pipSupported && (
                 <button
                   className="pip-btn"
-                  title={pipStreamId === mainStream.stream_id ? "Exit picture-in-picture" : "Pop out (picture-in-picture)"}
+                  title={pipStreamId === mainStream.stream_id ? t("voice.share.pip_exit") : t("voice.share.pip_enter")}
                   onClick={() => enterPip(mainStream.stream_id)}
                 >
                   {pipStreamId === mainStream.stream_id ? "⊞" : "⧉"}
@@ -297,7 +299,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
                     right: pipSupported ? "calc(var(--space-2) + 34px)" : "var(--space-2)",
                     opacity: osPipOpen ? 1 : undefined,
                   }}
-                  title={osPipOpen ? "Pop in" : "Pop out (window)"}
+                  title={osPipOpen ? t("voice.share.window_exit") : t("voice.share.window_enter")}
                   onClick={() => toggleOsPip(mainStream.stream_id)}
                 >
                   {osPipOpen ? "⬇" : "⬆"}
@@ -310,7 +312,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
                     min={0}
                     max={1}
                     step={0.05}
-                    title="Volume"
+                    title={t("voice.share.volume")}
                     value={volumes[audioStream.stream_id] ?? 1}
                     onChange={(e) => {
                       const v = Number(e.target.value);

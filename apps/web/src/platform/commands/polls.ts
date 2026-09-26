@@ -1,4 +1,6 @@
 import { hubFetch } from "../http";
+import { activeHubCapabilities } from "../session";
+import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import type { Poll } from "@shared/types";
 
 export async function createPoll(
@@ -30,8 +32,18 @@ export async function createPoll(
 }
 
 export async function getPolls(channelId: string): Promise<Poll[]> {
-  const res = await hubFetch(`/channels/${channelId}/polls`);
-  return res.json() as Promise<Poll[]>;
+  return fetchAllPages<Poll>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (p) => p.id,
+    fetchPage: async (params) =>
+      (await (
+        await hubFetch(`/channels/${channelId}/polls${params ? `?${params}` : ""}`)
+      ).json()) as Poll[],
+    label: "getPolls",
+  });
 }
 
 export async function votePoll(pollId: string, optionId: string): Promise<Poll> {

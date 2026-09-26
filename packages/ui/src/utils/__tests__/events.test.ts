@@ -3,8 +3,6 @@ import type { Channel } from "@wavvon/core";
 import type { EventSlot } from "../../types";
 import {
   announcementChannelCandidates,
-  buildSlotClaimPayload,
-  buildSlotUnclaimPayload,
   canClaimSlot,
   channelHasDescendants,
   defaultAnnouncementChannelId,
@@ -116,16 +114,6 @@ describe("canClaimSlot", () => {
   it("always allows claiming an unlimited slot", () => {
     const slot = makeSlot({ capacity: null, claimed: 50, claimants: [] });
     expect(canClaimSlot(slot, "def")).toBe(true);
-  });
-});
-
-describe("slot rsvp payload builders", () => {
-  it("builds a claim payload carrying the slot id", () => {
-    expect(buildSlotClaimPayload("slot-1")).toEqual({ status: "going", slot_id: "slot-1" });
-  });
-
-  it("builds an unclaim payload with no slot id", () => {
-    expect(buildSlotUnclaimPayload()).toEqual({ status: "going" });
   });
 });
 

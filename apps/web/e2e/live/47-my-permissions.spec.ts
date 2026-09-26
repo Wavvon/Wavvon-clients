@@ -1,12 +1,18 @@
 import { test, expect } from "@playwright/test";
 import { createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
-// P47 — GET /channels/:id/my-permissions + manage_roles settings access.
-// A manage_roles (non-admin) member now gets the channel-settings gear and
-// lands directly on the Permissions tab; rename/appearance/delete stay
-// admin-only. A plain member still has no gear at all.
+// P47 — GET /channels/:id/my-permissions + channels.permissions access.
+// A member holding `channels.permissions` gets the channel-settings gear and
+// lands directly on the Permissions tab; rename, appearance and delete stay
+// with the owner. A plain member still has no gear at all.
+//
+// The permission is `channels.permissions`, not `roles.manage`: editing one
+// channel's overwrites is a channel act, and splitting it from hub-wide role
+// management is the point of having both (permissions.md §3, Channels). The
+// routes asked for the wrong one until this spec was updated — which is how
+// the mismatch was found.
 
-test("manage_roles member reaches Permissions tab; rename/delete stay admin-only", async ({ page, browser }) => {
+test("channels.permissions member reaches Permissions tab; rename/delete stay owner-only", async ({ page, browser }) => {
   test.setTimeout(120000);
   await page.goto("/");
   await expectInHub(page);
@@ -24,22 +30,22 @@ test("manage_roles member reaches Permissions tab; rename/delete stay admin-only
     await row.hover();
     await expect(row.getByRole("button", { name: "Channel settings" })).toHaveCount(0);
 
-    // Owner setup via REST: a manage_roles (NOT admin) role, assigned to the member.
+    // Owner setup via REST: a role carrying only the channel-permission act.
     const role = await hubApi<{ id: string }>(page, "/roles", {
       method: "POST",
-      body: { name: uniqueName("mods"), permissions: ["manage_roles"], priority: 1 },
+      body: { name: uniqueName("mods"), permissions: ["channels.permissions"], priority: 1 },
     });
     await hubApi(page, `/users/${me.public_key}/roles/${role.id}`, { method: "PUT" });
 
     // The endpoint itself reports the new channel-scoped effective set.
     const channels = await hubApi<Array<{ id: string; name: string }>>(member, "/channels");
     const chanId = channels.find((c) => c.name === channel)!.id;
-    const mine = await hubApi<{ permissions: string[]; is_admin: boolean }>(
+    const mine = await hubApi<{ permissions: string[]; is_owner: boolean }>(
       member,
       `/channels/${chanId}/my-permissions`,
     );
-    expect(mine.is_admin).toBe(false);
-    expect(mine.permissions).toContain("manage_roles");
+    expect(mine.is_owner).toBe(false);
+    expect(mine.permissions).toContain("channels.permissions");
 
     // Fresh load so meInfo picks up the new role, then the gear appears.
     await member.reload();
@@ -53,7 +59,7 @@ test("manage_roles member reaches Permissions tab; rename/delete stay admin-only
 
     // Lands directly on the Permissions tab (role list visible)…
     await expect(dialog.getByRole("button", { name: "everyone" })).toBeVisible();
-    // …with no admin-only surfaces: no Settings tab, no delete button.
+    // …with no owner-only surfaces: no Settings tab, no delete button.
     await expect(dialog.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
     await expect(dialog.getByRole("button", { name: /Delete (channel|category)/ })).toHaveCount(0);
   } finally {

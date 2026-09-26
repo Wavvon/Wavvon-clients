@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Drop-zone + button file picker. Resizes the chosen image (center-crop) to
@@ -23,6 +24,7 @@ export function ImagePicker({
   height?: number;
   quality?: number;
 }) {
+  const { t } = useTranslation();
   const [dragOver, setDragOver] = useState(false);
 
   function handleFile(file: File) {
@@ -85,10 +87,10 @@ export function ImagePicker({
           }}
         />
       </label>
-      <span className="muted image-picker-hint">or drop an image here</span>
+      <span className="muted image-picker-hint">{t("image_picker.drop_hint")}</span>
       {hasValue && (
         <button type="button" onClick={onClear} className="btn-secondary">
-          Clear
+          {t("image_picker.clear")}
         </button>
       )}
     </div>

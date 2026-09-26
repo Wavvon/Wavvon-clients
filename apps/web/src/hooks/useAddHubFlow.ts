@@ -22,7 +22,6 @@ export interface UseAddHubFlowParams {
   setHubs: (hubs: Hub[]) => void;
   setActiveHubIdState: (id: string) => void;
   loadHubData: () => Promise<void>;
-  setShowCreateHub: (v: boolean) => void;
   applyDeepLinkTarget: (hubId: string, target: NonNullable<HubInputResult["target"]>) => Promise<void>;
   t: (key: string) => string;
 }
@@ -33,7 +32,7 @@ export interface UseAddHubFlowParams {
 // create-hub self-host panel's "paste your owner invite" field.
 export function useAddHubFlow({
   publicKey, stableHandlers, hubsRef, setHubs, setActiveHubIdState, loadHubData,
-  setShowCreateHub, applyDeepLinkTarget, t,
+  applyDeepLinkTarget, t,
 }: UseAddHubFlowParams) {
   const [hubUrl, setHubUrl] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -112,7 +111,6 @@ export function useAddHubFlow({
       setHubs(listHubs());
       setActiveHubIdState(hub.hub_id);
       setShowAddHub(false);
-      setShowCreateHub(false);
       setHubUrl("");
       setInviteCode("");
       setHubPreview({ state: "idle" });

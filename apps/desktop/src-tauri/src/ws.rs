@@ -39,8 +39,22 @@ pub(crate) async fn spawn_ws_task(
     let status_app = app.clone();
     let status_hub_id = hub_id_for_task.clone();
     let task = tokio::spawn(async move {
+        // Round-trip probe. The hub echoes the nonce untouched and keeps no
+        // state, so the nonce is simply the millisecond we sent it.
+        let mut probe = tokio::time::interval(std::time::Duration::from_secs(2));
+        probe.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
+                _ = probe.tick() => {
+                    let nonce = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    let json = serde_json::json!({ "type": "ping", "nonce": nonce }).to_string();
+                    if ws_tx.send(WsMessage::Text(json.into())).await.is_err() {
+                        break;
+                    }
+                }
                 maybe_msg = ws_rx.next() => {
                     match maybe_msg {
                         Some(Ok(WsMessage::Text(text))) => {
@@ -74,6 +88,27 @@ pub(crate) async fn spawn_ws_task(
                                             "message_id": message_id,
                                             "reactions": reactions,
                                         }));
+                                    }
+                                    WsServerMessage::Pong { nonce, outbound_loss_pct } => {
+                                        let now = std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .map(|d| d.as_millis() as i64)
+                                            .unwrap_or(0);
+                                        // A pong for a probe sent before a
+                                        // reconnect reads as one large sample
+                                        // and ages out of the window.
+                                        if let Some(sent_at) = nonce {
+                                            let rtt = (now - sent_at).clamp(0, 60_000) as u32;
+                                            if let Some(state) = app.try_state::<crate::state::AppState>() {
+                                                if let Ok(mut stats) = state.conn_stats.lock() {
+                                                    let entry = stats
+                                                        .entry(hub_id_for_task.clone())
+                                                        .or_default();
+                                                    entry.push_sample(rtt);
+                                                    entry.outbound_loss_pct = outbound_loss_pct;
+                                                }
+                                            }
+                                        }
                                     }
                                     WsServerMessage::Typing { channel_id, public_key, display_name, typing } => {
                                         let _ = app.emit("chat-typing", serde_json::json!({
@@ -499,31 +534,31 @@ pub(crate) async fn spawn_ws_task(
                                             "sender_pubkey": sender_pubkey,
                                         }));
                                     }
-                                    WsServerMessage::BotAppLaunch { bot_id, title, description, channel_id } => {
-                                        let _ = app.emit("bot-app-launch", serde_json::json!({
+                                    WsServerMessage::AppLaunch { app_id, title, description, channel_id } => {
+                                        let _ = app.emit("app-launch", serde_json::json!({
                                             "hub_id": hub_id_for_task,
-                                            "type": "bot_app_launch",
-                                            "bot_id": bot_id,
+                                            "type": "app_launch",
+                                            "app_id": app_id,
                                             "title": title,
                                             "description": description,
                                             "channel_id": channel_id,
                                         }));
                                     }
-                                    WsServerMessage::BotAppOpen { bot_id, channel_id, mini_app_url, session_token } => {
-                                        let _ = app.emit("bot-app-open", serde_json::json!({
+                                    WsServerMessage::AppOpen { app_id, channel_id, mini_app_url, session_token } => {
+                                        let _ = app.emit("app-open", serde_json::json!({
                                             "hub_id": hub_id_for_task,
-                                            "type": "bot_app_open",
-                                            "bot_id": bot_id,
+                                            "type": "app_open",
+                                            "app_id": app_id,
                                             "channel_id": channel_id,
                                             "mini_app_url": mini_app_url,
                                             "session_token": session_token,
                                         }));
                                     }
-                                    WsServerMessage::BotAppClose { bot_id, channel_id } => {
-                                        let _ = app.emit("bot-app-close", serde_json::json!({
+                                    WsServerMessage::AppClose { app_id, channel_id } => {
+                                        let _ = app.emit("app-close", serde_json::json!({
                                             "hub_id": hub_id_for_task,
-                                            "type": "bot_app_close",
-                                            "bot_id": bot_id,
+                                            "type": "app_close",
+                                            "app_id": app_id,
                                             "channel_id": channel_id,
                                         }));
                                     }
@@ -666,12 +701,14 @@ pub(crate) async fn reauth_session(
         .await
         .map_err(|e| format!("reauth info decode: {e}"))?;
     let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
-    let new_token = creds.authenticate(&auth_url, &client, None).await?;
+    let reauth = creds.authenticate(&auth_url, &client, None).await?;
+    let new_token = reauth.token;
 
     let (old_task, hub_id_clone) = {
         let mut hubs = state.hubs.lock().unwrap();
         let session = hubs.get_mut(hub_id).ok_or("Hub vanished mid-reauth")?;
         session.token = new_token.clone();
+        session.canonical_pubkey = reauth.canonical_pubkey;
         let old_task = std::mem::replace(&mut session.ws_task, tokio::spawn(async {}));
         (old_task, session.hub_id.clone())
     };

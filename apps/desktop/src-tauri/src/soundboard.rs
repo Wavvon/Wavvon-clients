@@ -165,14 +165,3 @@ pub(crate) async fn soundboard_play_clip(
 
     Ok(())
 }
-
-/// Stops whatever soundboard clip is currently mixing into the outbound
-/// stream, if any. A no-op (not an error) when nothing is playing or there
-/// is no active voice session.
-#[tauri::command]
-pub(crate) fn soundboard_stop(state: State<'_, AppState>) -> Result<(), String> {
-    if let Some(session) = state.voice.lock().unwrap().as_ref() {
-        *session.active_clip.lock().unwrap() = None;
-    }
-    Ok(())
-}

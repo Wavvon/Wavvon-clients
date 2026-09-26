@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BackgroundMode } from "../utils/backgroundProcessor";
 import type { Hub } from "../types";
+import { DISCOVERY_URL } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
@@ -10,6 +11,7 @@ import {
   SkinEditor,
   makeSeed,
   SkinsGallery,
+  HelpTab,
   ProfileTab,
   SettingsShell,
   resolveManagingAccount,
@@ -23,6 +25,8 @@ import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { listAccounts, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
+import { loadTrustRoots, saveTrustRoots } from "../utils/trustRoots";
+import { addTrustRoot, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
 import { PrivacyTab } from "./settings/PrivacyTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
@@ -37,11 +41,14 @@ export type SettingsTab =
   | "notifications"
   | "appearance"
   | "voice"
-  | "camera";
+  | "camera"
+  | "help";
 
 export interface SettingsPageProps {
   tab: SettingsTab;
   onTab: (t: SettingsTab) => void;
+  /** A hub-context profile was saved; refresh what the hub now reports. */
+  onHubProfileSaved?: (hubId: string) => void;
   onClose: () => void;
   hubs: Hub[];
 
@@ -149,6 +156,14 @@ export function SettingsPage(props: SettingsPageProps) {
   };
   const profileEditorActions = useMemo(() => buildProfileEditorActions(props.hubs), [props.hubs]);
 
+  // Loaded per account, so switching identity switches whom you believe.
+  const [trustRoots, setTrustRoots] = useState<TrustRoot[]>([]);
+  useEffect(() => setTrustRoots(loadTrustRoots(activeId)), [activeId]);
+  function updateTrustRoots(roots: TrustRoot[]) {
+    setTrustRoots(roots);
+    saveTrustRoots(activeId, roots);
+  }
+
   const G_ACCOUNTS = t("settings.nav_groups.accounts");
   const G_APP = t("settings.nav_groups.app");
   const G_AV = t("settings.nav_groups.audio_video");
@@ -159,6 +174,7 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
     { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
     { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
+    { id: "help", label: t("settings.tabs.help"), group: G_APP },
     { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
     { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
   ];
@@ -170,6 +186,9 @@ export function SettingsPage(props: SettingsPageProps) {
             hubs={props.hubs}
             publicKey={props.publicKey}
             actions={profileEditorActions}
+            onHubProfileSaved={props.onHubProfileSaved}
+            trustRoots={trustRoots}
+            onTrustIssuer={(pubkey, label) => updateTrustRoots(addTrustRoot(trustRoots, pubkey, label))}
             {...perAccount}
           />
         )}
@@ -200,6 +219,8 @@ export function SettingsPage(props: SettingsPageProps) {
             knownNames={props.knownNames}
             hideBirthdays={props.hideBirthdays}
             onToggleHideBirthdays={props.onToggleHideBirthdays}
+            trustRoots={trustRoots}
+            onTrustRootsChange={updateTrustRoots}
           />
         )}
 
@@ -226,7 +247,13 @@ export function SettingsPage(props: SettingsPageProps) {
                 onChange={props.onSkinChange}
               />
             )}
-            <SkinsGallery fetchWithTimeout={fetchWithTimeout} onImport={props.onImportSkin} />
+            {DISCOVERY_URL && (
+              <SkinsGallery
+                fetchWithTimeout={fetchWithTimeout}
+                onImport={props.onImportSkin}
+                discoveryUrl={DISCOVERY_URL}
+              />
+            )}
             <div className="settings-section">
               <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
               <div className="settings-row">
@@ -375,6 +402,8 @@ export function SettingsPage(props: SettingsPageProps) {
             </div>
           </section>
         )}
+
+        {props.tab === "help" && <HelpTab />}
 
         {props.tab === "camera" && (
           <CameraTab

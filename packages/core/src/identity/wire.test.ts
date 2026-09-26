@@ -7,10 +7,13 @@ import {
   revocationSigningBytes,
   pairingOfferSigningBytes,
   pairingClaimSigningBytes,
+  buildPrefsBlob,
   prefsBlobSigningBytes,
   verifyPrefsBlob,
   buildHomeHubList,
   buildPairingClaim,
+  buildPairingOffer,
+  verifyPairingOffer,
   recoveryRequestSigningBytes,
   recoveryAttestationSigningBytes,
   signRecoveryRequest,
@@ -109,6 +112,25 @@ describe("wire signing-bytes vectors", () => {
     expect(signHex(sb, MASTER_SEED)).toBe(PAIRING_OFFER_SIG);
   });
 
+  it("a pairing offer verifies, and a tampered one does not", () => {
+    // The claiming device checks this before it claims: the offer is the only
+    // thing telling it whose identity it is joining, and it arrives over the
+    // user's own screen rather than from the hub.
+    const offer = buildPairingOffer(
+      MASTER_SEED,
+      MASTER_PUB,
+      ["https://hub.example"],
+      "tok123",
+      TS,
+      TS + 300,
+    );
+    expect(verifyPairingOffer(offer)).toBe(true);
+    // A hub swapping in its own master is the attack the signature stops.
+    expect(verifyPairingOffer({ ...offer, master_pubkey: SUBKEY_PUB })).toBe(false);
+    expect(verifyPairingOffer({ ...offer, home_hubs: ["https://evil.example"] })).toBe(false);
+    expect(verifyPairingOffer({ ...offer, pairing_token: "tok124" })).toBe(false);
+  });
+
   it("PairingClaim (signed by subkey)", () => {
     const sb = pairingClaimSigningBytes("tok123", SUBKEY_PUB, "laptop");
     expect(bytesToHex(sb)).toBe(PAIRING_CLAIM_SIGNING_BYTES);
@@ -133,6 +155,22 @@ describe("wire signing-bytes vectors", () => {
     };
     expect(verifyPrefsBlob(blob)).toBe(true);
     expect(verifyPrefsBlob({ ...blob, blob_version: 4 })).toBe(false);
+  });
+
+  it("buildPrefsBlob produces exactly the envelope Rust signs and verifies", () => {
+    const blob = buildPrefsBlob(
+      MASTER_SEED_FROM_ENTROPY,
+      MASTER_FROM_ENTROPY_PUB,
+      3,
+      PREFS_BLOB_CIPHERTEXT_HEX,
+    );
+    expect(blob.signature).toBe(PREFS_BLOB_SIG);
+    expect(verifyPrefsBlob(blob)).toBe(true);
+    // A version bump changes the signature — the hub's monotonic counter is
+    // inside the signed bytes, so a replay at a lower version cannot verify.
+    const bumped = buildPrefsBlob(MASTER_SEED_FROM_ENTROPY, MASTER_FROM_ENTROPY_PUB, 4, PREFS_BLOB_CIPHERTEXT_HEX);
+    expect(bumped.signature).not.toBe(blob.signature);
+    expect(verifyPrefsBlob(bumped)).toBe(true);
   });
 });
 

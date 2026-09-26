@@ -283,14 +283,6 @@ pub async fn complete_pairing(
     Ok(())
 }
 
-/// Convenience for the UI: given an offer, return the home hub list
-/// the new device should iterate when claiming. Hides the field name
-/// and any future structural changes.
-#[tauri::command]
-pub fn home_hubs_from_offer(offer: PairingOffer) -> Vec<String> {
-    offer.home_hubs
-}
-
 /// Convenience helper — turn a SubkeyCert's pubkey into the short
 /// fingerprint string the confirm dialog renders. Format: groups of
 /// two hex chars separated by colons, first 8 bytes only.

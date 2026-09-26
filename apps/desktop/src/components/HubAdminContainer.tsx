@@ -1,5 +1,14 @@
 import { useMemo } from "react";
-import { HubAdminPage, type HubAdminPageProps } from "@wavvon/ui";
+import { invoke } from "@tauri-apps/api/core";
+import {
+  HubAdminPage,
+  OutgoingWebhooksSection,
+  RecoveryContactsSection,
+  type HubAdminPageProps,
+  type RecoveryContactsSectionActions,
+} from "@wavvon/ui";
+import { ModerationTab } from "./ModerationTab";
+import { buildRecoveryActions } from "../utils/recoveryActions";
 import type { Hub, RoleInfo } from "../types";
 import {
   rolesActions,
@@ -9,9 +18,8 @@ import {
   allianceActions,
   hubIconActions,
   submitToDirectory,
+  outgoingWebhookActions,
   makeWebhookActions,
-  makeExternalBotActions,
-  makeNativeBotActions,
   makeAuditLogActions,
   makeCertActions,
   makeOnboardingActions,
@@ -23,7 +31,7 @@ type PassthroughProps = Omit<
   | "saveError"
   | "rolesActions" | "memberRoleActions" | "serverTagsActions" | "inviteActions"
   | "allianceActions" | "hubIconActions" | "submitToDirectory"
-  | "webhookActions" | "externalBotActions" | "nativeBotActions"
+  | "webhookActions"
   | "auditLogActions" | "certActions" | "onboardingActions" | "surveyActions"
   | "activeHubUrl" | "myPubkey"
   | "canManageRoles" | "myMaxPriority" | "canManageSoundboard"
@@ -54,21 +62,30 @@ export function HubAdminContainer({
   const getActiveHubUrl = () => activeHubUrl;
 
   const webhookActions = useMemo(() => makeWebhookActions(getActiveHubUrl), [activeHubUrl]);
-  const externalBotActions = useMemo(() => makeExternalBotActions(getActiveHubUrl), [activeHubUrl]);
-  const nativeBotActions = useMemo(() => makeNativeBotActions(getActiveHubUrl), [activeHubUrl]);
   const auditLogActions = useMemo(() => makeAuditLogActions(getActiveHubUrl), [activeHubUrl]);
   const certActions = useMemo(() => makeCertActions(getActiveHubUrl), [activeHubUrl]);
   const onboardingActions = useMemo(() => makeOnboardingActions(getActiveHubUrl), [activeHubUrl]);
   const surveyActions = useMemo(() => makeSurveyActions(getActiveHubUrl), [activeHubUrl]);
 
-  const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"));
+  const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
-  const canManageSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_soundboard"));
+  const canManageSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.soundboard.manage"));
 
   return (
     <HubAdminPage
       {...rest}
       isAdmin={isAdmin}
+      renderModerationTab={() => <ModerationTab />}
+      renderRecoveryContacts={() => (
+        <RecoveryContactsSection
+          isAdmin={isAdmin}
+          actions={buildRecoveryActions(activeHubUrl)}
+          showMemberCards={false}
+        />
+      )}
+      renderOutgoingWebhooks={() => (
+        <OutgoingWebhooksSection channels={rest.channels} actions={outgoingWebhookActions} />
+      )}
       saveError={null}
       activeHubUrl={activeHubUrl}
       myPubkey={publicKey ?? ""}
@@ -83,8 +100,6 @@ export function HubAdminContainer({
       hubIconActions={hubIconActions}
       submitToDirectory={submitToDirectory}
       webhookActions={webhookActions}
-      externalBotActions={externalBotActions}
-      nativeBotActions={nativeBotActions}
       auditLogActions={auditLogActions}
       certActions={certActions}
       onboardingActions={onboardingActions}

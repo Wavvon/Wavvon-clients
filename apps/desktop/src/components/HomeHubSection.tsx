@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { Hub } from "../types";
 
@@ -23,6 +24,7 @@ type SaveStatus =
   | { state: "error"; message: string };
 
 export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ state: "idle" });
@@ -88,7 +90,7 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
   if (loading) {
     return (
       <div className="settings-section">
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("modal.loading")}</p>
       </div>
     );
   }
@@ -96,7 +98,7 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
   return (
     <div className="settings-section">
       {order.length === 0 ? (
-        <p className="muted">No home hubs configured yet.</p>
+        <p className="muted">{t("settings.account.home_hubs.empty")}</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px 0" }}>
           {order.map((url, i) => (
@@ -105,7 +107,7 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
                 {url}
                 {i === 0 && (
                   <span className="muted" style={{ marginLeft: "8px", fontSize: "0.85em" }}>
-                    (preferred)
+                    {t("settings.account.home_hubs.preferred")}
                   </span>
                 )}
               </span>
@@ -113,7 +115,7 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
                 className="btn-secondary"
                 onClick={() => moveUp(i)}
                 disabled={i === 0}
-                title="Move up"
+                title={t("settings.account.home_hubs.move_up_aria")}
               >
                 ↑
               </button>
@@ -121,14 +123,14 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
                 className="btn-secondary"
                 onClick={() => moveDown(i)}
                 disabled={i === order.length - 1}
-                title="Move down"
+                title={t("settings.account.home_hubs.move_down_aria")}
               >
                 ↓
               </button>
               <button
                 className="btn-secondary"
                 onClick={() => remove(url)}
-                title="Remove"
+                title={t("settings.account.home_hubs.remove_button")}
               >
                 ×
               </button>
@@ -147,7 +149,7 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
             }}
           >
             <option value="" disabled>
-              Add hub…
+              {t("settings.account.home_hubs.add_placeholder")}
             </option>
             {availableToAdd.map((h) => (
               <option key={h.hub_id} value={h.hub_url}>
@@ -163,11 +165,11 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
           onClick={handleSave}
           disabled={saveStatus.state === "saving" || order.length === 0}
         >
-          {saveStatus.state === "saving" ? "Saving…" : "Save"}
+          {saveStatus.state === "saving" ? t("modal.saving") : t("modal.save")}
         </button>
         {saveStatus.state === "ok" && (
           <span className="muted">
-            Saved to {saveStatus.postedCount} hub{saveStatus.postedCount !== 1 ? "s" : ""}
+            {t("settings.account.home_hubs.saved_count", { count: saveStatus.postedCount })}
           </span>
         )}
         {saveStatus.state === "error" && (
@@ -178,7 +180,7 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
       {saveStatus.state === "ok" && saveStatus.failures.length > 0 && (
         <div style={{ marginTop: "8px" }}>
           <p className="muted" style={{ marginBottom: "4px" }}>
-            Failed to reach:
+            {t("settings.account.home_hubs.failed_to_reach")}
           </p>
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {saveStatus.failures.map((f) => (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { HEX_RE } from "../../utils/roleAppearance";
 
 const ROLE_ACCENT_COLORS: string[] = [
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function ColorSwatchPicker({ value, onChange, noColorLabel }: Props) {
+  const { t } = useTranslation();
   const [hexDraft, setHexDraft] = useState(value ?? "");
 
   useEffect(() => setHexDraft(value ?? ""), [value]);
@@ -58,7 +60,7 @@ export function ColorSwatchPicker({ value, onChange, noColorLabel }: Props) {
         disabled={!HEX_RE.test(hexDraft)}
         onClick={() => onChange(hexDraft)}
       >
-        Apply
+        {t("color_picker.apply")}
       </button>
     </div>
   );

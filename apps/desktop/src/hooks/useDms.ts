@@ -1,12 +1,8 @@
 import { useState, useRef, useCallback, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { EncryptionWarning } from "@wavvon/ui";
 import type { Conversation, DmMessage, DmMessageFull, Attachment, Hub } from "../types";
 
-export interface EncryptionWarning {
-  message: string;
-  onConfirm?: () => void;
-  onCancel: () => void;
-}
 
 export interface DmsParams {
   publicKeyRef: RefObject<string | null>;
@@ -19,6 +15,11 @@ export interface DmsParams {
   clearPendingAttachments: () => void;
   setError: (msg: string) => void;
   clearAllDmTyping: () => void;
+  // DM unread lives with channel unread in the shared useUnreadCounts, not
+  // here: web has always kept the two together, and one owner is what lets
+  // the tray badge and the document title see the whole picture.
+  unreadDms: Record<string, boolean>;
+  setUnreadDms: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }
 
 export interface DmsReturn {
@@ -32,8 +33,6 @@ export interface DmsReturn {
   setSelectedConversation: (conv: Conversation | null) => void;
   selectedConversationIdRef: RefObject<string | null>;
   dmMessages: Record<string, DmMessage[]>;
-  unreadDms: Record<string, boolean>;
-  setUnreadDms: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   encryptionWarning: EncryptionWarning | null;
   setEncryptionWarning: React.Dispatch<React.SetStateAction<EncryptionWarning | null>>;
   loadConversations: () => Promise<void>;
@@ -60,6 +59,8 @@ export function useDms({
   clearPendingAttachments,
   setError,
   clearAllDmTyping,
+  unreadDms,
+  setUnreadDms,
 }: DmsParams): DmsReturn {
   const [view, setViewState] = useState<"channels" | "dms">("channels");
   const viewRef = useRef<"channels" | "dms">("channels");
@@ -90,7 +91,6 @@ export function useDms({
   }
 
   const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
-  const [unreadDms, setUnreadDms] = useState<Record<string, boolean>>({});
   const [encryptionWarning, setEncryptionWarning] = useState<EncryptionWarning | null>(null);
 
   async function loadConversations() {
@@ -216,13 +216,13 @@ export function useDms({
             await doSend(undefined, groupEnv);
           } catch {
             setEncryptionWarning({
-              message: "Encryption failed. The message was not sent.",
+              messageKey: "dm.encryption_warning.failed",
               onCancel: () => setEncryptionWarning(null),
             });
           }
         } else {
           setEncryptionWarning({
-            message: "Encryption failed. The message was not sent.",
+            messageKey: "dm.encryption_warning.failed",
             onCancel: () => setEncryptionWarning(null),
           });
         }
@@ -244,7 +244,7 @@ export function useDms({
 
       if (!dhPubkey) {
         setEncryptionWarning({
-          message: "This recipient hasn't published an encryption key. This message will not be encrypted.",
+          messageKey: "dm.encryption_warning.no_key",
           onConfirm: async () => {
             setEncryptionWarning(null);
             await doSend();
@@ -268,7 +268,7 @@ export function useDms({
       await doSend(envelope);
     } catch {
       setEncryptionWarning({
-        message: "Encryption failed. The message was not sent.",
+        messageKey: "dm.encryption_warning.failed",
         onCancel: () => setEncryptionWarning(null),
       });
     }
@@ -344,8 +344,6 @@ export function useDms({
     setSelectedConversation,
     selectedConversationIdRef,
     dmMessages,
-    unreadDms,
-    setUnreadDms,
     encryptionWarning,
     setEncryptionWarning,
     loadConversations,

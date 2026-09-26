@@ -173,6 +173,19 @@ export function masterPubkeyOf(rec: IdentityRecord): string {
   return masterPublicKeyHex(rec.seed_hex);
 }
 
+// Can this device sign as the master — issue certs, revocations, a home hub
+// list? Only the device holding the entropy the master seed derives from can.
+//
+// Holding a cert does NOT answer this: every device self-certifies at first
+// auth now, so the entropy-holding device has one too. What separates them is
+// whose master the cert names — a paired device was handed a cert for a master
+// its own seed cannot derive, while a self-issued cert names the very master
+// its own seed produces.
+export function holdsMasterSeed(rec: Pick<IdentityRecord, "seed_hex" | "subkey_cert">): boolean {
+  if (!rec.subkey_cert) return true;
+  return rec.subkey_cert.master_pubkey === masterPublicKeyHex(rec.seed_hex);
+}
+
 export async function findAccountByPubkey(pubkey: string): Promise<IdentityRecord | null> {
   const db = await getDb();
   const rec = await db.get("identity", pubkey);
@@ -321,12 +334,6 @@ const postSwitchReturnValue: string | null = (() => {
 
 export function getPostSwitchReturn(): string | null {
   return postSwitchReturnValue;
-}
-
-export async function generateIdentity(): Promise<IdentityRecord> {
-  const seed = ed25519.utils.randomPrivateKey();
-  const { account } = await resolveOrCreateAccount(bytesToHex(seed));
-  return account;
 }
 
 // A fresh random 32-byte ed25519 seed (hex), not persisted. Used to mint a new

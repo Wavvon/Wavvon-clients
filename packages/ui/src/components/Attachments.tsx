@@ -1,4 +1,5 @@
 import type { Attachment } from "../types";
+import { useTranslation } from "react-i18next";
 
 export function PendingAttachments({
   items,
@@ -7,6 +8,7 @@ export function PendingAttachments({
   items: Attachment[];
   onRemove: (i: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="pending-attachments">
       {items.map((a, i) => (
@@ -23,8 +25,8 @@ export function PendingAttachments({
           <button
             className="pending-attachment-remove"
             onClick={() => onRemove(i)}
-            title="Remove"
-            aria-label="Remove"
+            title={t("attachment.remove")}
+            aria-label={t("attachment.remove")}
           >
             ×
           </button>
@@ -41,6 +43,7 @@ export function MessageAttachments({
   items: Attachment[];
   onImageClick?: (url: string, alt: string) => void;
 }) {
+  const { t } = useTranslation();
   if (!items || items.length === 0) return null;
   return (
     <div className="message-attachments">
@@ -53,7 +56,7 @@ export function MessageAttachments({
               type="button"
               className="message-attachment-img-button"
               onClick={() => onImageClick?.(url, a.name)}
-              title="Click to enlarge"
+              title={t("attachment.enlarge")}
             >
               <img src={url} alt={a.name} className="message-attachment-img" />
             </button>

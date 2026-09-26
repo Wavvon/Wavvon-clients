@@ -120,7 +120,7 @@ pub(crate) async fn set_lobby_settings(
 }
 
 // =============================================================================
-// Bot Challenge
+// Admission challenge
 // =============================================================================
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

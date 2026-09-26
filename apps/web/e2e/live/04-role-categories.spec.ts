@@ -24,7 +24,7 @@ test("role category grouping, color, and icon persist", async ({ page }) => {
   const role = uniqueName("raider");
   await hubApi(page, "/roles", {
     method: "POST",
-    body: { name: role, permissions: ["send_messages"], priority: 5 },
+    body: { name: role, permissions: ["messages.send"], priority: 5 },
   });
 
   await openRolesAdmin(page);

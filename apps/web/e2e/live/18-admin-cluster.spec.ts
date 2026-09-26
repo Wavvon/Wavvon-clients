@@ -1,9 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
-// P18 — admin features ported from desktop: audit log, native bots, hub
-// icon library, alliances, onboarding (lobby/challenge), and per-channel
-// bans. Each is gated on admin (the owner session is admin).
+// P18 — admin features ported from desktop: audit log, hub icon library,
+// alliances, onboarding (lobby/challenge), and per-channel bans. Each is
+// gated on admin (the owner session is admin).
 
 async function openAdminTab(page: Page, tab: string) {
   await page.locator(".hub-header-button").click();
@@ -18,26 +18,6 @@ test("audit log lists administrative events", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Audit log" })).toBeVisible();
   // The suite has generated plenty of audit activity by now.
   await expect(page.locator("table.members-table tbody tr").first()).toBeVisible({ timeout: 10000 });
-});
-
-test("create and delete a native bot", async ({ page }) => {
-  await page.goto("/");
-  await expectInHub(page);
-  await openAdminTab(page, "Native bots");
-  await expect(page.getByRole("heading", { name: "Native bots" })).toBeVisible();
-
-  const botName = uniqueName("Botty");
-  await page.getByPlaceholder("Bot name").fill(botName);
-  await page.getByRole("button", { name: "Create bot" }).click();
-  // Token shown once.
-  await expect(page.getByText("Token (shown once):")).toBeVisible({ timeout: 10000 });
-  await page.getByRole("button", { name: "Done" }).click();
-
-  const row = page.locator("table.members-table tr", { hasText: botName });
-  await expect(row).toBeVisible();
-  page.on("dialog", (d) => d.accept());
-  await row.getByRole("button", { name: "Delete" }).click();
-  await expect(row).toBeHidden({ timeout: 10000 });
 });
 
 test("create and delete a hub SVG icon", async ({ page }) => {
@@ -144,4 +124,32 @@ test("channel bans: ban and unban a real member", async ({ page, browser }) => {
   } finally {
     await context.close();
   }
+});
+
+// The moderation queue. Hoisted into packages/ui 2026-09-08 so desktop could
+// have it too, and it had no e2e coverage on either side until then — a
+// shared component reached through two different transports is exactly the
+// thing worth mounting for real once.
+test("the moderation tab shows the content report queue", async ({ page }) => {
+  await page.goto("/");
+  await expectInHub(page);
+  await openAdminTab(page, "Moderation");
+
+  await expect(page.getByRole("heading", { name: "Content Reports" })).toBeVisible();
+  // Nobody has reported anything on this hub, and saying so is the section
+  // having loaded — an error would render in its place.
+  await expect(page.getByText("No pending reports", { exact: false })).toBeVisible({
+    timeout: 10000,
+  });
+
+  // The automod webhook sits in the same tab and was hoisted with it. Its
+  // circuit-breaker row is what says the section reached the hub rather than
+  // rendering its own defaults.
+  await expect(page.getByRole("heading", { name: "Auto-moderation Webhook" })).toBeVisible();
+  await expect(page.getByText("Circuit closed", { exact: false })).toBeVisible({ timeout: 10000 });
+
+  // Federated ban lists, the third hoisted section. Its synced-entry count
+  // comes from the hub, so rendering it at all means the fetch landed.
+  await expect(page.getByRole("heading", { name: "Federated Ban Lists" })).toBeVisible();
+  await expect(page.getByText("Synced entries", { exact: false })).toBeVisible({ timeout: 10000 });
 });

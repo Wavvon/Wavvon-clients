@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
 
@@ -34,6 +35,7 @@ export function PinnedMessagesModal({
   onClose,
   onScrollToMessage,
 }: Props) {
+  const { t } = useTranslation();
   const [pins, setPins] = useState<PinnedMessageEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,14 +83,14 @@ export function PinnedMessagesModal({
           <h2 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>
             📌 Pinned messages · #{channelName}
           </h2>
-          <button className="btn-ghost" onClick={onClose} aria-label="Close">×</button>
+          <button className="btn-ghost" onClick={onClose} aria-label={t("modal.close")}>×</button>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          {loading && <p className="muted" style={{ textAlign: "center" }}>Loading…</p>}
+          {loading && <p className="muted" style={{ textAlign: "center" }}>{t("message.pinned.loading")}</p>}
           {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
           {!loading && !error && pins.length === 0 && (
-            <p className="muted" style={{ textAlign: "center", padding: 16 }}>No pinned messages.</p>
+            <p className="muted" style={{ textAlign: "center", padding: 16 }}>{t("message.pinned.empty")}</p>
           )}
           {pins.map((pin) => (
             <div key={pin.message_id} className="pinned-message-row">
@@ -97,7 +99,7 @@ export function PinnedMessagesModal({
               </div>
               <div
                 className="pinned-message-content"
-                title="Jump to message"
+                title={t("message.pinned.jump")}
                 onClick={() => { onScrollToMessage(pin.message_id); onClose(); }}
               >
                 <span className="message-sender">
@@ -115,9 +117,9 @@ export function PinnedMessagesModal({
                 <button
                   className="btn-small btn-secondary-small"
                   onClick={() => handleUnpin(pin.message_id)}
-                  title="Unpin"
+                  title={t("message.pinned.unpin")}
                 >
-                  Unpin
+                  {t("message.pinned.unpin")}
                 </button>
               )}
             </div>

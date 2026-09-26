@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Channel } from "../types";
 import { FocusTrap } from "@wavvon/ui";
 
@@ -11,6 +12,7 @@ export function ChannelPalette({
   onClose: () => void;
   onSelect: (c: Channel) => void;
 }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(0);
 
@@ -49,14 +51,14 @@ export function ChannelPalette({
         <input
           autoFocus
           className="palette-input"
-          placeholder="Jump to channel…"
+          placeholder={t("palette.placeholder")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKey}
         />
         <ul className="palette-list">
           {filtered.length === 0 ? (
-            <li className="palette-empty">No channels match.</li>
+            <li className="palette-empty">{t("palette.empty")}</li>
           ) : (
             filtered.map((c, i) => (
               <li
@@ -72,7 +74,7 @@ export function ChannelPalette({
           )}
         </ul>
         <div className="palette-hint muted">
-          ↑↓ navigate · Enter select · Esc close
+          {t("palette.hint")}
         </div>
       </div>
       </FocusTrap>

@@ -30,7 +30,7 @@ export function DevicesTab(props: Props) {
         />
       )}
       {props.managing && <DevicesSection activeHubUrl={activeHubUrl} account={props.managing} />}
-      {props.managing && <PasskeySection publicKey={props.publicKey} account={props.managing} />}
+      {props.managing && <PasskeySection publicKey={props.publicKey} account={props.managing} activeHubUrl={activeHubUrl} />}
       {props.managing && <TrustedDevicesSection account={props.managing} />}
     </section>
   );

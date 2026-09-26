@@ -131,10 +131,11 @@ export function useHubLifecycle({
     }
   }
 
+  // No confirmation here: `useRemoveHubConfirm` owns the asking, because the
+  // question is not a yes/no — a removed *home* hub keeps receiving DMs the
+  // client stops reading, and a `confirm("Leave...")` said the one word this
+  // does not do (decisions.md, "Leave hub does not leave").
   async function handleRemoveHub(hubId: string) {
-    const hub = hubs.find((h) => h.hub_id === hubId);
-    const name = hub?.hub_name ?? "this hub";
-    if (!confirm(`Leave "${name}"?`)) return;
     try {
       await invoke("remove_hub", { hubId });
       const remaining = await invoke<Hub[]>("list_hubs");

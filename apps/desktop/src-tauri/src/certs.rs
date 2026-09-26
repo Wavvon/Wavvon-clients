@@ -230,7 +230,7 @@ pub(crate) async fn grant_user_badge(
 pub(crate) async fn fetch_my_certs(
     state: State<'_, AppState>,
 ) -> Result<Vec<serde_json::Value>, String> {
-    let pubkey = crate::identity_cmd::get_my_public_key()?;
+    let pubkey = crate::identity_cmd::device_public_key()?;
     let sessions: Vec<(String, String)> = {
         let hubs = state.hubs.lock().unwrap();
         hubs.values()

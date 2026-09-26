@@ -1,4 +1,4 @@
-import { rawFetch, hubFetch } from "../http";
+import { rawFetch, hubFetch, HubApiError } from "../http";
 import {
   getSession,
   setSession,
@@ -10,6 +10,7 @@ import {
 } from "../session";
 import { HubWebSocket, type WsHandlers } from "../ws";
 import {
+  loadSavedHubs,
   upsertSavedHub,
   removeSavedHub,
   updateSavedHub,
@@ -25,6 +26,7 @@ import { publicKeyHex } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
 import { acquireHubToken as authenticate } from "./hubAuth";
+import { ensureHomeHubDesignation, ensureSelfDeviceCert } from "./identity";
 
 interface InfoResponse {
   public_key: string;
@@ -36,7 +38,7 @@ interface InfoResponse {
   capabilities?: string[];
   /** Display and "very old hub" warnings only. Not a feature gate. */
   version?: string;
-  /** The address this hub says to use for it. Changes when a farm-hosted hub
+  /** The address this hub says to use for it. Changes when a path-hosted hub
    * is renamed; the client follows it, keyed on the pubkey that doesn't. */
   canonical_url?: string | null;
   farm_url?: string | null;
@@ -46,7 +48,23 @@ interface InfoResponse {
   lan_fingerprint?: string | null;
 }
 
-function authBaseUrl(info: InfoResponse, hub_url: string): string {
+/** Where this identity's `/auth/*` calls go.
+ *
+ * A farm-managed hub tells clients to authenticate at the farm
+ * (`/info.farm_url`; the hub's health.rs says so in as many words), and for an
+ * ordinary identity that is the point: one farm token works on every hub of
+ * the farm.
+ *
+ * A **paired device is the exception.** Resolving a subkey to the identity it
+ * actually speaks for happens in the *hub's* `/auth/verify` — off the cert the
+ * client presents, or off the device the pairing flow registered with that hub
+ * — and the farm has neither. Sending a paired device to the farm made it land
+ * on every farm-hosted hub as a brand-new stranger, with no error anywhere:
+ * the join succeeded and the device was simply somebody else. Authenticating
+ * at the hub costs that one device farm SSO and is otherwise identical.
+ */
+function authBaseUrl(info: InfoResponse, hub_url: string, subkeyCert?: unknown): string {
+  if (subkeyCert) return hub_url;
   return info.farm_url ?? hub_url;
 }
 
@@ -77,7 +95,7 @@ export async function addHub(
     if (!identity) throw new Error("No identity — generate one first");
 
     const res = await authenticate(
-      authBaseUrl(info, url),
+      authBaseUrl(info, url, identity.subkey_cert),
       publicKeyHex(identity.seed_hex),
       identity.seed_hex,
       identity.security_nonce,
@@ -124,6 +142,10 @@ export async function addHub(
   };
   setSession(info.public_key, session);
 
+  // Read before upsertSavedHub below: "does this identity already know a hub"
+  // is the question, and a moment later this hub is one of them.
+  const isFirstHub = !loadSavedHubs().some((h) => h.hub_id !== info.public_key);
+
   if (!getActiveHubId()) {
     setActiveHubId(info.public_key);
     saveActiveHubId(info.public_key);
@@ -141,6 +163,26 @@ export async function addHub(
   upsertSavedHub(saved);
 
   const isActive = getActiveHubId() === info.public_key;
+
+  // Only for the hub that ends up active: hubFetch inside targets the active
+  // hub, so these read from — and publish to — this very hub. Fire and forget;
+  // a hub too old to serve either must not fail a join, and Settings can always
+  // publish both by hand.
+  //
+  // The cert goes first: it is what lets this hub (and every hub it federates
+  // to) resolve our roster pubkey to the master the designation is stored
+  // under, so publishing the designation before the link exists would leave a
+  // list nobody can look up.
+  if (isActive && scope !== "lobby") {
+    void loadIdentity()
+      .then(async (id) => {
+        if (!id) return;
+        await ensureSelfDeviceCert(id, url).catch(() => {});
+        if (isFirstHub) await ensureHomeHubDesignation(id, url);
+      })
+      .catch(() => {});
+  }
+
   return {
     hub_id: info.public_key,
     hub_name: info.name,
@@ -148,6 +190,15 @@ export async function addHub(
     hub_icon: info.icon,
     is_active: isActive,
   };
+}
+
+/** Apply an invite to the hub this session is already on. The client has only
+ *  ever handled invites by re-authenticating with the code, which is the
+ *  registration path — for someone already a member the hub has a separate
+ *  route that auto-approves and applies the invite's role grant
+ *  (`routes/invites.rs::join_with_invite`). Answers with a bare status. */
+export async function redeemInvite(code: string): Promise<void> {
+  await hubFetch(`/join/${encodeURIComponent(code)}`, { method: "POST" });
 }
 
 export function listHubs(): Hub[] {
@@ -187,13 +238,13 @@ export async function refreshHubInfo(
     );
     const capabilities = info.capabilities ?? [];
 
-    // Follow the hub if it has moved. A farm-hosted hub lives at an
+    // Follow the hub if it has moved. A path-hosted hub lives at an
     // owner-chosen name that can change, and `canonical_url` is how it tells
     // us the current one — so a rename costs nobody their session.
     //
     // Safe precisely because we are keyed on the pubkey: we only change *where*
     // we look, never who we believe we are talking to. And we only accept this
-    // from a hub whose key we have already verified, so a farm handing out a
+    // from a hub whose key we have already verified, so a host handing out a
     // bogus address gets caught on the first /info at the new one.
     const movedTo =
       info.canonical_url && info.canonical_url !== s.hub_url ? info.canonical_url : null;
@@ -270,7 +321,7 @@ export async function upgradeActiveHubIdentity(): Promise<void> {
     (r) => r.json() as Promise<InfoResponse>,
   );
   const res = await authenticate(
-    authBaseUrl(info, s.hub_url),
+    authBaseUrl(info, s.hub_url, identity.subkey_cert),
     publicKeyHex(identity.seed_hex),
     identity.seed_hex,
     identity.security_nonce,
@@ -306,7 +357,7 @@ export async function reauthorizeHub(
   const seedHex = identity.seed_hex;
   const pubkeyHex = publicKeyHex(seedHex);
   const { token, scope } = await authenticate(
-    authBaseUrl(info, s.hub_url),
+    authBaseUrl(info, s.hub_url, identity.subkey_cert),
     pubkeyHex,
     seedHex,
     identity.security_nonce,
@@ -333,18 +384,6 @@ export function connectHubWebSocket(hub_id: string, handlers: WsHandlers): void 
   if (!s || s.ws) return;
   const ws = new HubWebSocket(s.hub_url, s.token, hub_id, handlers);
   setSession(hub_id, { ...s, ws, scope: "member" });
-}
-
-export async function getHubInfo(hub_id: string): Promise<Hub | null> {
-  const s = getSession(hub_id);
-  if (!s) return null;
-  return {
-    hub_id: s.hub_id,
-    hub_name: s.hub_name,
-    hub_url: s.hub_url,
-    hub_icon: s.hub_icon,
-    is_active: s.hub_id === getActiveHubId(),
-  };
 }
 
 // LAN fingerprint pinning (lan-mode.md §5): TOFU-verify the hub's
@@ -392,6 +431,42 @@ export async function reorderHubs(hub_ids: string[]): Promise<void> {
 }
 
 // Reconnect to persisted hubs from localStorage on app load.
+// A 429 or a 5xx says "not now"; every other failure says something about
+// this hub. The distinction matters because the restore loop's fallback is to
+// drop the hub, and a dropped hub with no session is a user staring at the
+// welcome screen wondering where their communities went.
+function isTransient(e: unknown): boolean {
+  return e instanceof HubApiError && (e.status === 429 || e.status >= 500);
+}
+
+// Startup re-auth is not an edge case: the web client keeps its token in
+// sessionStorage unless asked to remember it, so every page load authenticates
+// again, and the hub's auth limiter is per-IP — shared with every other person
+// behind the same address, and with every tab this one has open. Meeting a 429
+// there is ordinary.
+//
+// The delays start at 2s because of arithmetic, not caution: a handshake is
+// TWO limited requests (/auth/challenge then /auth/verify) and the bucket
+// refills one token per second (hub rate_limit.rs). Waiting 1s buys exactly
+// one token, the challenge spends it, and verify meets an empty bucket again —
+// so a 1s retry against a drained limiter cannot succeed however many times it
+// runs. That is not a hypothesis: a CI trace shows 200/429, wait 1s, 200/429,
+// wait 2s, 429, give up.
+const RESTORE_RETRY_DELAYS_MS = [2000, 4000, 8000];
+
+async function authenticateForRestore(
+  ...args: Parameters<typeof authenticate>
+): Promise<Awaited<ReturnType<typeof authenticate>>> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await authenticate(...args);
+    } catch (e) {
+      if (attempt >= RESTORE_RETRY_DELAYS_MS.length || !isTransient(e)) throw e;
+      await new Promise((r) => setTimeout(r, RESTORE_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
 export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]> {
   const { loadSavedHubs, loadToken, loadActiveHubId } = await import("../storage");
   const saved = loadSavedHubs();
@@ -415,8 +490,8 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
         );
-        const authRes = await authenticate(
-          authBaseUrl(hubInfo, hub.hub_url),
+        const authRes = await authenticateForRestore(
+          authBaseUrl(hubInfo, hub.hub_url, identity.subkey_cert),
           pubkeyHex,
           seedHex,
           identity.security_nonce,
@@ -466,8 +541,12 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         hub_icon: hub.hub_icon,
         is_active: hub.hub_id === savedActiveId,
       });
-    } catch {
-      // Skip unreachable hubs on startup
+    } catch (e) {
+      // Skip a hub we cannot reach on startup -- but say which, and why. A
+      // silent drop here is indistinguishable from never having joined it,
+      // and it is the only thing the user is shown: no session, no hub in the
+      // list, and if it was the only one, the welcome screen back.
+      console.warn(`[restore] skipping ${hub.hub_url}:`, e);
     }
   }
 
@@ -478,4 +557,25 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
   }
 
   return result;
+}
+
+/** Leave a hub for real: the hub clears this identity's profile and roles
+ *  (`DELETE /me`), then the client forgets it locally like any removal.
+ *
+ *  Distinct from `removeHub`, which only forgets. Gated on the `hub.leave`
+ *  capability at the call site — a hub without it answers 404, and offering
+ *  the action there would leave someone believing they left.
+ *
+ *  Ordering matters on failure: the hub goes first, and a rejection (the owner
+ *  gets 409) leaves the client untouched, so a refused leave is not silently
+ *  half-done. */
+export async function leaveHub(hub_id: string): Promise<void> {
+  const s = getSession(hub_id);
+  if (!s) throw new Error("Hub not connected");
+  const res = await rawFetch(`${s.hub_url}/me`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${s.token}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  await removeHub(hub_id);
 }

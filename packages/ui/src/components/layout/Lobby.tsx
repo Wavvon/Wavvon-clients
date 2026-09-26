@@ -21,7 +21,7 @@ export interface LobbyProps {
 
 type ViewState = "loading" | "active" | "promoted";
 
-// Confined lobby screen for a scope="lobby" session (lobby-bot-survey.md
+// Confined lobby screen for a scope="lobby" session (lobby-survey.md
 // Feature 1). Mines the PoW proof off the main thread via a Worker and
 // submits it through `actions` — the caller supplies the hub transport
 // (HTTP for web, Tauri invoke for desktop) and only hears back via

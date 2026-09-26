@@ -44,76 +44,36 @@ pub(crate) fn recover_identity_from_phrase(
     Ok(new_pubkey)
 }
 
-#[tauri::command]
-pub(crate) fn get_my_public_key() -> Result<String, String> {
+/// This device's own signing pubkey, whatever any hub calls us.
+pub(crate) fn device_public_key() -> Result<String, String> {
     let path = Identity::default_path().map_err(|e| e.to_string())?;
     let (identity, _) = Identity::load_or_create(&path).map_err(|e| e.to_string())?;
     Ok(identity.public_key_hex())
 }
 
+/// Who we are *to the hub we are looking at* — the pubkey that appears in its
+/// roster, authors our messages and names our conversations. It is this
+/// device's own key on most hubs and the master on any hub that first met this
+/// identity through its self-signed cert (see HubSession::canonical_pubkey),
+/// so the UI cannot use the device key to answer "is this mine". Web does the
+/// same thing with IdentityRecord::canonical_pubkey (App.tsx).
 #[tauri::command]
-pub(crate) fn get_my_pubkey() -> Result<String, String> {
-    get_my_public_key()
+pub(crate) fn get_my_public_key(state: State<'_, AppState>) -> Result<String, String> {
+    if let Some(canonical) = crate::state::active_canonical_pubkey(&state) {
+        return Ok(canonical);
+    }
+    device_public_key()
 }
 
 #[tauri::command]
-pub(crate) fn sign_message(message: String) -> Result<String, String> {
-    let path = Identity::default_path().map_err(|e| e.to_string())?;
-    let (identity, _) = Identity::load_or_create(&path).map_err(|e| e.to_string())?;
-    let sig = identity.sign(message.as_bytes());
-    Ok(hex::encode(sig.to_bytes()))
+pub(crate) fn get_my_pubkey(state: State<'_, AppState>) -> Result<String, String> {
+    get_my_public_key(state)
 }
 
 pub(crate) fn load_master_identity() -> Result<crate::identity::MasterIdentity, String> {
     let path = Identity::default_path().map_err(|e| e.to_string())?;
     let identity = Identity::load(&path).map_err(|e| e.to_string())?;
     identity.master().map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub(crate) async fn push_prefs_blob() -> Result<(), String> {
-    let master = load_master_identity()?;
-    let blob_key = crate::prefs_blob::derive_blob_key(&master);
-    let home_hubs = crate::home_hub::read_cached_designation()
-        .map(|d| d.hubs)
-        .unwrap_or_default();
-    if home_hubs.is_empty() {
-        return Err("No home hubs configured".to_string());
-    }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
-    crate::prefs_blob::push_prefs_blob(&master, &blob_key, &home_hubs, &client)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub(crate) async fn pull_and_apply_prefs_blob() -> Result<crate::prefs_blob::LocalPrefs, String> {
-    let master = load_master_identity()?;
-    let blob_key = crate::prefs_blob::derive_blob_key(&master);
-    let home_hubs = crate::home_hub::read_cached_designation()
-        .map(|d| d.hubs)
-        .unwrap_or_default();
-    if home_hubs.is_empty() {
-        return Err("No home hubs configured".to_string());
-    }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
-    let prefs = crate::prefs_blob::pull_prefs_blob(
-        &master.public_key_hex(),
-        &home_hubs,
-        &blob_key,
-        &client,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-    let _ = crate::local_store::save_blocked_users_raw(&prefs.blocked_users);
-    let _ = crate::local_store::save_voice_settings_to_disk(&prefs.voice_settings);
-    Ok(prefs)
 }
 
 // ---------------------------------------------------------------------------
@@ -125,65 +85,6 @@ pub(crate) struct PublicHubEntryInput {
     pub hub_url: String,
     pub hub_name: String,
     pub joined_at: u64,
-}
-
-#[tauri::command]
-pub(crate) async fn save_public_profile(
-    entries: Vec<PublicHubEntryInput>,
-    display_name: String,
-    avatar: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    use crate::identity::{PublicHubEntry, PublicHubProfile};
-
-    let identity_path = Identity::default_path().map_err(|e| format!("Identity path: {e}"))?;
-    let identity = Identity::load(&identity_path).map_err(|e| format!("Load identity: {e}"))?;
-    let pubkey = identity.public_key_hex();
-
-    let issued_at = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-
-    let public_hubs: Vec<PublicHubEntry> = entries
-        .into_iter()
-        .map(|e| PublicHubEntry {
-            hub_url: e.hub_url,
-            hub_name: e.hub_name,
-            joined_at: e.joined_at,
-        })
-        .collect();
-
-    let signing_bytes = PublicHubProfile::signing_bytes(&pubkey, &public_hubs, issued_at);
-    let signature = hex::encode(identity.sign(&signing_bytes).to_bytes());
-
-    let profile = PublicHubProfile {
-        pubkey: pubkey.clone(),
-        display_name,
-        avatar,
-        public_hubs,
-        issued_at,
-        signature,
-    };
-
-    let (hub_url, token) = active_session(&state)?;
-    let client = state.http_client.clone();
-    let resp = client
-        .put(format!("{hub_url}/profile/{pubkey}"))
-        .bearer_auth(&token)
-        .json(&profile)
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Err(format!(
-            "Hub rejected profile update: {}",
-            resp.text().await.unwrap_or_default()
-        ));
-    }
-
-    Ok(())
 }
 
 #[tauri::command]

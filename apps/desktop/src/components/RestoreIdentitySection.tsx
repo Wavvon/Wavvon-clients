@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function RestoreIdentitySection({
   onRestore,
 }: {
   onRestore: (phrase: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [phrase, setPhrase] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -13,9 +15,7 @@ export function RestoreIdentitySection({
 
   async function handleRestore() {
     if (!looksValid) return;
-    const ok = confirm(
-      "Restore identity from this phrase?\n\nYour current keypair will be replaced and every saved hub will be removed. You'll re-add hubs under the restored identity.",
-    );
+    const ok = confirm(t("settings.account.restore.confirm"));
     if (!ok) return;
     setBusy(true);
     try {
@@ -28,29 +28,26 @@ export function RestoreIdentitySection({
 
   return (
     <div className="settings-section">
-      <label className="settings-label">Restore from recovery phrase</label>
-      <p className="muted">
-        Paste a 24-word phrase to replace this device's identity. Existing
-        hubs and sessions will be cleared.
-      </p>
+      <label className="settings-label">{t("settings.account.restore.label")}</label>
+      <p className="muted">{t("settings.account.restore.hint")}</p>
       <textarea
         className="recovery-input"
         value={phrase}
         onChange={(e) => setPhrase(e.target.value)}
-        placeholder="word1 word2 word3 …"
+        placeholder={t("identity_setup.recover.phrase_placeholder")}
         rows={3}
         spellCheck={false}
         autoCapitalize="none"
         autoCorrect="off"
       />
       <div className="recovery-input-footer">
-        <span className="muted">{wordCount}/24 words</span>
+        <span className="muted">{t("settings.account.restore.word_count", { count: wordCount })}</span>
         <button
           className="btn-secondary"
           disabled={!looksValid || busy}
           onClick={handleRestore}
         >
-          {busy ? "Restoring…" : "Restore identity"}
+          {busy ? t("settings.account.restore.busy") : t("settings.account.restore.button")}
         </button>
       </div>
     </div>

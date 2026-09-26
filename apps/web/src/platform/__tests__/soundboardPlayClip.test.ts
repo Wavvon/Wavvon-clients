@@ -58,7 +58,7 @@ import { VoiceWtSession } from "../voice";
 const STUB_HANDLERS = {
   onReady: vi.fn(),
   onClose: vi.fn(),
-  sendKeyOffer: vi.fn(),
+  sendKeyOffer: vi.fn(), sendSpeaking: vi.fn(),
 };
 
 const JOIN_INFO = {

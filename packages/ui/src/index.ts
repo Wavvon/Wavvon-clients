@@ -5,19 +5,14 @@ export type {
   AllianceSharedChannel,
   BlockEntry,
   IgnoreEntry,
-  BotAppLaunchEvent,
-  BotCommandDef,
-  BotProfile,
+  AppLaunchEvent,
+  AppCommandDef,
+  AppProfile,
   HubEmoji,
   ClaimantVoiceStatus,
   StagingGroup,
   Hub,
-  NotifyMode,
-  FarmCreationPolicy,
-  FarmPublicInfo,
-  FarmHubQuota,
-  CreatedFarmHub,
-  ReactionCount,
+  NotifyMode,  ReactionCount,
   ForumAttachment,
   TagRef,
   ForumTagDef,
@@ -52,11 +47,14 @@ export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
-export { BotAppLaunchCard } from "./components/BotAppLaunchCard";
-export { BotCard } from "./components/BotCard";
-export { CreateHubWizard } from "./components/CreateHubWizard";
+export { AppLaunchCard } from "./components/AppLaunchCard";
 export { ErrorRetry } from "./components/ErrorRetry";
+export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
+export { Lightbox } from "./components/Lightbox";
+export { BannerEditModal } from "./components/channels/BannerEditModal";
+export { ChannelAlliancesTab } from "./components/channels/ChannelAlliancesTab";
+export type { ChannelAlliancesTabActions } from "./components/channels/ChannelAlliancesTab";
 export { GameCard } from "./components/GameCard";
 export { GameModal } from "./components/GameModal";
 export { HoverSubmenu } from "./components/HoverSubmenu";
@@ -95,10 +93,12 @@ export type {
   AllianceInvite,
   PendingAllianceInvite,
   SharedChannel,
-  ExternalBotRow,
-  ExternalBotInviteResult,
   WebhookInfo,
   WebhookCreatedResult,
+  EventSubscription,
+  OutgoingWebhookSummary,
+  OutgoingWebhookCreatedResult,
+  OutgoingWebhookDelivery,
   HubIcon,
   SurveyChoice,
   SurveyQuestion,
@@ -107,8 +107,6 @@ export type {
 } from "./types";
 export { AlliancesSection } from "./components/admin/AlliancesSection";
 export type { AlliancesSectionActions } from "./components/admin/AlliancesSection";
-export { ExternalBotSection } from "./components/admin/ExternalBotSection";
-export type { ExternalBotSectionActions } from "./components/admin/ExternalBotSection";
 export { WebhooksSection } from "./components/admin/WebhooksSection";
 export type { WebhooksSectionActions } from "./components/admin/WebhooksSection";
 export { HubIconsSection } from "./components/admin/HubIconsSection";
@@ -117,6 +115,7 @@ export { SurveyAdminSection } from "./components/admin/SurveyAdminSection";
 export type { SurveyAdminSectionActions } from "./components/admin/SurveyAdminSection";
 export { SearchBar } from "./components/layout/SearchBar";
 export type { GlobalSearchResult } from "./types";
+export type { Report, ReportAction, ModerationSettings, BanlistSource, FederatedBanEntry, BanlistOverride } from "./types";
 export { DiscoverPage } from "./components/hubs/DiscoverPage";
 export type { HubListing } from "./types";
 export { HubSetupWizard } from "./components/hubs/HubSetupWizard";
@@ -126,17 +125,14 @@ export type { LobbyActions } from "./components/layout/Lobby";
 export { HubSidebar } from "./components/layout/HubSidebar";
 export type { LobbyStatusInfo, LobbyWelcomeInfo, SubmitPowResultInfo } from "./types";
 export { resolveSessionScope } from "./utils/lobbyDecision";
-export { FarmSettingsPage } from "./components/admin/FarmSettingsPage";
-export type { FarmAdminTab, FarmSettingsActions } from "./components/admin/FarmSettingsPage";
-export type { FarmSettings, FarmHubEntry, FarmUserEntry, FarmServerEntry } from "./types";
 export type {
   ReplyContext,
   Embed,
   EmbedField,
   ComponentRow,
-  BotComponent,
-  BotButton,
-  BotSelect,
+  MessageComponent,
+  MessageButton,
+  MessageSelect,
   SelectOption,
   User,
   LinkPreview,
@@ -152,6 +148,7 @@ export { MessageContextMenu } from "./components/content/MessageContextMenu";
 export { MessageRow } from "./components/content/MessageRow";
 export type { MessageRowActions } from "./components/content/MessageRow";
 export { ChannelHeader } from "./components/content/ChannelHeader";
+export { ConnectionStatus } from "./components/content/ConnectionStatus";
 export { ChannelComposer } from "./components/content/ChannelComposer";
 export { ChannelMessageList } from "./components/content/ChannelMessageList";
 export { DmView } from "./components/content/DmView";
@@ -162,7 +159,6 @@ export type { PinnedMessageEntry } from "./components/content/PinnedMessagesModa
 export { ErrorBoundary } from "./components/ErrorBoundary";
 export { SortableHubIcon, SortableChannelItem, SortableCategoryItem } from "./components/SortableItems";
 export {
-  PhoneIcon,
   PhoneOffIcon,
   MicOnIcon,
   MicOffIcon,
@@ -172,7 +168,6 @@ export {
   CameraOffIcon,
   PingIcon,
   CHANNEL_ICONS,
-  GamepadIcon,
   ChannelIconGlyph,
   ChannelIcon,
 } from "./components/Icons";
@@ -238,12 +233,11 @@ export type {
 } from "./types";
 export { sanitizeSvgMarkup } from "./utils/svgSanitize";
 export {
-  CHANNEL_OVERWRITE_PERMISSIONS,
+  overwritableIds,
   deriveRowStates,
   buildOverwritePayload,
 } from "./utils/channelPermissions";
-export type { TriState } from "./utils/channelPermissions";
-export { ChannelIconPicker } from "./components/channels/ChannelIconPicker";
+export type { TriState, PermissionCatalogueEntry } from "./utils/channelPermissions";
 export { EditDescriptionModal } from "./components/channels/EditDescriptionModal";
 export { ChannelPermissionsTab } from "./components/channels/ChannelPermissionsTab";
 export type { ChannelPermissionsTabActions } from "./components/channels/ChannelPermissionsTab";
@@ -275,9 +269,7 @@ export type { WhisperInboxEntry } from "./components/voice/WhisperInbox";
 export { SoundboardPopover } from "./components/voice/SoundboardPopover";
 export {
   isSpawnerChannel,
-  isTemporaryChannel,
   resolveOwnerDisplayName,
-  normalizeSpawnerNameTemplate,
 } from "./utils/spawnerChannels";
 export { moveChannelOptions, decideVoiceMove } from "./utils/voiceMove";
 export type { VoiceMovePush, VoiceMoveDecision } from "./utils/voiceMove";
@@ -298,8 +290,6 @@ export { ServerTagsSection } from "./components/admin/ServerTagsSection";
 export type { ServerTagsSectionActions } from "./components/admin/ServerTagsSection";
 export { InviteManager } from "./components/admin/InviteManager";
 export type { InviteManagerActions } from "./components/admin/InviteManager";
-export { NativeBotsSection } from "./components/admin/NativeBotsSection";
-export type { NativeBotsSectionActions } from "./components/admin/NativeBotsSection";
 export { AuditLogSection } from "./components/admin/AuditLogSection";
 export type { AuditLogSectionActions } from "./components/admin/AuditLogSection";
 export { CertificationsSection } from "./components/admin/CertificationsSection";
@@ -312,6 +302,16 @@ export type { CertificationsSectionActions } from "./components/admin/Certificat
 export { ProfileTab } from "./components/settings/ProfileTab";
 export { ProfileEditorSection } from "./components/settings/ProfileEditorSection";
 export { MyCertificationsSection } from "./components/settings/MyCertificationsSection";
+export { TrustedIssuersSection } from "./components/settings/TrustedIssuersSection";
+export {
+  parseTrustRoots,
+  serializeTrustRoots,
+  addTrustRoot,
+  removeTrustRoot,
+  isTrustedIssuer,
+  normalizePubkey,
+} from "./utils/trustRoots";
+export type { TrustRoot } from "./utils/trustRoots";
 export { FavoriteHubsEditor } from "./components/settings/FavoriteHubsEditor";
 export { AvatarChooser } from "./components/settings/AvatarChooser";
 export type {
@@ -326,6 +326,7 @@ export { resolveManagingAccount } from "./utils/resolveManagingAccount";
 export { loadHiddenBadgeSet, saveHiddenBadgeSet } from "./utils/hiddenBadges";
 export { SettingsShell } from "./components/settings/SettingsShell";
 export type { SettingsTabDef } from "./components/settings/SettingsShell";
+export { HelpTab } from "./components/settings/HelpTab";
 export { SoundboardAdminSection } from "./components/admin/SoundboardAdminSection";
 export type { SoundboardAdminSectionActions } from "./components/admin/SoundboardAdminSection";
 export { OnboardingAdminSection } from "./components/admin/OnboardingAdminSection";
@@ -339,10 +340,6 @@ export type {
   HubSelfTagSettings,
   HubBadge,
   PendingBadgeOffer,
-  NativeBot,
-  NativeBotCreated,
-  BotSlashCommandInfo,
-  NativeBotDetail,
   SoundboardClip,
   AuditLogEntry,
   AuditLogPage,
@@ -360,11 +357,39 @@ export type { RecoveryContactsSectionActions } from "./components/settings/Recov
 // Shared app-orchestration hooks (used by both web and desktop App.tsx).
 export { useVoiceMoveUx } from "./hooks/useVoiceMoveUx";
 export type { VoiceMoveMenuState } from "./hooks/useVoiceMoveUx";
+export { RemoveHubModal } from "./components/RemoveHubModal";
+export { EncryptionWarningModal } from "./components/EncryptionWarningModal";
+export { ContentReportsSection } from "./components/admin/ContentReportsSection";
+export { AutomodWebhookSection } from "./components/admin/AutomodWebhookSection";
+export { FederatedBanlistSection } from "./components/admin/FederatedBanlistSection";
+export type { FederatedBanlistActions } from "./components/admin/FederatedBanlistSection";
+export { OutgoingWebhooksSection } from "./components/admin/OutgoingWebhooksSection";
+export type { OutgoingWebhookActions } from "./components/admin/OutgoingWebhooksSection";
+export {
+  EventSubscriptionEditor,
+  eventSubscriptionsAreValid,
+} from "./components/events/EventSubscriptionEditor";
+export type { EventSubscriptionEditorProps } from "./components/events/EventSubscriptionEditor";
+export type { AutomodWebhookActions } from "./components/admin/AutomodWebhookSection";
+export type { ContentReportsActions } from "./components/admin/ContentReportsSection";
+export type { EncryptionWarning } from "./components/EncryptionWarningModal";
+export { homeHubStatus } from "./utils/homeHubStatus";
+export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry";
+export type { StoredPresence } from "./utils/presenceExpiry";
+export type { HomeHubStatus } from "./utils/homeHubStatus";
+export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useWhisper } from "./hooks/useWhisper";
+export { useTypingIndicators, typingKey, typingForScope } from "./hooks/useTypingIndicators";
+export type { TypingDeps, TypingMap } from "./hooks/useTypingIndicators";
+export type { WhisperDeps, WhisperParams } from "./hooks/useWhisper";
+export type { UnreadCounts, UnreadCountsDeps } from "./hooks/useUnreadCounts";
 export { usePresenceStatus } from "./hooks/usePresenceStatus";
 export { useHubSetupWizardGate } from "./hooks/useHubSetupWizardGate";
 export { useSoundboardChips, parseSoundboardPlayedEvent } from "./hooks/useSoundboardChips";
 export type { SoundboardPlayedEvent } from "./hooks/useSoundboardChips";
 export { useWhisperKeybinds } from "./hooks/useWhisperKeybinds";
+export { useAlliances } from "./hooks/useAlliances";
+export type { AllianceDeps, AlliancesReturn, SelectedAllianceChannel } from "./hooks/useAlliances";
 export { applyWhisperLogEvent, pickReplyPubkey } from "./utils/whisperInbox";
 export type { InboundWhisperEntry } from "./utils/whisperInbox";
 export { ChannelContextMenu } from "./components/channels/ChannelContextMenu";

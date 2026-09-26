@@ -1,8 +1,9 @@
 import type React from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { Dispatch, SetStateAction } from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { ChannelSidebar } from "@wavvon/ui";
-import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind } from "@wavvon/ui";
+import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind, UnreadCounts } from "@wavvon/ui";
 import { formatPubkey, type TreeNode } from "@wavvon/core";
 import { hasDraft } from "../utils/drafts";
 import type {
@@ -20,10 +21,10 @@ import type { useSoundboard } from "../hooks/useSoundboard";
 import type { useNotificationPrefs } from "../hooks/useNotificationPrefs";
 import type { useHubLifecycle } from "../hooks/useHubLifecycle";
 import type { useChannelMessages } from "../hooks/useChannelMessages";
-import type { useUnreadCounts } from "../hooks/useUnreadCounts";
 import type { useDms } from "../hooks/useDms";
 
 interface Props {
+  onRequestRemoveHub: (hubId: string) => void;
   view: "channels" | "dms";
   channels: Channel[];
   users: User[];
@@ -72,7 +73,7 @@ interface Props {
   notifyPrefs: ReturnType<typeof useNotificationPrefs>;
   hubLifecycle: ReturnType<typeof useHubLifecycle>;
   channelMessages: ReturnType<typeof useChannelMessages>;
-  unreadCounts: ReturnType<typeof useUnreadCounts>;
+  unreadCounts: UnreadCounts;
   dms: ReturnType<typeof useDms>;
 }
 
@@ -98,12 +99,17 @@ export function ChannelSidebarContainer({
   setShowSearchBar, myPresence, onSetStatus,
   showWhisperPanel, setShowWhisperPanel, soundboardChipsByChannel,
   whisperReplyBind, onSetWhisperReplyBind,
+  onRequestRemoveHub,
   voice, video, whisper, soundboard, notifyPrefs, hubLifecycle, channelMessages,
   unreadCounts, dms,
 }: Props) {
-  const canOpenChannelSettings = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_roles"));
-  const canCreateInvites = isAdmin || myRoles.some((r) => r.permissions?.includes("manage_channels"));
-  const canUseSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("use_soundboard"));
+  const canOpenChannelSettings =
+    isAdmin ||
+    myRoles.some(
+      (r) => r.permissions?.includes("roles.manage") || r.permissions?.includes("channels.permissions"),
+    );
+  const canCreateInvites = isAdmin || myRoles.some((r) => r.permissions?.includes("channels.manage"));
+  const canUseSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.soundboard.use"));
 
   return (
     <ChannelSidebar
@@ -136,14 +142,14 @@ export function ChannelSidebarContainer({
       selectedAllianceChannel={channelMessages.selectedAllianceChannel}
       conversations={dms.conversations}
       selectedConversation={dms.selectedConversation}
-      unreadDms={dms.unreadDms}
+      unreadDms={unreadCounts.unreadDms}
       channelTree={channelTree}
       effectiveNotifyMode={effectiveNotifyMode}
       onToggleCategoryCollapsed={onToggleCategoryCollapsed}
       onHubDropdownOpenChange={setHubDropdownOpen}
       onSetHubMode={notifyPrefs.setHubMode}
       onClearHubUnread={(hubId) => { unreadCounts.clearHubUnread(hubId); clearHubFirstNotify(hubId); }}
-      onRemoveHub={hubLifecycle.handleRemoveHub}
+      onRemoveHub={onRequestRemoveHub}
       onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}
       onOpenHubAdminInvites={() => { setHubDropdownOpen(false); openHubAdminInvites(); }}
       onOpenQuickInvite={() => setShowQuickInvite(true)}
@@ -188,6 +194,9 @@ export function ChannelSidebarContainer({
       onStartWhisper={whisper.startWhisper}
       onStopWhisper={whisper.stopWhisper}
       onSaveWhisperList={whisper.saveWhisperList}
+      onListWhisperRoles={() =>
+        invoke<RoleInfo[]>("list_roles").then((rs) => rs.map((r) => ({ id: r.id, name: r.name })))
+      }
       onDeleteWhisperList={whisper.deleteWhisperList}
       whisperReplyBind={whisperReplyBind}
       onSetWhisperReplyBind={onSetWhisperReplyBind}

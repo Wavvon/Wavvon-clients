@@ -9,6 +9,8 @@ import {
 } from "@platform";
 import { FullArchiveSection } from "@components/admin/FullArchiveSection";
 import { HomeHubsSection } from "../HomeHubsSection";
+import { MULTI_HUB } from "../../../constants";
+import { MoveToUserClientSection } from "../MoveToUserClientSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
 import { ManagingAccountSelector } from "../ManagingAccountSelector";
 import {
@@ -19,6 +21,7 @@ import {
   type IdentityRecord,
 } from "@identity/index";
 import type { PerAccountProps } from "@wavvon/ui";
+import { isIdentityBackedUp, markIdentityBackedUp } from "../../../utils/identityBackup";
 
 interface Props extends PerAccountProps<IdentityRecord> {
   hubs: Hub[];
@@ -121,6 +124,8 @@ export function ManageAccountsTab(props: Props) {
         recoveryPhrase={props.recoveryPhrase}
         onRevealPhrase={props.onShowRecovery}
         actions={backupActions}
+        needsBackup={!isIdentityBackedUp(props.activeId)}
+        onSavedOffDevice={markIdentityBackedUp}
       />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
       <FullArchiveSection publicKey={props.publicKey} />
@@ -132,7 +137,8 @@ export function ManageAccountsTab(props: Props) {
           onChange={props.onManagingChange}
         />
       )}
-      {props.managing && <HomeHubsSection activeHubUrl={activeHubUrl} account={props.managing} />}
+      {MULTI_HUB && props.managing && <HomeHubsSection activeHubUrl={activeHubUrl} account={props.managing} />}
+      {!MULTI_HUB && props.managing && <MoveToUserClientSection account={props.managing} activeHubUrl={activeHubUrl} />}
     </section>
   );
 }

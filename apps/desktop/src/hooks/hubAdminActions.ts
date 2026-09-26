@@ -4,34 +4,23 @@ import type {
   RoleCategory,
   InviteInfo,
   PendingUser,
-  BotAdminInfo,
-  BotDetailInfo,
-  BotCreatedResult,
-  FarmSettings,
-  FarmHubEntry,
-  FarmUserEntry,
-  FarmServerEntry,
 } from "../types";
 import type {
+  PermissionCatalogueEntry,
   RolesSectionActions,
   MemberRoleManagerActions,
   ServerTagsSectionActions,
   InviteManagerActions,
-  NativeBotsSectionActions,
   AuditLogSectionActions,
   CertificationsSectionActions,
   OnboardingAdminSectionActions,
   WebhooksSectionActions,
-  ExternalBotSectionActions,
   AlliancesSectionActions,
   HubIconsSectionActions,
   SurveyAdminSectionActions,
-  FarmSettingsActions,
   HubIcon,
   WebhookInfo,
   WebhookCreatedResult,
-  ExternalBotRow,
-  ExternalBotInviteResult,
   SurveyAdmin,
   SurveyResponseView,
   HubSelfTagSettings,
@@ -44,6 +33,19 @@ import type {
   AllianceInvite,
   PendingAllianceInvite,
   SharedChannel,
+  ContentReportsActions,
+  AutomodWebhookActions,
+  FederatedBanlistActions,
+  BanlistSource,
+  FederatedBanEntry,
+  BanlistOverride,
+  ModerationSettings,
+  Report,
+  OutgoingWebhookActions,
+  OutgoingWebhookSummary,
+  OutgoingWebhookCreatedResult,
+  OutgoingWebhookDelivery,
+  EventSubscription,
 } from "@wavvon/ui";
 
 // Pure invoke wrappers for HubAdminPage's sections that take no hub-url
@@ -71,6 +73,9 @@ export const rolesActions: RolesSectionActions = {
       categoryId: updates.category_id ?? null,
     }),
   deleteRole: (roleId) => invoke("delete_role", { roleId }),
+  // What this screen offers to tick is the hub's catalogue, not a list this
+  // build carries — same command the channel overwrite tab uses.
+  listPermissionCatalogue: () => invoke<PermissionCatalogueEntry[]>("list_permission_catalogue"),
   listRoleCategories: () => invoke<RoleCategory[]>("list_role_categories"),
   createRoleCategory: (input) =>
     invoke<RoleCategory>("create_role_category", { name: input.name, position: input.position }),
@@ -167,35 +172,6 @@ export function makeWebhookActions(getHubUrl: () => string): WebhooksSectionActi
   };
 }
 
-export function makeExternalBotActions(getHubUrl: () => string): ExternalBotSectionActions {
-  return {
-    loadBots: () => invoke<ExternalBotRow[]>("admin_list_external_bots", { hubUrl: getHubUrl() }),
-    addBot: (pubkey, localNote) =>
-      invoke<ExternalBotInviteResult>("admin_add_external_bot", { hubUrl: getHubUrl(), pubkey, localNote }),
-    removeBot: (pubkey) => invoke("admin_remove_external_bot", { hubUrl: getHubUrl(), pubkey }),
-    getBotChannelScope: (pubkey) => invoke<string[]>("admin_get_bot_channel_scope", { hubUrl: getHubUrl(), pubkey }),
-    setBotChannelScope: (pubkey, channelIds) =>
-      invoke("admin_set_bot_channel_scope", { hubUrl: getHubUrl(), pubkey, channelIds }),
-  };
-}
-
-export function makeNativeBotActions(getHubUrl: () => string): NativeBotsSectionActions {
-  return {
-    listNativeBots: () => invoke<BotAdminInfo[]>("admin_list_bots", { hubUrl: getHubUrl() }),
-    createNativeBot: (input) =>
-      invoke<BotCreatedResult>("admin_create_bot", {
-        hubUrl: getHubUrl(),
-        displayName: input.display_name,
-        miniAppUrl: input.mini_app_url ?? null,
-        requiresCamera: input.requires_camera ?? false,
-      }),
-    deleteNativeBot: (pubkey) => invoke("admin_delete_bot", { hubUrl: getHubUrl(), pubkey }),
-    getBotDetail: (pubkey) => invoke<BotDetailInfo>("admin_get_bot_detail", { hubUrl: getHubUrl(), pubkey }),
-    setBotWebhook: (pubkey, webhookUrl) =>
-      invoke("admin_set_bot_webhook", { hubUrl: getHubUrl(), pubkey, webhookUrl }),
-  };
-}
-
 export function makeAuditLogActions(getHubUrl: () => string): AuditLogSectionActions {
   return {
     getAuditLog: (opts) =>
@@ -236,26 +212,87 @@ export function makeSurveyActions(getHubUrl: () => string): SurveyAdminSectionAc
       invoke<SurveyResponseView[]>("survey_admin_responses", { hubUrl: getHubUrl(), status: "all" }),
     loadAssignableRoles: () =>
       invoke<RoleInfo[]>("list_roles").then((roles) =>
-        roles.filter((r) => !r.permissions.includes("admin")).map((r) => ({ id: r.id, name: r.name }))
+        roles.filter((r) => r.id !== "builtin-owner").map((r) => ({ id: r.id, name: r.name }))
       ),
   };
 }
 
-// FarmSettingsPage's actions are all parameterized by farmUrl per call —
-// no App state involved either, so this is a stable module-level const too.
-export const farmSettingsActions: FarmSettingsActions = {
-  getSettings: (farmUrl) => invoke<FarmSettings>("get_farm_settings", { farmUrl }),
-  patchSettings: (farmUrl, settings) => invoke<FarmSettings>("patch_farm_settings", { farmUrl, settings }),
-  getHubs: (farmUrl) => invoke<{ hubs: FarmHubEntry[] }>("get_farm_hubs_admin", { farmUrl }),
-  suspendHub: (farmUrl, hubId, suspended, reason) => invoke("suspend_farm_hub", { farmUrl, hubId, suspended, reason }),
-  deleteHub: (farmUrl, hubId) => invoke("delete_farm_hub", { farmUrl, hubId }),
-  getUsers: (farmUrl, page, limit) =>
-    invoke<{ users: FarmUserEntry[]; total: number; page: number; limit: number }>("get_farm_users", { farmUrl, page, limit }),
-  revokeUserSessions: (farmUrl, pubkey) => invoke("revoke_farm_user_sessions", { farmUrl, pubkey }),
-  getServers: (farmUrl) => invoke<{ servers: FarmServerEntry[] }>("get_farm_servers", { farmUrl }),
-  generateServerToken: (farmUrl, name, region) =>
-    invoke<{ server_id: string; token: string }>("generate_farm_server_token", { farmUrl, name, region }),
-  totpSetup: (farmUrl) => invoke<{ secret: string; qr_url: string }>("farm_totp_setup", { farmUrl }),
-  totpConfirm: (farmUrl, secret, code) => invoke("farm_totp_confirm", { farmUrl, secret, code }),
-  totpDisable: (farmUrl, code) => invoke("farm_totp_disable", { farmUrl, code }),
+
+// Content reports: the queue of what members flagged. Unlike most of the
+// sections above these commands take no hub URL — `list_reports` /
+// `review_report` act on the active session, the way the rest of the
+// moderation surface will when it follows (parity pass, 2026-09-08).
+export const contentReportActions: ContentReportsActions = {
+  listReports: (status) => invoke<Report[]>("list_reports", { status }),
+  reviewReport: (reportId, action) => invoke("review_report", { reportId, action, note: null }),
+};
+
+// Automod webhook. `undefined` leaves a field alone and `""` clears it — the
+// Rust command builds its body from the fields that are Some, because Tauri
+// cannot tell an omitted argument from an explicit null.
+export const automodActions: AutomodWebhookActions = {
+  getModerationSettings: () => invoke<ModerationSettings>("get_moderation_settings"),
+  patchModerationSettings: (webhookUrl, webhookSecret) =>
+    invoke("set_moderation_settings", {
+      webhookUrl: webhookUrl ?? null,
+      webhookSecret: webhookSecret ?? null,
+    }),
+};
+
+// Federated ban lists. Every call acts on the active session, like the rest of
+// the moderation tab.
+export const banlistActions: FederatedBanlistActions = {
+  getBanlistSettings: () =>
+    invoke<{ publish_banlist: boolean; sources: BanlistSource[] }>("get_banlist_settings"),
+  getBanlistEntries: (source) =>
+    invoke<FederatedBanEntry[]>("get_banlist_entries", { source: source ?? null }),
+  getBanlistOverrides: () => invoke<BanlistOverride[]>("get_banlist_overrides"),
+  addBanlistSource: (url, policy) => invoke("add_banlist_source", { url, policy }),
+  removeBanlistSource: (url) => invoke("remove_banlist_source", { url }),
+  updateBanlistSourcePolicy: (url, policy) =>
+    invoke("update_banlist_source_policy", { url, policy }),
+  addBanlistOverride: (targetPubkey, overrideType, reason) =>
+    invoke("add_banlist_override", { targetPubkey, overrideType, reason: reason ?? null }),
+  removeBanlistOverride: (targetPubkey) =>
+    invoke("remove_banlist_override", { targetPubkey }),
+  setBanlistPublish: (publish) => invoke("set_banlist_publish", { publish }),
+};
+
+// Outgoing webhooks. Active-session calls like the rest of the moderation
+// surface, so this is a module-level const: the section loads on mount, and a
+// fresh object every render would reload it every render.
+//
+// `update` passes only the fields it was given — the Rust side builds the
+// PATCH body from the ones that are Some, because the hub reads an absent
+// field as "leave it alone" and Tauri cannot tell an omitted argument from an
+// explicit null.
+export const outgoingWebhookActions: OutgoingWebhookActions = {
+  list: () => invoke<OutgoingWebhookSummary[]>("admin_list_outgoing_webhooks"),
+  create: (url, displayName) =>
+    invoke<OutgoingWebhookCreatedResult>("admin_create_outgoing_webhook", {
+      url,
+      displayName,
+    }),
+  update: (id, patch) =>
+    invoke("admin_update_outgoing_webhook", {
+      id,
+      url: patch.url ?? null,
+      displayName: patch.display_name ?? null,
+      active: patch.active ?? null,
+    }),
+  remove: (id) => invoke("admin_delete_outgoing_webhook", { id }),
+  getSubscriptions: (id) =>
+    invoke<EventSubscription[]>("admin_get_outgoing_webhook_subscriptions", { id }),
+  setSubscriptions: (id, subscriptions) =>
+    invoke<{ count: number }>("admin_set_outgoing_webhook_subscriptions", { id, subscriptions }),
+  rotateSecret: (id) => invoke<{ secret: string }>("admin_rotate_outgoing_webhook_secret", { id }),
+  enable: (id) => invoke("admin_enable_outgoing_webhook", { id }),
+  listDeliveries: (id, params) =>
+    invoke<OutgoingWebhookDelivery[]>("admin_list_outgoing_webhook_deliveries", {
+      id,
+      limit: params.limit ?? null,
+      offset: params.offset ?? null,
+      eventType: params.eventType ?? null,
+      success: params.success ?? null,
+    }),
 };

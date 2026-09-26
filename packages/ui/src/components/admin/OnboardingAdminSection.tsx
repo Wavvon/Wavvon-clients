@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import type { ChallengeDifficulty, ChallengeMode, PendingUser } from "../../types";
 import { ChallengePreviewModal } from "./ChallengePreviewModal";
@@ -22,6 +23,7 @@ interface Props {
 // Admission controls: the approval queue, lobby settings, and anti-spam
 // challenge.
 export function OnboardingAdminSection({ actions }: Props) {
+  const { t } = useTranslation();
   const [pending, setPending] = useState<PendingUser[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,14 +55,14 @@ export function OnboardingAdminSection({ actions }: Props) {
 
   return (
     <section>
-      <h1>Onboarding</h1>
+      <h1>{t("hub.admin.onboarding.title")}</h1>
       {error && <p className="error-text">{error}</p>}
       {status && <p className="muted">{status}</p>}
 
       <div className="settings-section">
-        <label className="settings-label">Approval queue</label>
+        <label className="settings-label">{t("hub.admin.onboarding.queue_label")}</label>
         {pending.length === 0 ? (
-          <p className="muted">No one is waiting for approval.</p>
+          <p className="muted">{t("hub.admin.onboarding.queue_empty")}</p>
         ) : (
           pending.map((u) => (
             <div key={u.public_key} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
@@ -68,9 +70,9 @@ export function OnboardingAdminSection({ actions }: Props) {
               <button
                 className="btn-small"
                 disabled={busy}
-                onClick={() => run(async () => { await actions.approvePendingUser(u.public_key); await loadPending(); }, "Approved")}
+                onClick={() => run(async () => { await actions.approvePendingUser(u.public_key); await loadPending(); }, t("hub.admin.onboarding.approved"))}
               >
-                Approve
+                {t("hub.admin.onboarding.approve")}
               </button>
             </div>
           ))
@@ -78,47 +80,47 @@ export function OnboardingAdminSection({ actions }: Props) {
       </div>
 
       <div className="settings-section">
-        <label className="settings-label">Lobby</label>
+        <label className="settings-label">{t("hub.admin.onboarding.lobby_label")}</label>
         <label className="checkbox-label">
           <input type="checkbox" checked={lobbyEnabled} onChange={(e) => setLobbyEnabled(e.target.checked)} />
-          Enable the lobby (new members complete a proof-of-work before joining)
+          {t("hub.admin.onboarding.lobby_enable")}
         </label>
         <textarea
           value={welcomeMd}
           onChange={(e) => setWelcomeMd(e.target.value)}
-          placeholder="Welcome message (Markdown, optional)"
+          placeholder={t("hub.admin.onboarding.welcome_placeholder")}
           rows={3}
           style={{ width: "100%", marginTop: "var(--space-2)" }}
         />
         <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
-          <button disabled={busy} onClick={() => run(() => actions.setLobbySettings(lobbyEnabled, welcomeMd.trim() || undefined), "Lobby settings saved")}>
-            Save lobby settings
+          <button disabled={busy} onClick={() => run(() => actions.setLobbySettings(lobbyEnabled, welcomeMd.trim() || undefined), t("hub.admin.onboarding.lobby_saved"))}>
+            {t("hub.admin.onboarding.lobby_save")}
           </button>
         </div>
       </div>
 
       <div className="settings-section">
-        <label className="settings-label">Anti-spam challenge</label>
+        <label className="settings-label">{t("hub.admin.onboarding.challenge_label")}</label>
         <div className="settings-row" style={{ gap: "var(--space-2)", flexWrap: "wrap" }}>
-          <label>Mode{" "}
+          <label>{t("hub.admin.onboarding.mode")}{" "}
             <select value={challengeMode} onChange={(e) => setChallengeMode(e.target.value as ChallengeMode)}>
-              <option value="off">Off</option>
-              <option value="click">Click</option>
-              <option value="puzzle">Puzzle</option>
-              <option value="both">Both</option>
+              <option value="off">{t("hub.admin.onboarding.mode.off")}</option>
+              <option value="click">{t("hub.admin.onboarding.mode.click")}</option>
+              <option value="puzzle">{t("hub.admin.onboarding.mode.puzzle")}</option>
+              <option value="both">{t("hub.admin.onboarding.mode.both")}</option>
             </select>
           </label>
-          <label>Difficulty{" "}
+          <label>{t("hub.admin.onboarding.difficulty")}{" "}
             <select value={challengeDifficulty} onChange={(e) => setChallengeDifficulty(e.target.value as ChallengeDifficulty)}>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
+              <option value="easy">{t("hub.admin.onboarding.difficulty.easy")}</option>
+              <option value="medium">{t("hub.admin.onboarding.difficulty.medium")}</option>
             </select>
           </label>
-          <button disabled={busy} onClick={() => run(() => actions.setChallengeSettings(challengeMode, challengeDifficulty), "Challenge settings saved")}>
-            Save challenge
+          <button disabled={busy} onClick={() => run(() => actions.setChallengeSettings(challengeMode, challengeDifficulty), t("hub.admin.onboarding.challenge_saved"))}>
+            {t("hub.admin.onboarding.challenge_save")}
           </button>
           <button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}>
-            Preview
+            {t("hub.admin.onboarding.preview")}
           </button>
         </div>
       </div>

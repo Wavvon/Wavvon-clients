@@ -1,7 +1,6 @@
 export {
   loadIdentity,
   saveIdentity,
-  generateIdentity,
   generateSubkeySeed,
   bytesToHex,
   hexToBytes,
@@ -12,6 +11,7 @@ export {
   getActiveAccountId,
   setActiveAccountId,
   masterPubkeyOf,
+  holdsMasterSeed,
   findAccountByPubkey,
   resolveOrCreateAccount,
   removeAccount,
@@ -32,6 +32,7 @@ export {
   buildSubkeyCert,
   buildRevocation,
   buildPairingOffer,
+  verifyPairingOffer,
   buildPairingClaim,
   wrapBlobKey,
   unwrapBlobKey,

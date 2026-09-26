@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 type Panel = "hub" | "channel" | "content";
 
@@ -21,6 +22,7 @@ interface MobileShellProps {
  *   [0] HubSidebar, [1] ChannelSidebar, [2] ContentArea
  */
 export function MobileShell({ children, onBack }: MobileShellProps) {
+  const { t } = useTranslation();
   const [activePanel, setActivePanel] = useState<Panel>("hub");
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -130,11 +132,11 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
         {/* Header with back button + breadcrumbs */}
         <div className="mobile-shell-header">
           {currentIdx > 0 && (
-            <button className="mobile-shell-back" onClick={goBack} aria-label="Go back">
+            <button className="mobile-shell-back" onClick={goBack} aria-label={t("mobile.back")}>
               ‹
             </button>
           )}
-          <div className="mobile-shell-breadcrumb" aria-label="Navigation">
+          <div className="mobile-shell-breadcrumb" aria-label={t("mobile.nav")}>
             {panelOrder.map((panel, idx) => (
               <React.Fragment key={panel}>
                 {idx > 0 && <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>›</span>}
@@ -144,7 +146,7 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
                   aria-current={activePanel === panel ? "page" : undefined}
                   disabled={idx > currentIdx}
                 >
-                  {panel === "hub" ? "Hubs" : panel === "channel" ? "Channels" : "Chat"}
+                  {t(`mobile.panel.${panel}`)}
                 </button>
               </React.Fragment>
             ))}

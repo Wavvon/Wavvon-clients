@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { Survey, SurveyAnswer, SurveySubmitResult } from "../types";
 
@@ -12,6 +13,7 @@ export interface SurveyProps {
 type SubmitState = "idle" | "submitting" | "approved" | "pending";
 
 export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }: SurveyProps) {
+  const { t } = useTranslation();
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
@@ -80,12 +82,12 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
   const formContent = (
     <>
       {submitState === "approved" && (
-        <div className="survey-result-ok">All set!</div>
+        <div className="survey-result-ok">{t("survey.result.approved")}</div>
       )}
       {submitState === "pending" && pendingResult && (
         <div className="survey-pending-notice">
-          <p>Your answers have been sent for review. You'll be notified when approved.</p>
-          <button onClick={() => onComplete(pendingResult)}>Close</button>
+          <p>{t("survey.result.pending")}</p>
+          <button onClick={() => onComplete(pendingResult)}>{t("modal.close")}</button>
         </div>
       )}
       {submitState !== "approved" && submitState !== "pending" && (
@@ -136,14 +138,16 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
           <div className="survey-actions">
             {onSkip && (
               <button className="btn-secondary" onClick={onSkip}>
-                Skip
+                {t("onboarding.display_name.skip")}
               </button>
             )}
             <button
               onClick={handleSubmit}
               disabled={!allRequiredAnswered || submitState === "submitting"}
             >
-              {submitState === "submitting" ? "Submitting…" : "Submit"}
+              {submitState === "submitting"
+                ? t("survey.modal.submitting")
+                : t("survey.modal.submit")}
             </button>
           </div>
         </div>
@@ -158,7 +162,7 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
   return (
     <div className="modal-overlay">
       <div className="modal modal-wide">
-        <h3>A quick question before you join</h3>
+        <h3>{t("survey.modal.title")}</h3>
         {formContent}
       </div>
     </div>

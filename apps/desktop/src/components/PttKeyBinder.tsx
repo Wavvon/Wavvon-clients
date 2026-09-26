@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 /** Single-shot key capture for push-to-talk. Click → next key press wins. */
 export function PttKeyBinder({
@@ -8,6 +9,7 @@ export function PttKeyBinder({
   value: string;
   onChange: (k: string) => void;
 }) {
+  const { t } = useTranslation();
   const [listening, setListening] = useState(false);
 
   useEffect(() => {
@@ -37,13 +39,13 @@ export function PttKeyBinder({
 
   return (
     <div className="settings-row" style={{ alignItems: "center" }}>
-      <span className="muted">Bound key:</span>
+      <span className="muted">{t("settings.ptt.bound_key")}</span>
       <code className="public-key">{value}</code>
       <button
         className="btn-secondary"
         onClick={() => setListening((v) => !v)}
       >
-        {listening ? "Press a key…" : "Rebind"}
+        {listening ? t("settings.ptt.binding") : t("settings.ptt.rebind")}
       </button>
     </div>
   );

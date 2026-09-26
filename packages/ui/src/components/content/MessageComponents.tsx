@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import type { ComponentRow, BotButton, BotSelect } from "../../types";
+import { useTranslation } from "react-i18next";
+import type { ComponentRow, MessageButton, MessageSelect } from "../../types";
 
 interface Props {
   rows: ComponentRow[];
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function MessageComponents({ rows, messageId, onInteract }: Props) {
+  const { t } = useTranslation();
   const [disabledIds, setDisabledIds] = useState<Set<string>>(new Set());
 
   const fireInteraction = useCallback(
@@ -34,7 +36,7 @@ export function MessageComponents({ rows, messageId, onInteract }: Props) {
         <div key={ri} className="component-row">
           {row.components.map((c, ci) => {
             if (c.type === "button") {
-              const btn = c as BotButton;
+              const btn = c as MessageButton;
               const isDisabled = btn.disabled || disabledIds.has(btn.custom_id);
               return (
                 <button
@@ -48,7 +50,7 @@ export function MessageComponents({ rows, messageId, onInteract }: Props) {
               );
             }
             if (c.type === "select") {
-              const sel = c as BotSelect;
+              const sel = c as MessageSelect;
               const isDisabled = disabledIds.has(sel.custom_id);
               return (
                 <select
@@ -60,7 +62,7 @@ export function MessageComponents({ rows, messageId, onInteract }: Props) {
                     if (e.target.value) fireInteraction(sel.custom_id, [e.target.value]);
                   }}
                 >
-                  <option value="" disabled>{sel.placeholder ?? "Select…"}</option>
+                  <option value="" disabled>{sel.placeholder ?? t("message.component.select")}</option>
                   {sel.options.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}

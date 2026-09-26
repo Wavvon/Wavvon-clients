@@ -1,4 +1,6 @@
 import { hubFetch, rawFetch } from "../http";
+import { activeHubCapabilities } from "../session";
+import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import type {
   HubSelfTagSettings,
   HubBadge,
@@ -97,11 +99,6 @@ export async function issueCertManual(subjectPubkey: string): Promise<void> {
 
 export async function revokeCert(subjectPubkey: string): Promise<void> {
   await hubFetch(`/admin/certs/${subjectPubkey}/revoke`, { method: "POST" });
-}
-
-export async function fetchMyCert(hubUrl: string): Promise<unknown> {
-  const r = await rawFetch(`${hubUrl}/certs/me`);
-  return r.json();
 }
 
 // ---- Recovery contacts ----
@@ -247,6 +244,7 @@ export async function saveHubSettings(settings: {
   min_security_level?: number;
   max_channel_depth?: number;
   welcome_label?: string;
+  farewell_label?: string;
   welcome_invite_url?: string;
   /** Role auto-granted at invite redemption when the invite carries no
    *  explicit grant_role_id. null clears it (newcomers get only @everyone). */
@@ -260,6 +258,9 @@ export async function saveHubSettings(settings: {
   /** Idle threshold in seconds; hub minimum is 60. */
   afk_timeout_secs?: number;
   name_color_mode?: NameColorMode;
+  /** Per-message attachment cap in bytes. The hub clamps it to its own floor
+   *  and ceiling and rejects anything outside them. */
+  max_attachment_bytes?: number;
 }): Promise<void> {
   await hubFetch("/hub", {
     method: "PATCH",
@@ -275,6 +276,7 @@ export async function getHubSettings(): Promise<{
   min_security_level: number;
   max_channel_depth: number;
   welcome_label: string;
+  farewell_label: string;
   welcome_invite_url: string;
   default_invite_role_id: string | null;
   timezone: string;
@@ -282,6 +284,7 @@ export async function getHubSettings(): Promise<{
   afk_channel_id: string;
   afk_timeout_secs: number;
   name_color_mode: NameColorMode;
+  max_attachment_bytes: number;
 }> {
   const [settingsRes, infoRes] = await Promise.all([
     hubFetch("/hub/settings").then((r) => r.json() as Promise<{
@@ -295,12 +298,14 @@ export async function getHubSettings(): Promise<{
       afk_channel_id?: string | null;
       afk_timeout_secs?: number;
       name_color_mode?: NameColorMode;
+      max_attachment_bytes?: number;
     }>),
     hubFetch("/info").then((r) => r.json() as Promise<{
       name: string;
       description?: string | null;
       icon?: string | null;
       welcome_label?: string | null;
+      farewell_label?: string | null;
       welcome_invite_url?: string | null;
     }>),
   ]);
@@ -312,6 +317,7 @@ export async function getHubSettings(): Promise<{
     min_security_level: settingsRes.min_security_level,
     max_channel_depth: settingsRes.max_channel_depth,
     welcome_label: infoRes.welcome_label ?? "",
+    farewell_label: infoRes.farewell_label ?? "",
     welcome_invite_url: infoRes.welcome_invite_url ?? "",
     default_invite_role_id: settingsRes.default_invite_role_id ?? null,
     timezone: settingsRes.timezone ?? "",
@@ -319,6 +325,8 @@ export async function getHubSettings(): Promise<{
     afk_channel_id: settingsRes.afk_channel_id ?? "",
     afk_timeout_secs: settingsRes.afk_timeout_secs ?? 300,
     name_color_mode: settingsRes.name_color_mode ?? "role_over_user",
+    // Falls back to the hub's own default, for a hub predating the setting.
+    max_attachment_bytes: settingsRes.max_attachment_bytes ?? 3 * 1024 * 1024,
   };
 }
 
@@ -356,5 +364,19 @@ export async function setHubListed(listed: boolean): Promise<void> {
   await hubFetch("/admin/settings/listing", {
     method: "PATCH",
     body: JSON.stringify({ listed }),
+  });
+}
+
+/** Every active invite on this hub, walked to exhaustion. */
+export async function listInvites(): Promise<InviteInfo[]> {
+  return fetchAllPages<InviteInfo>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (i) => i.code,
+    fetchPage: async (params) =>
+      (await (await hubFetch(params ? `/invites?${params}` : "/invites")).json()) as InviteInfo[],
+    label: "listInvites",
   });
 }

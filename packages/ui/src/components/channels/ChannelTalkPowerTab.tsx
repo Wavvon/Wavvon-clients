@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface ChannelTalkPowerTabActions {
   getTalkPower: (channelId: string) => Promise<number>;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function ChannelTalkPowerTab({ channelId, actions }: Props) {
+  const { t } = useTranslation();
   const [talkPower, setTalkPowerState] = useState(0);
   const [talkPowerInput, setTalkPowerInput] = useState("0");
   const [saved, setSaved] = useState(false);
@@ -40,9 +42,9 @@ export function ChannelTalkPowerTab({ channelId, actions }: Props) {
 
   return (
     <div className="settings-section">
-      <label className="settings-label" htmlFor="channel-talk-power">Talk power</label>
+      <label className="settings-label" htmlFor="channel-talk-power">{t("channel.talk_power.label")}</label>
       <p className="muted">
-        Minimum priority required to speak in this channel. 0 allows anyone.
+        {t("channel.talk_power.hint")}
       </p>
       <div className="settings-row">
         <input
@@ -53,7 +55,7 @@ export function ChannelTalkPowerTab({ channelId, actions }: Props) {
           onChange={(e) => setTalkPowerInput(e.target.value)}
           style={{ width: "80px" }}
         />
-        <button onClick={handleSave}>{saved ? "Saved" : "Save"}</button>
+        <button onClick={handleSave}>{saved ? t("channel.talk_power.saved") : t("channel.talk_power.save")}</button>
       </div>
       <p className="muted">Current: {talkPower}</p>
     </div>

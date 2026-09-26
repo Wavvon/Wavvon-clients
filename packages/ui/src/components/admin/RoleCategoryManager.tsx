@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { RoleCategory } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 import { EmojiPicker } from "../content/EmojiPicker";
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function RoleCategoryManager({ categories, onChange, actions }: Props) {
+  const { t } = useTranslation();
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
   }
 
   async function handleDelete(cat: RoleCategory) {
-    if (!window.confirm(`Delete category "${cat.name}"? Roles in it become uncategorized.`)) return;
+    if (!window.confirm(t("hub.admin.role_categories.delete_confirm", { name: cat.name }))) return;
     await runMutation(async () => {
       await actions.deleteRoleCategory(cat.id);
       onChange(categories.filter((c) => c.id !== cat.id));
@@ -83,11 +85,11 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
 
   return (
     <div className="settings-section">
-      <label className="settings-label">Role categories</label>
-      <p className="muted">Group roles under headings in the members list and this editor.</p>
+      <label className="settings-label">{t("hub.admin.role_categories.title")}</label>
+      <p className="muted">{t("hub.admin.role_categories.hint")}</p>
       {error && <p className="error-text">{error}</p>}
 
-      {sorted.length === 0 && <p className="muted">No categories yet.</p>}
+      {sorted.length === 0 && <p className="muted">{t("hub.admin.role_categories.empty")}</p>}
 
       {sorted.map((cat, index) => (
         <div key={cat.id} className="settings-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -96,8 +98,8 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
             className="btn-small btn-secondary"
             onClick={() => handleMove(index, -1)}
             disabled={index === 0}
-            aria-label="Move up"
-            title="Move up"
+            aria-label={t("hub.admin.role_categories.move_up")}
+            title={t("hub.admin.role_categories.move_up")}
           >
             ↑
           </button>
@@ -106,8 +108,8 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
             className="btn-small btn-secondary"
             onClick={() => handleMove(index, 1)}
             disabled={index === sorted.length - 1}
-            aria-label="Move down"
-            title="Move down"
+            aria-label={t("hub.admin.role_categories.move_down")}
+            title={t("hub.admin.role_categories.move_down")}
           >
             ↓
           </button>
@@ -119,7 +121,7 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
               className="btn-small btn-secondary"
               onClick={() => runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { icon: null })))}
             >
-              Clear
+              {t("hub.admin.role_categories.clear_icon")}
             </button>
           )}
           <input
@@ -141,19 +143,19 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
               border: safeRoleColor(cat.color) ? undefined : "1px solid var(--border)",
             }}
             onClick={() => setColorPickerFor(colorPickerFor === cat.id ? null : cat.id)}
-            title="Category color"
+            title={t("hub.admin.role_categories.color_label")}
           />
           <button
             type="button"
             className="btn-small btn-secondary danger"
             onClick={() => handleDelete(cat)}
           >
-            Delete
+            {t("hub.admin.role_categories.delete")}
           </button>
           {colorPickerFor === cat.id && (
             <ColorSwatchPicker
               value={cat.color}
-              noColorLabel="No color"
+              noColorLabel={t("hub.admin.role_categories.no_color")}
               onChange={(color) => runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { color })))}
             />
           )}
@@ -165,10 +167,10 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="New category name"
+          placeholder={t("hub.admin.role_categories.new_name_placeholder")}
         />
         <button type="button" onClick={handleCreate} disabled={creating || !newName.trim()}>
-          Create category
+          {t("hub.admin.role_categories.create")}
         </button>
       </div>
     </div>

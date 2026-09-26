@@ -1,4 +1,4 @@
-import { HubStreamsPanel } from "@wavvon/ui";
+import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { saveDraft } from "../utils/drafts";
 import type { Channel, User, RoleInfo } from "../types";
@@ -13,7 +13,7 @@ import type { useFirstNotify } from "../hooks/useFirstNotify";
 interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
 interface Props {
@@ -104,8 +104,8 @@ export function ContentAreaContainer({
         voiceActiveUsers={voice.voiceActiveUsers}
         hideBirthdays={hideBirthdays}
         inputText={channelMessages.inputText}
-        typingByKey={typing.typingByKey}
-        dmTypingByKey={typing.dmTypingByKey}
+        typingByKey={typingForScope(typing.typingByKey, selectedChannel?.id)}
+        dmTypingByKey={typingForScope(typing.dmTypingByKey, dms.selectedConversation?.id)}
         messagesEndRef={channelMessages.messagesEndRef}
         messagesEndChannelRef={channelMessages.messagesEndChannelRef}
         messagesContainerRef={channelMessages.messagesContainerRef}
@@ -155,6 +155,7 @@ export function ContentAreaContainer({
         voicePartByChannel={voice.voicePartByChannel}
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}
+        onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
       />
       {showHubStreams && (
         <HubStreamsPanel

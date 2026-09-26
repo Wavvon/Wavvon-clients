@@ -1,4 +1,6 @@
 import { hubFetch } from "../http";
+import { activeHubCapabilities } from "../session";
+import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 
 // --- Lobby (admin) ---
 
@@ -17,8 +19,18 @@ export async function setLobbySettings(lobbyEnabled: boolean, welcomeMd?: string
 
 // Approval queue: users awaiting admission (require_approval hubs).
 export async function listPendingUsers(): Promise<PendingUser[]> {
-  const r = await hubFetch("/hub/pending");
-  return r.json() as Promise<PendingUser[]>;
+  return fetchAllPages<PendingUser>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (u) => u.public_key,
+    fetchPage: async (params) =>
+      (await (
+        await hubFetch(params ? `/hub/pending?${params}` : "/hub/pending")
+      ).json()) as PendingUser[],
+    label: "listPendingUsers",
+  });
 }
 
 export async function approvePendingUser(pubkey: string): Promise<void> {

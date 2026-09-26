@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { WhisperTarget, WhisperList, WhisperReplyBind } from "../../types";
 
 interface Props {
@@ -44,6 +45,7 @@ export function WhisperPanel({
   whisperOptout, onSetWhisperOptout, onListWhisperRoles,
   whisperReplyBind, onSetWhisperReplyBind,
 }: Props) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<WhisperTarget[]>(whisperTargets);
   const [tab, setTab] = useState<"users" | "channels" | "roles" | "lists">("users");
   const [listName, setListName] = useState("");
@@ -68,16 +70,16 @@ export function WhisperPanel({
     onListWhisperRoles().then(setRoles).catch(() => setRoles([]));
   }, [tab, roles, onListWhisperRoles]);
 
-  function toggleTarget(t: WhisperTarget) {
+  function toggleTarget(target: WhisperTarget) {
     setSelected(prev =>
-      prev.some(s => s.type === t.type && s.id === t.id)
-        ? prev.filter(s => !(s.type === t.type && s.id === t.id))
-        : [...prev, t]
+      prev.some(s => s.type === target.type && s.id === target.id)
+        ? prev.filter(s => !(s.type === target.type && s.id === target.id))
+        : [...prev, target]
     );
   }
 
-  function isSelected(t: WhisperTarget) {
-    return selected.some(s => s.type === t.type && s.id === t.id);
+  function isSelected(target: WhisperTarget) {
+    return selected.some(s => s.type === target.type && s.id === target.id);
   }
 
   useEffect(() => {
@@ -95,23 +97,23 @@ export function WhisperPanel({
   return (
     <div className="whisper-panel">
       <div className="whisper-panel-header">
-        <span className="whisper-panel-title">Whisper</span>
-        <button className="whisper-panel-close" onClick={onClose} aria-label="Close" title="Close">✕</button>
+        <span className="whisper-panel-title">{t("voice.whisper")}</span>
+        <button className="whisper-panel-close" onClick={onClose} aria-label={t("modal.close")} title={t("modal.close")}>✕</button>
       </div>
 
       {isWhispering && (
         <div className="whisper-active-banner">
-          Whispering to: {whisperTargets.map(t => t.label).join(", ")}
-          <button onClick={onStopWhisper}>Stop</button>
+          {t("voice.whisper.active", { targets: whisperTargets.map(target => target.label).join(", ") })}
+          <button onClick={onStopWhisper}>{t("voice.whisper.stop")}</button>
         </div>
       )}
 
       <div className="whisper-tabs">
         {(["users", "channels", "roles", "lists"] as const)
-          .filter(t => t !== "roles" || onListWhisperRoles)
-          .map(t => (
-            <button key={t} className={`whisper-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-              {t === "users" ? "Users" : t === "channels" ? "Channels" : t === "roles" ? "Roles" : "Saved Lists"}
+          .filter(id => id !== "roles" || onListWhisperRoles)
+          .map(id => (
+            <button key={id} className={`whisper-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
+              {t(`voice.whisper.tab.${id}`)}
             </button>
           ))}
       </div>
@@ -136,7 +138,7 @@ export function WhisperPanel({
           );
         })}
         {tab === "roles" && roles === null && (
-          <p className="muted" style={{ padding: "8px 10px", fontSize: 12 }}>Loading roles…</p>
+          <p className="muted" style={{ padding: "8px 10px", fontSize: 12 }}>{t("voice.whisper.roles_loading")}</p>
         )}
         {tab === "roles" && roles?.map(r => {
           const target: WhisperTarget = { type: "role", id: r.id, label: `@${r.name}` };
@@ -148,32 +150,32 @@ export function WhisperPanel({
           );
         })}
         {tab === "roles" && roles !== null && roles.length === 0 && (
-          <p className="muted" style={{ padding: "8px 10px", fontSize: 12 }}>No roles on this hub.</p>
+          <p className="muted" style={{ padding: "8px 10px", fontSize: 12 }}>{t("voice.whisper.roles_empty")}</p>
         )}
         {tab === "lists" && whisperLists.map(list => (
           <div key={list.id} className="whisper-list-item-wrap">
             <div className="whisper-list-item">
               <span>{list.name}</span>
-              <span className="whisper-list-targets">{list.targets.map(t => t.label).join(", ")}</span>
+              <span className="whisper-list-targets">{list.targets.map(target => target.label).join(", ")}</span>
               <div className="whisper-list-actions">
-                <button onClick={() => { onStartWhisper(list.targets); onClose(); }}>Whisper</button>
-                <button onClick={() => onDeleteList(list.id)} aria-label="Delete list" title="Delete list">✕</button>
+                <button onClick={() => { onStartWhisper(list.targets); onClose(); }}>{t("voice.whisper")}</button>
+                <button onClick={() => onDeleteList(list.id)} aria-label={t("voice.whisper.delete_list")} title={t("voice.whisper.delete_list")}>✕</button>
               </div>
             </div>
             <div className="whisper-list-keybind-row">
-              <span className="muted">Key: {list.keybind ? keyLabel(list.keybind) : "none"}</span>
+              <span className="muted">{t("voice.whisper.key", { key: list.keybind ? keyLabel(list.keybind) : t("voice.whisper.key_none") })}</span>
               <button onClick={() => setBindingListId(list.id)} disabled={bindingListId === list.id}>
-                {bindingListId === list.id ? "Press a key…" : "Bind key"}
+                {bindingListId === list.id ? t("voice.whisper.binding") : t("voice.whisper.bind")}
               </button>
               {list.keybind && (
                 <>
-                  <button onClick={() => onSaveList({ ...list, keybind: undefined })}>Clear</button>
+                  <button onClick={() => onSaveList({ ...list, keybind: undefined })}>{t("modal.clear")}</button>
                   <select
                     value={list.keybindMode ?? "hold"}
                     onChange={e => onSaveList({ ...list, keybindMode: e.target.value as "hold" | "toggle" })}
                   >
-                    <option value="hold">Hold</option>
-                    <option value="toggle">Toggle</option>
+                    <option value="hold">{t("voice.whisper.mode.hold")}</option>
+                    <option value="toggle">{t("voice.whisper.mode.toggle")}</option>
                   </select>
                 </>
               )}
@@ -181,21 +183,21 @@ export function WhisperPanel({
           </div>
         ))}
         {tab === "lists" && whisperLists.length === 0 && (
-          <p className="muted" style={{ padding: "8px 10px", fontSize: 12 }}>No saved lists yet.</p>
+          <p className="muted" style={{ padding: "8px 10px", fontSize: 12 }}>{t("voice.whisper.lists_empty")}</p>
         )}
       </div>
 
       {tab !== "lists" && selected.length > 0 && (
         <div className="whisper-actions">
           <button className="whisper-start-btn" onClick={() => { onStartWhisper(selected); onClose(); }}>
-            Whisper to {selected.length} target{selected.length !== 1 ? "s" : ""}
+            {t("voice.whisper.start", { count: selected.length })}
           </button>
           {!showSaveForm ? (
-            <button className="whisper-save-btn" onClick={() => setShowSaveForm(true)}>Save as list</button>
+            <button className="whisper-save-btn" onClick={() => setShowSaveForm(true)}>{t("voice.whisper.save_as_list")}</button>
           ) : (
             <div className="whisper-save-form">
               <input
-                placeholder="List name"
+                placeholder={t("voice.whisper.list_name")}
                 value={listName}
                 onChange={e => setListName(e.target.value)}
                 autoFocus
@@ -203,8 +205,8 @@ export function WhisperPanel({
               <button disabled={!listName.trim()} onClick={() => {
                 onSaveList({ id: crypto.randomUUID(), name: listName.trim(), targets: selected });
                 setShowSaveForm(false); setListName("");
-              }}>Save</button>
-              <button onClick={() => { setShowSaveForm(false); setListName(""); }}>Cancel</button>
+              }}>{t("modal.save")}</button>
+              <button onClick={() => { setShowSaveForm(false); setListName(""); }}>{t("modal.cancel")}</button>
             </div>
           )}
         </div>
@@ -212,19 +214,19 @@ export function WhisperPanel({
 
       {onSetWhisperReplyBind && (
         <div className="whisper-list-keybind-row whisper-reply-row">
-          <span className="muted">Reply key: {whisperReplyBind?.key ? keyLabel(whisperReplyBind.key) : "none"}</span>
+          <span className="muted">{t("voice.whisper.reply_key", { key: whisperReplyBind?.key ? keyLabel(whisperReplyBind.key) : t("voice.whisper.key_none") })}</span>
           <button onClick={() => setBindingReply(true)} disabled={bindingReply}>
-            {bindingReply ? "Press a key…" : "Bind key"}
+            {bindingReply ? t("voice.whisper.binding") : t("voice.whisper.bind")}
           </button>
           {whisperReplyBind?.key && (
             <>
-              <button onClick={() => onSetWhisperReplyBind({ mode: whisperReplyBind?.mode ?? "hold" })}>Clear</button>
+              <button onClick={() => onSetWhisperReplyBind({ mode: whisperReplyBind?.mode ?? "hold" })}>{t("modal.clear")}</button>
               <select
                 value={whisperReplyBind?.mode ?? "hold"}
                 onChange={e => onSetWhisperReplyBind({ ...whisperReplyBind, mode: e.target.value as "hold" | "toggle" })}
               >
-                <option value="hold">Hold</option>
-                <option value="toggle">Toggle</option>
+                <option value="hold">{t("voice.whisper.mode.hold")}</option>
+                <option value="toggle">{t("voice.whisper.mode.toggle")}</option>
               </select>
             </>
           )}
@@ -238,7 +240,7 @@ export function WhisperPanel({
             checked={!!whisperOptout}
             onChange={e => onSetWhisperOptout(e.target.checked)}
           />
-          Don't receive whispers
+          {t("voice.whisper.optout")}
         </label>
       )}
     </div>

@@ -13,7 +13,6 @@ import type {
   ActiveStream,
   Poll,
   HubEmoji,
-  BotProfile,
   RsvpStatus,
   HubEvent,
 } from "../../types";
@@ -21,7 +20,6 @@ import { UserListGrouped } from "../users/UserListGrouped";
 import { UserProfileCard, type UserProfileCardActions } from "../users/UserProfileCard";
 import { ScreenShareViewer, type ScreenShareViewerRef } from "../ScreenShareViewer";
 import { AllianceView } from "./AllianceView";
-import { BotCard } from "../BotCard";
 import { ReconnectBanner } from "./ReconnectBanner";
 import { ForumView, type ForumActions } from "../forum/ForumView";
 import { PollComposer } from "../polls/PollComposer";
@@ -46,7 +44,7 @@ interface TypingEntry { name: string; ts: number }
 interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
 interface Props {
@@ -82,6 +80,8 @@ interface Props {
   reconnectingHubs: Record<string, boolean>;
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
+  /** Live connection readout for the channel header, rendered by the app. */
+  connectionStatus?: React.ReactNode;
   selfInvisible?: boolean;
   /** Viewer opt-out from the 🎂 badge (member list + message author rows). */
   hideBirthdays?: boolean;
@@ -141,7 +141,6 @@ interface Props {
   // precedent -- packages/ui never imports @platform or Tauri's invoke directly).
   forumActions: ForumActions;
   messageRowActions: MessageRowActions;
-  loadBotProfile: (pubkey: string) => Promise<BotProfile>;
   loadHubEmojis: () => Promise<HubEmoji[]>;
   loadChannelPolls: (channelId: string) => Promise<Poll[]>;
   loadThreadReplies: (channelId: string, messageId: string) => Promise<Message[]>;
@@ -173,7 +172,7 @@ export function ContentArea({
   users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
-  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers,
+  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus,
   selfInvisible,
   hideBirthdays,
   inputText, typingByKey, dmTypingByKey,
@@ -198,7 +197,7 @@ export function ContentArea({
   onShowPinned,
   profileCardActions,
   forumActions, messageRowActions,
-  loadBotProfile, loadHubEmojis, loadChannelPolls, loadThreadReplies,
+  loadHubEmojis, loadChannelPolls, loadThreadReplies,
   loadExpandedThreads, saveExpandedThreads,
   onComponentInteract, onCreatePoll,
   loadWelcomeInfo, isWelcomeDismissed, dismissWelcome,
@@ -210,7 +209,6 @@ export function ContentArea({
   const [slashSelectedIdx, setSlashSelectedIdx] = useState(0);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionSelectedIdx, setMentionSelectedIdx] = useState(0);
-  const [botCard, setBotCard] = useState<{ pubkey: string; rect: DOMRect } | null>(null);
   const [focusedMessageIndex, setFocusedMessageIndex] = useState<number>(-1);
   const messageRowRefs = useRef<(HTMLLIElement | null)[]>([]);
   const isComposing = useRef(false);
@@ -310,12 +308,6 @@ export function ContentArea({
       messageInputRef.current?.focus();
     }
   }
-
-  const openBotCard = useCallback((pubkey: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setBotCard({ pubkey, rect });
-  }, []);
 
   function handleAuthorClick(pubkey: string) {
     if (onOpenUserProfile) {
@@ -521,6 +513,7 @@ export function ContentArea({
         ) : selectedChannel ? (
           <div className="chat-column">
             <ChannelHeader
+              connectionStatus={connectionStatus}
               selectedChannel={selectedChannel}
               channels={channels}
               memberSidebarHidden={memberSidebarHidden}
@@ -564,8 +557,8 @@ export function ContentArea({
                 <button
                   onClick={() => setShowEventsModal(true)}
                   className="btn-icon-header"
-                  title="Events"
-                  aria-label="Events"
+                  title={t("events.open_panel")}
+                  aria-label={t("events.open_panel")}
                 >
                   📅
                 </button>
@@ -621,7 +614,6 @@ export function ContentArea({
               onError={onError}
               onToggleThread={toggleThread}
               onOpenImage={onOpenImage}
-              onOpenBotCard={openBotCard}
               onAuthorClick={handleAuthorClick}
               onAuthorContextMenu={handleAuthorContextMenu}
               onPinToggle={onPinToggle}
@@ -675,6 +667,7 @@ export function ContentArea({
           />
         ) : selectedAllianceChannel ? (
           <AllianceView
+            connectionStatus={connectionStatus}
             selectedAllianceChannel={selectedAllianceChannel}
             allianceMessages={allianceMessages}
             inputText={inputText}
@@ -693,7 +686,7 @@ export function ContentArea({
         <aside className="user-list-sidebar" aria-label={t("member.list.title")}>
           <UserListGrouped
             users={users}
-            inVoice={voiceActiveUsers}
+            speaking={voiceActiveUsers}
             myPubkey={publicKey}
             selfInvisible={selfInvisible}
             hideBirthdays={hideBirthdays}
@@ -702,20 +695,8 @@ export function ContentArea({
               e.preventDefault();
               onSetUserContextMenu({ x: e.clientX, y: e.clientY, user: u });
             }}
-            onBotClick={(pubkey, e) => openBotCard(pubkey, e)}
           />
         </aside>
-      )}
-
-      {botCard && (
-        <BotCard
-          pubkey={botCard.pubkey}
-          anchorRect={botCard.rect}
-          onClose={() => setBotCard(null)}
-          loadBotProfile={loadBotProfile}
-          channelId={selectedChannel?.id ?? null}
-          onPlay={messageRowActions.sendBotAppJoin}
-        />
       )}
 
       {profileCardPubkey && (
@@ -748,7 +729,7 @@ export function ContentArea({
         <div className="modal-overlay" onClick={() => setShowEventsModal(false)}>
           <div className="modal" style={{ maxWidth: 640, maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="btn-ghost" onClick={() => setShowEventsModal(false)} aria-label="Close">✕</button>
+              <button className="btn-ghost" onClick={() => setShowEventsModal(false)} aria-label={t("modal.close")}>✕</button>
             </div>
             {eventsPanel}
           </div>

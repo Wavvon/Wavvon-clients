@@ -21,6 +21,11 @@ interface WelcomeScreenProps {
   /** Lets the user proceed without joining a hub yet. */
   onDismiss?: () => void;
   homeHubHint?: string;
+  /** Hub build: there is one hub and it is the one serving this page, so the
+   *  address is shown rather than typed. Without this the "one hub" promise
+   *  has a hole — a typed URL would add a second hub with no switcher to
+   *  reach it. */
+  hubUrlLocked?: boolean;
 }
 
 export function WelcomeScreen({
@@ -34,6 +39,7 @@ export function WelcomeScreen({
   onCheckHubUrl,
   onDismiss,
   homeHubHint,
+  hubUrlLocked,
 }: WelcomeScreenProps) {
   const { t } = useTranslation();
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -48,15 +54,23 @@ export function WelcomeScreen({
 
       <section className="welcome-join" style={{ width: "100%", maxWidth: 440, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <input
-            type="text"
-            value={hubUrl}
-            onChange={(e) => onHubUrlChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") onJoin(); }}
-            placeholder="hub.example.com  or  wavvon://…"
-            autoFocus
-            style={{ flex: 1 }}
-          />
+          {hubUrlLocked ? (
+            <span className="welcome-locked-hub" style={{ flex: 1, alignSelf: "center", overflowWrap: "anywhere" }}>
+              {/* The address held here can be a full invite link; show the hub
+                  it resolved to rather than the code the user was handed. */}
+              {hubPreview.state === "ok" ? hubPreview.url : hubUrl}
+            </span>
+          ) : (
+            <input
+              type="text"
+              value={hubUrl}
+              onChange={(e) => onHubUrlChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onJoin(); }}
+              placeholder={t("welcome.url_placeholder")}
+              autoFocus
+              style={{ flex: 1 }}
+            />
+          )}
           <button onClick={onJoin} disabled={loading} className="btn-primary">
             {loading ? t("hub.connecting") : t("welcome.join")}
           </button>
@@ -150,7 +164,7 @@ export function WelcomeScreen({
         )}
         {onCheckHubUrl && (
           <button className="btn-secondary" onClick={onCheckHubUrl}>
-            Check a hub URL
+            {t("welcome.check_hub_url")}
           </button>
         )}
       </div>
@@ -177,7 +191,7 @@ export function WelcomeScreen({
 
       {onDismiss && (
         <button className="welcome-settings-link muted" onClick={onDismiss}>
-          Skip for now
+          {t("onboarding.display_name.skip")}
         </button>
       )}
 

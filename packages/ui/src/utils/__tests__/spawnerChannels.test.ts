@@ -1,9 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isSpawnerChannel,
-  isTemporaryChannel,
   resolveOwnerDisplayName,
-  normalizeSpawnerNameTemplate,
 } from "../spawnerChannels";
 
 describe("isSpawnerChannel (temp-voice-channels.md §5)", () => {
@@ -12,14 +10,6 @@ describe("isSpawnerChannel (temp-voice-channels.md §5)", () => {
     expect(isSpawnerChannel({ channel_type: "text" })).toBe(false);
     expect(isSpawnerChannel({ channel_type: "banner" })).toBe(false);
     expect(isSpawnerChannel({ channel_type: undefined })).toBe(false);
-  });
-});
-
-describe("isTemporaryChannel", () => {
-  it("is true only when is_temporary is exactly true", () => {
-    expect(isTemporaryChannel({ is_temporary: true })).toBe(true);
-    expect(isTemporaryChannel({ is_temporary: false })).toBe(false);
-    expect(isTemporaryChannel({ is_temporary: undefined })).toBe(false);
   });
 });
 
@@ -47,13 +37,3 @@ describe("resolveOwnerDisplayName", () => {
   });
 });
 
-describe("normalizeSpawnerNameTemplate", () => {
-  it("trims and passes through a non-blank template", () => {
-    expect(normalizeSpawnerNameTemplate("  {user}'s den  ")).toBe("{user}'s den");
-  });
-
-  it("collapses blank input to undefined so the hub applies its own default", () => {
-    expect(normalizeSpawnerNameTemplate("")).toBeUndefined();
-    expect(normalizeSpawnerNameTemplate("   ")).toBeUndefined();
-  });
-});

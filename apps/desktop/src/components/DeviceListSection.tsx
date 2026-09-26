@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { PairedDevice } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 
 export function DeviceListSection() {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState<PairedDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [revokeStatus, setRevokeStatus] = useState<Record<string, "revoking" | "revoked">>({});
@@ -23,12 +25,12 @@ export function DeviceListSection() {
     }
   }
 
-  if (loading) return <p className="muted">Loading devices…</p>;
+  if (loading) return <p className="muted">{t("modal.loading")}</p>;
 
   if (devices.length === 0) {
     return (
       <div className="settings-section">
-        <p className="muted">No paired devices. Use the pairing flow below to link another device.</p>
+        <p className="muted">{t("settings.pairing.devices_empty")}</p>
       </div>
     );
   }
@@ -39,9 +41,12 @@ export function DeviceListSection() {
         <div key={d.subkey_pubkey} className="settings-row" style={{ marginBottom: 8, padding: "8px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" }}>
           <div>
             <strong>{d.device_label}</strong>
-            {d.is_this_device && <span className="muted" style={{ marginLeft: 8 }}>(this device)</span>}
+            {d.is_this_device && (
+              <span className="muted" style={{ marginLeft: 8 }}>{t("settings.pairing.device_this")}</span>
+            )}
             <div className="muted" style={{ fontSize: "var(--text-sm)" }}>
-              {formatPubkey(d.subkey_pubkey)} · added {formatRelative(d.issued_at)}
+              {formatPubkey(d.subkey_pubkey)} ·{" "}
+              {t("settings.pairing.device_added", { when: formatRelative(d.issued_at) })}
             </div>
           </div>
           {!d.is_this_device && (
@@ -51,7 +56,9 @@ export function DeviceListSection() {
               onClick={() => handleRevoke(d.subkey_pubkey)}
               disabled={revokeStatus[d.subkey_pubkey] === "revoking"}
             >
-              {revokeStatus[d.subkey_pubkey] === "revoking" ? "Revoking…" : "Revoke"}
+              {revokeStatus[d.subkey_pubkey] === "revoking"
+                ? t("settings.pairing.revoking")
+                : t("settings.account.revoke_button")}
             </button>
           )}
         </div>

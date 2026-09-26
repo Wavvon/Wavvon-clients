@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import type { SoundboardClip } from "../../types";
 import { EmojiPicker } from "../content/EmojiPicker";
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function SoundboardAdminSection({ actions }: Props) {
+  const { t } = useTranslation();
   const [clips, setClips] = useState<SoundboardClip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -75,7 +77,7 @@ export function SoundboardAdminSection({ actions }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this soundboard clip?")) return;
+    if (!window.confirm(t("hub.admin.soundboard.delete_confirm"))) return;
     setError(null);
     try {
       await actions.deleteSoundboardClip(id);
@@ -102,29 +104,29 @@ export function SoundboardAdminSection({ actions }: Props) {
 
   return (
     <section>
-      <h1>Soundboard</h1>
-      <p className="muted">Short audio clips members can trigger in voice channels.</p>
+      <h1>{t("hub.admin.soundboard.title")}</h1>
+      <p className="muted">{t("hub.admin.soundboard.hint")}</p>
 
       {error && clips !== null && <p className="error-text">{error}</p>}
 
       <div className="settings-section">
-        <label className="settings-label">Name</label>
+        <label className="settings-label">{t("hub.admin.soundboard.name_label")}</label>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%" }} />
       </div>
       <div className="settings-section">
-        <label className="settings-label">Emoji (optional)</label>
+        <label className="settings-label">{t("hub.admin.soundboard.emoji_label")}</label>
         <div className="settings-row">
           {emoji && <span style={{ fontSize: 20 }}>{emoji}</span>}
           <EmojiPicker onPick={setEmoji} unicodeOnly />
           {emoji && (
             <button type="button" className="btn-small btn-secondary" onClick={() => setEmoji(null)}>
-              Clear
+              {t("modal.clear")}
             </button>
           )}
         </div>
       </div>
       <div className="settings-section">
-        <label className="settings-label">Audio file (.ogg)</label>
+        <label className="settings-label">{t("hub.admin.soundboard.file_label")}</label>
         <input
           type="file"
           accept="audio/ogg,.ogg"
@@ -136,24 +138,24 @@ export function SoundboardAdminSection({ actions }: Props) {
       </div>
       <div className="settings-section">
         <button onClick={handleUpload} disabled={uploading || !name.trim() || !file}>
-          {uploading ? "Uploading…" : "Upload clip"}
+          {uploading ? t("hub.admin.soundboard.uploading") : t("hub.admin.soundboard.upload_button")}
         </button>
       </div>
 
       {clips === null ? (
-        error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">Loading…</p>
+        error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("hub.admin.soundboard.loading")}</p>
       ) : clips.length === 0 ? (
-        <p className="muted">No clips yet.</p>
+        <p className="muted">{t("hub.admin.soundboard.empty")}</p>
       ) : (
         <table className="members-table" style={{ marginTop: "var(--space-4)" }}>
           <thead>
             <tr>
-              <th>Emoji</th>
-              <th>Name</th>
-              <th>Uploader</th>
-              <th>Duration</th>
-              <th>Size</th>
-              <th>Actions</th>
+              <th>{t("hub.admin.soundboard.col.emoji")}</th>
+              <th>{t("hub.admin.soundboard.col.name")}</th>
+              <th>{t("hub.admin.soundboard.col.uploader")}</th>
+              <th>{t("hub.admin.soundboard.col.duration")}</th>
+              <th>{t("hub.admin.soundboard.col.size")}</th>
+              <th>{t("hub.admin.soundboard.col.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -170,10 +172,10 @@ export function SoundboardAdminSection({ actions }: Props) {
                     disabled={playingId === clip.id}
                     onClick={() => handlePreviewPlay(clip)}
                   >
-                    {playingId === clip.id ? "▶…" : "Play"}
+                    {playingId === clip.id ? "▶…" : t("hub.admin.soundboard.play")}
                   </button>
                   <button className="btn-small btn-secondary danger" onClick={() => handleDelete(clip.id)}>
-                    Delete
+                    {t("hub.admin.soundboard.delete")}
                   </button>
                 </td>
               </tr>

@@ -8,10 +8,11 @@ import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
 import { ChannelPermissionsTab, type ChannelPermissionsTabActions } from "./ChannelPermissionsTab";
 import { ChannelBansTab, type ChannelBansTabActions, type ChannelBansTabUser } from "./ChannelBansTab";
 import { ChannelTalkPowerTab, type ChannelTalkPowerTabActions } from "./ChannelTalkPowerTab";
+import { ChannelAlliancesTab, type ChannelAlliancesTabActions } from "./ChannelAlliancesTab";
 import { ForumTagManager, type ForumTagManagerActions } from "../forum/ForumTagManager";
 import type { HubIcon, ForumTagDef } from "../../types";
 
-type Tab = "settings" | "permissions" | "bans" | "moderation";
+type Tab = "settings" | "permissions" | "bans" | "moderation" | "alliances";
 
 // Hub-side banner upload cap (banner-channels.md): 512 KB, image formats only.
 export const BANNER_MAX_BYTES = 512 * 1024;
@@ -69,10 +70,16 @@ interface Props {
   saving: boolean;
   deleting: boolean;
   error: string | null;
-  canManageRoles: boolean;
-  /** Rename/appearance/delete are admin-only; a manage_roles-only member
-   * opens straight into the Permissions tab and never sees the settings
-   * form (the server rejects those actions for them anyway). */
+  /** Reaching the channel-permission surfaces: the tab bar, the Permissions
+   * tab and the channel ban list. `channels.permissions` as well as
+   * `roles.manage` — editing one channel is a channel act, and splitting it
+   * from hub-wide role management is the point of having both
+   * (permissions.md §3, Channels). */
+  canEditChannelPermissions: boolean;
+  /** Rename/appearance/delete are admin-only; a member who only holds
+   * `channels.permissions` opens straight into the Permissions tab and never
+   * sees the settings form (the server rejects those actions for them
+   * anyway). */
   isAdmin: boolean;
   /** Viewer's highest role priority — rows at/above it render read-only in
    * the Permissions tab (the hub rejects those edits). */
@@ -88,6 +95,10 @@ interface Props {
   /** True only where the ban action actually persists a reason. */
   bansSupportReason?: boolean;
   talkPowerActions?: ChannelTalkPowerTabActions;
+  /** Which alliances carry this channel, edited here as well as from the hub
+   *  admin panel. Admin-only, because sharing is an admin action on the hub.
+   *  Omitted where a platform has no wrapper for it, and then no tab. */
+  allianceActions?: ChannelAlliancesTabActions;
   listHubIcons?: () => Promise<HubIcon[]>;
   /** False hides the "Upload image" banner option, leaving only the URL
    * field — set by clients whose upload plumbing can't yet take a browser
@@ -102,9 +113,9 @@ interface Props {
 
 export function ChannelSettingsModal({
   channel, createParentId, createParentName, createInitialIsCategory,
-  saving, deleting, error, canManageRoles, isAdmin, myMaxPriority, hubUrl,
+  saving, deleting, error, canEditChannelPermissions, isAdmin, myMaxPriority, hubUrl,
   onSave, onDelete, onClose,
-  permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, listHubIcons,
+  permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, allianceActions, listHubIcons,
   bannerUploadSupported = true,
   forumTagsActions, listForumTags,
 }: Props) {
@@ -259,10 +270,10 @@ export function ChannelSettingsModal({
           <h3 id="channel-settings-title">
             {isCreate
               ? (isCategory ? t("channel.create.title_category") : t("channel.create.title_channel"))
-              : channel.is_category ? "Category Settings" : "Channel Settings"}
+              : channel.is_category ? t("channel.settings.title_category") : t("channel.settings.title_channel")}
           </h3>
 
-          {!isCreate && canManageRoles && (
+          {!isCreate && canEditChannelPermissions && (
             <div style={{ display: "flex", gap: 8, marginBottom: "var(--space-3)", flexWrap: "wrap" }}>
               {isAdmin && (
                 <button
@@ -285,7 +296,7 @@ export function ChannelSettingsModal({
                   className={tab === "bans" ? "btn-primary" : "btn-secondary"}
                   onClick={() => setTab("bans")}
                 >
-                  Bans
+                  {t("channel.settings.tab_bans")}
                 </button>
               )}
               {isAdmin && talkPowerActions && !channel.is_category && (
@@ -296,10 +307,24 @@ export function ChannelSettingsModal({
                   {t("channel.settings.tab_moderation")}
                 </button>
               )}
+              {isAdmin && allianceActions && (
+                <button
+                  className={tab === "alliances" ? "btn-primary" : "btn-secondary"}
+                  onClick={() => setTab("alliances")}
+                >
+                  {t("channel.settings.tab_alliances")}
+                </button>
+              )}
             </div>
           )}
 
-          {!isCreate && tab === "bans" && bansActions && canManageRoles && !channel.is_category ? (
+          {!isCreate && tab === "alliances" && allianceActions && isAdmin ? (
+            <ChannelAlliancesTab
+              channelId={channel.id}
+              isCategory={channel.is_category}
+              actions={allianceActions}
+            />
+          ) : !isCreate && tab === "bans" && bansActions && canEditChannelPermissions && !channel.is_category ? (
             <ChannelBansTab
               channelId={channel.id}
               actions={bansActions}
@@ -308,7 +333,7 @@ export function ChannelSettingsModal({
             />
           ) : !isCreate && tab === "moderation" && talkPowerActions && isAdmin && !channel.is_category ? (
             <ChannelTalkPowerTab channelId={channel.id} actions={talkPowerActions} />
-          ) : !isCreate && (tab === "permissions" || !isAdmin) && permissionsActions && canManageRoles ? (
+          ) : !isCreate && (tab === "permissions" || !isAdmin) && permissionsActions && canEditChannelPermissions ? (
             <ChannelPermissionsTab channelId={channel.id} actions={permissionsActions} myMaxPriority={myMaxPriority} />
           ) : (
             <>
@@ -336,7 +361,7 @@ export function ChannelSettingsModal({
               )}
 
               <label style={{ display: "block", marginBottom: "var(--space-2)" }}>
-                <span className="label-text">Name</span>
+                <span className="label-text">{t("channel.settings.name")}</span>
                 <input
                   type="text"
                   value={name}
@@ -375,13 +400,13 @@ export function ChannelSettingsModal({
 
               {!isCategory && !isSpawner && (
                 <label style={{ display: "block", marginBottom: "var(--space-3)" }}>
-                  <span className="label-text">Description (optional)</span>
+                  <span className="label-text">{t("channel.settings.description_label")}</span>
                   <input
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
-                    placeholder="What's this channel for?"
+                    placeholder={t("channel.settings.description_placeholder")}
                     style={{ display: "block", width: "100%", marginTop: 4 }}
                   />
                 </label>
@@ -395,7 +420,7 @@ export function ChannelSettingsModal({
                       checked={nsfw}
                       onChange={(e) => setNsfw(e.target.checked)}
                     />
-                    NSFW / mature content
+                    {t("channel.settings.nsfw")}
                   </label>
                 </div>
               )}
@@ -408,7 +433,7 @@ export function ChannelSettingsModal({
                       checked={requireTag}
                       onChange={(e) => setRequireTag(e.target.checked)}
                     />
-                    Require a tag on new posts
+                    {t("channel.settings.require_tag")}
                   </label>
                   {!isCreate && forumTagsActions && (
                     <ForumTagManager
@@ -553,19 +578,16 @@ export function ChannelSettingsModal({
                       type="button"
                       className={`icon-picker-tile ${icon === def.id ? "selected" : ""}`}
                       onClick={() => { setIcon(def.id); setCustomIconSvg(null); }}
-                      title={def.label}
+                      title={t(`channel.icon.${def.id}`)}
                     >
                       <span className="icon-picker-glyph">
                         <ChannelIconGlyph icon={def.id} size={18} />
                       </span>
-                      <span className="icon-picker-label">{def.label}</span>
+                      <span className="icon-picker-label">{t(`channel.icon.${def.id}`)}</span>
                     </button>
                   ))}
                 </div>
-                <p className="muted">
-                  Upload your own .svg file. Scripts and external references are
-                  stripped automatically.
-                </p>
+                <p className="muted">{t("channel.settings.svg_hint")}</p>
                 {uploadError && (
                   <p style={{ color: "var(--danger)", marginTop: "4px" }}>{uploadError}</p>
                 )}
@@ -575,13 +597,13 @@ export function ChannelSettingsModal({
                 {!isCreate && confirmDelete ? (
                   <>
                     <span style={{ marginRight: "auto", color: "var(--danger)", fontSize: "var(--text-sm)" }}>
-                      Delete <strong>{channel.name}</strong>? This cannot be undone.
+                      {t("channel.settings.delete_confirm", { name: channel.name })}
                     </span>
                     <button className="btn-secondary" onClick={() => setConfirmDelete(false)}>
-                      Cancel
+                      {t("modal.cancel")}
                     </button>
                     <button className="btn-danger" disabled={deleting} onClick={onDelete}>
-                      {deleting ? "Deleting…" : "Yes, delete"}
+                      {deleting ? t("channel.settings.deleting") : t("channel.settings.delete_yes")}
                     </button>
                   </>
                 ) : (
@@ -592,17 +614,19 @@ export function ChannelSettingsModal({
                         style={{ marginRight: "auto" }}
                         onClick={() => setConfirmDelete(true)}
                       >
-                        Delete {channel.is_category ? "category" : "channel"}…
+                        {t("channel.settings.delete_button", {
+                          type: channel.is_category ? t("channel.ctx.type_category") : t("channel.ctx.type_channel"),
+                        })}
                       </button>
                     )}
-                    <button onClick={onClose} className="btn-secondary">Cancel</button>
+                    <button onClick={onClose} className="btn-secondary">{t("modal.cancel")}</button>
                     <button
                       onClick={handleSubmit}
                       disabled={saving || !canSubmit}
                     >
                       {isCreate
                         ? (saving ? t("modal.creating") : t("modal.create"))
-                        : (saving ? "Saving…" : "Save")}
+                        : (saving ? t("channel.settings.saving") : t("modal.save"))}
                     </button>
                   </>
                 )}

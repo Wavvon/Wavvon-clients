@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, hubApi, newMemberPage, uniqueName, OWNER_NAME } from "./helpers/live";
+import { expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
 // P57 — direct messages, two clients, all live (no reloads after setup):
 // owner starts a DM from the member right-click menu and sends; the member's
@@ -40,8 +40,19 @@ test("start a DM, exchange messages across two clients", async ({ page, browser 
 
     // The member's connected client learns of the conversation live — no
     // reload. Open the DM sidebar and select it.
+    //
+    // The owner's name is read back from the hub rather than assumed to be
+    // OWNER_NAME. These specs deliberately share one persistent hub in file
+    // order, and P24 renames the owner without putting the name back, so the
+    // seed constant is stale by the time this file runs. P48 already reads it
+    // back for exactly this reason and says so in its own comment -- this spec
+    // simply did not, and failed with "element(s) not found", which reads like
+    // a DM-liveness bug and is not one.
+    const owner = await hubApi<{ display_name: string | null }>(page, "/me");
+    const ownerName = owner.display_name ?? "";
+    expect(ownerName).not.toBe("");
     await member.getByTitle("Direct Messages").first().click();
-    const convRow = member.locator("li.channel-item", { hasText: OWNER_NAME });
+    const convRow = member.locator("li.channel-item", { hasText: ownerName });
     await expect(convRow).toBeVisible({ timeout: 10000 });
     await convRow.click();
     await expect(member.getByText(msg1).first()).toBeVisible({ timeout: 10000 });

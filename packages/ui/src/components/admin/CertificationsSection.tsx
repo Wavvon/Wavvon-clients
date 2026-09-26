@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import type { CertAdmissionSettings, CertIssuance } from "../../types";
 
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function CertificationsSection({ actions }: Props) {
+  const { t } = useTranslation();
   const [issuances, setIssuances] = useState<CertIssuance[]>([]);
   const [settings, setSettings] = useState<CertAdmissionSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ export function CertificationsSection({ actions }: Props) {
   }
 
   async function handleRevoke(pubkey: string) {
-    if (!window.confirm(`Revoke certification for ${formatPubkey(pubkey)}?`)) return;
+    if (!window.confirm(t("hub.admin.certs.revoke_confirm", { pubkey: formatPubkey(pubkey) }))) return;
     try {
       await actions.revokeCert(pubkey);
       await load();
@@ -83,10 +85,10 @@ export function CertificationsSection({ actions }: Props) {
 
   async function handleGrantBadge() {
     if (!actions.grantUserBadge || !badgeTarget.trim() || !badgeLabel.trim()) return;
-    setBadgeStatus("Granting…");
+    setBadgeStatus(t("hub.admin.certs.badge.granting"));
     try {
       await actions.grantUserBadge(badgeTarget.trim(), badgeLabel.trim(), undefined, badgeIcon.trim() || undefined);
-      setBadgeStatus(`Granted "${badgeLabel.trim()}"`);
+      setBadgeStatus(t("hub.admin.certs.badge.granted", { label: badgeLabel.trim() }));
       setBadgeTarget("");
       setBadgeLabel("");
       setBadgeIcon("");
@@ -96,54 +98,76 @@ export function CertificationsSection({ actions }: Props) {
     }
   }
 
-  if (loading) return <section><p className="muted">Loading…</p></section>;
-  if (error || !settings) return <section><h1>Certifications</h1><p className="error-text">{error ?? "Could not load certification settings."}</p></section>;
+  if (loading) return <section><p className="muted">{t("hub.admin.certs.loading")}</p></section>;
+  if (error || !settings) return <section><h1>{t("hub.admin.certs.title")}</h1><p className="error-text">{error ?? t("hub.admin.certs.load_error")}</p></section>;
 
   const goodCerts = issuances.filter((i) => i.standing === "good");
   const revokedCerts = issuances.filter((i) => i.standing === "revoked");
 
   return (
     <section>
-      <h1>Certifications</h1>
-      <p className="muted">
-        This hub issues portable reputation certificates to eligible members.
-        Certs can be presented to other hubs as proof of good standing.
-      </p>
+      <h1>{t("hub.admin.certs.title")}</h1>
+      <p className="muted">{t("hub.admin.certs.intro")}</p>
 
       <div className="settings-section">
-        <label className="settings-label">Certification mode</label>
-        <p className="muted">Controls whether incoming members can use hub certifications to skip certain onboarding gates.</p>
+        <label className="settings-label">{t("hub.admin.certs.mode")}</label>
+        <p className="muted">{t("hub.admin.certs.mode_hint")}</p>
         <select
           value={settings.cert_mode}
           onChange={(e) => setSettings({ ...settings, cert_mode: e.target.value as CertAdmissionSettings["cert_mode"] })}
         >
-          <option value="none">None — certifications ignored</option>
-          <option value="any">Any valid cert — from any trusted hub</option>
-          <option value="trusted">Trusted issuers only</option>
+          <option value="none">{t("hub.admin.certs.mode.none")}</option>
+          <option value="any">{t("hub.admin.certs.mode.any")}</option>
+          <option value="trusted">{t("hub.admin.certs.mode.trusted")}</option>
         </select>
       </div>
 
       {settings.cert_mode !== "none" && (
         <div className="cert-lockout-warning">
-          <strong>Day-1 lockout risk:</strong> If you enable certification requirements, members
-          (including yourself) without a valid cert matching your rules cannot join or authenticate.
-          Make sure at least one admin has the required certifications before saving, or leave
-          the mode on <em>None</em> until certs have been issued.
+          {/* One sentence, one key. The <em> that used to sit on "None" is
+              gone: splitting a sentence around emphasis gives a translator
+              fragments to reorder and no way to move the emphasis with them. */}
+          <strong>{t("hub.admin.certs.lockout.title")}</strong>{" "}
+          {t("hub.admin.certs.lockout.body")}
         </div>
       )}
 
       {settings.cert_mode === "trusted" && (
         <div className="settings-section">
-          <label className="settings-label">Trusted issuer pubkeys</label>
-          <p className="muted">Only certifications from these hub pubkeys are accepted.</p>
+          <label className="settings-label">{t("hub.admin.certs.trusted.label")}</label>
+          <p className="muted">{t("hub.admin.certs.trusted.hint")}</p>
           {settings.cert_trusted_issuers.map((pk) => (
-            <div key={pk} className="settings-row" style={{ marginBottom: 4 }}>
+            <div key={pk} className="settings-row" style={{ marginBottom: 4, gap: 6 }}>
               <code className="pubkey-display">{formatPubkey(pk)}</code>
+              {/* An address is what makes trust usable: without one the hub
+                  can only honour a cert someone pushed, and nothing pushes.
+                  Optional on purpose — an issuer with no URL is still
+                  trusted, just not pullable. */}
+              <input
+                type="text"
+                value={settings.cert_issuer_urls?.[pk] ?? ""}
+                onChange={(e) => {
+                  const urls = { ...(settings.cert_issuer_urls ?? {}) };
+                  const url = e.target.value.trim();
+                  if (url) urls[pk] = url; else delete urls[pk];
+                  setSettings({ ...settings, cert_issuer_urls: urls });
+                }}
+                placeholder={t("hub.admin.certs.trusted.url_placeholder")}
+                style={{ flex: 1 }}
+              />
               <button
                 className="btn-secondary"
-                onClick={() => setSettings({ ...settings, cert_trusted_issuers: settings.cert_trusted_issuers.filter((x) => x !== pk) })}
+                onClick={() => {
+                  const urls = { ...(settings.cert_issuer_urls ?? {}) };
+                  delete urls[pk];
+                  setSettings({
+                    ...settings,
+                    cert_trusted_issuers: settings.cert_trusted_issuers.filter((x) => x !== pk),
+                    cert_issuer_urls: urls,
+                  });
+                }}
               >
-                Remove
+                {t("hub.admin.certs.trusted.remove")}
               </button>
             </div>
           ))}
@@ -152,37 +176,37 @@ export function CertificationsSection({ actions }: Props) {
               type="text"
               value={trustedInput}
               onChange={(e) => setTrustedInput(e.target.value)}
-              placeholder="Hub pubkey (hex)"
+              placeholder={t("hub.admin.certs.trusted.placeholder")}
             />
             <button
               className="btn-secondary"
               onClick={() => {
-                const t = trustedInput.trim();
-                if (t && !settings.cert_trusted_issuers.includes(t)) {
-                  setSettings({ ...settings, cert_trusted_issuers: [...settings.cert_trusted_issuers, t] });
+                const pk = trustedInput.trim();
+                if (pk && !settings.cert_trusted_issuers.includes(pk)) {
+                  setSettings({ ...settings, cert_trusted_issuers: [...settings.cert_trusted_issuers, pk] });
                   setTrustedInput("");
                 }
               }}
               disabled={!trustedInput.trim()}
             >
-              Add
+              {t("hub.admin.certs.trusted.add")}
             </button>
           </div>
         </div>
       )}
 
       <div className="settings-section">
-        <label className="settings-label">Auto-issue settings</label>
+        <label className="settings-label">{t("hub.admin.certs.auto.label")}</label>
         <label className="checkbox-label">
           <input
             type="checkbox"
             checked={settings.cert_auto_issue}
             onChange={(e) => setSettings({ ...settings, cert_auto_issue: e.target.checked })}
           />
-          Automatically issue certifications to members in good standing
+          {t("hub.admin.certs.auto.enable")}
         </label>
         <div className="settings-row" style={{ marginTop: 8 }}>
-          <label className="settings-label">Minimum standing days before auto-issue</label>
+          <label className="settings-label">{t("hub.admin.certs.auto.min_days")}</label>
           <input
             type="number"
             min={1}
@@ -193,7 +217,7 @@ export function CertificationsSection({ actions }: Props) {
           />
         </div>
         <div className="settings-row" style={{ marginTop: 8 }}>
-          <label className="settings-label">Certification validity (days)</label>
+          <label className="settings-label">{t("hub.admin.certs.auto.validity")}</label>
           <input
             type="number"
             min={1}
@@ -207,77 +231,74 @@ export function CertificationsSection({ actions }: Props) {
 
       <div className="settings-row" style={{ marginBottom: 16 }}>
         <button onClick={handleSaveSettings} disabled={saveStatus === "saving"}>
-          {saveStatus === "saving" ? "Saving…" : "Save settings"}
+          {saveStatus === "saving" ? t("hub.admin.certs.saving") : t("hub.admin.certs.save")}
         </button>
-        {saveStatus === "saved" && <span className="muted">Saved</span>}
+        {saveStatus === "saved" && <span className="muted">{t("hub.admin.certs.saved")}</span>}
         {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
           <span className="error-text">{saveStatus}</span>
         )}
       </div>
 
       <div className="settings-section">
-        <label className="settings-label">Manual issue</label>
-        <p className="muted">Issue a cert to a member ahead of the age threshold.</p>
+        <label className="settings-label">{t("hub.admin.certs.manual.label")}</label>
+        <p className="muted">{t("hub.admin.certs.manual.hint")}</p>
         <div className="settings-row">
           <input
             type="text"
             value={manualTarget}
             onChange={(e) => setManualTarget(e.target.value)}
-            placeholder="Member pubkey (hex)"
+            placeholder={t("hub.admin.certs.manual.placeholder")}
             style={{ flex: 1 }}
           />
-          <button onClick={handleManualIssue} disabled={!manualTarget.trim()}>Issue cert</button>
+          <button onClick={handleManualIssue} disabled={!manualTarget.trim()}>{t("hub.admin.certs.manual.issue")}</button>
         </div>
       </div>
 
       {actions.grantUserBadge && (
         <div className="settings-section">
-          <label className="settings-label">Grant a badge</label>
-          <p className="muted">
-            Award a named achievement badge (e.g. "Raid Leader", "Top contributor"). It lands in the
-            member's portfolio and links back to this community.
-          </p>
+          <label className="settings-label">{t("hub.admin.certs.badge.label")}</label>
+          <p className="muted">{t("hub.admin.certs.badge.hint")}</p>
           <div className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
             <input
               type="text"
               value={badgeTarget}
               onChange={(e) => setBadgeTarget(e.target.value)}
-              placeholder="Member pubkey (hex)"
+              placeholder={t("hub.admin.certs.manual.placeholder")}
               style={{ flex: 1, minWidth: 160 }}
             />
             <input
               type="text"
               value={badgeLabel}
               onChange={(e) => setBadgeLabel(e.target.value)}
-              placeholder="Badge name"
-              aria-label="Badge name"
+              placeholder={t("hub.admin.certs.badge.name_placeholder")}
+              aria-label={t("hub.admin.certs.badge.name_placeholder")}
               style={{ flex: 1, minWidth: 140 }}
             />
             <input
               type="text"
               value={badgeIcon}
               onChange={(e) => setBadgeIcon(e.target.value)}
-              placeholder="Icon (optional)"
-              aria-label="Badge icon"
+              placeholder={t("hub.admin.certs.badge.icon_placeholder")}
+              aria-label={t("hub.admin.certs.badge.icon_aria")}
               style={{ width: 90 }}
             />
-            <button onClick={handleGrantBadge} disabled={!badgeTarget.trim() || !badgeLabel.trim()}>Grant badge</button>
+            <button onClick={handleGrantBadge} disabled={!badgeTarget.trim() || !badgeLabel.trim()}>{t("hub.admin.certs.badge.grant")}</button>
           </div>
           {badgeStatus && <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{badgeStatus}</p>}
         </div>
       )}
 
       <div className="settings-section">
-        <label className="settings-label">Issued certs ({goodCerts.length})</label>
-        {goodCerts.length === 0 && <p className="muted">None issued yet.</p>}
+        <label className="settings-label">{t("hub.admin.certs.issued.title", { count: goodCerts.length })}</label>
+        {goodCerts.length === 0 && <p className="muted">{t("hub.admin.certs.issued.empty")}</p>}
         {goodCerts.length > 0 && (
           <table className="members-table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Issued</th>
-                <th>Expires</th>
-                <th>Actions</th>
+                <th>{t("hub.admin.certs.col.member")}</th>
+                <th>{t("hub.admin.certs.col.issued")}</th>
+                <th>{t("hub.admin.certs.col.expires")}</th>
+                <th>{t("hub.admin.certs.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -292,7 +313,7 @@ export function CertificationsSection({ actions }: Props) {
                   <td>{formatRelative(c.expires_at)}</td>
                   <td>
                     <button className="btn-small danger" onClick={() => handleRevoke(c.subject_pubkey)}>
-                      Revoke
+                      {t("hub.admin.certs.revoke")}
                     </button>
                   </td>
                 </tr>
@@ -304,10 +325,10 @@ export function CertificationsSection({ actions }: Props) {
 
       {revokedCerts.length > 0 && (
         <div className="settings-section">
-          <label className="settings-label">Revoked ({revokedCerts.length})</label>
+          <label className="settings-label">{t("hub.admin.certs.revoked.title", { count: revokedCerts.length })}</label>
           <table className="members-table">
             <thead>
-              <tr><th>Member</th><th>Revoked</th></tr>
+              <tr><th>{t("hub.admin.certs.col.member")}</th><th>{t("hub.admin.certs.col.revoked")}</th></tr>
             </thead>
             <tbody>
               {revokedCerts.map((c) => (

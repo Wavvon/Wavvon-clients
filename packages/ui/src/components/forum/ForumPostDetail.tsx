@@ -53,6 +53,7 @@ interface ReactionBarProps {
 }
 
 function ReactionBar({ reactions, onToggle, readOnly }: ReactionBarProps) {
+  const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const shown = reactions.filter((r) => r.count > 0);
@@ -75,7 +76,7 @@ function ReactionBar({ reactions, onToggle, readOnly }: ReactionBarProps) {
           key={r.emoji}
           className={`reaction-chip${r.me ? " active" : ""}`}
           onClick={() => onToggle(r.emoji, r.me)}
-          title={r.me ? "Remove reaction" : "Add reaction"}
+          title={r.me ? t("forum.reaction.remove") : t("forum.reaction.add")}
         >
           {r.emoji} {r.count}
         </button>
@@ -84,7 +85,7 @@ function ReactionBar({ reactions, onToggle, readOnly }: ReactionBarProps) {
         <button
           className="btn-ghost reaction-add-btn"
           onClick={() => setPickerOpen((v) => !v)}
-          title="Add reaction"
+          title={t("forum.reaction.add")}
         >
           +
         </button>
@@ -116,6 +117,7 @@ interface PendingFile {
 }
 
 function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
+  const { t } = useTranslation();
   if (!attachments.length) return null;
   return (
     <div className="forum-attachments">
@@ -129,7 +131,7 @@ function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
         >
           {a.name}
           <span className="muted" style={{ marginLeft: 4, fontSize: "var(--text-sm)" }}>
-            ({(a.size / 1024).toFixed(1)} KB)
+            {t("forum.attachment.size", { size: (a.size / 1024).toFixed(1) })}
           </span>
         </a>
       ))}
@@ -230,7 +232,7 @@ export function ForumPostDetail({
   async function handleSavePostEdit() {
     if (!post || editingPostBody === null) return;
     if (editingTagIds !== undefined && forumRequireTag && editingTagIds.length === 0) {
-      setError("Pick at least one tag before saving.");
+      setError(t("forum.detail.require_tag_error"));
       return;
     }
     try {
@@ -245,7 +247,7 @@ export function ForumPostDetail({
 
   async function handleDeletePost() {
     if (!post) return;
-    if (!confirm("Delete this post?")) return;
+    if (!confirm(t("forum.detail.delete_post_confirm"))) return;
     try {
       await actions.deletePost(channelId, post.id);
       onBack();
@@ -268,7 +270,7 @@ export function ForumPostDetail({
 
   async function handleDeleteReply(replyId: string) {
     if (!post) return;
-    if (!confirm("Delete this reply?")) return;
+    if (!confirm(t("forum.detail.delete_reply_confirm"))) return;
     try {
       await actions.deleteReply(channelId, post.id, replyId);
       await reload();
@@ -333,37 +335,37 @@ export function ForumPostDetail({
 
   const canModerate = !readOnly && (isAdmin || canManagePosts);
 
-  if (loading) return <div className="forum-detail"><p className="muted">Loading…</p></div>;
+  if (loading) return <div className="forum-detail"><p className="muted">{t("forum.detail.loading")}</p></div>;
   if (error) return <div className="forum-detail"><p className="error-text">{error}</p></div>;
   if (!post) return null;
 
   return (
     <div className="forum-detail">
       <div className="forum-detail-nav">
-        <button className="btn-secondary" onClick={onBack}>← Back to posts</button>
+        <button className="btn-secondary" onClick={onBack}>{t("forum.detail.back")}</button>
       </div>
 
       <div className="forum-post-header">
         <h1 className="forum-post-title">
-          {post.is_deleted ? "[deleted]" : (post.title || "(no title)")}
-          {post.is_pinned && <span className="forum-badge pin" title="Pinned"> 📌</span>}
-          {post.is_locked && <span className="forum-badge lock" title="Locked"> 🔒</span>}
+          {post.is_deleted ? t("forum.detail.deleted_title") : (post.title || t("forum.detail.no_title"))}
+          {post.is_pinned && <span className="forum-badge pin" title={t("forum.detail.pinned")}> 📌</span>}
+          {post.is_locked && <span className="forum-badge lock" title={t("forum.detail.locked")}> 🔒</span>}
         </h1>
         <div className="forum-post-submeta muted">
           {!post.is_deleted && <span className="forum-post-author">{authorLabel(users, post.author_pubkey)} · </span>}
           {formatRelative(post.created_at)}
-          {post.edited_at && ` · edited ${formatRelative(post.edited_at)}`}
-          {post.author_hub && <span title={post.author_hub}> · via {formatPubkey(post.author_hub)}</span>}
+          {post.edited_at && ` ${t("forum.detail.edited_at", { when: formatRelative(post.edited_at) })}`}
+          {post.author_hub && <span title={post.author_hub}> {t("forum.detail.via", { hub: formatPubkey(post.author_hub) })}</span>}
         </div>
         {!post.is_deleted && (canModerate || (!readOnly && post.author_pubkey === publicKey)) && (
           <div className="forum-post-actions">
             {canModerate && (
               <>
                 <button className="btn-secondary" onClick={handlePin}>
-                  {post.is_pinned ? "Unpin" : "Pin"}
+                  {post.is_pinned ? t("forum.detail.unpin") : t("forum.detail.pin")}
                 </button>
                 <button className="btn-secondary" onClick={handleLock}>
-                  {post.is_locked ? "Unlock" : "Lock"}
+                  {post.is_locked ? t("forum.detail.unlock") : t("forum.detail.lock")}
                 </button>
               </>
             )}
@@ -381,9 +383,9 @@ export function ForumPostDetail({
                     }
                   }}
                 >
-                  Edit
+                  {t("forum.detail.edit")}
                 </button>
-                <button className="btn-secondary danger" onClick={handleDeletePost}>Delete</button>
+                <button className="btn-secondary danger" onClick={handleDeletePost}>{t("forum.detail.delete")}</button>
               </>
             )}
           </div>
@@ -410,14 +412,14 @@ export function ForumPostDetail({
             />
           )}
           <div className="forum-edit-actions">
-            <button onClick={handleSavePostEdit}>Save</button>
-            <button className="btn-secondary" onClick={() => { setEditingPostBody(null); setEditingTagIds(undefined); }}>Cancel</button>
+            <button onClick={handleSavePostEdit}>{t("forum.detail.save")}</button>
+            <button className="btn-secondary" onClick={() => { setEditingPostBody(null); setEditingTagIds(undefined); }}>{t("forum.detail.cancel")}</button>
           </div>
         </div>
       ) : (
         <div className="forum-post-body">
           {post.is_deleted ? (
-            <p className="muted">[Content removed]</p>
+            <p className="muted">{t("forum.detail.content_removed")}</p>
           ) : (
             <MessageContent content={post.body ?? ""} knownNames={NO_MENTIONS} myName={null} />
           )}
@@ -436,7 +438,7 @@ export function ForumPostDetail({
       )}
 
       <div className="forum-replies">
-        <h3 className="forum-replies-title">{post.reply_count} {post.reply_count === 1 ? "reply" : "replies"}</h3>
+        <h3 className="forum-replies-title">{t("forum.detail.replies", { count: post.reply_count })}</h3>
         {post.replies.map((reply) => (
           <ForumReplyRow
             key={reply.id}
@@ -463,23 +465,23 @@ export function ForumPostDetail({
 
       {!canWrite ? (
         <div className="forum-locked-banner">
-          <span>👀 Read-only — hosted on another hub, replies aren't available here yet.</span>
+          <span>{t("forum.detail.read_only_banner")}</span>
         </div>
       ) : post.is_locked && !canModerate ? (
         <div className="forum-locked-banner">
-          <span>🔒 This post is locked. No new replies.</span>
+          <span>{t("forum.detail.locked_banner")}</span>
         </div>
       ) : (
         <div className="forum-reply-composer">
           {replyTo && (
             <div className="forum-reply-to-hint muted">
-              Replying to a comment
-              <button className="btn-ghost" onClick={() => setReplyTo(undefined)} aria-label="Clear reply" title="Clear reply">×</button>
+              {t("forum.detail.replying_to")}
+              <button className="btn-ghost" onClick={() => setReplyTo(undefined)} aria-label={t("forum.detail.clear_reply")} title={t("forum.detail.clear_reply")}>×</button>
             </div>
           )}
           <AutoGrowTextarea
             className="forum-composer-textarea"
-            placeholder="Write a reply…"
+            placeholder={t("forum.detail.reply_placeholder")}
             value={replyBody}
             onChange={setReplyBody}
             minHeight={3 * 21}
@@ -501,7 +503,7 @@ export function ForumPostDetail({
                 className="btn-secondary"
                 onClick={() => fileInputRef.current?.click()}
               >
-                Attach file
+                {t("forum.detail.attach_file")}
               </button>
               {pendingFiles.length > 0 && (
                 <ul className="forum-pending-attachments">
@@ -512,7 +514,7 @@ export function ForumPostDetail({
                         type="button"
                         className="btn-ghost danger"
                         onClick={() => removeReplyFile(f.objectUrl)}
-                        aria-label={`Remove ${f.file.name}`}
+                        aria-label={t("forum.detail.remove_file", { name: f.file.name })}
                       >
                         ×
                       </button>
@@ -527,7 +529,7 @@ export function ForumPostDetail({
             onClick={handleSendReply}
             disabled={!replyBody.trim() || submitting}
           >
-            {submitting ? "Sending…" : "Reply"}
+            {submitting ? t("forum.detail.sending") : t("forum.detail.reply")}
           </button>
         </div>
       )}
@@ -561,6 +563,7 @@ function ForumReplyRow({
   onEditStart, onEditSave, onEditCancel, onEditBodyChange, onDelete, onReplyTo, onReaction,
   readOnly, canWrite = true, users,
 }: ReplyRowProps) {
+  const { t } = useTranslation();
   const quotedReply = reply.reply_to_id ? replies.find((r) => r.id === reply.reply_to_id) : null;
   const isEditing = editingId === reply.id;
 
@@ -574,8 +577,8 @@ function ForumReplyRow({
       <div className="forum-reply-meta muted">
         {!reply.is_deleted && <span className="forum-post-author">{authorLabel(users, reply.author_pubkey)} · </span>}
         {formatRelative(reply.created_at)}
-        {reply.edited_at && " · edited"}
-        {reply.author_hub && <span title={reply.author_hub}> · via {formatPubkey(reply.author_hub)}</span>}
+        {reply.edited_at && ` ${t("forum.detail.edited")}`}
+        {reply.author_hub && <span title={reply.author_hub}> {t("forum.detail.via", { hub: formatPubkey(reply.author_hub) })}</span>}
       </div>
       {isEditing ? (
         <div className="forum-edit-reply">
@@ -586,14 +589,14 @@ function ForumReplyRow({
             minHeight={3 * 21}
           />
           <div className="forum-edit-actions">
-            <button onClick={onEditSave}>Save</button>
-            <button className="btn-secondary" onClick={onEditCancel}>Cancel</button>
+            <button onClick={onEditSave}>{t("forum.detail.save")}</button>
+            <button className="btn-secondary" onClick={onEditCancel}>{t("forum.detail.cancel")}</button>
           </div>
         </div>
       ) : (
         <div className="forum-reply-body">
           {reply.is_deleted ? (
-            <p className="muted">[deleted]</p>
+            <p className="muted">{t("forum.detail.deleted_title")}</p>
           ) : (
             <MessageContent content={reply.body ?? ""} knownNames={NO_MENTIONS} myName={null} />
           )}
@@ -611,13 +614,13 @@ function ForumReplyRow({
             <div className="forum-reply-actions">
               {canWrite && (
                 <button className="btn-ghost" onClick={() => onReplyTo(reply.id)}>
-                  {replyingTo === reply.id ? "Cancel reply" : "Reply"}
+                  {replyingTo === reply.id ? t("forum.detail.cancel_reply") : t("forum.detail.reply")}
                 </button>
               )}
               {!readOnly && (canModerate || reply.author_pubkey === publicKey) && (
                 <>
-                  <button className="btn-ghost" onClick={() => onEditStart(reply)}>Edit</button>
-                  <button className="btn-ghost danger" onClick={() => onDelete(reply.id)}>Delete</button>
+                  <button className="btn-ghost" onClick={() => onEditStart(reply)}>{t("forum.detail.edit")}</button>
+                  <button className="btn-ghost danger" onClick={() => onDelete(reply.id)}>{t("forum.detail.delete")}</button>
                 </>
               )}
             </div>

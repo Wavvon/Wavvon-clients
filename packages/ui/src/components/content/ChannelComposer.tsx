@@ -8,7 +8,7 @@ import { PendingAttachments } from "../Attachments";
 interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
 interface Props {
@@ -171,7 +171,7 @@ export function ChannelComposer({
                   >
                     <span className="slash-command-name">/{s.command}</span>
                     <span className="slash-command-desc">{s.description}</span>
-                    <span className="slash-command-bot">{s.bot_name}</span>
+                    <span className="slash-command-app">{s.app_name}</span>
                   </div>
                 ))}
               </div>

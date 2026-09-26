@@ -17,10 +17,6 @@ export interface UseAppKeybindsParams {
   setShowSettings: Dispatch<SetStateAction<boolean>>;
   showHubAdmin: boolean;
   setShowHubAdmin: Dispatch<SetStateAction<boolean>>;
-  showFarmSettings: boolean;
-  setShowFarmSettings: Dispatch<SetStateAction<boolean>>;
-  showCreateHub: boolean;
-  setShowCreateHub: Dispatch<SetStateAction<boolean>>;
   showAddHub: boolean;
   setShowAddHub: Dispatch<SetStateAction<boolean>>;
   showQuickInvite: boolean;
@@ -41,8 +37,6 @@ export function useAppKeybinds({
   showKeyboardShortcuts, setShowKeyboardShortcuts,
   showSettings, setShowSettings,
   showHubAdmin, setShowHubAdmin,
-  showFarmSettings, setShowFarmSettings,
-  showCreateHub, setShowCreateHub,
   showAddHub, setShowAddHub,
   showQuickInvite, setShowQuickInvite,
   showSearchBar, setShowSearchBar,
@@ -115,8 +109,6 @@ export function useAppKeybinds({
         if (showKeyboardShortcuts) { setShowKeyboardShortcuts(false); return; }
         if (showSettings) { setShowSettings(false); return; }
         if (showHubAdmin) { setShowHubAdmin(false); return; }
-        if (showFarmSettings) { setShowFarmSettings(false); return; }
-        if (showCreateHub) { setShowCreateHub(false); return; }
         if (showAddHub) { setShowAddHub(false); return; }
         if (showQuickInvite) { setShowQuickInvite(false); return; }
         if (showSearchBar) { setShowSearchBar(false); return; }
@@ -125,5 +117,5 @@ export function useAppKeybinds({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [hubs, channels, selectedChannel, messageInputRef, unreadByChannel, showKeyboardShortcuts, showSettings, showHubAdmin, showFarmSettings, showCreateHub, showAddHub, showQuickInvite, showSearchBar, searchOpen]);
+  }, [hubs, channels, selectedChannel, messageInputRef, unreadByChannel, showKeyboardShortcuts, showSettings, showHubAdmin, showAddHub, showQuickInvite, showSearchBar, searchOpen]);
 }

@@ -114,9 +114,9 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, alli
   const canWrite = !alliance || allianceContext!.forumRemoteWrite !== "none";
   const canCreatePost = alliance
     ? allianceContext!.forumRemoteWrite === "posts_and_replies"
-    : myRoles.some((r) => r.permissions.some((p) => p === "admin" || p === "create_posts"));
+    : myRoles.some((r) => r.permissions.some((p) => p === "forum.posts.create"));
   const canManagePosts = !alliance && myRoles.some((r) =>
-    r.permissions.some((p) => p === "admin" || p === "manage_posts")
+    r.permissions.some((p) => p === "forum.posts.manage")
   );
 
   return (

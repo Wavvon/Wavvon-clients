@@ -44,7 +44,7 @@ interface Derived {
 
 type OfferState =
   | { phase: "idle" }
-  | { phase: "waiting"; token: string; hubUrl: string }
+  | { phase: "waiting"; token: string; hubUrl: string; code: string }
   | { phase: "claimed"; token: string; hubUrl: string; subkeyPubkey: string; label: string }
   | { phase: "completing" }
   | { phase: "done"; label: string }
@@ -79,8 +79,15 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
   // Re-derive whenever a different account is selected — any optimistic
   // local edit (below) belongs only to the account that was active when it
   // happened.
+  // The device label lives inside the master-signed cert, so it is chosen
+  // before the cert is issued and changing it means re-issuing. Prefilled
+  // from whatever this device is already called.
+  const [deviceName, setDeviceName] = useState(account.device_label ?? "");
+  const [renaming, setRenaming] = useState(false);
   useEffect(() => {
     setD(deriveFromAccount(account));
+    setDeviceName(account.device_label ?? "");
+    setRenaming(false);
   }, [account]);
   const [certs, setCerts] = useState<SubkeyCert[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -107,34 +114,54 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
     };
   }, []);
 
-  // Opt into multi-device: self-issue a cert for this device (subkey 0) under
-  // the master, persist it, and register it on the hub. From the next hub
-  // connection on, auth presents the cert so every device resolves to one
-  // canonical identity.
+  // Self-issue a cert for this device (subkey 0) under the master, persist it,
+  // and register it on the hub. From the next hub connection on, auth presents
+  // the cert so every device resolves to one canonical identity.
+  //
+  // The label is baked into that master-signed cert, so naming a device and
+  // renaming it are the same operation: re-issue and re-register. Only a
+  // device holding the entropy the master seed derives from can sign this,
+  // and this one does.
+  async function issueSelfCert(label: string) {
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const fallback = activeHubUrl ? [activeHubUrl.replace(/\/+$/, "")] : [];
+    const cert = buildSubkeyCert(d.masterSeed, d.masterPubkey, d.devicePubkey, label, issuedAt, null, fallback);
+    await saveIdentity({ ...account, master_pubkey: d.masterPubkey, device_label: label, subkey_cert: cert });
+    await registerDeviceCert(cert).catch(() => {
+      /* registration is also done implicitly at auth; ignore hub hiccups */
+    });
+  }
+
+  // An unnamed device still needs *a* name; the generic one is the fallback,
+  // not the imposed default.
+  function chosenDeviceName(): string {
+    return deviceName.trim() || t("settings.account.devices.default_label");
+  }
+
   async function enableMultiDevice() {
     setBusy(true);
     setError(null);
     try {
-      const issuedAt = Math.floor(Date.now() / 1000);
-      const fallback = activeHubUrl ? [activeHubUrl.replace(/\/+$/, "")] : [];
-      const cert = buildSubkeyCert(
-        d.masterSeed,
-        d.masterPubkey,
-        d.devicePubkey,
-        "This device",
-        issuedAt,
-        null,
-        fallback,
-      );
-      await saveIdentity({ ...account, master_pubkey: d.masterPubkey, device_label: "This device", subkey_cert: cert });
-      await registerDeviceCert(cert).catch(() => {
-        /* registration is also done implicitly at auth; ignore hub hiccups */
-      });
+      await issueSelfCert(chosenDeviceName());
       // Re-auth now so the hub records the master on our row — required for a
       // newly paired device to resolve to this same canonical identity. Only
       // meaningful for the active account's own hub session.
       if (isActive) await upgradeActiveHubIdentity().catch(() => {});
       setD({ ...d, enabled: true });
+      await refreshCerts(d.masterPubkey);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function renameDevice() {
+    setBusy(true);
+    setError(null);
+    try {
+      await issueSelfCert(chosenDeviceName());
+      setRenaming(false);
       await refreshCerts(d.masterPubkey);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -169,7 +196,7 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
       const issuedAt = Math.floor(Date.now() / 1000);
       const offerEnvelope = buildPairingOffer(d.masterSeed, d.masterPubkey, [hubUrl], token, issuedAt, issuedAt + 300);
       await postPairingOffer(hubUrl, offerEnvelope);
-      setOffer({ phase: "waiting", token, hubUrl });
+      setOffer({ phase: "waiting", token, hubUrl, code: JSON.stringify(offerEnvelope) });
       startPolling(token, hubUrl);
     } catch (e) {
       setOffer({ phase: "error", message: e instanceof Error ? e.message : String(e) });
@@ -231,10 +258,14 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
     setOffer({ phase: "idle" });
   }
 
-  const pairingCode =
-    offer.phase === "waiting"
-      ? btoa(JSON.stringify({ hub: offer.hubUrl, token: offer.token }))
-      : null;
+  // The code is the signed offer, verbatim — decisions.md, "The pairing code
+  // is the signed offer itself, not a pointer to it". A shorter
+  // base64({hub, token}) lived here until 2026-09-06 and was two things at
+  // once: the desktop client could not read it (it wants this JSON, and the
+  // spec in multi-device.md always said so), and it left the master pubkey to
+  // be learned from the hub rather than from the screen the user is looking
+  // at.
+  const pairingCode = offer.phase === "waiting" ? offer.code : null;
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
@@ -248,9 +279,21 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
       <PerAccountHint label={accountLabel} />
 
       {!d.enabled ? (
-        <button className="btn-primary" onClick={enableMultiDevice} disabled={busy}>
-          {busy ? t("settings.account.devices.enabling") : t("settings.account.devices.enable_button")}
-        </button>
+        <>
+          <label className="settings-label" style={{ fontSize: "var(--text-sm)" }} htmlFor="device-name">
+            {t("settings.account.devices.name_label")}
+          </label>
+          <input
+            id="device-name"
+            value={deviceName}
+            onChange={(e) => setDeviceName(e.target.value)}
+            placeholder={t("settings.account.devices.name_placeholder")}
+            style={{ marginBottom: 8, maxWidth: 280 }}
+          />
+          <button className="btn-primary" onClick={enableMultiDevice} disabled={busy}>
+            {busy ? t("settings.account.devices.enabling") : t("settings.account.devices.enable_button")}
+          </button>
+        </>
       ) : (
         <>
           <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
@@ -268,14 +311,30 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
                 className="settings-row"
                 style={{ alignItems: "center", justifyContent: "space-between", gap: 6 }}
               >
-                <span>
-                  <strong>{c.device_label}</strong>
-                  {c.subkey_pubkey === d.devicePubkey && (
-                    <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · {t("settings.account.devices.this_device_suffix")}</span>
-                  )}
-                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}> — {c.subkey_pubkey.slice(0, 12)}…</span>
-                </span>
-                {c.subkey_pubkey !== d.devicePubkey && (
+                {c.subkey_pubkey === d.devicePubkey && renaming ? (
+                  <input
+                    value={deviceName}
+                    onChange={(e) => setDeviceName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") void renameDevice(); }}
+                    placeholder={t("settings.account.devices.name_placeholder")}
+                    aria-label={t("settings.account.devices.name_label")}
+                    autoFocus
+                    style={{ maxWidth: 220 }}
+                  />
+                ) : (
+                  <span>
+                    <strong>{c.device_label}</strong>
+                    {c.subkey_pubkey === d.devicePubkey && (
+                      <span className="muted" style={{ fontSize: "var(--text-xs)" }}> · {t("settings.account.devices.this_device_suffix")}</span>
+                    )}
+                    <span className="muted" style={{ fontSize: "var(--text-xs)" }}> — {c.subkey_pubkey.slice(0, 12)}…</span>
+                  </span>
+                )}
+                {c.subkey_pubkey === d.devicePubkey ? (
+                  <button className="btn-small btn-secondary" onClick={() => (renaming ? void renameDevice() : setRenaming(true))} disabled={busy}>
+                    {renaming ? t("settings.account.devices.rename_save") : t("settings.account.devices.rename_button")}
+                  </button>
+                ) : (
                   <button className="btn-small btn-secondary danger" onClick={() => revoke(c)} disabled={busy}>
                     {t("settings.account.revoke_button")}
                   </button>

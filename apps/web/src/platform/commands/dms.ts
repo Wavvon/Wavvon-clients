@@ -1,6 +1,9 @@
 import { hexToBytes, bytesToHex } from "@wavvon/core";
-import { hubFetch, rawFetch } from "../http";
+import { dmFetch, dmSession } from "../dmHub";
+import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
+import { hubFetch, rawFetch, HubApiError } from "../http";
 import { activeSession } from "../session";
+import i18n from "@wavvon/i18n";
 import { loadIdentity } from "../../identity/store";
 import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
@@ -58,15 +61,50 @@ export function resolveDmSendAttribution(
   };
 }
 
+/** Which message to show for an encrypted DM this device could not read.
+ *
+ *  A message *we* sent is not a failure: a ratchet cannot decrypt its own
+ *  envelopes, so the only readable copy is the one the sending device stashed
+ *  locally. Getting here with our own pubkey as sender means this device has
+ *  no such copy — it was sent from another device, or this one's storage was
+ *  cleared. Both are the same fact, and neither is breakage.
+ *
+ *  Saying "decryption failed" for that made a known design limit look like a
+ *  bug every time someone paired a second device. Someone else's message that
+ *  will not open *is* a failure and still says so — as does a message whose
+ *  cert chain did not verify, which this is deliberately not consulted for.
+ *
+ *  Returns the key rather than the text so the decision is testable without a
+ *  translator. */
+export function unreadableDmKey(sender: string, mySenderPubkey: string | null): string {
+  return mySenderPubkey && sender === mySenderPubkey
+    ? "dm.own_message_other_device"
+    : "dm.decryption_failed";
+}
+
 export async function listConversations(): Promise<Conversation[]> {
-  const res = await hubFetch("/conversations");
-  return res.json() as Promise<Conversation[]>;
+  // The DM hub, not the active one — this is the only list read against a hub
+  // the user may not be looking at, so its capabilities come from the session
+  // `dmFetch` routes to rather than from `activeHubCapabilities`.
+  const caps = (await dmSession()).capabilities ?? null;
+  return fetchAllPages<Conversation>({
+    capabilities: caps,
+    capability: LIST_CURSOR_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (c) => c.id,
+    fetchPage: async (params) =>
+      (await (
+        await dmFetch(params ? `/conversations?${params}` : "/conversations")
+      ).json()) as Conversation[],
+    label: "listConversations",
+  });
 }
 
 export async function createConversation(member_pubkeys: string[]): Promise<Conversation> {
   // Server contract (hub routes/dms/conversations.rs CreateConversationRequest)
   // names the field `members`.
-  const res = await hubFetch("/conversations", {
+  const res = await dmFetch("/conversations", {
     method: "POST",
     body: JSON.stringify({ members: member_pubkeys }),
   });
@@ -131,12 +169,16 @@ export async function getDmMessages(
 ): Promise<DmMessageFull[]> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (before) params.set("before", before);
-  const res = await hubFetch(`/conversations/${conversation_id}/messages?${params}`);
+  const res = await dmFetch(`/conversations/${conversation_id}/messages?${params}`);
   const raw = (await res.json()) as RawDmMessage[];
 
   const identity = await loadIdentity();
   const identitySeed = identity?.seed_hex ?? null;
-  const dhPriv = identity ? resolveDmSendAttribution(identity).dhPriv : null;
+  const attribution = identity ? resolveDmSendAttribution(identity) : null;
+  const dhPriv = attribution?.dhPriv ?? null;
+  const mySenderPubkey = attribution?.senderPubkey ?? null;
+
+  const unreadable = (sender: string) => i18n.t(unreadableDmKey(sender, mySenderPubkey));
 
   const results: DmMessageFull[] = [];
   for (const m of raw) {
@@ -156,7 +198,12 @@ export async function getDmMessages(
         !env.signer_cert || (verifyDmEnvelopeSigner(env) && env.sender_pubkey === m.sender);
 
       if (!envelopeTrusted) {
-        content = "[decryption failed]";
+        // Not `unreadable()`: this is a cert chain that did not verify, which
+        // is a trust failure and stays one even when the envelope claims our
+        // own canonical identity as sender. Softening it to "sent from
+        // another device" would be the reassuring way to hide exactly the
+        // case worth noticing.
+        content = i18n.t("dm.decryption_failed");
       } else if ((env as DrEnvelope).v === 2 && identitySeed) {
         try {
           const senderDhPubHex = await fetchDhKey(m.sender) ?? "";
@@ -171,13 +218,13 @@ export async function getDmMessages(
           saveDrSession(m.conversation_id, updatedSession);
           content = plaintext;
         } catch {
-          content = "[decryption failed]";
+          content = unreadable(m.sender);
         }
       } else if (dhPriv) {
         try {
           content = decryptDm(m.conversation_id, env as DmEnvelope, dhPriv);
         } catch {
-          content = "[decryption failed]";
+          content = unreadable(m.sender);
         }
       }
     } else if (!m.content && m.group_encrypted_envelope) {
@@ -198,37 +245,74 @@ export async function getDmMessages(
   return results;
 }
 
+export interface SendDmOptions {
+  /** Asked before a message would leave unencrypted, and only then. Returning
+   *  false abandons the send with the composer untouched.
+   *
+   *  Required in practice: without it this refuses rather than guessing, which
+   *  is the one direction that cannot leak. Web used to take the other one —
+   *  a recipient with no published key got a plaintext DM and no notice, and
+   *  so did anyone whose key lookup merely failed. */
+  confirmUnencrypted?: () => Promise<boolean>;
+}
+
+export type SendDmResult = "sent" | "cancelled";
+
 export async function sendDm(
   conversation_id: string,
   content: string,
   attachments?: Attachment[],
-): Promise<void> {
+  opts?: SendDmOptions,
+): Promise<SendDmResult> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
 
   const { signingSeedHex, senderPubkey, signerCert, dhPriv } = resolveDmSendAttribution(identity);
-  const members = await getConversationMembers(conversation_id);
+  const conversation = await getConversation_(conversation_id);
+
+  // Group DMs use sender keys, which this client does not implement — it says
+  // so when *reading* one ("upgrade client to read"). Sending had no such
+  // check, and the 1:1 path below would have picked whichever member happened
+  // to come first and encrypted to them alone: readable by one person in the
+  // group, undecryptable for everyone else, and reported to the sender as
+  // sent. Reachable, because a desktop client can put a web user in a group.
+  if (conversation.conv_type === "group") {
+    throw new Error(i18n.t("dm.group_send_unsupported"));
+  }
+
+  const members = conversation.members;
   // Conversation membership is keyed to the canonical pubkey, not this
   // device's own signing key — a paired device's subkey never appears in
   // it (see decisions.md "Paired-device DMs attribute to canonical via
   // cert-chained envelopes").
   const recipientPubkey = members.find((m) => m !== senderPubkey);
 
-  if (!recipientPubkey) {
-    await hubFetch(`/conversations/${conversation_id}/messages`, {
+  const sendPlaintext = async () => {
+    await dmFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
       body: JSON.stringify({ content, attachments }),
     });
-    return;
+  };
+
+  // Nobody else in the conversation: there is no one to encrypt to, and
+  // nothing to disclose to a third party either.
+  if (!recipientPubkey) {
+    await sendPlaintext();
+    return "sent";
   }
 
-  const recipientDhPubHex = await fetchDhKey(recipientPubkey);
+  // Throws rather than answering null when the lookup itself failed — that
+  // used to read as "no key" and send the message in the clear.
+  const recipientDhPubHex = await lookupDhKey(recipientPubkey);
   if (!recipientDhPubHex) {
-    await hubFetch(`/conversations/${conversation_id}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ content, attachments }),
-    });
-    return;
+    // A real absence, and the user's call to make: the message would reach
+    // their hub readable. No callback means no consent, and no consent means
+    // no send.
+    if (!opts?.confirmUnencrypted || !(await opts.confirmUnencrypted())) {
+      return "cancelled";
+    }
+    await sendPlaintext();
+    return "sent";
   }
 
   let drSession = loadDrSession(conversation_id);
@@ -245,7 +329,7 @@ export async function sendDm(
   );
   saveDrSession(conversation_id, updatedSession);
 
-  const res = await hubFetch(`/conversations/${conversation_id}/messages`, {
+  const res = await dmFetch(`/conversations/${conversation_id}/messages`, {
     method: "POST",
     body: JSON.stringify({ encrypted_envelope: drEnvelope, attachments: attachments ?? [] }),
   });
@@ -254,19 +338,35 @@ export async function sendDm(
   try {
     const created = (await res.json()) as { id?: string };
     if (created.id) saveOwnPlaintext(created.id, content);
-  } catch {}
+  } catch (e) {
+    // The message is sent; only our own readable copy is missing, and the
+    // symptom is this message reading "you sent this from another device"
+    // in history. Worth a line rather than nothing.
+    console.warn("[dm] sent, but could not stash our own plaintext copy:", e);
+  }
+  return "sent";
 }
 
-async function getConversationMembers(conversation_id: string): Promise<string[]> {
-  const res = await hubFetch(`/conversations/${conversation_id}`);
-  const conv = (await res.json()) as Conversation;
-  return conv.members;
+/** One conversation as the DM hub has it. Exported because the WS arm that
+ *  reacts to membership changes needs the same hub the list came from. */
+export async function getConversation(conversation_id: string): Promise<Conversation> {
+  const res = await dmFetch(`/conversations/${conversation_id}`);
+  return (await res.json()) as Conversation;
+}
+
+async function getConversation_(conversation_id: string): Promise<Conversation> {
+  const res = await dmFetch(`/conversations/${conversation_id}`);
+  return (await res.json()) as Conversation;
 }
 
 const dhKeyCache = new Map<string, { hex: string; ts: number }>();
 const DH_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-export async function fetchDhKey(
+/** Null means the hub answered and this identity has published no DH key.
+ *  Anything else — a 429 off the shared limiter, a hub mid-restart, no
+ *  network — throws, because the caller that matters treats null as "cannot
+ *  encrypt" and a failed lookup is not that. */
+export async function lookupDhKey(
   pubkey: string,
   hub_url?: string,
 ): Promise<string | null> {
@@ -274,14 +374,31 @@ export async function fetchDhKey(
   if (cached && Date.now() - cached.ts < DH_CACHE_TTL) return cached.hex;
 
   const base = hub_url ?? activeSession().hub_url;
+  let res: Response;
   try {
-    const res = await rawFetch(`${base}/identity/${pubkey}/dh-key`);
-    const record = (await res.json()) as {
-      dh_pubkey_hex: string;
-      signature_hex: string;
-    };
-    dhKeyCache.set(pubkey, { hex: record.dh_pubkey_hex, ts: Date.now() });
-    return record.dh_pubkey_hex;
+    res = await rawFetch(`${base}/identity/${pubkey}/dh-key`);
+  } catch (e) {
+    if (e instanceof HubApiError && e.status === 404) return null;
+    throw e;
+  }
+  const record = (await res.json()) as {
+    dh_pubkey_hex: string;
+    signature_hex: string;
+  };
+  dhKeyCache.set(pubkey, { hex: record.dh_pubkey_hex, ts: Date.now() });
+  return record.dh_pubkey_hex;
+}
+
+/** The lenient reading, for callers where a missing key means "skip this
+ *  peer" and a failed lookup means the same thing in practice — voice key
+ *  distribution drops a participant either way and retries on the next
+ *  rekey. Never use it to decide whether to encrypt a message. */
+export async function fetchDhKey(
+  pubkey: string,
+  hub_url?: string,
+): Promise<string | null> {
+  try {
+    return await lookupDhKey(pubkey, hub_url);
   } catch {
     return null;
   }
@@ -305,21 +422,55 @@ export function canPublishDhKey(
   return !identity.canonical_pubkey || identity.canonical_pubkey === myPubkeyHex;
 }
 
-export async function publishDhKey(): Promise<void> {
+/** The signed record itself, plus where it goes. Null when this device may
+ *  not publish (a paired device — see `canPublishDhKey`). */
+async function dhKeyRecord(): Promise<{ path: string; body: string } | null> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
-  if (!canPublishDhKey(identity)) return;
+  if (!canPublishDhKey(identity)) return null;
 
   const seedHex = identity.seed_hex;
   const myPubkeyHex = publicKeyHex(seedHex);
   const { dhPub } = dhKeypairFromSeed(seedHex);
   const dhPubkeyHex = bytesToHex(dhPub);
+  const signatureHex = signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex);
 
-  const sigMsg = dhKeySigningBytes(myPubkeyHex, dhPubkeyHex);
-  const signatureHex = signBytes(sigMsg, seedHex);
-
-  await hubFetch(`/identity/${myPubkeyHex}/dh-key`, {
-    method: "PUT",
+  return {
+    path: `/identity/${myPubkeyHex}/dh-key`,
     body: JSON.stringify({ dh_pubkey_hex: dhPubkeyHex, signature_hex: signatureHex }),
+  };
+}
+
+export async function publishDhKey(): Promise<void> {
+  const record = await dhKeyRecord();
+  if (!record) return;
+  // The active hub, deliberately, not the DM hub: a sender looks this key up
+  // on *their own* hub, so it has to exist on every hub we actually use.
+  // Publishing it only where our DMs are read would leave someone on a shared
+  // community hub unable to encrypt to us.
+  await hubFetch(record.path, { method: "PUT", body: record.body });
+}
+
+/**
+ * Publish the same record to a hub we are not a member of, with the
+ * voice-only token that let us in.
+ *
+ * The other half of the rule above, for the one case where "every hub we
+ * actually use" includes a hub we never joined: in an alliance voice room our
+ * peers are members of the *owning* hub and look our key up there. Without
+ * this the room is one-directional — they hear us (we can read their keys and
+ * wrap for them) and we hear nothing, because nobody can wrap for a key that
+ * is not published where they are looking. The hub's visitor allowlist has
+ * carried both DH routes from the start for exactly this
+ * (auth/middleware.rs, `ALLIANCE_VOICE_ALLOWED_PATHS`); no client ever used
+ * the publish half.
+ */
+export async function publishDhKeyTo(hubUrl: string, token: string): Promise<void> {
+  const record = await dhKeyRecord();
+  if (!record) return;
+  await rawFetch(`${hubUrl}${record.path}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: record.body,
   });
 }

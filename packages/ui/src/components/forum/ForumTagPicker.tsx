@@ -1,4 +1,5 @@
 import type { ForumTagDef } from "../../types";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   tags: ForumTagDef[];
@@ -11,10 +12,11 @@ interface Props {
  * (forum.md §10.3) — reuses the `.forum-tag-chip` look from the read-only
  * chips on post rows, just interactive. */
 export function ForumTagPicker({ tags, selected, onToggle, max = 5 }: Props) {
+  const { t } = useTranslation();
   if (!tags.length) return null;
   return (
     <div className="settings-section">
-      <label className="settings-label">Tags</label>
+      <label className="settings-label">{t("forum.tags.title")}</label>
       <div className="forum-tag-row">
         {tags.map((tag) => {
           const active = selected.includes(tag.id);

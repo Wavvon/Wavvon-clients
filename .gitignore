@@ -1,8 +1,9 @@
 /target
 /desktop/
-.claude/
+.claude/settings.local.json
 node_modules/
 dist/
+dist-hub/
 .next/
 build/
 **/*.db

@@ -49,6 +49,7 @@ function VoiceParticipantRow({
   onSetGain?: (publicKey: string, gainPct: number) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const label = participant.display_name || participant.public_key.slice(0, 12);
 
@@ -69,6 +70,11 @@ function VoiceParticipantRow({
     >
       <span className="channel-participant-icon" aria-hidden="true">🎙️</span>
       {label}
+      {participant.visiting_from && (
+        <span className="participant-visiting-from" title={t("voice.participant.visiting_from", { hub: participant.visiting_from })}>
+          {" · "}{participant.visiting_from}
+        </span>
+      )}
       {isWhisperingToMe && (
         <span className="participant-whisper-badge" title={`${label} is whispering`}>
           whispering
@@ -99,9 +105,9 @@ function VoiceParticipantRow({
               className="participant-volume-reset"
               onClick={() => { onSetGain(participant.public_key, 100); setOpen(false); }}
             >
-              Reset
+              {t("channel.sidebar.volume_reset")}
             </button>
-            <button className="participant-volume-close" onClick={() => setOpen(false)} aria-label="Close" title="Close">✕</button>
+            <button className="participant-volume-close" onClick={() => setOpen(false)} aria-label={t("modal.close")} title={t("modal.close")}>✕</button>
           </div>
         </div>
       )}
@@ -225,8 +231,8 @@ export function SortableChannelItem({
             <button
               className="channel-settings-btn"
               onClick={(e) => { e.stopPropagation(); onSettings(e); }}
-              title="Channel settings"
-              aria-label="Channel settings"
+              title={t("channel.sidebar.channel_settings")}
+              aria-label={t("channel.sidebar.channel_settings")}
             >
               ⚙
             </button>
@@ -292,24 +298,24 @@ export function SortableChannelItem({
         <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
         <span className="channel-name">{channel.name}</span>
         {channel.channel_type === "forum" && (
-          <span className="forum-type-badge" title="Forum channel" aria-label="Forum channel">📋</span>
+          <span className="forum-type-badge" title={t("channel.sidebar.forum_badge")} aria-label={t("channel.sidebar.forum_badge")}>📋</span>
         )}
         {isTemporary && (
           <span className="channel-temp-badge">{t("channel.temp.badge")}</span>
         )}
         {channel.nsfw && (
-          <span className="channel-temp-badge" title="NSFW / mature content">NSFW</span>
+          <span className="channel-temp-badge" title={t("channel.sidebar.nsfw_badge")}>NSFW</span>
         )}
         {!isSpawner && activeHubId && hasDraft?.(`${activeHubId}/${channel.id}`) && (
-          <span className="channel-draft-badge" title="Unsent draft">Draft</span>
+          <span className="channel-draft-badge" title={t("channel.sidebar.draft_title")}>{t("channel.sidebar.draft_badge")}</span>
         )}
-        {!isSpawner && muted && <span className="channel-muted-icon" title="Muted" aria-hidden="true">🔕</span>}
+        {!isSpawner && muted && <span className="channel-muted-icon" title={t("channel.sidebar.muted")} aria-hidden="true">🔕</span>}
         {onSettings && (
           <button
             className="channel-settings-btn"
             onClick={(e) => { e.stopPropagation(); onSettings(e); }}
-            title="Channel settings"
-            aria-label="Channel settings"
+            title={t("channel.sidebar.channel_settings")}
+            aria-label={t("channel.sidebar.channel_settings")}
           >
             ⚙
           </button>
@@ -373,6 +379,7 @@ export function SortableCategoryItem({
   onFocusSubtree?: () => void;
   focusSubtreeLabel?: string;
 }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
   const setRefs = (el: HTMLLIElement | null) => {
@@ -415,7 +422,7 @@ export function SortableCategoryItem({
             e.stopPropagation();
             onToggleCollapsed();
           }}
-          title={collapsed ? "Expand" : "Collapse"}
+          title={collapsed ? t("channel.sidebar.expand") : t("channel.sidebar.collapse")}
         >
           {collapsed ? "▸" : "▾"}
         </button>
@@ -442,7 +449,7 @@ export function SortableCategoryItem({
         <button
           className="btn-icon-small"
           onClick={(e) => { e.stopPropagation(); onAdd(); }}
-          title="Add…"
+          title={t("channel.sidebar.add")}
         >
           +
         </button>
@@ -450,7 +457,7 @@ export function SortableCategoryItem({
           <button
             className="btn-icon-small category-settings-btn"
             onClick={(e) => { e.stopPropagation(); onSettings(e); }}
-            title="Category settings"
+            title={t("channel.sidebar.category_settings")}
           >
             ⚙
           </button>

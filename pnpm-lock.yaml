@@ -236,8 +236,10 @@ importers:
       react-i18next:
         specifier: '>=14'
         version: 15.7.4(i18next@24.2.3(typescript@6.0.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@6.0.3)
-
-  packages/platform: {}
+    devDependencies:
+      intl-messageformat:
+        specifier: ^11.2.8
+        version: 11.2.8
 
   packages/ui:
     dependencies:

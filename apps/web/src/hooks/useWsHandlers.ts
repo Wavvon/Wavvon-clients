@@ -7,7 +7,7 @@ import {
 import type { WsHandlers } from "@platform";
 import { mentionsName, playMentionPing } from "@wavvon/core";
 import type { Channel, Message, User, Hub, MeInfo, VoiceParticipant, NotifyMode } from "@shared/types";
-import type { BotAppLaunchEvent, BotAppOpenEvent, PresenceStatus } from "../types";
+import type { AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
 
 export interface UseWsHandlersParams {
   activeHubIdRef: RefObject<string | null>;
@@ -54,8 +54,8 @@ export interface UseWsHandlersParams {
   handleVideoMessage: (raw: Record<string, unknown>) => void;
   receiveWhisperEvent: (senderPubkey: string, isWhisper: boolean) => void;
   onVoiceMovePush: (raw: unknown) => void;
-  setActiveBotApps: React.Dispatch<React.SetStateAction<Map<string, BotAppLaunchEvent>>>;
-  setActiveOpenApp: React.Dispatch<React.SetStateAction<{ event: BotAppOpenEvent; hubUrl: string } | null>>;
+  setActiveApps: React.Dispatch<React.SetStateAction<Map<string, AppLaunchEvent>>>;
+  setActiveOpenApp: React.Dispatch<React.SetStateAction<{ event: AppOpenEvent; hubUrl: string } | null>>;
 }
 
 // The full WS handler registry (WsHandlers), frozen once (useMemo, deps []) so
@@ -75,10 +75,11 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     loadHubDataRef, voiceOnVoiceState, voiceOnVoiceZoneState, voiceOnVoiceZoneCreated,
     voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoiceKeyReceived,
     voiceOnVoiceKeyRequest, handleVideoMessage,
-    receiveWhisperEvent, onVoiceMovePush, setActiveBotApps, setActiveOpenApp,
+    receiveWhisperEvent, onVoiceMovePush, setActiveApps, setActiveOpenApp,
   } = deps;
 
   const stableHandlersRef = useRef<WsHandlers>({});
+  const reauthInFlight = useRef<Set<string>>(new Set());
 
   const stableHandlers: WsHandlers = useMemo(() => ({
     onMessage: (raw) => {
@@ -215,9 +216,21 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       receiveSoundboardPlayed(raw);
     },
     onReauthNeeded: (hubId) => {
+      // The socket asks on every failed retry past its threshold, and its
+      // backoff can be shorter than a handshake takes — without this guard a
+      // flapping connection stacks re-auths, each one closing the socket the
+      // one before it just opened.
+      if (reauthInFlight.current.has(hubId)) return;
+      reauthInFlight.current.add(hubId);
       reauthorizeHub(hubId, stableHandlersRef.current).then(() => {
         if (hubId === activeHubIdRef.current) void loadHubDataRef.current();
-      }).catch(() => {});
+      }).catch((e) => {
+        // Not fatal: the socket keeps its own retry armed (platform/ws.ts
+        // scheduleReconnect), so this is one attempt lost, not the session.
+        console.warn(`[ws] re-auth with ${hubId} failed, socket will retry:`, e);
+      }).finally(() => {
+        reauthInFlight.current.delete(hubId);
+      });
     },
     onChannelsUpdated: (hubId) => {
       if (hubId !== activeHubIdRef.current) return;
@@ -317,29 +330,29 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       if (m._hub_id !== activeHubIdRef.current) return;
       voiceOnVoiceKeyRequest(raw);
     },
-    onBotApp: (raw) => {
+    onAppEvent: (raw) => {
       const m = raw as Record<string, unknown>;
       if (m._hub_id !== activeHubIdRef.current) return;
       const type = m.type as string;
-      if (type === "bot_app_launch") {
-        const ev = m as unknown as BotAppLaunchEvent;
-        setActiveBotApps((prev) => {
+      if (type === "app_launch") {
+        const ev = m as unknown as AppLaunchEvent;
+        setActiveApps((prev) => {
           const next = new Map(prev);
-          next.set(ev.bot_id, ev);
+          next.set(ev.app_id, ev);
           return next;
         });
-      } else if (type === "bot_app_open") {
-        const ev = m as unknown as BotAppOpenEvent;
+      } else if (type === "app_open") {
+        const ev = m as unknown as AppOpenEvent;
         const hubUrl = hubsRef.current.find((h) => h.hub_id === activeHubIdRef.current)?.hub_url ?? "";
         setActiveOpenApp({ event: ev, hubUrl });
-      } else if (type === "bot_app_close") {
-        const botId = m.bot_id as string;
-        setActiveBotApps((prev) => {
+      } else if (type === "app_close") {
+        const appId = m.app_id as string;
+        setActiveApps((prev) => {
           const next = new Map(prev);
-          next.delete(botId);
+          next.delete(appId);
           return next;
         });
-        setActiveOpenApp((prev) => prev?.event.bot_id === botId ? null : prev);
+        setActiveOpenApp((prev) => prev?.event.app_id === appId ? null : prev);
       }
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps

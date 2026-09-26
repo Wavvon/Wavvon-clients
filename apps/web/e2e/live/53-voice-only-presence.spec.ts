@@ -54,12 +54,19 @@ test("a member moved into a channel they can't read gets voice-only presence, ne
   await createChannel(page, anchor);
   await createChannel(page, hidden);
 
-  // Deny read_messages for @everyone on the destination — the member must
+  // Deny messages.read *and* voice.join for @everyone on the destination — the member must
   // never see it in their sidebar, before or after the move.
   const permDialog = await openPermissionsTab(page, hidden);
   await permDialog.getByRole("button", { name: "everyone" }).click();
+  // Both gates, because `GET /channels` admits a channel on read **or**
+  // voice-join (routes/channels.rs, the visibility fold) — denying read alone
+  // leaves the member the voice gate that `builtin-everyone` seeds, and the
+  // channel keeps showing up. Being moved in still works: the hub resolves
+  // `voice.move_members` against the mover, never the target.
   const readRow = permDialog.locator(".settings-row").filter({ hasText: "Read messages" });
   await readRow.getByRole("button", { name: "Deny", exact: true }).click();
+  const joinRow = permDialog.locator(".settings-row").filter({ hasText: "Join voice" });
+  await joinRow.getByRole("button", { name: "Deny", exact: true }).click();
   await permDialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(permDialog.getByRole("button", { name: "Saved" })).toBeVisible();
   await page.locator(".modal-overlay").click({ position: { x: 5, y: 5 } });

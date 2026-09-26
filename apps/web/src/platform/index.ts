@@ -1,4 +1,4 @@
-export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId, resetHubSessions, getSession, allSessions } from "./session";
+export { get_hub_ws_info, activeSession, getActiveHubId, setActiveHubId, resetHubSessions, getSession, allSessions, hubSupports, activeHubCapabilities, activeHubSupports } from "./session";
 export { hubFetch, rawFetch, HubApiError, fetchWithTimeout, isNotMemberError } from "./http";
 export { hubFetchAs } from "./hubFetchAs";
 export { HubWebSocket } from "./ws";
@@ -7,7 +7,6 @@ export {
   loadSavedHubs,
   saveSavedHubs,
   upsertSavedHub,
-  renameSavedHub,
   removeSavedHub,
   loadActiveHubId,
   saveActiveHubId,
@@ -22,10 +21,11 @@ export {
   listHubs,
   setActiveHub,
   removeHub,
+  leaveHub,
+  redeemInvite,
   pingHub,
   reauthorizeHub,
   upgradeActiveHubIdentity,
-  getHubInfo,
   refreshHubInfo,
   previewHubInfo,
   verifyLanFingerprint,
@@ -58,30 +58,11 @@ export {
 } from "./commands/messages";
 export type { UnreadCount } from "./commands/messages";
 
-export { sendComponentInteraction, sendBotAppJoin, listBotCommands, listBots, getBotProfile } from "./commands/bots";
-
-export {
-  probeFarm,
-  getFarmInfo,
-  getFarmHubQuota,
-  getFarmSettings,
-  patchFarmSettings,
-  getFarmHubsAdmin,
-  suspendFarmHub,
-  deleteFarmHub,
-  getFarmUsers,
-  revokeFarmUserSessions,
-  createHubOnFarm,
-  getFarmServers,
-  generateFarmServerToken,
-  farmTotpSetup,
-  farmTotpConfirm,
-  farmTotpDisable,
-} from "./commands/farms";
-export type { FarmServerEntry } from "./commands/farms";
+export { sendAppJoin, listAppCommands, listApps } from "./commands/apps";
 
 export {
   listConversations,
+  getConversation,
   createConversation,
   getDmMessages,
   sendDm,
@@ -118,7 +99,6 @@ export {
   saveCertSettings,
   issueCertManual,
   revokeCert,
-  fetchMyCert,
   getRecoveryContacts,
   setRecoveryContacts,
   removeRecoveryContact,
@@ -137,6 +117,7 @@ export {
   createInvite,
   getHubListingStatus,
   setHubListed,
+  listInvites,
 } from "./commands/hubAdmin";
 
 export {
@@ -185,11 +166,7 @@ export {
   getEvent,
   createEvent,
   rsvpEvent,
-  cancelRsvp,
   deleteEvent,
-  createEventSlot,
-  updateEventSlot,
-  deleteEventSlot,
   getEventRsvps,
   getEventAssignments,
   createEventSquadRooms,
@@ -230,18 +207,20 @@ export {
   voiceMuteMember,
   voiceUnmuteMember,
   listVoiceMutes,
+  listBans,
 } from "./commands/moderation";
 export type { VoiceMuteInfo } from "./commands/moderation";
 
 export {
   getChannelPermissions,
+  listPermissionCatalogue,
   getMyChannelPermissions,
   setChannelRolePermissions,
   clearChannelRolePermissions,
 } from "./commands/channelPermissions";
 export type { MyChannelPermissions } from "./commands/channelPermissions";
 
-export { fetchAllUsers, searchUsers } from "./commands/users";
+export { fetchAllUsers } from "./commands/users";
 export { listRoles, createRole, updateRole, deleteRole, listUserRoles, assignRoleToUser, removeRoleFromUser } from "./commands/roles";
 export type { RoleCreateInput, RoleUpdateInput } from "./commands/roles";
 
@@ -260,12 +239,11 @@ export type { ChannelBan } from "./commands/channelBans";
 export { getTalkPower, setTalkPower } from "./commands/talkPower";
 export { listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon } from "./commands/hubIcons";
 export type { HubIcon } from "./commands/hubIcons";
-export { listNativeBots, createNativeBot, deleteNativeBot, getNativeBotDetail, setNativeBotWebhook } from "./commands/nativeBots";
-export type { NativeBot, NativeBotCreated, NativeBotDetail, NativeBotCommandInfo } from "./commands/nativeBots";
 export {
-  listAlliances, createAlliance, getAlliance, leaveAlliance,
+  listAlliances, createAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
+  setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
 } from "./commands/alliances";
 export type { Alliance, AllianceDetail, AllianceMember, AllianceInvite, PendingAllianceInvite, SharedChannel } from "./commands/alliances";
@@ -288,6 +266,7 @@ export type { RoleCategoryCreateInput, RoleCategoryUpdateInput } from "./command
 
 export {
   isPasskeySupported,
+  passkeysUsableWith,
   registerPasskey,
   authenticateWithPasskey,
   listPasskeys,

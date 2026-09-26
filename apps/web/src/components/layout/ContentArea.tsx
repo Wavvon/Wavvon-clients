@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useConnectionStats } from "../../hooks/useConnectionStats";
 import type {
   Channel,
   Message,
@@ -26,9 +27,11 @@ import {
   type RsvpStatus,
   type HubEmoji,
   PinnedMessagesModal,
+  ConnectionStatus,
+  typingForScope,
 } from "@wavvon/ui";
 import {
-  hubFetch, getPolls, createPoll, getBotProfile, sendBotAppJoin,
+  hubFetch, getPolls, createPoll, sendAppJoin,
   pinMessage, unpinMessage, getPins, votePoll, deletePoll, fetchLinkPreview, reportMessage,
   forumListPosts, forumGetPost, forumCreatePost, forumEditPost, forumDeletePost,
   forumCreateReply, forumEditReply, forumDeleteReply, forumPinPost, forumLockPost,
@@ -97,7 +100,7 @@ async function moderateAuthor(kind: "mute" | "kick" | "ban", pubkey: string) {
 }
 
 const messageRowActions: MessageRowActions = {
-  pinMessage, unpinMessage, votePoll, deletePoll, sendBotAppJoin, reportMessage,
+  pinMessage, unpinMessage, votePoll, deletePoll, sendAppJoin, reportMessage,
   fetchLinkPreview: (hubUrl, url, token) => fetchLinkPreview(hubUrl, url, token ?? ""),
   muteUser: (pubkey) => moderateAuthor("mute", pubkey),
   kickUser: (pubkey) => moderateAuthor("kick", pubkey),
@@ -147,7 +150,7 @@ interface TypingEntry { name: string; ts: number }
 interface SlashCommandEntry {
   command: string;
   description: string;
-  bot_name: string;
+  app_name: string;
 }
 
 // App.tsx passes whole hook-result objects here instead of ~85 flat props
@@ -180,6 +183,7 @@ interface Props {
   onSetMemberSidebarHidden: (v: boolean) => void;
   selfInvisible: boolean;
   onSetUserContextMenu: (menu: { x: number; y: number; user: User } | null) => void;
+  onOpenImage: (src: string, alt: string) => void;
   onToast: (msg: string) => void;
   slashCommands?: SlashCommandEntry[];
   canMoveMembers: boolean;
@@ -196,30 +200,31 @@ export function ContentArea(props: Props) {
     selfInvisible, onSetUserContextMenu, onToast, slashCommands, canMoveMembers, onMoveMember,
   } = props;
   const { selectedChannel } = channelMessages;
+
+  // Both sources keep their own rolling counters; this only samples them.
+  const conn = useConnectionStats(
+    () => {
+      try { return activeSession().ws?.connectionStats() ?? null; } catch { return null; }
+    },
+    () => voice.voiceSessionRef.current?.inboundLossPercent() ?? null,
+    () => {
+      try { return activeSession().ws?.outboundLossPercent() ?? null; } catch { return null; }
+    },
+  );
   const { selectedConversation } = dms;
 
   // Scoped down from the raw typing maps to just this channel/conversation's
   // entries — moved in from App.tsx, whose only reason to compute it was
   // feeding this exact prop.
-  const typingByKey = useMemo(() => {
-    if (!selectedChannel) return {} as Record<string, TypingEntry>;
-    const prefix = `${selectedChannel.id}:`;
-    const out: Record<string, TypingEntry> = {};
-    for (const [k, v] of Object.entries(typing.typingByKey)) {
-      if (k.startsWith(prefix)) out[k] = v;
-    }
-    return out;
-  }, [typing.typingByKey, selectedChannel]);
+  const typingByKey = useMemo(
+    () => typingForScope(typing.typingByKey, selectedChannel?.id),
+    [typing.typingByKey, selectedChannel],
+  );
 
-  const dmTypingByKey = useMemo(() => {
-    if (!selectedConversation) return {} as Record<string, TypingEntry>;
-    const prefix = `${selectedConversation.id}:`;
-    const out: Record<string, TypingEntry> = {};
-    for (const [k, v] of Object.entries(typing.dmTypingByKey)) {
-      if (k.startsWith(prefix)) out[k] = v;
-    }
-    return out;
-  }, [typing.dmTypingByKey, selectedConversation]);
+  const dmTypingByKey = useMemo(
+    () => typingForScope(typing.dmTypingByKey, selectedConversation?.id),
+    [typing.dmTypingByKey, selectedConversation],
+  );
 
   function getEventsAction(params?: { upcoming?: boolean; limit?: number }): Promise<HubEvent[]> {
     return getEvents(params);
@@ -266,6 +271,19 @@ export function ContentArea(props: Props) {
         reconnectingHubs={hubConnection.reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voice.voiceActiveUsers}
+        connectionStatus={
+          <ConnectionStatus
+            rttMs={conn.rttMs}
+            jitterMs={conn.jitterMs}
+            inboundLossPercent={conn.inboundLossPercent}
+            outboundLossPercent={conn.outboundLossPercent}
+            connected={
+              hubLifecycle.activeHubId
+                ? hubConnection.hubConnected[hubLifecycle.activeHubId] !== false
+                : false
+            }
+          />
+        }
         selfInvisible={selfInvisible}
         hideBirthdays={notifyPrefs.hideBirthdays}
         inputText={channelMessages.inputText}
@@ -303,7 +321,7 @@ export function ContentArea(props: Props) {
         onSetEditingDraft={channelMessages.setEditingDraft}
         onInputTextChange={channelMessages.handleInputTextChange}
         onKeyDown={channelMessages.handleKeyDown}
-        onOpenImage={() => {}}
+        onOpenImage={props.onOpenImage}
         onToast={onToast}
         onError={(msg) => onToast(typeof msg === "string" ? msg : String((msg as Record<string, unknown>).message ?? msg))}
         slashCommands={slashCommands}
@@ -314,7 +332,6 @@ export function ContentArea(props: Props) {
         profileCardActions={profileCardActions}
         forumActions={forumActions}
         messageRowActions={messageRowActions}
-        loadBotProfile={getBotProfile}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}
         loadThreadReplies={loadThreadReplies}

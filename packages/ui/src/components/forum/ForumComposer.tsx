@@ -94,27 +94,27 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
 
   return (
     <div className="forum-composer">
-      <h2>New post</h2>
+      <h2>{t("forum.composer.title")}</h2>
       <div className="settings-section">
-        <label className="settings-label" htmlFor="forum-title">Title</label>
+        <label className="settings-label" htmlFor="forum-title">{t("forum.composer.title_label")}</label>
         <input
           id="forum-title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Post title"
+          placeholder={t("forum.composer.title_placeholder")}
           maxLength={200}
           style={{ width: "100%" }}
         />
       </div>
       <div className="settings-section">
-        <label className="settings-label" htmlFor="forum-body">Body</label>
+        <label className="settings-label" htmlFor="forum-body">{t("forum.composer.body_label")}</label>
         <AutoGrowTextarea
           id="forum-body"
           className="forum-composer-textarea"
           value={body}
           onChange={setBody}
-          placeholder="Write your post…"
+          placeholder={t("forum.composer.body_placeholder")}
           minHeight={COMPOSER_MIN_HEIGHT}
         />
         <div className="settings-row" style={{ marginTop: 4 }}>
@@ -133,7 +133,7 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
       )}
       {actions.uploadAttachment && !allianceId && (
         <div className="settings-section">
-          <label className="settings-label">Attachments</label>
+          <label className="settings-label">{t("forum.composer.attachments")}</label>
           <input
             ref={fileInputRef}
             type="file"
@@ -146,7 +146,7 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
             className="btn-secondary"
             onClick={() => fileInputRef.current?.click()}
           >
-            Attach file
+            {t("forum.composer.attach")}
           </button>
           {pendingFiles.length > 0 && (
             <ul className="forum-pending-attachments">
@@ -174,9 +174,9 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
           onClick={handleSubmit}
           disabled={!title.trim() || !body.trim() || submitting}
         >
-          {submitting ? "Posting…" : "Post"}
+          {submitting ? t("forum.composer.posting") : t("forum.composer.post")}
         </button>
-        <button className="btn-secondary" onClick={onCancel}>Cancel</button>
+        <button className="btn-secondary" onClick={onCancel}>{t("forum.composer.cancel")}</button>
       </div>
     </div>
   );

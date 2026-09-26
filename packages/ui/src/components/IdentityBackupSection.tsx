@@ -40,6 +40,12 @@ interface Props {
   recoveryPhrase: string | null;
   onRevealPhrase: () => void;
   actions: IdentityBackupSectionActions;
+  /** The active identity has never left this browser — no phrase revealed, no
+   *  backup exported. Someone who joined from an invite link starts here,
+   *  because that flow does not show the phrase on the way in. */
+  needsBackup?: boolean;
+  /** A copy of that account's key just left the device. */
+  onSavedOffDevice?: (accountId: string) => void;
 }
 
 interface ExportForm {
@@ -52,7 +58,7 @@ interface ExportForm {
 // backup and works on any device. The encrypted `.wavvon-backup` file below
 // is a secondary, one-account-per-file affordance — export several accounts
 // as several files (settings-ia.md §4a).
-export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase, actions }: Props) {
+export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase, actions, needsBackup, onSavedOffDevice }: Props) {
   const { t } = useTranslation();
   const [exportForm, setExportForm] = useState<ExportForm | null>(null);
   const [importing, setImporting] = useState(false);
@@ -87,6 +93,7 @@ export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase
         const bytes = new TextEncoder().encode(JSON.stringify(envelope));
         await actions.saveFile(bytes, suggestBackupFilename(account.label));
       }
+      onSavedOffDevice?.(account.id);
       setExportForm(null);
       setNotice(t("settings.account.identity_backup.export_success"));
     } catch (e) {
@@ -153,6 +160,11 @@ export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase
     <div>
       <div className="settings-section">
         <label className="settings-label">{t("settings.security.recovery.label")}</label>
+        {needsBackup && (
+          <p className="error-text" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
+            {t("settings.account.identity_backup.only_copy")}
+          </p>
+        )}
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
           {t("settings.security.recovery.hint")}
         </p>

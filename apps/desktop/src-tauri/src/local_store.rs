@@ -182,16 +182,8 @@ pub(crate) fn ignored_users_path() -> Result<std::path::PathBuf, String> {
     crate::accounts::active_ignored_users_path()
 }
 
-pub(crate) fn dnd_settings_path() -> Result<std::path::PathBuf, String> {
-    crate::accounts::active_dnd_settings_path()
-}
-
 pub(crate) fn whisper_optout_path() -> Result<std::path::PathBuf, String> {
     crate::accounts::active_whisper_optout_path()
-}
-
-pub(crate) fn notif_prefs_path() -> Result<std::path::PathBuf, String> {
-    crate::accounts::active_notif_prefs_path()
 }
 
 // ---------------------------------------------------------------------------
@@ -451,29 +443,6 @@ pub(crate) fn save_ignored_users(ignored: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-pub(crate) fn load_dnd_settings() -> Result<bool, String> {
-    let path = dnd_settings_path()?;
-    if !path.exists() {
-        return Ok(false);
-    }
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("read: {e}"))?;
-    let v: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("parse: {e}"))?;
-    Ok(v.get("active").and_then(|a| a.as_bool()).unwrap_or(false))
-}
-
-#[tauri::command]
-pub(crate) fn save_dnd_settings(active: bool) -> Result<(), String> {
-    let path = dnd_settings_path()?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
-    }
-    let text = serde_json::to_string(&serde_json::json!({ "active": active }))
-        .map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| format!("write: {e}"))?;
-    Ok(())
-}
-
 /// Whisper receive opt-out. Per-account (not device-global): two accounts on
 /// one machine can disagree about whether they accept whispers. The hub holds
 /// this per *connection*, so the frontend re-sends it on every reconnect —
@@ -514,27 +483,6 @@ pub(crate) fn load_collapsed_categories() -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub(crate) fn save_collapsed_categories(state: serde_json::Value) -> Result<(), String> {
     let path = collapsed_categories_path()?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
-    }
-    let text = serde_json::to_string(&state).map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| format!("write: {e}"))?;
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) fn load_pinned_channels() -> Result<serde_json::Value, String> {
-    let path = pinned_channels_path()?;
-    if !path.exists() {
-        return Ok(serde_json::json!({}));
-    }
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("read: {e}"))?;
-    serde_json::from_str(&text).map_err(|e| format!("parse: {e}"))
-}
-
-#[tauri::command]
-pub(crate) fn save_pinned_channels(state: serde_json::Value) -> Result<(), String> {
-    let path = pinned_channels_path()?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
     }
@@ -603,33 +551,6 @@ pub(crate) fn get_voice_settings() -> StoredVoiceSettings {
 #[tauri::command]
 pub(crate) fn save_voice_settings(settings: StoredVoiceSettings) -> Result<(), String> {
     save_voice_settings_to_disk(&settings)
-}
-
-#[tauri::command]
-pub(crate) fn get_notification_prefs() -> Result<serde_json::Value, String> {
-    let path = notif_prefs_path()?;
-    if !path.exists() {
-        return Ok(serde_json::json!({}));
-    }
-    let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&raw).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub(crate) fn set_notification_pref(hub_url: String, level: String) -> Result<(), String> {
-    let path = notif_prefs_path()?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let mut prefs: serde_json::Map<String, serde_json::Value> = if path.exists() {
-        let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&raw).unwrap_or_default()
-    } else {
-        serde_json::Map::new()
-    };
-    prefs.insert(hub_url, serde_json::Value::String(level));
-    let serialized = serde_json::to_string_pretty(&prefs).map_err(|e| e.to_string())?;
-    std::fs::write(&path, serialized).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

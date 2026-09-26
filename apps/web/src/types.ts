@@ -4,9 +4,6 @@
 // HTTP endpoints. Keep them in sync with the Rust side; a renamed
 // field in src-tauri or server/wavvon-hub means a rename here too.
 
-import type { FarmSettings, FarmHubEntry, FarmUserEntry } from "@wavvon/ui";
-export type { FarmSettings, FarmHubEntry, FarmUserEntry };
-
 export interface Channel {
   id: string;
   name: string;
@@ -79,14 +76,6 @@ export interface Reaction {
 export type { ReplyContext, Message, User } from "@wavvon/ui";
 
 export type { NotifyMode } from "@wavvon/ui";
-
-export interface BotInfo {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  token?: string;
-}
 
 export type { Hub } from "@wavvon/ui";
 
@@ -340,7 +329,7 @@ export interface LobbyStatus {
   welcome_md: string | null;
 }
 
-// ---- Bot Challenge ----
+// ---- Admission challenge ----
 
 export interface ChallengePrompt {
   id: string;
@@ -417,117 +406,27 @@ export interface SurveyResponseAdmin {
   }>;
 }
 
-// ---- Bots ----
-
-export interface BotAdminInfo {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  webhook_url: string | null;
-}
-
-export interface BotCreatedResult {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  token: string;
-}
-
-export interface BotSlashCommandInfo {
-  command: string;
-  description: string;
-}
-
-export interface BotDetailInfo extends BotAdminInfo {
-  commands: BotSlashCommandInfo[];
-}
-
-
-// ---- Bot message types ----
+// ---- Rich message content ----
 
 export type {
-  Embed, EmbedField, ComponentRow, BotComponent, BotButton, BotSelect, SelectOption,
-  BotCommandDef, BotProfile,
+  Embed, EmbedField, ComponentRow, MessageComponent, MessageButton, MessageSelect,
+  SelectOption, AppCommandDef, AppProfile,
 } from "@wavvon/ui";
-export type { ExternalBotRow, ExternalBotInviteResult } from "@wavvon/ui";
-
-// ---- Farm ----
-
-export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
-
-export interface FarmUsersResponse {
-  users: FarmUserEntry[];
-  total: number;
-  page: number;
-  limit: number;
-  next_cursor: string | null;
-}
-
-export type { FarmPublicInfo } from "@wavvon/ui";
-
-export interface FarmInfo {
-  kind: "wavvon-farm";
-  name: string;
-  description: string;
-  public_key: string;
-  admin_pubkey: string;
-  directory_public: boolean;
-  policy: {
-    creation_policy: FarmCreationPolicy;
-    max_hubs_per_creator: number;
-    hub_creation_open: boolean;
-    allow_discovery_listing: boolean;
-  };
-}
-
-export type { FarmHubQuota, CreatedFarmHub } from "@wavvon/ui";
 
 // ---- Webhooks ----
 
 export type { WebhookInfo, WebhookCreatedResult } from "@wavvon/ui";
 
-// ---- Event subscriptions (shared shape: bots and outgoing webhooks) ----
+// ---- Event subscriptions + outgoing webhooks ----
+//
+// Shared, since the manager moved into packages/ui for desktop parity.
 
-export interface EventSubscription {
-  event: string;
-  channels?: string[];
-}
-
-// ---- Outgoing webhooks ----
-
-export interface OutgoingWebhookSummary {
-  id: string;
-  url: string;
-  display_name: string | null;
-  active: boolean;
-  failure_count: number;
-  last_delivery_at: number | null;
-  last_failure_at: number | null;
-  created_at: number;
-  created_by_pubkey: string;
-  subscription_count: number;
-}
-
-export interface OutgoingWebhookCreatedResult {
-  id: string;
-  url: string;
-  display_name: string | null;
-  secret: string;
-}
-
-export interface OutgoingWebhookDelivery {
-  id: string;
-  webhook_id: string;
-  event_type: string;
-  event_seq: number | null;
-  attempted_at: number;
-  attempt_number: number;
-  status_code: number | null;
-  success: boolean;
-  error_msg: string | null;
-}
+export type {
+  EventSubscription,
+  OutgoingWebhookSummary,
+  OutgoingWebhookCreatedResult,
+  OutgoingWebhookDelivery,
+} from "@wavvon/ui";
 
 // ---- Forum ----
 
@@ -625,22 +524,22 @@ export interface IgnoreEntry {
 
 export type { LinkPreview } from "@wavvon/ui";
 
-// ---- Bot mini-app events ----
+// ---- Mini-app events ----
 
-export type { BotAppLaunchEvent } from "@wavvon/ui";
+export type { AppLaunchEvent } from "@wavvon/ui";
 
-export interface BotAppOpenEvent {
-  type: 'bot_app_open';
-  bot_id: string;
+export interface AppOpenEvent {
+  type: 'app_open';
+  app_id: string;
   channel_id: string;
   mini_app_url: string;
   session_token: string;
   requires_camera: boolean;
 }
 
-export interface BotAppCloseEvent {
-  type: 'bot_app_close';
-  bot_id: string;
+export interface AppCloseEvent {
+  type: 'app_close';
+  app_id: string;
   channel_id: string;
 }
 

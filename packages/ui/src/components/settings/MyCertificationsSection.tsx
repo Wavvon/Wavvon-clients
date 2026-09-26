@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { MyCertification } from "../../types";
 import { loadHiddenBadgeSet, saveHiddenBadgeSet } from "../../utils/hiddenBadges";
+import { isTrustedIssuer, type TrustRoot } from "../../utils/trustRoots";
 
 export type { MyCertification } from "../../types";
 
@@ -25,6 +26,17 @@ interface Props {
    *  only if a platform wants account-scoped storage instead. */
   loadHiddenBadges?: () => Set<string>;
   saveHiddenBadges?: (hidden: Set<string>) => void;
+  /** The viewer's own trust roots (server-tags.md Part 4). Omitted where a
+   *  platform has no synced prefs to keep them in, and then no trust marker
+   *  is rendered at all — an "unknown issuer" label nobody can act on is
+   *  worse than none. */
+  trustRoots?: TrustRoot[];
+  /** Pubkeys of the hubs this account is on: being a member is already a
+   *  relationship, so those issuers need no explicit root. */
+  myHubPubkeys?: readonly string[];
+  /** Adds a trust root from here — where the issuer is actually in front of
+   *  the viewer, which is the only place anyone will ever add one. */
+  onTrustIssuer?: (issuerPubkey: string, label?: string) => void;
 }
 
 export function MyCertificationsSection({
@@ -32,6 +44,9 @@ export function MyCertificationsSection({
   listMyCertifications,
   loadHiddenBadges = loadHiddenBadgeSet,
   saveHiddenBadges = saveHiddenBadgeSet,
+  trustRoots,
+  myHubPubkeys = [],
+  onTrustIssuer,
 }: Props) {
   const { t } = useTranslation();
   const [certs, setCerts] = useState<MyCertification[] | null>(null);
@@ -99,6 +114,27 @@ export function MyCertificationsSection({
                       })()}
                       {c.payload.description && (
                         <span className="muted" style={{ fontSize: "var(--text-xs)" }}>— {c.payload.description}</span>
+                      )}
+                      {trustRoots && (
+                        isTrustedIssuer(c.payload.issuer_pubkey, trustRoots, myHubPubkeys) ? (
+                          <span className="issuer-trusted" title={c.payload.issuer_pubkey}>
+                            {t("settings.account.certifications.issuer_trusted")}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                              {t("settings.account.certifications.issuer_unknown")}
+                            </span>
+                            {onTrustIssuer && (
+                              <button
+                                className="btn-small btn-secondary"
+                                onClick={() => onTrustIssuer(c.payload.issuer_pubkey, issuerHost(c.payload.issuer_url || c.hub_url || ""))}
+                              >
+                                {t("settings.account.certifications.trust_issuer")}
+                              </button>
+                            )}
+                          </>
+                        )
                       )}
                     </span>
                     <button className="btn-small btn-secondary" onClick={() => toggleHidden(c.signature)}>

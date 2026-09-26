@@ -134,7 +134,7 @@ export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly, load
 
               {filteredHub.length > 0 && (
                 <div className="emoji-picker-server-section">
-                  <div className="emoji-picker-section-label">This server</div>
+                  <div className="emoji-picker-section-label">{t("emoji.this_server")}</div>
                   <div className="reaction-picker-grid">
                     {filteredHub.map((e) => (
                       <button
@@ -173,7 +173,7 @@ export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly, load
                 </>
               )}
 
-              <div className="emoji-picker-section-label">Standard</div>
+              <div className="emoji-picker-section-label">{t("emoji.standard")}</div>
               <div className="reaction-picker-grid">
                 {filteredStandard.length === 0 ? (
                   <span className="muted reaction-picker-empty">{t("reaction.no_matches")}</span>

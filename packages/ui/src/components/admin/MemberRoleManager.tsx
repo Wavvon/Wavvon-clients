@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { RoleInfo } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 
@@ -22,6 +23,7 @@ interface Props {
 // Chip list + a "manage roles" popover, for inline role editing in the
 // hub-admin Members table.
 export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChanged, actions }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [allRoles, setAllRoles] = useState<RoleInfo[] | null>(null);
   const [assigned, setAssigned] = useState<Set<string>>(new Set(currentRoles.map((r) => r.id)));
@@ -95,7 +97,7 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
         })
       )}
       <button type="button" className="btn-small btn-secondary" onClick={() => setOpen((v) => !v)}>
-        Manage roles
+        {t("hub.admin.members.manage_roles")}
       </button>
       {open && (
         <div
@@ -118,9 +120,9 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
         >
           {error && <p className="error-text" style={{ padding: "4px 14px", margin: 0 }}>{error}</p>}
           {allRoles === null ? (
-            <div style={{ padding: "4px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Loading roles…</div>
+            <div style={{ padding: "4px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("user.ctx.roles_loading")}</div>
           ) : assignable.length === 0 ? (
-            <div style={{ padding: "4px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>No assignable roles</div>
+            <div style={{ padding: "4px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("user.ctx.roles_empty")}</div>
           ) : (
             assignable.map((role) => {
               const has = assigned.has(role.id);

@@ -77,12 +77,19 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
   await page.getByRole("button", { name: leaf, exact: true }).click({ button: "right" });
   await page.getByRole("button", { name: "Copy channel link" }).click();
   const link = await page.evaluate(() => navigator.clipboard.readText());
-  expect(link).toMatch(new RegExp(`^wavvon://${new URL(HUB_URL).host}/channel/`));
+  // Host *and path*: a farm-hosted hub lives at `<farm>/hub/<pubkey>`, and a
+  // permalink that dropped the prefix would resolve to the farm root. The
+  // client keeps it (AppModals.tsx strips only the scheme); this assertion
+  // used to compare the host alone and so failed on the one shape where the
+  // difference matters.
+  const authority = HUB_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  expect(link.startsWith(`wavvon://${authority}/channel/`)).toBe(true);
 
   await page.reload();
   await expectInHub(page);
+  // The + in the hub rail opens the Add Hub modal directly — there is no
+  // join/create menu in front of it since the create-hub wizard went.
   await page.getByRole("navigation", { name: "Hubs" }).getByRole("button", { name: "+" }).click();
-  await page.getByRole("button", { name: "Join a hub" }).click();
   const addHub = page.getByRole("dialog", { name: "Add Hub" });
   await expect(addHub).toBeVisible();
   await addHub.getByRole("textbox").fill(link);

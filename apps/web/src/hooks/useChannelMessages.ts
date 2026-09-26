@@ -26,7 +26,9 @@ export interface UseChannelMessagesParams {
   selectedAllianceChannel: SelectedAllianceChannel | null;
   clearSelectedAllianceChannel: () => void;
   selectAllianceChannel: (alliance: AllianceInfo, channel: AllianceSharedChannel) => Promise<void>;
-  sendAllianceMessage: (content: string) => Promise<void>;
+  sendAllianceMessage: (content: string) => Promise<boolean>;
+  /** A message of the user's own just reached the hub. */
+  onMessageSent?: () => void;
 }
 
 // Channel message state (composer, edit/reply/attachment drafts, search,
@@ -38,6 +40,7 @@ export interface UseChannelMessagesParams {
 export function useChannelMessages({
   activeHubId, setView, clearConversationSelection, clearUnread,
   selectedAllianceChannel, clearSelectedAllianceChannel, selectAllianceChannel, sendAllianceMessage,
+  onMessageSent,
 }: UseChannelMessagesParams) {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const selectedChannelRef = useRef<Channel | null>(null);
@@ -158,9 +161,9 @@ export function useChannelMessages({
 
   async function handleSendAllianceMessage() {
     if (!selectedAllianceChannel || !inputText.trim()) return;
-    const text = inputText;
-    setInputText("");
-    await sendAllianceMessage(text);
+    // Clear on success only: this used to empty the box first, so a refused
+    // send (an alliance revoked, a hub down) took the message with it.
+    if (await sendAllianceMessage(inputText)) setInputText("");
   }
 
   async function handleSend() {
@@ -169,10 +172,24 @@ export function useChannelMessages({
     setInputText("");
     if (activeHubId) clearDraft(`${activeHubId}/${selectedChannel.id}`);
     try {
-      await sendMessage(selectedChannel.id, text, pendingAttachments.length ? pendingAttachments : undefined, replyTarget?.id);
+      const sent = await sendMessage(selectedChannel.id, text, pendingAttachments.length ? pendingAttachments : undefined, replyTarget?.id);
+      // Render what the hub stored instead of waiting for the socket to echo
+      // it: a message sent while the socket is down or still reconnecting was
+      // accepted (201) and then vanished from its own author view until the
+      // next channel load. The id dedupe is the one the socket handler
+      // already applies, so the echo is a no-op when it arrives.
+      if (sent && sent.channel_id === selectedChannelIdRef.current) {
+        setMessages((prev) => prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]);
+      }
       setPendingAttachments([]);
       setReplyTarget(null);
-    } catch {}
+      onMessageSent?.();
+    } catch {
+      // Nothing here can raise a toast, so put the text back rather than
+      // dropping it silently — a rejected send (rate limit, hub down) left
+      // the composer empty and the words gone.
+      setInputText((cur) => cur || text);
+    }
   }
 
   async function handleSaveEdit() {

@@ -6,14 +6,19 @@ interface Props {
   onClose: () => void;
   onJoinHub: (hubUrl: string, inviteCode: string) => void;
   fetchUrl: (url: string) => Promise<Response>;
-  directoryUrl?: string;
+  /** Base URL of the hub directory. Required: this used to be optional
+   *  with a hardcoded default, and the default was a host that does not
+   *  resolve. The app does not render this page without one. */
+  directoryUrl: string;
 }
 
-const DEFAULT_DIR = "https://discovery.wavvon.io";
+// No default host here on purpose: this package is prop-only, and the one
+// that used to live here (discovery.wavvon.io) does not resolve. The app owns
+// the config and does not render this page without it.
 const PAGE_SIZE = 20;
 const POPULAR_TAGS = ["gaming", "music", "art", "tech", "anime", "sports", "community", "18+", "english", "social"];
 
-export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl = DEFAULT_DIR }: Props) {
+export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl }: Props) {
   const { t } = useTranslation();
   const [q, setQ] = useState("");
   const [language, setLanguage] = useState("");
@@ -117,7 +122,7 @@ export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl = DEFA
         />
         <input
           type="text"
-          placeholder="Tag filter"
+          placeholder={t("discover.tag_placeholder")}
           value={tagFilter}
           onChange={(e) => setTagFilter(e.target.value)}
           className="discover-tag-input"
@@ -130,7 +135,7 @@ export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl = DEFA
         )}
       </form>
 
-      <div className="discover-tag-chips" aria-label="Filter by tag">
+      <div className="discover-tag-chips" aria-label={t("discover.tag_filter_aria")}>
         {POPULAR_TAGS.map((tag) => (
           <button
             key={tag}
@@ -146,7 +151,7 @@ export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl = DEFA
       <div className="discover-filters">
         <label className="checkbox-label">
           <input type="checkbox" checked={hideNsfw} onChange={(e) => setHideNsfw(e.target.checked)} />
-          Hide NSFW
+          {t("discover.hide_nsfw")}
         </label>
       </div>
 
@@ -155,12 +160,12 @@ export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl = DEFA
           className="discover-unavailable"
           style={{ textAlign: "center", padding: "var(--space-5)", opacity: 0.75 }}
         >
-          <p style={{ fontSize: "var(--text-lg)" }}>📡 Service not available</p>
+          <p style={{ fontSize: "var(--text-lg)" }}>{t("discover.unavailable_title")}</p>
           <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }}>
-            The community directory couldn't be reached. It may be offline — try again later.
+            {t("discover.unavailable_body")}
           </p>
           <button className="btn-secondary" onClick={() => fetchPage(q, language, tagFilter, 1, true)}>
-            Retry
+            {t("modal.retry")}
           </button>
         </div>
       )}

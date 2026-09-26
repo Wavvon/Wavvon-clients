@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { Hub, SyncResult } from "../types";
 
@@ -50,6 +51,7 @@ type ClaimStep = "pasting" | "claiming" | "waiting" | "done" | "error";
 const POLL_INTERVAL_MS = 2000;
 
 export function PairingSection({ hubs }: { hubs: Hub[] }) {
+  const { t } = useTranslation();
   const [pairedId, setPairedId] = useState<PairedIdentityInfo | null | undefined>(undefined);
   const [mode, setMode] = useState<Mode>(null);
 
@@ -281,7 +283,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
     }
   }
 
-  if (pairedId === undefined) return <p className="muted">Loading…</p>;
+  if (pairedId === undefined) return <p className="muted">{t("modal.loading")}</p>;
 
   return (
     <div className="settings-section">
@@ -289,10 +291,12 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
         <div className="pairing-status-card paired">
           <span className="pairing-status-icon">🔗</span>
           <div>
-            <strong>This device is paired</strong>
+            <strong>{t("settings.pairing.paired_title")}</strong>
             <p className="muted">
-              Device: <strong>{pairedId.device_label}</strong> &mdash;{" "}
-              master {pairedId.master_pubkey.slice(0, 16)}…
+              {t("settings.pairing.paired_device", {
+                label: pairedId.device_label,
+                master: pairedId.master_pubkey.slice(0, 16),
+              })}
             </p>
           </div>
         </div>
@@ -300,11 +304,8 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
         <div className="pairing-status-card legacy">
           <span className="pairing-status-icon">🔑</span>
           <div>
-            <strong>Single-device identity</strong>
-            <p className="muted">
-              This device uses a standalone identity. Pair it with another
-              device to share your identity across machines.
-            </p>
+            <strong>{t("settings.pairing.legacy_title")}</strong>
+            <p className="muted">{t("settings.pairing.legacy_hint")}</p>
           </div>
         </div>
       )}
@@ -312,10 +313,10 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
       {mode === null && (
         <div className="pairing-action-row">
           <button onClick={() => setMode("offer")}>
-            Pair a new device…
+            {t("settings.pairing.offer_button")}
           </button>
           <button className="btn-secondary" onClick={() => setMode("claim")}>
-            Pair this device with another…
+            {t("settings.pairing.claim_button")}
           </button>
         </div>
       )}
@@ -323,14 +324,11 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
       {/* E-side: generate an offer for a new device to scan */}
       {mode === "offer" && (
         <div className="pairing-flow">
-          <h3>Pair a new device</h3>
+          <h3>{t("settings.pairing.offer_title")}</h3>
 
           {offerStep === "picking" && (
             <>
-              <p className="muted">
-                Select the hubs that will relay the pairing handshake. The new
-                device will contact them to complete pairing.
-              </p>
+              <p className="muted">{t("settings.pairing.offer_pick_hint")}</p>
               <div className="pairing-hub-list">
                 {hubs.map((h) => (
                   <label key={h.hub_id} className="checkbox-label">
@@ -349,7 +347,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
                   </label>
                 ))}
                 {hubs.length === 0 && (
-                  <p className="muted">Add at least one hub before pairing.</p>
+                  <p className="muted">{t("settings.pairing.offer_no_hubs")}</p>
                 )}
               </div>
               {offerError && <p className="error-text">{offerError}</p>}
@@ -358,10 +356,10 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
                   onClick={handleGenerateOffer}
                   disabled={selectedHubs.length === 0}
                 >
-                  Generate pairing code
+                  {t("settings.pairing.offer_generate")}
                 </button>
                 <button className="btn-secondary" onClick={reset}>
-                  Cancel
+                  {t("modal.cancel")}
                 </button>
               </div>
             </>
@@ -369,10 +367,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
 
           {offerStep === "showing" && (
             <>
-              <p className="muted">
-                Copy this code and paste it on the new device under "Pair this
-                device with another…". The code expires in 4 minutes.
-              </p>
+              <p className="muted">{t("settings.pairing.offer_code_hint")}</p>
               <textarea
                 className="pairing-code-area"
                 readOnly
@@ -381,36 +376,32 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
               />
               <div className="pairing-action-row">
                 <button onClick={copyPayload}>
-                  {copied ? "Copied!" : "Copy pairing code"}
+                  {copied ? t("modal.copied") : t("settings.pairing.offer_copy")}
                 </button>
                 <button className="btn-secondary" onClick={reset}>
-                  Cancel
+                  {t("modal.cancel")}
                 </button>
               </div>
               <p className="muted pairing-waiting">
-                ⏳ Waiting for the new device to scan…
+                {t("settings.pairing.offer_waiting")}
               </p>
             </>
           )}
 
           {offerStep === "confirming" && pendingClaim && (
             <>
-              <p>
-                <strong>{pendingClaim.deviceLabel}</strong> wants to pair with
-                this identity.
-              </p>
+              <p>{t("settings.pairing.confirm_prompt", { label: pendingClaim.deviceLabel })}</p>
               <p className="muted">
-                Fingerprint:{" "}
+                {t("settings.pairing.fingerprint_label")}{" "}
                 <code className="pairing-fingerprint">{pendingClaim.fingerprint}</code>
               </p>
-              <p className="muted">
-                Verify this fingerprint matches what the new device shows before
-                confirming.
-              </p>
+              <p className="muted">{t("settings.pairing.confirm_hint")}</p>
               <div className="pairing-action-row">
-                <button onClick={handleConfirmClaim}>Confirm pairing</button>
+                <button onClick={handleConfirmClaim}>
+                  {t("settings.pairing.confirm_button")}
+                </button>
                 <button className="btn-secondary" onClick={reset}>
-                  Deny
+                  {t("settings.pairing.deny_button")}
                 </button>
               </div>
             </>
@@ -418,18 +409,16 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
 
           {offerStep === "done" && (
             <>
-              <p>✅ Device paired successfully.</p>
-              <p className="muted">
-                The new device can now connect to your hubs using your identity.
-              </p>
-              <button onClick={reset}>Done</button>
+              <p>{t("settings.pairing.offer_done")}</p>
+              <p className="muted">{t("settings.pairing.offer_done_hint")}</p>
+              <button onClick={reset}>{t("modal.done")}</button>
             </>
           )}
 
           {offerStep === "error" && (
             <>
               <p className="error-text">{offerError}</p>
-              <button onClick={reset}>Back</button>
+              <button onClick={reset}>{t("modal.back")}</button>
             </>
           )}
         </div>
@@ -438,28 +427,27 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
       {/* N-side: claim an offer from an existing device */}
       {mode === "claim" && (
         <div className="pairing-flow">
-          <h3>Pair this device with another</h3>
+          <h3>{t("settings.pairing.claim_title")}</h3>
 
           {(claimStep === "pasting" || claimStep === "claiming") && (
             <>
-              <p className="muted">
-                On your existing device, open Settings → Devices → "Pair a new
-                device…" and copy the pairing code. Paste it below.
-              </p>
+              <p className="muted">{t("settings.pairing.claim_hint")}</p>
               <textarea
                 className="pairing-code-area"
-                placeholder="Paste pairing code here…"
+                placeholder={t("settings.pairing.claim_code_placeholder")}
                 value={pasteValue}
                 onChange={(e) => setPasteValue(e.target.value)}
                 rows={6}
                 disabled={claimStep === "claiming"}
               />
               <div className="settings-section">
-                <label className="settings-label" htmlFor="pairing-device-label">Device label</label>
+                <label className="settings-label" htmlFor="pairing-device-label">
+                  {t("settings.pairing.claim_label")}
+                </label>
                 <input
                   id="pairing-device-label"
                   type="text"
-                  placeholder="e.g. My Laptop"
+                  placeholder={t("settings.pairing.claim_label_placeholder")}
                   value={deviceLabel}
                   onChange={(e) => setDeviceLabel(e.target.value)}
                   disabled={claimStep === "claiming"}
@@ -475,10 +463,12 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
                     !deviceLabel.trim()
                   }
                 >
-                  {claimStep === "claiming" ? "Pairing…" : "Pair this device"}
+                  {claimStep === "claiming"
+                    ? t("settings.pairing.claim_submitting")
+                    : t("settings.pairing.claim_submit")}
                 </button>
                 <button className="btn-secondary" onClick={reset}>
-                  Cancel
+                  {t("modal.cancel")}
                 </button>
               </div>
             </>
@@ -486,34 +476,28 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
 
           {claimStep === "waiting" && (
             <>
-              <p className="muted">
-                ⏳ Waiting for your existing device to confirm the pairing…
-              </p>
-              <p className="muted">
-                On the existing device, accept the pairing request.
-              </p>
+              <p className="muted">{t("settings.pairing.claim_waiting")}</p>
+              <p className="muted">{t("settings.pairing.claim_waiting_hint")}</p>
               <button className="btn-secondary" onClick={reset}>
-                Cancel
+                {t("modal.cancel")}
               </button>
             </>
           )}
 
           {claimStep === "done" && (
             <>
-              <p>✅ This device is now paired.</p>
+              <p>{t("settings.pairing.claim_done")}</p>
               {syncResult?.synced ? (
-                <p className="muted">Done! Preferences synced from your other device.</p>
+                <p className="muted">{t("settings.pairing.sync_ok")}</p>
               ) : (
                 <p className="muted">
-                  {"Done! (Preferences sync skipped"}
-                  {syncResult?.error ? `: ${syncResult.error}` : ""}
-                  {")"}
+                  {syncResult?.error
+                    ? t("settings.pairing.sync_skipped_reason", { reason: syncResult.error })
+                    : t("settings.pairing.sync_skipped")}
                 </p>
               )}
-              <p className="muted">
-                Restart Wavvon to connect with your shared identity.
-              </p>
-              <button onClick={reset}>Done</button>
+              <p className="muted">{t("settings.pairing.claim_restart")}</p>
+              <button onClick={reset}>{t("modal.done")}</button>
             </>
           )}
         </div>

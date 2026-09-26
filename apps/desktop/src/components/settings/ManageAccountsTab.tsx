@@ -11,6 +11,8 @@ import {
 } from "@wavvon/ui";
 import { suggestBackupFilename } from "@wavvon/core";
 import type { AccountSummary } from "../../accounts/store";
+import { buildRecoveryActions } from "../../utils/recoveryActions";
+import { isIdentityBackedUp, markIdentityBackedUp } from "../../utils/identityBackup";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
 import { RestoreIdentitySection } from "../RestoreIdentitySection";
@@ -45,30 +47,7 @@ interface ImportedAccount {
 export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData }: Props) {
   const { t } = useTranslation();
 
-  // Admin queue isn't wired on desktop yet — no Rust proxy for
-  // admin/recovery/pending exists — so those actions stay undefined and the
-  // shared component simply omits that section (same as before this feature).
-  const recoveryActions: RecoveryContactsSectionActions = {
-    async getContacts() {
-      const r = await invoke<RecoveryContactsResponse>("get_recovery_contacts", { hubUrl: activeHubUrl });
-      return { threshold: r.threshold, contacts: r.contacts };
-    },
-    async setContacts(threshold, contactPubkeys) {
-      await invoke("set_recovery_contacts", { hubUrl: activeHubUrl, threshold, contacts: contactPubkeys });
-    },
-    async removeContact(pubkey) {
-      await invoke("remove_recovery_contact", { hubUrl: activeHubUrl, pubkey });
-    },
-    async openRotationRequest(oldPubkey, reason) {
-      return invoke<RecoveryRequestBundle>("submit_rotation_request", { hubUrl: activeHubUrl, oldPubkey, reason });
-    },
-    async getRotationRequest(id) {
-      return invoke<RecoveryRequestBundle>("get_rotation_request_bundle", { hubUrl: activeHubUrl, id });
-    },
-    async attestRotationRequest(bundle) {
-      await invoke("attest_rotation_request", { hubUrl: activeHubUrl, id: bundle.id });
-    },
-  };
+  const recoveryActions = buildRecoveryActions(activeHubUrl);
 
   const backupAccounts = accounts
     .filter((a) => a.kind === "owned")
@@ -78,7 +57,7 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
     async exportToPath(accountId, passphrase) {
       const path = await save({
         defaultPath: suggestBackupFilename(backupAccounts.find((a) => a.id === accountId)?.label ?? accountId),
-        filters: [{ name: "Wavvon backup", extensions: ["wavvon-backup"] }],
+        filters: [{ name: t("settings.account.identity_backup.file_filter"), extensions: ["wavvon-backup"] }],
       });
       if (!path) throw new Error("export_cancelled");
       await invoke("export_account_backup", { id: accountId, passphrase, path });
@@ -86,7 +65,7 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
     async pickImportPath() {
       const path = await open({
         multiple: false,
-        filters: [{ name: "Wavvon backup", extensions: ["wavvon-backup"] }],
+        filters: [{ name: t("settings.account.identity_backup.file_filter"), extensions: ["wavvon-backup"] }],
       });
       return typeof path === "string" ? path : null;
     },
@@ -105,6 +84,8 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
         recoveryPhrase={recoveryPhrase}
         onRevealPhrase={onShowRecovery}
         actions={backupActions}
+        needsBackup={!isIdentityBackedUp(accounts.find((a) => a.is_active)?.id)}
+        onSavedOffDevice={markIdentityBackedUp}
       />
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}

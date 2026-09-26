@@ -82,6 +82,8 @@ pub(crate) struct InfoResponse {
     #[serde(default)]
     pub welcome_label: Option<String>,
     #[serde(default)]
+    pub farewell_label: Option<String>,
+    #[serde(default)]
     pub welcome_invite_url: Option<String>,
     #[serde(default)]
     pub timezone: Option<String>,
@@ -145,6 +147,8 @@ pub(crate) struct HubBranding {
     pub icon: Option<String>,
     #[serde(default)]
     pub welcome_label: Option<String>,
+    #[serde(default)]
+    pub farewell_label: Option<String>,
     #[serde(default)]
     pub welcome_invite_url: Option<String>,
     /// Member-facing (unlike the rest of this admin-overview struct): read by
@@ -241,15 +245,6 @@ pub(crate) struct UserInfo {
     /// rendered as-is, no client-side priority logic.
     #[serde(default)]
     pub name_color: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct BotInfo {
-    pub public_key: String,
-    pub display_name: String,
-    pub created_by: String,
-    pub created_at: i64,
-    pub token: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -553,59 +548,6 @@ pub(crate) struct InviteInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Farm types
-// ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct FarmPublicInfo {
-    pub kind: Option<String>,
-    pub name: String,
-    pub description: String,
-    pub creation_policy: String,
-    pub hub_count: u32,
-    pub max_hubs_total: u32,
-    pub allow_discovery_listing: bool,
-    pub country: String,
-    pub region: String,
-    pub languages: Vec<String>,
-    pub tags: Vec<String>,
-    pub icon: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct FarmHubQuota {
-    pub hubs_owned_by_user: u32,
-    pub max_hubs_per_user: u32,
-    pub total_hubs: u32,
-    pub max_hubs_total: u32,
-    pub can_create: bool,
-    pub reason: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct FarmSettings {
-    pub name: String,
-    pub description: String,
-    pub creation_policy: String,
-    pub max_hubs_per_user: u32,
-    pub max_hubs_total: u32,
-    pub allow_discovery_listing: bool,
-    pub directory_public: bool,
-    pub languages: Vec<String>,
-    pub tags: Vec<String>,
-    pub country: String,
-    pub region: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct CreatedFarmHub {
-    pub id: String,
-    pub url: String,
-    pub hub_pubkey: String,
-    pub name: String,
-    pub visibility: String,
-    pub created_at: i64,
-}
 
 // ---------------------------------------------------------------------------
 // Recovery contacts
@@ -785,74 +727,6 @@ pub(crate) struct ChallengeResult {
     pub expires_at: Option<i64>,
     pub next_challenge: Option<ChallengePrompt>,
     pub attempts_remaining: Option<u32>,
-}
-
-// ---------------------------------------------------------------------------
-// Bots
-// ---------------------------------------------------------------------------
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct BotAdminInfo {
-    pub public_key: String,
-    pub display_name: String,
-    pub created_by: String,
-    pub created_at: i64,
-    pub webhook_url: Option<String>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct BotCreatedResult {
-    pub public_key: String,
-    pub display_name: String,
-    pub created_by: String,
-    pub created_at: i64,
-    pub token: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct BotSlashCommandInfo {
-    pub command: String,
-    pub description: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct BotDetailInfo {
-    pub public_key: String,
-    pub display_name: String,
-    pub created_by: String,
-    pub created_at: i64,
-    pub webhook_url: Option<String>,
-    pub commands: Vec<BotSlashCommandInfo>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct BotCommandDef {
-    pub name: String,
-    pub description: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct BotProfileResult {
-    pub pubkey: String,
-    pub name: String,
-    pub avatar_url: Option<String>,
-    pub description: Option<String>,
-    pub commands: Vec<BotCommandDef>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct ExternalBotRow {
-    pub public_key: String,
-    pub display_name: Option<String>,
-    pub local_note: Option<String>,
-    pub approval_status: String,
-    pub last_seen_at: Option<i64>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct ExternalBotInviteResult {
-    pub bot_invite_token: String,
-    pub pubkey: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -1105,22 +979,22 @@ pub(crate) enum WsServerMessage {
         new_sender_id: u16,
         new_pubkey: String,
     },
-    #[serde(rename = "bot_app_launch")]
-    BotAppLaunch {
-        bot_id: String,
+    #[serde(rename = "app_launch")]
+    AppLaunch {
+        app_id: String,
         title: String,
         description: String,
         channel_id: String,
     },
-    #[serde(rename = "bot_app_open")]
-    BotAppOpen {
-        bot_id: String,
+    #[serde(rename = "app_open")]
+    AppOpen {
+        app_id: String,
         channel_id: String,
         mini_app_url: String,
         session_token: String,
     },
-    #[serde(rename = "bot_app_close")]
-    BotAppClose { bot_id: String, channel_id: String },
+    #[serde(rename = "app_close")]
+    AppClose { app_id: String, channel_id: String },
     /// Hub branding/settings changed; re-fetch the hub info.
     #[serde(rename = "hub_updated")]
     HubUpdated,
@@ -1146,6 +1020,16 @@ pub(crate) enum WsServerMessage {
         clip_id: String,
         clip_name: String,
         public_key: String,
+    },
+    /// Echo of our own `ping`. The nonce is the millisecond we sent it, so
+    /// the round trip needs no table of outstanding probes. `outbound_loss_pct`
+    /// is the relay's own count of gaps in our packet counter — absent on a
+    /// hub without `voice.loss` and while we are sending no voice, and both of
+    /// those must read as "no number" rather than as zero.
+    #[serde(rename = "pong")]
+    Pong {
+        nonce: Option<i64>,
+        outbound_loss_pct: Option<f32>,
     },
     #[serde(other)]
     Other,

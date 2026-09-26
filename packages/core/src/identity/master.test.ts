@@ -6,7 +6,7 @@
 // pin derivePrefsBlobKey/decryptPrefsBlob to the exact bytes the desktop
 // Tauri shell produces.
 import { describe, it, expect } from "vitest";
-import { masterSeedHex, derivePrefsBlobKey, decryptPrefsBlob } from "./master";
+import { masterSeedHex, derivePrefsBlobKey, decryptPrefsBlob, encryptPrefsBlob } from "./master";
 import { bytesToHex } from "../hex";
 
 const ENTROPY_HEX = Array.from({ length: 32 }, (_, i) => (i + 1).toString(16).padStart(2, "0")).join("");
@@ -36,5 +36,31 @@ describe("decryptPrefsBlob", () => {
   it("rejects a truncated ciphertext", () => {
     const key = derivePrefsBlobKey(MASTER_SEED_HEX);
     expect(() => decryptPrefsBlob("00", key)).toThrow();
+  });
+});
+
+describe("encryptPrefsBlob", () => {
+  it("round-trips through decryptPrefsBlob, settings map included", () => {
+    const key = derivePrefsBlobKey(MASTER_SEED_HEX);
+    const prefs = {
+      blocked_users: ["abc123"],
+      voice_settings: { vad_threshold: 0.05 },
+      hide_birthdays: true,
+      settings: { "wavvon_language": "it", "wavvon:appearance": '{"slot":"midnight"}' },
+    };
+    expect(decryptPrefsBlob(encryptPrefsBlob(prefs, key), key)).toEqual(prefs);
+  });
+
+  it("uses a fresh nonce per call, so the same prefs never encrypt alike", () => {
+    const key = derivePrefsBlobKey(MASTER_SEED_HEX);
+    const prefs = { blocked_users: [], voice_settings: {} };
+    expect(encryptPrefsBlob(prefs, key)).not.toBe(encryptPrefsBlob(prefs, key));
+  });
+
+  it("is unreadable under a different master's key", () => {
+    const mine = derivePrefsBlobKey(MASTER_SEED_HEX);
+    const theirs = derivePrefsBlobKey(masterSeedHex("ff".repeat(32)));
+    const ct = encryptPrefsBlob({ blocked_users: [], voice_settings: {} }, mine);
+    expect(() => decryptPrefsBlob(ct, theirs)).toThrow();
   });
 });

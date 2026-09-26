@@ -1,0 +1,15 @@
+version: 2
+
+secret:
+  ignored_paths:
+    # Test fixtures: mock auth tokens are literals on purpose, and the mock
+    # API that accepts them exists only inside the test run.
+    - "**/__tests__/**"
+    - "**/*.test.ts"
+    - "apps/web/e2e/**"
+
+  ignored_matches:
+    # The hub's documented local-development default, quoted in the live-e2e
+    # setup notes. Localhost-only and never a deployment credential.
+    - name: "local dev PostgreSQL default (postgres/postgres on localhost)"
+      match: postgres

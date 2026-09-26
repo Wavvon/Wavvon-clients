@@ -50,9 +50,9 @@ export function NotificationsTab(props: Props) {
         </label>
       </div>
       <div className="settings-section" style={{ marginBottom: 20 }}>
-        <label className="settings-label">Voice sounds</label>
+        <label className="settings-label">{t("settings.notifications.voice_sounds.label")}</label>
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          Play a short tone when you or someone else joins or leaves your voice channel.
+          {t("settings.notifications.voice_sounds.hint")}
         </p>
         <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input
@@ -60,7 +60,7 @@ export function NotificationsTab(props: Props) {
             checked={voiceSounds}
             onChange={(e) => toggleVoiceSounds(e.target.checked)}
           />
-          Play voice join/leave sounds
+          {t("settings.notifications.voice_sounds.enable")}
         </label>
       </div>
       <div className="settings-section" style={{ marginBottom: 20 }}>

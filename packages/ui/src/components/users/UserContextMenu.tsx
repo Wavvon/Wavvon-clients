@@ -255,11 +255,11 @@ export function UserContextMenu({
         {canManageRoles && (
           <>
             <div className="context-menu-separator" />
-            <div className="context-menu-header">Roles</div>
+            <div className="context-menu-header">{t("user.ctx.roles")}</div>
             {roles === null ? (
-              <div className="context-menu-item muted">Loading roles…</div>
+              <div className="context-menu-item muted">{t("user.ctx.roles_loading")}</div>
             ) : assignableRoles.length === 0 ? (
-              <div className="context-menu-item muted">No assignable roles</div>
+              <div className="context-menu-item muted">{t("user.ctx.roles_empty")}</div>
             ) : (
               assignableRoles.map((role) => {
                 const has = assigned.has(role.id);
@@ -312,9 +312,9 @@ export function UserContextMenu({
         {isAdmin && !isSelf && (
           <>
             <div className="context-menu-separator" />
-            <button className="context-menu-item" onClick={handleMute}>Mute</button>
-            <button className="context-menu-item danger" onClick={handleKick}>Kick</button>
-            <button className="context-menu-item danger" onClick={handleBan}>Ban</button>
+            <button className="context-menu-item" onClick={handleMute}>{t("message.ctx.mute")}</button>
+            <button className="context-menu-item danger" onClick={handleKick}>{t("message.ctx.kick")}</button>
+            <button className="context-menu-item danger" onClick={handleBan}>{t("message.ctx.ban")}</button>
           </>
         )}
 
@@ -323,7 +323,7 @@ export function UserContextMenu({
         )}
         {profile !== "loading" && profile !== null && profile.public_hubs.length > 0 && (
           <>
-            <div className="their-hubs-header">Their hubs</div>
+            <div className="their-hubs-header">{t("user.ctx.their_hubs")}</div>
             {profile.public_hubs.map((hub) => (
               <button
                 key={hub.hub_url}

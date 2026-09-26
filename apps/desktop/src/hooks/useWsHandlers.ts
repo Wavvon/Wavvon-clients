@@ -2,7 +2,7 @@ import { useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { formatPubkey } from "@wavvon/core";
-import type { DmMessage, VoiceParticipant, Conversation, User, BotAppLaunchEvent, BotAppOpenEvent, BotAppCloseEvent, PresenceStatus } from "../types";
+import type { DmMessage, VoiceParticipant, Conversation, User, AppLaunchEvent, AppOpenEvent, AppCloseEvent, PresenceStatus } from "../types";
 
 export interface WsHandlersParams {
   activeHubIdRef: RefObject<string | null>;
@@ -18,10 +18,10 @@ export interface WsHandlersParams {
   setHubConnected: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   setAssertiveAnnouncement: (msg: string) => void;
   setToast: (msg: string) => void;
-  setTypingEntry: (key: string, name: string) => void;
-  clearTypingEntry: (key: string) => void;
-  setDmTypingEntry: (key: string, name: string) => void;
-  clearDmTypingEntry: (key: string) => void;
+  setTyping: (scopeId: string, pubkey: string, name: string) => void;
+  clearTyping: (scopeId: string, pubkey: string) => void;
+  setDmTyping: (scopeId: string, pubkey: string, name: string) => void;
+  clearDmTyping: (scopeId: string, pubkey: string) => void;
   onDmEvent: (conversationId: string, msg: DmMessage, hubId: string) => void;
   onDmMemberChanged: (payload: {
     hub_id: string;
@@ -42,9 +42,9 @@ export interface WsHandlersParams {
   setVoicePoliteAnnouncement: (msg: string) => void;
   hubs: { hub_id: string; hub_name: string; hub_url: string }[];
   channelsRef: RefObject<{ id: string; name: string }[]>;
-  onBotAppLaunch: (event: BotAppLaunchEvent) => void;
-  onBotAppOpen: (event: BotAppOpenEvent, hubUrl: string) => void;
-  onBotAppClose: (event: BotAppCloseEvent) => void;
+  onBotAppLaunch: (event: AppLaunchEvent) => void;
+  onBotAppOpen: (event: AppOpenEvent, hubUrl: string) => void;
+  onBotAppClose: (event: AppCloseEvent) => void;
   /// The hub's channel list changed (`channels_updated`).
   onChannelsChanged: () => void;
   /// Hub branding/settings changed (`hub_updated`) — name, icon, timezone.
@@ -65,10 +65,10 @@ export function useWsHandlers({
   setHubConnected,
   setAssertiveAnnouncement,
   setToast,
-  setTypingEntry,
-  clearTypingEntry,
-  setDmTypingEntry,
-  clearDmTypingEntry,
+  setTyping,
+  clearTyping,
+  setDmTyping,
+  clearDmTyping,
   onDmEvent,
   onDmMemberChanged,
   onHubReconnected,
@@ -238,9 +238,9 @@ export function useWsHandlers({
           if (event.payload.sender === publicKeyRef.current) return;
           const name = event.payload.sender_name || formatPubkey(event.payload.sender);
           if (event.payload.typing) {
-            setDmTypingEntry(event.payload.sender, name);
+            setDmTyping(event.payload.conversation_id, event.payload.sender, name);
           } else {
-            clearDmTypingEntry(event.payload.sender);
+            clearDmTyping(event.payload.conversation_id, event.payload.sender);
           }
         })
       );
@@ -269,9 +269,9 @@ export function useWsHandlers({
           if (event.payload.public_key === publicKeyRef.current) return;
           const name = event.payload.display_name || formatPubkey(event.payload.public_key);
           if (event.payload.typing) {
-            setTypingEntry(event.payload.public_key, name);
+            setTyping(event.payload.channel_id, event.payload.public_key, name);
           } else {
-            clearTypingEntry(event.payload.public_key);
+            clearTyping(event.payload.channel_id, event.payload.public_key);
           }
         })
       );
@@ -374,28 +374,28 @@ export function useWsHandlers({
       );
 
       unlistens.push(
-        await listen<BotAppLaunchEvent & { hub_id: string }>("bot-app-launch", (event) => {
+        await listen<AppLaunchEvent & { hub_id: string }>("app-launch", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           const { hub_id: _hub_id, ...ev } = event.payload;
-          onBotAppLaunch(ev as BotAppLaunchEvent);
+          onBotAppLaunch(ev as AppLaunchEvent);
         })
       );
 
       unlistens.push(
-        await listen<BotAppOpenEvent & { hub_id: string }>("bot-app-open", (event) => {
+        await listen<AppOpenEvent & { hub_id: string }>("app-open", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           const hubId = event.payload.hub_id;
           const hubUrl = hubs.find((h) => h.hub_id === hubId)?.hub_url ?? "";
           const { hub_id: _hub_id, ...ev } = event.payload;
-          onBotAppOpen(ev as BotAppOpenEvent, hubUrl);
+          onBotAppOpen(ev as AppOpenEvent, hubUrl);
         })
       );
 
       unlistens.push(
-        await listen<BotAppCloseEvent & { hub_id: string }>("bot-app-close", (event) => {
+        await listen<AppCloseEvent & { hub_id: string }>("app-close", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           const { hub_id: _hub_id, ...ev } = event.payload;
-          onBotAppClose(ev as BotAppCloseEvent);
+          onBotAppClose(ev as AppCloseEvent);
         })
       );
     })();

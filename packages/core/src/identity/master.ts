@@ -55,6 +55,12 @@ export interface PrefsBlobContents {
    *  — the third layer, after the owner sharing and the hub allowing it).
    *  Optional so blobs written before this field existed still decode. */
   hide_birthdays?: boolean;
+  /** Client-agnostic settings map: storage key -> its raw stored string. The
+   *  key names are the client's own (web uses its localStorage keys), so a
+   *  client only reads back what it wrote — adding a setting to the sync
+   *  needs no change to this wire shape. Optional so older blobs decode, and
+   *  every client must round-trip it untouched rather than drop it. */
+  settings?: Record<string, string>;
 }
 
 /** Derive the 32-byte prefs-blob AES-256-GCM key from the master signing seed (hex). */
@@ -66,6 +72,18 @@ export function derivePrefsBlobKey(masterSeedHexValue: string): Uint8Array {
     new TextEncoder().encode(PREFS_BLOB_KEY_INFO),
     32,
   );
+}
+
+/** Encrypt prefs into blob ciphertext (hex): nonce[12] || AES-256-GCM(ct+tag),
+ *  the layout decryptPrefsBlob and Rust's decrypt_prefs both expect. */
+export function encryptPrefsBlob(contents: PrefsBlobContents, blobKey: Uint8Array): string {
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = new TextEncoder().encode(JSON.stringify(contents));
+  const ciphertext = gcm(blobKey, nonce).encrypt(plaintext);
+  const out = new Uint8Array(nonce.length + ciphertext.length);
+  out.set(nonce, 0);
+  out.set(ciphertext, nonce.length);
+  return bytesToHex(out);
 }
 
 /** Decrypt the prefs blob ciphertext (hex) fetched from a home hub. */

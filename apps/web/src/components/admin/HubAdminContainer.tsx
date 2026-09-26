@@ -5,17 +5,16 @@ import {
   listAdminRecoveryRequests, approveRecoveryRequest, denyRecoveryRequest,
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
-import { HubAdminPage, RecoveryContactsSection } from "@wavvon/ui";
+import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection } from "@wavvon/ui";
 import type { RecoveryContactsSectionActions } from "@wavvon/ui";
 import {
   rolesActions, memberRoleActions, serverTagsActions, inviteActions,
-  webhookActions, externalBotActions, nativeBotActions, auditLogActions,
+  webhookActions, auditLogActions,
   certActions, soundboardActions, onboardingActions, allianceActions,
   hubIconActions, surveyActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
-import { OutgoingWebhooksSection } from "./OutgoingWebhooksSection";
-import { BotCapabilitiesPanel } from "./BotCapabilitiesPanel";
+import { outgoingWebhookActions } from "./outgoingWebhookActions";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
 import type { Channel, Hub, InviteInfo } from "@shared/types";
 
@@ -62,11 +61,15 @@ export function HubAdminContainer({
         minSecurityLevel={hubAdmin.hubAdminMinLevel}
         onMinSecurityLevelChange={hubAdmin.setHubAdminMinLevel}
         maxChannelDepth={hubAdmin.maxChannelDepth}
+        maxAttachmentBytes={hubAdmin.hubAdminMaxAttachmentBytes}
+        onMaxAttachmentBytesChange={hubAdmin.setHubAdminMaxAttachmentBytes}
         onMaxChannelDepthChange={hubAdmin.setMaxChannelDepth}
         welcomeLabel={hubAdmin.hubAdminWelcomeLabel}
         onWelcomeLabelChange={hubAdmin.setHubAdminWelcomeLabel}
         welcomeInviteUrl={hubAdmin.hubAdminWelcomeInviteUrl}
         onWelcomeInviteUrlChange={hubAdmin.setHubAdminWelcomeInviteUrl}
+        farewellLabel={hubAdmin.hubAdminFarewellLabel}
+        onFarewellLabelChange={hubAdmin.setHubAdminFarewellLabel}
         timezone={hubAdmin.hubAdminTimezone}
         onTimezoneChange={hubAdmin.setHubAdminTimezone}
         birthdaysEnabled={hubAdmin.hubAdminBirthdaysEnabled}
@@ -118,9 +121,6 @@ export function HubAdminContainer({
         serverTagsActions={serverTagsActions}
         inviteActions={inviteActions}
         webhookActions={webhookActions}
-        externalBotActions={externalBotActions}
-        renderBotCapabilities={(pubkey) => <BotCapabilitiesPanel pubkey={pubkey} />}
-        nativeBotActions={nativeBotActions}
         auditLogActions={auditLogActions}
         certActions={certActions}
         soundboardActions={soundboardActions}
@@ -129,7 +129,9 @@ export function HubAdminContainer({
         hubIconActions={hubIconActions}
         surveyActions={surveyActions}
         renderModerationTab={() => <ModerationTab />}
-        renderOutgoingWebhooks={() => <OutgoingWebhooksSection channels={channels} />}
+        renderOutgoingWebhooks={() => (
+          <OutgoingWebhooksSection channels={channels} actions={outgoingWebhookActions} />
+        )}
         renderRecoveryContacts={() => {
           const recoveryActions: RecoveryContactsSectionActions = {
             getContacts: getRecoveryContacts,

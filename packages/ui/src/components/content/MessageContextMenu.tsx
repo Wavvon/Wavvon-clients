@@ -68,12 +68,12 @@ export function MessageContextMenu({
 
   async function moderate(kind: "mute" | "kick" | "ban") {
     onClose();
-    if (kind !== "mute" && !confirm(`${kind === "kick" ? "Kick" : "Ban"} ${senderLabel}?`)) return;
+    if (kind !== "mute" && !confirm(t(kind === "kick" ? "message.ctx.kick_confirm" : "message.ctx.ban_confirm", { name: senderLabel }))) return;
     try {
       if (kind === "mute") await onMute(senderPubkey);
       else if (kind === "kick") await onKick(senderPubkey);
       else await onBan(senderPubkey);
-      onToast(kind === "mute" ? "Muted" : kind === "kick" ? "Kicked" : "Banned");
+      onToast(kind === "mute" ? t("message.ctx.muted") : kind === "kick" ? t("message.ctx.kicked") : t("message.ctx.banned"));
     } catch (e) {
       onToast(`Failed to ${kind}: ${e}`);
     }
@@ -102,7 +102,7 @@ export function MessageContextMenu({
         </button>
         {isAdmin && (
           <button className="context-menu-item" onClick={pick(onPinToggle)}>
-            {isPinned ? "Unpin message" : "Pin message"}
+            {isPinned ? t("message.action.unpin") : t("message.action.pin")}
           </button>
         )}
         {isMine && (
@@ -117,7 +117,7 @@ export function MessageContextMenu({
         )}
         {!isMine && onReport && (
           <button className="context-menu-item" onClick={pick(onReport)}>
-            Report message
+            {t("message.ctx.report")}
           </button>
         )}
 
@@ -125,21 +125,21 @@ export function MessageContextMenu({
           {senderLabel}
         </div>
         <button className="context-menu-item" onClick={pick(onViewProfile)}>
-          View profile
+          {t("message.ctx.view_profile")}
         </button>
         <button className="context-menu-item" onClick={handleCopyKey}>
-          Copy public key
+          {t("message.ctx.copy_key")}
         </button>
         {isAdmin && !isMine && (
           <>
             <button className="context-menu-item" onClick={() => void moderate("mute")}>
-              Mute
+              {t("message.ctx.mute")}
             </button>
             <button className="context-menu-item danger" onClick={() => void moderate("kick")}>
-              Kick
+              {t("message.ctx.kick")}
             </button>
             <button className="context-menu-item danger" onClick={() => void moderate("ban")}>
-              Ban
+              {t("message.ctx.ban")}
             </button>
           </>
         )}

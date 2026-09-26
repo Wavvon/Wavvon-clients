@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { DISCOVERY_URL } from "../constants";
 import type { HubListing } from "../types";
 
 interface HubBrowserProps {
@@ -12,7 +14,11 @@ interface HubListingResult extends HubListing {
 
 const FALLBACK_HUBS: string[] = [];
 
-const KNOWN_HUBS_URL = "https://hub-directory.wavvon.io/known-hubs.json";
+// Derived from the one configured directory instead of a third hostname of
+// its own — hub-directory.wavvon.io, which was hardcoded here, does not
+// resolve. Null when no directory is configured; the caller does not open
+// this browser then.
+const KNOWN_HUBS_URL = DISCOVERY_URL === null ? null : `${DISCOVERY_URL}/known-hubs.json`;
 
 function normalizeHubUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -34,6 +40,7 @@ interface HubCardProps {
 }
 
 function HubCard({ hub, onJoin }: HubCardProps) {
+  const { t } = useTranslation();
   const desc = hub.description
     ? hub.description.length > 120
       ? hub.description.slice(0, 120) + "…"
@@ -51,7 +58,7 @@ function HubCard({ hub, onJoin }: HubCardProps) {
             {hub.name}
             {!hub.listed && (
               <span className="muted" style={{ fontSize: "0.75em", marginLeft: "0.5em" }}>
-                (not listed)
+                {t("hub_browser.not_listed")}
               </span>
             )}
           </div>
@@ -70,10 +77,10 @@ function HubCard({ hub, onJoin }: HubCardProps) {
       )}
       <div className="discover-card-footer">
         <span className="muted" style={{ fontSize: "0.8em" }}>
-          ~{hub.member_count_approx} members
+          {t("hub_browser.members_approx", { count: hub.member_count_approx })}
         </span>
         <button className="discover-join-btn" onClick={() => onJoin(hub.hub_url)}>
-          Join
+          {t("discover.join")}
         </button>
       </div>
     </div>
@@ -81,6 +88,7 @@ function HubCard({ hub, onJoin }: HubCardProps) {
 }
 
 export function HubBrowser({ onClose, onJoinHub }: HubBrowserProps) {
+  const { t } = useTranslation();
   const [urlInput, setUrlInput] = useState("");
   const [checkedHub, setCheckedHub] = useState<HubListingResult | null>(null);
   const [checkState, setCheckState] = useState<"idle" | "loading" | "error">("idle");
@@ -97,6 +105,7 @@ export function HubBrowser({ onClose, onJoinHub }: HubBrowserProps) {
     async function loadKnownHubs() {
       let urls: string[] = FALLBACK_HUBS;
       try {
+        if (!KNOWN_HUBS_URL) return;
         const res = await fetch(KNOWN_HUBS_URL);
         if (res.ok) {
           const data: unknown = await res.json();
@@ -160,14 +169,14 @@ export function HubBrowser({ onClose, onJoinHub }: HubBrowserProps) {
   return (
     <div className="discover-page">
       <div className="discover-header">
-        <h1>Browse Hubs</h1>
+        <h1>{t("hub_browser.title")}</h1>
         <button className="btn-secondary" onClick={onClose}>
-          Close
+          {t("modal.close")}
         </button>
       </div>
 
       <section style={{ marginBottom: "var(--space-6)" }}>
-        <h2 style={{ marginBottom: "var(--space-2)" }}>Check a hub by URL</h2>
+        <h2 style={{ marginBottom: "var(--space-2)" }}>{t("hub_browser.check_url")}</h2>
         <div className="discover-search-bar">
           <input
             className="discover-search-input"
@@ -176,7 +185,7 @@ export function HubBrowser({ onClose, onJoinHub }: HubBrowserProps) {
             placeholder="hub.example.com"
           />
         </div>
-        {checkState === "loading" && <p className="muted">Checking…</p>}
+        {checkState === "loading" && <p className="muted">{t("hub_browser.checking")}</p>}
         {checkState === "error" && (
           <p className="hub-preview-error">{checkError}</p>
         )}
@@ -188,12 +197,10 @@ export function HubBrowser({ onClose, onJoinHub }: HubBrowserProps) {
       </section>
 
       <section>
-        <h2 style={{ marginBottom: "var(--space-2)" }}>Public hubs</h2>
-        {knownLoading && <p className="muted discover-loading">Loading…</p>}
+        <h2 style={{ marginBottom: "var(--space-2)" }}>{t("hub_browser.public_hubs")}</h2>
+        {knownLoading && <p className="muted discover-loading">{t("discover.loading")}</p>}
         {!knownLoading && knownHubs.length === 0 && (
-          <p className="muted discover-empty">
-            No hubs listed yet. Hub operators can enable listing in their admin settings.
-          </p>
+          <p className="muted discover-empty">{t("hub_browser.empty")}</p>
         )}
         {knownHubs.length > 0 && (
           <div className="discover-grid">

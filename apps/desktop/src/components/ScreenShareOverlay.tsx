@@ -1,4 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { ScreenShareViewer } from "@wavvon/ui";
@@ -50,6 +51,7 @@ function SharerWindow({
   viewerRef: React.RefObject<ScreenShareViewerRef | null>;
   defaultIndex: number;
 }) {
+  const { t } = useTranslation();
   const [pos, setPos] = useState(() => ({
     x: window.innerWidth - 500 - 16 - defaultIndex * 30,
     y: window.innerHeight - 310 - 16 - defaultIndex * 30,
@@ -112,7 +114,9 @@ function SharerWindow({
         <div className="ss-overlay__spacer" />
         <button
           className="ss-overlay__btn"
-          title={minimized ? "Expand" : "Minimize"}
+          title={minimized
+            ? t("voice.screen_share.overlay.expand")
+            : t("voice.screen_share.overlay.minimize")}
           onClick={() => setMinimized((v) => !v)}
         >
           {minimized ? "▴" : "▾"}

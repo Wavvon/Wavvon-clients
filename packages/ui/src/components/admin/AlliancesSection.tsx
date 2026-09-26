@@ -14,6 +14,11 @@ export interface AlliancesSectionActions {
   listAllianceSharedChannels: (allianceId: string) => Promise<SharedChannel[]>;
   shareChannelWithAlliance: (allianceId: string, channelId: string, includeDescendants?: boolean) => Promise<void>;
   unshareChannelFromAlliance: (allianceId: string, channelId: string) => Promise<void>;
+  /** Allow or refuse voice joins by members of allied hubs, for one leaf
+   *  channel we host (alliances.md "Moderation"). Omitted where the platform
+   *  has no wrapper for it yet, and then no control is rendered — a toggle
+   *  that quietly changes nothing is worse than none. */
+  setAllianceVoiceRemoteJoin?: (allianceId: string, channelId: string, policy: "allowed" | "none") => Promise<void>;
   /** Admin-initiated direct push to another hub's federation endpoint.
    *  Omitted where the platform has no wrapper for it yet. */
   sendAlliancePushInvite?: (allianceId: string, targetHubUrl: string, ownHubUrl: string, message: string | null) => Promise<void>;
@@ -121,15 +126,15 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
         <button className="btn-ghost" onClick={() => setOpen((v) => !v)} style={{ fontWeight: 600 }}>
           {open ? "▾" : "▸"} {alliance.name}
         </button>
-        <button className="btn-small btn-secondary danger" disabled={busy} onClick={onLeave}>Leave</button>
+        <button className="btn-small btn-secondary danger" disabled={busy} onClick={onLeave}>{t("alliances.detail.leave")}</button>
       </div>
       {open && (
         <div style={{ paddingLeft: "var(--space-3)" }}>
-          <label className="settings-label" style={{ fontSize: "var(--text-xs)" }}>Shared channels</label>
+          <label className="settings-label" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.share.label")}</label>
           {shared === null ? (
-            sharedError ? <ErrorRetry message={sharedError} onRetry={loadShared} /> : <p className="muted">Loading…</p>
+            sharedError ? <ErrorRetry message={sharedError} onRetry={loadShared} /> : <p className="muted">{t("alliances.loading")}</p>
           ) : shared.length === 0 ? (
-            <p className="muted" style={{ fontSize: "var(--text-sm)" }}>No channels shared yet.</p>
+            <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("alliances.share.empty")}</p>
           ) : (
             shared.map((s) => (
               <div key={`${s.hub_public_key}:${s.channel_id}`} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
@@ -140,19 +145,39 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
                   )}
                   {" "}<span className="muted">({s.hub_name})</span>
                 </span>
+                {/* Only our own leaf rooms: the policy lives on the hosting
+                    hub, and a category's row also carries the recursive-share
+                    flag that re-sharing would rewrite. */}
+                {actions.setAllianceVoiceRemoteJoin
+                  && !s.is_category
+                  && (s.channel_type ?? "text") === "text"
+                  && myChannels.some((c) => c.id === s.channel_id) && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)" }}>
+                    <input
+                      type="checkbox"
+                      checked={(s.voice_remote_join ?? "allowed") === "allowed"}
+                      disabled={busy}
+                      onChange={(e) => runGuard(async () => {
+                        await actions.setAllianceVoiceRemoteJoin!(alliance.id, s.channel_id, e.target.checked ? "allowed" : "none");
+                        await loadShared();
+                      })}
+                    />
+                    {t("alliances.share.voice_remote_join")}
+                  </label>
+                )}
                 <button
                   className="btn-small btn-secondary"
                   disabled={busy}
                   onClick={() => runGuard(async () => { await actions.unshareChannelFromAlliance(alliance.id, s.channel_id); await loadShared(); })}
                 >
-                  Unshare
+                  {t("alliances.share.unshare")}
                 </button>
               </div>
             ))
           )}
           <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
             <select value={toShare} onChange={(e) => setToShare(e.target.value)}>
-              <option value="">Share a channel…</option>
+              <option value="">{t("alliances.share.select_placeholder")}</option>
               {shareableChannels.map(({ node, depth }) => (
                 <option key={node.id} value={node.id}>
                   {"  ".repeat(depth)}{node.is_category ? "📁" : "#"} {node.name}
@@ -167,7 +192,7 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
                 await loadShared();
               })}
             >
-              Share
+              {t("alliances.share.button")}
             </button>
           </div>
           {selectedToShare?.is_category && (
@@ -290,8 +315,8 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
 
   return (
     <section>
-      <h1>Alliances</h1>
-      <p className="muted">Alliances let hubs share channels. Create one, or accept an invite from another hub.</p>
+      <h1>{t("alliances.title")}</h1>
+      <p className="muted">{t("alliances.hint")}</p>
       {error && alliances !== null && <p className="error-text">{error}</p>}
 
       <div className="settings-row" style={{ gap: "var(--space-2)" }}>
@@ -300,10 +325,10 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
-          placeholder="Alliance name"
-          aria-label="Alliance name"
+          placeholder={t("alliances.new.placeholder")}
+          aria-label={t("alliances.new.placeholder")}
         />
-        <button onClick={handleCreate} disabled={busy || !name.trim()}>Create alliance</button>
+        <button onClick={handleCreate} disabled={busy || !name.trim()}>{t("alliances.create")}</button>
       </div>
 
       {actions.joinAllianceByCode && (
@@ -326,13 +351,13 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
 
       {invites.length > 0 && (
         <div className="settings-section">
-          <label className="settings-label">Pending invites</label>
+          <label className="settings-label">{t("alliances.pending")}</label>
           {invites.map((inv) => (
             <div key={inv.id} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-              <span>{inv.alliance_name} <span className="muted" style={{ fontSize: "var(--text-xs)" }}>from {inv.from_hub_name}</span></span>
+              <span>{inv.alliance_name} <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.invite_from", { hub: inv.from_hub_name })}</span></span>
               <span style={{ display: "flex", gap: "var(--space-2)" }}>
-                <button className="btn-small" disabled={busy} onClick={() => run(() => actions.acceptAllianceInvite(inv.id, activeHubUrl))}>Accept</button>
-                <button className="btn-small btn-secondary" disabled={busy} onClick={() => run(() => actions.declineAllianceInvite(inv.id))}>Decline</button>
+                <button className="btn-small" disabled={busy} onClick={() => run(() => actions.acceptAllianceInvite(inv.id, activeHubUrl))}>{t("alliances.accept")}</button>
+                <button className="btn-small btn-secondary" disabled={busy} onClick={() => run(() => actions.declineAllianceInvite(inv.id))}>{t("alliances.decline")}</button>
               </span>
             </div>
           ))}
@@ -340,11 +365,11 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
       )}
 
       <div className="settings-section">
-        <label className="settings-label">Your alliances</label>
+        <label className="settings-label">{t("alliances.yours")}</label>
         {alliances === null ? (
-          error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">Loading…</p>
+          error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("alliances.loading")}</p>
         ) : alliances.length === 0 ? (
-          <p className="muted">No alliances yet.</p>
+          <p className="muted">{t("alliances.empty")}</p>
         ) : (
           alliances.map((a) => (
             <AllianceRow

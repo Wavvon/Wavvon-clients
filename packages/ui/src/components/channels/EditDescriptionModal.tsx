@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { Channel } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function EditDescriptionModal({ channel, description, onDescriptionChange, onSave, onClose }: Props) {
+  const { t } = useTranslation();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -27,13 +29,13 @@ export function EditDescriptionModal({ channel, description, onDescriptionChange
         <textarea
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}
-          placeholder="What's this channel for?"
+          placeholder={t("channel.settings.description_placeholder")}
           rows={4}
           autoFocus
         />
         <div className="modal-actions">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={onSave}>Save</button>
+          <button onClick={onClose} className="btn-secondary">{t("channel.description.cancel")}</button>
+          <button onClick={onSave}>{t("channel.description.save")}</button>
         </div>
       </div>
       </FocusTrap>

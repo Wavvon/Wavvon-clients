@@ -19,11 +19,15 @@ export async function sendMessage(
   content: string,
   attachments?: Attachment[],
   reply_to?: string,
-): Promise<void> {
-  await hubFetch(`/channels/${channel_id}/messages`, {
+): Promise<Message | null> {
+  const res = await hubFetch(`/channels/${channel_id}/messages`, {
     method: "POST",
     body: JSON.stringify({ content, attachments, reply_to }),
   });
+  // 201 carries the stored message, so the caller can render it without
+  // waiting for the socket to echo it back. A 200 is the slash-command
+  // path, whose ephemeral reply is delivered over the socket instead.
+  return res.status === 201 ? (await res.json()) as Message : null;
 }
 
 export async function editMessage(

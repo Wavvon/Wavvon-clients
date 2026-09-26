@@ -20,6 +20,7 @@ export function useChannelCrud({
   setChannels, selectedChannel, setSelectedChannel, showHubError, handleSelectChannel,
   activeHubId, closeHubSetupWizard,
 }: UseChannelCrudParams) {
+  const [bannerEditChannel, setBannerEditChannel] = useState<Channel | null>(null);
   const [createChannelCtx, setCreateChannelCtx] = useState<{ parentId: string | null; isCategory: boolean } | null>(null);
   const [createChannelLoading, setCreateChannelLoading] = useState(false);
   const [createChannelError, setCreateChannelError] = useState<string | null>(null);
@@ -209,7 +210,29 @@ export function useChannelCrud({
     }
   }
 
+  // Retargets a banner channel at a new URL. The hub clears the other source
+  // column, so a channel that was showing an uploaded file switches cleanly.
+  async function handleSaveBannerUrl(channelId: string, bannerUrl: string) {
+    try {
+      await hubFetch(`/channels/${channelId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ banner_url: bannerUrl }),
+      });
+      setChannels((prev) =>
+        prev.map((c) =>
+          c.id === channelId ? { ...c, banner_url: bannerUrl, banner_file_id: null } : c,
+        ),
+      );
+      setBannerEditChannel(null);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
   return {
+    bannerEditChannel, setBannerEditChannel,
+    handleSaveBannerUrl,
     createChannelCtx, setCreateChannelCtx,
     createChannelLoading,
     createChannelError, setCreateChannelError,

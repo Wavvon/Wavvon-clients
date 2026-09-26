@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface VideoTile {
   pubkey: string;
@@ -35,6 +36,7 @@ function Tile({
   onPin: (pk: string) => void;
   onUnpin: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className={`video-tile${tile.speaking ? " speaking" : ""}${tile.pinned ? " pinned" : ""}`}
@@ -43,7 +45,7 @@ function Tile({
       <div className="video-tile-name">{tile.displayName || tile.pubkey.slice(0, 8)}</div>
       <button
         className="video-tile-pin"
-        title={tile.pinned ? "Unpin" : "Pin"}
+        title={tile.pinned ? t("voice.video.unpin") : t("voice.video.pin")}
         onClick={() => (tile.pinned ? onUnpin() : onPin(tile.pubkey))}
       >
         {tile.pinned ? "📌" : "📍"}

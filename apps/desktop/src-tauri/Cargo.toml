@@ -20,7 +20,21 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { workspace = true }
 anyhow = { workspace = true }
-reqwest = { version = "0.12", features = ["json", "multipart"] }
+# rustls, not the default native-tls: that pulled OpenSSL on Linux and was the
+# last thing in this repo that did. **native-roots**, not webpki, on purpose —
+# native-tls read the OS trust store, and a self-hosted hub whose certificate
+# comes from a CA only present there (a corporate internal CA) has to keep
+# working. `default-features = false` turns off the whole default set, so
+# everything in it except `default-tls` is named back: charset, http2,
+# system-proxy.
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "multipart",
+    "charset",
+    "http2",
+    "system-proxy",
+    "rustls-tls-native-roots",
+] }
 hex = "0.4"
 rand = "0.8"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
@@ -32,7 +46,8 @@ argon2 = "0.5"
 hkdf = "0.12"
 sha2 = "0.10"
 wavvon-voice = { path = "../../../crates/voice" }
-tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+# Same swap as reqwest above, same reason for native-roots over webpki.
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
 dirs = "6"
 url = "2"

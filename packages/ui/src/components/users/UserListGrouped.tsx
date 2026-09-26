@@ -7,16 +7,18 @@ import { nameColorStyle, safeRoleColor } from "../../utils/roleAppearance";
 
 export function UserListGrouped({
   users,
-  inVoice,
+  speaking,
   myPubkey,
   selfInvisible,
   hideBirthdays,
   onUserClick,
   onContextMenu,
-  onBotClick,
 }: {
   users: User[];
-  inVoice?: Set<string>;
+  /** Members currently *speaking*, not merely connected to voice — the hub
+   *  reports on/off edges and this is the set they build. The prop was called
+   *  inVoice and labelled "In voice" while being fed exactly this. */
+  speaking?: Set<string>;
   /** This device's own account, so it can be styled distinctly below. */
   myPubkey?: string | null;
   /** True while self chose the Invisible status — self still shows "offline"
@@ -28,11 +30,9 @@ export function UserListGrouped({
   hideBirthdays?: boolean;
   onUserClick?: (pubkey: string) => void;
   onContextMenu?: (e: React.MouseEvent, user: User) => void;
-  onBotClick?: (pubkey: string, e: React.MouseEvent) => void;
 }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
-  const [botsExpanded, setBotsExpanded] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -45,14 +45,12 @@ export function UserListGrouped({
       )
     : users;
 
-  const bots = matched.filter((u) => u.is_bot && !u.is_webhook);
-  const humans = matched.filter((u) => !u.is_bot);
 
   // Online first, then offline. Within each, bucket by group_role (the name of
   // the highest-priority role with display_separately=true), with null-role
   // members falling into a generic "Online" / "Offline" bucket.
-  const online = humans.filter((u) => u.online);
-  const offline = humans.filter((u) => !u.online);
+  const online = matched.filter((u) => u.online);
+  const offline = matched.filter((u) => !u.online);
 
   function bucket(group: User[], fallback: string): [string, User[]][] {
     const grouped = new Map<string, User[]>();
@@ -111,16 +109,16 @@ export function UserListGrouped({
     }
   }, [allUsers, onContextMenu]);
 
-  const onlineCount = humans.filter((u) => u.online).length;
+  const onlineCount = online.length;
   let globalIdx = 0;
 
   return (
     <>
       <div className="user-list-header">
         <span className="user-list-total">
-          {humans.length} {humans.length === 1 ? "member" : "members"}
+          {matched.length} {matched.length === 1 ? "member" : "members"}
         </span>
-        <span className="user-list-online" title="Online">
+        <span className="user-list-online" title={t("presence.online")}>
           <span className="status-dot online" />
           {onlineCount}
         </span>
@@ -128,12 +126,12 @@ export function UserListGrouped({
       <div className="user-list-filter">
         <input
           type="text"
-          placeholder="Filter members…"
+          placeholder={t("users.list.filter_placeholder")}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
         {filter && matched.length === 0 && (
-          <p className="muted user-list-empty">No matches</p>
+          <p className="muted user-list-empty">{t("users.list.no_matches")}</p>
         )}
       </div>
       {onlineBuckets.map(([title, list]) => (
@@ -158,7 +156,7 @@ export function UserListGrouped({
                   <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={24} />
                   <span
                     className={`status-dot ${u.status === "away" ? "away" : u.status === "dnd" ? "dnd" : "online"}`}
-                    title={u.status === "away" ? "Away" : u.status === "dnd" ? "Do Not Disturb" : "Online"}
+                    title={u.status === "away" ? t("presence.away") : u.status === "dnd" ? t("presence.dnd") : t("presence.online")}
                   />
                   <span
                     className={`user-name${safeRoleColor(u.name_color) ? " name-colored" : ""}`}
@@ -167,14 +165,14 @@ export function UserListGrouped({
                   >
                     {u.display_name || u.public_key.slice(0, 16)}
                     {!hideBirthdays && isBirthdayToday(u.birthday) && (
-                      <span title="Birthday today" aria-label="Birthday today"> 🎂</span>
+                      <span title={t("message.birthday")} aria-label={t("message.birthday")}> 🎂</span>
                     )}
                     {u.status_custom && (
                       <span className="user-custom-status"> — {u.status_custom}</span>
                     )}
                   </span>
-                  {inVoice?.has(u.public_key) && (
-                    <span className="user-in-voice" title="In voice">
+                  {speaking?.has(u.public_key) && (
+                    <span className="user-speaking" title={t("voice.speaking")} aria-label={t("voice.speaking")}>
                       🎙️
                     </span>
                   )}
@@ -215,14 +213,14 @@ export function UserListGrouped({
                   >
                     {u.display_name || u.public_key.slice(0, 16)}
                     {!hideBirthdays && isBirthdayToday(u.birthday) && (
-                      <span title="Birthday today" aria-label="Birthday today"> 🎂</span>
+                      <span title={t("message.birthday")} aria-label={t("message.birthday")}> 🎂</span>
                     )}
                     {isSelfInvisible && (
                       <span className="user-custom-status"> — {t("presence.invisible")}</span>
                     )}
                   </span>
-                  {inVoice?.has(u.public_key) && (
-                    <span className="user-in-voice" title="In voice">
+                  {speaking?.has(u.public_key) && (
+                    <span className="user-speaking" title={t("voice.speaking")} aria-label={t("voice.speaking")}>
                       🎙️
                     </span>
                   )}
@@ -232,33 +230,6 @@ export function UserListGrouped({
           </ul>
         </div>
       ))}
-      {bots.length > 0 && (
-        <div className="member-section member-section-bots">
-          <button
-            className="member-section-header"
-            onClick={() => setBotsExpanded((prev) => !prev)}
-          >
-            {botsExpanded ? "▼" : "▶"} Bots — {bots.length}
-          </button>
-          {botsExpanded && bots.map((bot) => (
-            <div
-              key={bot.public_key}
-              className="member-list-item"
-              style={{ cursor: onBotClick ? "pointer" : undefined }}
-              onClick={onBotClick ? (e) => onBotClick(bot.public_key, e) : undefined}
-            >
-              <Avatar src={bot.avatar} name={bot.display_name ?? bot.public_key} pubkey={bot.public_key} size={22} />
-              <span
-                className={`member-name${safeRoleColor(bot.name_color) ? " name-colored" : ""}`}
-                style={nameColorStyle(bot.name_color)}
-              >
-                {bot.display_name ?? formatPubkey(bot.public_key)}
-              </span>
-              <span className="bot-badge">BOT</span>
-            </div>
-          ))}
-        </div>
-      )}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listAccounts,
   createAccount,
@@ -16,6 +17,7 @@ import {
 // It only needs to expose list/create/switch/remove/rename, which is what
 // this wires straight into the Rust accounts.rs commands.
 export function AccountSwitcherSection() {
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,13 +108,11 @@ export function AccountSwitcherSection() {
 
   return (
     <div className="settings-section">
-      <label className="settings-label">Accounts on this device</label>
-      <p className="muted">
-        Switch between identities you've set up on this device, or add another one.
-      </p>
+      <label className="settings-label">{t("settings.account.accounts.label")}</label>
+      <p className="muted">{t("settings.account.accounts.hint")}</p>
       {error && <p className="error-text">{error}</p>}
       {loading ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("modal.loading")}</p>
       ) : (
         <div style={{ marginTop: 8 }}>
           {accounts.map((a) => (
@@ -121,22 +121,22 @@ export function AccountSwitcherSection() {
                 {a.label ?? a.id.slice(0, 12)}
               </code>
               {a.is_active ? (
-                <span className="muted">Active</span>
+                <span className="muted">{t("settings.account.accounts.active_button")}</span>
               ) : (
                 <button onClick={() => handleSwitch(a.id)} disabled={busyId === a.id}>
-                  Switch
+                  {t("settings.account.accounts.switch")}
                 </button>
               )}
               <button className="btn-secondary" onClick={() => handleRename(a)} disabled={busyId === a.id}>
-                Rename
+                {t("settings.account.accounts.rename_button")}
               </button>
               <button
                 className="btn-secondary"
                 onClick={() => handleRemove(a)}
                 disabled={busyId === a.id || accounts.length <= 1}
-                title={accounts.length <= 1 ? "At least one account must remain" : undefined}
+                title={accounts.length <= 1 ? t("settings.account.accounts.last_account_title") : undefined}
               >
-                Remove
+                {t("settings.account.accounts.remove")}
               </button>
             </div>
           ))}
@@ -144,18 +144,18 @@ export function AccountSwitcherSection() {
       )}
       <div className="settings-row" style={{ marginTop: 8 }}>
         <button onClick={() => handleCreate(false)} disabled={busyId === "__create__"}>
-          + New identity
+          {t("settings.account.accounts.new_identity")}
         </button>
       </div>
       <div style={{ marginTop: 8 }}>
         <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>
-          Or add an existing account from its recovery phrase
+          {t("settings.account.accounts.import_label")}
         </label>
         <textarea
           className="recovery-input"
           value={phrase}
           onChange={(e) => setPhrase(e.target.value)}
-          placeholder="word1 word2 word3 …"
+          placeholder={t("identity_setup.recover.phrase_placeholder")}
           rows={2}
         />
         <button
@@ -163,7 +163,7 @@ export function AccountSwitcherSection() {
           onClick={() => handleCreate(true)}
           disabled={busyId === "__create__" || wordCount !== 24}
         >
-          Import
+          {t("settings.account.accounts.import_button")}
         </button>
       </div>
     </div>

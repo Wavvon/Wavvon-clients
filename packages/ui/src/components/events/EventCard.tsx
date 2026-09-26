@@ -33,10 +33,10 @@ interface Props {
   staging?: EventStagingCapability;
 }
 
-const RSVP_LABELS: Record<RsvpStatus, string> = {
-  going: "Going",
-  maybe: "Maybe",
-  not_going: "Not going",
+const RSVP_KEYS: Record<RsvpStatus, string> = {
+  going: "events.rsvp.going",
+  maybe: "events.rsvp.maybe",
+  not_going: "events.rsvp.not_going",
 };
 
 export function EventCard({
@@ -105,7 +105,7 @@ export function EventCard({
               className="btn-ghost"
               style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
               onClick={() => onDelete(event.id)}
-              title="Delete event"
+              title={t("events.card.delete")}
             >
               ✕
             </button>
@@ -145,7 +145,7 @@ export function EventCard({
             disabled={saving}
             onClick={() => handleRsvp(status)}
           >
-            {RSVP_LABELS[status]}
+            {t(RSVP_KEYS[status])}
           </button>
         ))}
       </div>

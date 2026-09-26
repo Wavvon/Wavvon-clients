@@ -31,9 +31,16 @@ pub(crate) async fn add_hub(
     let hub_icon = info.icon.clone();
     let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
 
-    let token = creds
+    let auth = creds
         .authenticate(&auth_url, &client, invite_code.as_deref())
         .await?;
+    let token = auth.token;
+
+    // Auth just told this hub which master we are (the cert rides on
+    // /auth/verify), so the list is now findable — publish it if the identity
+    // has none. Order matters: a designation stored under a master no hub can
+    // resolve is a list nobody looks up.
+    crate::home_hub::ensure_designation(&hub_url, &client).await;
 
     let profile = load_profile();
     if let Some(default_profile) = profile.default_profile.clone() {
@@ -92,6 +99,7 @@ pub(crate) async fn add_hub(
         hub_url: hub_url.clone(),
         hub_icon: hub_icon.clone(),
         token,
+        canonical_pubkey: auth.canonical_pubkey,
         ws_tx: cmd_tx,
         ws_task,
     };
@@ -175,6 +183,35 @@ pub(crate) fn set_active_hub(hub_id: String, state: State<'_, AppState>) -> Resu
     *state.active_hub.lock().unwrap() = Some(hub_id.clone());
     save_active_hub_id(Some(&hub_id));
     Ok(())
+}
+
+/// Ask the hub to delete this identity's membership, then forget it locally.
+///
+/// Distinct from `remove_hub`, which only forgets: this one is not reversible
+/// and the hub drops the profile and the roles. Gated at the call site on the
+/// `hub.leave` capability — a hub without it answers 404, and offering the
+/// action there would leave someone believing they left.
+///
+/// Ordering matters on failure: the hub goes first, so a refusal (the owner
+/// gets 409) leaves this client untouched rather than half-left.
+#[tauri::command]
+pub(crate) async fn leave_hub(hub_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let (hub_url, token) = {
+        let hubs = state.hubs.lock().unwrap();
+        let s = hubs.get(&hub_id).ok_or("Hub not connected")?;
+        (s.hub_url.clone(), s.token.clone())
+    };
+    let resp = state
+        .http_client
+        .delete(format!("{hub_url}/me"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    remove_hub(hub_id, state)
 }
 
 #[tauri::command]
@@ -272,16 +309,6 @@ pub(crate) fn reorder_hubs(hub_ids: Vec<String>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub(crate) async fn add_hub_by_url(
-    hub_url: String,
-    invite_code: Option<String>,
-    state: State<'_, AppState>,
-    app: AppHandle,
-) -> Result<HubInfo, String> {
-    add_hub(hub_url, invite_code, state, app).await
-}
-
-#[tauri::command]
 pub(crate) async fn get_hub_ws_info(
     hub_id: String,
     state: State<'_, AppState>,
@@ -294,4 +321,79 @@ pub(crate) async fn get_hub_ws_info(
         "hub_url": s.hub_url,
         "hub_icon": s.hub_icon,
     }))
+}
+
+/// What the connection chip shows: latency to the active hub with its
+/// spread, inbound voice loss as this client measured it, and outbound loss
+/// as the relay measured it.
+///
+/// Polled rather than pushed, like web's: all three sources already keep
+/// rolling state, so a subscription would mean re-rendering on every pong and
+/// every audio frame to move a number that changes on a human timescale.
+///
+/// Every field is nullable and a null means "no number", never zero. Latency
+/// is null before the first pong; inbound loss is null when we are not in
+/// voice or are hearing nobody; outbound loss is null on a hub that does not
+/// measure it. A reassuring 0.0% on a hub measuring nothing is exactly the
+/// fabricated number this readout exists to avoid.
+#[derive(serde::Serialize)]
+pub(crate) struct ConnectionStats {
+    pub rtt_ms: Option<u32>,
+    pub jitter_ms: Option<f32>,
+    pub samples: usize,
+    pub inbound_loss_percent: Option<f32>,
+    pub outbound_loss_percent: Option<f32>,
+}
+
+#[tauri::command]
+pub(crate) async fn connection_stats(
+    state: State<'_, AppState>,
+) -> Result<ConnectionStats, String> {
+    let active_id = state.active_hub.lock().unwrap().clone();
+    let (rtt_ms, jitter_ms, samples, outbound_loss_percent) = match active_id {
+        Some(id) => {
+            let stats = state.conn_stats.lock().unwrap();
+            match stats.get(&id) {
+                Some(entry) => {
+                    let (rtt, jitter, n) = entry.rtt();
+                    (rtt, jitter, n, entry.outbound_loss_pct)
+                }
+                None => (None, None, 0, None),
+            }
+        }
+        None => (None, None, 0, None),
+    };
+
+    // The worst sender rather than the average: one badly-reaching
+    // participant is the thing you want to see, and averaging it against
+    // three clean streams hides it.
+    // The Arc comes out from under the lock before anything is awaited: a
+    // std MutexGuard held across an await makes the whole command future
+    // non-Send, and Tauri will not take it.
+    let loss_handle = state
+        .voice
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|session| session.inbound_loss.clone());
+    let inbound_loss_percent = match loss_handle {
+        Some(handle) => {
+            let losses = handle.read().await;
+            losses
+                .values()
+                .filter_map(|t| t.percent())
+                .fold(None::<f32>, |worst, pct| {
+                    Some(worst.map_or(pct, |w: f32| w.max(pct)))
+                })
+        }
+        None => None,
+    };
+
+    Ok(ConnectionStats {
+        rtt_ms,
+        jitter_ms,
+        samples,
+        inbound_loss_percent,
+        outbound_loss_percent,
+    })
 }

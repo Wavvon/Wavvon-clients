@@ -113,25 +113,6 @@ pub(crate) async fn create_alliance(
 }
 
 #[tauri::command]
-pub(crate) async fn get_alliance(
-    alliance_id: String,
-    state: State<'_, AppState>,
-) -> Result<AllianceDetail, String> {
-    let (hub_url, token) = active_session(&state)?;
-    let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/alliances/{alliance_id}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
-}
-
-#[tauri::command]
 pub(crate) async fn create_alliance_invite(
     alliance_id: String,
     state: State<'_, AppState>,

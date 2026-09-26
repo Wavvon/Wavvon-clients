@@ -1,4 +1,4 @@
-// Pure decision logic for the lobby soft-landing flow (lobby-bot-survey.md
+// Pure decision logic for the lobby soft-landing flow (lobby-survey.md
 // Feature 1). Extracted out of components/layout/Lobby.tsx and
 // platform/commands/hubs.ts so the fork points that decide "are we confined,
 // and when do we stop being confined" are unit-testable without a live hub,

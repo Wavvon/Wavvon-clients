@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import type { AuditLogEntry, AuditLogPage } from "../../types";
 import { ErrorRetry } from "../ErrorRetry";
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function AuditLogSection({ actions }: Props) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,22 +40,22 @@ export function AuditLogSection({ actions }: Props) {
 
   return (
     <section>
-      <h1>Audit log</h1>
-      <p className="muted">Administrative actions on this hub, newest first.</p>
+      <h1>{t("hub.admin.audit.title")}</h1>
+      <p className="muted">{t("hub.admin.audit.hint")}</p>
       {error && entries.length > 0 && <p className="error-text">{error}</p>}
 
       {entries.length === 0 && !loading && error ? (
         <ErrorRetry message={error} onRetry={() => load()} />
       ) : entries.length === 0 && !loading ? (
-        <p className="muted">No audit entries yet.</p>
+        <p className="muted">{t("hub.admin.audit.empty")}</p>
       ) : (
         <table className="members-table" style={{ marginTop: "var(--space-3)" }}>
           <thead>
             <tr>
-              <th>When</th>
-              <th>Event</th>
-              <th>Actor</th>
-              <th>Target</th>
+              <th>{t("hub.admin.audit.col.when")}</th>
+              <th>{t("hub.admin.audit.col.event")}</th>
+              <th>{t("hub.admin.audit.col.actor")}</th>
+              <th>{t("hub.admin.audit.col.target")}</th>
             </tr>
           </thead>
           <tbody>
@@ -71,10 +73,10 @@ export function AuditLogSection({ actions }: Props) {
         </table>
       )}
 
-      {loading && <p className="muted">Loading…</p>}
+      {loading && <p className="muted">{t("hub.admin.audit.loading")}</p>}
       {cursor != null && !loading && (
         <button className="btn-secondary" style={{ marginTop: "var(--space-3)" }} onClick={() => load(cursor)}>
-          Load more
+          {t("hub.admin.audit.load_more")}
         </button>
       )}
     </section>

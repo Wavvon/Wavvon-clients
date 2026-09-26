@@ -9,6 +9,13 @@ import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadIdentity } from "../identity/store";
 import { resolveDmSendAttribution } from "../platform/commands/dms";
 import { VoiceWtSession, type AudioProfileConfig } from "../platform/voice";
+import type { HubWebSocket } from "../platform/ws";
+import {
+  mintAllianceVoiceGrant,
+  openAllianceVoiceVisit,
+  OwnerHubUnsupportedError,
+  type AllianceVoiceVisit,
+} from "../platform/commands/allianceVoice";
 import type { VoiceZone, VoiceZoneAttenuation } from "../platform/voice";
 
 // The `voice_joined` reply to `voice_join` (voice-transport-v2.md "Join
@@ -23,6 +30,20 @@ interface VoiceJoinedMsg {
 }
 
 const VOICE_JOIN_TIMEOUT_MS = 10_000;
+
+// Tell the hub we are out of the room. The hub treats the WS message as the
+// sole authority for roster membership -- a closed WebTransport session only
+// clears the audio handle -- so skipping this left the pubkey in the channel
+// participant list until the whole WS dropped: a ghost member after leaving,
+// and the same identity listed in two rooms at once across two clients.
+// The socket is a parameter because the room is not always on our own hub:
+// voice in an alliance channel lives on the *owning* hub, over a second,
+// voice-only session, and leaving has to be told to the hub that has us in
+// its roster.
+function sendVoiceLeave(ws: HubWebSocket | null | undefined, channelId: string | null) {
+  if (!channelId) return;
+  try { ws?.leaveVoice(channelId); } catch { /* socket already gone */ }
+}
 
 // The voice audio profile is persisted by SettingsPage under this key; read
 // it here so the saved profile is actually applied to the live session.
@@ -51,6 +72,9 @@ export interface VoiceExtDeps {
   disposeVideo: () => void;
   stopVideoSessionOnly: () => void;
   stopWhisperIfActive: () => void;
+  /** Name the voice bar shows for a channel the local list does not hold —
+   *  a voice move's destination, or a channel on an allied hub. */
+  setVoiceChannelNameHint: (name: string | null) => void;
   clearVoiceChannelNameHint: () => void;
 }
 
@@ -165,6 +189,155 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     return () => { cancelled = true; };
   }, [voiceChannelId]);
 
+  // The socket the current room lives on: our own hub normally, the owning
+  // hub's voice-only session while visiting an alliance channel. Every voice
+  // message — join, leave, watch, key offers, speaking — must go to the hub
+  // that has us in its roster, and for a visit that is not the active hub.
+  const voiceVisitRef = useRef<AllianceVoiceVisit | null>(null);
+  function voiceWs(): HubWebSocket | null | undefined {
+    if (voiceVisitRef.current) return voiceVisitRef.current.ws;
+    try { return activeSession().ws; } catch { return null; }
+  }
+
+  // Ends a visit, if one is open. Safe to call when there is none.
+  function closeVoiceVisit() {
+    voiceVisitRef.current?.close();
+    voiceVisitRef.current = null;
+  }
+
+  // Tear the current room down before opening another. Without this, repeated
+  // joins stack independent VoiceWtSessions (joining several rooms at once)
+  // and only the last is tracked, so leaving leaves the earlier ones connected
+  // as stale roster entries that block temp-channel cleanup. stop() sets
+  // closed=true before closing the transport, so the old session's onClose
+  // does not fire and cannot clobber the new session's state.
+  function teardownCurrentVoice() {
+    if (voiceSessionRef.current) {
+      extRef.current.stopVideoSessionOnly();
+      voiceSessionRef.current.stop();
+      voiceSessionRef.current = null;
+      sendVoiceLeave(voiceWs(), voiceChannelIdRef.current);
+    }
+    closeVoiceVisit();
+  }
+
+  // Everything after `voice_join` is answered, and it is identical whether the
+  // room is on our hub or on an allied one — a visitor is an ordinary pubkey
+  // in the owner's maps, dialing the owner's relay with the owner's token.
+  // `ws` is read at call time so a reconnect on our own hub still lands on the
+  // live socket.
+  async function startVoiceSession(
+    targetChannelId: string,
+    joined: VoiceJoinedMsg,
+    ws: () => HubWebSocket | null | undefined,
+  ) {
+    const identity = await loadIdentity();
+    if (!identity) throw new Error("No identity");
+    const myPk = publicKeyRef.current ?? "";
+
+    const session = new VoiceWtSession(
+      {
+        channelId: joined.channel_id,
+        senderId: joined.sender_id,
+        participants: joined.participants,
+        wtUrl: joined.voice_wt_url,
+        token: joined.voice_token,
+        certHash: joined.voice_cert_hash ?? null,
+      },
+      {
+        // `channelId` is where the join actually landed — for a spawner
+        // channel the hub creates a personal sibling room and the join
+        // lands there instead, never in the spawner itself.
+        onReady: (_senderId, _participants, channelId) => {
+          setVoiceChannelId(channelId);
+          if (voiceSoundsOn()) { try { playVoiceTone("up"); } catch { /* audio not ready */ } }
+          setSelfMuted(false);
+          setSelfDeafened(false);
+          const me = meInfoRef.current;
+          if (me) {
+            setVoicePartByChannel((prev) => {
+              const existing = prev[channelId] ?? [];
+              if (existing.some((p) => p.public_key === me.public_key)) return prev;
+              return { ...prev, [channelId]: [...existing, { public_key: me.public_key, display_name: me.display_name }] };
+            });
+          }
+          try { ws()?.watchVoice(channelId); } catch {}
+          // Spin up the video session now (camera off) so it catches the
+          // hub's video_participants roster pushed at voice-join.
+          extRef.current.createVideoSession(channelId);
+          if (channelId !== targetChannelId) {
+            refetchChannels();
+          }
+        },
+        onClose: () => {
+          voiceSessionRef.current = null;
+          extRef.current.disposeVideo();
+          setVoiceChannelId(null);
+          extRef.current.clearVoiceChannelNameHint();
+          setSelfMuted(false);
+          setSelfDeafened(false);
+          sendVoiceLeave(ws(), voiceChannelIdRef.current);
+          closeVoiceVisit();
+        },
+        sendKeyOffer: (channelId, bundles) => {
+          try { ws()?.sendVoiceKeyOffer(channelId, bundles); } catch {}
+        },
+        sendSpeaking: (channelId, speaking) => {
+          try { ws()?.sendVoiceSpeaking(channelId, speaking); } catch {}
+        },
+      },
+      loadVoiceAudioProfile(),
+      myPk,
+      identity.seed_hex,
+      // Against the hub the *room* is on, not the hub we are logged into.
+      // A DH key is published per hub, and in an alliance room every other
+      // participant is a member of the owning hub and a stranger to ours —
+      // so looking them up here answered 404, which the voice key manager
+      // reads as "skip this peer". The visitor could then neither wrap its
+      // key for them nor unwrap theirs, so every datagram was discarded at
+      // the key lookup: roster, transport and relay all correct, and silence.
+      (pk: string) => fetchDhKey(pk, voiceVisitRef.current?.hubUrl),
+      // Same identity-resolution rule as the DM path (commands/dms.ts):
+      // the wrap/unwrap scalar must be the one behind the DH key published
+      // under our roster pubkey — on a paired device that's the unwrapped
+      // canonical scalar, NOT this device's seed-derived key.
+      resolveDmSendAttribution(identity).dhPriv,
+    );
+    // Expose the session BEFORE start(): voice_key_received / roster updates
+    // for us arrive over the WS while start() is still connecting
+    // WebTransport, and the handlers deliver them via this ref —
+    // set-after-start silently dropped every early key.
+    voiceSessionRef.current = session;
+    try {
+      await session.start();
+    } catch (e) {
+      voiceSessionRef.current = null;
+      throw e;
+    }
+  }
+
+  // Sends `voice_join` on `ws` and waits for the hub's `voice_joined` reply,
+  // which onVoiceState settles (see the CRITICAL note on handleVoiceJoin for
+  // why the promise lives in a ref).
+  function awaitVoiceJoined(ws: HubWebSocket | null | undefined, targetChannelId: string) {
+    return new Promise<VoiceJoinedMsg>((resolve, reject) => {
+      pendingVoiceJoinRef.current = { resolve, reject };
+      try {
+        ws?.joinVoice(targetChannelId);
+      } catch (e) {
+        pendingVoiceJoinRef.current = null;
+        reject(e as Error);
+        return;
+      }
+      setTimeout(() => {
+        if (pendingVoiceJoinRef.current) {
+          pendingVoiceJoinRef.current = null;
+          reject(new Error("Voice join timed out"));
+        }
+      }, VOICE_JOIN_TIMEOUT_MS);
+    });
+  }
+
   // Accepts a bare channel id too — a voice_move push's destination (events.md
   // §7.1) may not be in the local channel list (voice-only presence), so the
   // mover's target can't always be resolved to a full Channel object.
@@ -175,114 +348,66 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // module-level functions. Never read non-ref state/props here.
   async function handleVoiceJoin(targetChannelId: string) {
     if (voiceChannelIdRef.current === targetChannelId) return;
-    // Switching channels: tear down the current session FIRST. Without this,
-    // repeated joins stack independent VoiceWtSessions (joining several rooms
-    // at once) and only the last is tracked, so leaving leaves the earlier
-    // ones connected as stale roster entries that block temp-channel cleanup.
-    // stop() sets closed=true before closing the transport, so the old
-    // session's onClose does not fire and cannot clobber the new session's state.
-    if (voiceSessionRef.current) {
-      extRef.current.stopVideoSessionOnly();
-      voiceSessionRef.current.stop();
-      voiceSessionRef.current = null;
-      try { activeSession().ws?.unwatchVoice(); } catch {}
-    }
+    teardownCurrentVoice();
     try {
-      const sess = activeSession();
-      // voice-transport-v2.md "Join flow": voice_join now travels over the
-      // main WS; the voice_joined reply (resolved from onVoiceState below)
-      // carries the WebTransport URL/token/cert hash — no second /info fetch.
-      const joined = await new Promise<VoiceJoinedMsg>((resolve, reject) => {
-        pendingVoiceJoinRef.current = { resolve, reject };
-        try {
-          sess.ws?.joinVoice(targetChannelId);
-        } catch (e) {
-          pendingVoiceJoinRef.current = null;
-          reject(e as Error);
-          return;
-        }
-        setTimeout(() => {
-          if (pendingVoiceJoinRef.current) {
-            pendingVoiceJoinRef.current = null;
-            reject(new Error("Voice join timed out"));
-          }
-        }, VOICE_JOIN_TIMEOUT_MS);
+      // voice-transport-v2.md "Join flow": voice_join travels over the main
+      // WS; the voice_joined reply carries the WebTransport URL/token/cert
+      // hash — no second /info fetch.
+      const joined = await awaitVoiceJoined(activeSession().ws, targetChannelId);
+      await startVoiceSession(targetChannelId, joined, () => {
+        try { return activeSession().ws; } catch { return null; }
       });
-
-      const identity = await loadIdentity();
-      if (!identity) throw new Error("No identity");
-      const myPk = publicKeyRef.current ?? "";
-
-      const session = new VoiceWtSession(
-        {
-          channelId: joined.channel_id,
-          senderId: joined.sender_id,
-          participants: joined.participants,
-          wtUrl: joined.voice_wt_url,
-          token: joined.voice_token,
-          certHash: joined.voice_cert_hash ?? null,
-        },
-        {
-          // `channelId` is where the join actually landed — for a spawner
-          // channel the hub creates a personal sibling room and the join
-          // lands there instead, never in the spawner itself.
-          onReady: (_senderId, _participants, channelId) => {
-            setVoiceChannelId(channelId);
-            if (voiceSoundsOn()) { try { playVoiceTone("up"); } catch { /* audio not ready */ } }
-            setSelfMuted(false);
-            setSelfDeafened(false);
-            const me = meInfoRef.current;
-            if (me) {
-              setVoicePartByChannel((prev) => {
-                const existing = prev[channelId] ?? [];
-                if (existing.some((p) => p.public_key === me.public_key)) return prev;
-                return { ...prev, [channelId]: [...existing, { public_key: me.public_key, display_name: me.display_name }] };
-              });
-            }
-            try { activeSession().ws?.watchVoice(channelId); } catch {}
-            // Spin up the video session now (camera off) so it catches the
-            // hub's video_participants roster pushed at voice-join.
-            extRef.current.createVideoSession(channelId);
-            if (channelId !== targetChannelId) {
-              refetchChannels();
-            }
-          },
-          onClose: () => {
-            voiceSessionRef.current = null;
-            extRef.current.disposeVideo();
-            setVoiceChannelId(null);
-            extRef.current.clearVoiceChannelNameHint();
-            setSelfMuted(false);
-            setSelfDeafened(false);
-            try { activeSession().ws?.unwatchVoice(); } catch {}
-          },
-          sendKeyOffer: (channelId, bundles) => {
-            try { activeSession().ws?.sendVoiceKeyOffer(channelId, bundles); } catch {}
-          },
-        },
-        loadVoiceAudioProfile(),
-        myPk,
-        identity.seed_hex,
-        fetchDhKey,
-        // Same identity-resolution rule as the DM path (commands/dms.ts):
-        // the wrap/unwrap scalar must be the one behind the DH key published
-        // under our roster pubkey — on a paired device that's the unwrapped
-        // canonical scalar, NOT this device's seed-derived key.
-        resolveDmSendAttribution(identity).dhPriv,
-      );
-      // Expose the session BEFORE start(): voice_key_received / roster
-      // updates for us arrive over the main WS while start() is still
-      // connecting WebTransport, and the global handlers deliver them via
-      // this ref — set-after-start silently dropped every early key.
-      voiceSessionRef.current = session;
-      try {
-        await session.start();
-      } catch (e) {
-        voiceSessionRef.current = null;
-        throw e;
-      }
     } catch (e) {
       showHubError("Voice: " + String(e));
+    }
+  }
+
+  // Voice in a channel another hub shares with an alliance (alliances.md).
+  // Our hub signs a grant, the owning hub redeems it into a voice-only
+  // session, and from `voice_join` onward this is the ordinary flow against a
+  // different socket.
+  //
+  // `confirmJoin` is asked before anything is minted: the visitor's IP reaches
+  // the owning hub, so the hub being dialed is named to the user first. It
+  // returns false to abort.
+  async function handleAllianceVoiceJoin(
+    allianceId: string,
+    channelId: string,
+    confirmJoin: (ownerHubUrl: string, channelName: string) => boolean,
+  ) {
+    if (voiceChannelIdRef.current === channelId) return;
+    try {
+      const minted = await mintAllianceVoiceGrant(allianceId, channelId);
+      if (!confirmJoin(minted.owner_hub_url, minted.channel_name)) return;
+
+      // The channel belongs to the other hub, so the local list cannot name
+      // it and the voice bar would read a bare "#" for the whole session.
+      // The grant carries the name — the same one the prompt above showed.
+      extRef.current.setVoiceChannelNameHint(minted.channel_name);
+
+      // Only now: the old room goes down before the new one comes up, because
+      // the hub enforces one session per identity *per hub* and would happily
+      // leave us live in both.
+      teardownCurrentVoice();
+
+      const visit = await openAllianceVoiceVisit(minted, {
+        // A visitor socket carries voice and nothing else — the owning hub's
+        // allowlist drops the rest, and we have no membership there to render.
+        onVoiceState,
+        onVoiceKeyReceived,
+        onVoiceKeyRequest,
+      });
+      voiceVisitRef.current = visit;
+
+      const joined = await awaitVoiceJoined(visit.ws, channelId);
+      await startVoiceSession(channelId, joined, () => voiceVisitRef.current?.ws ?? null);
+    } catch (e) {
+      closeVoiceVisit();
+      if (e instanceof OwnerHubUnsupportedError) {
+        showHubError("Voice: that hub does not support voice in alliance channels yet");
+        return;
+      }
+      showHubError("Voice: " + (e instanceof HubApiError ? e.message : String(e)));
     }
   }
 
@@ -298,7 +423,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     extRef.current.clearVoiceChannelNameHint();
     setSelfMuted(false);
     setSelfDeafened(false);
-    try { activeSession().ws?.unwatchVoice(); } catch {}
+    sendVoiceLeave(voiceWs(), channelId);
+    closeVoiceVisit();
     const me = meInfoRef.current;
     if (me && channelId) {
       setVoicePartByChannel((prev) => {
@@ -482,6 +608,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     myVoicePerms,
     soundboardPlayingClipId,
     handleVoiceJoin,
+    handleAllianceVoiceJoin,
     handleVoiceLeave,
     handleToggleMute,
     handleToggleDeafen,

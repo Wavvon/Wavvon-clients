@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { publicKeyHex, dhKeypairFromSeed, bytesToHex } from "@wavvon/core";
-import { resolveDmSendAttribution, canPublishDhKey } from "../commands/dms";
+import { resolveDmSendAttribution, canPublishDhKey, unreadableDmKey } from "../commands/dms";
 
 // Cert-chained DM attribution / DH scalar selection (decisions.md
 // "Paired-device DMs attribute to canonical via cert-chained envelopes; DH
@@ -97,5 +97,38 @@ describe("canPublishDhKey (client-side publish guard)", () => {
 
   it("blocks publish for a paired device whose signing pubkey differs from canonical", () => {
     expect(canPublishDhKey({ seed_hex: SUBKEY_SEED_HEX, canonical_pubkey: PRIMARY_PUB })).toBe(false);
+  });
+});
+
+describe("unreadableDmKey", () => {
+  // The distinction this exists for: our own sent message is unreadable by
+  // design (the ratchet consumed the key at encrypt time), and calling that
+  // "decryption failed" reported a design limit as breakage every time
+  // someone paired a second device.
+  it("names our own sent message as ours rather than as a failure", () => {
+    expect(unreadableDmKey(PRIMARY_PUB, PRIMARY_PUB)).toBe("dm.own_message_other_device");
+  });
+
+  it("still reports someone else's unreadable message as a failure", () => {
+    expect(unreadableDmKey(SUBKEY_PUB, PRIMARY_PUB)).toBe("dm.decryption_failed");
+  });
+
+  // With no identity loaded there is nobody to be "us", and claiming a
+  // stranger's message is our own would be the worse way to be wrong.
+  it("falls back to failure when we do not know who we are", () => {
+    expect(unreadableDmKey(PRIMARY_PUB, null)).toBe("dm.decryption_failed");
+  });
+
+  // A paired device is attributed to the canonical identity, so its own sent
+  // messages come back under the canonical pubkey — which is exactly the
+  // device that cannot read them.
+  it("uses the canonical identity, so a paired device recognises its own", () => {
+    const paired = resolveDmSendAttribution({
+      seed_hex: SUBKEY_SEED_HEX,
+      canonical_pubkey: PRIMARY_PUB,
+      subkey_cert: undefined,
+      canonical_dh_priv_hex: undefined,
+    });
+    expect(unreadableDmKey(PRIMARY_PUB, paired.senderPubkey)).toBe("dm.own_message_other_device");
   });
 });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { hubFetch } from "@platform";
 import { getHubSettings, saveHubSettings, getHubListingStatus, setHubListed as setHubListedRemote } from "@platform";
 import { muteMember, timeoutMember, voiceMuteMember, voiceUnmuteMember, listVoiceMutes } from "@platform";
+import { listBans, listInvites, listPendingUsers } from "@platform";
 import { HubApiError } from "../platform/http";
 import type {
   MemberAdminInfo,
@@ -29,12 +30,15 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
   const [hubAdminRequireApproval, setHubAdminRequireApproval] = useState(false);
   const [hubAdminMinLevel, setHubAdminMinLevel] = useState(0);
   const [hubAdminWelcomeLabel, setHubAdminWelcomeLabel] = useState("");
+  const [hubAdminFarewellLabel, setHubAdminFarewellLabel] = useState("");
   const [hubAdminWelcomeInviteUrl, setHubAdminWelcomeInviteUrl] = useState("");
   const [hubAdminTimezone, setHubAdminTimezone] = useState("");
   const [hubAdminBirthdaysEnabled, setHubAdminBirthdaysEnabled] = useState(true);
   const [hubAdminNameColorMode, setHubAdminNameColorMode] = useState<NameColorMode>("role_over_user");
   const [hubAdminAfkChannelId, setHubAdminAfkChannelId] = useState("");
   const [hubAdminAfkTimeoutSecs, setHubAdminAfkTimeoutSecs] = useState(300);
+  // Seeded with the hub default; the real value arrives from GET /hub/settings.
+  const [hubAdminMaxAttachmentBytes, setHubAdminMaxAttachmentBytes] = useState(3 * 1024 * 1024);
   const [hubAdminSaveError, setHubAdminSaveError] = useState<string | null>(null);
   const [hubAdminMembers, setHubAdminMembers] = useState<MemberAdminInfo[]>([]);
   const [hubAdminBans, setHubAdminBans] = useState<BanInfo[]>([]);
@@ -57,19 +61,25 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
       setHubAdminMinLevel(s.min_security_level ?? 0);
       setMaxChannelDepth(s.max_channel_depth ?? 0);
       setHubAdminWelcomeLabel(s.welcome_label ?? "");
+      setHubAdminFarewellLabel(s.farewell_label ?? "");
       setHubAdminWelcomeInviteUrl(s.welcome_invite_url ?? "");
       setHubAdminTimezone(s.timezone ?? "");
       setHubAdminBirthdaysEnabled(s.birthdays_enabled ?? true);
       setHubAdminNameColorMode(s.name_color_mode ?? "role_over_user");
       setHubAdminAfkChannelId(s.afk_channel_id ?? "");
       setHubAdminAfkTimeoutSecs(s.afk_timeout_secs ?? 300);
+      setHubAdminMaxAttachmentBytes(s.max_attachment_bytes ?? 3 * 1024 * 1024);
     } catch { /* prefill skipped */ }
     try {
+      // The three paged lists go through their platform commands rather than a
+      // raw hubFetch: each walks to exhaustion, and an admin table showing a
+      // first page while saying nothing is the truncation the paging exists to
+      // avoid.
       const [members, bans, invites, pending] = await Promise.allSettled([
         hubFetch("/hub/members").then((r) => r.json() as Promise<MemberAdminInfo[]>),
-        hubFetch("/moderation/bans").then((r) => r.json() as Promise<BanInfo[]>),
-        hubFetch("/invites").then((r) => r.json() as Promise<InviteInfo[]>),
-        hubFetch("/hub/pending").then((r) => r.json() as Promise<PendingUser[]>),
+        listBans(),
+        listInvites(),
+        listPendingUsers(),
       ]);
       if (members.status === "fulfilled") setHubAdminMembers(members.value);
       if (bans.status === "fulfilled") setHubAdminBans(bans.value);
@@ -141,11 +151,13 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
         min_security_level: hubAdminMinLevel,
         max_channel_depth: maxChannelDepth,
         welcome_label: hubAdminWelcomeLabel,
+        farewell_label: hubAdminFarewellLabel,
         welcome_invite_url: hubAdminWelcomeInviteUrl,
         timezone: hubAdminTimezone,
         birthdays_enabled: hubAdminBirthdaysEnabled,
         afk_channel_id: hubAdminAfkChannelId,
         afk_timeout_secs: hubAdminAfkTimeoutSecs,
+        max_attachment_bytes: hubAdminMaxAttachmentBytes,
         name_color_mode: hubAdminNameColorMode,
       });
       onSaved?.();
@@ -182,6 +194,8 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
     hubAdminMinLevel,
     setHubAdminMinLevel,
     hubAdminWelcomeLabel,
+    hubAdminFarewellLabel,
+    setHubAdminFarewellLabel,
     setHubAdminWelcomeLabel,
     hubAdminWelcomeInviteUrl,
     setHubAdminWelcomeInviteUrl,
@@ -194,6 +208,8 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
     hubAdminAfkChannelId,
     setHubAdminAfkChannelId,
     hubAdminAfkTimeoutSecs,
+    hubAdminMaxAttachmentBytes,
+    setHubAdminMaxAttachmentBytes,
     setHubAdminAfkTimeoutSecs,
     hubAdminSaveError,
     hubAdminMembers,

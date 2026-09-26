@@ -34,6 +34,35 @@ export function isPasskeySupported(): boolean {
   return typeof window !== "undefined" && !!window.PublicKeyCredential;
 }
 
+// A passkey belongs to the *hub*, not to us: the hub derives its WebAuthn
+// rp_id from its own public URL, and a browser only lets a page use an rp_id
+// that its own origin is registrable under. So the ceremony works from the
+// page a hub serves itself and nowhere else — the user build, hosted on our
+// domain, cannot register or use a passkey on anyone's hub, and neither can a
+// third party serving the client from their own host.
+//
+// Ask this instead of isPasskeySupported() wherever a passkey affordance is
+// rendered: the alternative is a button that opens a system dialog and comes
+// back SecurityError.
+//
+// ponytail: a hub that overrides webauthn_rp_id to a parent domain (hub at
+// chat.example.com, rp_id example.com) would also accept a client on
+// app.example.com — we say no there. The rp_id is not on /info, and finding
+// out costs starting a ceremony. Read it from /info if a hub ever needs this.
+export function passkeysUsableWith(hubUrl: string | undefined | null): boolean {
+  if (!isPasskeySupported() || !hubUrl) return false;
+  let hubHost: string;
+  try {
+    // The add-hub field holds whatever was typed, which is often bare host:port.
+    hubHost = new URL(hubUrl.includes("://") ? hubUrl : `https://${hubUrl}`).hostname;
+  } catch {
+    return false;
+  }
+  if (!hubHost) return false;
+  const page = window.location.hostname;
+  return page === hubHost || page.endsWith(`.${hubHost}`);
+}
+
 // --- base64url <-> ArrayBuffer ---
 
 function b64urlToBuffer(b64url: string): ArrayBuffer {

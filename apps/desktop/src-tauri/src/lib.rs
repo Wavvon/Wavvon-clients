@@ -6,7 +6,7 @@ mod admin;
 mod admin_alliance;
 mod auth_creds;
 mod backup;
-mod bots;
+mod apps;
 mod certs;
 mod channels;
 mod deep_link;
@@ -14,7 +14,6 @@ mod devices;
 mod discovery;
 mod dm;
 mod events_polls;
-mod farm;
 mod home_hub;
 mod hub_session;
 mod identity;
@@ -23,9 +22,11 @@ mod lobby;
 mod local_store;
 mod messages;
 mod mini_app;
+mod paging;
 mod pairing;
 mod passkey_cmd;
 mod prefs_blob;
+mod recovery;
 mod screen_share;
 mod soundboard;
 mod state;
@@ -51,6 +52,7 @@ pub fn run() {
         .setup(|app| {
             app.manage(AppState {
                 hubs: Default::default(),
+                conn_stats: Default::default(),
                 active_hub: Default::default(),
                 voice: Default::default(),
                 http_client: reqwest::Client::new(),
@@ -110,11 +112,11 @@ pub fn run() {
             hub_session::ping_hub,
             hub_session::set_active_hub,
             hub_session::remove_hub,
+            hub_session::leave_hub,
             hub_session::auto_connect_saved,
             hub_session::reconnect_hub,
             hub_session::reorder_hubs,
             hub_session::preview_hub_info,
-            hub_session::add_hub_by_url,
             hub_session::get_hub_ws_info,
             // Channels
             channels::list_channels,
@@ -148,7 +150,6 @@ pub fn run() {
             messages::forum_get_post,
             messages::forum_create_post,
             messages::forum_create_reply,
-            messages::forum_get_post_replies,
             messages::forum_pin_post,
             messages::forum_lock_post,
             messages::forum_edit_post,
@@ -170,7 +171,6 @@ pub fn run() {
             messages::unpin_message,
             messages::get_pinned_messages,
             // Voice
-            voice_cmd::voice_populations,
             voice_cmd::voice_active_users,
             voice_cmd::voice_channel_participants,
             voice_cmd::voice_join,
@@ -181,7 +181,6 @@ pub fn run() {
             local_store::get_voice_settings,
             local_store::save_voice_settings,
             voice_cmd::set_voice_gain,
-            voice_cmd::set_voice_position,
             voice_cmd::send_hub_ws_raw,
             voice_cmd::send_hub_ws_raw_to,
             voice_cmd::send_all_hubs_ws_raw,
@@ -197,7 +196,6 @@ pub fn run() {
             soundboard::soundboard_upload_clip,
             soundboard::soundboard_delete_clip,
             soundboard::soundboard_play_clip,
-            soundboard::soundboard_stop,
             // Local store
             local_store::load_appearance,
             local_store::save_appearance,
@@ -206,26 +204,31 @@ pub fn run() {
             local_store::save_unread_state,
             local_store::load_notification_mutes,
             local_store::save_notification_mutes,
-            local_store::load_pinned_channels,
-            local_store::save_pinned_channels,
             local_store::load_collapsed_categories,
             local_store::save_collapsed_categories,
             local_store::load_blocked_users,
             local_store::save_blocked_users,
             local_store::load_ignored_users,
             local_store::save_ignored_users,
-            local_store::load_dnd_settings,
-            local_store::save_dnd_settings,
             local_store::load_whisper_optout,
             local_store::save_whisper_optout,
             local_store::get_profile,
             local_store::save_profile,
-            local_store::get_notification_prefs,
-            local_store::set_notification_pref,
             // Admin
+            admin::get_banlist_settings,
+            admin::get_banlist_entries,
+            admin::get_banlist_overrides,
+            admin::add_banlist_source,
+            admin::remove_banlist_source,
+            admin::update_banlist_source_policy,
+            admin::add_banlist_override,
+            admin::remove_banlist_override,
+            admin::set_banlist_publish,
+            admin::list_reports,
+            admin::get_moderation_settings,
+            admin::set_moderation_settings,
+            admin::review_report,
             admin::list_users,
-            admin::update_display_name,
-            admin::update_avatar,
             admin::get_me,
             admin::get_hub_branding,
             admin::update_hub_branding,
@@ -262,6 +265,7 @@ pub fn run() {
             admin::get_channel_permissions,
             admin::set_channel_role_permissions,
             admin::clear_channel_role_permissions,
+            admin::list_permission_catalogue,
             admin::get_talk_power,
             admin::set_talk_power_cmd,
             admin::list_bans,
@@ -274,7 +278,6 @@ pub fn run() {
             // Alliance / federation
             admin_alliance::list_alliances,
             admin_alliance::create_alliance,
-            admin_alliance::get_alliance,
             admin_alliance::create_alliance_invite,
             admin_alliance::join_alliance,
             admin_alliance::leave_alliance,
@@ -301,10 +304,6 @@ pub fn run() {
             identity_cmd::recover_identity_from_phrase,
             identity_cmd::get_my_public_key,
             identity_cmd::get_my_pubkey,
-            identity_cmd::sign_message,
-            identity_cmd::push_prefs_blob,
-            identity_cmd::pull_and_apply_prefs_blob,
-            identity_cmd::save_public_profile,
             identity_cmd::fetch_public_profile,
             identity_cmd::submit_to_directory,
             // DM / friends / E2E crypto
@@ -320,36 +319,29 @@ pub fn run() {
             dm::update_dm_blocks,
             dm::publish_dh_key,
             dm::fetch_dh_key,
-            dm::decrypt_dm,
             dm::push_group_sender_key,
             dm::rotate_group_sender_key,
             dm::fetch_group_sender_keys,
             dm::encrypt_group_dm,
-            dm::decrypt_group_dm,
             dm::init_dr_session,
             dm::encrypt_dm_dr,
-            dm::decrypt_dm_dr,
-            // Bots / webhooks
-            bots::list_bots,
-            bots::create_bot,
-            bots::delete_bot,
-            bots::rotate_bot_token,
-            bots::admin_list_bots,
-            bots::admin_create_bot,
-            bots::admin_delete_bot,
-            bots::admin_set_bot_webhook,
-            bots::admin_get_bot_detail,
-            bots::send_component_interaction,
-            bots::get_bot_profile,
-            bots::admin_list_external_bots,
-            bots::admin_add_external_bot,
-            bots::admin_remove_external_bot,
-            bots::admin_get_bot_channel_scope,
-            bots::admin_set_bot_channel_scope,
-            bots::admin_list_webhooks,
-            bots::admin_create_webhook,
-            bots::admin_regenerate_webhook,
-            bots::admin_delete_webhook,
+            // Apps / webhooks
+            apps::list_apps,
+            apps::send_component_interaction,
+            hub_session::connection_stats,
+            admin::admin_list_outgoing_webhooks,
+            admin::admin_create_outgoing_webhook,
+            admin::admin_update_outgoing_webhook,
+            admin::admin_delete_outgoing_webhook,
+            admin::admin_get_outgoing_webhook_subscriptions,
+            admin::admin_set_outgoing_webhook_subscriptions,
+            admin::admin_rotate_outgoing_webhook_secret,
+            admin::admin_enable_outgoing_webhook,
+            admin::admin_list_outgoing_webhook_deliveries,
+            apps::admin_list_webhooks,
+            apps::admin_create_webhook,
+            apps::admin_regenerate_webhook,
+            apps::admin_delete_webhook,
             // Lobby / challenge / survey
             lobby::lobby_status,
             lobby::lobby_submit_proof,
@@ -363,33 +355,14 @@ pub fn run() {
             lobby::survey_admin_get,
             lobby::survey_admin_put,
             lobby::survey_admin_responses,
-            // Farm management + recovery
-            farm::get_hub_info,
-            farm::get_farm_info,
-            farm::probe_farm,
-            farm::get_farm_hub_quota,
-            farm::get_farm_settings,
-            farm::patch_farm_settings,
-            farm::get_farm_hubs_admin,
-            farm::suspend_farm_hub,
-            farm::delete_farm_hub,
-            farm::get_farm_users,
-            farm::revoke_farm_user_sessions,
-            farm::create_hub_on_farm,
-            farm::get_farm_servers,
-            farm::generate_farm_server_token,
-            farm::farm_totp_setup,
-            farm::farm_totp_confirm,
-            farm::farm_totp_disable,
-            farm::get_recovery_contacts,
-            farm::set_recovery_contacts,
-            farm::remove_recovery_contact,
-            farm::submit_rotation_request,
-            farm::get_rotation_request_bundle,
-            farm::attest_rotation_request,
+            // Identity recovery + key rotation
+            recovery::get_recovery_contacts,
+            recovery::set_recovery_contacts,
+            recovery::remove_recovery_contact,
+            recovery::submit_rotation_request,
+            recovery::get_rotation_request_bundle,
+            recovery::attest_rotation_request,
             // Events and polls
-            events_polls::list_events,
-            events_polls::rsvp_event,
             events_polls::create_event,
             events_polls::vote_poll,
             events_polls::create_poll,
@@ -441,7 +414,6 @@ pub fn run() {
             pairing::start_pairing_offer,
             pairing::poll_pairing_status,
             pairing::complete_pairing,
-            pairing::home_hubs_from_offer,
             pairing::fingerprint_pubkey,
             pairing::parse_pairing_offer,
             pairing::claim_pairing_offer,
@@ -449,7 +421,6 @@ pub fn run() {
             pairing::get_paired_identity,
             devices::device_list,
             devices::device_revoke,
-            devices::subkey_issue,
             // Passkeys / trusted devices
             passkey_cmd::passkey_list,
             passkey_cmd::passkey_delete,

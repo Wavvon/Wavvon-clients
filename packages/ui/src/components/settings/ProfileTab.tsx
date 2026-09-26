@@ -3,12 +3,18 @@ import type { Hub, PerAccountProps, ProfileAccountRef, ProfileEditorActions, MyC
 import { ProfileEditorSection } from "./ProfileEditorSection";
 import { MyCertificationsSection } from "./MyCertificationsSection";
 import { loadHiddenBadgeSet, saveHiddenBadgeSet } from "../../utils/hiddenBadges";
+import type { TrustRoot } from "../../utils/trustRoots";
 
 interface Props extends PerAccountProps<ProfileAccountRef> {
   hubs: Hub[];
   publicKey: string | null;
   onHubProfileSaved?: (hubId: string) => void;
   actions: ProfileEditorActions;
+  /** The viewer's trust roots, and how to add one from a badge in front of
+   *  them (server-tags.md Part 4). Omitted where a platform has nowhere
+   *  synced to keep them. */
+  trustRoots?: TrustRoot[];
+  onTrustIssuer?: (issuerPubkey: string, label?: string) => void;
 }
 
 // Who the selected account is: one profile editor over every context (the
@@ -48,6 +54,10 @@ export function ProfileTab(props: Props) {
             listMyCertifications={props.actions.listMyCertifications as (pubkey: string) => Promise<MyCertification[]>}
             loadHiddenBadges={() => loadHiddenBadgeSet(props.managing?.id)}
             saveHiddenBadges={(hidden) => saveHiddenBadgeSet(hidden, props.managing?.id)}
+            trustRoots={props.trustRoots}
+            /* hub_id *is* the hub's public key in this client — sessions are keyed by it. */
+            myHubPubkeys={props.hubs.map((h) => h.hub_id)}
+            onTrustIssuer={props.onTrustIssuer}
           />
         )}
       </div>

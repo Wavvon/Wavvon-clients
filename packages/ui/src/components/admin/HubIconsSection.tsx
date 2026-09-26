@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ErrorRetry } from "../ErrorRetry";
 import type { HubIcon } from "../../types";
 import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
@@ -67,6 +68,7 @@ function errorMessage(e: unknown): string {
 
 // SVG icon library for the hub (MANAGE_HUB_ICONS). SVG markup, ≤50KB.
 export function HubIconsSection({ actions }: Props) {
+  const { t } = useTranslation();
   const [icons, setIcons] = useState<HubIcon[] | null>(null);
   const [name, setName] = useState("");
   const [svg, setSvg] = useState("");
@@ -117,12 +119,8 @@ export function HubIconsSection({ actions }: Props) {
 
   return (
     <section>
-      <h1>Icon library</h1>
-      <p className="muted">
-        Build a library of custom vector icons your members can pick for channels and roles.
-        Give each icon a name and pick an image — SVG, PNG, JPG, or GIF. Raster images are
-        cropped to a {RASTER_SIZE}×{RASTER_SIZE} square automatically.
-      </p>
+      <h1>{t("hub.admin.icons.title")}</h1>
+      <p className="muted">{t("hub.admin.icons.hint", { size: RASTER_SIZE })}</p>
       {error && <p className="error-text">{error}</p>}
 
       <div className="settings-section">
@@ -130,13 +128,13 @@ export function HubIconsSection({ actions }: Props) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Icon name"
-          aria-label="Icon name"
+          placeholder={t("hub.admin.icons.name_placeholder")}
+          aria-label={t("hub.admin.icons.name_placeholder")}
           style={{ width: "100%", maxWidth: 280 }}
         />
         <div className="settings-row" style={{ marginTop: "var(--space-2)", alignItems: "center" }}>
           <label className="btn-secondary">
-            Choose image…
+            {t("hub.admin.icons.choose_image")}
             <input
               type="file"
               accept=".svg,.png,.jpg,.jpeg,.gif,image/svg+xml,image/png,image/jpeg,image/gif"
@@ -160,27 +158,27 @@ export function HubIconsSection({ actions }: Props) {
 
         <details style={{ marginTop: "var(--space-2)" }} open={showAdvanced} onToggle={(e) => setShowAdvanced(e.currentTarget.open)}>
           <summary style={{ cursor: "pointer", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-            Advanced: paste SVG markup
+            {t("hub.admin.icons.advanced")}
           </summary>
           <textarea
             value={svg}
             onChange={(e) => setSvg(e.target.value)}
             placeholder="<svg …>…</svg>"
-            aria-label="SVG markup"
+            aria-label={t("hub.admin.icons.svg_aria")}
             rows={4}
             style={{ width: "100%", marginTop: "var(--space-2)", fontFamily: "monospace" }}
           />
         </details>
 
         <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
-          <button onClick={handleCreate} disabled={busy || !name.trim() || !svg.trim()}>Add icon</button>
+          <button onClick={handleCreate} disabled={busy || !name.trim() || !svg.trim()}>{t("hub.admin.icons.add")}</button>
         </div>
       </div>
 
       {icons === null ? (
-        error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">Loading…</p>
+        error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("hub.admin.icons.loading")}</p>
       ) : icons.length === 0 ? (
-        <p className="muted">No icons yet.</p>
+        <p className="muted">{t("hub.admin.icons.empty")}</p>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)" }}>
           {icons.map((icon) => (
@@ -197,14 +195,14 @@ export function HubIconsSection({ actions }: Props) {
                   className="btn-small btn-secondary"
                   disabled={busy}
                   onClick={() => {
-                    const next = window.prompt("Rename icon", icon.name);
+                    const next = window.prompt(t("hub.admin.icons.rename_prompt"), icon.name);
                     if (next && next.trim()) void run(() => actions.renameHubIcon(icon.id, next.trim()));
                   }}
                 >
-                  Rename
+                  {t("hub.admin.icons.rename")}
                 </button>
                 <button className="btn-small btn-secondary danger" disabled={busy} onClick={() => run(() => actions.deleteHubIcon(icon.id))}>
-                  Delete
+                  {t("hub.admin.icons.delete")}
                 </button>
               </div>
             </div>

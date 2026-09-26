@@ -22,8 +22,6 @@
 //     collapsed_categories.json — collapsed-category flags
 //     notification_mutes.json  — per-hub/channel notify mode
 //     unread.json           — unread counts, keyed by hub/channel id
-//     dnd_settings.json     — do-not-disturb toggle
-//     notification_prefs.json — per-hub notify level (legacy key shape)
 //     default_profile.json  — the local default profile card
 //     skin.json             — the active custom-theme skin, if any
 //
@@ -38,7 +36,7 @@
 // pairing.rs/auth_creds.rs's paired_identity_path(), home_hub.rs's
 // home_hub_list_path(), dm.rs's dr_sessions_path()/group_sender_keys_path(),
 // local_store.rs's per-user path helpers) now delegates to the *_path()
-// functions below, so every existing call site (devices.rs, dm.rs, farm.rs,
+// functions below, so every existing call site (devices.rs, dm.rs, recovery.rs,
 // identity_cmd.rs, pairing.rs, home_hub.rs, local_store.rs) keeps working
 // unchanged, transparently re-targeted at the active account.
 //
@@ -61,6 +59,15 @@ fn now_secs() -> u64 {
 }
 
 fn wavvon_dir() -> Result<PathBuf, String> {
+    // An e2e harness drives the real app, so without a way to move this root
+    // it would read and write the developer's own ~/.wavvon — its accounts,
+    // its DM ratchet state, its home hub list. Empty means unset, matching how
+    // the hub reads WAVVON_WEB_CLIENT_DIR.
+    if let Ok(dir) = std::env::var("WAVVON_DESKTOP_HOME") {
+        if !dir.is_empty() {
+            return Ok(PathBuf::from(dir));
+        }
+    }
     let home = dirs::home_dir().ok_or("No home directory")?;
     Ok(home.join(".wavvon"))
 }
@@ -434,16 +441,8 @@ pub(crate) fn active_unread_state_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("unread.json"))
 }
 
-pub(crate) fn active_dnd_settings_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join("dnd_settings.json"))
-}
-
 pub(crate) fn active_whisper_optout_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("whisper_optout.json"))
-}
-
-pub(crate) fn active_notif_prefs_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join("notification_prefs.json"))
 }
 
 pub(crate) fn active_default_profile_path() -> Result<PathBuf, String> {

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 type Profile = "standard" | "music" | "custom";
 
@@ -45,29 +46,30 @@ export function AudioProfileSection({
   onCustomComplexity,
   inVoice,
 }: Props) {
+  const { t } = useTranslation();
   const profiles: { id: Profile; label: string; description: string }[] = [
     {
       id: "standard",
-      label: "Standard",
+      label: t("settings.voice.quality.standard"),
       description:
-        "Optimised for voice. RNNoise denoising, voice activity detection, mono audio.",
+        t("settings.voice.quality.standard_desc"),
     },
     {
       id: "music",
-      label: "Music",
+      label: t("settings.voice.quality.music"),
       description:
-        "For live performance and instruments. 128 kbps stereo, Opus Audio mode, no denoiser or VAD.",
+        t("settings.voice.quality.music_desc"),
     },
     {
       id: "custom",
-      label: "Custom",
-      description: "Configure every parameter manually.",
+      label: t("settings.voice.quality.custom"),
+      description: t("settings.voice.quality.custom_desc"),
     },
   ];
 
   return (
     <div className="settings-section">
-      <label className="settings-label">Audio quality</label>
+      <label className="settings-label">{t("settings.voice.quality.label")}</label>
 
       <div className="audio-profile-picker">
         {profiles.map((p) => (
@@ -86,7 +88,7 @@ export function AudioProfileSection({
         <div className="audio-custom-panel">
           <div className="settings-row">
             <label className="settings-label" htmlFor="audio-opus-mode" style={{ width: 160 }}>
-              Opus mode
+              {t("settings.voice.opus.label")}
             </label>
             <select
               id="audio-opus-mode"
@@ -95,15 +97,15 @@ export function AudioProfileSection({
                 onCustomApp(e.target.value as "voip" | "audio" | "lowdelay")
               }
             >
-              <option value="voip">VOIP (speech-optimised)</option>
-              <option value="audio">Audio (music/general)</option>
-              <option value="lowdelay">Low-delay (minimal latency)</option>
+              <option value="voip">{t("settings.voice.opus.voip")}</option>
+              <option value="audio">{t("settings.voice.opus.audio")}</option>
+              <option value="lowdelay">{t("settings.voice.opus.lowdelay")}</option>
             </select>
           </div>
 
           <div className="settings-row">
             <label className="settings-label" htmlFor="audio-bitrate" style={{ width: 160 }}>
-              Bitrate
+              {t("settings.voice.bitrate.label")}
             </label>
             <input
               id="audio-bitrate"
@@ -116,7 +118,7 @@ export function AudioProfileSection({
               style={{ flex: 1 }}
             />
             <span className="settings-value">
-              {customBitrate ? `${customBitrate} kbps` : "auto"}
+              {customBitrate ? `${customBitrate} kbps` : t("settings.voice.bitrate.auto")}
             </span>
             <button
               className="btn-secondary"
@@ -129,7 +131,7 @@ export function AudioProfileSection({
 
           <div className="settings-row">
             <label className="settings-label" style={{ width: 160 }}>
-              Channels
+              {t("settings.voice.channels.label")}
             </label>
             <label className="checkbox-label">
               <input
@@ -137,13 +139,13 @@ export function AudioProfileSection({
                 checked={customChannels === 2}
                 onChange={(e) => onCustomChannels(e.target.checked ? 2 : 1)}
               />
-              Stereo (doubles bandwidth)
+              {t("settings.voice.channels.stereo")}
             </label>
           </div>
 
           <div className="settings-row">
             <label className="settings-label" style={{ width: 160 }}>
-              Noise suppression
+              {t("settings.voice.noise.label")}
             </label>
             <label className="checkbox-label">
               <input
@@ -151,13 +153,13 @@ export function AudioProfileSection({
                 checked={customNoiseSuppress}
                 onChange={(e) => onCustomNoiseSuppress(e.target.checked)}
               />
-              Enable RNNoise denoiser
+              {t("settings.voice.noise.enable")}
             </label>
           </div>
 
           <div className="settings-row">
             <label className="settings-label" style={{ width: 160 }}>
-              Voice activity
+              {t("settings.voice.vad.label")}
             </label>
             <label className="checkbox-label">
               <input
@@ -165,14 +167,14 @@ export function AudioProfileSection({
                 checked={customVad}
                 onChange={(e) => onCustomVad(e.target.checked)}
               />
-              Enable voice activity detection (drops silence)
+              {t("settings.voice.vad.enable")}
             </label>
           </div>
 
           {customVad && (
             <div className="settings-row" style={{ paddingLeft: 160 }}>
               <label className="settings-label" style={{ width: 120 }}>
-                Sensitivity
+                {t("settings.voice.vad.sensitivity")}
               </label>
               <input
                 type="range"
@@ -191,7 +193,7 @@ export function AudioProfileSection({
 
           <div className="settings-row">
             <label className="settings-label" style={{ width: 160 }}>
-              Frame duration
+              {t("settings.voice.frame.label")}
             </label>
             <select
               value={customFrameMs}
@@ -199,15 +201,15 @@ export function AudioProfileSection({
                 onCustomFrameMs(Number(e.target.value) as 20 | 40 | 60)
               }
             >
-              <option value={20}>20 ms (lowest latency)</option>
-              <option value={40}>40 ms</option>
-              <option value={60}>60 ms (lowest overhead)</option>
+              <option value={20}>{t("settings.voice.frame.20")}</option>
+              <option value={40}>{t("settings.voice.frame.40")}</option>
+              <option value={60}>{t("settings.voice.frame.60")}</option>
             </select>
           </div>
 
           <div className="settings-row">
             <label className="settings-label" style={{ width: 160 }}>
-              Complexity
+              {t("settings.voice.complexity.label")}
             </label>
             <input
               type="range"
@@ -225,7 +227,7 @@ export function AudioProfileSection({
 
       {inVoice && (
         <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-          Changes take effect when you next join a voice channel.
+          {t("settings.voice.in_voice_notice")}
         </p>
       )}
     </div>

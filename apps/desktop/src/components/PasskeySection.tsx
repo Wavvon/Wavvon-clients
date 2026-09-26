@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 
 // Passkey management (view / rename / delete; registration is web-only).
@@ -11,6 +12,7 @@ interface CredentialInfo {
 }
 
 export function PasskeySection({ hubId }: { hubId: string | null }) {
+  const { t } = useTranslation();
   const [passkeys, setPasskeys] = useState<CredentialInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -50,15 +52,15 @@ export function PasskeySection({ hubId }: { hubId: string | null }) {
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Passkeys</label>
+      <label className="settings-label">{t("settings.account.passkeys.label")}</label>
       <p className="muted" style={{ marginBottom: 12 }}>
-        Passkeys registered for this hub. To add a new passkey, open the hub in the web client and go to Account → Passkeys.
+        {t("settings.account.passkeys.desktop_hint")}
       </p>
       {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
       {passkeys === null ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("modal.loading")}</p>
       ) : passkeys.length === 0 ? (
-        <p className="muted">No passkeys registered.</p>
+        <p className="muted">{t("settings.account.passkeys.empty")}</p>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {passkeys.map((pk) => (
@@ -87,32 +89,36 @@ export function PasskeySection({ hubId }: { hubId: string | null }) {
                       if (e.key === "Escape") setRenamingId(null);
                     }}
                   />
-                  <button className="btn-primary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => handleRename(pk.id)}>Save</button>
-                  <button className="btn-secondary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => setRenamingId(null)}>Cancel</button>
+                  <button className="btn-primary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => handleRename(pk.id)}>{t("modal.save")}</button>
+                  <button className="btn-secondary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => setRenamingId(null)}>{t("modal.cancel")}</button>
                 </>
               ) : (
                 <>
                   <span style={{ flex: 1, fontSize: "var(--text-sm)" }}>
-                    {pk.friendly_name ?? "Unnamed passkey"}
+                    {pk.friendly_name ?? t("settings.account.passkeys.unnamed")}
                   </span>
                   <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
                     {pk.last_used_at
-                      ? `Used ${new Date(pk.last_used_at * 1000).toLocaleDateString()}`
-                      : `Added ${new Date(pk.created_at * 1000).toLocaleDateString()}`}
+                      ? t("settings.account.passkeys.used_date", {
+                          date: new Date(pk.last_used_at * 1000).toLocaleDateString(),
+                        })
+                      : t("settings.account.passkeys.added_date", {
+                          date: new Date(pk.created_at * 1000).toLocaleDateString(),
+                        })}
                   </span>
                   <button
                     className="btn-secondary"
                     style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
                     onClick={() => { setRenamingId(pk.id); setRenameValue(pk.friendly_name ?? ""); }}
                   >
-                    Rename
+                    {t("settings.account.passkeys.rename_button")}
                   </button>
                   <button
                     className="btn-secondary"
                     style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
                     onClick={() => handleDelete(pk.id)}
                   >
-                    Remove
+                    {t("settings.account.passkeys.remove_button")}
                   </button>
                 </>
               )}

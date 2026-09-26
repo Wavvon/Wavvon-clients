@@ -58,14 +58,14 @@ export function AudioDevicesSection() {
     if (v) localStorage.setItem(OUTPUT_KEY, v); else localStorage.removeItem(OUTPUT_KEY);
   }
 
-  const label = (d: MediaDeviceInfo, i: number) => d.label || `Device ${i + 1}`;
+  const label = (d: MediaDeviceInfo, i: number) => d.label || t("settings.voice.devices.unnamed", { n: i + 1 });
   const outputDisabled = !supportsOutput || outputs.length === 0;
 
   return (
     <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">Audio devices</label>
+      <label className="settings-label">{t("settings.voice.devices.label")}</label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        Choose which microphone and speakers voice uses. Changes apply the next time you join a voice channel.
+        {t("settings.voice.devices.hint")}
       </p>
 
       <div className="settings-row-2col">
@@ -74,7 +74,7 @@ export function AudioDevicesSection() {
             {t("settings.voice.devices.input_label")}
           </label>
           <select id="audio-input" value={input} onChange={(e) => pickInput(e.target.value)} style={{ width: "100%" }}>
-            <option value="">System default</option>
+            <option value="">{t("settings.voice.devices.system_default")}</option>
             {inputs.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{label(d, i)}</option>)}
           </select>
         </div>
@@ -84,12 +84,12 @@ export function AudioDevicesSection() {
             {t("settings.voice.devices.output_label")}
           </label>
           <select id="audio-output" value={output} onChange={(e) => pickOutput(e.target.value)} disabled={outputDisabled} style={{ width: "100%" }}>
-            <option value="">System default</option>
+            <option value="">{t("settings.voice.devices.system_default")}</option>
             {outputs.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{label(d, i)}</option>)}
           </select>
           {!supportsOutput ? (
             <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-              Your browser can't switch output device; it uses the system default.
+              {t("settings.voice.devices.output_unsupported")}
             </span>
           ) : outputs.length === 0 ? (
             <span className="muted" style={{ fontSize: "var(--text-xs)" }}>

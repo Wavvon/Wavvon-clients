@@ -1,4 +1,5 @@
 import type { ChallengeDifficulty, ChallengeMode } from "../../types";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   mode: ChallengeMode;
@@ -6,7 +7,7 @@ interface Props {
   onClose: () => void;
 }
 
-// APPROXIMATION: the real member-facing challenge (the "not a bot" click
+// APPROXIMATION: the real member-facing challenge (the "I am human" click
 // button, and the puzzle image + answer field) is rendered at join time by
 // each client's own onboarding flow — this preview reproduces that UI's shape
 // and CSS classes faithfully, but the puzzle graphic below is a static
@@ -26,6 +27,7 @@ function PuzzleMock({ difficulty }: { difficulty: ChallengeDifficulty }) {
 }
 
 export function ChallengePreviewModal({ mode, difficulty, onClose }: Props) {
+  const { t } = useTranslation();
   const showsClickFirst = mode === "click" || mode === "both";
   const showsPuzzle = mode === "puzzle" || mode === "both";
 
@@ -37,33 +39,33 @@ export function ChallengePreviewModal({ mode, difficulty, onClose }: Props) {
         </p>
 
         {mode === "off" && (
-          <p className="muted">No challenge is shown — anyone can join without proving they're human.</p>
+          <p className="muted">{t("hub.admin.challenge_preview.off")}</p>
         )}
 
         {mode !== "off" && showsClickFirst && (
           <div className="challenge-click-content">
-            <p className="muted challenge-subtext">Quick check before you can send messages.</p>
-            <button className="challenge-not-a-bot-btn" disabled>I'm not a bot</button>
+            <p className="muted challenge-subtext">{t("hub.admin.challenge_preview.click_subtext")}</p>
+            <button className="challenge-confirm-btn" disabled>{t("hub.admin.challenge_preview.confirm")}</button>
           </div>
         )}
 
         {mode !== "off" && showsPuzzle && !showsClickFirst && (
           <>
-            <h3>Quick check</h3>
+            <h3>{t("hub.admin.challenge_preview.puzzle_title")}</h3>
             <PuzzleMock difficulty={difficulty} />
-            <input type="text" placeholder="Your answer" disabled />
+            <input type="text" placeholder={t("hub.admin.challenge_preview.answer_placeholder")} disabled />
           </>
         )}
 
         {mode !== "off" && showsPuzzle && showsClickFirst && (
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-            After confirming, a puzzle like this follows:
+            {t("hub.admin.challenge_preview.then_puzzle")}
           </p>
         )}
         {mode !== "off" && showsPuzzle && showsClickFirst && <PuzzleMock difficulty={difficulty} />}
 
         <div className="modal-actions">
-          <button className="btn-secondary" onClick={onClose}>Close preview</button>
+          <button className="btn-secondary" onClick={onClose}>{t("hub.admin.challenge_preview.close")}</button>
         </div>
       </div>
     </div>

@@ -41,19 +41,6 @@ export function canClaimSlot(slot: EventSlot, myPubkey: string | null): boolean 
   return !isSlotFull(slot);
 }
 
-export interface RsvpSlotPayload {
-  status: "going";
-  slot_id?: string;
-}
-
-export function buildSlotClaimPayload(slotId: string): RsvpSlotPayload {
-  return { status: "going", slot_id: slotId };
-}
-
-export function buildSlotUnclaimPayload(): RsvpSlotPayload {
-  return { status: "going" };
-}
-
 // events.md §6: the composer's "Also post in sub-channels" checkbox only
 // makes sense when the anchor channel actually has descendants — a channel
 // has one the moment it has any direct child (a grandchild implies a child).

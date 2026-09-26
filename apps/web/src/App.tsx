@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts } from "./hooks/useUnreadCounts";
+import { useUnreadCounts } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
+import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
 
 import { useHubConnection } from "./hooks/useHubConnection";
 import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useAlliances } from "./hooks/useAlliances";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
-import { useFarmAdmin } from "./hooks/useFarmAdmin";
 import { useWhisper } from "./hooks/useWhisper";
 import { pickReplyPubkey, useWhisperKeybinds } from "@wavvon/ui";
 import { useScreenShare } from "./hooks/useScreenShare";
@@ -25,9 +25,10 @@ import { useAppKeybinds } from "./hooks/useAppKeybinds";
 import { loadWhisperReplyBind, saveWhisperReplyBind } from "./utils/whisperReply";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, channelPath } from "@wavvon/core";
+import { flattenTree, descendantIds, computeDepth, channelPath, inviteCodeFromPath } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
-import { DISCOVERY_NEW_HUB_URL, HUB_SETUP_COMMAND } from "./constants";
+import { DISCOVERY_URL, MULTI_HUB } from "./constants";
+import { handoffTargetUrl } from "./utils/handoffTarget";
 import type {
   Channel,
   User,
@@ -36,13 +37,16 @@ import type {
   MeInfo,
   Conversation,
 } from "@shared/types";
-import type { BotAppLaunchEvent, BotAppOpenEvent } from "./types";
+import type { AppLaunchEvent, AppOpenEvent } from "./types";
 import { HubSidebar } from "@wavvon/ui";
 import { useSoundboardChips } from "@wavvon/ui";
 import { WhisperInbox } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
 import { ChannelSidebarContainer } from "@components/layout/ChannelSidebarContainer";
+import { AppModals } from "@components/layout/AppModals";
+import { isIdentityBackedUp, wasBackupPrompted, markBackupPrompted } from "./utils/identityBackup";
 import { loadDefaultProfile, saveDefaultProfile, type DefaultProfile } from "./utils/profiles";
+import { startPrefsSync } from "./utils/prefsSync";
 import { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
 import {
   listHubIcons,
@@ -54,19 +58,17 @@ import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
 import { HubStreamsPanel } from "@wavvon/ui";
 import { AddHubModal } from "@wavvon/ui";
-import { isPasskeySupported } from "@platform";
+import { passkeysUsableWith } from "@platform";
 import { QuickInviteModal } from "@wavvon/ui";
 import { ChannelSettingsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "@wavvon/ui";
-import { CreateHubFork } from "@components/hubs/CreateHubFork";
-import { BotAppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, FarmSettingsPage, HubSetupWizard } from "@wavvon/ui";
+import { AppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard } from "@wavvon/ui";
 import { createEvent, createPoll } from "@platform";
 import { moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate } from "@wavvon/ui";
 import { HubAdminContainer } from "@components/admin/HubAdminContainer";
 import {
   channelPermissionsTabActions, channelBansTabActions, channelTalkPowerTabActions,
-  farmSettingsActions,
 } from "./platform/adminActions";
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
 import { SettingsPageContainer } from "@components/settings/SettingsPageContainer";
@@ -78,7 +80,7 @@ import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
 import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
-import { listBotCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, sendBotAppJoin } from "@platform";
+import { listAppCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, sendAppJoin, listConversations } from "@platform";
 import { sendSetStatus } from "@platform";
 import {
   restorePersistedHubs,
@@ -92,7 +94,7 @@ import {
   getLobbyWelcome,
   submitLobbyPow,
 } from "@platform";
-import { getActiveHubId } from "@platform";
+import { getActiveHubId, redeemInvite } from "@platform";
 import {
   getMessages,
   getUnreadCounts,
@@ -123,12 +125,37 @@ export default function App({ initialView }: AppProps = {}) {
   const [ready, setReady] = useState<"checking" | "setup" | "ok">("checking");
   const [publicKey, setPublicKey] = useState<string | null>(null);
 
+  // An identity created from an invite link never met the phrase screen, so
+  // the only copy of its key is this browser's. That fact gets a marker on the
+  // settings gear until it stops being true, and one prompt at the first
+  // message — see utils/identityBackup.ts. Recomputed rather than watched:
+  // the two places that can change it are the settings panel and this prompt,
+  // and both close.
+  const [identityNeedsBackup, setIdentityNeedsBackup] = useState(false);
+  const [showBackupPrompt, setShowBackupPrompt] = useState(false);
+  function refreshIdentityBackupState() {
+    setIdentityNeedsBackup(!isIdentityBackedUp());
+  }
+  function handleOwnMessageSent() {
+    if (isIdentityBackedUp() || wasBackupPrompted()) return;
+    markBackupPrompted();
+    setShowBackupPrompt(true);
+  }
+
   // Captured wholesale (not just destructured) so it can be passed straight
   // through to SettingsPageContainer/ChannelSidebarContainer as one grouped
   // prop (state-access-design.md Phase 1) — App still pulls out the handful
   // of fields it needs directly (useAppKeybinds, the mention-ping ref).
   const settingsProfile = useSettingsProfile(setPublicKey, initialView);
   const { showSettings, setShowSettings, mentionPingEnabled } = settingsProfile;
+
+  // Closing the settings panel is when revealing the phrase or exporting a
+  // backup could have happened, and a fresh identity is the other moment the
+  // answer changes.
+  useEffect(() => {
+    refreshIdentityBackupState();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicKey, showSettings]);
 
   // === Hubs ===
   const hubLifecycle = useHubLifecycle({ loadHubData, resetChannelSelectionState, goToChannelsView });
@@ -143,6 +170,10 @@ export default function App({ initialView }: AppProps = {}) {
     handleSwitchHub,
     handleRemoveHub,
   } = hubLifecycle;
+  // Removing a hub is local and reversible, but a removed *home* hub keeps
+  // receiving this user's DMs — so the sidebar asks first rather than acting
+  // (decisions.md, "Leave hub does not leave").
+  const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
   const hubConnection = useHubConnection();
   const { hubConnected, reconnectingHubs, handleStatusChange } = hubConnection;
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
@@ -162,7 +193,7 @@ export default function App({ initialView }: AppProps = {}) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
-  const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; bot_name: string }>>([]);
+  const [slashCommands, setSlashCommands] = useState<Array<{ command: string; description: string; app_name: string }>>([]);
   const alliances = useAlliances(showHubError);
   const {
     userAlliances, setUserAlliances, allianceChannels, setAllianceChannels,
@@ -176,7 +207,7 @@ export default function App({ initialView }: AppProps = {}) {
   // === Unread / notifications ===
   const unreadCounts = useUnreadCounts();
   const {
-    unreadByChannel, unreadDms, setUnreadDms,
+    unreadByChannel, unreadByHub, unreadDms, setUnreadDms,
     bumpUnread, clearUnread, seedUnreadFromServer,
   } = unreadCounts;
 
@@ -194,6 +225,7 @@ export default function App({ initialView }: AppProps = {}) {
     clearSelectedAllianceChannel,
     selectAllianceChannel,
     sendAllianceMessage,
+    onMessageSent: handleOwnMessageSent,
   });
   const {
     selectedChannel, setSelectedChannel, selectedChannelRef, selectedChannelIdRef,
@@ -365,22 +397,16 @@ export default function App({ initialView }: AppProps = {}) {
     fetchAllUsers().then(setUsers).catch(() => {});
   }
 
-  // === Farm admin ===
-  const {
-    showFarmSettings, setShowFarmSettings,
-    farmAdminTab, setFarmAdminTab,
-    farmAdminUrl,
-    isFarmAdmin,
-    showCreateHub, setShowCreateHub,
-    knownFarms,
-  } = useFarmAdmin({ publicKey, hubs });
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // === New web-only UI state ===
   const [showDiscover, setShowDiscover] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
-  const [firstRunName, setFirstRunName] = useState("");
+  // Full-screen image overlay, opened by clicking an image attachment. The
+  // attachment renders inside a button either way, so without this the button
+  // was there and did nothing.
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [userContextMenu, setUserContextMenu] = useState<{
     user: User;
     position: { x: number; y: number };
@@ -429,6 +455,7 @@ export default function App({ initialView }: AppProps = {}) {
     disposeVideo: () => {},
     stopVideoSessionOnly: () => {},
     stopWhisperIfActive: () => {},
+    setVoiceChannelNameHint: () => {},
     clearVoiceChannelNameHint: () => {},
   });
   const voice = useVoice({
@@ -442,6 +469,7 @@ export default function App({ initialView }: AppProps = {}) {
     disposeVideo: video.disposeVideo,
     stopVideoSessionOnly: video.stopVideoSessionOnly,
     stopWhisperIfActive: () => { if (whisper.isWhispering) whisper.stopWhisper(); },
+    setVoiceChannelNameHint: (name) => voiceMoveUx.setVoiceChannelNameHint(name),
     clearVoiceChannelNameHint: () => voiceMoveUx.setVoiceChannelNameHint(null),
   };
   const whisperOptoutRef = useRef(whisper.whisperOptout);
@@ -478,8 +506,8 @@ export default function App({ initialView }: AppProps = {}) {
     return () => setSwitchGuard(null);
   }, [voice.voiceChannelId, t]);
 
-  const [activeBotApps, setActiveBotApps] = useState<Map<string, BotAppLaunchEvent>>(new Map());
-  const [activeOpenApp, setActiveOpenApp] = useState<{ event: BotAppOpenEvent; hubUrl: string } | null>(null);
+  const [activeApps, setActiveApps] = useState<Map<string, AppLaunchEvent>>(new Map());
+  const [activeOpenApp, setActiveOpenApp] = useState<{ event: AppOpenEvent; hubUrl: string } | null>(null);
 
   const loadingHub = useRef(false);
 
@@ -505,20 +533,6 @@ export default function App({ initialView }: AppProps = {}) {
       setReady("ok");
     });
   }
-
-  // Document title (unread count)
-  const unreadByHub = useMemo<Record<string, number>>(() => {
-    const out: Record<string, number> = {};
-    for (const [hub, m] of Object.entries(unreadByChannel)) {
-      out[hub] = Object.keys(m).length;
-    }
-    return out;
-  }, [unreadByChannel]);
-
-  useEffect(() => {
-    const total = Object.values(unreadByHub).reduce((n, v) => n + v, 0);
-    document.title = total > 0 ? `(${total > 99 ? "99+" : total}) Wavvon` : "Wavvon";
-  }, [unreadByHub]);
 
   // === Typing ===
   const selectedConvIdRef = useRef<string | undefined>(undefined);
@@ -551,6 +565,33 @@ export default function App({ initialView }: AppProps = {}) {
   const channelsRef = useRef<Channel[]>([]);
   useEffect(() => { channelsRef.current = channels; }, [channels]);
   useEffect(() => { hubsRef.current = hubs; }, [hubs]);
+
+  // An identity restored from a .wavvon-backup never went through onboarding,
+  // so it has no local default profile even though the hub already holds the
+  // real one -- the profile editor opened on an empty card (placeholder name,
+  // no avatar) for a user the hub knows perfectly well. Seed the default from
+  // the hub member state the first time we see it; the guard means a real
+  // default is never overwritten.
+  // ponytail: first hub to load wins if several are joined -- fine for a
+  // restore, revisit if per-hub profiles ever diverge before the seed.
+  useEffect(() => {
+    if (!meInfo?.display_name) return;
+    if (loadDefaultProfile()) return;
+    saveDefaultProfile({
+      display_name: meInfo.display_name,
+      avatar: meInfo.avatar,
+      bio: meInfo.bio,
+      pronouns: meInfo.pronouns,
+      status_message: meInfo.status_message,
+      activities: meInfo.activities,
+      accent_color: meInfo.accent_color,
+      name_color: meInfo.name_color,
+      cover: meInfo.cover,
+      favorite_hubs: meInfo.favorite_hubs,
+      show_hubs: meInfo.show_hubs,
+      birthday: meInfo.birthday,
+    });
+  }, [meInfo]);
 
   useEffect(() => {
     if (hubs.length === 1 && meInfo !== null && !meInfo.display_name) {
@@ -604,13 +645,21 @@ export default function App({ initialView }: AppProps = {}) {
     handleVideoMessage: video.handleVideoMessage,
     receiveWhisperEvent: whisper.receiveWhisperEvent,
     onVoiceMovePush: voiceMoveUx.onVoiceMovePush,
-    setActiveBotApps, setActiveOpenApp,
+    setActiveApps, setActiveOpenApp,
   });
 
   // === Hub restore on startup ===
 
+  // One reload per page load is enough to let pulled boot-time settings
+  // (language, theme) take hold; the flag lives in sessionStorage so a
+  // reload loop is impossible even if a pull somehow keeps reporting changes.
+  const PREFS_RELOAD_FLAG = "wavvon.prefsReloaded";
+  const [hubsRestored, setHubsRestored] = useState(false);
+  const prefsSyncRef = useRef<Awaited<ReturnType<typeof startPrefsSync>>>(null);
+
   useEffect(() => {
     if (ready !== "ok") return;
+    let cancelled = false;
     async function restore() {
       const list = await restorePersistedHubs(stableHandlers);
       setHubs(list);
@@ -620,12 +669,43 @@ export default function App({ initialView }: AppProps = {}) {
         await loadHubData();
         publishDhKey().catch(() => {});
       }
+      // The path-invite effect below needs "restored, and this is what we've
+      // got" — hubs.length alone cannot tell that apart from "not yet run".
+      setHubsRestored(true);
       const globalHomeHub = window.__WAVVON_HOME_HUB__;
       if (typeof globalHomeHub === "string" && globalHomeHub.trim() && loadSavedHubs().length === 0) {
         setHomeHubUrl(globalHomeHub.trim());
       }
+      // Cross-device settings (docs/docs/home-hub.md "Prefs blob"). Started
+      // here because it needs a hub to read and write through. Language and
+      // theme are read once at boot, so a pull that actually changed
+      // something only takes effect after a reload — done once per load, and
+      // the steady state reports no change, so it cannot loop.
+      // ponytail: a browser with no saved hub has nothing to sync through, so
+      // this returns null and the first hub added in that session syncs
+      // nothing — including the hub list it would have pulled back. It heals
+      // on the next page load. Restart the sync on the 0->1 hub transition if
+      // that first-run reload ever proves confusing.
+      startPrefsSync(() => {
+        if (!sessionStorage.getItem(PREFS_RELOAD_FLAG)) {
+          sessionStorage.setItem(PREFS_RELOAD_FLAG, "1");
+          window.location.reload();
+        }
+      })
+        .then((handle) => {
+          // An account switch can unmount before the pull resolves; without
+          // this the poll would outlive the App that started it.
+          if (cancelled) handle?.stop();
+          else prefsSyncRef.current = handle;
+        })
+        .catch(() => { /* offline, or nothing published yet */ });
     }
     void restore();
+    return () => {
+      cancelled = true;
+      prefsSyncRef.current?.stop();
+      prefsSyncRef.current = null;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
@@ -654,12 +734,12 @@ export default function App({ initialView }: AppProps = {}) {
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
         fetchAllUsers(),
         hubFetch("/me").then((r) => r.json() as Promise<MeInfo>),
-        hubFetch("/conversations").then((r) => r.json() as Promise<Conversation[]>),
-        listBotCommands().catch(() => [] as Array<{ command: string; description: string; bot_name: string }>),
+        listConversations(),
+        listAppCommands().catch(() => [] as Array<{ command: string; description: string; app_name: string }>),
         fetchVoiceRoster().catch(() => ({} as Record<string, VoiceParticipant[]>)),
         getDmBlocks().catch(() => null),
       ]);
-      // A lobby-scoped session (lobby-bot-survey.md Feature 1) 403s every
+      // A lobby-scoped session (lobby-survey.md Feature 1) 403s every
       // route outside the lobby allowlist — /channels is always in that
       // batch, so its rejection reason is the signal. Checked before
       // touching any other settled promise; the others 403 the same way and
@@ -755,7 +835,7 @@ export default function App({ initialView }: AppProps = {}) {
     }
   }
 
-  // Lobby -> member transition in place (lobby-bot-survey.md Feature 1):
+  // Lobby -> member transition in place (lobby-survey.md Feature 1):
   // /lobby/submit-pow already flipped the session's scope server-side on the
   // same token, so there's no re-auth here — just open the WS the hub had
   // been rejecting, drop the lobby screen, and pull the now-unlocked hub
@@ -772,7 +852,7 @@ export default function App({ initialView }: AppProps = {}) {
       await loadHubData();
       publishDhKey().catch(() => {});
     }
-    const hubName = hubsRef.current.find((h) => h.hub_id === hubId)?.hub_name ?? "the hub";
+    const hubName = hubsRef.current.find((h) => h.hub_id === hubId)?.hub_name ?? t("app.the_hub");
     showHubError(t("lobby.welcome", { hub: hubName }));
   }
 
@@ -815,11 +895,77 @@ export default function App({ initialView }: AppProps = {}) {
     handleAddHubWithPasskey,
   } = useAddHubFlow({
     publicKey, stableHandlers, hubsRef, setHubs, setActiveHubIdState, loadHubData,
-    setShowCreateHub, applyDeepLinkTarget, t,
+    applyDeepLinkTarget, t,
   });
 
-  async function handleSaveFirstRunName() {
-    const name = firstRunName.trim();
+  // An invite link is `https://hub.example/join/<code>`, and the hub serves
+  // this client there. Pick the code out of our own address and open the
+  // add-hub flow prefilled, so clicking the link a friend sent lands on the
+  // hub preview instead of an empty app. Deliberately not an automatic join:
+  // a link should not silently change someone's hub list.
+  //
+  // Runs once the identity exists — a first-time visitor has onboarding to do
+  // first, and the code is held until then. The path is cleared only when the
+  // invite is actually applied, so reloading mid-onboarding still honours the
+  // link rather than losing it.
+  const pathInviteRef = useRef<string | null>(null);
+  const pathInviteHandledRef = useRef(false);
+  if (pathInviteRef.current === null) {
+    pathInviteRef.current = inviteCodeFromPath(window.location.pathname) ?? "";
+  }
+
+  // `?hub=&code=` — a hub build sending someone here to join it with their
+  // real identity (USER_CLIENT_URL). Only ever a hub URL and an invite code:
+  // both are public, both are visible in the address bar, and the add-hub
+  // modal below is where the user confirms. A seed never arrives this way.
+  const handoffRef = useRef<{ hub: string; code: string } | null | undefined>(undefined);
+  if (handoffRef.current === undefined) {
+    const params = new URLSearchParams(window.location.search);
+    const hub = params.get("hub")?.trim() ?? "";
+    handoffRef.current = hub ? { hub, code: params.get("code")?.trim() ?? "" } : null;
+  }
+  useEffect(() => {
+    const code = pathInviteRef.current;
+    const handoff = handoffRef.current;
+    if ((!code && !handoff) || pathInviteHandledRef.current || !publicKey) return;
+    if (!MULTI_HUB) {
+      // Hub build: no add-hub modal to open, and which path is right depends
+      // on whether we already have a session here — so wait for the restore
+      // to answer rather than racing it.
+      if (!hubsRestored) return;
+      // A `?hub=` handoff is meaningless here — the hub build sends those, it
+      // cannot receive one, because it has no second hub to add.
+      if (!code) return;
+      pathInviteHandledRef.current = true;
+      window.history.replaceState({}, "", "/");
+      if (getActiveHubId()) {
+        // Already a member: re-authenticating is the registration path and
+        // would not apply the invite's role grant. This route is the one
+        // that does.
+        void redeemInvite(code)
+          .then(() => loadHubData())
+          .catch((e: unknown) => showHubError(e instanceof Error ? e.message : String(e)));
+      } else {
+        // No session: the welcome screen joins the hub serving this page, and
+        // parseHubInput lifts the code out of whatever URL it is handed — so
+        // handing it the invite link is the whole flow.
+        setHomeHubUrl(`${window.location.origin}/join/${code}`);
+      }
+      return;
+    }
+    pathInviteHandledRef.current = true;
+    window.history.replaceState({}, "", "/");
+    // Both sources end up as an invite URL because parseHubInput already
+    // knows how to take a code out of one — one shape to handle, not two.
+    const target = handoff
+      ? handoffTargetUrl(handoff.hub, handoff.code)
+      : `${window.location.origin}/join/${code}`;
+    handleHubUrlInput(target);
+    setShowAddHub(true);
+  }, [publicKey, hubsRestored]);
+
+  async function handleSaveFirstRunName(typed: string) {
+    const name = typed.trim();
     if (!name) { setShowDisplayNamePrompt(false); return; }
     try {
       await hubFetch("/me", { method: "PATCH", body: JSON.stringify({ display_name: name }) });
@@ -924,8 +1070,20 @@ export default function App({ initialView }: AppProps = {}) {
   }
 
   const isAdmin = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin")) ?? false,
+    () => meInfo?.roles?.some((r) => r.id === "builtin-owner") ?? false,
     [meInfo],
+  );
+
+  // Every client-side permission gate, with the owner short-circuit the hub
+  // itself applies (permissions.rs, `UserPermissions::has`). `builtin-owner`
+  // carries no `role_permissions` rows at all since the catalogue rebuild —
+  // the explicit rows it used to hold beside the wildcard went with it — so a
+  // gate that only reads the role list hides from the owner what the hub
+  // would happily let them do.
+  const can = useCallback(
+    (permission: string) =>
+      isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes(permission)) ?? false),
+    [isAdmin, meInfo],
   );
 
   // First-run hub setup wizard (decisions.md 2026-07-25): shown once per hub
@@ -944,6 +1102,8 @@ export default function App({ initialView }: AppProps = {}) {
     activeHubId, closeHubSetupWizard,
   });
   const {
+    bannerEditChannel, setBannerEditChannel,
+    handleSaveBannerUrl,
     createChannelCtx, setCreateChannelCtx,
     createChannelLoading,
     createChannelError, setCreateChannelError,
@@ -966,18 +1126,20 @@ export default function App({ initialView }: AppProps = {}) {
     handleHubSetupWizardComplete,
   } = channelCrud;
 
-  const canManageRoles = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_roles")) ?? false,
-    [meInfo],
+  const canManageRoles = useMemo(() => can("roles.manage"), [can]);
+
+  // The channel-settings gear and every tab behind it. Wider than
+  // `canManageRoles`: a member given only `channels.permissions` edits this
+  // channel’s overwrites without touching the hub’s roles.
+  const canEditChannelPermissions = useMemo(
+    () => can("roles.manage") || can("channels.permissions"),
+    [can],
   );
 
   // Gates the voice roster's "Move to channel…" entry (events.md §7.1). The
   // hub re-checks channel-scoped against the destination on every voice_move —
   // this is UX-only, same posture as the other client-side permission gates here.
-  const canMoveMembers = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("move_members")) ?? false,
-    [meInfo],
-  );
+  const canMoveMembers = useMemo(() => can("voice.move_members"), [can]);
 
   const voiceMoveChannelOptions = useMemo(
     () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveUx.voiceMoveMenu?.currentChannelId),
@@ -986,30 +1148,21 @@ export default function App({ initialView }: AppProps = {}) {
 
   // Same permission the invite endpoints require (routes/invites.rs) — gates
   // the "Invite people" entry for non-admin members too.
-  const canCreateInvites = useMemo(
-    () => isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes("manage_channels")) ?? false),
-    [isAdmin, meInfo],
-  );
+  const canCreateInvites = useMemo(() => can("channels.manage"), [can]);
 
   // Same permission the poll-create endpoint requires (SEND_MESSAGES) —
   // gates the "Create poll" context-menu entry the same way the composer's
   // own "+" attach menu is implicitly gated (anyone who can post here).
-  const canSendMessages = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("send_messages")) ?? false,
-    [meInfo],
-  );
+  const canSendMessages = useMemo(() => can("messages.send"), [can]);
 
   const canUseSoundboard = useMemo(() => {
     if (voice.myVoicePerms && voice.myVoicePerms.channel_id === voice.voiceChannelId) {
-      return voice.myVoicePerms.is_admin || voice.myVoicePerms.permissions.includes("use_soundboard");
+      return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes("voice.soundboard.use");
     }
-    return meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("use_soundboard")) ?? false;
-  }, [voice.myVoicePerms, voice.voiceChannelId, meInfo]);
+    return can("voice.soundboard.use");
+  }, [voice.myVoicePerms, voice.voiceChannelId, can]);
 
-  const canManageSoundboard = useMemo(
-    () => meInfo?.roles?.some((r) => r.permissions?.includes("admin") || r.permissions?.includes("manage_soundboard")) ?? false,
-    [meInfo],
-  );
+  const canManageSoundboard = useMemo(() => can("voice.soundboard.manage"), [can]);
 
   const myRoles = useMemo(() => meInfo?.roles ?? [], [meInfo]);
 
@@ -1055,8 +1208,6 @@ export default function App({ initialView }: AppProps = {}) {
     showKeyboardShortcuts, setShowKeyboardShortcuts,
     showSettings, setShowSettings,
     showHubAdmin, setShowHubAdmin,
-    showFarmSettings, setShowFarmSettings,
-    showCreateHub, setShowCreateHub,
     showAddHub, setShowAddHub,
     showQuickInvite, setShowQuickInvite,
     showSearchBar, setShowSearchBar,
@@ -1066,7 +1217,7 @@ export default function App({ initialView }: AppProps = {}) {
   // === Render ===
 
   if (ready === "checking") {
-    return <div style={{ padding: 32 }}>Loading…</div>;
+    return <div style={{ padding: 32 }}>{t("app.loading")}</div>;
   }
 
   if (ready === "setup") {
@@ -1159,7 +1310,7 @@ export default function App({ initialView }: AppProps = {}) {
         <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />
       )}
 
-      {showDiscover && (
+      {showDiscover && DISCOVERY_URL && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg, #1a1a2e)", overflow: "auto" }}>
           <DiscoverPage
             onClose={() => setShowDiscover(false)}
@@ -1170,6 +1321,7 @@ export default function App({ initialView }: AppProps = {}) {
               setShowAddHub(true);
             }}
             fetchUrl={fetchWithTimeout}
+            directoryUrl={DISCOVERY_URL}
           />
         </div>
       )}
@@ -1257,45 +1409,6 @@ export default function App({ initialView }: AppProps = {}) {
         />
       )}
 
-      {showFarmSettings && (
-        <FarmSettingsPage
-          farmUrl={farmAdminUrl}
-          tab={farmAdminTab}
-          onTab={setFarmAdminTab}
-          onClose={() => setShowFarmSettings(false)}
-          actions={farmSettingsActions}
-        />
-      )}
-
-      {showCreateHub && (
-        <CreateHubFork
-          knownFarms={knownFarms}
-          wsHandlers={stableHandlers}
-          onHubCreated={(hub) => {
-            setHubs((prev) => {
-              if (prev.some((h) => h.hub_id === hub.hub_id)) return prev;
-              return [...prev, hub];
-            });
-            setActiveHubIdState(hub.hub_id);
-            setShowCreateHub(false);
-          }}
-          discoveryNewUrl={DISCOVERY_NEW_HUB_URL}
-          setupCommand={HUB_SETUP_COMMAND}
-          inviteValue={hubUrl}
-          onInviteChange={handleHubUrlInput}
-          inviteLoading={addingHub}
-          inviteError={addHubError}
-          onRedeemInvite={handleAddHub}
-          onClose={() => {
-            setShowCreateHub(false);
-            setHubUrl("");
-            setInviteCode("");
-            setHubPreview({ state: "idle" });
-            setAddHubError(null);
-          }}
-        />
-      )}
-
       <MobileShell
         showHubSidebar
         showChannelSidebar
@@ -1313,18 +1426,15 @@ export default function App({ initialView }: AppProps = {}) {
         hubNotifyMode={hubNotifyMode}
         lobbyHubIds={lobbyHubs}
         hasActiveHub={!!activeHubId}
-        isFarmAdmin={isFarmAdmin}
         onSwitchToDms={() => setView("dms")}
         onSwitchHub={handleSwitchHub}
-        onRemoveHub={handleRemoveHub}
+        onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
         onSetHubNotifyMode={(hubId, mode) =>
           setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
         }
         onHubReorder={handleHubReorder}
-        onAddHub={() => setShowAddHub(true)}
-        onCreateHub={() => setShowCreateHub(true)}
-        onDiscover={() => setShowDiscover(true)}
-        onFarmSettings={() => { setShowFarmSettings(true); setFarmAdminTab("general"); }}
+        onAddHub={MULTI_HUB ? () => setShowAddHub(true) : undefined}
+        onDiscover={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
       />
 
       <ChannelSidebarContainer
@@ -1334,6 +1444,7 @@ export default function App({ initialView }: AppProps = {}) {
         voiceMoveUx={voiceMoveUx}
         notifyPrefs={notifyPrefs}
         hubLifecycle={hubLifecycle}
+        onRequestRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
         unreadCounts={unreadCounts}
         dms={dms}
         alliances={alliances}
@@ -1349,6 +1460,7 @@ export default function App({ initialView }: AppProps = {}) {
         publicKey={publicKey}
         isAdmin={isAdmin}
         canCreateInvites={canCreateInvites}
+        canEditChannelPermissions={canEditChannelPermissions}
         canManageRoles={canManageRoles}
         canMoveMembers={canMoveMembers}
         canUseSoundboard={canUseSoundboard}
@@ -1360,6 +1472,7 @@ export default function App({ initialView }: AppProps = {}) {
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
         onOpenSettings={() => setShowSettings(true)}
+        settingsNeedsAttention={identityNeedsBackup}
         onOpenSearch={() => setShowSearchBar(true)}
         onDragEnd={handleChannelDragEnd}
       />
@@ -1369,9 +1482,9 @@ export default function App({ initialView }: AppProps = {}) {
           miniAppUrl={activeOpenApp.event.mini_app_url}
           sessionToken={activeOpenApp.event.session_token}
           channelId={activeOpenApp.event.channel_id}
-          botId={activeOpenApp.event.bot_id}
+          appId={activeOpenApp.event.app_id}
           hubUrl={activeOpenApp.hubUrl}
-          title={activeBotApps.get(activeOpenApp.event.bot_id)?.title ?? "Game"}
+          title={activeApps.get(activeOpenApp.event.app_id)?.title ?? t("app.default_title")}
           requiresCamera={activeOpenApp.event.requires_camera}
           onClose={() => setActiveOpenApp(null)}
         />
@@ -1394,7 +1507,7 @@ export default function App({ initialView }: AppProps = {}) {
               });
             }}
             initialHubUrl={homeHubUrl}
-            onBrowse={() => setShowDiscover(true)}
+            onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
           />
         </main>
       ) : activeHubId && lobbyHubs.has(activeHubId) && publicKey ? (
@@ -1415,26 +1528,26 @@ export default function App({ initialView }: AppProps = {}) {
       ) : activeHubId && pendingApprovalHubs.has(activeHubId) ? (
         <main className="content" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: 40 }}>⏳</div>
-          <h2 style={{ margin: 0 }}>Waiting for approval</h2>
+          <h2 style={{ margin: 0 }}>{t("app.approval.title")}</h2>
           <p className="muted" style={{ margin: 0, textAlign: "center", maxWidth: 320 }}>
-            Your membership request is pending. A hub admin will review your request shortly.
+            {t("app.approval.body")}
           </p>
-          <button className="btn-secondary" onClick={() => loadHubData()}>Check again</button>
+          <button className="btn-secondary" onClick={() => loadHubData()}>{t("app.approval.check_again")}</button>
         </main>
       ) : <>
         {(() => {
           if (!selectedChannel) return null;
-          const cards = Array.from(activeBotApps.values()).filter(
+          const cards = Array.from(activeApps.values()).filter(
             (ev) => ev.channel_id === selectedChannel.id,
           );
           if (cards.length === 0) return null;
           return (
-            <div className="bot-app-launch-cards">
+            <div className="app-launch-cards">
               {cards.map((ev) => (
-                <BotAppLaunchCard
-                  key={ev.bot_id}
+                <AppLaunchCard
+                  key={ev.app_id}
                   event={ev}
-                  onJoin={sendBotAppJoin}
+                  onJoin={sendAppJoin}
                 />
               ))}
             </div>
@@ -1454,6 +1567,7 @@ export default function App({ initialView }: AppProps = {}) {
           view={view as "channels" | "dms"}
           channels={channels}
           onBreadcrumbCategoryClick={handleBreadcrumbCategoryClick}
+          onOpenImage={(src, alt) => setLightbox({ src, alt })}
           users={users}
           publicKey={publicKey}
           blockedUsers={blockedUsers}
@@ -1476,219 +1590,105 @@ export default function App({ initialView }: AppProps = {}) {
         /></>}
       </MobileShell>
 
-      {showHubAdmin && activeHubId && (
-        <HubAdminContainer
-          hubAdmin={hubAdminState}
-          channels={channels}
-          hubs={hubs}
-          activeHubId={activeHubId}
-          publicKey={publicKey}
-          isAdmin={isAdmin}
-          canManageRoles={canManageRoles}
-          canManageSoundboard={canManageSoundboard}
-          myMaxPriority={myMaxPriority}
-          onClose={() => setShowHubAdmin(false)}
-        />
-      )}
-
-      {showAddHub && (
-        <AddHubModal
-          hubUrl={hubUrl}
-          onHubUrlChange={handleHubUrlInput}
-          hubPreview={hubPreview}
-          inviteCode={inviteCode}
-          onInviteCodeChange={setInviteCode}
-          loading={addingHub}
-          error={addHubError}
-          fingerprintMatch={fingerprintMatch}
-          onAdd={handleAddHub}
-          onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
-          passkeySupported={isPasskeySupported()}
-          onClose={() => {
-            setShowAddHub(false);
-            setHubPreview({ state: "idle" });
-            setAddHubError(null);
-            setFingerprintMatch(false);
-          }}
-          onBrowse={() => { setShowAddHub(false); setShowDiscover(true); }}
-        />
-      )}
-
-      {showQuickInvite && activeHubId && (
-        <QuickInviteModal
-          activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
-          myMaxPriority={myMaxPriority}
-          onClose={() => setShowQuickInvite(false)}
-          actions={{ listRoles, createInvite }}
-        />
-      )}
-
-      {eventComposerChannelId && (
-        <EventComposer
-          channelId={eventComposerChannelId}
-          channels={channels}
-          canHubWide={isAdmin}
-          advancedFieldsSupported
-          onSubmit={createEvent}
-          onCreated={() => {}}
-          onClose={() => setEventComposerChannelId(null)}
-        />
-      )}
-
-      {pollComposerChannelId && (
-        <PollComposer
-          channelId={pollComposerChannelId}
-          onCreatePoll={createPoll}
-          onCreated={() => {}}
-          onClose={() => setPollComposerChannelId(null)}
-        />
-      )}
-
-      {(createChannelCtx || channelSettingsCtx) && (
-        <ChannelSettingsModal
-          channel={channelSettingsCtx}
-          createParentId={createChannelCtx?.parentId ?? null}
-          createParentName={createChannelCtx?.parentId ? (channels.find((c) => c.id === createChannelCtx.parentId)?.name ?? null) : null}
-          createInitialIsCategory={createChannelCtx?.isCategory}
-          saving={channelSettingsCtx ? channelSettingsSaving : createChannelLoading}
-          deleting={channelSettingsDeleting}
-          error={channelSettingsCtx ? channelSettingsError : createChannelError}
-          canManageRoles={canManageRoles}
-          isAdmin={isAdmin}
-          myMaxPriority={myMaxPriority}
-          hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
-          onSave={channelSettingsCtx ? handleSaveChannelSettings : handleCreateChannel}
-          onDelete={handleDeleteChannel}
-          onClose={() => {
-            setCreateChannelCtx(null); setCreateChannelError(null);
-            setChannelSettingsCtx(null); setChannelSettingsError(null);
-          }}
-          permissionsActions={channelPermissionsTabActions}
-          bansActions={channelBansTabActions}
-          bansUsers={users}
-          talkPowerActions={channelTalkPowerTabActions}
-          listHubIcons={listHubIcons}
-          listForumTags={forumListTags}
-          forumTagsActions={{ createTag: forumCreateTag, editTag: forumEditTag, deleteTag: forumDeleteTag }}
-        />
-      )}
-
-      {showHubSetupWizard && activeHubId && (
-        <HubSetupWizard
-          actions={{ onCreateChannel: createChannelForWizard }}
-          onDismiss={() => closeHubSetupWizard(activeHubId)}
-          onComplete={handleHubSetupWizardComplete}
-        />
-      )}
-
-      {channelCtxMenu && (
-        <ChannelContextMenu
-          menu={channelCtxMenu}
-          activeHubId={activeHubId}
-          effectiveNotifyMode={effectiveNotifyMode}
-          onSetNotifyMode={(hubId, channelId, mode) => {
-            setChannelNotifyMode((prev) => {
-              const hubMap = { ...(prev[hubId] ?? {}) };
-              if (mode === "all") delete hubMap[channelId]; else hubMap[channelId] = mode;
-              return { ...prev, [hubId]: hubMap };
-            });
-          }}
-          onClose={() => setChannelCtxMenu(null)}
-          onCopyLink={async (channel) => {
-            const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
-            if (!hubUrl) return;
-            const link = `wavvon://${hubUrl.replace(/^https?:\/\//, "")}/channel/${channel.id}`;
-            try {
-              await navigator.clipboard.writeText(link);
-              showHubError(t("message.action.link_copied"));
-            } catch (e) {
-              showHubError(String(e));
-            }
-          }}
-          onCreateEvent={isAdmin ? (channel) => setEventComposerChannelId(channel.id) : undefined}
-          onCreatePoll={canSendMessages ? (channel) => setPollComposerChannelId(channel.id) : undefined}
-          onRenameTempRoom={
-            channelCtxMenu.channel.is_temporary && channelCtxMenu.channel.owner_pubkey === publicKey && !isAdmin
-              ? (channel) => {
-                  setRenameRoomCtx(channel);
-                  setRenameRoomName(channel.name);
-                  setRenameRoomError(null);
-                }
-              : undefined
-          }
-          onCreateChannelIn={isAdmin ? (parentId) => { setChannelSettingsCtx(null); setCreateChannelCtx({ parentId, isCategory: false }); setCreateChannelError(null); } : undefined}
-          onCreateChannel={isAdmin ? () => { setChannelSettingsCtx(null); setCreateChannelCtx({ parentId: null, isCategory: false }); setCreateChannelError(null); } : undefined}
-          onCreateCategory={isAdmin ? () => { setChannelSettingsCtx(null); setCreateChannelCtx({ parentId: null, isCategory: true }); setCreateChannelError(null); } : undefined}
-          onEditChannel={isAdmin ? (channel) => { setCreateChannelCtx(null); setChannelSettingsCtx(channel); setChannelSettingsError(null); } : undefined}
-          onDeleteChannel={isAdmin ? (channel) => { setCreateChannelCtx(null); setChannelSettingsCtx(channel); setChannelSettingsError(null); } : undefined}
-        />
-      )}
-
-      {editDescChannel && (
-        <EditDescriptionModal
-          channel={editDescChannel}
-          description={editDescValue}
-          onDescriptionChange={setEditDescValue}
-          onSave={() => void handleSaveDescription()}
-          onClose={() => setEditDescChannel(null)}
-        />
-      )}
-
-      {renameRoomCtx && (
-        <div className="modal-overlay" onClick={() => setRenameRoomCtx(null)}>
-          <FocusTrap>
-            <div className="modal" style={{ maxWidth: 400 }} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-              <h3>{t("channel.temp.rename_title")}</h3>
-              <input
-                type="text"
-                value={renameRoomName}
-                onChange={(e) => setRenameRoomName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void handleRenameRoom();
-                  if (e.key === "Escape") setRenameRoomCtx(null);
-                }}
-                autoFocus
-                style={{ display: "block", width: "100%", marginBottom: "var(--space-3)" }}
-              />
-              {renameRoomError && <div className="error" style={{ marginBottom: 8 }}>{renameRoomError}</div>}
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setRenameRoomCtx(null)}>{t("modal.cancel")}</button>
-                <button onClick={() => void handleRenameRoom()} disabled={renameRoomSaving || !renameRoomName.trim()}>
-                  {renameRoomSaving ? "…" : t("modal.save")}
-                </button>
-              </div>
-            </div>
-          </FocusTrap>
-        </div>
-      )}
-
-      {showDisplayNamePrompt && (
-        <div className="modal-overlay" onClick={() => setShowDisplayNamePrompt(false)}>
-          <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-            <h3>{t("onboarding.display_name.title")}</h3>
-            <p className="muted" style={{ marginBottom: 12, fontSize: "var(--text-sm)" }}>
-              {t("onboarding.display_name.hint")}
-            </p>
-            <input
-              type="text"
-              value={firstRunName}
-              onChange={(e) => setFirstRunName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void handleSaveFirstRunName(); if (e.key === "Escape") setShowDisplayNamePrompt(false); }}
-              placeholder={t("onboarding.display_name.placeholder")}
-              style={{ width: "100%", marginBottom: 12 }}
-              autoFocus
-            />
-            <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowDisplayNamePrompt(false)}>
-                {t("onboarding.display_name.skip")}
-              </button>
-              <button onClick={() => void handleSaveFirstRunName()} disabled={!firstRunName.trim()}>
-                {t("onboarding.display_name.save")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AppModals
+        lightbox={lightbox}
+        onCloseLightbox={() => setLightbox(null)}
+        removeHub={removeHubConfirm}
+        encryptionWarning={dms.encryptionWarning}
+        onOpenHomeHubSettings={() => {
+          removeHubConfirm.cancel();
+          settingsProfile.setSettingsTab("accounts");
+          setShowSettings(true);
+        }}
+        showBackupPrompt={showBackupPrompt}
+        onBackupPromptShowPhrase={() => {
+          setShowBackupPrompt(false);
+          settingsProfile.setSettingsTab("accounts");
+          setShowSettings(true);
+        }}
+        onBackupPromptLater={() => setShowBackupPrompt(false)}
+        activeHubId={activeHubId}
+        addHubError={addHubError}
+        addingHub={addingHub}
+        canEditChannelPermissions={canEditChannelPermissions}
+        canManageRoles={canManageRoles}
+        canManageSoundboard={canManageSoundboard}
+        canSendMessages={canSendMessages}
+        channelBansTabActions={channelBansTabActions}
+        channelCtxMenu={channelCtxMenu}
+        channelPermissionsTabActions={channelPermissionsTabActions}
+        channelSettingsCtx={channelSettingsCtx}
+        channelSettingsDeleting={channelSettingsDeleting}
+        channelSettingsError={channelSettingsError}
+        channelSettingsSaving={channelSettingsSaving}
+        channelTalkPowerTabActions={channelTalkPowerTabActions}
+        channels={channels}
+        closeHubSetupWizard={closeHubSetupWizard}
+        bannerEditChannel={bannerEditChannel}
+        setBannerEditChannel={setBannerEditChannel}
+        handleSaveBannerUrl={handleSaveBannerUrl}
+        createChannelCtx={createChannelCtx}
+        createChannelError={createChannelError}
+        createChannelForWizard={createChannelForWizard}
+        createChannelLoading={createChannelLoading}
+        editDescChannel={editDescChannel}
+        editDescValue={editDescValue}
+        effectiveNotifyMode={effectiveNotifyMode}
+        eventComposerChannelId={eventComposerChannelId}
+        fingerprintMatch={fingerprintMatch}
+        handleAddHub={handleAddHub}
+        handleAddHubWithPasskey={handleAddHubWithPasskey}
+        handleCreateChannel={handleCreateChannel}
+        handleDeleteChannel={handleDeleteChannel}
+        handleHubSetupWizardComplete={handleHubSetupWizardComplete}
+        handleHubUrlInput={handleHubUrlInput}
+        handleRenameRoom={handleRenameRoom}
+        handleSaveChannelSettings={handleSaveChannelSettings}
+        handleSaveDescription={handleSaveDescription}
+        handleSaveFirstRunName={handleSaveFirstRunName}
+        hubAdminState={hubAdminState}
+        hubPreview={hubPreview}
+        hubUrl={hubUrl}
+        hubs={hubs}
+        inviteCode={inviteCode}
+        isAdmin={isAdmin}
+        myMaxPriority={myMaxPriority}
+        pollComposerChannelId={pollComposerChannelId}
+        publicKey={publicKey}
+        renameRoomCtx={renameRoomCtx}
+        renameRoomError={renameRoomError}
+        renameRoomName={renameRoomName}
+        renameRoomSaving={renameRoomSaving}
+        setAddHubError={setAddHubError}
+        setChannelCtxMenu={setChannelCtxMenu}
+        setChannelNotifyMode={setChannelNotifyMode}
+        setChannelSettingsCtx={setChannelSettingsCtx}
+        setChannelSettingsError={setChannelSettingsError}
+        setCreateChannelCtx={setCreateChannelCtx}
+        setCreateChannelError={setCreateChannelError}
+        setEditDescChannel={setEditDescChannel}
+        setEditDescValue={setEditDescValue}
+        setEventComposerChannelId={setEventComposerChannelId}
+        setFingerprintMatch={setFingerprintMatch}
+        setHubPreview={setHubPreview}
+        setInviteCode={setInviteCode}
+        setPollComposerChannelId={setPollComposerChannelId}
+        setRenameRoomCtx={setRenameRoomCtx}
+        setRenameRoomError={setRenameRoomError}
+        setRenameRoomName={setRenameRoomName}
+        setShowAddHub={setShowAddHub}
+        setShowDiscover={setShowDiscover}
+        setShowDisplayNamePrompt={setShowDisplayNamePrompt}
+        setShowHubAdmin={setShowHubAdmin}
+        setShowQuickInvite={setShowQuickInvite}
+        showAddHub={showAddHub}
+        showDisplayNamePrompt={showDisplayNamePrompt}
+        showHubAdmin={showHubAdmin}
+        showHubError={showHubError}
+        showHubSetupWizard={showHubSetupWizard}
+        showQuickInvite={showQuickInvite}
+        users={users}
+      />
     </div>
   );
 }

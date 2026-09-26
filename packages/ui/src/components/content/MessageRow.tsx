@@ -41,7 +41,7 @@ export interface MessageRowActions {
   unpinMessage: (channelId: string, messageId: string) => Promise<void>;
   votePoll?: (pollId: string, optionId: string) => Promise<Poll>;
   deletePoll?: (pollId: string) => Promise<void>;
-  sendBotAppJoin: (botId: string, channelId: string) => void;
+  sendAppJoin: (appId: string, channelId: string) => void;
   fetchLinkPreview: (hubUrl: string, url: string, token?: string | null) => Promise<LinkPreview>;
   muteUser: (pubkey: string) => Promise<void>;
   kickUser: (pubkey: string) => Promise<void>;
@@ -94,7 +94,6 @@ interface Props {
   onError: (msg: string) => void;
   onToggleThread: (messageId: string) => void;
   onOpenImage: (src: string, alt: string) => void;
-  onOpenBotCard: (pubkey: string, e: React.MouseEvent) => void;
   /** `e` is unset when triggered from the message context menu's "View
    * profile" item, which has no originating click to anchor a positioned
    * popover to — desktop's rect-based profile card skips opening in that
@@ -148,7 +147,6 @@ export function MessageRow({
   onError,
   onToggleThread,
   onOpenImage,
-  onOpenBotCard,
   onAuthorClick,
   onAuthorContextMenu,
   onPinToggle,
@@ -173,7 +171,7 @@ export function MessageRow({
   const isMine = m.sender === publicKey;
   const canDelete =
     isMine ||
-    myRoles.some((r) => r.permissions.some((p) => p === "admin" || p === "manage_messages"));
+    myRoles.some((r) => r.permissions.some((p) => p === "messages.manage"));
   const isEditing = editingMessageId === m.id;
   const senderUser = users.find((u) => u.public_key === m.sender);
   const senderLabel = senderUser?.display_name || m.sender_name || formatPubkey(m.sender);
@@ -300,7 +298,7 @@ export function MessageRow({
           >
             {senderLabel}
           </span>
-          {showBirthdayBadge && <span title="Birthday today" aria-label="Birthday today">🎂</span>}
+          {showBirthdayBadge && <span title={t("message.birthday")} aria-label={t("message.birthday")}>🎂</span>}
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} hubEmojiMap={hubEmojiMap} hubBaseUrl={hubBaseUrl ?? activeHub?.hub_url} />
           </span>
@@ -335,27 +333,20 @@ export function MessageRow({
             <span className="reply-snippet">{m.reply_to.content_preview}</span>
           </div>
         )}
-        <span
-          style={{ cursor: senderUser?.is_bot ? "pointer" : undefined }}
-          onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : undefined}
-          onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
-        >
+        <span onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
           <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={28} />
         </span>
         <span
           className={senderNameClass}
           style={{ ...senderNameStyle, cursor: "pointer" }}
-          onClick={senderUser?.is_bot && !senderUser?.is_webhook ? (e) => onOpenBotCard(m.sender, e) : (e) => onAuthorClick(m.sender, e)}
+          onClick={(e) => onAuthorClick(m.sender, e)}
           onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
         >
           {senderLabel}
         </span>
-        {showBirthdayBadge && <span title="Birthday today" aria-label="Birthday today">🎂</span>}
-        {senderUser?.is_bot && !senderUser?.is_webhook && (
-          <span className="bot-badge" aria-hidden="true">{t("bot.badge")}</span>
-        )}
+        {showBirthdayBadge && <span title={t("message.birthday")} aria-label={t("message.birthday")}>🎂</span>}
         {senderUser?.is_webhook && (
-          <span className="bot-badge bot-badge--app" aria-hidden="true">{t("app.badge")}</span>
+          <span className="app-badge" aria-hidden="true">{t("app.badge")}</span>
         )}
         {isEditing ? (
           <span className="message-edit">
@@ -426,8 +417,8 @@ export function MessageRow({
                 <button
                   className="message-action"
                   onClick={() => void togglePin()}
-                  title={pinnedMessageIds.has(m.id) ? "Unpin message" : "Pin message"}
-                  aria-label={pinnedMessageIds.has(m.id) ? "Unpin message" : "Pin message"}
+                  title={pinnedMessageIds.has(m.id) ? t("message.action.unpin") : t("message.action.pin")}
+                  aria-label={pinnedMessageIds.has(m.id) ? t("message.action.unpin") : t("message.action.pin")}
                 >
                   📌
                 </button>
@@ -450,13 +441,13 @@ export function MessageRow({
               {!isMine && actions.reportMessage && (
                 reported ? (
                   <span className="message-action muted" style={{ fontSize: "var(--text-xs)" }}>
-                    Reported
+                    {t("message.report.reported")}
                   </span>
                 ) : (
                   <button
                     className="message-action"
-                    title="Report message"
-                    aria-label="Report message"
+                    title={t("message.report.button")}
+                    aria-label={t("message.report.button")}
                     onClick={() => setReporting((v) => !v)}
                   >
                     ⚑
@@ -468,7 +459,7 @@ export function MessageRow({
               <div className="settings-row" style={{ marginTop: "var(--space-1)" }}>
                 <input
                   type="text"
-                  placeholder="Reason for report…"
+                  placeholder={t("message.report.placeholder")}
                   value={reportDraft}
                   onChange={(e) => setReportDraft(e.target.value)}
                   style={{ flex: 1 }}
@@ -489,13 +480,13 @@ export function MessageRow({
                     }
                   }}
                 >
-                  Submit
+                  {t("message.report.submit")}
                 </button>
                 <button
                   className="btn-small btn-secondary"
                   onClick={() => { setReporting(false); setReportDraft(""); }}
                 >
-                  Cancel
+                  {t("message.report.cancel")}
                 </button>
               </div>
             )}
@@ -516,16 +507,14 @@ export function MessageRow({
               />
             )}
             {(() => {
-              // Bot-authored, so parsed defensively rather than trusted outright
-              // (bot-capability-layer.md §5 third-party-content threat model).
-              // A result embed patched onto this same message (bot-capability-
-              // layer.md §7 step 5) means the game already ended — there's no
-              // PATCH shape to clear `game` itself (routes/chat_models.rs
-              // EditMessageRequest has no such field), so the launch card is
-              // hidden client-side instead of leaving a dead "Play" button
-              // pointing at a session the bot already closed.
+              // Written by whoever authored the message, so parsed
+              // defensively rather than trusted outright. A result embed
+              // patched onto this same message means the game already ended —
+              // there is no PATCH shape that clears `game` itself, so the
+              // launch card is hidden client-side instead of leaving a dead
+              // "Play" button pointing at a session that is over.
               const game = m.embeds && m.embeds.length > 0 ? null : parseGameLaunchCard(m.game);
-              return game && <GameCard game={game} botId={m.sender} channelId={m.channel_id} onPlay={actions.sendBotAppJoin} />;
+              return game && <GameCard game={game} appId={m.sender} channelId={m.channel_id} onPlay={actions.sendAppJoin} />;
             })()}
             {isEphemeral && (
               <div className="message-ephemeral-label">{t("message.ephemeral")}</div>

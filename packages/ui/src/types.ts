@@ -33,9 +33,8 @@ export interface Message {
   visible_to_pubkey?: string | null;
   embeds?: Embed[];
   components?: ComponentRow[];
-  is_bot_sender?: boolean;
   reply_count?: number;
-  /** Bot-authored "Play" launch card (bot-capability-layer.md §2). Bot messages only. */
+  /** "Play" launch card; needs `apps.register` to author. */
   game?: GameLaunchCard | null;
 }
 
@@ -58,12 +57,12 @@ export interface EmbedField {
 
 export interface ComponentRow {
   type: "row";
-  components: BotComponent[];
+  components: MessageComponent[];
 }
 
-export type BotComponent = BotButton | BotSelect;
+export type MessageComponent = MessageButton | MessageSelect;
 
-export interface BotButton {
+export interface MessageButton {
   type: "button";
   custom_id: string;
   label: string;
@@ -71,7 +70,7 @@ export interface BotButton {
   disabled?: boolean;
 }
 
-export interface BotSelect {
+export interface MessageSelect {
   type: "select";
   custom_id: string;
   placeholder?: string;
@@ -96,7 +95,6 @@ export interface User {
   /** Optional short custom status text (only present while online). */
   status_custom?: string | null;
   group_role: string | null;
-  is_bot?: boolean;
   is_webhook?: boolean;
   /** MM-DD (never a year) — null/absent when unset or the hub has birthdays
    *  disabled (the server omits it entirely in that case). */
@@ -173,27 +171,27 @@ export interface IgnoreEntry {
   since: number;
 }
 
-export interface BotAppLaunchEvent {
-  type: "bot_app_launch";
-  bot_id: string;
+export interface AppLaunchEvent {
+  type: "app_launch";
+  app_id: string;
   title: string;
   description: string;
   channel_id: string;
 }
 
-export interface BotCommandDef {
+export interface AppCommandDef {
   name: string;
   description: string;
 }
 
-export interface BotProfile {
+export interface AppProfile {
   pubkey: string;
   name: string;
   avatar_url: string | null;
   description: string | null;
-  commands: BotCommandDef[];
-  /** Profile-declared game descriptor (bot-capability-layer.md §11): drives
-   *  the directory card's Play affordance. Absent = bot never declared one. */
+  commands: AppCommandDef[];
+  /** Profile-declared game descriptor: what a client needs to offer Play
+   *  without a launch-card message in view. Absent = none declared. */
   game?: GameLaunchCard | null;
 }
 
@@ -231,90 +229,13 @@ export interface Hub {
 
 export type NotifyMode = "all" | "mentions" | "silent";
 
-export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
-
-export interface FarmPublicInfo {
-  kind: "wavvon-farm-public";
-  name: string;
-  description: string;
-  creation_policy: FarmCreationPolicy;
-  hub_count: number;
-  max_hubs_total: number;
-  allow_discovery_listing: boolean;
-  country: string;
-  region: string;
-  languages: string[];
-  tags: string[];
-  icon: string | null;
-}
-
-export interface FarmHubQuota {
-  hubs_owned_by_user: number;
-  max_hubs_per_user: number;
-  total_hubs: number;
-  max_hubs_total: number;
-  can_create: boolean;
-  reason: "quota_exceeded" | "policy_admin_only" | "policy_disabled" | null;
-}
-
-export interface CreatedFarmHub {
-  id: string;
-  url: string;
-  hub_pubkey: string;
-  name: string;
-  visibility: "public" | "private";
-  created_at: number;
-}
-
-export interface FarmSettings {
-  name: string;
-  description: string;
-  creation_policy: FarmCreationPolicy;
-  max_hubs_per_user: number;
-  max_hubs_total: number;
-  allow_discovery_listing: boolean;
-  directory_public: boolean;
-  languages: string[];
-  tags: string[];
-  country: string;
-  region: string;
-}
-
-export interface FarmHubEntry {
-  id: string;
-  name: string;
-  description: string | null;
-  owner_pubkey: string;
-  owner_display: string | null;
-  visibility: "public" | "private";
-  member_count: number | null;
-  url: string;
-  hub_pubkey: string;
-  created_at: number;
-  suspended_at: number | null;
-}
-
-export interface FarmUserEntry {
-  public_key: string;
-  master_pubkey: string | null;
-  first_seen_at: number;
-  last_seen_at: number;
-  hubs_owned: number;
-  hubs_member_of: number;
-  active_sessions: number;
-}
-
-export interface FarmServerEntry {
-  id: string;
-  name: string;
-  region: string | null;
-  connected: boolean;
-  last_seen_at: number | null;
-}
-
 export interface VoiceParticipant {
   public_key: string;
   display_name: string | null;
+  /** Set only for an alliance-voice visitor: the hub that vouched for them
+   *  (alliances.md). Their name is hub-asserted, not proven, so it is
+   *  rendered as mediated — never as a plain member name. */
+  visiting_from?: string | null;
 }
 
 export interface WhisperTarget {
@@ -549,19 +470,10 @@ export interface SharedChannel {
   parent_id: string | null;
   is_category: boolean;
   forum_remote_write?: "none" | "replies_only" | "posts_and_replies";
-}
-
-export interface ExternalBotRow {
-  public_key: string;
-  local_note: string | null;
-  display_name: string | null;
-  approval_status: "pending" | "active" | "removed";
-  last_seen_at: number | null;
-}
-
-export interface ExternalBotInviteResult {
-  bot_invite_token: string;
-  pubkey: string;
+  /** Whether members of allied hubs may join voice here (alliances.md).
+   *  Absent from peers that have not upgraded; treat as "allowed", the
+   *  hub-side column default. */
+  voice_remote_join?: "allowed" | "none";
 }
 
 export interface WebhookInfo {
@@ -927,32 +839,6 @@ export interface PendingBadgeOffer {
   issuer_url: string;
 }
 
-export interface NativeBot {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  webhook_url?: string | null;
-}
-
-export interface NativeBotCreated extends NativeBot {
-  token: string;
-}
-
-export interface BotSlashCommandInfo {
-  command: string;
-  description: string;
-}
-
-export interface NativeBotDetail {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  webhook_url: string | null;
-  commands: BotSlashCommandInfo[];
-}
-
 export interface SoundboardClip {
   id: string;
   name: string;
@@ -989,6 +875,11 @@ export interface CertAdmissionSettings {
   cert_min_age_days: number;
   cert_validity_days: number;
   cert_trusted_issuers: string[];
+  /** issuer pubkey → base URL, for issuers this hub can pull a portfolio
+   *  from (hub-certifications.md §11). Sparse: an issuer without an
+   *  address is still trusted, just not pullable. Absent from hubs that
+   *  predate the field. */
+  cert_issuer_urls?: Record<string, string>;
 }
 
 export type ChallengeMode = "off" | "click" | "puzzle" | "both";
@@ -1044,4 +935,93 @@ export interface MemberHistoryEntry {
   policy: "hard-reject" | "soft-flag" | "unknown";
   reason?: string | null;
   added_at: number;
+}
+
+/** A member-filed report about one message, as the hub returns it from
+ *  `GET /admin/reports`. */
+export interface Report {
+  id: string;
+  message_id: string;
+  message_content: string | null;
+  channel_id: string;
+  reporter_pubkey: string;
+  reason: string;
+  reported_at: number;
+  status: string;
+}
+
+export type ReportAction = "dismiss" | "delete_message" | "ban_user";
+
+/** The hub's automod webhook configuration, plus the state of the circuit
+ *  breaker that trips when the operator's service stops answering. */
+export interface ModerationSettings {
+  webhook_url?: string;
+  webhook_secret_set: boolean;
+  circuit_open: boolean;
+  circuit_open_until: number | null;
+}
+
+/** Federated ban lists (`federated-bans.md`): a hub this one subscribes to,
+ *  what it publishes, and the local overrides that win over both. */
+export interface BanlistSource {
+  url: string;
+  policy: "hard-reject" | "soft-flag";
+  added_at: number;
+  issuer_pubkey?: string;
+}
+
+export interface FederatedBanEntry {
+  source_hub_pubkey: string;
+  target_master_pubkey: string;
+  reason?: string;
+  added_at: number;
+  synced_at: number;
+}
+
+export interface BanlistOverride {
+  target_pubkey: string;
+  override_type: "whitelist" | "blacklist";
+  reason?: string;
+  created_at: number;
+}
+
+// ---- Event subscriptions (shared shape: bots and outgoing webhooks) ----
+
+export interface EventSubscription {
+  event: string;
+  channels?: string[];
+}
+
+// ---- Outgoing webhooks ----
+
+export interface OutgoingWebhookSummary {
+  id: string;
+  url: string;
+  display_name: string | null;
+  active: boolean;
+  failure_count: number;
+  last_delivery_at: number | null;
+  last_failure_at: number | null;
+  created_at: number;
+  created_by_pubkey: string;
+  subscription_count: number;
+}
+
+export interface OutgoingWebhookCreatedResult {
+  id: string;
+  url: string;
+  display_name: string | null;
+  secret: string;
+}
+
+export interface OutgoingWebhookDelivery {
+  id: string;
+  webhook_id: string;
+  event_type: string;
+  event_seq: number | null;
+  attempted_at: number;
+  attempt_number: number;
+  status_code: number | null;
+  success: boolean;
+  error_msg: string | null;
 }

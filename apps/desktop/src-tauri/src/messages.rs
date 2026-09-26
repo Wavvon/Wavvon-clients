@@ -336,30 +336,6 @@ pub(crate) async fn forum_create_reply(
 }
 
 #[tauri::command]
-pub(crate) async fn forum_get_post_replies(
-    channel_id: String,
-    post_id: String,
-    cursor: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
-    let (hub_url, token) = active_session(&state)?;
-    let mut req = state
-        .http_client
-        .get(format!(
-            "{hub_url}/channels/{channel_id}/posts/{post_id}/replies"
-        ))
-        .bearer_auth(&token);
-    if let Some(c) = cursor {
-        req = req.query(&[("cursor", c)]);
-    }
-    let resp = req.send().await.map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub(crate) async fn forum_pin_post(
     channel_id: String,
     post_id: String,
@@ -799,14 +775,15 @@ pub(crate) async fn get_pinned_messages(
         hub_url.trim_end_matches('/'),
         channel_id
     );
-    let res = state
-        .http_client
-        .get(&url)
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    res.json().await.map_err(|e| e.to_string())
+    let rows = crate::paging::fetch_all_pages(
+        &state.http_client,
+        &token,
+        &url,
+        "message_id",
+        "get_pinned_messages",
+    )
+    .await?;
+    Ok(serde_json::Value::Array(rows))
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

@@ -8,5 +8,12 @@
     "i18next": ">=23",
     "i18next-icu": ">=2",
     "react-i18next": ">=14"
+  },
+  "scripts": {
+    "check-hardcoded": "node find-hardcoded.mjs",
+    "baseline-hardcoded": "node find-hardcoded.mjs --baseline"
+  },
+  "devDependencies": {
+    "intl-messageformat": "^11.2.8"
   }
 }

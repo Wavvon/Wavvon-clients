@@ -16,46 +16,6 @@ pub(crate) struct EventSlotInput {
 }
 
 #[tauri::command]
-pub(crate) async fn list_events(
-    upcoming: bool,
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
-    let (hub_url, token) = active_session(&state)?;
-    let url = if upcoming {
-        format!("{hub_url}/events?upcoming=true&limit=20")
-    } else {
-        format!("{hub_url}/events?limit=20")
-    };
-    let res = state
-        .http_client
-        .get(url)
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    res.json().await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub(crate) async fn rsvp_event(
-    event_id: String,
-    status: String,
-    slot_id: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
-    state
-        .http_client
-        .post(format!("{hub_url}/events/{event_id}/rsvp"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "status": status, "slot_id": slot_id }))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn create_event(
     channel_id: String,
@@ -461,14 +421,9 @@ pub(crate) async fn get_channel_polls(
         hub_url.trim_end_matches('/'),
         channel_id
     );
-    let res = state
-        .http_client
-        .get(&url)
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    res.json().await.map_err(|e| e.to_string())
+    let rows = crate::paging::fetch_all_pages(&state.http_client, &token, &url, "id", "list_polls")
+        .await?;
+    Ok(serde_json::Value::Array(rows))
 }
 
 #[tauri::command]

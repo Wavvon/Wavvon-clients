@@ -136,7 +136,7 @@ export function FriendsModal({ actions, onClose, onToast, onMessage }: Props) {
           </div>
 
           {loading ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{t("friends.loading")}</p>
           ) : (
             <>
               {pending.length > 0 && (

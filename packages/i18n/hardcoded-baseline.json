@@ -1,0 +1,23 @@
+{
+  "total": 31,
+  "files": {
+    "apps/desktop/src/AccountRoot.tsx": 1,
+    "apps/desktop/src/components/SettingsPage.tsx": 4,
+    "apps/web/src/components/identity/IdentitySetupScreen.tsx": 1,
+    "apps/web/src/components/settings/tabs/AppearanceTab.tsx": 4,
+    "apps/web/src/components/settings/tabs/ManageAccountsTab.tsx": 1,
+    "apps/web/src/components/voice/MicLevelMeter.tsx": 1,
+    "apps/web/src/components/voice/VideoPipWindow.tsx": 1,
+    "packages/ui/src/components/admin/ColorSwatchPicker.tsx": 1,
+    "packages/ui/src/components/admin/HubIconsSection.tsx": 1,
+    "packages/ui/src/components/admin/SoundboardAdminSection.tsx": 1,
+    "packages/ui/src/components/channels/ChannelContextMenu.tsx": 1,
+    "packages/ui/src/components/channels/ChannelSettingsModal.tsx": 4,
+    "packages/ui/src/components/layout/WelcomeScreen.tsx": 1,
+    "packages/ui/src/components/MessageContent.tsx": 3,
+    "packages/ui/src/components/polls/PollCard.tsx": 2,
+    "packages/ui/src/components/ScreenShareViewer.tsx": 1,
+    "packages/ui/src/components/users/UserContextMenu.tsx": 2,
+    "packages/ui/src/components/users/UserProfileCard.tsx": 1
+  }
+}

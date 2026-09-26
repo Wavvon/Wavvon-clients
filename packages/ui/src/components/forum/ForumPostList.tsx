@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { PostSummary, ForumTagDef, User } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
 import type { ForumActions } from "./ForumView";
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, onNewPost, allianceId, users }: Props) {
+  const { t } = useTranslation();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
@@ -61,9 +63,9 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
   return (
     <div className="forum-list">
       <div className="forum-list-header">
-        <h2 className="forum-list-title">Posts</h2>
+        <h2 className="forum-list-title">{t("forum.list.title")}</h2>
         {canCreatePost && (
-          <button className="btn-primary" onClick={onNewPost}>New post</button>
+          <button className="btn-primary" onClick={onNewPost}>{t("forum.list.new_post")}</button>
         )}
       </div>
       {tags.length > 0 && (
@@ -74,7 +76,7 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
             onClick={() => setActiveTagId(undefined)}
             aria-pressed={activeTagId === undefined}
           >
-            All
+            {t("forum.list.all_tags")}
           </button>
           {tags.map((tag) => (
             <button
@@ -93,7 +95,7 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
       {error && <p className="error-text">{error}</p>}
       {pinned.length > 0 && (
         <div className="forum-pinned-band">
-          <span className="forum-section-label muted">Pinned</span>
+          <span className="forum-section-label muted">{t("forum.list.pinned")}</span>
           {pinned.map((p) => <ForumPostRow key={p.id} post={p} users={users} onClick={() => onOpenPost(p)} />)}
         </div>
       )}
@@ -106,17 +108,18 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
         </div>
       )}
       {posts.length === 0 && !loading && !error && (
-        <p className="muted" style={{ padding: "24px 0" }}>No posts yet. Be the first!</p>
+        <p className="muted" style={{ padding: "24px 0" }}>{t("forum.list.empty")}</p>
       )}
-      {loading && <p className="muted">Loading…</p>}
+      {loading && <p className="muted">{t("forum.list.loading")}</p>}
       {hasMore && !loading && (
-        <button className="btn-secondary" onClick={() => void load(false, cursor, activeTagId)}>Load more</button>
+        <button className="btn-secondary" onClick={() => void load(false, cursor, activeTagId)}>{t("forum.list.load_more")}</button>
       )}
     </div>
   );
 }
 
 function ForumPostRow({ post, users, onClick }: { post: PostSummary; users: User[]; onClick: () => void }) {
+  const { t } = useTranslation();
   const author = users.find((u) => u.public_key === post.author_pubkey)?.display_name
     || formatPubkey(post.author_pubkey);
   return (
@@ -129,9 +132,9 @@ function ForumPostRow({ post, users, onClick }: { post: PostSummary; users: User
     >
       <div className="forum-post-row-main">
         <span className="forum-post-title">
-          {post.is_deleted ? "[deleted]" : (post.title || "(no title)")}
-          {post.is_pinned && <span className="forum-badge pin" title="Pinned">📌</span>}
-          {post.is_locked && <span className="forum-badge lock" title="Locked">🔒</span>}
+          {post.is_deleted ? t("forum.detail.deleted_title") : (post.title || t("forum.detail.no_title"))}
+          {post.is_pinned && <span className="forum-badge pin" title={t("forum.list.pinned")}>📌</span>}
+          {post.is_locked && <span className="forum-badge lock" title={t("forum.list.locked")}>🔒</span>}
           {!post.is_deleted && post.tags && post.tags.length > 0 && (
             <span className="forum-tag-row inline">
               {post.tags.map((tag) => (

@@ -3,6 +3,16 @@ import { hexToBytes, voicePacketSeal, voicePacketOpen } from '@wavvon/core';
 import { getScoped, setScoped } from '../utils/accountScope';
 import { VoiceKeyManager, type VoiceKeyBundle } from './voiceKeys';
 import { parseDownlinkDatagram, peekSealedKeyId, ReplayGuard } from './voiceDatagram';
+import { nextPlayoutStart } from './voicePlayout';
+import { lossPercent, trackPacket, type LossTracker } from './connectionStats';
+import {
+  DEFAULT_SPEAKING,
+  INITIAL_SPEAKING_STATE,
+  frameEnergy,
+  nextSpeakingState,
+  effectiveVad,
+  type SpeakingState,
+} from './speakingDetector';
 
 export interface VoiceZoneAttenuation {
   model: 'linear' | 'inverse_square' | 'step' | 'exponential';
@@ -48,6 +58,8 @@ export interface VoiceSessionHandlers {
    *  "E2E key distribution") — the WebTransport session has no signaling
    *  channel of its own, only datagrams. */
   sendKeyOffer: (channelId: string, bundles: VoiceKeyBundle[]) => void;
+  /** Called only when speech starts or stops, never per frame. */
+  sendSpeaking: (channelId: string, speaking: boolean) => void;
 }
 
 /** What `voice_join` gets back from the hub (the `voice_joined` reply) —
@@ -69,6 +81,10 @@ export interface AudioProfileConfig {
   customApp?: 'voip' | 'audio' | 'lowdelay';
   customNoiseSuppress?: boolean;
   customVad?: boolean;
+  /** Sensitivity under every gating profile; customVadThreshold overrides it
+   *  inside custom only. Without this the engine could not see a threshold
+   *  set outside the custom panel — see effectiveVad. */
+  vadThreshold?: number;
   customVadThreshold?: number;
   customChannels?: 1 | 2;
   customFrameMs?: 20 | 40 | 60;
@@ -149,6 +165,15 @@ export class VoiceWtSession {
   private sampleAccumLen = 0;
   private gainNodes: Map<number, GainNode> = new Map();
   private senderIdToPubkey: Map<number, string> = new Map();
+  /** Per-sender playout clock: when that sender's last scheduled
+   *  frame ends. Cleared when they leave, so a rejoin does not
+   *  inherit a stale future timestamp and start out silent. */
+  private playoutEnd: Map<number, number> = new Map();
+  private speakingState: SpeakingState = INITIAL_SPEAKING_STATE;
+  /** Per-sender inbound loss trackers, keyed by sender id. Fed from the
+   *  cleartext `ctr` in each packet header, so gaps are visible without
+   *  decrypting anything. */
+  private lossBySender: Map<number, LossTracker> = new Map();
   private savedGains: Record<string, number>;
   private zones: Map<string, VoiceZone> = new Map();
   private myPubkey: string;
@@ -291,6 +316,11 @@ export class VoiceWtSession {
       return;
     }
 
+    this.lossBySender.set(
+      frame.senderId,
+      trackPacket(this.lossBySender.get(frame.senderId), opened.ctr),
+    );
+
     this.playPcm(new Int16Array(pcm.buffer, pcm.byteOffset, pcm.byteLength / 2), frame.senderId);
   }
 
@@ -337,9 +367,27 @@ export class VoiceWtSession {
     if (this.muted || !this.datagramWriter || !this.encoder) return;
 
     const micFrame = e.inputBuffer.getChannelData(0);
+
+    // Speech detection runs on the raw mic frame, before the soundboard mix:
+    // a clip playing through our own stream is not us talking.
+    this.updateSpeaking(micFrame);
+
     const { output, nextClip } = mixClipIntoFrame(micFrame, this.activeClip);
     this.activeClip = nextClip;
     if (!this.activeClip) this.activeClipId = null;
+
+    // "Enable voice activity detection (drops silence)" is what the settings
+    // label promises, and until now nothing read the toggle: the web engine
+    // transmitted every frame, silence included. Hold the datagram back while
+    // there is nothing to send.
+    //
+    // A playing soundboard clip counts, and has to be tested separately:
+    // `updateSpeaking` runs on the raw mic frame on purpose, so a clip never
+    // reads as speech, and gating on speech alone would silence the
+    // soundboard. Safe for receivers by construction -- `ctr` only advances on
+    // a send, so a gap is not counted as inbound loss, and the playout clock
+    // rebuilds its lead after one (voicePlayout.ts).
+    const silenceGated = !this.speakingState.speaking && !this.activeClip;
 
     let offset = 0;
 
@@ -361,10 +409,20 @@ export class VoiceWtSession {
           return;
         }
 
-        const ownKey = this.keys.ownKey();
-        const sealed = voicePacketSeal(ownKey.key, ownKey.salt, ownKey.keyId, this.keys.nextCtr(), this.timestamp, opusBytes);
+        // The encoder ran either way: it carries state between frames, and
+        // starving it through a silence would make the first frame after one
+        // pop. Only the send is skipped.
+        if (!silenceGated) {
+          const ownKey = this.keys.ownKey();
+          const sealed = voicePacketSeal(ownKey.key, ownKey.salt, ownKey.keyId, this.keys.nextCtr(), this.timestamp, opusBytes);
+          this.datagramWriter.write(sealed).catch(() => {});
+        }
+        // Advanced whether or not the frame went out: `timestamp` is a media
+        // clock, and the desktop pipeline advances it through suppressed
+        // frames too. `ctr` is the opposite -- it counts packets actually
+        // sent, so it must only move inside the branch above or receivers
+        // would read the silence as inbound loss.
         this.timestamp += OPUS_FRAME_SIZE;
-        this.datagramWriter.write(sealed).catch(() => {});
         this.sampleAccumLen = 0;
       }
     }
@@ -386,6 +444,50 @@ export class VoiceWtSession {
     return gainNode;
   }
 
+  /** Advances the speech detector and reports only the on/off edges.
+   *
+   *  Muted counts as not speaking regardless of what the mic hears: we are
+   *  sending no audio, so claiming otherwise would light our name up in
+   *  everyone's member list while they hear silence. */
+  private updateSpeaking(micFrame: Float32Array): void {
+    const vad = effectiveVad(this.audioConfig);
+
+    // VAD off: we transmit continuously, so anything but a steady "speaking"
+    // would be a lie about what the other end is hearing. One edge, no
+    // release — the desktop pipeline's else-branch does the same.
+    if (!vad.enabled) {
+      if (!this.speakingState.speaking) {
+        this.speakingState = { speaking: true, lastLoudAt: Date.now() };
+        this.handlers.sendSpeaking(this.channelId, true);
+      }
+      return;
+    }
+
+    const energy = this.muted ? 0 : frameEnergy(micFrame);
+    const next = nextSpeakingState(this.speakingState, energy, Date.now(), {
+      threshold: vad.threshold,
+      holdMs: DEFAULT_SPEAKING.holdMs,
+    });
+    if (next.speaking !== this.speakingState.speaking) {
+      this.handlers.sendSpeaking(this.channelId, next.speaking);
+    }
+    this.speakingState = next;
+  }
+
+  /** Worst inbound loss across the senders we are hearing, as a percentage,
+   *  or null when nothing has been received long enough to judge. The worst
+   *  rather than the average: one badly-reaching participant is the thing you
+   *  want to see, and averaging it against three clean streams hides it. */
+  inboundLossPercent(): number | null {
+    let worst: number | null = null;
+    for (const tracker of this.lossBySender.values()) {
+      const pct = lossPercent(tracker);
+      if (pct === null) continue;
+      if (worst === null || pct > worst) worst = pct;
+    }
+    return worst;
+  }
+
   private playPcm(pcm: Int16Array, senderId: number): void {
     if (!this.audioCtx) return;
     const buffer = this.audioCtx.createBuffer(1, pcm.length, 48000);
@@ -397,7 +499,13 @@ export class VoiceWtSession {
     src.buffer = buffer;
     const gainNode = this.getOrCreateGainNode(senderId);
     src.connect(gainNode);
-    src.start();
+
+    // Scheduled, not `start()`. See voicePlayout.ts: playing each frame the
+    // instant it arrives is gapless only when arrival is gapless, which is
+    // true on a loopback and false across the internet.
+    const at = nextPlayoutStart(this.playoutEnd.get(senderId), this.audioCtx.currentTime);
+    src.start(at);
+    this.playoutEnd.set(senderId, at + pcm.length / 48000);
   }
 
   handleRosterUpdate(participants: { sender_id: number; public_key: string }[]): void {
@@ -405,12 +513,14 @@ export class VoiceWtSession {
 
     for (const [sid] of this.senderIdToPubkey) {
       if (!activeIds.has(sid)) {
+        this.lossBySender.delete(sid);
         const gainNode = this.gainNodes.get(sid);
         if (gainNode) {
           gainNode.disconnect();
           this.gainNodes.delete(sid);
         }
         this.senderIdToPubkey.delete(sid);
+        this.playoutEnd.delete(sid);
       }
     }
 

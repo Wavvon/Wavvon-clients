@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatRelativeSigned, buildInviteLink } from "@wavvon/core";
 import type { InviteInfo, RoleInfo } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
@@ -9,7 +10,7 @@ import { safeRoleColor } from "../../utils/roleAppearance";
 const ADMIN_GRANT_DEFAULT_EXPIRY_SECS = 24 * 3600;
 
 function roleGrantsAdmin(role: RoleInfo): boolean {
-  return role.permissions.includes("admin");
+  return role.id === "builtin-owner";
 }
 
 function grantableRoles(roles: RoleInfo[], myMaxPriority: number): RoleInfo[] {
@@ -46,6 +47,7 @@ interface Props {
 }
 
 export function InviteManager(props: Props) {
+  const { t } = useTranslation();
   const { actions } = props;
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [inviteMaxUses, setInviteMaxUses] = useState("");
@@ -116,32 +118,32 @@ export function InviteManager(props: Props) {
 
   return (
     <section>
-      <h1>Invites</h1>
+      <h1>{t("invites.heading")}</h1>
       {props.isAdmin && (
         <div className="settings-section">
-          <label className="settings-label">Default role for new members</label>
-          <p className="muted">Applied when an invite doesn't itself grant a role.</p>
+          <label className="settings-label">{t("invites.default_role.title")}</label>
+          <p className="muted">{t("invites.default_role.hint")}</p>
           <div className="settings-row">
             <select value={defaultRoleId} onChange={(e) => setDefaultRoleId(e.target.value)}>
-              <option value="">None (@everyone only)</option>
+              <option value="">{t("invites.default_role.none")}</option>
               {defaultRoleOptions.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
             <button onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
-              Save
+              {t("invites.default_role.save")}
             </button>
-            {defaultRoleStatus === "saved" && <span className="muted" style={{ color: "var(--success)" }}>Saved</span>}
+            {defaultRoleStatus === "saved" && <span className="muted" style={{ color: "var(--success)" }}>{t("invites.default_role.saved")}</span>}
           </div>
           {defaultRoleError && <p className="error-text">{defaultRoleError}</p>}
         </div>
       )}
       <div className="settings-section">
-        <label className="settings-label">Create invite</label>
+        <label className="settings-label">{t("invites.create.title")}</label>
         <div className="settings-row">
           <input
             type="number"
-            placeholder="Max uses"
+            placeholder={t("invites.create.max_uses_placeholder")}
             value={forcesSingleUse ? "1" : inviteMaxUses}
             disabled={forcesSingleUse}
             onChange={(e) => setInviteMaxUses(e.target.value)}
@@ -149,7 +151,7 @@ export function InviteManager(props: Props) {
           />
           <input
             type="number"
-            placeholder="Expires in seconds"
+            placeholder={t("admin.invite.expires_placeholder")}
             value={forcesSingleUse ? String(ADMIN_GRANT_DEFAULT_EXPIRY_SECS) : inviteExpiry}
             disabled={forcesSingleUse}
             onChange={(e) => setInviteExpiry(e.target.value)}
@@ -158,19 +160,19 @@ export function InviteManager(props: Props) {
           <select
             value={grantRoleId}
             onChange={(e) => setGrantRoleId(e.target.value)}
-            title="Grant a role on redemption"
+            title={t("invites.create.grant_role_title")}
           >
-            <option value="">No role grant</option>
+            <option value="">{t("invites.create.grant_role_none")}</option>
             {grantableRoleOptions.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
           <button onClick={handleCreate}>
-            Create invite
+            {t("invites.create.submit")}
           </button>
         </div>
         {forcesSingleUse && (
-          <p className="muted">This role grants admin — the invite is forced to single-use with a 24h expiry.</p>
+          <p className="muted">{t("invites.create.admin_grant_hint")}</p>
         )}
       </div>
       {props.invites.map((inv) => {
@@ -184,7 +186,7 @@ export function InviteManager(props: Props) {
               className="btn-secondary"
               onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
             >
-              {copiedInvite === inv.code ? "Copied" : "Copy"}
+              {copiedInvite === inv.code ? t("invites.copied") : t("invites.copy")}
             </button>
             {inv.grant_role_id && (
               <span className="role-chip" style={grantedRoleColor ? { borderColor: grantedRoleColor, color: grantedRoleColor } : undefined}>
@@ -192,10 +194,10 @@ export function InviteManager(props: Props) {
               </span>
             )}
             <span className="muted">
-              {inv.uses}/{inv.max_uses ?? "∞"} uses
+              {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
               {inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}
             </span>
-            <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>Revoke</button>
+            <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
           </div>
         );
       })}

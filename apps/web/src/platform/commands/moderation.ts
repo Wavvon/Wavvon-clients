@@ -1,8 +1,11 @@
 import { hubFetch } from "../http";
+import { activeHubCapabilities } from "../session";
+import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import type { MemberHistoryEntry } from "@wavvon/ui";
 import type {
   Report,
   ModerationSettings,
+  BanInfo,
   BanlistSource,
   FederatedBanEntry,
   BanlistOverride,
@@ -171,4 +174,26 @@ export async function fetchMemberHistory(pubkey: string): Promise<MemberHistoryE
   const res = await hubFetch(`/moderation/history/${encodeURIComponent(pubkey)}`);
   const body = (await res.json()) as { entries?: MemberHistoryEntry[] };
   return body.entries ?? [];
+}
+
+/**
+ * Every ban on this hub, walked to exhaustion.
+ *
+ * The admin table wants the whole list — showing the first page of bans and
+ * saying nothing would read as "this member is not banned" to whoever is
+ * deciding whether to unban them.
+ */
+export async function listBans(): Promise<BanInfo[]> {
+  return fetchAllPages<BanInfo>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (b) => b.target_public_key,
+    fetchPage: async (params) =>
+      (await (
+        await hubFetch(params ? `/moderation/bans?${params}` : "/moderation/bans")
+      ).json()) as BanInfo[],
+    label: "listBans",
+  });
 }

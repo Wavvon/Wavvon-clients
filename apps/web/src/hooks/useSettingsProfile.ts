@@ -17,6 +17,7 @@ import { makeSeed } from "@wavvon/ui";
 import type { CustomThemeStore, NamedCustomTheme } from "../utils/customThemes";
 import { loadCustomThemeStore, saveCustomThemeStore, newCustomThemeId } from "../utils/customThemes";
 import { getScoped } from "../utils/accountScope";
+import { markIdentityBackedUp } from "../utils/identityBackup";
 
 const APPEARANCE_KEY = "wavvon:appearance";
 
@@ -146,7 +147,11 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
 
   function handleShowRecovery() {
     loadIdentity().then((rec) => {
-      if (rec) setRecoveryPhrase(seedToPhrase(rec.seed_hex));
+      if (!rec) return;
+      setRecoveryPhrase(seedToPhrase(rec.seed_hex));
+      // Reading the words is the point at which they can be written down —
+      // the only signal available short of asking the user to type them back.
+      markIdentityBackedUp(rec.id);
     });
   }
 

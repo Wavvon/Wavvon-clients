@@ -97,10 +97,10 @@ export function EventsPanel({
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>Upcoming events</h3>
+        <h3 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>{t("events.panel.title")}</h3>
         {isAdmin && (
           <button className="btn-secondary" onClick={() => setShowComposer(true)}>
-            + Create event
+            {t("events.panel.create")}
           </button>
         )}
       </div>
@@ -132,10 +132,10 @@ export function EventsPanel({
         />
       )}
 
-      {loading && <p className="muted">Loading…</p>}
+      {loading && <p className="muted">{t("events.panel.loading")}</p>}
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
       {!loading && !error && visibleEvents.length === 0 && (
-        <p className="muted">{view === "month" ? t("events.calendar.no_events") : "No upcoming events."}</p>
+        <p className="muted">{view === "month" ? t("events.calendar.no_events") : t("events.panel.empty")}</p>
       )}
 
       {visibleEvents.map((event) => (

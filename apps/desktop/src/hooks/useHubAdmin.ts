@@ -35,6 +35,7 @@ export function useHubAdmin({
   const [adminHubDescription, setAdminHubDescription] = useState("");
   const [adminHubIcon, setAdminHubIcon] = useState("");
   const [adminWelcomeLabel, setAdminWelcomeLabel] = useState("");
+  const [adminFarewellLabel, setAdminFarewellLabel] = useState("");
   const [adminWelcomeInviteUrl, setAdminWelcomeInviteUrl] = useState("");
   const [adminMembers, setAdminMembers] = useState<MemberAdminInfo[]>([]);
   const [adminBans, setAdminBans] = useState<BanInfo[]>([]);
@@ -42,6 +43,7 @@ export function useHubAdmin({
   const [requireApproval, setRequireApproval] = useState(false);
   const [minSecurityLevel, setMinSecurityLevel] = useState(0);
   const [maxChannelDepth, setMaxChannelDepth] = useState(0);
+  const [maxAttachmentBytes, setMaxAttachmentBytes] = useState(3 * 1024 * 1024);
   const [hubTimezone, setHubTimezone] = useState("");
   const [birthdaysEnabled, setBirthdaysEnabled] = useState(true);
   const [nameColorMode, setNameColorMode] = useState<NameColorMode>("role_over_user");
@@ -50,7 +52,7 @@ export function useHubAdmin({
   const [pendingMembers, setPendingMembers] = useState<PendingUser[]>([]);
   const [hubListed, setHubListedState] = useState(false);
 
-  const isAdmin = myRoles.some((r) => r.permissions.includes("admin"));
+  const isAdmin = myRoles.some((r) => r.id === "builtin-owner");
 
   function activeHubUrl(): string {
     return hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
@@ -65,12 +67,14 @@ export function useHubAdmin({
         description: string | null;
         icon: string | null;
         welcome_label: string | null;
+        farewell_label: string | null;
         welcome_invite_url: string | null;
       }>("get_hub_branding");
       setAdminHubName(branding.name);
       setAdminHubDescription(branding.description ?? "");
       setAdminHubIcon(branding.icon ?? "");
       setAdminWelcomeLabel(branding.welcome_label ?? "");
+      setAdminFarewellLabel(branding.farewell_label ?? "");
       setAdminWelcomeInviteUrl(branding.welcome_invite_url ?? "");
 
       const settings = await invoke<{
@@ -83,6 +87,7 @@ export function useHubAdmin({
         afk_channel_id?: string | null;
         afk_timeout_secs?: number;
         name_color_mode?: NameColorMode;
+        max_attachment_bytes?: number;
       }>("get_hub_settings");
       setRequireApproval(settings.require_approval);
       setMinSecurityLevel(settings.min_security_level ?? 0);
@@ -92,6 +97,7 @@ export function useHubAdmin({
       setAfkChannelId(settings.afk_channel_id ?? "");
       setAfkTimeoutSecs(settings.afk_timeout_secs ?? 300);
       setNameColorMode(settings.name_color_mode ?? "role_over_user");
+      setMaxAttachmentBytes(settings.max_attachment_bytes ?? 3 * 1024 * 1024);
     } catch (e) {
       setError(String(e));
     }
@@ -120,12 +126,14 @@ export function useHubAdmin({
         minSecurityLevel,
         maxChannelDepth,
         welcomeLabel: adminWelcomeLabel,
+        farewellLabel: adminFarewellLabel,
         welcomeInviteUrl: adminWelcomeInviteUrl,
         timezone: hubTimezone,
         birthdaysEnabled,
         afkChannelId,
         afkTimeoutSecs,
         nameColorMode,
+        maxAttachmentBytes,
       });
       const refreshed = await invoke<Hub[]>("list_hubs");
       setHubs(() => refreshed);
@@ -320,6 +328,8 @@ export function useHubAdmin({
     adminHubIcon,
     setAdminHubIcon,
     adminWelcomeLabel,
+    adminFarewellLabel,
+    setAdminFarewellLabel,
     setAdminWelcomeLabel,
     adminWelcomeInviteUrl,
     setAdminWelcomeInviteUrl,
@@ -332,6 +342,8 @@ export function useHubAdmin({
     setMinSecurityLevel,
     maxChannelDepth,
     setMaxChannelDepth,
+    maxAttachmentBytes,
+    setMaxAttachmentBytes,
     hubTimezone,
     setHubTimezone,
     birthdaysEnabled,

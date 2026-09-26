@@ -1,4 +1,9 @@
 import type { VoiceKeyBundle } from "./voiceKeys";
+import { pushSample, rttStats, type RttStats } from "./connectionStats";
+
+/** How often to probe. Two seconds keeps the readout feeling live without
+ *  making the measurement itself part of the traffic it measures. */
+const PING_INTERVAL_MS = 2000;
 
 export interface WsHandlers {
   onMessage?: (m: object) => void;
@@ -41,7 +46,7 @@ export interface WsHandlers {
     custom: string | null,
     hubId: string,
   ) => void;
-  onBotApp?: (e: object) => void;
+  onAppEvent?: (e: object) => void;
   /** Hub-pushed voice_move (events.md §7.1) — targeted-by-pubkey, like whisper. */
   onVoiceMove?: (e: object) => void;
   /** voice-transport-v2.md E2E key distribution — a peer's key offer for us. */
@@ -60,6 +65,14 @@ export class HubWebSocket {
   private backoff = BACKOFF_INITIAL;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private consecutiveFailures = 0;
+  /** Rolling round-trip samples in ms; the window size lives in
+   *  connectionStats.ts. Kept here because the socket owns the probe. */
+  private rttSamples: number[] = [];
+  /** Outbound voice loss as the relay last reported it, or null when this hub
+   *  does not report it or we are not sending voice. Latest value rather than a
+   *  window: the hub already accumulates over the session. */
+  private outboundLossPct: number | null = null;
+  private pingTimer: number | null = null;
   private pendingChunkEnvelope: { stream_id: string; is_init: boolean } | null = null;
 
   constructor(
@@ -87,6 +100,7 @@ export class HubWebSocket {
       this.backoff = BACKOFF_INITIAL;
       this.consecutiveFailures = 0;
       this.handlers.onStatusChange?.(true, this.hub_id);
+      this.startProbing();
     };
 
     this.ws.onmessage = (ev) => {
@@ -111,6 +125,7 @@ export class HubWebSocket {
     };
 
     this.ws.onclose = () => {
+      this.stopProbing();
       this.pendingChunkEnvelope = null;
       this.handlers.onStatusChange?.(false, this.hub_id);
       if (!this.closed) this.scheduleReconnect();
@@ -156,6 +171,18 @@ export class HubWebSocket {
       type === "stream_subscribed" || type === "stream_subscription_ended" || type === "hub_streams"
     ) {
       this.handlers.onScreenShare?.(tagged);
+    } else if (type === "pong") {
+      // The nonce *is* the send timestamp, so the round trip needs no table of
+      // outstanding probes: subtract and done. A pong for a probe sent before
+      // a reconnect simply reads as one large sample and ages out of the
+      // window.
+      const p = tagged as unknown as { nonce?: number; outbound_loss_pct?: number };
+      if (typeof p.nonce === "number") {
+        this.rttSamples = pushSample(this.rttSamples, Date.now() - p.nonce);
+      }
+      // Absent on a hub without the `voice.loss` capability, and absent while
+      // not sending voice. Both must read as "no number", never as 0.
+      this.outboundLossPct = typeof p.outbound_loss_pct === "number" ? p.outbound_loss_pct : null;
     } else if (type === "message_pinned" || type === "message_unpinned") {
       this.handlers.onPin?.(tagged);
     } else if (type === "poll_vote_updated") {
@@ -191,8 +218,8 @@ export class HubWebSocket {
         (tagged.custom as string | null) ?? null,
         this.hub_id,
       );
-    } else if (type === "bot_app_launch" || type === "bot_app_open" || type === "bot_app_close") {
-      this.handlers.onBotApp?.(tagged);
+    } else if (type === "app_launch" || type === "app_open" || type === "app_close") {
+      this.handlers.onAppEvent?.(tagged);
     } else if (type === "voice_zone_created") {
       this.handlers.onVoiceZoneCreated?.(tagged);
     } else if (type === "voice_zone_destroyed") {
@@ -213,14 +240,55 @@ export class HubWebSocket {
   private scheduleReconnect(): void {
     if (this.closed) return;
     this.consecutiveFailures += 1;
-    if (this.consecutiveFailures >= REAUTH_AFTER_FAILURES && this.handlers.onReauthNeeded) {
-      this.handlers.onReauthNeeded(this.hub_id);
-      return;
+    // Past a few failures the token is the likeliest suspect, so ask for a
+    // fresh one — but keep our own retry armed regardless. Re-auth is a
+    // network call like any other and fails for reasons that say nothing
+    // about this session: a 429 off the shared auth limiter, a hub halfway
+    // through a restart. Returning here left no timer, no socket and no
+    // further attempt, while the UI went on announcing "Reconnecting…" for
+    // as long as the tab stayed open. A re-auth that *succeeds* calls
+    // close() on this socket, which cancels the timer set just below.
+    if (this.consecutiveFailures >= REAUTH_AFTER_FAILURES) {
+      this.handlers.onReauthNeeded?.(this.hub_id);
     }
     this.retryTimer = setTimeout(() => {
       this.connect();
     }, this.backoff);
     this.backoff = Math.min(this.backoff * 2, BACKOFF_CAP);
+  }
+
+  /** Resolves once this socket is open, rejects if it never gets there.
+   *
+   * `send` below drops anything handed to it while the socket is still
+   * CONNECTING. On the app's own socket that is invisible — it has been open
+   * since boot — but a socket opened *in answer to a click* has not connected
+   * yet on the next microtask, and the frame goes nowhere silently. That is
+   * what alliance voice did: it built a socket to the allied hub and sent
+   * `voice_join` immediately, so the join could only ever time out. Anyone
+   * opening a socket and sending on it straight away wants this first.
+   */
+  whenOpen(timeoutMs = 15_000): Promise<void> {
+    const socket = this.ws;
+    if (!socket) return Promise.reject(new Error("WebSocket was never created"));
+    if (socket.readyState === WebSocket.OPEN) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      const done = (fn: () => void) => {
+        clearTimeout(timer);
+        socket.removeEventListener("open", onOpen);
+        socket.removeEventListener("close", onFail);
+        socket.removeEventListener("error", onFail);
+        fn();
+      };
+      const onOpen = () => done(resolve);
+      const onFail = () => done(() => reject(new Error("WebSocket closed before it opened")));
+      const timer = setTimeout(
+        () => done(() => reject(new Error("WebSocket did not open in time"))),
+        timeoutMs,
+      );
+      socket.addEventListener("open", onOpen);
+      socket.addEventListener("close", onFail);
+      socket.addEventListener("error", onFail);
+    });
   }
 
   send(msg: object): void {
@@ -259,6 +327,47 @@ export class HubWebSocket {
 
   sendVoiceKeyOffer(channelId: string, bundles: VoiceKeyBundle[]): void {
     this.send({ type: "voice_key_offer", channel_id: channelId, bundles });
+  }
+
+  /** Reports a speech on/off edge. The hub fans it out as
+   *  `voice_participant_speaking` and stamps `voice_last_active`, which is
+   *  what the AFK sweep reads — so this is not only the indicator. */
+  sendVoiceSpeaking(channelId: string, speaking: boolean): void {
+    this.send({ type: "voice_speaking", channel_id: channelId, speaking });
+  }
+
+  /** Round-trip probe. The hub echoes `nonce` untouched, so the caller times
+   *  it against its own clock and the hub keeps no state. */
+  sendPing(nonce: number): void {
+    this.send({ type: "ping", nonce });
+  }
+
+  /** Snapshot of the latency figures. Cheap to call — the UI polls it. */
+  connectionStats(): RttStats {
+    return rttStats(this.rttSamples);
+  }
+
+  /** Outbound voice loss the relay reported on the last pong, or null. */
+  outboundLossPercent(): number | null {
+    return this.outboundLossPct;
+  }
+
+  /** Starts probing. Called on open; the interval is cleared on close so a
+   *  dropped socket stops measuring instead of piling up failed sends. */
+  private startProbing(): void {
+    this.stopProbing();
+    const probe = () => {
+      try { this.sendPing(Date.now()); } catch { /* socket not ready */ }
+    };
+    probe();
+    this.pingTimer = setInterval(probe, PING_INTERVAL_MS) as unknown as number;
+  }
+
+  private stopProbing(): void {
+    if (this.pingTimer !== null) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = null;
+    }
   }
 
   // --- Camera video signaling (full-mesh WebRTC, main WS) ---
@@ -314,8 +423,11 @@ export class HubWebSocket {
     this.send({ type: "stream_unsubscribe", source_channel_id: sourceChannelId, stream_id: streamId });
   }
 
-  unwatchVoice(): void {
-    this.send({ type: "voice_unwatch" });
+  /** Roster removal is WS-authoritative (voice-transport-v2.md): closing the
+   *  WebTransport session only clears the audio handle, so this is what
+   *  actually takes us out of the channel participant list. */
+  leaveVoice(channelId: string): void {
+    this.send({ type: "voice_leave", channel_id: channelId });
   }
 
   close(): void {

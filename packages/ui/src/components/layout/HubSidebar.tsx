@@ -21,23 +21,25 @@ interface Props {
   unreadByHub: Record<string, number>;
   pingByHub: Record<string, number | null>;
   hubNotifyMode: Record<string, NotifyMode>;
-  /** Hubs whose session is confined to the lobby (lobby-bot-survey.md
+  /** Hubs whose session is confined to the lobby (lobby-survey.md
    * Feature 1) — rendered with a small persistent badge that disappears
    * once the background PoW promotes the session, even for hubs the user
    * has navigated away from. */
   lobbyHubIds?: Set<string>;
   hasActiveHub: boolean;
-  isFarmAdmin: boolean;
   onSwitchToDms: () => void;
   onSwitchHub: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
   /** Per-hub notification mode, set from the icon's right-click menu. */
   onSetHubNotifyMode?: (hubId: string, mode: NotifyMode) => void;
   onHubReorder: (event: DragEndEvent) => void;
-  onAddHub: () => void;
-  onCreateHub: () => void;
-  onDiscover: () => void;
-  onFarmSettings: () => void;
+  /** Both unset hides the `+` entirely — the hub build has no second hub to
+   *  add and no wizard to reach. */
+  onAddHub?: () => void;
+  /** Absent when no hub directory is configured, and then the ⊕ button is
+   *  not rendered at all — the sidebar had a permanent entry to a page that
+   *  fetched a hostname which does not resolve. */
+  onDiscover?: () => void;
 }
 
 interface HubContextMenu {
@@ -48,9 +50,9 @@ interface HubContextMenu {
 
 export function HubSidebar({
   hubs, activeHubId, view, showDiscover, unreadDms, unreadByHub, pingByHub,
-  hubNotifyMode, lobbyHubIds, hasActiveHub, isFarmAdmin,
+  hubNotifyMode, lobbyHubIds, hasActiveHub,
   onSwitchToDms, onSwitchHub, onRemoveHub, onSetHubNotifyMode,
-  onHubReorder, onAddHub, onCreateHub, onDiscover, onFarmSettings,
+  onHubReorder, onAddHub, onDiscover,
 }: Props) {
   const { t } = useTranslation();
   const dndSensors = useSensors(
@@ -58,22 +60,9 @@ export function HubSidebar({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Fixed-position popover (matches the channel-list context-menu pattern):
-  // .hub-sidebar clips overflow-x, so a plain position:absolute popover
-  // anchored inside it gets silently clipped and never paints.
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const [addMenuPos, setAddMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const plusButtonRef = useRef<HTMLButtonElement>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const hubButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [hubContextMenu, setHubContextMenu] = useState<HubContextMenu | null>(null);
-
-  function toggleAddMenu() {
-    if (addMenuOpen) { setAddMenuOpen(false); return; }
-    const rect = plusButtonRef.current?.getBoundingClientRect();
-    if (rect) setAddMenuPos({ x: rect.right + 8, y: rect.top });
-    setAddMenuOpen(true);
-  }
 
   const handleHubKeyDown = useCallback((e: React.KeyboardEvent, index: number) => {
     if (e.key === "ArrowDown") {
@@ -109,7 +98,7 @@ export function HubSidebar({
     : "all";
 
   return (
-    <nav className="hub-sidebar" aria-label="Hubs">
+    <nav className="hub-sidebar" aria-label={t("hub.sidebar.aria")}>
       <div className="hub-icon-box">
         <button
           className={`hub-icon dm ${view === "dms" ? "active" : ""}`}
@@ -128,7 +117,7 @@ export function HubSidebar({
       <div className="hub-sidebar-divider" />
       <DndContext sensors={dndSensors} onDragEnd={onHubReorder}>
         <SortableContext items={hubs.map((h) => h.hub_id)} strategy={verticalListSortingStrategy}>
-          <div role="tablist" aria-label="Hub list" aria-orientation="vertical">
+          <div role="tablist" aria-label={t("hub.sidebar.list_aria")} aria-orientation="vertical">
             {hubs.map((h, index) => {
               const unread = unreadByHub[h.hub_id] || 0;
               const ping = pingByHub[h.hub_id];
@@ -190,54 +179,24 @@ export function HubSidebar({
         </SortableContext>
       </DndContext>
 
-      <button
-        ref={plusButtonRef}
-        className="hub-icon add"
-        onClick={toggleAddMenu}
-        title={t("hub.add_or_create")}
-      >
-        +
-      </button>
-      {addMenuOpen && addMenuPos && (
-        <div
-          className="context-menu-overlay"
-          onClick={() => setAddMenuOpen(false)}
-          onContextMenu={(e) => { e.preventDefault(); setAddMenuOpen(false); }}
-        >
-          <div
-            className="context-menu"
-            style={{ top: addMenuPos.y, left: addMenuPos.x }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className="context-menu-item" onClick={() => { setAddMenuOpen(false); onAddHub(); }}>
-              {t("hub.join")}
-            </button>
-            <button className="context-menu-item" onClick={() => { setAddMenuOpen(false); onCreateHub(); }}>
-              {t("hub.create")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="hub-sidebar-divider" />
-      <button
-        className={`hub-icon discover ${showDiscover ? "active" : ""}`}
-        onClick={onDiscover}
-        title={t("hub.discover")}
-      >
-        ⊕
-      </button>
-      {isFarmAdmin && (
-        <button
-          className="hub-icon"
-          onClick={onFarmSettings}
-          title={t("hub.farm_settings")}
-          style={{ fontSize: 14 }}
-        >
-          ⚙
+      {onAddHub && (
+        <button className="hub-icon add" onClick={onAddHub} title={t("hub.join")}>
+          +
         </button>
       )}
 
+      {onDiscover && (
+        <>
+          <div className="hub-sidebar-divider" />
+          <button
+            className={`hub-icon discover ${showDiscover ? "active" : ""}`}
+            onClick={onDiscover}
+            title={t("hub.discover")}
+          >
+            ⊕
+          </button>
+        </>
+      )}
       {hubContextMenu && contextHub && (
         <div
           className="context-menu-overlay"

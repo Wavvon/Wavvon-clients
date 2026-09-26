@@ -6,8 +6,6 @@
 
 // Channel is shared with the channel-tree helpers in @wavvon/utils.
 export type { Channel } from "@wavvon/core";
-import type { FarmSettings, FarmHubEntry, FarmUserEntry, FarmServerEntry } from "@wavvon/ui";
-export type { FarmSettings, FarmHubEntry, FarmUserEntry, FarmServerEntry };
 
 export interface HubIcon {
   id: string;
@@ -39,14 +37,6 @@ export type { SoundboardClip } from "@wavvon/ui";
  *  explicit picks. Free-text custom status was removed (decisions.md 2026-07-12). */
 export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
 
-export interface BotInfo {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  token?: string;
-}
-
 export interface VoiceParticipant {
   public_key: string;
   display_name: string | null;
@@ -56,7 +46,6 @@ export type { Hub } from "@wavvon/ui";
 
 import type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile } from "@wavvon/ui";
 export type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile };
-
 
 export interface MeInfo {
   public_key: string;
@@ -261,7 +250,7 @@ export interface LobbyStatus {
   welcome_md: string | null;
 }
 
-// ---- Bot Challenge ----
+// ---- Admission challenge ----
 
 export interface ChallengePrompt {
   id: string;
@@ -338,88 +327,15 @@ export interface SurveyResponseAdmin {
   }>;
 }
 
-// ---- Bots ----
-
-export interface BotAdminInfo {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  webhook_url: string | null;
-}
-
-export interface BotCreatedResult {
-  public_key: string;
-  display_name: string;
-  created_by: string;
-  created_at: number;
-  token: string;
-}
-
-export interface BotSlashCommandInfo {
-  command: string;
-  description: string;
-}
-
-export interface BotDetailInfo extends BotAdminInfo {
-  commands: BotSlashCommandInfo[];
-}
-
-// ---- Bot message types ----
+// ---- Rich message content ----
 
 export type {
-  Embed, EmbedField, ComponentRow, BotComponent, BotButton, BotSelect, SelectOption,
+  Embed, EmbedField, ComponentRow, MessageComponent, MessageButton, MessageSelect, SelectOption,
 } from "@wavvon/ui";
 
-// ---- Bot profile (public card) ----
+// ---- App profile ----
 
-export type { BotCommandDef, BotProfile } from "@wavvon/ui";
-
-// ---- External bots ----
-
-export interface ExternalBotRow {
-  public_key: string;
-  display_name: string | null;
-  local_note: string | null;
-  approval_status: "pending" | "active" | "removed";
-  last_seen_at: number | null;
-}
-
-export interface ExternalBotInviteResult {
-  bot_invite_token: string;
-  pubkey: string;
-}
-
-// ---- Farm ----
-
-export type FarmCreationPolicy = "open" | "admin_only" | "disabled";
-
-export interface FarmUsersResponse {
-  users: FarmUserEntry[];
-  total: number;
-  page: number;
-  limit: number;
-  next_cursor: string | null;
-}
-
-export type { FarmPublicInfo } from "@wavvon/ui";
-
-export interface FarmInfo {
-  kind: "wavvon-farm";
-  name: string;
-  description: string;
-  public_key: string;
-  admin_pubkey: string;
-  directory_public: boolean;
-  policy: {
-    creation_policy: FarmCreationPolicy;
-    max_hubs_per_creator: number;
-    hub_creation_open: boolean;
-    allow_discovery_listing: boolean;
-  };
-}
-
-export type { FarmHubQuota, CreatedFarmHub } from "@wavvon/ui";
+export type { AppCommandDef, AppProfile } from "@wavvon/ui";
 
 // ---- Webhooks ----
 
@@ -509,6 +425,11 @@ export interface CertSettings {
   cert_min_age_days: number;
   cert_validity_days: number;
   cert_trusted_issuers: string[];
+  /** issuer pubkey → base URL, for issuers this hub can pull a portfolio
+   *  from (hub-certifications.md §11). Sparse: an issuer without an
+   *  address is still trusted, just not pullable. Absent from hubs that
+   *  predate the field. */
+  cert_issuer_urls?: Record<string, string>;
 }
 
 // ---- Block / Ignore / DND ----
@@ -628,21 +549,21 @@ export interface TauriFile extends File {
   path?: string;
 }
 
-// ---- Bot mini-app events ----
+// ---- Mini-app events ----
 
-export type { BotAppLaunchEvent } from "@wavvon/ui";
+export type { AppLaunchEvent } from "@wavvon/ui";
 
-export interface BotAppOpenEvent {
-  type: 'bot_app_open';
-  bot_id: string;
+export interface AppOpenEvent {
+  type: 'app_open';
+  app_id: string;
   channel_id: string;
   mini_app_url: string;
   session_token: string;
   requires_camera: boolean;
 }
 
-export interface BotAppCloseEvent {
-  type: 'bot_app_close';
-  bot_id: string;
+export interface AppCloseEvent {
+  type: 'app_close';
+  app_id: string;
   channel_id: string;
 }

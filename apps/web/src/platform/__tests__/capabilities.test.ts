@@ -88,13 +88,13 @@ describe("hubSupports", () => {
   });
 });
 
-// A farm-hosted hub lives at an owner-chosen name that can change. It reports
+// A hub sharing a host with others lives at an owner-chosen name that can
 // the current one as `canonical_url`, and the client follows it — keyed on the
 // pubkey, which never changes. That is what makes following safe: we move
 // where we look, not who we think we are talking to.
 describe("refreshHubInfo following a renamed hub", () => {
-  const OLD_URL = "https://farm.example/hub/pippo";
-  const NEW_URL = "https://farm.example/hub/mangiadapippo";
+  const OLD_URL = "https://host.example/hub/pippo";
+  const NEW_URL = "https://host.example/hub/mangiadapippo";
 
   function connectAt(url: string) {
     setSession(HUB_ID, {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { HubBadge, HubSelfTagSettings, PendingBadgeOffer } from "../../types";
 
 export interface ServerTagsSectionActions {
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function ServerTagsSection({ actions }: Props) {
+  const { t } = useTranslation();
   const [tagsInput, setTagsInput] = useState("");
   const [nsfw, setNsfw] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | string>("idle");
@@ -94,71 +96,65 @@ export function ServerTagsSection({ actions }: Props) {
 
   return (
     <section>
-      <h1>Server Tags &amp; Badges</h1>
+      <h1>{t("hub.admin.tags.title")}</h1>
 
       <div className="settings-section">
-        <label className="settings-label">Self-tags</label>
-        <p className="muted">
-          Comma-separated keywords for discovery. Max 12 tags, 1–32 chars each.
-          Reserved words (verified, certified, etc.) are rejected.
-        </p>
+        <label className="settings-label">{t("hub.admin.tags.self.label")}</label>
+        <p className="muted">{t("hub.admin.tags.self.hint")}</p>
         <input
           type="text"
           value={tagsInput}
           onChange={(e) => setTagsInput(e.target.value)}
-          placeholder="gaming, english, casual"
+          placeholder={t("hub.admin.tags.self.placeholder")}
           style={{ width: "100%" }}
         />
         <label className="checkbox-label" style={{ marginTop: 8 }}>
           <input type="checkbox" checked={nsfw} onChange={(e) => setNsfw(e.target.checked)} />
-          This community has 18+ / NSFW content
+          {t("hub.admin.tags.nsfw")}
         </label>
-        {saveStatus === "saved" && <p className="muted">Saved.</p>}
+        {saveStatus === "saved" && <p className="muted">{t("hub.admin.tags.saved")}</p>}
         {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
           <p className="error-text">{saveStatus}</p>
         )}
         <button onClick={handleSaveTags} disabled={saveStatus === "saving"}>
-          {saveStatus === "saving" ? "Saving…" : "Save tags"}
+          {saveStatus === "saving" ? t("hub.admin.tags.saving") : t("hub.admin.tags.save")}
         </button>
       </div>
 
       <div className="settings-section">
-        <label className="settings-label">Badges we hold</label>
-        <p className="muted">
-          Third-party attestations from other hubs. Each badge is cryptographically
-          signed by the issuing hub and visible on your public profile.
-        </p>
-        {loadingBadges && <p className="muted">Loading…</p>}
+        <label className="settings-label">{t("hub.admin.tags.badges.label")}</label>
+        <p className="muted">{t("hub.admin.tags.badges.hint")}</p>
+        {loadingBadges && <p className="muted">{t("hub.admin.tags.badges.loading")}</p>}
         {badges.length === 0 && !loadingBadges && (
-          <p className="muted">No accepted badges yet.</p>
+          <p className="muted">{t("hub.admin.tags.badges.empty")}</p>
         )}
         {badges.map((b) => (
           <div key={b.id} className="settings-row">
             <div>
               <span className="discover-badge-attestation">🏅 {b.label}</span>
               <span className="muted" style={{ marginLeft: 8, fontSize: "var(--text-sm)" }}>
-                from {b.issuer_url}
+                {t("hub.admin.tags.from", { url: b.issuer_url })}
               </span>
             </div>
-            <button className="btn-secondary danger" onClick={() => handleRemoveBadge(b.id)}>Remove</button>
+            <button className="btn-secondary danger" onClick={() => handleRemoveBadge(b.id)}>{t("hub.admin.tags.badges.remove")}</button>
           </div>
         ))}
       </div>
 
       {pendingBadges.length > 0 && (
         <div className="settings-section">
-          <label className="settings-label">Pending badge offers</label>
+          <label className="settings-label">{t("hub.admin.tags.offers.label")}</label>
           {pendingBadges.map((p) => (
             <div key={p.id} className="settings-row">
               <div>
                 <span>🏅 {p.label}</span>
                 <span className="muted" style={{ marginLeft: 8, fontSize: "var(--text-sm)" }}>
-                  from {p.issuer_url}
+                  {t("hub.admin.tags.from", { url: p.issuer_url })}
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => handleAccept(p.id)}>Accept</button>
-                <button className="btn-secondary" onClick={() => handleDecline(p.id)}>Decline</button>
+                <button onClick={() => handleAccept(p.id)}>{t("hub.admin.tags.offers.accept")}</button>
+                <button className="btn-secondary" onClick={() => handleDecline(p.id)}>{t("hub.admin.tags.offers.decline")}</button>
               </div>
             </div>
           ))}
@@ -166,28 +162,25 @@ export function ServerTagsSection({ actions }: Props) {
       )}
 
       <div className="settings-section">
-        <label className="settings-label">Grant a badge to another hub</label>
-        <p className="muted">
-          Sign an attestation for another hub. They must accept it before it appears
-          on their profile. Badges do not auto-expire unless you set an expiry.
-        </p>
+        <label className="settings-label">{t("hub.admin.tags.grant.label")}</label>
+        <p className="muted">{t("hub.admin.tags.grant.hint")}</p>
         <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
           <input
             type="text"
-            placeholder="Target hub URL"
+            placeholder={t("hub.admin.tags.grant.target_placeholder")}
             value={grantTargetUrl}
             onChange={(e) => setGrantTargetUrl(e.target.value)}
             style={{ width: "100%" }}
           />
           <input
             type="text"
-            placeholder="Badge label (e.g. raid-alliance-certified)"
+            placeholder={t("hub.admin.tags.grant.label_placeholder")}
             value={grantLabel}
             onChange={(e) => setGrantLabel(e.target.value)}
             style={{ width: "100%" }}
           />
         </div>
-        {grantStatus === "ok" && <p className="muted">Badge offer sent.</p>}
+        {grantStatus === "ok" && <p className="muted">{t("hub.admin.tags.grant.sent")}</p>}
         {grantStatus !== "idle" && grantStatus !== "sending" && grantStatus !== "ok" && (
           <p className="error-text">{grantStatus}</p>
         )}
@@ -195,7 +188,7 @@ export function ServerTagsSection({ actions }: Props) {
           onClick={handleGrantBadge}
           disabled={!grantTargetUrl.trim() || !grantLabel.trim() || grantStatus === "sending"}
         >
-          {grantStatus === "sending" ? "Sending…" : "Grant badge"}
+          {grantStatus === "sending" ? t("hub.admin.tags.grant.sending") : t("hub.admin.tags.grant.submit")}
         </button>
       </div>
     </section>

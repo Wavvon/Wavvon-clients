@@ -13,11 +13,6 @@ export async function createAlliance(name: string): Promise<Alliance> {
   return r.json() as Promise<Alliance>;
 }
 
-export async function getAlliance(allianceId: string): Promise<AllianceDetail> {
-  const r = await hubFetch(`/alliances/${allianceId}`);
-  return r.json() as Promise<AllianceDetail>;
-}
-
 export async function leaveAlliance(allianceId: string): Promise<void> {
   await hubFetch(`/alliances/${allianceId}/leave`, { method: "DELETE" });
 }
@@ -100,4 +95,21 @@ export async function joinAllianceByCode(
     }),
   });
   return r.json() as Promise<AllianceDetail>;
+}
+
+/** Turns remote voice joins on or off for one **leaf** channel we share
+ *  (alliances.md "Moderation"). Re-shares the channel with the policy set:
+ *  the share upsert also rewrites include_descendants, which is why this is
+ *  for leaves only — on a category it would silently unshare the subtree.
+ *  A descendant that has no direct share row gets one here, which is exactly
+ *  how a single room inside a recursively shared category is turned off. */
+export async function setAllianceVoiceRemoteJoin(
+  allianceId: string,
+  channelId: string,
+  policy: "allowed" | "none",
+): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/channels`, {
+    method: "POST",
+    body: JSON.stringify({ channel_id: channelId, include_descendants: false, voice_remote_join: policy }),
+  });
 }

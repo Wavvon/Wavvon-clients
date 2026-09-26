@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 
 const PUBKEY_RE = /^[0-9a-fA-F]{64}$/;
@@ -38,6 +39,7 @@ function errorMessage(e: unknown): string {
 }
 
 export function ChannelBansTab({ channelId, actions, users, supportsReason }: Props) {
+  const { t } = useTranslation();
   const [bans, setBans] = useState<ChannelBanRow[] | null>(null);
   const [pubkey, setPubkey] = useState("");
   const [reason, setReason] = useState("");
@@ -74,7 +76,7 @@ export function ChannelBansTab({ channelId, actions, users, supportsReason }: Pr
 
   return (
     <div>
-      <p className="muted">Banned users can't read or post in this channel, even if their role otherwise allows it.</p>
+      <p className="muted">{t("channel.bans.hint")}</p>
       {error && <div className="error" style={{ marginBottom: "var(--space-2)" }}>{error}</div>}
 
       <div className="settings-row" style={{ gap: "var(--space-2)", alignItems: "stretch" }}>
@@ -82,10 +84,10 @@ export function ChannelBansTab({ channelId, actions, users, supportsReason }: Pr
           <select
             value={pubkey}
             onChange={(e) => setPubkey(e.target.value)}
-            aria-label="User to ban"
+            aria-label={t("channel.bans.user_aria")}
             style={{ flex: 1 }}
           >
-            <option value="">— pick a user —</option>
+            <option value="">{t("channel.bans.pick_user")}</option>
             {candidates.map((u) => (
               <option key={u.public_key} value={u.public_key}>
                 {u.display_name || formatPubkey(u.public_key)}
@@ -98,8 +100,8 @@ export function ChannelBansTab({ channelId, actions, users, supportsReason }: Pr
             value={pubkey}
             onChange={(e) => setPubkey(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleBan(); }}
-            placeholder="Public key to ban"
-            aria-label="Public key to ban"
+            placeholder={t("channel.bans.pubkey_placeholder")}
+            aria-label={t("channel.bans.pubkey_placeholder")}
             style={{ flex: 1 }}
           />
         )}
@@ -109,18 +111,18 @@ export function ChannelBansTab({ channelId, actions, users, supportsReason }: Pr
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleBan(); }}
-            placeholder="Reason (optional)"
-            aria-label="Ban reason"
+            placeholder={t("channel.bans.reason_placeholder")}
+            aria-label={t("channel.bans.reason_aria")}
             style={{ flex: 1 }}
           />
         )}
-        <button onClick={handleBan} disabled={busy || !pubkey.trim()}>Ban</button>
+        <button onClick={handleBan} disabled={busy || !pubkey.trim()}>{t("channel.bans.ban")}</button>
       </div>
 
       {bans === null ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("channel.bans.loading")}</p>
       ) : bans.length === 0 ? (
-        <p className="muted" style={{ marginTop: "var(--space-2)" }}>No one is banned from this channel.</p>
+        <p className="muted" style={{ marginTop: "var(--space-2)" }}>{t("channel.bans.empty")}</p>
       ) : (
         bans.map((b) => {
           const u = users?.find((x) => x.public_key === b.pubkey);
@@ -131,7 +133,7 @@ export function ChannelBansTab({ channelId, actions, users, supportsReason }: Pr
                 {b.reason && <span className="muted"> — {b.reason}</span>}
               </span>
               <button className="btn-small btn-secondary" disabled={busy} onClick={() => run(() => actions.unbanFromChannel(channelId, b.pubkey))}>
-                Unban
+                {t("channel.bans.unban")}
               </button>
             </div>
           );

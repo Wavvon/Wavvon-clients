@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 function VideoTile({ stream, label, muted }: { stream: MediaStream; label: string; muted?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -50,6 +51,7 @@ export function VideoPipWindow({
   remoteStreams: Map<string, MediaStream>;
   nameFor: (pubkey: string) => string;
 }) {
+  const { t } = useTranslation();
   const boxRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => loadJson(POS_KEY));
   const [size] = useState<{ w: number; h: number }>(() => loadJson(SIZE_KEY) ?? { w: 320, h: 260 });
@@ -128,7 +130,7 @@ export function VideoPipWindow({
         <span className="video-pip-title">📷 {title}</span>
       </div>
       <div className="video-pip-body">
-        {localStream && <VideoTile stream={localStream} label="You" muted />}
+        {localStream && <VideoTile stream={localStream} label={t("voice.pip.you")} muted />}
         {remotes.map(([pk, s]) => (
           <VideoTile key={pk} stream={s} label={nameFor(pk)} />
         ))}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Poll } from "../../types";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDelete }: Props) {
+  const { t } = useTranslation();
   const [voting, setVoting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
             className="btn-ghost"
             style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
             onClick={handleDelete}
-            title="Delete poll"
+            title={t("polls.card.delete")}
           >
             ✕
           </button>

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, HUB_URL, OWNER_PUBKEY, hubApi } from "./helpers/live";
+import { expectInHub, HUB_URL, OWNER_PUBKEY, hubApi, APP_URL } from "./helpers/live";
 
 // P28 — multi-device pairing. The owner (existing device) enables multi-device,
 // creates a pairing offer, and approves the new device's claim. A brand-new
@@ -22,7 +22,11 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
     .locator(".settings-section", { has: page.getByText("Devices") })
     .first();
   await expect(devices).toBeVisible({ timeout: 10000 });
-  await devices.getByRole("button", { name: "Enable multi-device" }).click();
+  // Opting in is a precondition here, not the subject, and an identity can
+  // arrive already opted in — a self-cert is stored during setup now, so the
+  // button is simply absent and the master key is already on screen.
+  const enable = devices.getByRole("button", { name: "Enable multi-device" });
+  if (await enable.isVisible().catch(() => false)) await enable.click();
   await expect(devices.getByText(/Master key:/)).toBeVisible({ timeout: 15000 });
 
   // Owner: start pairing and grab the code. Keep settings open so the
@@ -37,7 +41,7 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
 
   // New device: a fresh context with no identity.
   const context = await browser.newContext({
-    baseURL: "http://localhost:1421",
+    baseURL: APP_URL,
     storageState: { cookies: [], origins: [] },
   });
   try {

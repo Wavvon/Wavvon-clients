@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { HubEvent } from "../../types";
-import { eventsByDay, monthGrid } from "../calendar";
+import { eventsByDay, localDateTimeValue, monthGrid, nextHalfHourValue } from "../calendar";
 
 function makeEvent(overrides: Partial<HubEvent> = {}): HubEvent {
   return {
@@ -86,5 +86,40 @@ describe("eventsByDay", () => {
 
   it("returns an empty map for no events", () => {
     expect(eventsByDay([]).size).toBe(0);
+  });
+});
+
+describe("localDateTimeValue", () => {
+  it("formats a local datetime-local value without shifting the timezone", () => {
+    // Local constructor, so this is 21:05 wherever the test runs — the point
+    // is that the output says 21:05 and not the UTC equivalent.
+    expect(localDateTimeValue(new Date(2026, 7, 21, 21, 5))).toBe("2026-08-21T21:05");
+  });
+
+  it("zero-pads month, day, hour and minute", () => {
+    expect(localDateTimeValue(new Date(2026, 0, 2, 3, 4))).toBe("2026-01-02T03:04");
+  });
+});
+
+describe("nextHalfHourValue", () => {
+  it("rounds up to :30 within the first half of the hour", () => {
+    expect(nextHalfHourValue(new Date(2026, 7, 21, 14, 10))).toBe("2026-08-21T14:30");
+  });
+
+  it("rounds up to the next hour from exactly :30", () => {
+    expect(nextHalfHourValue(new Date(2026, 7, 21, 14, 30))).toBe("2026-08-21T15:00");
+  });
+
+  it("rounds up to the next hour in the second half", () => {
+    expect(nextHalfHourValue(new Date(2026, 7, 21, 14, 45))).toBe("2026-08-21T15:00");
+  });
+
+  it("rolls over midnight, and with it the date", () => {
+    expect(nextHalfHourValue(new Date(2026, 7, 21, 23, 45))).toBe("2026-08-22T00:00");
+  });
+
+  it("never returns a value in the past", () => {
+    const now = new Date(2026, 7, 21, 9, 0);
+    expect(new Date(nextHalfHourValue(now)).getTime()).toBeGreaterThan(now.getTime());
   });
 });

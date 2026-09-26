@@ -8,7 +8,7 @@ pub(crate) fn open_mini_app(
     hub_url: String,
     token: String,
     channel_id: String,
-    bot_id: String,
+    app_id: String,
     requires_camera: bool,
 ) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window(&label) {
@@ -23,7 +23,7 @@ pub(crate) fn open_mini_app(
          window.__WAVVON_CHANNEL__ = {:?}; \
          window.__WAVVON_BOT_ID__ = {:?}; \
          window.__WAVVON_REQUIRES_CAMERA__ = {};",
-        hub_url, token, channel_id, bot_id, requires_camera
+        hub_url, token, channel_id, app_id, requires_camera
     );
 
     WebviewWindowBuilder::new(

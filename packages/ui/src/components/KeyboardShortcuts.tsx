@@ -1,32 +1,36 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { FocusTrap } from "./FocusTrap";
 
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 const mod = isMac ? "Cmd" : "Ctrl";
 
-const SHORTCUTS: { binding: string; action: string }[] = [
-  { binding: `${mod}+K`, action: "Open channel palette" },
-  { binding: "Esc", action: "Close active modal / palette / settings" },
-  { binding: "Enter", action: "Send message (composer focused)" },
-  { binding: "Shift+Enter", action: "Newline in composer" },
-  { binding: "Alt+↑ / Alt+↓", action: "Previous / next channel" },
-  { binding: `${mod}+↑ / ${mod}+↓`, action: "Previous / next hub" },
-  { binding: `${mod}+,`, action: "Open Settings" },
-  { binding: `${mod}+Shift+M`, action: "Toggle self-mute" },
-  { binding: `${mod}+Shift+D`, action: "Toggle self-deafen" },
-  { binding: `${mod}+Shift+V`, action: "Join / leave voice on selected channel" },
-  { binding: `${mod}+/`, action: "Open this cheat-sheet" },
-  { binding: `${mod}+F`, action: "Focus channel search" },
-  { binding: `${mod}+E`, action: "Open emoji picker on focused message" },
-  { binding: "/", action: "Focus composer (when not in a text field)" },
-  { binding: "↑ / ↓", action: "Navigate message list (when focused)" },
-  { binding: "↑ / ↓", action: "Navigate hub / channel / member lists" },
-  { binding: "←", action: "Collapse category (channel list)" },
-  { binding: "→", action: "Expand category (channel list)" },
-  { binding: "Home / End", action: "Jump to first / last item in a list" },
+// Each action is the catalog key `shortcuts.action.<id>`. Two rows share the
+// same binding, so the id is what keeps them distinct as React keys too.
+const SHORTCUTS: { binding: string; id: string }[] = [
+  { binding: `${mod}+K`, id: "palette" },
+  { binding: "Esc", id: "close" },
+  { binding: "Enter", id: "send" },
+  { binding: "Shift+Enter", id: "newline" },
+  { binding: "Alt+↑ / Alt+↓", id: "channel_prev_next" },
+  { binding: `${mod}+↑ / ${mod}+↓`, id: "hub_prev_next" },
+  { binding: `${mod}+,`, id: "settings" },
+  { binding: `${mod}+Shift+M`, id: "mute" },
+  { binding: `${mod}+Shift+D`, id: "deafen" },
+  { binding: `${mod}+Shift+V`, id: "voice" },
+  { binding: `${mod}+/`, id: "cheatsheet" },
+  { binding: `${mod}+F`, id: "search" },
+  { binding: `${mod}+E`, id: "emoji" },
+  { binding: "/", id: "composer" },
+  { binding: "↑ / ↓", id: "messages" },
+  { binding: "↑ / ↓", id: "lists" },
+  { binding: "←", id: "collapse" },
+  { binding: "→", id: "expand" },
+  { binding: "Home / End", id: "home_end" },
 ];
 
 export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -39,25 +43,25 @@ export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
         <div className="modal keyboard-shortcuts-modal" onClick={(e) => e.stopPropagation()}>
-          <h3>Keyboard shortcuts</h3>
+          <h3>{t("shortcuts.title")}</h3>
           <table className="keyboard-shortcuts-table">
             <thead>
               <tr>
-                <th>Binding</th>
-                <th>Action</th>
+                <th>{t("shortcuts.col.binding")}</th>
+                <th>{t("shortcuts.col.action")}</th>
               </tr>
             </thead>
             <tbody>
               {SHORTCUTS.map((s) => (
-                <tr key={`${s.binding}-${s.action}`}>
+                <tr key={`${s.binding}-${s.id}`}>
                   <td><kbd className="kbd">{s.binding}</kbd></td>
-                  <td>{s.action}</td>
+                  <td>{t(`shortcuts.action.${s.id}`)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="modal-actions" style={{ marginTop: "var(--space-4)" }}>
-            <button onClick={onClose}>Close</button>
+            <button onClick={onClose}>{t("modal.close")}</button>
           </div>
         </div>
       </FocusTrap>

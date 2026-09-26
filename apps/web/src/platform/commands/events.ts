@@ -54,42 +54,8 @@ export async function rsvpEvent(eventId: string, status: RsvpStatus, slotId?: st
   });
 }
 
-export async function cancelRsvp(eventId: string): Promise<void> {
-  await hubFetch(`/events/${eventId}/rsvp`, {
-    method: "POST",
-    body: JSON.stringify({ status: "not_going" }),
-  });
-}
-
 export async function deleteEvent(eventId: string): Promise<void> {
   await hubFetch(`/events/${eventId}`, { method: "DELETE" });
-}
-
-export async function createEventSlot(
-  eventId: string,
-  data: { name: string; capacity?: number | null },
-): Promise<EventSlot> {
-  const res = await hubFetch(`/events/${eventId}/slots`, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-  return res.json() as Promise<EventSlot>;
-}
-
-export async function updateEventSlot(
-  eventId: string,
-  slotId: string,
-  data: { name?: string; capacity?: number | null },
-): Promise<EventSlot> {
-  const res = await hubFetch(`/events/${eventId}/slots/${slotId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-  return res.json() as Promise<EventSlot>;
-}
-
-export async function deleteEventSlot(eventId: string, slotId: string): Promise<void> {
-  await hubFetch(`/events/${eventId}/slots/${slotId}`, { method: "DELETE" });
 }
 
 // Full RSVP list (pubkey + status), used by the staging panel to find plain

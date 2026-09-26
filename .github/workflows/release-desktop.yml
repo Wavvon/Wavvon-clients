@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Generate release notes (current tag only)
-        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4
         with:
           config: cliff.toml
           args: --latest --strip header
@@ -27,7 +27,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           body_path: CHANGES.md
           prerelease: ${{ contains(github.ref_name, '-') }}
@@ -65,7 +65,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
-      - uses: Swatinem/rust-cache@258712b0b7b1ddf8bddc9fc3b0faca682b2736c3 # v2
+      - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
         with:
           workspaces: apps/desktop/src-tauri
 
@@ -129,7 +129,7 @@ jobs:
           echo "OPUS_STATIC=1"                        >> "$GITHUB_ENV"
           echo "LIBOPUS_NO_PKG=1"                     >> "$GITHUB_ENV"
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4
         with:
@@ -152,7 +152,7 @@ jobs:
         run: pnpm tauri build --config src-tauri/tauri.updater.conf.json ${{ matrix.args }}
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           fail_on_unmatched_files: true
           files: |
@@ -160,7 +160,7 @@ jobs:
 
       - name: Upload macOS updater bundle to GitHub Release
         if: matrix.platform == 'macos-latest'
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           fail_on_unmatched_files: true
           files: |
@@ -256,6 +256,6 @@ jobs:
           "
 
       - name: Upload latest.json to GitHub Release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           files: latest.json

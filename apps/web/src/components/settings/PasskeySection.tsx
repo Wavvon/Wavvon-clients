@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   isPasskeySupported,
+  passkeysUsableWith,
   registerPasskey,
   listPasskeys,
   deletePasskey,
@@ -15,6 +16,7 @@ import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
 interface Props {
   publicKey: string | null;
   account: IdentityRecord;
+  activeHubUrl: string | undefined;
 }
 
 // Passkey management (Settings → Account): list, rename, remove for whichever
@@ -23,7 +25,7 @@ interface Props {
 // passkeys goes through hubFetchAs (see platform/hubFetchAs.ts) — adding a
 // new one still requires switching, since the WebAuthn ceremony itself
 // authenticates as whichever account currently holds the browser session.
-export function PasskeySection({ publicKey, account }: Props) {
+export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
   const { t } = useTranslation();
   const accountLabel = account.account_label ?? null;
   const isActive = account.id === getActiveAccountId();
@@ -36,7 +38,11 @@ export function PasskeySection({ publicKey, account }: Props) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  const supported = isPasskeySupported();
+  // Not "does this browser do WebAuthn": a passkey is the hub's credential, so
+  // the ceremony only works on the page the hub itself serves. Elsewhere the
+  // section would list nothing and its button would fail with a SecurityError.
+  const supported = passkeysUsableWith(activeHubUrl);
+  const wrongOrigin = isPasskeySupported() && !supported;
 
   useEffect(() => {
     if (!publicKey) return;
@@ -101,7 +107,7 @@ export function PasskeySection({ publicKey, account }: Props) {
           <AccountLabelSuffix label={accountLabel} />
         </label>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.account.passkeys.unsupported")}
+          {t(wrongOrigin ? "settings.account.passkeys.wrong_origin" : "settings.account.passkeys.unsupported")}
         </p>
       </div>
     );

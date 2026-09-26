@@ -30,8 +30,7 @@ clients/
 ├── packages/
 │   ├── core/           @wavvon/core     — crypto, hub-input parsing, shared utils
 │   ├── i18n/           @wavvon/i18n     — locale strings + ICU i18n machinery
-│   ├── ui/             @wavvon/ui       — shared React components + canonical CSS
-│   └── platform/       @wavvon/platform — platform-adapter interface
+│   └── ui/             @wavvon/ui       — shared React components + canonical CSS
 ├── scripts/
 ├── Cargo.toml          Rust workspace: apps/desktop/src-tauri + crates/voice
 ├── package.json        pnpm workspace root
@@ -105,7 +104,10 @@ pnpm --filter wavvon-desktop run tauri build
 # Output: apps/desktop/src-tauri/target/release/bundle/
 
 pnpm --filter wavvon-web run build
-# Output: apps/web/dist/  (static bundle, serve from any host or CDN)
+# Output: apps/web/dist/  (user build — multi-hub, serve from any host or CDN)
+
+pnpm --filter wavvon-web run build:hub
+# Output: apps/web/dist-hub/  (hub build — what a hub serves from its own origin)
 ```
 
 ## Downloads & installer warnings
