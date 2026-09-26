@@ -51,9 +51,9 @@ jobs:
         with:
           workspaces: _server
 
-      - name: Build the hub and the demo bot
+      - name: Build the hub
         working-directory: _server
-        run: cargo build -p wavvon-hub -p ttt-bot
+        run: cargo build -p wavvon-hub
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4
@@ -94,40 +94,15 @@ jobs:
           cat "$RUNNER_TEMP/hub.log"
           exit 1
 
-      - name: Start the tic-tac-toe bot
-        working-directory: _server
-        env:
-          HUB_URL: http://localhost:${{ env.HUB_HTTP_PORT }}
-          IDENTITY_PATH: ${{ runner.temp }}/ttt-bot-identity.json
-        run: |
-          ./target/debug/ttt-bot > "$RUNNER_TEMP/ttt-bot.log" 2>&1 &
-          for i in $(seq 1 60); do
-            pubkey=$(sed -n 's/^Bot pubkey: //p' "$RUNNER_TEMP/ttt-bot.log" | head -1)
-            if [ -n "$pubkey" ]; then
-              echo "TTT_BOT_PUBKEY=$pubkey" >> "$GITHUB_ENV"
-              echo "ttt-bot printed its pubkey after ${i}s: $pubkey"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::ttt-bot never printed its pubkey"
-          cat "$RUNNER_TEMP/ttt-bot.log"
-          exit 1
-
       - name: Live e2e
         working-directory: apps/web
         env:
           WAVVON_E2E_HUB_URL: http://localhost:${{ env.HUB_HTTP_PORT }}
-          TTT_BOT_PUBKEY: ${{ env.TTT_BOT_PUBKEY }}
         run: pnpm run test:e2e:live
 
       - name: Hub log
         if: always()
         run: cat "$RUNNER_TEMP/hub.log" || true
-
-      - name: Bot log
-        if: always()
-        run: cat "$RUNNER_TEMP/ttt-bot.log" || true
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
