@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { channelButton, createChannel, expectInHub, hubApi, uniqueName } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, hubApi, uniqueName, confirmInApp } from "./helpers/live";
 
 // P32 — icon pickers (role/channel/category/soundboard) are unicode-only.
 // Hub custom emoji are returned as `:name:` shortcodes that only resolve in
@@ -58,7 +58,7 @@ test("hub custom emoji appear in the composer but not in icon pickers", async ({
 
   // Cleanup the role.
   await page.keyboard.press("Escape");
-  page.on("dialog", (d) => d.accept());
   await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmInApp(page);
   await expect(row).toBeHidden({ timeout: 10000 });
 });

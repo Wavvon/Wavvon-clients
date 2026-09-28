@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, uniqueName } from "./helpers/live";
+import { expectInHub, uniqueName, confirmInApp } from "./helpers/live";
 
 // P7 — soundboard admin UI (soundboard.md): upload a clip, see it listed,
 // delete it. The hub validates the OGG Opus container (OggS magic +
@@ -61,8 +61,8 @@ test("upload, list, and delete a soundboard clip", async ({ page }) => {
   await expect(row).toBeVisible({ timeout: 10000 });
   await expect(row).toContainText("1.0s");
 
-  // Delete it (native confirm → accept).
-  page.on("dialog", (d) => d.accept());
+  // Delete it, going through the app's own confirmation.
   await row.getByRole("button", { name: "Delete" }).click();
+  await confirmInApp(page);
   await expect(row).toBeHidden({ timeout: 10000 });
 });

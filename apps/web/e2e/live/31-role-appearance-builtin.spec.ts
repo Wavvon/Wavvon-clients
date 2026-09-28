@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, uniqueName } from "./helpers/live";
+import { expectInHub, uniqueName, confirmInApp } from "./helpers/live";
 
 // P31 — appearance controls (color / icon / category) are hidden for built-in
 // roles. The hub rejects appearance PATCHes on @everyone/Owner
@@ -36,7 +36,7 @@ test("built-in roles hide appearance controls; custom roles keep them", async ({
   await expect(custom.locator(".color-swatch").first()).toBeVisible();
 
   // Cleanup so re-runs against the persistent DB stay clean.
-  page.on("dialog", (d) => d.accept());
   await custom.getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmInApp(page);
   await expect(custom).toBeHidden({ timeout: 10000 });
 });

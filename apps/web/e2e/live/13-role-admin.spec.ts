@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, hubApi, uniqueName } from "./helpers/live";
+import { expectInHub, hubApi, uniqueName, confirmInApp } from "./helpers/live";
 
 // P13 — create / edit-permissions / delete a role from the web Roles admin
 // tab (previously desktop-only; see docs/client-parity.md).
@@ -40,9 +40,9 @@ test("create a role with a permission, edit its permissions, then delete it", as
   await page.getByRole("checkbox", { name: "Ban members permanently" }).click();
   await expect.poll(async () => (await findRole())?.permissions).toContain("moderation.ban.permanent");
 
-  // Delete (native confirm → accept).
-  page.on("dialog", (d) => d.accept());
+  // Delete, going through the app's own confirmation.
   await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmInApp(page);
   await expect(row).toBeHidden({ timeout: 10000 });
   await expect.poll(async () => await findRole()).toBeFalsy();
 });

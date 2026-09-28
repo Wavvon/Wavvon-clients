@@ -313,3 +313,20 @@ export async function createChannel(
   await expect(dialog).not.toBeVisible();
   return name;
 }
+
+/**
+ * Go through with the app's own confirmation dialog.
+ *
+ * Destructive admin actions used to raise `window.confirm()`, which a spec
+ * accepted with `page.on("dialog", d => d.accept())`. They now raise a dialog
+ * the app draws, so nothing native fires and that handler silently never runs
+ * — the click lands, the modal opens, and the assertion waits for a row that
+ * is still there. Call this right after the click instead.
+ */
+export async function confirmInApp(page: Page): Promise<void> {
+  const modal = page.locator(".confirm-modal");
+  await modal.waitFor({ state: "visible", timeout: 10_000 });
+  // The confirm is the last button in the actions row; cancel is the first.
+  await modal.locator(".confirm-modal-actions button").last().click();
+  await modal.waitFor({ state: "hidden", timeout: 10_000 });
+}

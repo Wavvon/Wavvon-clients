@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
+import { channelButton, confirmInApp, createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
 // P18 — admin features ported from desktop: audit log, hub icon library,
 // alliances, onboarding (lobby/challenge), and per-channel bans. Each is
@@ -35,6 +35,7 @@ test("create and delete a hub SVG icon", async ({ page }) => {
   const card = page.locator(".settings-section", { hasText: iconName });
   await expect(card).toBeVisible({ timeout: 10000 });
   await card.getByRole("button", { name: "Delete" }).click();
+  await confirmInApp(page);
   await expect(card).toBeHidden({ timeout: 10000 });
 });
 
@@ -73,6 +74,7 @@ test("alliance: create, share a channel, unshare, leave", async ({ page }) => {
 
   // Leave the alliance.
   await section.getByRole("button", { name: "Leave" }).click();
+  await confirmInApp(page);
   await expect(page.locator(".alliance-row", { hasText: name })).toBeHidden({ timeout: 10000 });
 });
 
