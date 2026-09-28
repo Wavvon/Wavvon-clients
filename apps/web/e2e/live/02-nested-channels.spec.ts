@@ -71,7 +71,7 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
 
   // Permalink round-trip: copy the channel link from the channel's
   // right-click context menu, clear the selection by reloading, then paste
-  // the wavvon:// link into the Add Hub modal — for an already-joined hub
+  // the wavvon:// link into the Join-a-hub modal — for an already-joined hub
   // it must select the channel directly.
   await page.getByRole("button", { name: leaf, exact: true }).click();
   await page.getByRole("button", { name: leaf, exact: true }).click({ button: "right" });
@@ -87,10 +87,10 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
 
   await page.reload();
   await expectInHub(page);
-  // The + in the hub rail opens the Add Hub modal directly — there is no
+  // The + in the hub rail opens the Join-a-hub modal directly — there is no
   // join/create menu in front of it since the create-hub wizard went.
   await page.getByRole("navigation", { name: "Hubs" }).getByRole("button", { name: "+" }).click();
-  const addHub = page.getByRole("dialog", { name: "Add Hub" });
+  const addHub = page.getByRole("dialog", { name: "Join a hub" });
   await expect(addHub).toBeVisible();
   await addHub.getByRole("textbox").fill(link);
   await expect(addHub).not.toBeVisible({ timeout: 10000 });
