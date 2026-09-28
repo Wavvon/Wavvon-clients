@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listTrustedDevices, revokeTrustedDevice, isNotMemberError } from "@platform";
 import type { DeviceInfo } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
-import { PerAccountHint, SettingRow } from "@wavvon/ui";
+import { SettingRow } from "@wavvon/ui";
 
 interface Props {
   account: IdentityRecord;
@@ -73,7 +73,6 @@ export function TrustedDevicesSection({ account }: Props) {
       open={open}
       onToggle={() => setOpen((v) => !v)}
     >
-      <PerAccountHint label={accountLabel} />
       <p className="muted">{t("settings.account.trusted_devices.hint")}</p>
       {error && <p className="error-text">{error}</p>}
       {devices && devices.length > 0 && (

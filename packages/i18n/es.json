@@ -1914,6 +1914,7 @@
   "settings.voice.vad.label": "Actividad de voz",
   "settings.voice.vad.sensitivity": "Sensibilidad",
   "settings.voice.vad.sensitivity_hint": "Cuánto tienes que subir la voz para que Wavvon empiece a transmitir. La línea del medidor de arriba es este nivel.",
+  "settings.voice.vad.state.inert": "No se usa en Música",
   "shortcuts.action.channel_prev_next": "Canal anterior / siguiente",
   "shortcuts.action.cheatsheet": "Abrir esta chuleta",
   "shortcuts.action.close": "Cerrar el diálogo / la paleta / los ajustes activos",

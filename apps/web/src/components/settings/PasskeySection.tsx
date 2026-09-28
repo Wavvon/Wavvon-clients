@@ -11,7 +11,7 @@ import {
 } from "@platform";
 import type { CredentialInfo } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
-import { PerAccountHint, SettingRow } from "@wavvon/ui";
+import { SettingRow } from "@wavvon/ui";
 
 interface Props {
   publicKey: string | null;
@@ -127,7 +127,6 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
         <p className="muted">{blocked}</p>
       ) : (
         <>
-          <PerAccountHint label={accountLabel} />
           <p className="muted">{t("settings.account.passkeys.hint")}</p>
           {error && <p className="error-text">{error}</p>}
           {passkeys && passkeys.length > 0 && (

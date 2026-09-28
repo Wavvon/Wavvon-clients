@@ -1914,6 +1914,7 @@
   "settings.voice.vad.label": "Sprachaktivität",
   "settings.voice.vad.sensitivity": "Empfindlichkeit",
   "settings.voice.vad.sensitivity_hint": "Wie laut du sein musst, damit Wavvon sendet. Die Linie auf der Anzeige oben ist genau dieser Pegel.",
+  "settings.voice.vad.state.inert": "In Musik nicht genutzt",
   "shortcuts.action.channel_prev_next": "Voriger / nächster Kanal",
   "shortcuts.action.cheatsheet": "Diese Übersicht öffnen",
   "shortcuts.action.close": "Aktives Fenster / Palette / Einstellungen schließen",

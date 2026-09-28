@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import type { BlockEntry, IgnoreEntry } from "../types";
-import { PerAccountHint } from "./AccountScopeNote";
 import { SettingRow } from "./SettingRow";
 
 interface Props {
@@ -24,7 +23,7 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
   });
 
   return (
-    <div>
+    <>
       <SettingRow
         title={t("settings.account.blocked_users.title")}
         state={blocks.length === 0
@@ -34,8 +33,6 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
         {...row("blocked")}
       >
         <p className="muted">{t("settings.account.blocked_users.hint")}</p>
-        <PerAccountHint label={accountLabel} />
-        {blocks.length === 0 && <p className="muted">{t("settings.account.blocked_users.empty")}</p>}
         {blocks.map((b) => (
           <div key={b.pubkey} className="settings-row">
             <div>
@@ -58,8 +55,6 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
         {...row("ignored")}
       >
         <p className="muted">{t("settings.account.ignored_users.hint")}</p>
-        <PerAccountHint label={accountLabel} />
-        {ignores.length === 0 && <p className="muted">{t("settings.account.ignored_users.empty")}</p>}
         {ignores.map((ig) => (
           <div key={ig.pubkey} className="settings-row">
             <div>
@@ -72,6 +67,6 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
           </div>
         ))}
       </SettingRow>
-    </div>
+    </>
   );
 }

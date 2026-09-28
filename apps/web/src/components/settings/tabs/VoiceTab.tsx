@@ -88,7 +88,7 @@ export function VoiceTab() {
       <SettingRow
         title={t("settings.voice.vad.sensitivity")}
         state={gateOff
-          ? t("settings.voice.vad.inert_in_music")
+          ? t("settings.voice.vad.state.inert")
           : audioProfile.vadThreshold.toFixed(3)}
         {...row("sensitivity")}
       >

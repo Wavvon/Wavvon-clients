@@ -1914,6 +1914,7 @@
   "settings.voice.vad.label": "Attività vocale",
   "settings.voice.vad.sensitivity": "Sensibilità",
   "settings.voice.vad.sensitivity_hint": "Quanto devi essere forte perché Wavvon inizi a trasmettere. La linea sul metro qui sopra è questo livello.",
+  "settings.voice.vad.state.inert": "Non usata in Musica",
   "shortcuts.action.channel_prev_next": "Canale precedente / successivo",
   "shortcuts.action.cheatsheet": "Apri questo riepilogo",
   "shortcuts.action.close": "Chiudi la finestra / palette / impostazioni attive",

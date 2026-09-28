@@ -1914,6 +1914,7 @@
   "settings.voice.vad.label": "Voice activity",
   "settings.voice.vad.sensitivity": "Sensitivity",
   "settings.voice.vad.sensitivity_hint": "How loud you have to be before Wavvon starts transmitting. The line on the meter above is this level.",
+  "settings.voice.vad.state.inert": "Not used in Music",
   "shortcuts.action.channel_prev_next": "Previous / next channel",
   "shortcuts.action.cheatsheet": "Open this cheat-sheet",
   "shortcuts.action.close": "Close active modal / palette / settings",

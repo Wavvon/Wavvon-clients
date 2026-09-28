@@ -25,7 +25,7 @@ import {
   postPairingComplete,
   upgradeActiveHubIdentity,
 } from "@platform";
-import { PerAccountHint, SettingRow } from "@wavvon/ui";
+import { SettingRow } from "@wavvon/ui";
 
 // Operates on `account` — the account currently selected in AccountTab's
 // "Managing" selector, which defaults to (but need not be) the active one.
@@ -282,7 +282,6 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
       {...row("devices")}
     >
       <p className="muted">{t("settings.account.devices.hint")}</p>
-      <PerAccountHint label={accountLabel} />
 
       {!d.enabled ? (
         <>
