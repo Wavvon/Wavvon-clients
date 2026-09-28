@@ -936,6 +936,8 @@
   "hub.admin.roles.permissions": "Permessi",
   "hub.admin.roles.priority_aria": "Priorità",
   "hub.admin.roles.priority_title": "Priorità (più alta = posizionata sopra)",
+  "hub.admin.roles.state": "priorità {priority} · {count, plural, =0 {nessun permesso} one {# permesso} other {# permessi}}",
+  "hub.admin.roles.state.new": "Dagli un nome e scegli cosa concede",
   "hub.admin.roles.title": "Ruoli",
   "hub.admin.roles.uncategorized": "Senza categoria",
   "hub.admin.soundboard.add.title": "Aggiungi uno spezzone",

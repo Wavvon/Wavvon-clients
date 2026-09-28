@@ -936,6 +936,8 @@
   "hub.admin.roles.permissions": "Berechtigungen",
   "hub.admin.roles.priority_aria": "Priorität",
   "hub.admin.roles.priority_title": "Priorität (höher = weiter oben)",
+  "hub.admin.roles.state": "Priorität {priority} · {count, plural, =0 {keine Rechte} one {# Recht} other {# Rechte}}",
+  "hub.admin.roles.state.new": "Benennen und festlegen, was sie gewährt",
   "hub.admin.roles.title": "Rollen",
   "hub.admin.roles.uncategorized": "Ohne Kategorie",
   "hub.admin.soundboard.add.title": "Clip hinzufügen",

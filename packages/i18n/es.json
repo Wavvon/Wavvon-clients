@@ -936,6 +936,8 @@
   "hub.admin.roles.permissions": "Permisos",
   "hub.admin.roles.priority_aria": "Prioridad",
   "hub.admin.roles.priority_title": "Prioridad (más alta = situada por encima)",
+  "hub.admin.roles.state": "prioridad {priority} · {count, plural, =0 {sin permisos} one {# permiso} other {# permisos}}",
+  "hub.admin.roles.state.new": "Ponle nombre y elige qué concede",
   "hub.admin.roles.title": "Roles",
   "hub.admin.roles.uncategorized": "Sin categoría",
   "hub.admin.soundboard.add.title": "Añadir un clip",

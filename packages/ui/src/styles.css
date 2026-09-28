@@ -8197,3 +8197,33 @@ button:disabled {
   margin-top: 0;
   background: var(--bg-elevated);
 }
+
+/* A row is one column of setting wherever it sits — inside a category group,
+   inside a tab, or inside the user settings — so it carries its own measure
+   rather than relying on an ancestor to cap it. */
+.setting-row {
+  max-width: 52rem;
+}
+
+/* The category strip above a group of roles. It names a grouping, so it gets
+   the same hairline treatment as the channel-list legends. */
+.role-category-group + .role-category-group {
+  margin-top: var(--space-5);
+}
+
+.role-category-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 52rem;
+}
+
+.role-category-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
