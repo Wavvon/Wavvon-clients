@@ -1390,7 +1390,7 @@
   "recovery.queue.deny": "Deny",
   "recovery.queue.empty": "No pending requests.",
   "recovery.queue.hint": "Requests that have gathered enough contact attestations and await your decision.",
-  "recovery.queue.label": "Recovery requests queue",
+  "recovery.queue.label": "Pending requests",
   "recovery.queue.progress": "Attestations: {count} · Status: {status}",
   "recovery.queue.state.waiting": "{count, plural, one {# request waiting} other {# requests waiting}}",
   "recovery.request.check_now": "Check now",

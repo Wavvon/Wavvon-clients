@@ -1390,7 +1390,7 @@
   "recovery.queue.deny": "Rifiuta",
   "recovery.queue.empty": "Nessuna richiesta in attesa.",
   "recovery.queue.hint": "Richieste che hanno raccolto abbastanza attestazioni dai contatti e attendono la tua decisione.",
-  "recovery.queue.label": "Coda delle richieste di recupero",
+  "recovery.queue.label": "Richieste in attesa",
   "recovery.queue.progress": "Attestazioni: {count} · Stato: {status}",
   "recovery.queue.state.waiting": "{count, plural, one {# richiesta in attesa} other {# richieste in attesa}}",
   "recovery.request.check_now": "Controlla ora",

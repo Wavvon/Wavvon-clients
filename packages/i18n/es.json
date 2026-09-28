@@ -1390,7 +1390,7 @@
   "recovery.queue.deny": "Rechazar",
   "recovery.queue.empty": "No hay solicitudes pendientes.",
   "recovery.queue.hint": "Solicitudes que han reunido suficientes atestaciones de contactos y esperan tu decisión.",
-  "recovery.queue.label": "Cola de solicitudes de recuperación",
+  "recovery.queue.label": "Solicitudes pendientes",
   "recovery.queue.progress": "Atestaciones: {count} · Estado: {status}",
   "recovery.queue.state.waiting": "{count, plural, one {# solicitud esperando} other {# solicitudes esperando}}",
   "recovery.request.check_now": "Comprobar ahora",

@@ -1390,7 +1390,7 @@
   "recovery.queue.deny": "Ablehnen",
   "recovery.queue.empty": "Keine offenen Anfragen.",
   "recovery.queue.hint": "Anfragen, die genug Bestätigungen von Kontakten gesammelt haben und auf deine Entscheidung warten.",
-  "recovery.queue.label": "Warteschlange der Wiederherstellungsanfragen",
+  "recovery.queue.label": "Offene Anfragen",
   "recovery.queue.progress": "Bestätigungen: {count} · Status: {status}",
   "recovery.queue.state.waiting": "{count, plural, one {# Anfrage wartet} other {# Anfragen warten}}",
   "recovery.request.check_now": "Jetzt prüfen",
