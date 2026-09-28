@@ -29,6 +29,7 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
   const [entriesOpen, setEntriesOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const [newSourceUrl, setNewSourceUrl] = useState("");
   const [newSourcePolicy, setNewSourcePolicy] = useState<"hard-reject" | "soft-flag">("hard-reject");
@@ -51,6 +52,8 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
       setOverrides(overridesData);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoaded(true);
     }
   }
 
@@ -119,7 +122,7 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
     }
   }
 
-  const stateLine = [
+  const stateLine = !loaded ? t("modal.loading") : [
     sources.length === 0
       ? t("hub.admin.banlist.sources_empty")
       : t("hub.admin.banlist.state.sources", { count: sources.length }),

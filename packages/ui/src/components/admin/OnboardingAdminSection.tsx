@@ -29,6 +29,7 @@ export function OnboardingAdminSection({ actions }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
 
   const [lobbyEnabled, setLobbyEnabled] = useState(false);
   const [welcomeMd, setWelcomeMd] = useState("");
@@ -44,6 +45,7 @@ export function OnboardingAdminSection({ actions }: Props) {
   async function loadPending() {
     try { setPending(await actions.listPendingUsers()); }
     catch (e) { setError(String(e)); }
+    finally { setPendingLoaded(true); }
   }
 
   useEffect(() => {
@@ -124,9 +126,11 @@ export function OnboardingAdminSection({ actions }: Props) {
       <SettingRow
         step={3}
         title={t("hub.admin.onboarding.queue_label")}
-        state={pending.length === 0
-          ? t("hub.admin.onboarding.queue_empty")
-          : t("hub.admin.onboarding.queue_waiting", { count: pending.length })}
+        state={!pendingLoaded
+          ? t("modal.loading")
+          : pending.length === 0
+            ? t("hub.admin.onboarding.queue_empty")
+            : t("hub.admin.onboarding.queue_waiting", { count: pending.length })}
         attention={pending.length > 0}
         meta={pending.length > 0 ? String(pending.length) : undefined}
         {...row("queue")}
