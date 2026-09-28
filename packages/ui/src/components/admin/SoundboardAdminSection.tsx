@@ -5,6 +5,7 @@ import type { SoundboardClip } from "../../types";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ErrorRetry } from "../ErrorRetry";
 import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
@@ -28,6 +29,11 @@ interface Props {
 export function SoundboardAdminSection({ actions }: Props) {
   const { t } = useTranslation();
   const { confirm, dialog } = useConfirm();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const [clips, setClips] = useState<SoundboardClip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -116,6 +122,13 @@ export function SoundboardAdminSection({ actions }: Props) {
 
       {error && clips !== null && <p className="error-text">{error}</p>}
 
+      <SettingRow
+        title={t("hub.admin.soundboard.add.title")}
+        state={clips === null
+          ? t("hub.admin.soundboard.loading")
+          : t("hub.admin.soundboard.state.count", { count: clips.length, max: 50 })}
+        {...row("add")}
+      >
       <div className="settings-section">
         <label className="settings-label">{t("hub.admin.soundboard.name_label")}</label>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%" }} />
@@ -148,47 +161,39 @@ export function SoundboardAdminSection({ actions }: Props) {
           {uploading ? t("hub.admin.soundboard.uploading") : t("hub.admin.soundboard.upload_button")}
         </button>
       </div>
+      </SettingRow>
 
       {clips === null ? (
         error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("hub.admin.soundboard.loading")}</p>
-      ) : clips.length === 0 ? (
-        <p className="muted">{t("hub.admin.soundboard.empty")}</p>
-      ) : (
-        <table className="members-table" style={{ marginTop: "var(--space-4)" }}>
-          <thead>
-            <tr>
-              <th>{t("hub.admin.soundboard.col.emoji")}</th>
-              <th>{t("hub.admin.soundboard.col.name")}</th>
-              <th>{t("hub.admin.soundboard.col.uploader")}</th>
-              <th>{t("hub.admin.soundboard.col.duration")}</th>
-              <th>{t("hub.admin.soundboard.col.size")}</th>
-              <th>{t("hub.admin.soundboard.col.actions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clips.map((clip) => (
-              <tr key={clip.id}>
-                <td style={{ fontSize: 18, textAlign: "center" }}>{clip.emoji ?? "—"}</td>
-                <td>{clip.name}</td>
-                <td><span className="member-pk" title={clip.uploader}>{formatPubkey(clip.uploader)}</span></td>
-                <td>{formatDuration(clip.duration_ms)}</td>
-                <td>{formatSize(clip.size_bytes)}</td>
-                <td style={{ display: "flex", gap: "var(--space-2)" }}>
-                  <button
-                    className="btn-small btn-secondary"
-                    disabled={playingId === clip.id}
-                    onClick={() => handlePreviewPlay(clip)}
-                  >
-                    {playingId === clip.id ? "▶…" : t("hub.admin.soundboard.play")}
-                  </button>
-                  <button className="btn-small btn-secondary danger" onClick={() => handleDelete(clip.id)}>
-                    {t("hub.admin.soundboard.delete")}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      ) : clips.length === 0 ? null : (
+        <div>
+          {clips.map((clip) => (
+            <SettingRow
+              key={clip.id}
+              title={clip.name}
+              state={t("hub.admin.soundboard.state.clip", {
+                duration: formatDuration(clip.duration_ms),
+                size: formatSize(clip.size_bytes),
+                who: formatPubkey(clip.uploader),
+              })}
+              meta={clip.emoji ?? undefined}
+              {...row(clip.id)}
+            >
+              <div className="settings-row">
+                <button
+                  className="btn-small"
+                  disabled={playingId === clip.id}
+                  onClick={() => handlePreviewPlay(clip)}
+                >
+                  {playingId === clip.id ? t("hub.admin.soundboard.playing") : t("hub.admin.soundboard.play")}
+                </button>
+                <button className="btn-small danger" onClick={() => handleDelete(clip.id)}>
+                  {t("hub.admin.soundboard.delete")}
+                </button>
+              </div>
+            </SettingRow>
+          ))}
+        </div>
       )}
     </section>
   );
