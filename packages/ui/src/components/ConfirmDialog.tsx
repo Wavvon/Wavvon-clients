@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "./FocusTrap";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 export interface ConfirmRequest {
   /** What is about to happen, naming the target: "Ban Marco from Videogamezone?" */
@@ -59,6 +60,7 @@ function ConfirmDialog({
   onSettle: (ok: boolean) => void;
 }) {
   const { t } = useTranslation();
+  useCloseOnEscape(() => onSettle(false));
   return (
     <div
       className="modal-overlay"

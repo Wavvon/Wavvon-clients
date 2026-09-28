@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "../FocusTrap";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 type HubPreview =
   | { state: "idle" }
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, fingerprintMatch, onAdd, onAddWithPasskey, passkeySupported, onClose, onBrowse }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [copiedInvite, setCopiedInvite] = useState(false);
   const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && !!passkeySupported;

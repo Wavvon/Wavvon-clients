@@ -33,6 +33,7 @@ import type { MessageRowActions } from "./MessageRow";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 import { CalendarIcon, CloseIcon } from "../Icons";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -222,6 +223,7 @@ export function ContentArea({
   const [channelPolls, setChannelPolls] = useState<Poll[]>([]);
   const [activeContentTab, setActiveContentTab] = useState<"messages" | "events">("messages");
   const [showEventsModal, setShowEventsModal] = useState(false);
+  useCloseOnEscape(() => setShowEventsModal(false), eventsPresentation === "modal" && showEventsModal);
 
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() =>
     selectedChannel ? loadExpandedThreads(selectedChannel.id) : new Set()

@@ -34,8 +34,12 @@ describe("modal escape", () => {
 
   const offenders = files.filter((f) => {
     const src = readFileSync(f, "utf8");
-    // Either the shared hook, or its own window-level listener.
-    return !/useCloseOnEscape\s*\(/.test(src) && !/["']Escape["']/.test(src);
+    // The shared hook, or a listener on window. An `onKeyDown` on an input
+    // or on the overlay is not coverage: it only fires while focus is
+    // already inside, so reloading with the modal up leaves no way out.
+    const hook = /useCloseOnEscape\s*\(/.test(src);
+    const onWindow = /window\.addEventListener\(\s*["']keydown["']/.test(src);
+    return !hook && !onWindow;
   });
 
   it("every overlay can be dismissed from the keyboard", () => {

@@ -11,6 +11,7 @@ import { ChannelTalkPowerTab, type ChannelTalkPowerTabActions } from "./ChannelT
 import { ChannelAlliancesTab, type ChannelAlliancesTabActions } from "./ChannelAlliancesTab";
 import { ForumTagManager, type ForumTagManagerActions } from "../forum/ForumTagManager";
 import type { HubIcon, ForumTagDef } from "../../types";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 type Tab = "settings" | "permissions" | "bans" | "moderation" | "alliances";
 
@@ -119,6 +120,7 @@ export function ChannelSettingsModal({
   bannerUploadSupported = true,
   forumTagsActions, listForumTags,
 }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const isCreate = channel === null;
   const [tab, setTab] = useState<Tab>(isAdmin ? "settings" : "permissions");

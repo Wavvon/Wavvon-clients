@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "./FocusTrap";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 interface Props {
   /** Save the typed name as this identity's display name on the current hub. */
@@ -17,6 +18,7 @@ interface Props {
 // caller that has to thread the input state through is a caller that has to
 // duplicate this component to reuse it.
 export function DisplayNamePrompt({ onSave, onSkip }: Props) {
+  useCloseOnEscape(onSkip);
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const trimmed = name.trim();
