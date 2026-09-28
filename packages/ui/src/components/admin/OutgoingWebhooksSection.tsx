@@ -288,7 +288,7 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
       <h2>{t("hub.admin.tabs.outgoing_webhooks")}</h2>
       <p className="muted">{t("hub.admin.owh.hint")}</p>
 
-      {error && <p className="muted" style={{ color: "var(--danger)", marginBottom: "var(--space-3)" }}>{error}</p>}
+      {error && <p className="error-text">{error}</p>}
 
       <div className="settings-section">
         <label className="settings-label">URL</label>

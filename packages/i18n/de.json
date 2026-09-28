@@ -1813,6 +1813,7 @@
   "settings.voice.system_default": "System default",
   "settings.voice.vad.custom_override": "Das benutzerdefinierte Audioprofil überschreibt ihn mit {value}.",
   "settings.voice.vad.enable": "Sprachaktivitätserkennung aktivieren (verwirft Stille)",
+  "settings.voice.vad.inert_in_music": "Der Musikmodus überträgt durchgehend, es wird also nichts abgeriegelt — das wirkt nicht, solange Musik gewählt ist.",
   "settings.voice.vad.label": "Sprachaktivität",
   "settings.voice.vad.sensitivity": "Empfindlichkeit",
   "settings.voice.vad.sensitivity_hint": "Wie laut du sein musst, damit Wavvon sendet. Die Linie auf der Anzeige oben ist genau dieser Pegel.",

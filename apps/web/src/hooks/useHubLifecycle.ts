@@ -3,6 +3,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { removeHub, setActiveHub, listHubs, reorderHubs } from "@platform";
 import type { Hub } from "@shared/types";
+import { useHubPing } from "@wavvon/ui";
 
 export interface UseHubLifecycleParams {
   loadHubData: () => Promise<void>;
@@ -27,7 +28,13 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
   // rather than gated behind the admin settings fetch.
   const [activeHubTimezone, setActiveHubTimezone] = useState<string | null>(null);
   const [activeHubId, setActiveHubIdState] = useState<string | null>(null);
-  const [pingByHub, setPingByHub] = useState<Record<string, number | null>>({});
+  const pingByHub = useHubPing(
+    hubs.map((h) => h.hub_id),
+    async (hubId) => {
+      const { pingHub } = await import("../platform/commands/hubs");
+      return pingHub(hubId);
+    },
+  );
   // lobby-survey.md Feature 1 — hubs whose session is confined to the
   // lobby (PoW below the hub's min_security_level). Detected reactively via
   // the 403 lobby_scope_confined body loadHubData() gets back from
@@ -35,32 +42,6 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
   // (requirement: re-detect on reload) with one code path.
   const [lobbyHubs, setLobbyHubs] = useState<Set<string>>(new Set());
   const [pendingApprovalHubs, setPendingApprovalHubs] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (hubs.length === 0) return;
-    let cancelled = false;
-    async function tick() {
-      for (const h of hubs) {
-        if (cancelled) return;
-        try {
-          const { pingHub } = await import("../platform/commands/hubs");
-          const ms = await pingHub(h.hub_id);
-          if (cancelled) return;
-          setPingByHub((prev) => ({ ...prev, [h.hub_id]: ms }));
-        } catch {
-          if (cancelled) return;
-          setPingByHub((prev) => ({ ...prev, [h.hub_id]: null }));
-        }
-      }
-    }
-    void tick();
-    const interval = setInterval(() => { void tick(); }, 15000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hubs.length]);
 
   function handleHubReorder(event: DragEndEvent) {
     const { active, over } = event;

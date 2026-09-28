@@ -66,6 +66,9 @@ export function VoiceTab() {
     });
   }
 
+  // Music encodes continuously; there is no gate for a threshold to move.
+  const gateOff = audioProfile.profile === "music";
+
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.voice")}</h1>
@@ -75,41 +78,42 @@ export function VoiceTab() {
       <MicLevelMeter audioProfile={audioProfile} />
 
       {/* Directly under the meter, because this is the line drawn on it: the
-          setting and the evidence for it belong in one place. Hidden only for
-          music, which does not gate at all. */}
-      {audioProfile.profile !== "music" && (
-        <div className="settings-section">
-          <label className="settings-label" htmlFor="vad-sensitivity">
-            {t("settings.voice.vad.sensitivity")}
-          </label>
-          <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-            {t("settings.voice.vad.sensitivity_hint")}
-          </p>
-          <div className="settings-row" style={{ alignItems: "center", gap: 12 }}>
-            <input
-              id="vad-sensitivity"
-              type="range"
-              min={0.001}
-              max={0.2}
-              step={0.001}
-              value={audioProfile.vadThreshold}
-              onChange={(e) => updateAudioProfile({ vadThreshold: Number(e.target.value) })}
-              style={{ flex: 1 }}
-            />
-            <span className="settings-value">{audioProfile.vadThreshold.toFixed(3)}</span>
-          </div>
-          {audioProfile.profile === "custom" &&
-            audioProfile.customVadThreshold !== audioProfile.vadThreshold && (
-              // Say it rather than let the slider above look broken: the
-              // custom panel's own value is what the gate is using.
-              <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                {t("settings.voice.vad.custom_override", {
-                  value: audioProfile.customVadThreshold.toFixed(3),
-                })}
-              </p>
-            )}
+          setting and the evidence for it belong in one place. Music transmits
+          continuously and gates nothing, so the control goes inert and says
+          why — it does not leave, because a control that moves house when you
+          pick an option makes the panel unreadable. */}
+      <div className={`settings-section${gateOff ? " is-inert" : ""}`}>
+        <label className="settings-label" htmlFor="vad-sensitivity">
+          {t("settings.voice.vad.sensitivity")}
+        </label>
+        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+          {gateOff ? t("settings.voice.vad.inert_in_music") : t("settings.voice.vad.sensitivity_hint")}
+        </p>
+        <div className="settings-row" style={{ alignItems: "center", gap: 12 }}>
+          <input
+            id="vad-sensitivity"
+            type="range"
+            min={0.001}
+            max={0.2}
+            step={0.001}
+            value={audioProfile.vadThreshold}
+            disabled={gateOff}
+            onChange={(e) => updateAudioProfile({ vadThreshold: Number(e.target.value) })}
+            style={{ flex: 1 }}
+          />
+          <span className="settings-value">{audioProfile.vadThreshold.toFixed(3)}</span>
         </div>
-      )}
+        {audioProfile.profile === "custom" &&
+          audioProfile.customVadThreshold !== audioProfile.vadThreshold && (
+            // Say it rather than let the slider above look broken: the
+            // custom panel's own value is what the gate is using.
+            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+              {t("settings.voice.vad.custom_override", {
+                value: audioProfile.customVadThreshold.toFixed(3),
+              })}
+            </p>
+          )}
+      </div>
 
       <PushToTalkSection />
 

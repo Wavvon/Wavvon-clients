@@ -64,7 +64,7 @@ export function AppearanceTab(props: Props) {
                 padding: "8px 16px",
                 borderRadius: "var(--r-sm)",
                 border: props.theme === theme ? "2px solid var(--accent)" : "1px solid var(--border)",
-                background: props.theme === theme ? "var(--accent-subtle, var(--surface))" : "var(--surface)",
+                background: props.theme === theme ? "var(--accent-wash)" : "var(--surface)",
                 // Without an explicit color these inherit the base button's
                 // var(--accent-text), which is dark in the dark theme and near-white in
                 // light — i.e. unreadable on a surface background.

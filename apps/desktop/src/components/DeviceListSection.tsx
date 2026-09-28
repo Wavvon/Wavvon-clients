@@ -38,7 +38,7 @@ export function DeviceListSection() {
   return (
     <div className="settings-section">
       {devices.map((d) => (
-        <div key={d.subkey_pubkey} className="settings-row" style={{ marginBottom: 8, padding: "8px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" }}>
+        <div key={d.subkey_pubkey} className="settings-row" style={{ marginBottom: 8, padding: "8px", background: "var(--bg-elevated)", borderRadius: "var(--r-sm)" }}>
           <div>
             <strong>{d.device_label}</strong>
             {d.is_this_device && (
@@ -52,7 +52,7 @@ export function DeviceListSection() {
           {!d.is_this_device && (
             <button
               className="btn-secondary"
-              style={{ color: "var(--color-error, red)" }}
+              style={{ color: "var(--danger)" }}
               onClick={() => handleRevoke(d.subkey_pubkey)}
               disabled={revokeStatus[d.subkey_pubkey] === "revoking"}
             >

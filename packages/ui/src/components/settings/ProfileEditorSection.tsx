@@ -654,7 +654,11 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                         onChange={(v) => update({ bio: v })}
                         placeholder={t("settings.profile.fields.bio_placeholder")}
                         ariaLabel={t("settings.profile.fields.bio_label")}
-                        minHeight={200}
+                        // It grows as you type, so the floor only has to be
+                        // enough to read a short bio in. At 200 it reserved
+                        // most of the card for an empty box and pushed Save
+                        // below the fold.
+                        minHeight={88}
                       />
                       <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
                         {draft.bio.length}/{BIO_MAX}

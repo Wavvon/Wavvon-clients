@@ -1813,6 +1813,7 @@
   "settings.voice.system_default": "System default",
   "settings.voice.vad.custom_override": "The custom audio profile is overriding this with {value}.",
   "settings.voice.vad.enable": "Enable voice activity detection (drops silence)",
+  "settings.voice.vad.inert_in_music": "Music transmits continuously, so nothing is gated — this has no effect while Music is selected.",
   "settings.voice.vad.label": "Voice activity",
   "settings.voice.vad.sensitivity": "Sensitivity",
   "settings.voice.vad.sensitivity_hint": "How loud you have to be before Wavvon starts transmitting. The line on the meter above is this level.",

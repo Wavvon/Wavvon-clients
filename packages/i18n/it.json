@@ -1813,6 +1813,7 @@
   "settings.voice.system_default": "Predefinito di sistema",
   "settings.voice.vad.custom_override": "Il profilo audio personalizzato lo sta sovrascrivendo con {value}.",
   "settings.voice.vad.enable": "Attiva il rilevamento dell'attività vocale (scarta il silenzio)",
+  "settings.voice.vad.inert_in_music": "La modalità Musica trasmette in continuo, quindi non c'è nessuna soglia da spostare — qui non ha effetto finché è selezionata Musica.",
   "settings.voice.vad.label": "Attività vocale",
   "settings.voice.vad.sensitivity": "Sensibilità",
   "settings.voice.vad.sensitivity_hint": "Quanto devi essere forte perché Wavvon inizi a trasmettere. La linea sul metro qui sopra è questo livello.",

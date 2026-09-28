@@ -839,7 +839,7 @@ select,
 }
 
 .profile-card-banner {
-  height: 96px;
+  height: 72px;
   /* gradient/image set inline (identity gradient, accent, or cover) */
 }
 
@@ -937,8 +937,11 @@ select,
 /* Tab content area: a consistent floor so the card doesn't resize as you
    switch tabs (short tabs no longer collapse the card). Taller content
    still grows, but the jarring per-tab height change is gone. */
+/* Enough floor that switching tabs does not make the card jump, and no more.
+   A fixed 330px panel under a banner put the save button below the fold on a
+   950px screen. */
 .profile-tab-panel {
-  min-height: 330px;
+  min-height: 150px;
   padding-top: var(--space-3);
   display: flex;
   flex-direction: column;
@@ -7768,4 +7771,17 @@ a.embed-title:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+}
+
+/* A control that does nothing in the current mode stays where it is and says
+   so. Removing it made everything below jump, and left no way to see what the
+   mode had turned off. */
+.settings-section.is-inert .settings-label,
+.settings-section.is-inert .settings-value {
+  color: var(--text-faint);
+}
+
+.settings-section.is-inert input[type="range"] {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

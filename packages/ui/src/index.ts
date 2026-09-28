@@ -378,6 +378,8 @@ export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry
 export type { StoredPresence } from "./utils/presenceExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useHubPing, applyProbeResult, PING_INTERVAL_MS, OFFLINE_AFTER_FAILURES } from "./hooks/useHubPing";
+export type { PingByHub, HubPingState } from "./hooks/useHubPing";
 export { useWhisper } from "./hooks/useWhisper";
 export { useTypingIndicators, typingKey, typingForScope } from "./hooks/useTypingIndicators";
 export type { TypingDeps, TypingMap } from "./hooks/useTypingIndicators";

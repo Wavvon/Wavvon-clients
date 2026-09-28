@@ -241,7 +241,7 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
             {requestStatus !== "idle" && requestStatus !== "opening" && <p className="error-text">{requestStatus}</p>}
           </>
         ) : (
-          <div className="settings-section" style={{ background: "var(--surface-2)", borderRadius: "var(--r-sm)", padding: 8 }}>
+          <div className="settings-section" style={{ background: "var(--bg-elevated)", borderRadius: "var(--r-sm)", padding: 8 }}>
             <div>{t("recovery.request.id_label")} <code>{openRequest.id}</code></div>
             <div className="muted">{t("recovery.request.share_hint")}</div>
             <div className="muted">
@@ -277,7 +277,7 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
           </button>
         </div>
         {reviewBundle && (
-          <div className="settings-section" style={{ background: "var(--surface-2)", borderRadius: "var(--r-sm)", padding: 8, marginTop: 8 }}>
+          <div className="settings-section" style={{ background: "var(--bg-elevated)", borderRadius: "var(--r-sm)", padding: 8, marginTop: 8 }}>
             <div><strong>{t("recovery.old_key")}</strong> <code>{formatPubkey(reviewBundle.old_pubkey)}</code></div>
             <div><strong>{t("recovery.new_key")}</strong> <code>{formatPubkey(reviewBundle.new_pubkey)}</code></div>
             <div className="muted">{t("recovery.hub_key")} <code>{formatPubkey(reviewBundle.hub_pubkey)}</code></div>

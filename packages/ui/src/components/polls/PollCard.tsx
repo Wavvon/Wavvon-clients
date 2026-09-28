@@ -84,7 +84,7 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
                   top: 0,
                   bottom: 0,
                   width: `${pct}%`,
-                  background: opt.voted ? "var(--accent-subtle, rgba(99,102,241,.15))" : "var(--bg-elevated)",
+                  background: opt.voted ? "var(--accent-wash)" : "var(--bg-elevated)",
                   transition: "width .4s ease",
                 }}
               />

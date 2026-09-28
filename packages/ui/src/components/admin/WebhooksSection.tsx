@@ -101,7 +101,7 @@ export function WebhooksSection({ channels, actions }: Props) {
       </p>
 
       {error && (
-        <p style={{ color: "var(--color-error, red)", marginBottom: "var(--space-3)" }}>{error}</p>
+        <p className="error-text">{error}</p>
       )}
 
       <div className="settings-section">
