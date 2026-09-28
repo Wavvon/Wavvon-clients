@@ -4,6 +4,7 @@ import { buildChannelTree, flattenTree, type Channel } from "@wavvon/core";
 import { ErrorRetry } from "../ErrorRetry";
 import type { Alliance, AllianceInvite, PendingAllianceInvite, SharedChannel } from "../../types";
 import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 export interface AlliancesSectionActions {
   listAlliances: () => Promise<Alliance[]>;
@@ -255,6 +256,11 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
 
 export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const { confirm, dialog } = useConfirm();
   const [alliances, setAlliances] = useState<Alliance[] | null>(null);
   const [invites, setInvites] = useState<PendingAllianceInvite[]>([]);
@@ -322,6 +328,11 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
       <p className="muted">{t("alliances.hint")}</p>
       {error && alliances !== null && <p className="error-text">{error}</p>}
 
+      <SettingRow
+        title={t("alliances.create")}
+        state={t("alliances.state.create")}
+        {...row("create")}
+      >
       <div className="settings-row" style={{ gap: "var(--space-2)" }}>
         <input
           type="text"
@@ -331,12 +342,16 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
           placeholder={t("alliances.new.placeholder")}
           aria-label={t("alliances.new.placeholder")}
         />
-        <button onClick={handleCreate} disabled={busy || !name.trim()}>{t("alliances.create")}</button>
+        <button className="btn-primary" onClick={handleCreate} disabled={busy || !name.trim()}>{t("alliances.create")}</button>
       </div>
+      </SettingRow>
 
       {actions.joinAllianceByCode && (
-        <div className="settings-section">
-          <label className="settings-label">{t("alliances.join.label")}</label>
+        <SettingRow
+          title={t("alliances.join.label")}
+          state={t("alliances.state.join")}
+          {...row("join")}
+        >
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("alliances.join.hint")}</p>
           <div className="settings-row" style={{ gap: "var(--space-2)" }}>
             <input
@@ -347,14 +362,19 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
               placeholder={t("alliances.join.placeholder")}
               aria-label={t("alliances.join.label")}
             />
-            <button onClick={handleJoin} disabled={busy || !joinCode.trim()}>{t("alliances.join.button")}</button>
+            <button className="btn-primary" onClick={handleJoin} disabled={busy || !joinCode.trim()}>{t("alliances.join.button")}</button>
           </div>
-        </div>
+        </SettingRow>
       )}
 
       {invites.length > 0 && (
-        <div className="settings-section">
-          <label className="settings-label">{t("alliances.pending")}</label>
+        <SettingRow
+          title={t("alliances.pending")}
+          state={t("alliances.state.pending", { count: invites.length })}
+          attention
+          meta={String(invites.length)}
+          {...row("pending")}
+        >
           {invites.map((inv) => (
             <div key={inv.id} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
               <span>{inv.alliance_name} <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.invite_from", { hub: inv.from_hub_name })}</span></span>
@@ -364,11 +384,19 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
               </span>
             </div>
           ))}
-        </div>
+        </SettingRow>
       )}
 
-      <div className="settings-section">
-        <label className="settings-label">{t("alliances.yours")}</label>
+      <SettingRow
+        title={t("alliances.yours")}
+        state={alliances === null
+          ? t("alliances.loading")
+          : alliances.length === 0
+            ? t("alliances.empty")
+            : t("alliances.state.yours", { count: alliances.length })}
+        meta={alliances && alliances.length > 0 ? String(alliances.length) : undefined}
+        {...row("yours")}
+      >
         {alliances === null ? (
           error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("alliances.loading")}</p>
         ) : alliances.length === 0 ? (
@@ -396,7 +424,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
             />
           ))
         )}
-      </div>
+      </SettingRow>
     </section>
   );
 }
