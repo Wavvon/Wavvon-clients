@@ -33,7 +33,7 @@ import type {
   AppOpenEvent,
   AppCloseEvent,
 } from "./types";
-import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll } from "@wavvon/ui";
+import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon } from "@wavvon/ui";
 import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
 import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
@@ -1625,7 +1625,7 @@ function App() {
               />
             ) : myApprovalStatus === "pending" ? (
               <div className="empty-state pending-approval">
-                <div className="pending-approval-icon">⏳</div>
+                <div className="pending-approval-icon"><ClockIcon size={32} /></div>
                 <h1>{t("app.approval.title")}</h1>
                 <p>
                   {t("app.approval.hub_requires", {

@@ -5,6 +5,7 @@ import type { EventMoveAssignment, EventRsvp, HubEvent, RsvpStatus, VoicePartici
 import { EventSlotList } from "./EventSlotList";
 import { EventStagingPanel } from "./EventStagingPanel";
 import { reminderMinutesToOffset } from "../../utils/events";
+import { CloseIcon } from "../Icons";
 
 /** Staging (organizer move-members) capability bundle — omitted entirely on
  *  platforms with no voice-move wiring (events.md §7.1 is web-only today). */
@@ -106,8 +107,8 @@ export function EventCard({
               style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
               onClick={() => onDelete(event.id)}
               title={t("events.card.delete")}
-            >
-              ✕
+            >
+              <CloseIcon size={14} />
             </button>
           )}
         </div>

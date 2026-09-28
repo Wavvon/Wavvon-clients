@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { Hub, SyncResult } from "../types";
+import { LinkIcon, LockIcon } from "@wavvon/ui";
 
 interface PairedIdentityInfo {
   master_pubkey: string;
@@ -289,7 +290,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
     <div className="settings-section">
       {pairedId ? (
         <div className="pairing-status-card paired">
-          <span className="pairing-status-icon">🔗</span>
+          <span className="pairing-status-icon"><LinkIcon size={16} /></span>
           <div>
             <strong>{t("settings.pairing.paired_title")}</strong>
             <p className="muted">
@@ -302,7 +303,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
         </div>
       ) : (
         <div className="pairing-status-card legacy">
-          <span className="pairing-status-icon">🔑</span>
+          <span className="pairing-status-icon"><LockIcon size={16} /></span>
           <div>
             <strong>{t("settings.pairing.legacy_title")}</strong>
             <p className="muted">{t("settings.pairing.legacy_hint")}</p>

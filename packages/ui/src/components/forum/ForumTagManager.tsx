@@ -4,6 +4,7 @@ import type { ForumTagDef } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 import { ColorSwatchPicker } from "../admin/ColorSwatchPicker";
 import { useConfirm } from "../ConfirmDialog";
+import { ChevronIcon } from "../Icons";
 
 export interface ForumTagManagerActions {
   createTag: (channelId: string, label: string, color?: string | null, position?: number) => Promise<ForumTagDef>;
@@ -110,8 +111,8 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
             disabled={index === 0}
             aria-label={t("forum.tags.move_up")}
             title={t("forum.tags.move_up")}
-          >
-            ↑
+          >
+            <ChevronIcon size={12} dir="up" />
           </button>
           <button
             type="button"
@@ -120,8 +121,8 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
             disabled={index === sorted.length - 1}
             aria-label={t("forum.tags.move_down")}
             title={t("forum.tags.move_down")}
-          >
-            ↓
+          >
+            <ChevronIcon size={12} dir="down" />
           </button>
           <input
             type="text"

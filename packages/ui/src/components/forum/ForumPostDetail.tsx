@@ -9,6 +9,7 @@ import { MessageContent } from "../MessageContent";
 import { AutoGrowTextarea } from "../profile/AutoGrowTextarea";
 import { EmojiPicker } from "../content/EmojiPicker";
 import type { ForumActions } from "./ForumView";
+import { PinIcon, LockIcon } from "../Icons";
 
 const NO_MENTIONS = new Set<string>();
 // 5 text rows at the --leading-normal line-height (1.5 * 14px).
@@ -348,8 +349,8 @@ export function ForumPostDetail({
       <div className="forum-post-header">
         <h1 className="forum-post-title">
           {post.is_deleted ? t("forum.detail.deleted_title") : (post.title || t("forum.detail.no_title"))}
-          {post.is_pinned && <span className="forum-badge pin" title={t("forum.detail.pinned")}> 📌</span>}
-          {post.is_locked && <span className="forum-badge lock" title={t("forum.detail.locked")}> 🔒</span>}
+          {post.is_pinned && <span className="forum-badge pin" title={t("forum.detail.pinned")}><PinIcon size={12} /></span>}
+          {post.is_locked && <span className="forum-badge lock" title={t("forum.detail.locked")}><LockIcon size={12} /></span>}
         </h1>
         <div className="forum-post-submeta muted">
           {!post.is_deleted && <span className="forum-post-author">{authorLabel(users, post.author_pubkey)} · </span>}

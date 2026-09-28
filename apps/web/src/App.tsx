@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts } from "@wavvon/ui";
+import { useUnreadCounts, ClockIcon } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -1527,7 +1527,7 @@ export default function App({ initialView }: AppProps = {}) {
         </main>
       ) : activeHubId && pendingApprovalHubs.has(activeHubId) ? (
         <main className="content" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 40 }}>⏳</div>
+          <div className="pending-approval-icon"><ClockIcon size={32} /></div>
           <h2 style={{ margin: 0 }}>{t("app.approval.title")}</h2>
           <p className="muted" style={{ margin: 0, textAlign: "center", maxWidth: 320 }}>
             {t("app.approval.body")}

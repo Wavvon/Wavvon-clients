@@ -11,6 +11,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { useTranslation } from "react-i18next";
 import type { Hub, NotifyMode } from "../../types";
 import { SortableHubIcon } from "../SortableItems";
+import { ClockIcon, BellOffIcon } from "../Icons";
 
 interface Props {
   hubs: Hub[];
@@ -162,10 +163,10 @@ export function HubSidebar({
                       <span className="hub-unread-badge" aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
                     )}
                     {lobbyHubIds?.has(h.hub_id) && (
-                      <span className="hub-muted-badge" title={t("lobby.sidebar_hint")}>🕒</span>
+                      <span className="hub-muted-badge" title={t("lobby.sidebar_hint")}><ClockIcon size={11} /></span>
                     )}
                     {hubNotifyMode[h.hub_id] === "silent" && (
-                      <span className="hub-muted-badge" title={t("hub.notifications.silent")} aria-hidden="true">🔕</span>
+                      <span className="hub-muted-badge" title={t("hub.notifications.silent")} aria-hidden="true"><BellOffIcon size={11} /></span>
                     )}
                     {hubNotifyMode[h.hub_id] === "mentions" && (
                       <span className="hub-muted-badge" title={t("hub.notifications.mentions")} aria-hidden="true">@</span>

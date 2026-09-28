@@ -193,6 +193,9 @@ export {
   ClockIcon,
   WhisperIcon,
   CakeIcon,
+  CalendarIcon,
+  WaveIcon,
+  ReactionAddIcon,
 } from "./components/Icons";
 export { HubStreamsPanel } from "./components/HubStreamsPanel";
 export type { HubStreamInfo } from "./types";

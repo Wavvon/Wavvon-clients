@@ -13,6 +13,7 @@ import { profileBannerStyle } from "../../utils/identityColor";
 import { loadHiddenBadgeSet } from "../../utils/hiddenBadges";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
 import { AvatarChooser } from "./AvatarChooser";
+import { EditIcon } from "../Icons";
 
 interface Props {
   hubs: Hub[];
@@ -510,7 +511,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
               aria-label={t("settings.profile.banner.edit")}
               title={t("settings.profile.banner.edit")}
             >
-              <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
+              <span className="avatar-edit-overlay" aria-hidden="true"><EditIcon size={16} /></span>
             </button>
             <div className="profile-card-body">
               {/* Avatar + a thought bubble carrying the status — the avatar
@@ -525,7 +526,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     title={t("profile.avatar_chooser.change_avatar")}
                   >
                     <Avatar src={draft.avatar} name={draft.display_name} size={80} />
-                    <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
+                    <span className="avatar-edit-overlay" aria-hidden="true"><EditIcon size={16} /></span>
                   </button>
                 </div>
                 <StatusBubble

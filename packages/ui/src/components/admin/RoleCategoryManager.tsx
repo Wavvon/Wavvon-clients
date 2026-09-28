@@ -5,6 +5,7 @@ import { safeRoleColor } from "../../utils/roleAppearance";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ColorSwatchPicker } from "./ColorSwatchPicker";
 import { useConfirm } from "../ConfirmDialog";
+import { ChevronIcon } from "../Icons";
 
 export interface RoleCategoryManagerActions {
   createRoleCategory: (input: { name: string; position: number }) => Promise<RoleCategory>;
@@ -107,8 +108,8 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
             disabled={index === 0}
             aria-label={t("hub.admin.role_categories.move_up")}
             title={t("hub.admin.role_categories.move_up")}
-          >
-            ↑
+          >
+            <ChevronIcon size={12} dir="up" />
           </button>
           <button
             type="button"
@@ -117,8 +118,8 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
             disabled={index === sorted.length - 1}
             aria-label={t("hub.admin.role_categories.move_down")}
             title={t("hub.admin.role_categories.move_down")}
-          >
-            ↓
+          >
+            <ChevronIcon size={12} dir="down" />
           </button>
           <span style={{ minWidth: 20, textAlign: "center" }}>{cat.icon ?? "—"}</span>
           <EmojiPicker onPick={(icon) => runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { icon })))} unicodeOnly />

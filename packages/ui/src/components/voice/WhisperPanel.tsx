@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { WhisperTarget, WhisperList, WhisperReplyBind } from "../../types";
+import { CloseIcon, TrashIcon } from "../Icons";
 
 interface Props {
   voiceParticipants: Array<{ public_key: string; display_name: string | null }>;
@@ -98,7 +99,7 @@ export function WhisperPanel({
     <div className="whisper-panel">
       <div className="whisper-panel-header">
         <span className="whisper-panel-title">{t("voice.whisper")}</span>
-        <button className="whisper-panel-close" onClick={onClose} aria-label={t("modal.close")} title={t("modal.close")}>✕</button>
+        <button className="whisper-panel-close" onClick={onClose} aria-label={t("modal.close")} title={t("modal.close")}><CloseIcon size={13} /></button>
       </div>
 
       {isWhispering && (
@@ -159,7 +160,7 @@ export function WhisperPanel({
               <span className="whisper-list-targets">{list.targets.map(target => target.label).join(", ")}</span>
               <div className="whisper-list-actions">
                 <button onClick={() => { onStartWhisper(list.targets); onClose(); }}>{t("voice.whisper")}</button>
-                <button onClick={() => onDeleteList(list.id)} aria-label={t("voice.whisper.delete_list")} title={t("voice.whisper.delete_list")}>✕</button>
+                <button onClick={() => onDeleteList(list.id)} aria-label={t("voice.whisper.delete_list")} title={t("voice.whisper.delete_list")}><TrashIcon size={13} /></button>
               </div>
             </div>
             <div className="whisper-list-keybind-row">

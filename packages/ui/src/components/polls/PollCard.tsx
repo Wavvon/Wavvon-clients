@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Poll } from "../../types";
+import { CloseIcon } from "../Icons";
 
 interface Props {
   poll: Poll;
@@ -50,8 +51,8 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
             style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
             onClick={handleDelete}
             title={t("polls.card.delete")}
-          >
-            ✕
+          >
+            <CloseIcon size={14} />
           </button>
         )}
       </div>

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { PostSummary, ForumTagDef, User } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
 import type { ForumActions } from "./ForumView";
+import { PinIcon, LockIcon } from "../Icons";
 
 interface Props {
   channelId: string;
@@ -133,8 +134,8 @@ function ForumPostRow({ post, users, onClick }: { post: PostSummary; users: User
       <div className="forum-post-row-main">
         <span className="forum-post-title">
           {post.is_deleted ? t("forum.detail.deleted_title") : (post.title || t("forum.detail.no_title"))}
-          {post.is_pinned && <span className="forum-badge pin" title={t("forum.list.pinned")}>📌</span>}
-          {post.is_locked && <span className="forum-badge lock" title={t("forum.list.locked")}>🔒</span>}
+          {post.is_pinned && <span className="forum-badge pin" title={t("forum.list.pinned")}><PinIcon size={12} /></span>}
+          {post.is_locked && <span className="forum-badge lock" title={t("forum.list.locked")}><LockIcon size={12} /></span>}
           {!post.is_deleted && post.tags && post.tags.length > 0 && (
             <span className="forum-tag-row inline">
               {post.tags.map((tag) => (

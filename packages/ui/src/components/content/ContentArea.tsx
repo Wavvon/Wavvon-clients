@@ -32,6 +32,7 @@ import { ChannelMessageList } from "./ChannelMessageList";
 import type { MessageRowActions } from "./MessageRow";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
+import { CalendarIcon, CloseIcon } from "../Icons";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -559,8 +560,8 @@ export function ContentArea({
                   className="btn-icon-header"
                   title={t("events.open_panel")}
                   aria-label={t("events.open_panel")}
-                >
-                  📅
+                >
+                  <CalendarIcon size={14} />
                 </button>
               </div>
             )}
@@ -729,7 +730,7 @@ export function ContentArea({
         <div className="modal-overlay" onClick={() => setShowEventsModal(false)}>
           <div className="modal" style={{ maxWidth: 640, maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="btn-ghost" onClick={() => setShowEventsModal(false)} aria-label={t("modal.close")}>✕</button>
+              <button className="btn-ghost" onClick={() => setShowEventsModal(false)} aria-label={t("modal.close")}><CloseIcon size={14} /></button>
             </div>
             {eventsPanel}
           </div>

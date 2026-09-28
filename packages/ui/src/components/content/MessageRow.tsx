@@ -26,7 +26,7 @@ import { MessageContent } from "../MessageContent";
 import { GameCard } from "../GameCard";
 import { PollCard } from "../polls/PollCard";
 import { nameColorStyle, safeRoleColor } from "../../utils/roleAppearance";
-import { LinkIcon, PinIcon, FlagIcon, ReplyIcon, EditIcon, TrashIcon } from "../Icons";
+import { LinkIcon, PinIcon, FlagIcon, ReplyIcon, EditIcon, TrashIcon, CakeIcon } from "../Icons";
 
 interface HubEmojiEntry { id: string; name: string; url: string; }
 
@@ -299,7 +299,7 @@ export function MessageRow({
           >
             {senderLabel}
           </span>
-          {showBirthdayBadge && <span title={t("message.birthday")} aria-label={t("message.birthday")}>🎂</span>}
+          {showBirthdayBadge && <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={13} /></span>}
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} hubEmojiMap={hubEmojiMap} hubBaseUrl={hubBaseUrl ?? activeHub?.hub_url} />
           </span>
@@ -327,7 +327,7 @@ export function MessageRow({
             onClick={() => m.reply_to && onScrollToMessage(m.reply_to.message_id)}
             title={t("message.reply.jump")}
           >
-            <span className="reply-arrow" aria-hidden="true">↪</span>
+            <span className="reply-arrow" aria-hidden="true"><ReplyIcon size={12} /></span>
             <span className="reply-author">
               {m.reply_to.sender_name || formatPubkey(m.reply_to.sender)}
             </span>
@@ -349,7 +349,7 @@ export function MessageRow({
           >
             {senderLabel}
           </span>
-          {showBirthdayBadge && <span title={t("message.birthday")} aria-label={t("message.birthday")}>🎂</span>}
+          {showBirthdayBadge && <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={13} /></span>}
           {senderUser?.is_webhook && (
             <span className="app-badge" aria-hidden="true">{t("app.badge")}</span>
           )}

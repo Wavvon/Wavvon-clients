@@ -29,7 +29,7 @@ import type {
   WhisperList,
   WhisperReplyBind,
 } from "../../types";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, GearIcon, SpeakerIcon, WhisperIcon } from "../Icons";
+import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, GearIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
 import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
 import { HoverSubmenu } from "../HoverSubmenu";
@@ -492,7 +492,7 @@ export function ChannelSidebar({
               )}
             </span>
             <HubClock timezone={hubTimezone} />
-            <span className="hub-header-chevron">{hubDropdownOpen ? "▴" : "▾"}</span>
+            <span className="hub-header-chevron"><ChevronIcon size={12} dir={hubDropdownOpen ? "up" : "down"} /></span>
           </button>
           {hubDropdownOpen && (
             <div className="hub-dropdown">
