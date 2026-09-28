@@ -31,7 +31,7 @@ export function SettingsPageContainer({
   if (!settingsProfile.showSettings) return null;
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg, #1a1a2e)", overflow: "auto", display: "flex" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg)", overflow: "auto", display: "flex" }}>
       <SettingsPage
         tab={settingsProfile.settingsTab}
         onTab={settingsProfile.setSettingsTab}

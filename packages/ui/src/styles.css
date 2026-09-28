@@ -2132,9 +2132,9 @@ tr.account-drop-target td {
 .user-status-dot.status-online  { background: var(--success); }
 .user-status-dot.status-away    { background: var(--warning); }
 .user-status-dot.status-dnd     { background: var(--danger); }
-.user-status-dot.status-offline { background: var(--text-faint, #555); }
+.user-status-dot.status-offline { background: var(--text-faint); }
 /* Invisible: a hollow ring — you know you're hidden; others just see offline. */
-.user-status-dot.status-invisible { background: transparent; box-shadow: inset 0 0 0 2px var(--text-muted, #888); }
+.user-status-dot.status-invisible { background: transparent; box-shadow: inset 0 0 0 2px var(--text-muted); }
 
 /* "Clear after" TTL row in the status picker. */
 .status-menu-ttl {
@@ -5021,7 +5021,7 @@ select:focus-visible {
    still just sees plain offline. */
 .status-dot.invisible {
   background: transparent;
-  box-shadow: inset 0 0 0 2px var(--text-muted, #888);
+  box-shadow: inset 0 0 0 2px var(--text-muted);
 }
 
 /* Custom presence text appended after a member's name in the member list. */
@@ -5527,7 +5527,7 @@ select:focus-visible {
   position: fixed;
   z-index: 9000;
   background: var(--bg);
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border: 1px solid var(--border);
   border-radius: var(--r-md, 8px);
   box-shadow: 0 8px 32px rgba(0,0,0,0.6);
   display: flex;
@@ -5546,7 +5546,7 @@ select:focus-visible {
   flex-shrink: 0;
   cursor: grab;
   background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-bottom: 1px solid var(--border);
   user-select: none;
 }
 
@@ -5555,7 +5555,7 @@ select:focus-visible {
 }
 
 .ss-overlay__drag-icon {
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   font-size: 18px;
   line-height: 1;
   pointer-events: none;
@@ -5575,7 +5575,7 @@ select:focus-visible {
 .ss-overlay__btn {
   background: none;
   border: none;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px 6px;
   border-radius: var(--r-sm, 4px);
@@ -5585,7 +5585,7 @@ select:focus-visible {
 
 .ss-overlay__btn:hover {
   background: var(--surface-hover);
-  color: var(--text, #fff);
+  color: var(--text);
 }
 
 .ss-overlay__body {
@@ -6358,7 +6358,7 @@ select:focus-visible {
    forms; these are records, so they sit flatter. */
 .survey-question-edit {
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border);
 }
 
 .survey-question-edit:last-of-type {
@@ -6366,7 +6366,7 @@ select:focus-visible {
 }
 
 .survey-response {
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border);
 }
 
 .survey-response:last-child {
@@ -8179,7 +8179,7 @@ input[type="range"] {
   align-items: center;
   gap: var(--space-2);
   padding: 8px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border);
 }
 
 .device-list-item:last-child {

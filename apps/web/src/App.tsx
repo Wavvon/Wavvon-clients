@@ -1262,9 +1262,9 @@ export default function App({ initialView }: AppProps = {}) {
         <div
           style={{
             position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)",
-            background: "var(--surface)", border: "1px solid var(--danger, #e05252)",
+            background: "var(--surface)", border: "1px solid var(--danger)",
             borderRadius: "var(--r-md)", padding: "8px 16px", zIndex: 9999,
-            fontSize: "var(--text-sm)", color: "var(--danger, #e05252)",
+            fontSize: "var(--text-sm)", color: "var(--danger)",
           }}
         >
           {hubErrorToast}
@@ -1311,7 +1311,7 @@ export default function App({ initialView }: AppProps = {}) {
       )}
 
       {showDiscover && DISCOVERY_URL && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg, #1a1a2e)", overflow: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg)", overflow: "auto" }}>
           <DiscoverPage
             onClose={() => setShowDiscover(false)}
             onJoinHub={(hubUrl, inviteCode) => {
