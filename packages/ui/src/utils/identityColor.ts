@@ -16,7 +16,10 @@ export function identityGradient(pubkeyHex: string | null | undefined): string {
   }
   // Keep the two hues visibly apart so the gradient always has movement.
   if (Math.abs(h1 - h2) < 40) h2 = (h2 + 90) % 360;
-  return `linear-gradient(120deg, hsl(${h1} 58% 46%), hsl(${h2} 52% 38%))`;
+  // Low chroma on purpose. The derivation is the point — same key, same
+  // banner, forever — but at 58% saturation two arbitrary hues shout over
+  // the one accent that is supposed to carry meaning in this interface.
+  return `linear-gradient(120deg, hsl(${h1} 20% 28%), hsl(${h2} 16% 20%))`;
 }
 
 // The profile-card banner background, shared by the settings editor and the
