@@ -1,5 +1,6 @@
 import type { Attachment } from "../types";
 import { useTranslation } from "react-i18next";
+import { CloseIcon } from "./Icons";
 
 export function PendingAttachments({
   items,
@@ -27,8 +28,8 @@ export function PendingAttachments({
             onClick={() => onRemove(i)}
             title={t("attachment.remove")}
             aria-label={t("attachment.remove")}
-          >
-            ×
+          >
+            <CloseIcon size={13} />
           </button>
         </div>
       ))}

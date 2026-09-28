@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { Hub } from "../types";
-import { ChevronIcon } from "@wavvon/ui";
+import { ChevronIcon, CloseIcon } from "@wavvon/ui";
 
 interface HomeHubList {
   master_pubkey: string;
@@ -132,8 +132,8 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
                 className="btn-secondary"
                 onClick={() => remove(url)}
                 title={t("settings.account.home_hubs.remove_button")}
-              >
-                ×
+              >
+                <CloseIcon size={13} />
               </button>
             </li>
           ))}

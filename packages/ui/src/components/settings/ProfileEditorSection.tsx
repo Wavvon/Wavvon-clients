@@ -13,7 +13,7 @@ import { profileBannerStyle } from "../../utils/identityColor";
 import { loadHiddenBadgeSet } from "../../utils/hiddenBadges";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
 import { AvatarChooser } from "./AvatarChooser";
-import { EditIcon } from "../Icons";
+import { EditIcon, CloseIcon } from "../Icons";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface Props {
@@ -734,8 +734,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                   onClick={() => setChoosingAvatar(false)}
                   aria-label={t("modal.close")}
                   style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}
-                >
-                  ×
+                >
+                  <CloseIcon size={13} />
                 </button>
                 <label className="settings-label" style={{ marginBottom: 8, display: "block" }}>
                   {t("profile.avatar_chooser.change_avatar")}
@@ -765,8 +765,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                   onClick={() => setEditingBanner(false)}
                   aria-label={t("modal.close")}
                   style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}
-                >
-                  ×
+                >
+                  <CloseIcon size={13} />
                 </button>
                 <label className="settings-label" style={{ marginBottom: 8, display: "block" }}>
                   {t("settings.profile.banner.edit")}

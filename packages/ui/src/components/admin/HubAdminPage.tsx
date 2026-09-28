@@ -17,6 +17,7 @@ import { SoundboardAdminSection, type SoundboardAdminSectionActions } from "./So
 import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./OnboardingAdminSection";
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
+import { CloseIcon } from "../Icons";
 
 export type HubAdminTab =
   | "overview"
@@ -271,7 +272,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
         <button className="settings-nav-close" onClick={props.onClose}>{t("modal.close")}</button>
       </aside>
       <main className="settings-content">
-        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}>×</button>
+        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}><CloseIcon size={13} /></button>
 
         {props.tab === "overview" && (
           <section>
