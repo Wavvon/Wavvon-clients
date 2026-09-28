@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "./FocusTrap";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 interface Props {
   channelName: string;
@@ -12,6 +13,7 @@ interface Props {
  *  (events.md §7.2 Phase-1 right-click primitive). Decline is a server
  *  no-op — closing the modal is enough, nothing to send. */
 export function VoiceMovePromptModal({ channelName, onAccept, onDecline }: Props) {
+  useCloseOnEscape(onDecline);
   const { t } = useTranslation();
   return (
     <div className="modal-overlay" onClick={onDecline} role="dialog" aria-modal="true" aria-label={t("voice.move.prompt.title")}>

@@ -9,6 +9,7 @@ import { insertAtLineStart } from "../../utils/activityEmoji";
 import { AutoGrowTextarea } from "../profile/AutoGrowTextarea";
 import { GameEmojiRow } from "../profile/GameEmojiRow";
 import { StatusBubble } from "../profile/StatusBubble";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 const ACTIVITIES_MAX = 500;
 
@@ -57,6 +58,7 @@ function loadRoleCategories(hubId: string, listRoleCategories: (hubId: string) =
 }
 
 export function UserProfileCard({ pubkey, myPubkey, activeHubId, actions, onClose, onStartConversation }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);

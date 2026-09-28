@@ -520,3 +520,35 @@ export function ReactionAddIcon({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+/** Direct messages: the hub rail's first stop, which is not a hub. */
+export function MessagesIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 5.5h16v11H9.5L4.5 20.5V5.5z" />
+    </svg>
+  );
+}
+
+/** The public hub directory — looking outward, not adding what you have. */
+export function DiscoverIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M15.5 8.5l-2 5-5 2 2-5z" />
+    </svg>
+  );
+}
+
+/** A mention waiting on a hub you are not looking at. */
+export function MentionIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.6" />
+      <path d="M15.6 12v2a2.6 2.6 0 0 0 5.2 0v-2a8.8 8.8 0 1 0-3.4 6.9" />
+    </svg>
+  );
+}

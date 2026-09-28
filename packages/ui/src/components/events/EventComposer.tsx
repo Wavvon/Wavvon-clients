@@ -12,6 +12,7 @@ import {
 } from "../../utils/events";
 import { nextHalfHourValue } from "../../utils/calendar";
 import { EventSlotEditor, type SlotRow } from "./EventSlotEditor";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 type EventScope = "channel" | "hub_wide";
 
@@ -52,6 +53,7 @@ function newSlotRow(): SlotRow {
 export function EventComposer({
   channelId, channels, canHubWide, advancedFieldsSupported, onSubmit, onCreated, onClose,
 }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

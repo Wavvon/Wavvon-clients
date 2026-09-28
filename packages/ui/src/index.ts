@@ -196,6 +196,9 @@ export {
   CalendarIcon,
   WaveIcon,
   ReactionAddIcon,
+  MessagesIcon,
+  DiscoverIcon,
+  MentionIcon,
 } from "./components/Icons";
 export { HubStreamsPanel } from "./components/HubStreamsPanel";
 export type { HubStreamInfo } from "./types";

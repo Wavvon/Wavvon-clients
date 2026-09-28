@@ -4,6 +4,7 @@ import { FocusTrap } from "./FocusTrap";
 import { StagingSlotGroup } from "./StagingSlotGroup";
 import type { ClaimantVoiceStatus, StagingGroup } from "../types";
 import type { VoiceMoveChannelOption } from "./VoiceMoveMenu";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 interface Props {
   eventTitle: string;
@@ -39,6 +40,7 @@ export function StagingPanel({
   squadRoomCount, onSquadRoomCountChange, squadRoomPrefix, onSquadRoomPrefixChange, onSpawnSquadRooms,
   spawningSquadRooms, squadRoomError,
 }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   return (
     <div

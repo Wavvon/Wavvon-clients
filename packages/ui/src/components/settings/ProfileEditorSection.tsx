@@ -14,6 +14,7 @@ import { loadHiddenBadgeSet } from "../../utils/hiddenBadges";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
 import { AvatarChooser } from "./AvatarChooser";
 import { EditIcon } from "../Icons";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface Props {
   hubs: Hub[];
@@ -138,6 +139,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   const [identityBadges, setIdentityBadges] = useState<string[]>([]);
   const [choosingAvatar, setChoosingAvatar] = useState(false);
   const [editingBanner, setEditingBanner] = useState(false);
+  useCloseOnEscape(() => setChoosingAvatar(false), choosingAvatar);
+  useCloseOnEscape(() => setEditingBanner(false), editingBanner);
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved">("idle");
   const [error, setError] = useState<"no_session" | "name_required" | string | null>(null);
   const [hasDefault, setHasDefault] = useState(false);

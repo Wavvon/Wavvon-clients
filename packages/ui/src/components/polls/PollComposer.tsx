@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Poll } from "../../types";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface Props {
   channelId: string;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function PollComposer({ channelId, onCreatePoll, onCreated, onClose }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [question, setQuestion] = useState("");
   const nextId = useRef(2);
