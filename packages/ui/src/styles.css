@@ -252,6 +252,24 @@ button:disabled {
 }
 
 /* ============================================================
+   HEADINGS
+   There were none: every heading rendered at the browser default, so a
+   section drawn with <h1> and the one next to it drawn with <h2> sat at
+   different sizes for no reason anyone chose.
+   ============================================================ */
+h1, h2, h3, h4 {
+  color: var(--text);
+  font-weight: var(--weight-semi);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: var(--text-xl); }
+h2 { font-size: var(--text-lg); }
+h3 { font-size: var(--text-md); }
+h4 { font-size: var(--text-md); }
+
+/* ============================================================
    MOTION BASELINE
    Every interactive element shares a consistent transition.
    Disabled when the user prefers reduced motion.
@@ -7784,4 +7802,93 @@ a.embed-title:hover {
 .settings-section.is-inert input[type="range"] {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* ============================================================
+   CONFIRM DIALOG
+   ============================================================ */
+.confirm-modal {
+  max-width: 420px;
+}
+
+.confirm-modal h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semi);
+  line-height: var(--leading-tight);
+  margin-bottom: var(--space-2);
+}
+
+.confirm-modal p {
+  margin-bottom: var(--space-5);
+  max-width: 46ch;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* The one place red is a button and not a warning: the control that goes
+   through with something irreversible. */
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: var(--danger-hover);
+}
+
+/* ============================================================
+   ADMIN / SETTINGS SECTION RHYTHM
+   Every tab is a <section> with an <h1> and, usually, a hint under it.
+   Before this, each section brought its own spacing — or none, which is
+   why a "New role" button sat flush against the sentence above it and the
+   next sub-heading sat flush against the button.
+   ============================================================ */
+.settings-content section + section {
+  margin-top: var(--space-7);
+}
+
+.settings-content section > h1 {
+  margin-bottom: var(--space-2);
+}
+
+.settings-content section > h2 {
+  margin: var(--space-6) 0 var(--space-2);
+}
+
+.settings-content section > h3 {
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+/* The sentence explaining the section, wherever it sits under its heading. */
+.settings-content section > h1 + p,
+.settings-content section > h2 + p,
+.settings-content section > h3 + p {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  max-width: 76ch;
+  margin-bottom: var(--space-4);
+}
+
+/* A section's own first control should not touch the prose above it. */
+.settings-content section > button,
+.settings-content section > .settings-row,
+.settings-content section > table {
+  margin-top: var(--space-2);
+}
+
+/* A section nested inside another one is a sub-block of it, not a peer:
+   it needs the same air a sibling section gets. */
+.settings-content section section {
+  margin-top: var(--space-7);
+  display: block;
 }

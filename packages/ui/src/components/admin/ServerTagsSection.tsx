@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { HubBadge, HubSelfTagSettings, PendingBadgeOffer } from "../../types";
+import { useConfirm } from "../ConfirmDialog";
 
 export interface ServerTagsSectionActions {
   getDiscoveryTags: () => Promise<HubSelfTagSettings>;
@@ -19,6 +20,7 @@ interface Props {
 
 export function ServerTagsSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [tagsInput, setTagsInput] = useState("");
   const [nsfw, setNsfw] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | string>("idle");
@@ -77,7 +79,20 @@ export function ServerTagsSection({ actions }: Props) {
   }
 
   async function handleRemoveBadge(id: string) {
-    try { await actions.removeBadge(id); await loadBadgeData(); } catch { /* ignore */ }
+    const ok = await confirm({
+      title: t("hub.admin.tags.remove_badge_confirm"),
+      confirmLabel: t("hub.admin.tags.remove_badge"),
+      danger: true,
+    });
+    if (!ok) return;
+    // The old body swallowed every failure, so a refused removal looked
+    // exactly like a successful one.
+    try {
+      await actions.removeBadge(id);
+      await loadBadgeData();
+    } catch (e) {
+      setSaveStatus(e instanceof Error ? e.message : String(e));
+    }
   }
 
   async function handleGrantBadge() {
@@ -96,6 +111,7 @@ export function ServerTagsSection({ actions }: Props) {
 
   return (
     <section>
+      {dialog}
       <h1>{t("hub.admin.tags.title")}</h1>
 
       <div className="settings-section">

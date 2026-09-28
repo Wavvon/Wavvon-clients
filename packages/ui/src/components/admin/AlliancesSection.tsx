@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { buildChannelTree, flattenTree, type Channel } from "@wavvon/core";
 import { ErrorRetry } from "../ErrorRetry";
 import type { Alliance, AllianceInvite, PendingAllianceInvite, SharedChannel } from "../../types";
+import { useConfirm } from "../ConfirmDialog";
 
 export interface AlliancesSectionActions {
   listAlliances: () => Promise<Alliance[]>;
@@ -254,6 +255,7 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
 
 export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [alliances, setAlliances] = useState<Alliance[] | null>(null);
   const [invites, setInvites] = useState<PendingAllianceInvite[]>([]);
   const [name, setName] = useState("");
@@ -378,7 +380,15 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
               myChannels={channels}
               busy={busy}
               activeHubUrl={activeHubUrl}
-              onLeave={() => run(() => actions.leaveAlliance(a.id))}
+              onLeave={async () => {
+                const ok = await confirm({
+                  title: t("alliances.detail.leave_confirm", { name: a.name }),
+                  body: t("alliances.detail.leave_body"),
+                  confirmLabel: t("alliances.detail.leave"),
+                  danger: true,
+                });
+                if (ok) run(() => actions.leaveAlliance(a.id));
+              }}
               onError={setError}
               runGuard={runGuard}
               actions={actions}

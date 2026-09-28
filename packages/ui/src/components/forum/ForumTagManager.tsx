@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ForumTagDef } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 import { ColorSwatchPicker } from "../admin/ColorSwatchPicker";
+import { useConfirm } from "../ConfirmDialog";
 
 export interface ForumTagManagerActions {
   createTag: (channelId: string, label: string, color?: string | null, position?: number) => Promise<ForumTagDef>;
@@ -25,6 +26,7 @@ interface Props {
  * pattern one-for-one. */
 export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [newLabel, setNewLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
@@ -79,7 +81,11 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
   }
 
   async function handleDelete(tag: ForumTagDef) {
-    if (!window.confirm(t("forum.tags.delete_confirm", { label: tag.label }))) return;
+    if (!(await confirm({
+      title: t("forum.tags.delete_confirm", { label: tag.label }),
+      confirmLabel: t("forum.tags.delete"),
+      danger: true,
+    }))) return;
     await runMutation(async () => {
       await actions.deleteTag(tag.id);
       onChange(tags.filter((t) => t.id !== tag.id));
@@ -88,6 +94,7 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
 
   return (
     <div className="settings-section">
+      {dialog}
       <label className="settings-label">{t("forum.tags.title")}</label>
       <p className="muted">{t("forum.tags.hint")}</p>
       {error && <p className="error-text">{error}</p>}

@@ -4,6 +4,7 @@ import { formatPubkey } from "@wavvon/core";
 import type { SoundboardClip } from "../../types";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ErrorRetry } from "../ErrorRetry";
+import { useConfirm } from "../ConfirmDialog";
 
 function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
@@ -26,6 +27,7 @@ interface Props {
 
 export function SoundboardAdminSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [clips, setClips] = useState<SoundboardClip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -77,7 +79,11 @@ export function SoundboardAdminSection({ actions }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t("hub.admin.soundboard.delete_confirm"))) return;
+    if (!(await confirm({
+      title: t("hub.admin.soundboard.delete_confirm"),
+      confirmLabel: t("hub.admin.soundboard.delete"),
+      danger: true,
+    }))) return;
     setError(null);
     try {
       await actions.deleteSoundboardClip(id);
@@ -104,6 +110,7 @@ export function SoundboardAdminSection({ actions }: Props) {
 
   return (
     <section>
+      {dialog}
       <h1>{t("hub.admin.soundboard.title")}</h1>
       <p className="muted">{t("hub.admin.soundboard.hint")}</p>
 

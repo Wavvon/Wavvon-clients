@@ -378,6 +378,8 @@ export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry
 export type { StoredPresence } from "./utils/presenceExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useConfirm } from "./components/ConfirmDialog";
+export type { ConfirmRequest } from "./components/ConfirmDialog";
 export { useHubPing, applyProbeResult, PING_INTERVAL_MS, OFFLINE_AFTER_FAILURES } from "./hooks/useHubPing";
 export type { PingByHub, HubPingState } from "./hooks/useHubPing";
 export { useWhisper } from "./hooks/useWhisper";

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ErrorRetry } from "../ErrorRetry";
 import type { HubIcon } from "../../types";
 import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
+import { useConfirm } from "../ConfirmDialog";
 
 const RASTER_SIZE = 64;
 
@@ -69,6 +70,7 @@ function errorMessage(e: unknown): string {
 // SVG icon library for the hub (MANAGE_HUB_ICONS). SVG markup, ≤50KB.
 export function HubIconsSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [icons, setIcons] = useState<HubIcon[] | null>(null);
   const [name, setName] = useState("");
   const [svg, setSvg] = useState("");
@@ -119,6 +121,7 @@ export function HubIconsSection({ actions }: Props) {
 
   return (
     <section>
+      {dialog}
       <h1>{t("hub.admin.icons.title")}</h1>
       <p className="muted">{t("hub.admin.icons.hint", { size: RASTER_SIZE })}</p>
       {error && <p className="error-text">{error}</p>}
@@ -201,7 +204,14 @@ export function HubIconsSection({ actions }: Props) {
                 >
                   {t("hub.admin.icons.rename")}
                 </button>
-                <button className="btn-small btn-secondary danger" disabled={busy} onClick={() => run(() => actions.deleteHubIcon(icon.id))}>
+                <button className="btn-small btn-secondary danger" disabled={busy} onClick={async () => {
+                  const ok = await confirm({
+                    title: t("hub.admin.icons.delete_confirm", { name: icon.name }),
+                    confirmLabel: t("hub.admin.icons.delete"),
+                    danger: true,
+                  });
+                  if (ok) run(() => actions.deleteHubIcon(icon.id));
+                }}>
                   {t("hub.admin.icons.delete")}
                 </button>
               </div>

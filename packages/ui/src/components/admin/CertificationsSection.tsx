@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import type { CertAdmissionSettings, CertIssuance } from "../../types";
+import { useConfirm } from "../ConfirmDialog";
 
 export interface CertificationsSectionActions {
   listCertIssuances: () => Promise<CertIssuance[]>;
@@ -21,6 +22,7 @@ interface Props {
 
 export function CertificationsSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [issuances, setIssuances] = useState<CertIssuance[]>([]);
   const [settings, setSettings] = useState<CertAdmissionSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,11 @@ export function CertificationsSection({ actions }: Props) {
   }
 
   async function handleRevoke(pubkey: string) {
-    if (!window.confirm(t("hub.admin.certs.revoke_confirm", { pubkey: formatPubkey(pubkey) }))) return;
+    if (!(await confirm({
+      title: t("hub.admin.certs.revoke_confirm", { pubkey: formatPubkey(pubkey) }),
+      confirmLabel: t("hub.admin.certs.revoke"),
+      danger: true,
+    }))) return;
     try {
       await actions.revokeCert(pubkey);
       await load();
@@ -106,6 +112,7 @@ export function CertificationsSection({ actions }: Props) {
 
   return (
     <section>
+      {dialog}
       <h1>{t("hub.admin.certs.title")}</h1>
       <p className="muted">{t("hub.admin.certs.intro")}</p>
 

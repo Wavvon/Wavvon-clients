@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatRelative, type Channel } from "@wavvon/core";
 import type { WebhookInfo, WebhookCreatedResult } from "../../types";
+import { useConfirm } from "../ConfirmDialog";
 
 export interface WebhooksSectionActions {
   loadWebhooks: () => Promise<WebhookInfo[]>;
@@ -23,6 +24,7 @@ function maskUrl(url: string): string {
 
 export function WebhooksSection({ channels, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [webhooks, setWebhooks] = useState<WebhookInfo[]>([]);
   const [channelId, setChannelId] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -82,7 +84,11 @@ export function WebhooksSection({ channels, actions }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t("webhooks.delete") + "?")) return;
+    if (!(await confirm({
+      title: t("webhooks.delete_confirm"),
+      confirmLabel: t("webhooks.delete"),
+      danger: true,
+    }))) return;
     try {
       await actions.deleteWebhook(id);
       await loadWebhooks();
@@ -93,6 +99,7 @@ export function WebhooksSection({ channels, actions }: Props) {
 
   return (
     <section>
+      {dialog}
       <h1>{t("webhooks.title")}</h1>
 
       <h2>{t("webhooks.section")}</h2>

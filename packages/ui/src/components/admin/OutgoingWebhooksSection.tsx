@@ -9,6 +9,7 @@ import type {
   OutgoingWebhookSummary,
 } from "../../types";
 import { EventSubscriptionEditor, eventSubscriptionsAreValid } from "../events/EventSubscriptionEditor";
+import { useConfirm } from "../ConfirmDialog";
 
 /** Every hub call this section makes, injected — the same shape the other
  *  admin sections use, so the component itself has no transport. */
@@ -83,10 +84,12 @@ function SecretRevealDialog({
   onDismiss: () => void;
 }) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   return (
     <div className="secret-reveal">
+      {dialog}
       <p className="secret-warning">{title}</p>
       <p className="muted">{warning}</p>
       <code className="secret-value">{secret}</code>
@@ -116,6 +119,7 @@ function SecretRevealDialog({
 
 export function OutgoingWebhooksSection({ channels, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [webhooks, setWebhooks] = useState<OutgoingWebhookSummary[]>([]);
   const [url, setUrl] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -167,7 +171,11 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t("hub.admin.owh.delete_confirm"))) return;
+    if (!(await confirm({
+      title: t("hub.admin.owh.delete_confirm"),
+      confirmLabel: t("hub.admin.owh.delete"),
+      danger: true,
+    }))) return;
     try {
       await actions.remove(id);
       await loadWebhooks();
@@ -285,7 +293,8 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
 
   return (
     <section style={{ marginTop: "var(--space-5)" }}>
-      <h2>{t("hub.admin.tabs.outgoing_webhooks")}</h2>
+      {dialog}
+      <h1>{t("hub.admin.tabs.outgoing_webhooks")}</h1>
       <p className="muted">{t("hub.admin.owh.hint")}</p>
 
       {error && <p className="error-text">{error}</p>}

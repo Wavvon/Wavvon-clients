@@ -76,8 +76,8 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
   }
 
   return (
-    <div className="settings-section">
-      <h2>{t("hub.admin.automod.title")}</h2>
+    <section>
+      <h1>{t("hub.admin.automod.title")}</h1>
       {error && <p className="error-text">{error}</p>}
       {loading && <p className="muted">{t("hub.admin.automod.loading")}</p>}
       {!loading && settings && (
@@ -140,6 +140,6 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

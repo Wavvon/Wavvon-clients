@@ -7,6 +7,7 @@ import { EmojiPicker } from "../content/EmojiPicker";
 import { ErrorRetry } from "../ErrorRetry";
 import { ColorSwatchPicker } from "./ColorSwatchPicker";
 import { RoleCategoryManager, type RoleCategoryManagerActions } from "./RoleCategoryManager";
+import { useConfirm } from "../ConfirmDialog";
 
 /** Permission ids, in display order. Each label is the catalog key
  *  `hub.admin.roles.perm.<id>`, so a new permission is one id here plus one
@@ -129,6 +130,7 @@ const isBuiltin = (role: RoleInfo) => role.id.startsWith("builtin-");
 
 export function RolesSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [roles, setRoles] = useState<RoleInfo[] | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
   // What this screen offers to tick. It comes from the hub, not from
@@ -232,7 +234,11 @@ export function RolesSection({ actions }: Props) {
   }
 
   async function handleDelete(role: RoleInfo) {
-    if (!window.confirm(t("hub.admin.roles.delete_confirm", { name: role.name }))) return;
+    if (!(await confirm({
+      title: t("hub.admin.roles.delete_confirm", { name: role.name }),
+      confirmLabel: t("hub.admin.roles.delete"),
+      danger: true,
+    }))) return;
     setError(null);
     try {
       await actions.deleteRole(role.id);
@@ -246,6 +252,7 @@ export function RolesSection({ actions }: Props) {
     if (error) {
       return (
         <section>
+          {dialog}
           <h1>{t("hub.admin.roles.title")}</h1>
           <ErrorRetry message={error} onRetry={load} />
         </section>
