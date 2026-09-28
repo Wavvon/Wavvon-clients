@@ -266,6 +266,7 @@ export function RolesSection({ actions }: Props) {
   return (
     <section>
       <h1>{t("hub.admin.roles.title")}</h1>
+      {dialog}
       <p className="muted">{t("hub.admin.roles.hint")}</p>
       {error && <p className="error-text">{error}</p>}
 

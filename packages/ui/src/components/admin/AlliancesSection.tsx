@@ -318,6 +318,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
   return (
     <section>
       <h1>{t("alliances.title")}</h1>
+      {dialog}
       <p className="muted">{t("alliances.hint")}</p>
       {error && alliances !== null && <p className="error-text">{error}</p>}
 
