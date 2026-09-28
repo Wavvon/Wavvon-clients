@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
 
 test("an invite link creates an identity without stopping at the phrase", async ({ page }) => {
   await page.goto("/join/ABCD1234");
-  await page.getByRole("button", { name: "Create new identity" }).click();
+  await page.getByRole("button", { name: /^Create a new identity/ }).click();
 
   await expect(page.getByRole("heading", { name: "Set up your profile" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Save your recovery phrase" })).toHaveCount(0);
@@ -16,7 +16,7 @@ test("an invite link creates an identity without stopping at the phrase", async 
 // an identity, rather than to walk through a door, is asked to save it.
 test("without an invite the phrase screen is still the way in", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Create new identity" }).click();
+  await page.getByRole("button", { name: /^Create a new identity/ }).click();
 
   await expect(page.getByRole("heading", { name: "Save your recovery phrase" })).toBeVisible();
 });

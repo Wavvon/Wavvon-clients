@@ -51,7 +51,7 @@ function identityByName(creds: DemoCreds, name: string): DemoIdentity {
 // recover through the 24-word phrase path.
 async function onboard(page: Page, recoveryPhrase: string): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: "Recover existing identity" }).click({ timeout: 20000 });
+  await page.getByRole("button", { name: /^Recover from/ }).click({ timeout: 20000 });
   await page.getByPlaceholder(/word1 word2/).fill(recoveryPhrase);
   await page.getByRole("button", { name: "Recover from phrase" }).click();
   await page.getByPlaceholder(/hub\.example\.com/).fill(HUB_URL);
@@ -133,7 +133,7 @@ test("capture join-flow video", async ({ browser }) => {
   // hub by URL, pick a name, land in the community.
   await page.goto("/");
   await page.waitForTimeout(1500);
-  await page.getByRole("button", { name: "Create new identity" }).click();
+  await page.getByRole("button", { name: /^Create a new identity/ }).click();
   await page.waitForTimeout(3000); // linger on the recovery phrase
   await page.getByRole("button", { name: /I saved my phrase/ }).click();
   await page.waitForTimeout(1000);

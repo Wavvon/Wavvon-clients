@@ -53,7 +53,7 @@ export async function onboardWithSeed(
   await claimPrefsReload(page);
   try {
     await page
-      .getByRole("button", { name: "Recover existing identity" })
+      .getByRole("button", { name: /^Recover from/ })
       .click({ timeout: 20000 });
   } catch (e) {
     const body = await page.locator("body").innerText().catch(() => "<no body>");
