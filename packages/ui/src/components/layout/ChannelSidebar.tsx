@@ -29,7 +29,7 @@ import type {
   WhisperList,
   WhisperReplyBind,
 } from "../../types";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon } from "../Icons";
+import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, GearIcon, SpeakerIcon, WhisperIcon } from "../Icons";
 import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
 import { HoverSubmenu } from "../HoverSubmenu";
@@ -711,7 +711,7 @@ export function ChannelSidebar({
                                   aria-label={t("alliance.voice.join_title", { hub: c.hub_name })}
                                   onClick={(e) => { e.stopPropagation(); onJoinAllianceVoice(a, c); }}
                                 >
-                                  🔊
+                                  <SpeakerIcon size={13} />
                                 </button>
                               )}
                               <span className="alliance-channel-host">{c.hub_name}</span>
@@ -866,7 +866,7 @@ export function ChannelSidebar({
                     title={t("voice.whisper", "Whisper")}
                     aria-pressed={!!isWhispering}
                   >
-                    🤫
+                    <WhisperIcon size={15} />
                   </button>
                 )}
                 {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
@@ -973,7 +973,7 @@ export function ChannelSidebar({
             className="btn-icon-gear"
             title={settingsNeedsAttention ? t("settings.identity_backup.badge") : t("settings.title")}
           >
-            ⚙
+            <GearIcon size={15} />
             {settingsNeedsAttention && (
               <span className="gear-attention-dot" aria-label={t("settings.identity_backup.badge")} />
             )}

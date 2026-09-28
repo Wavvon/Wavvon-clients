@@ -226,6 +226,12 @@ export function ChannelIcon({
   if (channelType === "spawner") {
     return <span className="channel-type-spawner" aria-hidden="true">+</span>;
   }
+  if (channelType === "forum") {
+    // Forum fell through to null like voice once did, and the sidebar row
+    // compensated with a badge after the name — a badge standing in for the
+    // icon that belonged in the gutter.
+    return <ForumIcon size={size} />;
+  }
   if (channelType === "voice") {
     // Voice channels used to fall through to null and sit in an empty gutter,
     // so a row you talk in looked like a row with a missing icon.
@@ -333,6 +339,150 @@ export function VolumeIcon({ size = 14, level }: { size?: number; level: "muted"
       {level === "muted" && <path d="M16 9.5l5 5M21 9.5l-5 5" />}
       {level === "reduced" && <path d="M15.5 10a3 3 0 0 1 0 4" />}
       {level === "boosted" && <><path d="M15.5 10a3 3 0 0 1 0 4" /><path d="M18 7.5a7 7 0 0 1 0 9" /></>}
+    </svg>
+  );
+}
+
+export function GearIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 8h16M4 16h16" />
+      <circle cx="9" cy="8" r="2.2" />
+      <circle cx="15" cy="16" r="2.2" />
+    </svg>
+  );
+}
+
+export function PlusIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+export function CloseIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+/** One shape, four rotations — a caret that points where it is going. */
+export function ChevronIcon({ size = 16, dir = "down" }: { size?: number; dir?: "up" | "down" | "left" | "right" }) {
+  const deg = { up: 180, down: 0, left: 90, right: -90 }[dir];
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+      style={{ transform: `rotate(${deg}deg)` }}>
+      <polyline points="6 9.5 12 15.5 18 9.5" />
+    </svg>
+  );
+}
+
+export function ExpandIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />
+    </svg>
+  );
+}
+
+export function ResetIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 12a8 8 0 1 1 2.6 5.9" />
+      <polyline points="4 6.5 4 12 9.5 12" />
+    </svg>
+  );
+}
+
+/** A channel where the topic is the thread, not the day — the forum type. */
+export function ForumIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 5.5h13v9h-8l-5 4z" />
+      <path d="M8 5.5V4h12.5v9H19v3.5L16.5 14" />
+    </svg>
+  );
+}
+
+export function BellOffIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6.5 9a5.5 5.5 0 0 1 8.2-4.8M17.5 11v3l2 3H8" />
+      <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
+      <path d="M3 3l18 18" />
+    </svg>
+  );
+}
+
+export function LockIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+      <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+    </svg>
+  );
+}
+
+export function PaperclipIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 11.5l-7.6 7.6a4.7 4.7 0 0 1-6.6-6.6l8.2-8.2a3.1 3.1 0 0 1 4.4 4.4l-8.2 8.2a1.6 1.6 0 0 1-2.2-2.2l7.3-7.3" />
+    </svg>
+  );
+}
+
+export function SpeakerIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+      <path d="M15.5 10a3 3 0 0 1 0 4" />
+      <path d="M18 7.5a7 7 0 0 1 0 9" />
+    </svg>
+  );
+}
+
+export function ClockIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <polyline points="12 7 12 12 15.5 14" />
+    </svg>
+  );
+}
+
+/** Whispering: a voice aimed at one person, so the cone is narrowed. */
+export function WhisperIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="10" rx="3" />
+      <path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V21" />
+      <path d="M19.5 4.5a3 3 0 0 1 0 4" />
+    </svg>
+  );
+}
+
+export function CakeIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20.5h16v-6a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3z" />
+      <path d="M12 8V5M8.5 8V6M15.5 8V6" />
     </svg>
   );
 }
