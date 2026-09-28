@@ -373,12 +373,12 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   async function handleAllianceVoiceJoin(
     allianceId: string,
     channelId: string,
-    confirmJoin: (ownerHubUrl: string, channelName: string) => boolean,
+    confirmJoin: (ownerHubUrl: string, channelName: string) => boolean | Promise<boolean>,
   ) {
     if (voiceChannelIdRef.current === channelId) return;
     try {
       const minted = await mintAllianceVoiceGrant(allianceId, channelId);
-      if (!confirmJoin(minted.owner_hub_url, minted.channel_name)) return;
+      if (!(await confirmJoin(minted.owner_hub_url, minted.channel_name))) return;
 
       // The channel belongs to the other hub, so the local list cannot name
       // it and the voice bar would read a bare "#" for the whole session.

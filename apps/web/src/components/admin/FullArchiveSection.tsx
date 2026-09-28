@@ -13,7 +13,7 @@ import {
   type RestoreSummary,
 } from "@shared/utils/archiveRestore";
 import { listAccounts, resolveOrCreateAccount, switchAccount, SWITCH_BLOCKED_COOLDOWN, type SubkeyCert } from "@identity/index";
-import { passphraseStrength } from "@wavvon/ui";
+import { passphraseStrength, useConfirm } from "@wavvon/ui";
 
 interface Props {
   publicKey: string | null;
@@ -28,6 +28,9 @@ export function FullArchiveSection({ publicKey }: Props) {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  // Named askConfirm: this component already has a `confirm` — the second
+  // passphrase field.
+  const { confirm: askConfirm, dialog } = useConfirm();
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   const [restoreFileData, setRestoreFileData] = useState<string | null>(null);
@@ -134,16 +137,15 @@ export function FullArchiveSection({ publicKey }: Props) {
         switchOrShowError(account.id);
         return;
       }
-      if (
-        window.confirm(
-          t("settings.account.full_archive.restore_switch_confirm", {
-            restored: totalRestored(plan.summary),
-            skipped: totalSkipped(plan.summary),
-          }),
-        )
-      ) {
-        switchOrShowError(account.id);
-      }
+      const ok = await askConfirm({
+        title: t("settings.account.full_archive.restore_switch.title"),
+        body: t("settings.account.full_archive.restore_switch.body", {
+          restored: totalRestored(plan.summary),
+          skipped: totalSkipped(plan.summary),
+        }),
+        confirmLabel: t("settings.account.full_archive.restore_switch.confirm"),
+      });
+      if (ok) switchOrShowError(account.id);
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
@@ -153,6 +155,7 @@ export function FullArchiveSection({ publicKey }: Props) {
 
   return (
     <div className="settings-section">
+      {dialog}
       <label className="settings-label">{t("settings.account.full_archive.label")}</label>
       <p className="muted">{t("settings.account.full_archive.hint")}</p>
 

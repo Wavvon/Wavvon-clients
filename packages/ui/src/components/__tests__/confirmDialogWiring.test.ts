@@ -2,7 +2,19 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const SRC = join(__dirname, "..", "..");
+// Both apps as well as this package: the three newest call sites are in
+// apps/, and a guard that only watches its own package would have missed
+// every one of them.
+const REPO = join(__dirname, "..", "..", "..", "..", "..");
+const ROOTS = [
+  join(REPO, "packages", "ui", "src"),
+  join(REPO, "apps", "web", "src"),
+  join(REPO, "apps", "desktop", "src"),
+];
+
+function allSourceFiles(): string[] {
+  return ROOTS.flatMap((r) => sourceFiles(r));
+}
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -30,7 +42,7 @@ function sourceFiles(dir: string): string[] {
 describe("useConfirm wiring", () => {
   const offenders: string[] = [];
 
-  for (const file of sourceFiles(SRC)) {
+  for (const file of allSourceFiles()) {
     const src = readFileSync(file, "utf8");
     if (!/useConfirm\(\)/.test(src)) continue;
     if (file.endsWith("ConfirmDialog.tsx")) continue;
@@ -43,7 +55,7 @@ describe("useConfirm wiring", () => {
 
     const dialogLines = lines.flatMap((l, i) => (l.includes("{dialog}") ? [i] : []));
     if (mainReturn < 0 || !dialogLines.some((i) => i > mainReturn)) {
-      offenders.push(file.slice(SRC.length + 1).replace(/\\/g, "/"));
+      offenders.push(file.slice(REPO.length + 1).replace(/\\/g, "/"));
     }
   }
 
@@ -52,7 +64,7 @@ describe("useConfirm wiring", () => {
   });
 
   it("finds the components that use it, so an empty pass is not a false one", () => {
-    const users = sourceFiles(SRC).filter(
+    const users = allSourceFiles().filter(
       (f) => /useConfirm\(\)/.test(readFileSync(f, "utf8")) && !f.endsWith("ConfirmDialog.tsx"),
     );
     expect(users.length).toBeGreaterThan(5);

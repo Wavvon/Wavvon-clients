@@ -4,7 +4,7 @@ import type React from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { formatPubkey } from "@wavvon/core";
 import type { Channel, TreeNode } from "@wavvon/core";
-import { ChannelSidebar } from "@wavvon/ui";
+import { ChannelSidebar, useConfirm } from "@wavvon/ui";
 import type { WhisperReplyBind } from "@wavvon/ui";
 import { listRoles, listSoundboardClips } from "@platform";
 import { activeHubSupports } from "../../platform/session";
@@ -106,7 +106,11 @@ export function ChannelSidebarContainer({
   const { selectedChannel, handleSelectChannel, handleSelectAllianceChannel } = channelMessages;
   const { activeHubId, hubs, activeHubTimezone, pingByHub } = hubLifecycle;
 
+  const { confirm, dialog } = useConfirm();
+
   return (
+    <>
+    {dialog}
     <ChannelSidebar
       view={view}
       activeHubId={activeHubId}
@@ -188,7 +192,11 @@ export function ChannelSidebarContainer({
         c.channel_id,
         // The visitor dials the owning hub directly, so its operator sees
         // this IP. Name the address before anything is minted.
-        (ownerHubUrl, channelName) => window.confirm(t("alliance.voice.confirm", { hub: ownerHubUrl, channel: channelName })),
+        (ownerHubUrl, channelName) => confirm({
+          title: t("alliance.voice.confirm.title", { channel: channelName }),
+          body: t("alliance.voice.confirm.body", { hub: ownerHubUrl }),
+          confirmLabel: t("alliance.voice.confirm.join"),
+        }),
       ) : undefined}
       onOpenFriends={onOpenFriends}
       onSelectConversation={dms.handleSelectConversation}
@@ -230,5 +238,6 @@ export function ChannelSidebarContainer({
       whisperOptout={whisper.whisperOptout}
       onSetWhisperOptout={whisper.setWhisperOptout}
     />
+    </>
   );
 }
