@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SettingRow } from "../SettingRow";
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import type { ChallengeDifficulty, ChallengeMode, PendingUser } from "../../types";
@@ -34,6 +35,11 @@ export function OnboardingAdminSection({ actions }: Props) {
   const [challengeMode, setChallengeMode] = useState<ChallengeMode>("off");
   const [challengeDifficulty, setChallengeDifficulty] = useState<ChallengeDifficulty>("easy");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
 
   async function loadPending() {
     try { setPending(await actions.listPendingUsers()); }
@@ -59,48 +65,14 @@ export function OnboardingAdminSection({ actions }: Props) {
       {error && <p className="error-text">{error}</p>}
       {status && <p className="muted">{status}</p>}
 
-      <section>
-        <h2>{t("hub.admin.onboarding.queue_label")}</h2>
-        {pending.length === 0 ? (
-          <p className="muted">{t("hub.admin.onboarding.queue_empty")}</p>
-        ) : (
-          pending.map((u) => (
-            <div key={u.public_key} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-              <span>{u.display_name || <span className="member-pk">{formatPubkey(u.public_key)}</span>}</span>
-              <button
-                className="btn-small"
-                disabled={busy}
-                onClick={() => run(async () => { await actions.approvePendingUser(u.public_key); await loadPending(); }, t("hub.admin.onboarding.approved"))}
-              >
-                {t("hub.admin.onboarding.approve")}
-              </button>
-            </div>
-          ))
-        )}
-      </section>
-
-      <section>
-        <h2>{t("hub.admin.onboarding.lobby_label")}</h2>
-        <label className="checkbox-label">
-          <input type="checkbox" checked={lobbyEnabled} onChange={(e) => setLobbyEnabled(e.target.checked)} />
-          {t("hub.admin.onboarding.lobby_enable")}
-        </label>
-        <textarea
-          value={welcomeMd}
-          onChange={(e) => setWelcomeMd(e.target.value)}
-          placeholder={t("hub.admin.onboarding.welcome_placeholder")}
-          rows={3}
-          style={{ width: "100%", marginTop: "var(--space-2)" }}
-        />
-        <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
-          <button className="btn-primary" disabled={busy} onClick={() => run(() => actions.setLobbySettings(lobbyEnabled, welcomeMd.trim() || undefined), t("hub.admin.onboarding.lobby_saved"))}>
-            {t("hub.admin.onboarding.lobby_save")}
-          </button>
-        </div>
-      </section>
-
-      <section>
-        <h2>{t("hub.admin.onboarding.challenge_label")}</h2>
+      <SettingRow
+        step={1}
+        title={t("hub.admin.onboarding.challenge_label")}
+        state={challengeMode === "off"
+          ? t("hub.admin.onboarding.challenge_off")
+          : t(`hub.admin.onboarding.mode.${challengeMode}`)}
+        {...row("challenge")}
+      >
         <div className="settings-row" style={{ gap: "var(--space-2)", flexWrap: "wrap" }}>
           <label>{t("hub.admin.onboarding.mode")}{" "}
             <select value={challengeMode} onChange={(e) => setChallengeMode(e.target.value as ChallengeMode)}>
@@ -123,7 +95,59 @@ export function OnboardingAdminSection({ actions }: Props) {
             {t("hub.admin.onboarding.preview")}
           </button>
         </div>
-      </section>
+      </SettingRow>
+      <SettingRow
+        step={2}
+        title={t("hub.admin.onboarding.lobby_label")}
+        state={lobbyEnabled
+          ? t("hub.admin.onboarding.lobby_on")
+          : t("hub.admin.onboarding.lobby_off")}
+        {...row("lobby")}
+      >
+        <label className="checkbox-label">
+          <input type="checkbox" checked={lobbyEnabled} onChange={(e) => setLobbyEnabled(e.target.checked)} />
+          {t("hub.admin.onboarding.lobby_enable")}
+        </label>
+        <textarea
+          value={welcomeMd}
+          onChange={(e) => setWelcomeMd(e.target.value)}
+          placeholder={t("hub.admin.onboarding.welcome_placeholder")}
+          rows={3}
+          style={{ width: "100%", marginTop: "var(--space-2)" }}
+        />
+        <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
+          <button className="btn-primary" disabled={busy} onClick={() => run(() => actions.setLobbySettings(lobbyEnabled, welcomeMd.trim() || undefined), t("hub.admin.onboarding.lobby_saved"))}>
+            {t("hub.admin.onboarding.lobby_save")}
+          </button>
+        </div>
+      </SettingRow>
+      <SettingRow
+        step={3}
+        title={t("hub.admin.onboarding.queue_label")}
+        state={pending.length === 0
+          ? t("hub.admin.onboarding.queue_empty")
+          : t("hub.admin.onboarding.queue_waiting", { count: pending.length })}
+        attention={pending.length > 0}
+        meta={pending.length > 0 ? String(pending.length) : undefined}
+        {...row("queue")}
+      >
+        {pending.length === 0 ? (
+          <p className="muted">{t("hub.admin.onboarding.queue_empty")}</p>
+        ) : (
+          pending.map((u) => (
+            <div key={u.public_key} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+              <span>{u.display_name || <span className="member-pk">{formatPubkey(u.public_key)}</span>}</span>
+              <button
+                className="btn-small"
+                disabled={busy}
+                onClick={() => run(async () => { await actions.approvePendingUser(u.public_key); await loadPending(); }, t("hub.admin.onboarding.approved"))}
+              >
+                {t("hub.admin.onboarding.approve")}
+              </button>
+            </div>
+          ))
+        )}
+      </SettingRow>
 
       {previewOpen && (
         <ChallengePreviewModal

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SettingRow } from "../SettingRow";
 import { useTranslation } from "react-i18next";
 import { formatRelative, type Channel } from "@wavvon/core";
 import type { WebhookInfo, WebhookCreatedResult } from "../../types";
@@ -30,6 +31,7 @@ export function WebhooksSection({ channels, actions }: Props) {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [creating, setCreating] = useState(false);
+  const [open, setOpen] = useState(false);
   const [createdResult, setCreatedResult] = useState<WebhookCreatedResult | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [regeneratedUrl, setRegeneratedUrl] = useState<string | null>(null);
@@ -98,9 +100,16 @@ export function WebhooksSection({ channels, actions }: Props) {
   }
 
   return (
-    <section>
+    <SettingRow
+      title={t("webhooks.section")}
+      state={webhooks.length === 0
+        ? t("webhooks.state.none")
+        : t("webhooks.state.some", { count: webhooks.length })}
+      meta={webhooks.length > 0 ? String(webhooks.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
       {dialog}
-      <h2>{t("webhooks.section")}</h2>
       <p className="muted">
         {t("webhooks.hint")}
       </p>
@@ -225,6 +234,6 @@ export function WebhooksSection({ channels, actions }: Props) {
           </tbody>
         </table>
       )}
-    </section>
+    </SettingRow>
   );
 }

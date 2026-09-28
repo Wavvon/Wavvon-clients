@@ -10,6 +10,7 @@ import type {
 } from "../../types";
 import { EventSubscriptionEditor, eventSubscriptionsAreValid } from "../events/EventSubscriptionEditor";
 import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 /** Every hub call this section makes, injected — the same shape the other
  *  admin sections use, so the component itself has no transport. */
@@ -128,6 +129,7 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
   const [rotatedSecret, setRotatedSecret] = useState<{ id: string; secret: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [panels, setPanels] = useState<Record<string, PanelState>>({});
+  const [open, setOpen] = useState(false);
 
   const textChannels = channels.filter((c) => !c.is_category);
 
@@ -292,9 +294,16 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
   }
 
   return (
-    <section style={{ marginTop: "var(--space-5)" }}>
+    <SettingRow
+      title={t("hub.admin.tabs.outgoing_webhooks")}
+      state={webhooks.length === 0
+        ? t("hub.admin.owh.state.none")
+        : t("hub.admin.owh.state.some", { count: webhooks.length })}
+      meta={webhooks.length > 0 ? String(webhooks.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
       {dialog}
-      <h2>{t("hub.admin.tabs.outgoing_webhooks")}</h2>
       <p className="muted">{t("hub.admin.owh.hint")}</p>
 
       {error && <p className="error-text">{error}</p>}
@@ -516,6 +525,6 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
           </tbody>
         </table>
       )}
-    </section>
+    </SettingRow>
   );
 }

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import type { CertAdmissionSettings, CertIssuance } from "../../types";
 import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 export interface CertificationsSectionActions {
   listCertIssuances: () => Promise<CertIssuance[]>;
@@ -23,6 +24,11 @@ interface Props {
 export function CertificationsSection({ actions }: Props) {
   const { t } = useTranslation();
   const { confirm, dialog } = useConfirm();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const [issuances, setIssuances] = useState<CertIssuance[]>([]);
   const [settings, setSettings] = useState<CertAdmissionSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,8 +122,11 @@ export function CertificationsSection({ actions }: Props) {
       <h1>{t("hub.admin.certs.title")}</h1>
       <p className="muted">{t("hub.admin.certs.intro")}</p>
 
-      <div className="settings-section">
-        <label className="settings-label">{t("hub.admin.certs.mode")}</label>
+      <SettingRow
+        title={t("hub.admin.certs.mode")}
+        state={t(`hub.admin.certs.mode.${settings.cert_mode}`, settings.cert_mode)}
+        {...row("mode")}
+      >
         <p className="muted">{t("hub.admin.certs.mode_hint")}</p>
         <select
           value={settings.cert_mode}
@@ -127,7 +136,7 @@ export function CertificationsSection({ actions }: Props) {
           <option value="any">{t("hub.admin.certs.mode.any")}</option>
           <option value="trusted">{t("hub.admin.certs.mode.trusted")}</option>
         </select>
-      </div>
+      </SettingRow>
 
       {settings.cert_mode !== "none" && (
         <div className="cert-lockout-warning">
@@ -202,8 +211,13 @@ export function CertificationsSection({ actions }: Props) {
         </div>
       )}
 
-      <div className="settings-section">
-        <label className="settings-label">{t("hub.admin.certs.auto.label")}</label>
+      <SettingRow
+        title={t("hub.admin.certs.auto.label")}
+        state={settings.cert_auto_issue
+          ? t("hub.admin.certs.state.auto_on", { days: settings.cert_min_age_days })
+          : t("hub.admin.certs.state.auto_off")}
+        {...row("auto")}
+      >
         <label className="checkbox-label">
           <input
             type="checkbox"
@@ -244,10 +258,13 @@ export function CertificationsSection({ actions }: Props) {
           <span className="error-text">{saveStatus}</span>
         )}
       </div>
-      </div>
+      </SettingRow>
 
-      <div className="settings-section">
-        <label className="settings-label">{t("hub.admin.certs.manual.label")}</label>
+      <SettingRow
+        title={t("hub.admin.certs.manual.label")}
+        state={t("hub.admin.certs.state.manual")}
+        {...row("manual")}
+      >
         <p className="muted">{t("hub.admin.certs.manual.hint")}</p>
         <div className="settings-row">
           <input
@@ -259,11 +276,14 @@ export function CertificationsSection({ actions }: Props) {
           />
           <button className="btn-primary" onClick={handleManualIssue} disabled={!manualTarget.trim()}>{t("hub.admin.certs.manual.issue")}</button>
         </div>
-      </div>
+      </SettingRow>
 
       {actions.grantUserBadge && (
-        <div className="settings-section">
-          <label className="settings-label">{t("hub.admin.certs.badge.label")}</label>
+        <SettingRow
+          title={t("hub.admin.certs.badge.label")}
+          state={t("hub.admin.certs.state.badge")}
+          {...row("badge")}
+        >
           <p className="muted">{t("hub.admin.certs.badge.hint")}</p>
           <div className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
             <input
@@ -292,11 +312,17 @@ export function CertificationsSection({ actions }: Props) {
             <button className="btn-primary" onClick={handleGrantBadge} disabled={!badgeTarget.trim() || !badgeLabel.trim()}>{t("hub.admin.certs.badge.grant")}</button>
           </div>
           {badgeStatus && <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{badgeStatus}</p>}
-        </div>
+        </SettingRow>
       )}
 
-      <div className="settings-section">
-        <label className="settings-label">{t("hub.admin.certs.issued.title", { count: goodCerts.length })}</label>
+      <SettingRow
+        title={t("hub.admin.certs.issued.label")}
+        state={goodCerts.length === 0
+          ? t("hub.admin.certs.state.none_issued")
+          : t("hub.admin.certs.state.issued", { count: goodCerts.length })}
+        meta={goodCerts.length > 0 ? String(goodCerts.length) : undefined}
+        {...row("issued")}
+      >
         {goodCerts.length === 0 && <p className="muted">{t("hub.admin.certs.issued.empty")}</p>}
         {goodCerts.length > 0 && (
           <table className="members-table">
@@ -328,7 +354,7 @@ export function CertificationsSection({ actions }: Props) {
             </tbody>
           </table>
         )}
-      </div>
+      </SettingRow>
 
       {revokedCerts.length > 0 && (
         <div className="settings-section">
