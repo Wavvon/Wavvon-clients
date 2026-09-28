@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { BlockIgnoreSection, TrustedIssuersSection, type TrustRoot } from "@wavvon/ui";
+import { BlockIgnoreSection, SettingRow, TrustedIssuersSection, type TrustRoot } from "@wavvon/ui";
 import type { BlockEntry, IgnoreEntry } from "../../types";
 
 interface Props {
@@ -19,7 +19,7 @@ export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames,
   const { t } = useTranslation();
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.privacy")}</h1>
+      <h1>{t("settings.tabs.privacy")}</h1>
       <BlockIgnoreSection
         blocks={blocks}
         ignores={ignores}
@@ -28,13 +28,20 @@ export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames,
         knownNames={knownNames}
       />
       <TrustedIssuersSection roots={trustRoots} onChange={onTrustRootsChange} />
-      <div className="settings-section">
-        <label className="settings-label">{t("settings.privacy.birthdays.label")}</label>
-        <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="checkbox" checked={hideBirthdays} onChange={onToggleHideBirthdays} />
-          {t("settings.privacy.birthdays.hide")}
-        </label>
-      </div>
+      <SettingRow
+        title={t("settings.privacy.birthdays.label")}
+        state={hideBirthdays
+          ? t("settings.privacy.birthdays.state.hidden")
+          : t("settings.privacy.birthdays.state.shown")}
+        control={
+          <input
+            type="checkbox"
+            checked={hideBirthdays}
+            aria-label={t("settings.privacy.birthdays.hide")}
+            onChange={onToggleHideBirthdays}
+          />
+        }
+      />
     </section>
   );
 }

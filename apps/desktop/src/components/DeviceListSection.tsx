@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { PairedDevice } from "../types";
@@ -7,6 +8,7 @@ import { formatPubkey, formatRelative } from "@wavvon/core";
 export function DeviceListSection() {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<PairedDevice[]>([]);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [revokeStatus, setRevokeStatus] = useState<Record<string, "revoking" | "revoked">>({});
 
@@ -25,18 +27,18 @@ export function DeviceListSection() {
     }
   }
 
-  if (loading) return <p className="muted">{t("modal.loading")}</p>;
-
-  if (devices.length === 0) {
-    return (
-      <div className="settings-section">
-        <p className="muted">{t("settings.pairing.devices_empty")}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="settings-section">
+    <SettingRow
+      title={t("settings.account.devices.label")}
+      state={loading
+        ? t("modal.loading")
+        : devices.length === 0
+          ? t("settings.pairing.devices_empty")
+          : t("settings.account.devices.state.linked", { count: devices.length })}
+      meta={devices.length > 0 ? String(devices.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
       {devices.map((d) => (
         <div key={d.subkey_pubkey} className="settings-row" style={{ marginBottom: 8, padding: "8px", background: "var(--bg-elevated)", borderRadius: "var(--r-sm)" }}>
           <div>
@@ -51,8 +53,7 @@ export function DeviceListSection() {
           </div>
           {!d.is_this_device && (
             <button
-              className="btn-secondary"
-              style={{ color: "var(--danger)" }}
+              className="btn-small danger"
               onClick={() => handleRevoke(d.subkey_pubkey)}
               disabled={revokeStatus[d.subkey_pubkey] === "revoking"}
             >
@@ -63,6 +64,6 @@ export function DeviceListSection() {
           )}
         </div>
       ))}
-    </div>
+    </SettingRow>
   );
 }

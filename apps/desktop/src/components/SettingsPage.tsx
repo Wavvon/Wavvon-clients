@@ -125,6 +125,13 @@ function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
   return { id: a.id, account_label: a.label ?? undefined };
 }
 
+const LANGUAGES: { id: string; label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "it", label: "Italiano" },
+  { id: "es", label: "Español" },
+  { id: "de", label: "Deutsch" },
+];
+
 export function SettingsPage(props: SettingsPageProps) {
   const { t, i18n } = useTranslation();
 
@@ -240,19 +247,47 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "appearance" && (
           <section>
             <h1>{t("settings.tabs.appearance")}</h1>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.theme.label")}</label>
-              <p className="muted">
-                {t("settings.theme.hint")}
-              </p>
+
+            <SettingRow
+              title={t("settings.language.label")}
+              state={LANGUAGES.find((l) => l.id === i18n.language.slice(0, 2))?.label ?? i18n.language}
+              control={
+                <select
+                  id="settings-language"
+                  aria-label={t("settings.language.label")}
+                  value={i18n.language.slice(0, 2)}
+                  onChange={(e) => {
+                    i18n.changeLanguage(e.target.value);
+                    localStorage.setItem("wavvon_language", e.target.value);
+                  }}
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.id} value={l.id}>{l.label}</option>
+                  ))}
+                </select>
+              }
+            />
+
+            <SettingRow
+              title={t("settings.theme.label")}
+              state={props.theme === "custom"
+                ? t("settings.theme.custom")
+                : t(`settings.skin.base.${props.theme}`)}
+              {...settingRow("theme")}
+            >
+              <p className="muted">{t("settings.theme.hint")}</p>
               <ThemePicker value={props.theme} skin={props.skin} onChange={props.onThemeChange} />
-            </div>
-            {props.theme === "custom" && (
-              <SkinEditor
-                skin={props.skin ?? makeSeed("dark")}
-                onChange={props.onSkinChange}
-              />
-            )}
+              {props.theme === "custom" && (
+                <SkinEditor
+                  skin={props.skin ?? makeSeed("dark")}
+                  onChange={props.onSkinChange}
+                />
+              )}
+            </SettingRow>
+
+            {/* Not a row: the gallery renders nothing when discovery is
+                unreachable, and a row that opens onto nothing is worse than
+                no row at all. */}
             {DISCOVERY_URL && (
               <SkinsGallery
                 fetchWithTimeout={fetchWithTimeout}
@@ -260,20 +295,7 @@ export function SettingsPage(props: SettingsPageProps) {
                 discoveryUrl={DISCOVERY_URL}
               />
             )}
-            <div className="settings-section">
-              <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
-              <div className="settings-row">
-                <select id="settings-language" value={i18n.language} onChange={e => {
-                  i18n.changeLanguage(e.target.value);
-                  localStorage.setItem('wavvon_language', e.target.value);
-                }}>
-                  <option value="en">English</option>
-                  <option value="it">Italiano</option>
-                  <option value="es">Español</option>
-                  <option value="de">Deutsch</option>
-                </select>
-              </div>
-            </div>
+
             {/* About folded in here rather than its own tab (settings-ia.md
                 piece 4) — a static footnote doesn't need a nav slot. */}
             <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 24 }}>
