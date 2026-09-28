@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, hubApi, uniqueName, confirmInApp } from "./helpers/live";
+import { expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
 
 // P13 — create / edit-permissions / delete a role from the web Roles admin
 // tab (previously desktop-only; see docs/client-parity.md).
@@ -21,7 +21,7 @@ test("create a role with a permission, edit its permissions, then delete it", as
   const roleName = uniqueName("Mod");
 
   // Create: open the creator, name it, tick a permission, submit.
-  await page.getByRole("button", { name: "New role" }).click();
+  await openSettingRow(page, "New role");
   await page.getByRole("textbox", { name: "Role name" }).fill(roleName);
   await page.getByRole("checkbox", { name: "Kick members" }).check();
   await page.getByRole("button", { name: "Create role" }).click();

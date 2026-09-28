@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub } from "./helpers/live";
+import { expectInHub, openSettingRow } from "./helpers/live";
 
 // P17 — mic level meter in Settings → Voice (client-only; getUserMedia +
 // AnalyserNode). Chromium's fake capture device feeds a tone, which is enough
@@ -11,8 +11,9 @@ test("mic test meter renders and toggles", async ({ page }) => {
   await expectInHub(page);
 
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
+  await page.locator(".settings-nav").getByRole("button", { name: "Voice", exact: true }).click();
 
+  await openSettingRow(page, "Sensitivity");
   await expect(page.getByText("Microphone test")).toBeVisible();
   const meter = page.getByRole("meter", { name: "Microphone level" });
   await expect(meter).toBeVisible();

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, uniqueName, confirmInApp } from "./helpers/live";
+import { expectInHub, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
 
 // P7 — soundboard admin UI (soundboard.md): upload a clip, see it listed,
 // delete it. The hub validates the OGG Opus container (OggS magic +
@@ -48,8 +48,9 @@ test("upload, list, and delete a soundboard clip", async ({ page }) => {
   const section = page.locator("section", {
     has: page.getByRole("heading", { name: "Soundboard" }),
   });
-  await section.getByRole("textbox").fill(clipName);
-  await section.locator('input[type="file"]').setInputFiles({
+  const addRow = await openSettingRow(page, "Add a clip");
+  await addRow.getByRole("textbox").first().fill(clipName);
+  await addRow.locator('input[type="file"]').setInputFiles({
     name: "horn.ogg",
     mimeType: "audio/ogg",
     buffer: minimalOggOpus(),

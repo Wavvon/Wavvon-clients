@@ -11,7 +11,7 @@ async function createNestedCategory(page: Page, parentName: string, name: string
   await parentRow.hover();
   // Child rows nest inside the parent <li>; the parent's own header row
   // comes first, so .first() picks the parent's add button.
-  await parentRow.getByRole("button", { name: "+", exact: true }).first().click();
+  await parentRow.getByRole("button", { name: "Add…", exact: true }).first().click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.locator("select").selectOption({ label: "Category" });
@@ -24,7 +24,7 @@ async function createNestedCategory(page: Page, parentName: string, name: string
 async function createChannelInCategory(page: Page, parentName: string, name: string) {
   const parentRow = page.getByRole("group", { name: parentName });
   await parentRow.hover();
-  await parentRow.getByRole("button", { name: "+", exact: true }).first().click();
+  await parentRow.getByRole("button", { name: "Add…", exact: true }).first().click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.getByPlaceholder(/channel-name|category-name/).fill(name);
