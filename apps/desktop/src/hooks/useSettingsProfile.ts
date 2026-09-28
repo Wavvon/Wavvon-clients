@@ -31,7 +31,7 @@ async function persistTheme(theme: ThemeId | "custom", onError: (msg: string) =>
 export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSettingsProfileParams) {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
-  const [theme, setTheme] = useState<ThemeId>("calm");
+  const [theme, setTheme] = useState<ThemeId>("dark");
   const [skin, setSkin] = useState<WavvonSkin | null>(null);
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);

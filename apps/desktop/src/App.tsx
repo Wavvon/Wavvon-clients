@@ -943,22 +943,21 @@ function App() {
           applySkinTokens(s);
         } else {
           const valid =
-            appearance.slot === "calm" || appearance.slot === "classic" ||
-            appearance.slot === "linear" || appearance.slot === "light"
+            appearance.slot === "dark" || appearance.slot === "light"
               ? (appearance.slot as ThemeId)
-              : "calm";
+              : "dark";
           setTheme(valid);
           document.documentElement.dataset.theme = valid;
         }
       } catch {
         try {
           const profile = await invoke<{ theme?: string | null }>("get_profile");
-          const t = (profile.theme ?? "calm") as ThemeId;
-          const valid = t === "calm" || t === "classic" || t === "linear" || t === "light" ? t : "calm";
+          const t = (profile.theme ?? "dark") as ThemeId;
+          const valid = t === "dark" || t === "light" ? t : "dark";
           setTheme(valid);
           document.documentElement.dataset.theme = valid;
         } catch {
-          document.documentElement.dataset.theme = "calm";
+          document.documentElement.dataset.theme = "dark";
         }
       }
       try {
@@ -1128,7 +1127,7 @@ function App() {
     try {
       const profile = await invoke<{ theme?: string | null }>("get_profile");
       const t = profile.theme;
-      if (t === "calm" || t === "classic" || t === "linear" || t === "light") {
+      if (t === "dark" || t === "light") {
         setTheme(t);
       }
     } catch {}

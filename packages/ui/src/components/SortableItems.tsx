@@ -4,7 +4,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel } from "@wavvon/core";
 import type { VoiceParticipant } from "../types";
-import { ChannelIcon } from "./Icons";
+import { ChannelIcon, VolumeIcon } from "./Icons";
+import { Avatar } from "./Avatar";
 import { safeRoleColor } from "../utils/roleAppearance";
 
 /** Hub icon wrapped in dnd-kit's useSortable so the user can drag-reorder
@@ -68,11 +69,13 @@ function VoiceParticipantRow({
           : undefined
       }
     >
-      <span className="channel-participant-icon" aria-hidden="true">🎙️</span>
-      {label}
+      {/* A face, at the same size as a channel name. Who is in a room is the
+          reason anyone walks into it, so the roster is not a footnote. */}
+      <Avatar name={label} pubkey={participant.public_key} size={22} />
+      <span className="channel-participant-name">{label}</span>
       {participant.visiting_from && (
         <span className="participant-visiting-from" title={t("voice.participant.visiting_from", { hub: participant.visiting_from })}>
-          {" · "}{participant.visiting_from}
+          {participant.visiting_from}
         </span>
       )}
       {isWhisperingToMe && (
@@ -85,7 +88,7 @@ function VoiceParticipantRow({
           className={`participant-gain-badge ${gain === 0 ? "gain-muted" : gain > 100 ? "gain-boosted" : "gain-reduced"}`}
           aria-label={`Volume: ${gain}%`}
         >
-          {gain === 0 ? "🔇" : gain > 100 ? "🔊" : "🔉"}
+          <VolumeIcon level={gain === 0 ? "muted" : gain > 100 ? "boosted" : "reduced"} />
         </span>
       )}
       {open && onSetGain && (
@@ -432,7 +435,9 @@ export function SortableCategoryItem({
         {(channel.icon || channel.custom_icon_svg) && (
           <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} size={13} />
         )}
-        <span className="category-name">{channel.name.toUpperCase()}</span>
+        {/* Shown as the owner typed it. Upper-casing it here is why the
+            stylesheet's own text-transform sweep could never reach it. */}
+        <span className="category-name">{channel.name}</span>
         {collapsed && childCount > 0 && (
           <span className="category-count" aria-hidden="true">{childCount}</span>
         )}

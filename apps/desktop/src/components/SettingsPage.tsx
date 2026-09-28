@@ -243,7 +243,7 @@ export function SettingsPage(props: SettingsPageProps) {
             </div>
             {props.theme === "custom" && (
               <SkinEditor
-                skin={props.skin ?? makeSeed("calm")}
+                skin={props.skin ?? makeSeed("dark")}
                 onChange={props.onSkinChange}
               />
             )}

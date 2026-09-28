@@ -13,7 +13,7 @@ import {
   validateSkin,
 } from "../skinValidation";
 
-const BASES: SkinBase[] = ["calm", "classic", "linear", "light"];
+const BASES: SkinBase[] = ["dark", "light"];
 
 
 interface Props {

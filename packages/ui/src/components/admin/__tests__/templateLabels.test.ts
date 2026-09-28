@@ -18,7 +18,7 @@ const SHORTCUT_IDS = [
   "composer", "messages", "lists", "collapse", "expand", "home_end",
 ];
 
-const THEME_IDS = ["calm", "classic", "linear", "light", "custom"];
+const THEME_IDS = ["dark", "light", "custom"];
 
 const FAMILIES: { name: string; prefix: string; ids: string[] }[] = [
   { name: "role permissions", prefix: "hub.admin.roles.perm", ids: ALL_PERMISSIONS },

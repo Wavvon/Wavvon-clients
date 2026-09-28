@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Channel, TreeNode, FlatNode } from "@wavvon/core";
-import { channelPath, findTreeNode, formatPubkey } from "@wavvon/core";
+import { channelPath, findTreeNode, formatPubkey, displayHubAddress } from "@wavvon/core";
 import type {
   Hub,
   NotifyMode,
@@ -41,6 +41,7 @@ import {
   flattenAllianceChannels, allianceChannelIcon, computeDragIntent,
 } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../../utils/spawnerChannels";
+import { SearchIcon, MembersIcon } from "../Icons";
 
 interface SidebarFlatNode extends FlatNode {
   indentDepth: number;
@@ -482,7 +483,14 @@ export function ChannelSidebar({
             className="hub-header-button"
             onClick={() => onHubDropdownOpenChange(!hubDropdownOpen)}
           >
-            <span className="hub-header-name">{activeHub?.hub_name ?? t("hub.placeholder_name")}</span>
+            {/* The address, not just the name. Self-hosted means whose machine
+                you are on is part of knowing where you are. */}
+            <span className="hub-header-id">
+              <span className="hub-header-name">{activeHub?.hub_name ?? t("hub.placeholder_name")}</span>
+              {activeHub?.hub_url && (
+                <span className="hub-header-address">{displayHubAddress(activeHub.hub_url)}</span>
+              )}
+            </span>
             <HubClock timezone={hubTimezone} />
             <span className="hub-header-chevron">{hubDropdownOpen ? "▴" : "▾"}</span>
           </button>
@@ -518,7 +526,7 @@ export function ChannelSidebar({
           style={{ width: "100%", textAlign: "left", padding: "6px 12px" }}
           onClick={onOpenSearch}
         >
-          🔍 {t("search.placeholder")}
+          <SearchIcon size={13} /> {t("search.placeholder")}
         </button>
       )}
 
@@ -646,7 +654,7 @@ export function ChannelSidebar({
                     style={{ paddingLeft: computeIndent(activeNode.indentDepth).paddingLeft }}
                   >
                     {activeNode.node.is_category
-                      ? `▾ ${activeNode.node.name.toUpperCase()}`
+                      ? `▾ ${activeNode.node.name}`
                       : <><ChannelIcon icon={activeNode.node.icon} customIconSvg={activeNode.node.custom_icon_svg} />{" "}{activeNode.node.name}</>}
                   </div>
                 )}
@@ -727,7 +735,7 @@ export function ChannelSidebar({
                   (avoids a dead button on callers that haven't built it yet). */}
               {onOpenFriends && (
                 <button className="btn-icon" onClick={onOpenFriends} title={t("friends.title")}>
-                  👥
+                  <MembersIcon />
                 </button>
               )}
             </div>

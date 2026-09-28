@@ -226,5 +226,113 @@ export function ChannelIcon({
   if (channelType === "spawner") {
     return <span className="channel-type-spawner" aria-hidden="true">+</span>;
   }
+  if (channelType === "voice") {
+    // Voice channels used to fall through to null and sit in an empty gutter,
+    // so a row you talk in looked like a row with a missing icon.
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor"
+        strokeWidth="1.5" strokeLinecap="round" className="channel-type-voice" aria-hidden="true">
+        <rect x="5.5" y="2" width="5" height="8" rx="2.5" />
+        <path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2" />
+      </svg>
+    );
+  }
   return null;
+}
+
+// Interface icons. These replace emoji that were standing in for controls:
+// an emoji renders in the platform's own colour and style, so a toolbar built
+// from them has as many visual languages as it has buttons.
+
+export function PinIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 2h6l-.9 6L18 11.3V14H6v-2.7L9.9 8z" />
+      <line x1="12" y1="14" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <line x1="15.5" y1="15.5" x2="21" y2="21" />
+    </svg>
+  );
+}
+
+export function MembersIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 5a3.5 3.5 0 0 1 0 6.5" />
+      <path d="M17.5 13.6A6.5 6.5 0 0 1 21.5 20" />
+    </svg>
+  );
+}
+
+export function LinkIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7" />
+      <path d="M13.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7" />
+    </svg>
+  );
+}
+
+export function FlagIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 21V4" />
+      <path d="M5 4h12l-2.5 4L17 12H5z" />
+    </svg>
+  );
+}
+
+export function ReplyIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="9 6 4 11 9 16" />
+      <path d="M4 11h9a6 6 0 0 1 6 6v2" />
+    </svg>
+  );
+}
+
+export function EditIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16z" />
+    </svg>
+  );
+}
+
+export function TrashIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 6h16M9 6V4h6v2M7 6l1 14h8l1-14" />
+    </svg>
+  );
+}
+
+/** Playback gain relative to 100%: quiet, normal-but-adjusted, boosted. */
+export function VolumeIcon({ size = 14, level }: { size?: number; level: "muted" | "reduced" | "boosted" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+      {level === "muted" && <path d="M16 9.5l5 5M21 9.5l-5 5" />}
+      {level === "reduced" && <path d="M15.5 10a3 3 0 0 1 0 4" />}
+      {level === "boosted" && <><path d="M15.5 10a3 3 0 0 1 0 4" /><path d="M18 7.5a7 7 0 0 1 0 9" /></>}
+    </svg>
+  );
 }

@@ -26,6 +26,7 @@ import { MessageContent } from "../MessageContent";
 import { GameCard } from "../GameCard";
 import { PollCard } from "../polls/PollCard";
 import { nameColorStyle, safeRoleColor } from "../../utils/roleAppearance";
+import { LinkIcon, PinIcon, FlagIcon, ReplyIcon, EditIcon, TrashIcon } from "../Icons";
 
 interface HubEmojiEntry { id: string; name: string; url: string; }
 
@@ -179,7 +180,7 @@ export function MessageRow({
   // deterministic color when the sender has none (or isn't in the roster —
   // e.g. an alliance-proxied message).
   const senderNameColor = safeRoleColor(senderUser?.name_color);
-  const senderNameStyle = senderNameColor ? nameColorStyle(senderNameColor) : { color: colorForKey(m.sender) };
+  const senderNameStyle = senderNameColor ? nameColorStyle(senderNameColor) : undefined;
   const senderNameClass = `message-sender${senderNameColor ? " name-colored" : ""}`;
   const showBirthdayBadge = !hideBirthdays && isBirthdayToday(senderUser?.birthday);
   const isMentioned = m.sender !== publicKey && mentionsName(m.content, myDisplayName);
@@ -333,21 +334,29 @@ export function MessageRow({
             <span className="reply-snippet">{m.reply_to.content_preview}</span>
           </div>
         )}
-        <span onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
-          <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={28} />
+        <span className="message-avatar" onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
+          <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={36} />
         </span>
-        <span
-          className={senderNameClass}
-          style={{ ...senderNameStyle, cursor: "pointer" }}
-          onClick={(e) => onAuthorClick(m.sender, e)}
-          onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
-        >
-          {senderLabel}
+        {/* Who and when sit on their own line above the message, so the body
+            can be the largest type in the stream. A flat row put the name at
+            the same weight as what the person actually said. */}
+        <span className="message-meta">
+          <span
+            className={senderNameClass}
+            style={{ ...senderNameStyle, cursor: "pointer" }}
+            onClick={(e) => onAuthorClick(m.sender, e)}
+            onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
+          >
+            {senderLabel}
+          </span>
+          {showBirthdayBadge && <span title={t("message.birthday")} aria-label={t("message.birthday")}>🎂</span>}
+          {senderUser?.is_webhook && (
+            <span className="app-badge" aria-hidden="true">{t("app.badge")}</span>
+          )}
+          <span className="message-time" title={formatFullTimestamp(m.created_at)}>
+            {formatRelative(m.created_at)}
+          </span>
         </span>
-        {showBirthdayBadge && <span title={t("message.birthday")} aria-label={t("message.birthday")}>🎂</span>}
-        {senderUser?.is_webhook && (
-          <span className="app-badge" aria-hidden="true">{t("app.badge")}</span>
-        )}
         {isEditing ? (
           <span className="message-edit">
             <input
@@ -364,10 +373,7 @@ export function MessageRow({
             <button onClick={onCancelEdit} className="btn-small btn-secondary-small">{t("message.edit.cancel")}</button>
           </span>
         ) : (
-          <>
-            <span className="message-time" title={formatFullTimestamp(m.created_at)}>
-              {formatRelative(m.created_at)}
-            </span>
+          <span className="message-main">
             <span className="message-content">
               <MessageContent content={m.content} knownNames={knownDisplayNames} myName={myDisplayName} hubEmojiMap={hubEmojiMap} hubBaseUrl={hubBaseUrl ?? activeHub?.hub_url} />
             </span>
@@ -403,7 +409,7 @@ export function MessageRow({
             <div role="toolbar" aria-label={t("message.actions.aria")} className="message-actions">
               <ReactionPicker onPick={(emoji) => onToggleReaction(m.id, emoji)} />
               <button className="message-action" onClick={() => onSetReplyTarget(m)} title={t("message.action.reply")} aria-label={t("message.action.reply")}>
-                ↩
+                <ReplyIcon size={14} />
               </button>
               <button
                 className="message-action"
@@ -411,7 +417,7 @@ export function MessageRow({
                 title={t("message.action.copy_link")}
                 aria-label={t("message.action.copy_link")}
               >
-                🔗
+                <LinkIcon size={14} />
               </button>
               {isAdmin && (
                 <button
@@ -420,12 +426,12 @@ export function MessageRow({
                   title={pinnedMessageIds.has(m.id) ? t("message.action.unpin") : t("message.action.pin")}
                   aria-label={pinnedMessageIds.has(m.id) ? t("message.action.unpin") : t("message.action.pin")}
                 >
-                  📌
+                  <PinIcon size={14} />
                 </button>
               )}
               {isMine && (
                 <button className="message-action" onClick={() => onStartEdit(m)} title={t("message.action.edit")} aria-label={t("message.action.edit")}>
-                  ✎
+                  <EditIcon size={14} />
                 </button>
               )}
               {canDelete && (
@@ -435,7 +441,7 @@ export function MessageRow({
                   title={t("message.action.delete")}
                   aria-label={t("message.action.delete")}
                 >
-                  ✕
+                  <TrashIcon size={14} />
                 </button>
               )}
               {!isMine && actions.reportMessage && (
@@ -450,7 +456,7 @@ export function MessageRow({
                     aria-label={t("message.report.button")}
                     onClick={() => setReporting((v) => !v)}
                   >
-                    ⚑
+                    <FlagIcon size={14} />
                   </button>
                 )
               )}
@@ -540,7 +546,7 @@ export function MessageRow({
                     <div key={reply.id} className="message" style={{ paddingTop: 2, paddingBottom: 2 }}>
                       <span
                         className={`message-sender${rNameColor ? " name-colored" : ""}`}
-                        style={rNameColor ? nameColorStyle(rNameColor) : { color: colorForKey(reply.sender) }}
+                        style={rNameColor ? nameColorStyle(rNameColor) : undefined}
                       >
                         {rLabel}
                       </span>
@@ -555,7 +561,7 @@ export function MessageRow({
                 })}
               </div>
             )}
-          </>
+          </span>
         )}
         {contextMenu}
       </li>

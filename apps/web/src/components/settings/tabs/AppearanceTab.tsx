@@ -8,7 +8,7 @@ import { CustomThemesSection } from "../CustomThemesSection";
 
 // The four base names reuse the skin editor's keys; "custom" is this picker's
 // own. The names themselves are not translated — Calm is called Calm.
-const THEMES: ThemeId[] = ["calm", "classic", "linear", "light", "custom"];
+const THEMES: ThemeId[] = ["dark", "light", "custom"];
 
 interface Props {
   theme: ThemeId;
@@ -66,7 +66,7 @@ export function AppearanceTab(props: Props) {
                 border: props.theme === theme ? "2px solid var(--accent)" : "1px solid var(--border)",
                 background: props.theme === theme ? "var(--accent-subtle, var(--surface))" : "var(--surface)",
                 // Without an explicit color these inherit the base button's
-                // var(--accent-text), which is dark in calm and white in
+                // var(--accent-text), which is dark in the dark theme and near-white in
                 // light — i.e. unreadable on a surface background.
                 color: "var(--text)",
                 cursor: "pointer",

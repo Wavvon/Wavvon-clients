@@ -231,7 +231,7 @@ describe("buildThemesSection", () => {
   it("only includes the currently active account's custom themes", () => {
     setActiveAccountId("account-a");
     saveCustomThemeStore({
-      themes: [{ id: "t1", name: "A's theme", skin: { format: "wavvon.skin", version: 1, name: "A's theme", base: "calm", tokens: {} } }],
+      themes: [{ id: "t1", name: "A's theme", skin: { format: "wavvon.skin", version: 1, name: "A's theme", base: "dark", tokens: {} } }],
       activeId: "t1",
     });
 

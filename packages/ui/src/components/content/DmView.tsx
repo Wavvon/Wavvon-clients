@@ -132,7 +132,7 @@ export function DmView({
               return (
                 <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message message-action">
                   <span className="action-asterisk">*</span>
-                  <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                  <span className="message-sender">
                     {senderLabel}
                   </span>
                   <span className="action-text">
@@ -148,7 +148,7 @@ export function DmView({
             }
             return (
               <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message">
-                <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                <span className="message-sender">
                   {senderLabel}
                 </span>
                 <span className="message-time" title={formatFullTimestamp(m.timestamp)}>
