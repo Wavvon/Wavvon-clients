@@ -276,9 +276,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "overview" && (
           <section>
             <h1>{t("hub.admin.overview.title")}</h1>
-            <div className="settings-cards">
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.identity")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.identity")}
+              state={props.hubName.trim() || t("hub.admin.overview.state.unnamed")}
+              {...adminRow("identity")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
                   <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => props.onHubNameChange(e.target.value)} />
@@ -303,10 +305,15 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     />
                   </div>
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.access")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.access")}
+              state={props.requireApproval
+                ? t("hub.admin.overview.state.approval_on")
+                : t("hub.admin.overview.state.approval_off")}
+              {...adminRow("access")}
+            >
                 <div className="settings-section">
                   <label className="settings-label">{t("hub.admin.overview.membership")}</label>
                   <label className="checkbox-label">
@@ -318,10 +325,13 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   <label className="settings-label" htmlFor="admin-antispam">{t("hub.admin.overview.antispam")}</label>
                   <input id="admin-antispam" type="number" min={0} max={9999} value={props.minSecurityLevel} onChange={(e) => props.onMinSecurityLevelChange(Number(e.target.value))} />
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.locale")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.locale")}
+              state={props.timezone || t("hub.admin.overview.timezone_unset")}
+              {...adminRow("locale")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-timezone">{t("hub.admin.overview.timezone")}</label>
                   <p className="muted">{t("hub.admin.overview.timezone_hint")}</p>
@@ -366,10 +376,14 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     <option value="none">{t("hub.admin.overview.name_colors.none")}</option>
                   </select>
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.channels_voice")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.channels_voice")}
+              state={props.channels.find((c) => c.id === props.afkChannelId)?.name
+                || t("hub.admin.overview.afk_channel_none")}
+              {...adminRow("channels-voice")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-afk-channel">{t("hub.admin.overview.afk_channel")}</label>
                   <p className="muted">{t("hub.admin.overview.afk_channel_hint")}</p>
@@ -411,10 +425,15 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   <p className="muted">{t("hub.admin.overview.max_depth_hint")}</p>
                   <input id="admin-max-depth" type="number" min={0} max={20} value={props.maxChannelDepth} onChange={(e) => props.onMaxChannelDepthChange(Number(e.target.value))} />
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.limits")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.limits")}
+              state={t("hub.admin.overview.state.attachment_cap", {
+                mb: Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024)),
+              })}
+              {...adminRow("limits")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-attachment-cap">
                     {t("hub.admin.overview.attachment_cap")}
@@ -449,10 +468,13 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     {t("hub.admin.overview.startup_only.rest")}
                   </p>
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.welcome")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.welcome")}
+              state={props.welcomeLabel.trim() || t("hub.admin.overview.state.no_welcome")}
+              {...adminRow("welcome")}
+            >
                 <div className="settings-section">
                   <p className="muted">{t("hub.admin.overview.welcome_intro")}</p>
                   <div className="settings-card-row">
@@ -499,11 +521,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     })}</p>
                   )}
                 </div>
-              </div>
-            </div>
+            </SettingRow>
             {props.saveError && <p className="error-text">{props.saveError}</p>}
             <div className="settings-save-bar">
-              <button onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
+              <button className="btn-primary" onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
             </div>
           </section>
         )}
@@ -695,7 +716,12 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <CertificationsSection actions={props.certActions} />
         )}
 
-        {props.tab === "recovery" && props.renderRecoveryContacts?.()}
+        {props.tab === "recovery" && (
+          <section>
+            <h1>{t("hub.admin.tabs.recovery")}</h1>
+            {props.renderRecoveryContacts?.()}
+          </section>
+        )}
 
         {props.tab === "soundboard" && props.canManageSoundboard && props.soundboardActions && (
           <SoundboardAdminSection actions={props.soundboardActions} />

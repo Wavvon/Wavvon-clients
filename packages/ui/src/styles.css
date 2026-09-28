@@ -6358,12 +6358,50 @@ select:focus-visible {
   font-weight: var(--weight-medium);
 }
 
-.survey-response-row {
+/* One answered survey, opening to the answers. The editor rows above it are
+   forms; these are records, so they sit flatter. */
+.survey-question-edit {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.survey-question-edit:last-of-type {
+  border-bottom: none;
+}
+
+.survey-response {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.survey-response:last-child {
+  border-bottom: none;
+}
+
+.survey-response-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) 0;
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--text);
   cursor: pointer;
 }
 
-.survey-response-row:hover td {
-  background: var(--surface-hover);
+.survey-response-head:hover .survey-response-name {
+  color: var(--accent);
+}
+
+.survey-response-name {
+  display: block;
+  font-size: var(--text-sm);
+}
+
+.survey-response .survey-answer-list {
+  padding: 0 0 var(--space-3) 0;
 }
 
 .survey-answer-list {

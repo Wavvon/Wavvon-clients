@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import type { RecoveryContactItem, RecoveryAdminRequest, RecoveryRequestBundle } from "../../types";
+import { SettingRow } from "../SettingRow";
 
 export type { RecoveryContactItem, RecoveryAdminRequest, RecoveryRequestBundle } from "../../types";
 
@@ -39,6 +40,11 @@ interface Props {
 const POLL_MS = 5000;
 
 export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = true }: Props) {
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const { t } = useTranslation();
   const [threshold, setThreshold] = useState(2);
   const [contacts, setContacts] = useState<RecoveryContactItem[]>([]);
@@ -167,8 +173,14 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
     <div>
       {showMemberCards && (
       <>
-      <div className="settings-section">
-        <label className="settings-label">{t("recovery.contacts.label")}</label>
+      <SettingRow
+        title={t("recovery.contacts.label")}
+        state={contacts.length === 0
+          ? t("recovery.contacts.state.none")
+          : t("recovery.contacts.state.set", { count: contacts.length, threshold })}
+        meta={contacts.length > 0 ? String(contacts.length) : undefined}
+        {...row("contacts")}
+      >
         <p className="muted">{t("recovery.contacts.hint")}</p>
         <label className="settings-label" htmlFor="recovery-contacts">{t("recovery.contacts.pubkeys_label")}</label>
         <textarea
@@ -177,14 +189,14 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
           value={contactsText}
           onChange={(e) => setContactsText(e.target.value)}
           placeholder={t("recovery.contacts.pubkeys_placeholder")}
-          style={{ width: "100%", fontFamily: "monospace" }}
+          style={{ width: "100%", fontFamily: "var(--font-mono)" }}
         />
         {contacts.length > 0 && (
           <div style={{ marginTop: 4 }}>
             {contacts.map((c) => (
               <div key={c.pubkey} className="settings-row" style={{ marginBottom: 2 }}>
                 <code style={{ flex: 1, fontSize: "var(--text-xs)" }}>{c.display_name ?? formatPubkey(c.pubkey)}</code>
-                <button className="btn-secondary" onClick={() => handleRemove(c.pubkey)}>{t("recovery.contacts.remove")}</button>
+                <button className="btn-small" onClick={() => handleRemove(c.pubkey)}>{t("recovery.contacts.remove")}</button>
               </div>
             ))}
           </div>
@@ -206,14 +218,24 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
           <p className="error-text">{saveStatus}</p>
         )}
         <div className="settings-row">
-          <button onClick={handleSave} disabled={saveStatus === "saving"}>
+          <button className="btn-primary" onClick={handleSave} disabled={saveStatus === "saving"}>
             {saveStatus === "saving" ? t("recovery.contacts.saving") : t("recovery.contacts.save")}
           </button>
         </div>
-      </div>
+      </SettingRow>
 
-      <div className="settings-section">
-        <label className="settings-label">{t("recovery.request.label")}</label>
+      <SettingRow
+        title={t("recovery.request.label")}
+        state={openRequest
+          ? t("recovery.request.progress", {
+              count: openRequest.attestation_count,
+              threshold: openRequest.threshold,
+              status: openRequest.status,
+            })
+          : t("recovery.request.state.none")}
+        attention={!!openRequest}
+        {...row("request")}
+      >
         <p className="muted">{t("recovery.request.hint")}</p>
         {!openRequest ? (
           <>
@@ -234,35 +256,37 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
                 placeholder={t("recovery.request.reason_placeholder")}
                 style={{ flex: 1 }}
               />
-              <button onClick={handleOpenRequest} disabled={requestStatus === "opening" || !oldPubkeyInput.trim()}>
+              <button className="btn-primary" onClick={handleOpenRequest} disabled={requestStatus === "opening" || !oldPubkeyInput.trim()}>
                 {requestStatus === "opening" ? t("recovery.request.opening") : t("recovery.request.open")}
               </button>
             </div>
             {requestStatus !== "idle" && requestStatus !== "opening" && <p className="error-text">{requestStatus}</p>}
           </>
         ) : (
-          <div className="settings-section" style={{ background: "var(--bg-elevated)", borderRadius: "var(--r-sm)", padding: 8 }}>
+          <div className="status-readout">
             <div>{t("recovery.request.id_label")} <code>{openRequest.id}</code></div>
             <div className="muted">{t("recovery.request.share_hint")}</div>
-            <div className="muted">
-              {t("recovery.request.progress", {
-                count: openRequest.attestation_count,
-                threshold: openRequest.threshold,
-                status: openRequest.status,
-              })}
-            </div>
             <div className="settings-row" style={{ marginTop: 4 }}>
-              <button className="btn-secondary" onClick={() => actions.getRotationRequest(openRequest.id).then(setOpenRequest).catch(() => {})}>
+              <button className="btn-small" onClick={() => actions.getRotationRequest(openRequest.id).then(setOpenRequest).catch(() => {})}>
                 {t("recovery.request.check_now")}
               </button>
-              <button className="btn-secondary" onClick={() => setOpenRequest(null)}>{t("recovery.request.dismiss")}</button>
+              <button className="btn-small" onClick={() => setOpenRequest(null)}>{t("recovery.request.dismiss")}</button>
             </div>
           </div>
         )}
-      </div>
+      </SettingRow>
 
-      <div className="settings-section">
-        <label className="settings-label">{t("recovery.vouch.label")}</label>
+      <SettingRow
+        title={t("recovery.vouch.label")}
+        state={reviewBundle
+          ? t("recovery.vouch.progress", {
+              count: reviewBundle.attestation_count,
+              threshold: reviewBundle.threshold,
+              status: reviewBundle.status,
+            })
+          : t("recovery.vouch.state.idle")}
+        {...row("vouch")}
+      >
         <p className="muted">{t("recovery.vouch.hint")}</p>
         <div className="settings-row">
           <input
@@ -272,27 +296,20 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
             placeholder={t("recovery.vouch.id_placeholder")}
             style={{ flex: 1 }}
           />
-          <button className="btn-secondary" onClick={handleLookup} disabled={reviewStatus === "looking" || !lookupId.trim()}>
+          <button className="btn-small" onClick={handleLookup} disabled={reviewStatus === "looking" || !lookupId.trim()}>
             {reviewStatus === "looking" ? t("recovery.vouch.looking_up") : t("recovery.vouch.look_up")}
           </button>
         </div>
         {reviewBundle && (
-          <div className="settings-section" style={{ background: "var(--bg-elevated)", borderRadius: "var(--r-sm)", padding: 8, marginTop: 8 }}>
+          <div className="status-readout" style={{ marginTop: 8 }}>
             <div><strong>{t("recovery.old_key")}</strong> <code>{formatPubkey(reviewBundle.old_pubkey)}</code></div>
             <div><strong>{t("recovery.new_key")}</strong> <code>{formatPubkey(reviewBundle.new_pubkey)}</code></div>
             <div className="muted">{t("recovery.hub_key")} <code>{formatPubkey(reviewBundle.hub_pubkey)}</code></div>
-            <div className="muted">
-              {t("recovery.vouch.progress", {
-                count: reviewBundle.attestation_count,
-                threshold: reviewBundle.threshold,
-                status: reviewBundle.status,
-              })}
-            </div>
             {reviewStatus === "attested" ? (
               <p className="muted">{t("recovery.vouch.attested")}</p>
             ) : (
               <div className="settings-row" style={{ marginTop: 4 }}>
-                <button onClick={handleAttest} disabled={reviewStatus === "attesting" || reviewBundle.status !== "pending"}>
+                <button className="btn-primary" onClick={handleAttest} disabled={reviewStatus === "attesting" || reviewBundle.status !== "pending"}>
                   {reviewStatus === "attesting" ? t("recovery.vouch.signing") : t("recovery.vouch.confirm")}
                 </button>
               </div>
@@ -302,39 +319,42 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
             )}
           </div>
         )}
-      </div>
+      </SettingRow>
       </>
       )}
 
       {isAdmin && actions.listAdminRequests && (
-        <div className="settings-section">
-          <label className="settings-label">{t("recovery.queue.label")}</label>
+        <SettingRow
+          title={t("recovery.queue.label")}
+          state={adminRequests.length === 0
+            ? t("recovery.queue.empty")
+            : t("recovery.queue.state.waiting", { count: adminRequests.length })}
+          attention={adminRequests.length > 0}
+          meta={adminRequests.length > 0 ? String(adminRequests.length) : undefined}
+          {...row("queue")}
+        >
           <p className="muted">{t("recovery.queue.hint")}</p>
           {adminError && <p className="error-text">{adminError}</p>}
           {adminRequests.length === 0 && !adminError && <p className="muted">{t("recovery.queue.empty")}</p>}
           {adminRequests.map((req) => (
-            <div key={req.id} className="settings-section" style={{ borderLeft: "2px solid var(--border)", paddingLeft: 12 }}>
-              <div className="settings-row">
-                <div>
-                  <div><strong>{t("recovery.old_key")}</strong> <code>{formatPubkey(req.old_pubkey)}</code></div>
-                  <div><strong>{t("recovery.new_key")}</strong> <code>{formatPubkey(req.new_pubkey)}</code></div>
-                  {req.reason && <div className="muted">{req.reason}</div>}
-                  <div className="muted">
-                    {t("recovery.queue.progress", { count: req.attestation_count, status: req.status })}
-                  </div>
-                </div>
+            <div key={req.id} className="status-readout" style={{ marginTop: "var(--space-2)" }}>
+              <div><strong>{t("recovery.old_key")}</strong> <code>{formatPubkey(req.old_pubkey)}</code></div>
+              <div><strong>{t("recovery.new_key")}</strong> <code>{formatPubkey(req.new_pubkey)}</code></div>
+              {req.reason && <div className="muted">{req.reason}</div>}
+              <div className="muted">
+                {t("recovery.queue.progress", { count: req.attestation_count, status: req.status })}
               </div>
               {(req.status === "ready_for_review" || req.status === "pending") && (
                 <div className="settings-row" style={{ marginTop: 8 }}>
-                  <button onClick={() => handleDecide(req.id, "approve")}>{t("recovery.queue.approve")}</button>
-                  <button className="btn-secondary danger" onClick={() => handleDecide(req.id, "deny")}>
+                  <button className="btn-small" onClick={() => handleDecide(req.id, "approve")}>{t("recovery.queue.approve")}</button>
+                  <button className="btn-small danger" onClick={() => handleDecide(req.id, "deny")}>
                     {t("recovery.queue.deny")}
                   </button>
                 </div>
               )}
             </div>
           ))}
-        </div>
+        </SettingRow>
       )}
     </div>
   );
