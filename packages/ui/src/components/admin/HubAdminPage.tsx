@@ -16,6 +16,7 @@ import { CertificationsSection, type CertificationsSectionActions } from "./Cert
 import { SoundboardAdminSection, type SoundboardAdminSectionActions } from "./SoundboardAdminSection";
 import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./OnboardingAdminSection";
 import { moveChannelOptions } from "../../utils/voiceMove";
+import { SettingRow } from "../SettingRow";
 
 export type HubAdminTab =
   | "overview"
@@ -172,6 +173,11 @@ function hubToWavvonUrl(hubUrl: string): string {
 
 export function HubAdminPage(props: HubAdminPageProps) {
   const { t } = useTranslation();
+  const [adminOpen, setAdminOpen] = useState<string | null>(null);
+  const adminRow = (id: string) => ({
+    open: adminOpen === id,
+    onToggle: () => setAdminOpen((cur) => (cur === id ? null : id)),
+  });
   const [copiedShare, setCopiedShare] = useState(false);
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
@@ -592,49 +598,50 @@ export function HubAdminPage(props: HubAdminPageProps) {
               </div>
             )}
             <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
-            <table className="members-table">
-              <thead><tr>
-                <th>{t("hub.admin.members.col.name")}</th>
-                <th>{t("hub.admin.members.col.roles")}</th>
-                <th>{t("hub.admin.members.col.joined")}</th>
-                <th>{t("hub.admin.members.col.actions")}</th>
-              </tr></thead>
-              <tbody>
-                {props.members.map((m) => (
-                  <tr key={m.public_key}>
-                    <td>
-                      <div>{m.display_name || t("hub.admin.members.pending.no_name")}</div>
-                      <div className="member-pk" title={m.public_key}>{formatPubkey(m.public_key)}</div>
-                    </td>
-                    <td>
-                      {props.canManageRoles ? (
-                        <MemberRoleManager
-                          pubkey={m.public_key}
-                          currentRoles={m.roles}
-                          myMaxPriority={props.myMaxPriority}
-                          onChanged={(roles) => props.onMemberRolesChanged(m.public_key, roles)}
-                          actions={props.memberRoleActions}
-                        />
-                      ) : (
-                        m.roles.map((r) => r.name).join(", ") || "—"
-                      )}
-                    </td>
-                    <td>{formatRelative(m.first_seen_at)}</td>
-                    <td style={{ display: "flex", gap: "var(--space-1)", flexWrap: "wrap" }}>
-                      <button className="btn-small" onClick={() => props.onKickMember(m.public_key)}>{t("hub.admin.members.kick")}</button>
-                      <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("hub.admin.members.ban")}</button>
-                      <button className="btn-small btn-secondary" onClick={() => props.onMuteMember(m.public_key)}>{t("hub.admin.members.mute")}</button>
-                      <button className="btn-small btn-secondary" onClick={() => props.onTimeoutMember(m.public_key)}>{t("hub.admin.members.timeout")}</button>
-                      {props.voiceMutedKeys.has(m.public_key) ? (
-                        <button className="btn-small btn-secondary" onClick={() => props.onVoiceUnmuteMember(m.public_key)}>{t("hub.admin.members.voice_unmute")}</button>
-                      ) : (
-                        <button className="btn-small btn-secondary" onClick={() => props.onVoiceMuteMember(m.public_key)}>{t("hub.admin.members.voice_mute")}</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {props.members.map((m) => (
+              <SettingRow
+                key={m.public_key}
+                title={m.display_name || t("hub.admin.members.pending.no_name")}
+                state={t("hub.admin.members.state", {
+                  roles: m.roles.map((r) => r.name).join(", ") || t("hub.admin.members.state.no_roles"),
+                  joined: formatRelative(m.first_seen_at),
+                })}
+                {...adminRow(m.public_key)}
+              >
+                <p className="member-pk" title={m.public_key} style={{ marginBottom: "var(--space-3)" }}>
+                  {formatPubkey(m.public_key)}
+                </p>
+
+                {props.canManageRoles && (
+                  <div style={{ marginBottom: "var(--space-4)" }}>
+                    <MemberRoleManager
+                      pubkey={m.public_key}
+                      currentRoles={m.roles}
+                      myMaxPriority={props.myMaxPriority}
+                      onChanged={(roles) => props.onMemberRolesChanged(m.public_key, roles)}
+                      actions={props.memberRoleActions}
+                    />
+                  </div>
+                )}
+
+                <span className="settings-label">{t("hub.admin.members.group.limit")}</span>
+                <div className="settings-row" style={{ marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
+                  <button className="btn-small" onClick={() => props.onMuteMember(m.public_key)}>{t("hub.admin.members.mute")}</button>
+                  <button className="btn-small" onClick={() => props.onTimeoutMember(m.public_key)}>{t("hub.admin.members.timeout")}</button>
+                  {props.voiceMutedKeys.has(m.public_key) ? (
+                    <button className="btn-small" onClick={() => props.onVoiceUnmuteMember(m.public_key)}>{t("hub.admin.members.voice_unmute")}</button>
+                  ) : (
+                    <button className="btn-small" onClick={() => props.onVoiceMuteMember(m.public_key)}>{t("hub.admin.members.voice_mute")}</button>
+                  )}
+                </div>
+
+                <span className="settings-label">{t("hub.admin.members.group.remove")}</span>
+                <div className="settings-row" style={{ flexWrap: "wrap" }}>
+                  <button className="btn-small danger" onClick={() => props.onKickMember(m.public_key)}>{t("hub.admin.members.kick")}</button>
+                  <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("hub.admin.members.ban")}</button>
+                </div>
+              </SettingRow>
+            ))}
             {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
           </section>
         )}
@@ -643,28 +650,22 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <section>
             <h1>{t("hub.admin.bans.title", { count: props.bans.length })}</h1>
             {props.bans.length === 0 && <p className="muted">{t("hub.admin.bans.empty")}</p>}
-            {props.bans.length > 0 && (
-              <table className="members-table">
-                <thead><tr>
-                  <th>{t("hub.admin.bans.col.user")}</th>
-                  <th>{t("hub.admin.bans.col.reason")}</th>
-                  <th>{t("hub.admin.bans.col.banned_by")}</th>
-                  <th>{t("hub.admin.bans.col.when")}</th>
-                  <th>{t("hub.admin.bans.col.actions")}</th>
-                </tr></thead>
-                <tbody>
-                  {props.bans.map((b) => (
-                    <tr key={b.target_public_key}>
-                      <td><span className="member-pk">{formatPubkey(b.target_public_key)}</span></td>
-                      <td>{b.reason || <span className="muted">—</span>}</td>
-                      <td><span className="member-pk" title={b.banned_by}>{formatPubkey(b.banned_by)}</span></td>
-                      <td>{formatRelative(b.created_at)}</td>
-                      <td><button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>{t("hub.admin.bans.unban")}</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            {props.bans.map((b) => (
+              <SettingRow
+                key={b.target_public_key}
+                title={formatPubkey(b.target_public_key)}
+                state={t("hub.admin.bans.state", {
+                  reason: b.reason || t("hub.admin.bans.state.no_reason"),
+                  when: formatRelative(b.created_at),
+                })}
+                {...adminRow(b.target_public_key)}
+              >
+                <p className="muted" style={{ marginBottom: "var(--space-3)" }}>
+                  {t("hub.admin.bans.state.by", { who: formatPubkey(b.banned_by) })}
+                </p>
+                <button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>{t("hub.admin.bans.unban")}</button>
+              </SettingRow>
+            ))}
           </section>
         )}
 
