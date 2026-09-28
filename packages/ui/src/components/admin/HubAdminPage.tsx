@@ -683,10 +683,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "roles" && <RolesSection actions={props.rolesActions} />}
 
         {props.tab === "integrations" && (
-          <>
+          <section>
+            <h1>{t("webhooks.title")}</h1>
             <WebhooksSection channels={props.channels} actions={props.webhookActions} />
             {props.renderOutgoingWebhooks?.()}
-          </>
+          </section>
         )}
 
         {props.tab === "certifications" && (

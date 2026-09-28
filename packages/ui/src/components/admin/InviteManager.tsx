@@ -130,7 +130,7 @@ export function InviteManager(props: Props) {
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
-            <button onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
+            <button className="btn-primary" onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
               {t("invites.default_role.save")}
             </button>
             {defaultRoleStatus === "saved" && <span className="muted" style={{ color: "var(--success)" }}>{t("invites.default_role.saved")}</span>}
@@ -167,7 +167,7 @@ export function InviteManager(props: Props) {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <button onClick={handleCreate}>
+          <button className="btn-primary" onClick={handleCreate}>
             {t("invites.create.submit")}
           </button>
         </div>

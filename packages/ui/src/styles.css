@@ -218,13 +218,16 @@ select {
   padding: var(--space-2) var(--space-3);
 }
 
-/* Base button reset — every button inherits theme tokens by default.
-   Class-specific rules (.btn-icon, .btn-secondary, etc.) override these
-   via higher CSS specificity without needing !important. */
+/* Base button reset. Quiet by default, because that is the common case:
+   there are 225 .btn-secondary in this codebase against 22 .btn-primary, and
+   the secondary rule needed !important to beat an accent it should never have
+   inherited. Amber is this interface’s word for live/active/you; a button
+   wearing it is claiming to be the one thing on the screen worth doing, so
+   only .btn-primary gets it. */
 button {
-  background: var(--accent);
-  color: var(--accent-text);
-  border: none;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--space-2) var(--space-4);
   font-family: var(--font-stack);
@@ -234,7 +237,7 @@ button {
 }
 
 button:hover {
-  background: var(--accent-hover);
+  background: var(--surface-hover);
 }
 
 button:disabled {
@@ -2263,10 +2266,10 @@ tr.account-drop-target td {
 
 .btn-small {
   padding: var(--space-2) var(--space-3);
-  border: none;
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--surface);
+  color: var(--text);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   cursor: pointer;
@@ -2287,15 +2290,17 @@ tr.account-drop-target td {
   background: var(--danger-hover);
 }
 
+/* Same as the default now. Kept as an explicit name for call sites that
+   want to say "quiet" out loud next to a primary. */
 .btn-secondary,
 .btn-secondary-small {
-  background: var(--surface) !important;
-  color: var(--text) !important;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .btn-secondary:hover,
 .btn-secondary-small:hover {
-  background: var(--surface-hover) !important;
+  background: var(--surface-hover);
 }
 
 /* ============================================================
@@ -2623,10 +2628,7 @@ select:focus-visible {
 
 .modal-actions button {
   padding: var(--space-2) var(--space-5);
-  border: none;
   border-radius: var(--r-md);
-  background: var(--accent);
-  color: var(--accent-text);
   font-size: var(--text-md);
   font-weight: var(--weight-medium);
   cursor: pointer;
@@ -2807,12 +2809,13 @@ select:focus-visible {
   font-family: inherit;
 }
 
+/* Layout only. Setting a colour here beat every button class — the selector
+   is (0,1,1) against .btn-secondary’s (0,1,0) — so a button was amber for
+   being inside a row, whatever it was for. That is what .btn-secondary needed
+   !important to undo. */
 .settings-row button {
   padding: var(--space-2) var(--space-4);
-  border: none;
   border-radius: var(--r-md);
-  background: var(--accent);
-  color: var(--accent-text);
   font-weight: var(--weight-medium);
   cursor: pointer;
 }
@@ -2925,10 +2928,7 @@ select:focus-visible {
 
 .friend-item button {
   padding: var(--space-1) var(--space-3);
-  border: none;
   border-radius: var(--r-sm);
-  background: var(--accent);
-  color: var(--accent-text);
   font-size: var(--text-xs);
   cursor: pointer;
 }
@@ -7891,4 +7891,197 @@ a.embed-title:hover {
 .settings-content section section {
   margin-top: var(--space-7);
   display: block;
+}
+
+/* ============================================================
+   BUTTON HIERARCHY
+   One affirmative action per screen wears the accent. Everything else is
+   quiet, and destructive is red — never amber, which is the colour this
+   interface uses for "live". Kick and Ban were the brightest things in the
+   members table for exactly that reason.
+   ============================================================ */
+.btn-primary,
+.btn-small.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+}
+
+.btn-primary:hover,
+.btn-small.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Outlined rather than filled: a destructive control should read as a warning
+   at rest and only commit weight once you are on it. The filled red lives in
+   the confirmation dialog, where committing is the whole point. */
+button.danger,
+.btn-small.danger,
+.btn-secondary.danger {
+  background: var(--surface);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+button.danger:hover,
+.btn-small.danger:hover,
+.btn-secondary.danger:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   SETTINGS MEASURE
+   A hub-settings pane is as wide as the window. Left alone, a text field
+   grew to 1260px — a URL you cannot scan and a secret you cannot check.
+   Fields take the width their content needs; tables and card grids, which
+   genuinely use the room, are left alone.
+   ============================================================ */
+.settings-content input[type="text"],
+.settings-content input[type="url"],
+.settings-content input[type="password"],
+.settings-content input[type="number"],
+.settings-content input:not([type]),
+.settings-content textarea,
+.settings-content select {
+  max-width: 56ch;
+}
+
+.settings-content table input,
+.settings-content table select,
+.settings-content .settings-card input,
+.settings-content .settings-card textarea,
+.settings-content .settings-card select {
+  max-width: none;
+}
+
+/* Prose in a settings pane reads like prose, not like a banner. */
+.settings-content p {
+  max-width: 76ch;
+}
+
+/* ============================================================
+   NESTED FEATURE PANELS
+   A tab that holds several features — Moderation carries three, Integrations
+   two — used to stack them on the bare background with only whitespace
+   between, so the page title and its three features all read as page titles.
+   A feature gets a panel, the same device the Overview tab already uses for
+   the same job.
+   ============================================================ */
+.settings-content > section > section {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--space-5);
+  margin-top: var(--space-4);
+}
+
+.settings-content > section > section > h2:first-child,
+.settings-content > section > section > h2 {
+  margin-top: 0;
+}
+
+/* Inside a panel the panel edge is the separator, so the section rhythm that
+   spaces top-level blocks apart would only add slack. */
+.settings-content > section > section > section {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: var(--space-6);
+}
+
+/* ============================================================
+   STATUS READOUT
+   What a feature is set to right now, above the form that changes it. The
+   two were one run of rows, so "Secret — Not set" sat directly on top of a
+   field also labelled "Secret", meaning something else.
+   ============================================================ */
+.status-readout {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.status-readout .settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.status-readout .settings-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: var(--weight-normal);
+}
+
+.status-readout .muted {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* A chip states a value; it should be the width of what it says, not of the
+   column it sits in. */
+.status-readout .badge-chip {
+  justify-self: start;
+}
+
+/* Inside a panel the panel edge already separates the feature from its
+   neighbours, so the per-field rules only add noise — there were three of
+   them stacked in the auto-moderation panel alone. */
+.settings-content > section > section .settings-section {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: var(--space-5);
+}
+
+/* A feature panel is one column of form, so it stops where the form stops
+   rather than stretching to whatever the window happens to be. The Overview
+   card grid is a grid and keeps the full width. */
+.settings-content > section > section {
+  max-width: 52rem;
+}
+
+/* ============================================================
+   TOP-LEVEL BLOCKS IN A TAB
+   Several sections predate the panel idiom and mark their blocks with a
+   `.settings-label` as the first child of a `.settings-section`. That is a
+   heading doing a label's job: same size, same weight, no separation — so
+   Certifications read as one undifferentiated column of five features.
+   Treated here as what it is, without rewriting eight components.
+   ============================================================ */
+.settings-content > section > .settings-section {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+  max-width: 52rem;
+}
+
+.settings-content > section > .settings-section > .settings-label:first-child {
+  display: block;
+  margin: 0 0 var(--space-3);
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semi);
+  letter-spacing: -0.01em;
+}
+
+/* A count is data, not a heading; numeric fields take the width of a number. */
+.settings-content input[type="number"] {
+  max-width: 14ch;
 }

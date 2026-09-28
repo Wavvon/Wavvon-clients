@@ -294,7 +294,7 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
   return (
     <section style={{ marginTop: "var(--space-5)" }}>
       {dialog}
-      <h1>{t("hub.admin.tabs.outgoing_webhooks")}</h1>
+      <h2>{t("hub.admin.tabs.outgoing_webhooks")}</h2>
       <p className="muted">{t("hub.admin.owh.hint")}</p>
 
       {error && <p className="error-text">{error}</p>}

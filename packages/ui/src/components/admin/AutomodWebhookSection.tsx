@@ -77,11 +77,15 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
 
   return (
     <section>
-      <h1>{t("hub.admin.automod.title")}</h1>
+      <h2>{t("hub.admin.automod.title")}</h2>
       {error && <p className="error-text">{error}</p>}
       {loading && <p className="muted">{t("hub.admin.automod.loading")}</p>}
       {!loading && settings && (
         <>
+          {/* What is configured right now, kept apart from the form that
+              changes it — the two used to run together, so the same words
+              appeared twice a few lines apart meaning different things. */}
+          <dl className="status-readout">
           <div className="settings-row">
             <span className="settings-label">{t("hub.admin.automod.current_url")}</span>
             <span className="muted">{settings.webhook_url || t("hub.admin.automod.not_configured")}</span>
@@ -106,6 +110,7 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
               <span className="badge-chip">{t("hub.admin.automod.circuit_closed")}</span>
             )}
           </div>
+          </dl>
           <div className="settings-section">
             <label className="settings-label" htmlFor="automod-url">{t("hub.admin.automod.url_label")}</label>
             <input

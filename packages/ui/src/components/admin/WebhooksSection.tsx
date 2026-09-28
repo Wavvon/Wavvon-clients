@@ -100,8 +100,6 @@ export function WebhooksSection({ channels, actions }: Props) {
   return (
     <section>
       {dialog}
-      <h1>{t("webhooks.title")}</h1>
-
       <h2>{t("webhooks.section")}</h2>
       <p className="muted">
         {t("webhooks.hint")}

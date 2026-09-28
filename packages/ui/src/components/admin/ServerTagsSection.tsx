@@ -132,7 +132,7 @@ export function ServerTagsSection({ actions }: Props) {
         {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
           <p className="error-text">{saveStatus}</p>
         )}
-        <button onClick={handleSaveTags} disabled={saveStatus === "saving"}>
+        <button className="btn-primary" onClick={handleSaveTags} disabled={saveStatus === "saving"}>
           {saveStatus === "saving" ? t("hub.admin.tags.saving") : t("hub.admin.tags.save")}
         </button>
       </div>
@@ -169,7 +169,7 @@ export function ServerTagsSection({ actions }: Props) {
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => handleAccept(p.id)}>{t("hub.admin.tags.offers.accept")}</button>
+                <button className="btn-primary" onClick={() => handleAccept(p.id)}>{t("hub.admin.tags.offers.accept")}</button>
                 <button className="btn-secondary" onClick={() => handleDecline(p.id)}>{t("hub.admin.tags.offers.decline")}</button>
               </div>
             </div>
@@ -201,6 +201,7 @@ export function ServerTagsSection({ actions }: Props) {
           <p className="error-text">{grantStatus}</p>
         )}
         <button
+          className="btn-primary"
           onClick={handleGrantBadge}
           disabled={!grantTargetUrl.trim() || !grantLabel.trim() || grantStatus === "sending"}
         >

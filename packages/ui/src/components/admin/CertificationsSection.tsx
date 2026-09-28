@@ -234,16 +234,16 @@ export function CertificationsSection({ actions }: Props) {
             style={{ width: 80 }}
           />
         </div>
-      </div>
 
-      <div className="settings-row" style={{ marginBottom: 16 }}>
-        <button onClick={handleSaveSettings} disabled={saveStatus === "saving"}>
+      <div className="settings-row">
+        <button className="btn-primary" onClick={handleSaveSettings} disabled={saveStatus === "saving"}>
           {saveStatus === "saving" ? t("hub.admin.certs.saving") : t("hub.admin.certs.save")}
         </button>
         {saveStatus === "saved" && <span className="muted">{t("hub.admin.certs.saved")}</span>}
         {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
           <span className="error-text">{saveStatus}</span>
         )}
+      </div>
       </div>
 
       <div className="settings-section">
@@ -257,7 +257,7 @@ export function CertificationsSection({ actions }: Props) {
             placeholder={t("hub.admin.certs.manual.placeholder")}
             style={{ flex: 1 }}
           />
-          <button onClick={handleManualIssue} disabled={!manualTarget.trim()}>{t("hub.admin.certs.manual.issue")}</button>
+          <button className="btn-primary" onClick={handleManualIssue} disabled={!manualTarget.trim()}>{t("hub.admin.certs.manual.issue")}</button>
         </div>
       </div>
 
@@ -289,7 +289,7 @@ export function CertificationsSection({ actions }: Props) {
               aria-label={t("hub.admin.certs.badge.icon_aria")}
               style={{ width: 90 }}
             />
-            <button onClick={handleGrantBadge} disabled={!badgeTarget.trim() || !badgeLabel.trim()}>{t("hub.admin.certs.badge.grant")}</button>
+            <button className="btn-primary" onClick={handleGrantBadge} disabled={!badgeTarget.trim() || !badgeLabel.trim()}>{t("hub.admin.certs.badge.grant")}</button>
           </div>
           {badgeStatus && <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{badgeStatus}</p>}
         </div>

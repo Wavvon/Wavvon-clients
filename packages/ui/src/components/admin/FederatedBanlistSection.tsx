@@ -119,10 +119,10 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
 
   return (
     <section>
-      <h1>{t("hub.admin.banlist.title")}</h1>
+      <h2>{t("hub.admin.banlist.title")}</h2>
       {error && <p className="error-text">{error}</p>}
 
-      <h2>{t("hub.admin.banlist.sources")}</h2>
+      <h3>{t("hub.admin.banlist.sources")}</h3>
       {sources.length === 0 && <p className="muted">{t("hub.admin.banlist.sources_empty")}</p>}
       {sources.length > 0 && (
         <table className="members-table">
@@ -231,7 +231,7 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
         )
       )}
 
-      <h2>{t("hub.admin.banlist.overrides")}</h2>
+      <h3>{t("hub.admin.banlist.overrides")}</h3>
       {overrides.length === 0 && <p className="muted">{t("hub.admin.banlist.overrides_empty")}</p>}
       {overrides.length > 0 && (
         <table className="members-table">

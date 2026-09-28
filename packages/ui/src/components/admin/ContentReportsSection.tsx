@@ -70,7 +70,7 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
   return (
     <section>
       {dialog}
-      <h1>{t("hub.admin.reports.title")}</h1>
+      <h2>{t("hub.admin.reports.title")}</h2>
       {error && <p className="error-text">{error}</p>}
       {loading && <p className="muted">{t("hub.admin.reports.loading")}</p>}
       {!loading && reports.length === 0 && (
