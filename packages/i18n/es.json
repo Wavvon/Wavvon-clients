@@ -513,6 +513,8 @@
   "hub.add_modal.passkey_signin": "Iniciar sesión con una passkey",
   "hub.add_modal.title": "Añadir hub",
   "hub.add_modal.url_placeholder": "hub.ejemplo.com  o  wavvon://hub.ejemplo.com/invite",
+  "hub.admin.audit.by": "por {who}",
+  "hub.admin.audit.by_hub": "por el propio hub",
   "hub.admin.audit.col.actor": "Quién",
   "hub.admin.audit.col.event": "Evento",
   "hub.admin.audit.col.target": "Sobre quién",

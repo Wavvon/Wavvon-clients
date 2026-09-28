@@ -513,6 +513,8 @@
   "hub.add_modal.passkey_signin": "Sign in with passkey",
   "hub.add_modal.title": "Add Hub",
   "hub.add_modal.url_placeholder": "hub.example.com  or  wavvon://hub.example.com/invite",
+  "hub.admin.audit.by": "by {who}",
+  "hub.admin.audit.by_hub": "by the hub itself",
   "hub.admin.audit.col.actor": "Actor",
   "hub.admin.audit.col.event": "Event",
   "hub.admin.audit.col.target": "Target",

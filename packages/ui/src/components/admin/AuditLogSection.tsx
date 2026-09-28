@@ -12,6 +12,20 @@ interface Props {
   actions: AuditLogSectionActions;
 }
 
+
+/** Entries in the order they arrived, cut into days. The hub sends newest
+ *  first, so the days come out newest first too. */
+function byDay(entries: AuditLogEntry[]): { day: string; entries: AuditLogEntry[] }[] {
+  const out: { day: string; entries: AuditLogEntry[] }[] = [];
+  for (const e of entries) {
+    const day = new Date(e.at * 1000).toLocaleDateString();
+    const last = out[out.length - 1];
+    if (last && last.day === day) last.entries.push(e);
+    else out.push({ day, entries: [e] });
+  }
+  return out;
+}
+
 export function AuditLogSection({ actions }: Props) {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
@@ -49,28 +63,29 @@ export function AuditLogSection({ actions }: Props) {
       ) : entries.length === 0 && !loading ? (
         <p className="muted">{t("hub.admin.audit.empty")}</p>
       ) : (
-        <table className="members-table" style={{ marginTop: "var(--space-3)" }}>
-          <thead>
-            <tr>
-              <th>{t("hub.admin.audit.col.when")}</th>
-              <th>{t("hub.admin.audit.col.event")}</th>
-              <th>{t("hub.admin.audit.col.actor")}</th>
-              <th>{t("hub.admin.audit.col.target")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <tr key={e.seq}>
-                <td className="muted" style={{ whiteSpace: "nowrap" }}>
-                  {new Date(e.at * 1000).toLocaleString()}
-                </td>
-                <td>{e.event_type}</td>
-                <td>{e.actor_pubkey ? <span className="member-pk">{formatPubkey(e.actor_pubkey)}</span> : "—"}</td>
-                <td>{e.target_pubkey ? <span className="member-pk">{formatPubkey(e.target_pubkey)}</span> : "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ marginTop: "var(--space-3)" }}>
+          {byDay(entries).map((group) => (
+            <div key={group.day} className="audit-day">
+              <div className="audit-day-label">{group.day}</div>
+              {group.entries.map((e) => (
+                <div key={e.seq} className="audit-entry">
+                  <span className="audit-entry-time">
+                    {new Date(e.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span className="audit-entry-what">
+                    <span className="audit-entry-event">{e.event_type}</span>
+                    <span className="audit-entry-who">
+                      {e.actor_pubkey
+                        ? t("hub.admin.audit.by", { who: formatPubkey(e.actor_pubkey) })
+                        : t("hub.admin.audit.by_hub")}
+                      {e.target_pubkey ? ` · ${formatPubkey(e.target_pubkey)}` : ""}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       )}
 
       {loading && <p className="muted">{t("hub.admin.audit.loading")}</p>}
