@@ -8134,6 +8134,61 @@ button:disabled {
    the controls to learn what the hub was set to, and anything below the fold
    did not exist until you went looking for it.
    ============================================================ */
+/* Browser controls default to the platform blue, which fights the one
+   accent this design allows. */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+.setting-row-control {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.setting-row-control select {
+  min-width: 140px;
+}
+.theme-picker {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.theme-choice {
+  padding: 8px 16px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.theme-choice.active {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  font-weight: var(--weight-medium);
+}
+.device-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+
+.device-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.device-list-item:last-child {
+  border-bottom: none;
+}
 .setting-row {
   background: var(--bg-elevated);
   border: 1px solid var(--border);

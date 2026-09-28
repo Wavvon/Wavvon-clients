@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 
 export interface PttConfig {
@@ -36,6 +37,7 @@ export function PushToTalkSection() {
   const { t } = useTranslation();
   const [cfg, setCfg] = useState<PttConfig>(loadPttConfig);
   const [binding, setBinding] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!binding) return;
@@ -57,21 +59,25 @@ export function PushToTalkSection() {
   }
 
   return (
-    <div className="settings-section" style={{ marginTop: 16 }}>
-      <label className="settings-label">{t("settings.ptt.label")}</label>
-      <div className="settings-row" style={{ alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <label className="checkbox-label" style={{ margin: 0 }}>
-          <input type="checkbox" checked={cfg.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
-          {t("settings.ptt.enable")}
-        </label>
-        <span className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.ptt.key")} <strong>{keyLabel(cfg.key)}</strong></span>
-        <button type="button" className="btn-small btn-secondary" onClick={() => setBinding(true)} disabled={binding}>
+    <SettingRow
+      title={t("settings.ptt.label")}
+      state={cfg.enabled
+        ? t("settings.ptt.state.on", { key: keyLabel(cfg.key) })
+        : t("settings.ptt.state.off")}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      <label className="checkbox-label">
+        <input type="checkbox" checked={cfg.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
+        {t("settings.ptt.enable")}
+      </label>
+      <div className="settings-row" style={{ alignItems: "center", flexWrap: "wrap", marginTop: "var(--space-2)" }}>
+        <span className="muted">{t("settings.ptt.key")} <strong>{keyLabel(cfg.key)}</strong></span>
+        <button type="button" className="btn-small" onClick={() => setBinding(true)} disabled={binding}>
           {binding ? t("settings.ptt.binding") : t("settings.ptt.change")}
         </button>
       </div>
-      <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-        {t("settings.ptt.hint")}
-      </p>
-    </div>
+      <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("settings.ptt.hint")}</p>
+    </SettingRow>
   );
 }

@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ThemeId, WavvonSkin } from "@wavvon/ui";
-import { SkinEditor, SkinsGallery } from "@wavvon/ui";
+import { SettingRow, SkinEditor, SkinsGallery } from "@wavvon/ui";
 import { DISCOVERY_URL } from "../../../constants";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { fetchWithTimeout } from "@platform";
@@ -9,6 +10,13 @@ import { CustomThemesSection } from "../CustomThemesSection";
 // The four base names reuse the skin editor's keys; "custom" is this picker's
 // own. The names themselves are not translated — Calm is called Calm.
 const THEMES: ThemeId[] = ["dark", "light", "custom"];
+
+const LANGUAGES: { id: string; label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "it", label: "Italiano" },
+  { id: "es", label: "Español" },
+  { id: "de", label: "Deutsch" },
+];
 
 interface Props {
   theme: ThemeId;
@@ -32,46 +40,51 @@ export function AppearanceTab(props: Props) {
     void i18n.changeLanguage(lng);
     try { localStorage.setItem("wavvon_language", lng); } catch { /* ignore */ }
   }
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
+
+  const activeCustom = props.customThemes.find((c) => c.id === props.activeCustomThemeId);
+  const themeState = props.theme === "custom"
+    ? activeCustom?.name ?? t("settings.theme.custom")
+    : t(`settings.skin.base.${props.theme}`);
 
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.appearance")}</h1>
-      <div className="settings-section">
-        <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
-        <select
-          id="settings-language"
-          value={currentLang}
-          onChange={(e) => changeLanguage(e.target.value)}
-          style={{ width: "100%", maxWidth: 320 }}
-        >
-          <option value="en">English</option>
-          <option value="it">Italiano</option>
-          <option value="es">Español</option>
-          <option value="de">Deutsch</option>
-        </select>
-      </div>
-      <div className="settings-section">
-        <label className="settings-label">{t("settings.theme.label")}</label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>
-          {t("settings.theme.hint")}
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <h1>{t("settings.tabs.appearance")}</h1>
+
+      <SettingRow
+        title={t("settings.language.label")}
+        state={LANGUAGES.find((l) => l.id === currentLang)?.label ?? currentLang}
+        control={
+          <select
+            id="settings-language"
+            aria-label={t("settings.language.label")}
+            value={currentLang}
+            onChange={(e) => changeLanguage(e.target.value)}
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.id} value={l.id}>{l.label}</option>
+            ))}
+          </select>
+        }
+        {...row("language")}
+      />
+
+      <SettingRow
+        title={t("settings.theme.label")}
+        state={themeState}
+        {...row("theme")}
+      >
+        <p className="muted">{t("settings.theme.hint")}</p>
+        <div className="theme-picker">
           {THEMES.map((theme) => (
             <button
               key={theme}
+              className={`theme-choice${props.theme === theme ? " active" : ""}`}
               onClick={() => props.onThemeChange(theme)}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "var(--r-sm)",
-                border: props.theme === theme ? "2px solid var(--accent)" : "1px solid var(--border)",
-                background: props.theme === theme ? "var(--accent-wash)" : "var(--surface)",
-                // Without an explicit color these inherit the base button's
-                // var(--accent-text), which is dark in the dark theme and near-white in
-                // light — i.e. unreadable on a surface background.
-                color: "var(--text)",
-                cursor: "pointer",
-                fontWeight: props.theme === theme ? 600 : 400,
-              }}
             >
               {theme === "custom" ? t("settings.theme.custom") : t(`settings.skin.base.${theme}`)}
             </button>
@@ -91,7 +104,11 @@ export function AppearanceTab(props: Props) {
             {props.skin && <SkinEditor skin={props.skin} onChange={props.onSkinChange} />}
           </>
         )}
-      </div>
+      </SettingRow>
+
+      {/* Not a row: the gallery renders nothing when discovery is
+          unreachable, and a row that opens onto nothing is worse than no
+          row at all. */}
       {DISCOVERY_URL && (
         <SkinsGallery
           fetchWithTimeout={fetchWithTimeout}

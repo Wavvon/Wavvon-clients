@@ -11,7 +11,7 @@ import {
 } from "@platform";
 import type { CredentialInfo } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
-import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
+import { PerAccountHint, SettingRow } from "@wavvon/ui";
 
 interface Props {
   publicKey: string | null;
@@ -37,6 +37,7 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
   const [newKeyName, setNewKeyName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [open, setOpen] = useState(false);
 
   // Not "does this browser do WebAuthn": a passkey is the hub's credential, so
   // the ceremony only works on the page the hub itself serves. Elsewhere the
@@ -99,102 +100,56 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
     }
   }
 
-  if (!supported) {
-    return (
-      <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">
-          {t("settings.account.passkeys.label")}
-          <AccountLabelSuffix label={accountLabel} />
-        </label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t(wrongOrigin ? "settings.account.passkeys.wrong_origin" : "settings.account.passkeys.unsupported")}
-        </p>
-      </div>
-    );
-  }
+  const blocked = !supported
+    ? t(wrongOrigin ? "settings.account.passkeys.wrong_origin" : "settings.account.passkeys.unsupported")
+    : noActiveHub
+      ? t("settings.account.passkeys.no_active_hub")
+      : notMember
+        ? t("settings.account.not_member_notice", { label: accountLabel ?? t("settings.account.this_account_label") })
+        : null;
 
-  if (noActiveHub) {
-    return (
-      <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">
-          {t("settings.account.passkeys.label")}
-          <AccountLabelSuffix label={accountLabel} />
-        </label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.account.passkeys.no_active_hub")}
-        </p>
-      </div>
-    );
-  }
-
-  if (notMember) {
-    return (
-      <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">
-          {t("settings.account.passkeys.label")}
-          <AccountLabelSuffix label={accountLabel} />
-        </label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.account.not_member_notice", { label: accountLabel ?? t("settings.account.this_account_label") })}
-        </p>
-      </div>
-    );
-  }
+  const state = blocked
+    ?? (passkeys === null
+      ? t("modal.loading")
+      : passkeys.length === 0
+        ? t("settings.account.passkeys.empty")
+        : t("settings.account.passkeys.state", { count: passkeys.length }));
 
   return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">
-        {t("settings.account.passkeys.label")}
-        <AccountLabelSuffix label={accountLabel} />
-      </label>
-      <PerAccountHint label={accountLabel} />
-      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>
-        {t("settings.account.passkeys.hint")}
-      </p>
-      {error && (
-        <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          {error}
-        </p>
-      )}
-      {passkeys === null ? (
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("modal.loading")}</p>
+    <SettingRow
+      title={t("settings.account.passkeys.label")}
+      state={state}
+      meta={passkeys && passkeys.length > 0 ? String(passkeys.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      {blocked ? (
+        <p className="muted">{blocked}</p>
       ) : (
         <>
-          {passkeys.length === 0 ? (
-            <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>
-              {t("settings.account.passkeys.empty")}
-            </p>
-          ) : (
-            <ul style={{ listStyle: "none", margin: "0 0 12px", padding: 0 }}>
+          <PerAccountHint label={accountLabel} />
+          <p className="muted">{t("settings.account.passkeys.hint")}</p>
+          {error && <p className="error-text">{error}</p>}
+          {passkeys && passkeys.length > 0 && (
+            <ul className="device-list">
               {passkeys.map((pk) => (
-                <li
-                  key={pk.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 6,
-                    padding: "8px 10px",
-                    background: "var(--bg-elevated)",
-                    borderRadius: "var(--r-sm)",
-                  }}
-                >
+                <li key={pk.id} className="device-list-item">
                   {renamingId === pk.id ? (
                     <>
                       <input
                         type="text"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
-                        style={{ flex: 1, fontSize: "var(--text-sm)" }}
+                        style={{ flex: 1 }}
                         autoFocus
                         onKeyDown={(e) => { if (e.key === "Enter") handleRename(pk.id); if (e.key === "Escape") setRenamingId(null); }}
                       />
-                      <button className="btn-primary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => handleRename(pk.id)}>{t("modal.save")}</button>
-                      <button className="btn-secondary" style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }} onClick={() => setRenamingId(null)}>{t("modal.cancel")}</button>
+                      <button className="btn-small btn-primary" onClick={() => handleRename(pk.id)}>{t("modal.save")}</button>
+                      <button className="btn-small" onClick={() => setRenamingId(null)}>{t("modal.cancel")}</button>
                     </>
                   ) : (
                     <>
-                      <span style={{ flex: 1, fontSize: "var(--text-sm)" }}>
+                      <span style={{ flex: 1 }}>
                         {pk.friendly_name ?? t("settings.account.passkeys.unnamed")}
                       </span>
                       <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
@@ -203,17 +158,12 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
                           : t("settings.account.passkeys.added_date", { date: new Date(pk.created_at * 1000).toLocaleDateString() })}
                       </span>
                       <button
-                        className="btn-secondary"
-                        style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
+                        className="btn-small"
                         onClick={() => { setRenamingId(pk.id); setRenameValue(pk.friendly_name ?? ""); }}
                       >
                         {t("settings.account.passkeys.rename_button")}
                       </button>
-                      <button
-                        className="btn-secondary"
-                        style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
-                        onClick={() => handleDelete(pk.id)}
-                      >
+                      <button className="btn-small danger" onClick={() => handleDelete(pk.id)}>
                         {t("settings.account.passkeys.remove_button")}
                       </button>
                     </>
@@ -223,7 +173,7 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
             </ul>
           )}
           {isActive ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="settings-row" style={{ flexWrap: "wrap", marginTop: "var(--space-2)" }}>
               <input
                 type="text"
                 value={newKeyName}
@@ -231,11 +181,7 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
                 placeholder={t("settings.account.passkeys.name_placeholder")}
                 style={{ width: 200 }}
               />
-              <button
-                className="btn-primary"
-                onClick={handleAdd}
-                disabled={registering || !publicKey}
-              >
+              <button className="btn-primary" onClick={handleAdd} disabled={registering || !publicKey}>
                 {registering ? t("settings.account.passkeys.registering") : t("settings.account.passkeys.add_button")}
               </button>
             </div>
@@ -246,6 +192,6 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
           )}
         </>
       )}
-    </div>
+    </SettingRow>
   );
 }

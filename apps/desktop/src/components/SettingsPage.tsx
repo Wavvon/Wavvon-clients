@@ -14,6 +14,7 @@ import {
   HelpTab,
   ProfileTab,
   SettingsShell,
+  SettingRow,
   resolveManagingAccount,
   type ThemeId,
   type WavvonSkin,
@@ -132,6 +133,11 @@ export function SettingsPage(props: SettingsPageProps) {
   // DevicesTab/PrivacyTab comments), so they don't need this.
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
   const [managingId, setManagingId] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const settingRow = (id: string) => ({
+    open: openRow === id,
+    onToggle: () => setOpenRow((cur) => (cur === id ? null : id)),
+  });
   const activeId = accounts?.find((a) => a.is_active)?.id ?? null;
 
   useEffect(() => {
@@ -279,28 +285,12 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "voice" && (
           <section>
             <h1>{t("settings.tabs.voice")}</h1>
-            <AudioProfileSection
-              profile={props.audioProfile}
-              onProfile={props.onAudioProfileChange}
-              customBitrate={props.customBitrate}
-              onCustomBitrate={props.onCustomBitrateChange}
-              customApp={props.customApp}
-              onCustomApp={props.onCustomAppChange}
-              customNoiseSuppress={props.customNoiseSuppress}
-              onCustomNoiseSuppress={props.onCustomNoiseSuppressChange}
-              customVad={props.customVad}
-              onCustomVad={props.onCustomVadChange}
-              customVadThreshold={props.customVadThreshold}
-              onCustomVadThreshold={props.onCustomVadThresholdChange}
-              customChannels={props.customChannels}
-              onCustomChannels={props.onCustomChannelsChange}
-              customFrameMs={props.customFrameMs}
-              onCustomFrameMs={props.onCustomFrameMsChange}
-              customComplexity={props.customComplexity}
-              onCustomComplexity={props.onCustomComplexityChange}
-              inVoice={props.inVoice}
-            />
-            <div className="settings-section">
+
+            <SettingRow
+              title={t("settings.voice.devices.label")}
+              state={props.voiceInputDevice || t("settings.voice.system_default")}
+              {...settingRow("devices")}
+            >
               <div className="voice-devices-row">
                 <div>
                   <label className="settings-label" htmlFor="settings-mic">{t("settings.voice.microphone")}</label>
@@ -346,33 +336,35 @@ export function SettingsPage(props: SettingsPageProps) {
                   </div>
                 </div>
               )}
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">
-                {t("settings.voice.sensitivity.label", { value: props.vadThreshold.toFixed(3) })}
-              </label>
-              <p className="muted">
-                {t("settings.voice.sensitivity.hint")}
-              </p>
+            </SettingRow>
+
+            <SettingRow
+              title={t("settings.voice.vad.sensitivity")}
+              state={props.vadThreshold.toFixed(3)}
+              {...settingRow("sensitivity")}
+            >
+              <p className="muted">{t("settings.voice.sensitivity.hint")}</p>
               <MicLevelMeter
                 level={props.micLevel}
                 threshold={props.vadThreshold}
                 onChange={props.onVadChange}
               />
               <div className="voice-mic-test">
-                <button onClick={props.onToggleMicTest} className="btn-secondary">
+                <button onClick={props.onToggleMicTest} className="btn-small">
                   {props.micTesting ? t("settings.voice.mic_test.stop") : t("settings.voice.mic_test.start")}
                 </button>
                 <span className="muted voice-mic-test-hint">
                   {t("settings.voice.mic_test.hint")}
                 </span>
               </div>
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.voice.mode.label")}</label>
-              <p className="muted">
-                {t("settings.voice.mode.hint")}
-              </p>
+            </SettingRow>
+
+            <SettingRow
+              title={t("settings.voice.mode.label")}
+              state={t(`settings.voice.mode.${props.voiceMode}`)}
+              {...settingRow("mode")}
+            >
+              <p className="muted">{t("settings.voice.mode.hint")}</p>
               <div className="settings-row">
                 <label className="checkbox-label">
                   <input
@@ -399,7 +391,35 @@ export function SettingsPage(props: SettingsPageProps) {
                   onChange={props.onPttKeyChange}
                 />
               )}
-            </div>
+            </SettingRow>
+
+            <SettingRow
+              title={t("settings.voice.quality.label")}
+              state={t(`settings.voice.quality.${props.audioProfile}`)}
+              {...settingRow("quality")}
+            >
+              <AudioProfileSection
+                profile={props.audioProfile}
+                onProfile={props.onAudioProfileChange}
+                customBitrate={props.customBitrate}
+                onCustomBitrate={props.onCustomBitrateChange}
+                customApp={props.customApp}
+                onCustomApp={props.onCustomAppChange}
+                customNoiseSuppress={props.customNoiseSuppress}
+                onCustomNoiseSuppress={props.onCustomNoiseSuppressChange}
+                customVad={props.customVad}
+                onCustomVad={props.onCustomVadChange}
+                customVadThreshold={props.customVadThreshold}
+                onCustomVadThreshold={props.onCustomVadThresholdChange}
+                customChannels={props.customChannels}
+                onCustomChannels={props.onCustomChannelsChange}
+                customFrameMs={props.customFrameMs}
+                onCustomFrameMs={props.onCustomFrameMsChange}
+                customComplexity={props.customComplexity}
+                onCustomComplexity={props.onCustomComplexityChange}
+                inVoice={props.inVoice}
+              />
+            </SettingRow>
           </section>
         )}
 

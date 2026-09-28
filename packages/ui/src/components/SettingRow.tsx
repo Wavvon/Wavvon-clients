@@ -15,8 +15,13 @@ export interface SettingRowProps {
   /** Ordinal, for the few tabs where the rows really are a sequence — the
    *  gates a new member crosses, in the order they cross them. */
   step?: number;
-  open: boolean;
-  onToggle: () => void;
+  /** For a setting whose whole form is one control — a checkbox, a select.
+   *  It sits where the toggle would, because opening a row to reveal a
+   *  single checkbox is a disclosure that discloses nothing. */
+  control?: ReactNode;
+  /** Omitted by a row that is only a control: there is nothing to open. */
+  open?: boolean;
+  onToggle?: () => void;
   children?: ReactNode;
 }
 
@@ -34,8 +39,9 @@ export function SettingRow({
   attention,
   meta,
   step,
-  open,
-  onToggle,
+  control,
+  open = false,
+  onToggle = () => {},
   children,
 }: SettingRowProps) {
   const { t } = useTranslation();
@@ -52,6 +58,7 @@ export function SettingRow({
           {state !== undefined && <span className="setting-row-state">{state}</span>}
         </span>
         {meta !== undefined && <span className="setting-row-meta">{meta}</span>}
+        {control !== undefined && <span className="setting-row-control">{control}</span>}
         {children !== undefined && (
           <button type="button" className="btn-small" onClick={onToggle} aria-expanded={open}>
             {open ? t("settings.row.close") : t("settings.row.open")}

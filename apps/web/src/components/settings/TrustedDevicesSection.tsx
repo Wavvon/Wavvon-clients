@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listTrustedDevices, revokeTrustedDevice, isNotMemberError } from "@platform";
 import type { DeviceInfo } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
-import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
+import { PerAccountHint, SettingRow } from "@wavvon/ui";
 
 interface Props {
   account: IdentityRecord;
@@ -23,6 +23,7 @@ export function TrustedDevicesSection({ account }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [noActiveHub, setNoActiveHub] = useState(false);
   const [notMember, setNotMember] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setDevices(null);
@@ -52,85 +53,46 @@ export function TrustedDevicesSection({ account }: Props) {
     }
   }
 
-  if (noActiveHub) {
-    return (
-      <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">
-          {t("settings.account.trusted_devices.label")}
-          <AccountLabelSuffix label={accountLabel} />
-        </label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.account.trusted_devices.no_active_hub")}
-        </p>
-      </div>
-    );
-  }
-
-  if (notMember) {
-    return (
-      <div className="settings-section" style={{ marginTop: 20 }}>
-        <label className="settings-label">
-          {t("settings.account.trusted_devices.label")}
-          <AccountLabelSuffix label={accountLabel} />
-        </label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.account.not_member_notice", { label: accountLabel ?? t("settings.account.this_account_label") })}
-        </p>
-      </div>
-    );
-  }
+  // What this row says it is set to, in order of what blocks it: no hub to
+  // ask, not a member of the one we have, still loading, then the count.
+  const state = noActiveHub
+    ? t("settings.account.trusted_devices.no_active_hub")
+    : notMember
+      ? t("settings.account.not_member_notice", { label: accountLabel ?? t("settings.account.this_account_label") })
+      : devices === null
+        ? t("modal.loading")
+        : devices.length === 0
+          ? t("settings.account.trusted_devices.empty")
+          : t("settings.account.trusted_devices.state", { count: devices.length });
 
   return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">
-        {t("settings.account.trusted_devices.label")}
-        <AccountLabelSuffix label={accountLabel} />
-      </label>
+    <SettingRow
+      title={t("settings.account.trusted_devices.label")}
+      state={state}
+      meta={devices && devices.length > 0 ? String(devices.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
       <PerAccountHint label={accountLabel} />
-      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>
-        {t("settings.account.trusted_devices.hint")}
-      </p>
-      {error && (
-        <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          {error}
-        </p>
-      )}
-      {devices === null ? (
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("modal.loading")}</p>
-      ) : devices.length === 0 ? (
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.trusted_devices.empty")}</p>
-      ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      <p className="muted">{t("settings.account.trusted_devices.hint")}</p>
+      {error && <p className="error-text">{error}</p>}
+      {devices && devices.length > 0 && (
+        <ul className="device-list">
           {devices.map((d) => (
-            <li
-              key={d.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 6,
-                padding: "8px 10px",
-                background: "var(--bg-elevated)",
-                borderRadius: "var(--r-sm)",
-              }}
-            >
-              <span style={{ flex: 1, fontSize: "var(--text-sm)" }}>
+            <li key={d.id} className="device-list-item">
+              <span style={{ flex: 1 }}>
                 {d.device_name ?? t("settings.account.trusted_devices.unnamed")}
               </span>
               <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
                 {t("settings.account.trusted_devices.expires", { date: new Date(d.expires_at * 1000).toLocaleDateString() })}
               </span>
-              <button
-                className="btn-secondary"
-                style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
-                onClick={() => handleRevoke(d.id)}
-              >
+              <button className="btn-small" onClick={() => handleRevoke(d.id)}>
                 {t("settings.account.revoke_button")}
               </button>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </SettingRow>
   );
 }
