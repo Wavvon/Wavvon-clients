@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ModerationSettings } from "../../types";
+import { SettingRow } from "../SettingRow";
 
 export interface AutomodWebhookActions {
   getModerationSettings: () => Promise<ModerationSettings>;
@@ -24,6 +25,7 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
   const [urlInput, setUrlInput] = useState("");
   const [secretInput, setSecretInput] = useState("");
   const [saved, setSaved] = useState(false);
+  const [open, setOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -75,42 +77,30 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
     }
   }
 
+  // The row's own line: what this is set to, without opening it. A circuit
+  // that has tripped is the one thing here worth interrupting someone for.
+  const stateLine = loading
+    ? t("hub.admin.automod.loading")
+    : !settings
+      ? t("hub.admin.automod.not_configured")
+      : [
+          settings.webhook_url || t("hub.admin.automod.not_configured"),
+          settings.circuit_open
+            ? t("hub.admin.automod.circuit_open")
+            : t("hub.admin.automod.circuit_closed"),
+        ].join(" · ");
+
   return (
-    <section>
-      <h2>{t("hub.admin.automod.title")}</h2>
+    <SettingRow
+      title={t("hub.admin.automod.title")}
+      state={stateLine}
+      attention={!!settings?.circuit_open}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
       {error && <p className="error-text">{error}</p>}
-      {loading && <p className="muted">{t("hub.admin.automod.loading")}</p>}
       {!loading && settings && (
         <>
-          {/* What is configured right now, kept apart from the form that
-              changes it — the two used to run together, so the same words
-              appeared twice a few lines apart meaning different things. */}
-          <dl className="status-readout">
-          <div className="settings-row">
-            <span className="settings-label">{t("hub.admin.automod.current_url")}</span>
-            <span className="muted">{settings.webhook_url || t("hub.admin.automod.not_configured")}</span>
-          </div>
-          <div className="settings-row">
-            <span className="settings-label">{t("hub.admin.automod.secret")}</span>
-            <span className="muted">{settings.webhook_secret_set ? t("hub.admin.automod.secret_set") : t("hub.admin.automod.secret_unset")}</span>
-          </div>
-          <div className="settings-row">
-            <span className="settings-label">{t("hub.admin.automod.circuit")}</span>
-            {settings.circuit_open ? (
-              <span
-                className="badge-chip"
-                style={{ borderColor: "var(--warning)", color: "var(--warning)" }}
-              >
-                {t("hub.admin.automod.circuit_open")}
-                {settings.circuit_open_until
-                  ? t("hub.admin.automod.circuit_open_until", { time: formatTimestamp(settings.circuit_open_until) })
-                  : ""}
-              </span>
-            ) : (
-              <span className="badge-chip">{t("hub.admin.automod.circuit_closed")}</span>
-            )}
-          </div>
-          </dl>
           <div className="settings-section">
             <label className="settings-label" htmlFor="automod-url">{t("hub.admin.automod.url_label")}</label>
             <input
@@ -134,7 +124,7 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
             />
           </div>
           <div className="settings-row">
-            <button onClick={handleSave} disabled={saving}>
+            <button className="btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? t("hub.admin.automod.saving") : saved ? t("hub.admin.automod.saved") : t("hub.admin.automod.save")}
             </button>
             {settings.webhook_url && (
@@ -145,6 +135,6 @@ export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActi
           </div>
         </>
       )}
-    </section>
+    </SettingRow>
   );
 }

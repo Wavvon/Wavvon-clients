@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatRelative } from "@wavvon/core";
 import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 import type { Report, ReportAction } from "../../types";
 
 export interface ContentReportsActions {
@@ -25,6 +26,7 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
+  const [open, setOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -68,11 +70,16 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
   }
 
   return (
-    <section>
+    <SettingRow
+      title={t("hub.admin.reports.title")}
+      state={loading ? t("hub.admin.reports.loading") : reports.length === 0 ? t("hub.admin.reports.empty") : t("hub.admin.reports.waiting", { count: reports.length })}
+      attention={reports.length > 0}
+      meta={reports.length > 0 ? String(reports.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
       {dialog}
-      <h2>{t("hub.admin.reports.title")}</h2>
       {error && <p className="error-text">{error}</p>}
-      {loading && <p className="muted">{t("hub.admin.reports.loading")}</p>}
       {!loading && reports.length === 0 && (
         <p className="muted">{t("hub.admin.reports.empty")}</p>
       )}
@@ -125,6 +132,6 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
           </tbody>
         </table>
       )}
-    </section>
+    </SettingRow>
   );
 }
