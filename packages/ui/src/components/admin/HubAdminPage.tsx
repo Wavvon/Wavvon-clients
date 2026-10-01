@@ -120,7 +120,15 @@ export interface HubAdminPageProps {
   activeHubUrl: string;
   /** This hub's stable serial (its public key) — embedded in invite links so a
    *  one host can route the same domain to different hubs. */
-  onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null, grantRoleId: string | null) => void;
+  onCreateInvite: (
+    maxUses: number | null,
+    expiresInSeconds: number | null,
+    grantRoleId: string | null,
+    boundPubkey: string | null,
+  ) => void;
+  /** `invites.bound` — see `InviteManager`. Omitted by a platform that does
+   *  not read hub capabilities yet, which reads as "do not offer it". */
+  supportsBoundInvites?: boolean;
   onRevokeInvite: (code: string) => void;
 
   myPubkey: string;
@@ -697,6 +705,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
             activeHubUrl={props.activeHubUrl}
             myMaxPriority={props.myMaxPriority}
             isAdmin={props.isAdmin}
+            supportsBoundInvites={props.supportsBoundInvites}
             onCreateInvite={props.onCreateInvite}
             onRevokeInvite={props.onRevokeInvite}
             actions={props.inviteActions}

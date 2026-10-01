@@ -42,7 +42,17 @@ interface Props {
   /** Gates the "Default role for new members" section — mirrors the Overview
    *  tab's own gating, since both read/write the same hub-settings surface. */
   isAdmin: boolean;
-  onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null, grantRoleId: string | null) => void;
+  /** `invites.bound`: this hub can mint an invite that admits one named key.
+   *  Off by default, because a hub that ignores `bound_pubkey` mints an
+   *  ordinary bearer code while the admin believes they named somebody —
+   *  which is the one failure the feature exists to prevent. */
+  supportsBoundInvites?: boolean;
+  onCreateInvite: (
+    maxUses: number | null,
+    expiresInSeconds: number | null,
+    grantRoleId: string | null,
+    boundPubkey: string | null,
+  ) => void;
   onRevokeInvite: (code: string) => void;
   actions: InviteManagerActions;
 }
@@ -59,6 +69,7 @@ export function InviteManager(props: Props) {
   const [inviteMaxUses, setInviteMaxUses] = useState("");
   const [inviteExpiry, setInviteExpiry] = useState("");
   const [grantRoleId, setGrantRoleId] = useState("");
+  const [boundPubkey, setBoundPubkey] = useState("");
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const [defaultRoleId, setDefaultRoleId] = useState("");
   const [defaultRoleStatus, setDefaultRoleStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -96,14 +107,22 @@ export function InviteManager(props: Props) {
   }
 
   const selectedRole = grantRoleId ? rolesById.get(grantRoleId) : undefined;
-  const forcesSingleUse = selectedRole ? roleGrantsAdmin(selectedRole) : false;
+  const bound = boundPubkey.trim();
+  // The hub forces a bound invite to one use; say so before it happens rather
+  // than letting the number the admin typed come back changed.
+  const forcesSingleUse = (selectedRole ? roleGrantsAdmin(selectedRole) : false) || bound.length > 0;
+  // The hub's own rule (routes/invites.rs::create_invite). Mirrored here so a
+  // typo is caught beside the field rather than as a 400 after the click.
+  const boundLooksWrong = bound.length > 0 && !/^[0-9a-f]{64}$/i.test(bound);
 
   function handleCreate() {
     props.onCreateInvite(
       forcesSingleUse ? 1 : (inviteMaxUses ? Number(inviteMaxUses) : null),
       forcesSingleUse ? ADMIN_GRANT_DEFAULT_EXPIRY_SECS : (inviteExpiry ? Number(inviteExpiry) : null),
       grantRoleId || null,
+      bound || null,
     );
+    setBoundPubkey("");
   }
 
   async function handleSaveDefaultRole() {
@@ -183,10 +202,29 @@ export function InviteManager(props: Props) {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <button className="btn-primary" onClick={handleCreate}>
+          <button className="btn-primary" onClick={handleCreate} disabled={boundLooksWrong}>
             {t("invites.create.submit")}
           </button>
         </div>
+        {props.supportsBoundInvites && (
+          <div className="settings-section">
+            <label className="settings-label" htmlFor="invite-bound-pubkey">
+              {t("invites.create.bound_label")}
+            </label>
+            <input
+              id="invite-bound-pubkey"
+              type="text"
+              value={boundPubkey}
+              onChange={(e) => setBoundPubkey(e.target.value)}
+              placeholder={t("invites.create.bound_placeholder")}
+              style={{ width: "100%", fontFamily: "var(--font-mono)" }}
+            />
+            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+              {t("invites.create.bound_hint")}
+            </p>
+            {boundLooksWrong && <p className="error-text">{t("invites.create.bound_invalid")}</p>}
+          </div>
+        )}
         {forcesSingleUse && (
           <p className="muted">{t("invites.create.admin_grant_hint")}</p>
         )}
@@ -198,7 +236,7 @@ export function InviteManager(props: Props) {
           <SettingRow
             key={inv.code}
             title={inv.code}
-            state={`${inv.uses}/${inv.max_uses ?? "∞"} ${t("admin.invite.uses_label")}${inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}${grantedRole ? ` · ${grantedRole.name}` : ""}`}
+            state={`${inv.uses}/${inv.max_uses ?? "∞"} ${t("admin.invite.uses_label")}${inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}${grantedRole ? ` · ${grantedRole.name}` : ""}${inv.bound_pubkey ? ` · ${t("invites.bound_to", { key: inv.bound_pubkey.slice(0, 12) })}` : ""}`}
             {...row(inv.code)}
           >
             <code className="pubkey-display" style={{ display: "block", marginBottom: "var(--space-3)", wordBreak: "break-all" }} title={link}>{link}</code>

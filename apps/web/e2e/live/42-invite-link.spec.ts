@@ -47,3 +47,37 @@ test("a created invite shows a joinable link", async ({ page }) => {
   expect(text).toContain(`${host}/join/`);
   expect(text).toMatch(/^https?:\/\//);
 });
+
+// The admin form grew one optional field, and the only question a unit test
+// cannot answer about it is whether its value reaches the hub. Binding does
+// not require the hub to have met the key, so a made-up one is enough.
+test("a bound invite carries the key the admin named", async ({ page }) => {
+  await page.goto("/");
+  await expectInHub(page);
+  await openInvites(page);
+
+  const named = "ab".repeat(32);
+  const create = await openSettingRow(page, "Create invite");
+  await create.getByLabel("Admit one specific key").fill(named);
+  await create.getByRole("button", { name: "Create invite", exact: true }).click();
+
+  // `max_uses` is the server's own clamp rather than the form's, so reading
+  // it back as 1 says the hub understood the field and not just that the
+  // form disabled an input.
+  await expect
+    .poll(async () => {
+      const invites = await hubApi<Array<{ bound_pubkey: string | null; max_uses: number | null }>>(
+        page,
+        "/invites",
+      );
+      return invites.find((i) => i.bound_pubkey === named)?.max_uses;
+    }, { timeout: 10000 })
+    .toBe(1);
+
+  // And the row says who it is for, rather than showing a code with no owner.
+  // The row's *title* is the code; the key it admits rides on the state line
+  // beside the uses and the expiry.
+  await expect(
+    page.locator(".setting-row-state").filter({ hasText: named.slice(0, 12) }).first(),
+  ).toBeVisible({ timeout: 10000 });
+});

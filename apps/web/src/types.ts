@@ -141,6 +141,9 @@ export interface InviteInfo {
   created_at: number;
   /** Role granted to the joining user in addition to `builtin-everyone`, if any. */
   grant_role_id: string | null;
+  /** The one identity this invite admits, or null for a bearer code. Only on
+   *  hubs advertising `invites.bound`; absent reads as null. */
+  bound_pubkey: string | null;
 }
 
 export interface PendingUser {
