@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, newMemberPage, openSettingRow, settingRow, uniqueName } from "./helpers/live";
 
 // P66 — a soundboard clip reaches the room, and silence does not.
 //
@@ -70,17 +70,15 @@ test("a soundboard clip crosses the room that silence never left", async ({ page
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
   await page.getByRole("button", { name: "Soundboard", exact: true }).click();
-  const section = page.locator("section", {
-    has: page.getByRole("heading", { name: "Soundboard" }),
-  });
-  await section.getByRole("textbox").fill(clipName);
-  await section.locator('input[type="file"]').setInputFiles({
+  const addRow = await openSettingRow(page, "Add a clip");
+  await addRow.getByRole("textbox").first().fill(clipName);
+  await addRow.locator('input[type="file"]').setInputFiles({
     name: "tone-440.ogg",
     mimeType: "audio/ogg",
     buffer: CLIP,
   });
-  await page.getByRole("button", { name: "Upload clip" }).click();
-  await expect(page.locator("tr", { hasText: clipName })).toBeVisible({ timeout: 20000 });
+  await addRow.getByRole("button", { name: "Upload clip" }).click();
+  await expect(settingRow(page, clipName)).toBeVisible({ timeout: 20000 });
   await page.keyboard.press("Escape");
 
   await shutTheMicGate(page);

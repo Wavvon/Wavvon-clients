@@ -332,17 +332,29 @@ export async function confirmInApp(page: Page): Promise<void> {
 }
 
 /**
+ * One settings row, open or closed. Its head is always in the DOM, so this is
+ * what to use for the title, the `.setting-row-state` line, and the `meta`
+ * count — everything the row says about itself without being opened.
+ */
+export function settingRow(page: Page, title: string | RegExp) {
+  return page
+    .locator(".setting-row")
+    .filter({ has: page.locator(".setting-row-title", { hasText: title }) })
+    .first();
+}
+
+/**
  * Every settings tab is a list of rows that state what they are set to and
  * open to the form that changes it. A spec that reaches straight for the
  * control finds nothing: until the row is open, the form is not in the DOM.
  *
+ * Several tabs are accordions — opening one closes the one before it — so
+ * assert what an open row says before opening the next.
+ *
  * Returns the row, so the caller can scope its queries to it.
  */
 export async function openSettingRow(page: Page, title: string | RegExp) {
-  const row = page
-    .locator(".setting-row")
-    .filter({ has: page.locator(".setting-row-title", { hasText: title }) })
-    .first();
+  const row = settingRow(page, title);
   await expect(row).toBeVisible({ timeout: 15000 });
   const alreadyOpen = await row.evaluate((el) => el.classList.contains("open"));
   if (!alreadyOpen) {

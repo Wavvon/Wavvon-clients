@@ -67,11 +67,15 @@ test("role category grouping, color, and icon persist", async ({ page }) => {
   const groupAfter = page
     .locator(".role-category-group")
     .filter({ has: page.locator(".role-category-header", { hasText: cat }) });
-  const rowAfter = groupAfter.locator(".settings-row").filter({ hasText: role });
+  const rowAfter = groupAfter.locator(".setting-row").filter({ hasText: role });
   await expect(rowAfter).toBeVisible();
-  await expect(rowAfter.getByTitle("Role color")).toHaveCSS(
+  // The icon rides in the row's head, so it is on screen with the row closed.
+  // The swatch is part of the form the row opens to, and is not in the DOM
+  // until it does.
+  await expect(rowAfter.getByText("🎮")).toBeVisible();
+  const reopened = await openSettingRow(page, role);
+  await expect(reopened.getByTitle("Role color")).toHaveCSS(
     "background-color",
     "rgb(231, 76, 60)",
   );
-  await expect(rowAfter.getByText("🎮")).toBeVisible();
 });

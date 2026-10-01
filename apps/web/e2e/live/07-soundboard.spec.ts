@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
+import { expectInHub, uniqueName, confirmInApp, openSettingRow, settingRow } from "./helpers/live";
 
 // P7 — soundboard admin UI (soundboard.md): upload a clip, see it listed,
 // delete it. The hub validates the OGG Opus container (OggS magic +
@@ -43,11 +43,6 @@ test("upload, list, and delete a soundboard clip", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Soundboard" })).toBeVisible();
 
   const clipName = uniqueName("horn");
-  // The admin page renders over the main app; scope to the soundboard
-  // <section> (the Name label isn't tied to its input via htmlFor).
-  const section = page.locator("section", {
-    has: page.getByRole("heading", { name: "Soundboard" }),
-  });
   const addRow = await openSettingRow(page, "Add a clip");
   await addRow.getByRole("textbox").first().fill(clipName);
   await addRow.locator('input[type="file"]').setInputFiles({
@@ -57,13 +52,15 @@ test("upload, list, and delete a soundboard clip", async ({ page }) => {
   });
   await page.getByRole("button", { name: "Upload clip" }).click();
 
-  // Clip appears in the table with its computed 1.0s duration.
-  const row = page.locator("tr", { hasText: clipName });
+  // The clip is its own row, and its computed 1.0s duration is on the line
+  // the row states about itself.
+  const row = settingRow(page, clipName);
   await expect(row).toBeVisible({ timeout: 10000 });
-  await expect(row).toContainText("1.0s");
+  await expect(row.locator(".setting-row-state")).toContainText("1.0s");
 
   // Delete it, going through the app's own confirmation.
-  await row.getByRole("button", { name: "Delete" }).click();
+  const clip = await openSettingRow(page, clipName);
+  await clip.getByRole("button", { name: "Delete" }).click();
   await confirmInApp(page);
   await expect(row).toBeHidden({ timeout: 10000 });
 });
