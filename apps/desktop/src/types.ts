@@ -86,6 +86,9 @@ export interface InviteInfo {
   expires_at: number | null;
   created_at: number;
   grant_role_id: string | null;
+  /** The one identity this invite admits, or null for a bearer code. Only on
+   *  hubs advertising `invites.bound`; absent reads as null. */
+  bound_pubkey: string | null;
 }
 
 export interface PendingUser {

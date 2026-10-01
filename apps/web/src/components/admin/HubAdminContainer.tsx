@@ -1,4 +1,4 @@
-import { hubFetch } from "@platform";
+import { hubFetch, activeHubSupports } from "@platform";
 import {
   submitToDirectory,
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -105,8 +105,9 @@ export function HubAdminContainer({
         canManageRoles={canManageRoles}
         myMaxPriority={myMaxPriority}
         onMemberRolesChanged={hubAdmin.setMemberRoles}
-        onCreateInvite={(maxUses, expiresIn, grantRoleId) =>
-          hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in_seconds: expiresIn, grant_role_id: grantRoleId }) })
+        supportsBoundInvites={activeHubSupports("invites.bound")}
+        onCreateInvite={(maxUses, expiresIn, grantRoleId, boundPubkey) =>
+          hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in_seconds: expiresIn, grant_role_id: grantRoleId, bound_pubkey: boundPubkey }) })
             .then((r) => r.json() as Promise<InviteInfo>)
             .then((inv) => hubAdmin.addInvite(inv))
             .catch(() => {})
