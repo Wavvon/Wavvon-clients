@@ -4,6 +4,7 @@ import type { Message, Attachment, User, HubEmoji } from "../../types";
 import { formatPubkey } from "@wavvon/core";
 import { EmojiPicker } from "./EmojiPicker";
 import { PendingAttachments } from "../Attachments";
+import { CloseIcon } from "../Icons";
 
 interface SlashCommandEntry {
   command: string;
@@ -119,8 +120,8 @@ export function ChannelComposer({
               formatPubkey(replyTarget.sender)}
           </strong>
           <span className="reply-snippet">{replyTarget.content.slice(0, 80)}</span>
-          <button className="reply-banner-close" onClick={() => onSetReplyTarget(null)} title={t("composer.reply_banner.cancel")}>
-            ×
+          <button className="reply-banner-close" onClick={() => onSetReplyTarget(null)} title={t("composer.reply_banner.cancel")}>
+            <CloseIcon size={13} />
           </button>
         </div>
       )}

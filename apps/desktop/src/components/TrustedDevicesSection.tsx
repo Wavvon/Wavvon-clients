@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -14,6 +15,7 @@ export function TrustedDevicesSection({ hubId }: { hubId: string | null }) {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!hubId) return;
@@ -36,11 +38,18 @@ export function TrustedDevicesSection({ hubId }: { hubId: string | null }) {
   if (!hubId) return null;
 
   return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">{t("settings.account.trusted_devices.label")}</label>
-      <p className="muted" style={{ marginBottom: 12 }}>
-        {t("settings.account.trusted_devices.hint")}
-      </p>
+    <SettingRow
+      title={t("settings.account.trusted_devices.label")}
+      state={devices === null
+        ? t("modal.loading")
+        : devices.length === 0
+          ? t("settings.account.trusted_devices.empty")
+          : t("settings.account.trusted_devices.state", { count: devices.length })}
+      meta={devices && devices.length > 0 ? String(devices.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      <p className="muted">{t("settings.account.trusted_devices.hint")}</p>
       {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
       {devices === null ? (
         <p className="muted">{t("modal.loading")}</p>
@@ -80,6 +89,6 @@ export function TrustedDevicesSection({ hubId }: { hubId: string | null }) {
           ))}
         </ul>
       )}
-    </div>
+    </SettingRow>
   );
 }

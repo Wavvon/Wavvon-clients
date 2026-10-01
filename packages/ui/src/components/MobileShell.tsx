@@ -81,7 +81,7 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
             padding: 0 12px;
             height: 44px;
             border-bottom: 1px solid var(--border);
-            background: var(--bg-surface, var(--surface));
+            background: var(--surface);
             flex-shrink: 0;
           }
           .mobile-shell-back {

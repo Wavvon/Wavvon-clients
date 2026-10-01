@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import type { BlockEntry, IgnoreEntry } from "../types";
-import { AccountLabelSuffix, PerAccountHint } from "./AccountScopeNote";
+import { SettingRow } from "./SettingRow";
 
 interface Props {
   blocks: BlockEntry[];
@@ -15,18 +16,23 @@ interface Props {
 
 export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, knownNames, accountLabel }: Props) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
+
   return (
-    <div>
-      <div className="settings-section">
-        <label className="settings-label">
-          {t("settings.account.blocked_users.label", { count: blocks.length })}
-          <AccountLabelSuffix label={accountLabel} />
-        </label>
-        <p className="muted">
-          {t("settings.account.blocked_users.hint")}
-        </p>
-        <PerAccountHint label={accountLabel} />
-        {blocks.length === 0 && <p className="muted">{t("settings.account.blocked_users.empty")}</p>}
+    <>
+      <SettingRow
+        title={t("settings.account.blocked_users.title")}
+        state={blocks.length === 0
+          ? t("settings.account.blocked_users.empty")
+          : t("settings.account.blocked_users.state", { count: blocks.length })}
+        meta={blocks.length > 0 ? String(blocks.length) : undefined}
+        {...row("blocked")}
+      >
+        <p className="muted">{t("settings.account.blocked_users.hint")}</p>
         {blocks.map((b) => (
           <div key={b.pubkey} className="settings-row">
             <div>
@@ -35,21 +41,20 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
                 {t("settings.account.blocked_users.since", { date: new Date(b.since * 1000).toLocaleDateString() })}
               </span>
             </div>
-            <button className="btn-secondary" onClick={() => onUnblock(b.pubkey)}>{t("settings.account.blocked_users.unblock_button")}</button>
+            <button className="btn-small" onClick={() => onUnblock(b.pubkey)}>{t("settings.account.blocked_users.unblock_button")}</button>
           </div>
         ))}
-      </div>
+      </SettingRow>
 
-      <div className="settings-section">
-        <label className="settings-label">
-          {t("settings.account.ignored_users.label", { count: ignores.length })}
-          <AccountLabelSuffix label={accountLabel} />
-        </label>
-        <p className="muted">
-          {t("settings.account.ignored_users.hint")}
-        </p>
-        <PerAccountHint label={accountLabel} />
-        {ignores.length === 0 && <p className="muted">{t("settings.account.ignored_users.empty")}</p>}
+      <SettingRow
+        title={t("settings.account.ignored_users.title")}
+        state={ignores.length === 0
+          ? t("settings.account.ignored_users.empty")
+          : t("settings.account.ignored_users.state", { count: ignores.length })}
+        meta={ignores.length > 0 ? String(ignores.length) : undefined}
+        {...row("ignored")}
+      >
+        <p className="muted">{t("settings.account.ignored_users.hint")}</p>
         {ignores.map((ig) => (
           <div key={ig.pubkey} className="settings-row">
             <div>
@@ -58,10 +63,10 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
                 {t("settings.account.ignored_users.since", { date: new Date(ig.since * 1000).toLocaleDateString() })}
               </span>
             </div>
-            <button className="btn-secondary" onClick={() => onUnignore(ig.pubkey)}>{t("settings.account.ignored_users.unignore_button")}</button>
+            <button className="btn-small" onClick={() => onUnignore(ig.pubkey)}>{t("settings.account.ignored_users.unignore_button")}</button>
           </div>
         ))}
-      </div>
-    </div>
+      </SettingRow>
+    </>
   );
 }

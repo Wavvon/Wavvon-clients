@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "./FocusTrap";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 interface Props {
   hubName: string;
@@ -45,6 +46,7 @@ export function RemoveHubModal({
   onConfirm,
   onCancel,
 }: Props) {
+  useCloseOnEscape(onCancel);
   const { t } = useTranslation();
   const farewell = hubFarewell?.trim();
 

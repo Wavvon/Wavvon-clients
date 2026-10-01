@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "../FocusTrap";
 import { EmojiPicker } from "../content/EmojiPicker";
-import { ChannelIcon, CHANNEL_ICONS, ChannelIconGlyph } from "../Icons";
+import { ChannelIcon, CHANNEL_ICONS, ChannelIconGlyph, CloseIcon } from "../Icons";
 import { ColorSwatchPicker } from "../admin/ColorSwatchPicker";
 import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
 import { ChannelPermissionsTab, type ChannelPermissionsTabActions } from "./ChannelPermissionsTab";
@@ -11,6 +11,7 @@ import { ChannelTalkPowerTab, type ChannelTalkPowerTabActions } from "./ChannelT
 import { ChannelAlliancesTab, type ChannelAlliancesTabActions } from "./ChannelAlliancesTab";
 import { ForumTagManager, type ForumTagManagerActions } from "../forum/ForumTagManager";
 import type { HubIcon, ForumTagDef } from "../../types";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 type Tab = "settings" | "permissions" | "bans" | "moderation" | "alliances";
 
@@ -119,6 +120,7 @@ export function ChannelSettingsModal({
   bannerUploadSupported = true,
   forumTagsActions, listForumTags,
 }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const isCreate = channel === null;
   const [tab, setTab] = useState<Tab>(isAdmin ? "settings" : "permissions");
@@ -519,7 +521,7 @@ export function ChannelSettingsModal({
                     onClick={() => { setIcon(null); setCustomIconSvg(null); }}
                     title={t("modal.clear")}
                   >
-                    <span className="icon-picker-glyph">✕</span>
+                    <span className="icon-picker-glyph"><CloseIcon size={14} /></span>
                     <span className="icon-picker-label">{t("modal.clear")}</span>
                   </button>
 

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { formatRelativeSigned, buildInviteLink } from "@wavvon/core";
 import type { InviteInfo, RoleInfo } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
+import { SettingRow } from "../SettingRow";
 
 // Mirrors hub/src/routes/invites.rs::ADMIN_GRANT_DEFAULT_EXPIRY_SECS — for
 // client-side annotation only, the server remains authoritative and clamps
@@ -48,6 +49,11 @@ interface Props {
 
 export function InviteManager(props: Props) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const { actions } = props;
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [inviteMaxUses, setInviteMaxUses] = useState("");
@@ -120,8 +126,12 @@ export function InviteManager(props: Props) {
     <section>
       <h1>{t("invites.heading")}</h1>
       {props.isAdmin && (
-        <div className="settings-section">
-          <label className="settings-label">{t("invites.default_role.title")}</label>
+        <SettingRow
+          title={t("invites.default_role.title")}
+          state={defaultRoleOptions.find((r) => r.id === defaultRoleId)?.name
+            ?? t("invites.default_role.none")}
+          {...row("default-role")}
+        >
           <p className="muted">{t("invites.default_role.hint")}</p>
           <div className="settings-row">
             <select value={defaultRoleId} onChange={(e) => setDefaultRoleId(e.target.value)}>
@@ -130,16 +140,22 @@ export function InviteManager(props: Props) {
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
-            <button onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
+            <button className="btn-primary" onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
               {t("invites.default_role.save")}
             </button>
             {defaultRoleStatus === "saved" && <span className="muted" style={{ color: "var(--success)" }}>{t("invites.default_role.saved")}</span>}
           </div>
           {defaultRoleError && <p className="error-text">{defaultRoleError}</p>}
-        </div>
+        </SettingRow>
       )}
-      <div className="settings-section">
-        <label className="settings-label">{t("invites.create.title")}</label>
+      <SettingRow
+        title={t("invites.create.title")}
+        state={props.invites.length === 0
+          ? t("invites.state.none")
+          : t("invites.state.active", { count: props.invites.length })}
+        meta={props.invites.length > 0 ? String(props.invites.length) : undefined}
+        {...row("create")}
+      >
         <div className="settings-row">
           <input
             type="number"
@@ -167,38 +183,35 @@ export function InviteManager(props: Props) {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <button onClick={handleCreate}>
+          <button className="btn-primary" onClick={handleCreate}>
             {t("invites.create.submit")}
           </button>
         </div>
         {forcesSingleUse && (
           <p className="muted">{t("invites.create.admin_grant_hint")}</p>
         )}
-      </div>
+      </SettingRow>
       {props.invites.map((inv) => {
         const link = buildInviteLink(props.activeHubUrl, inv.code);
         const grantedRole = inv.grant_role_id ? rolesById.get(inv.grant_role_id) : undefined;
-        const grantedRoleColor = grantedRole ? safeRoleColor(grantedRole.color) : null;
         return (
-          <div key={inv.code} className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
-            <code className="pubkey-display" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={link}>{link}</code>
-            <button
-              className="btn-secondary"
-              onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
-            >
-              {copiedInvite === inv.code ? t("invites.copied") : t("invites.copy")}
-            </button>
-            {inv.grant_role_id && (
-              <span className="role-chip" style={grantedRoleColor ? { borderColor: grantedRoleColor, color: grantedRoleColor } : undefined}>
-                {grantedRole?.name ?? inv.grant_role_id}
-              </span>
-            )}
-            <span className="muted">
-              {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
-              {inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}
-            </span>
-            <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
-          </div>
+          <SettingRow
+            key={inv.code}
+            title={inv.code}
+            state={`${inv.uses}/${inv.max_uses ?? "∞"} ${t("admin.invite.uses_label")}${inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}${grantedRole ? ` · ${grantedRole.name}` : ""}`}
+            {...row(inv.code)}
+          >
+            <code className="pubkey-display" style={{ display: "block", marginBottom: "var(--space-3)", wordBreak: "break-all" }} title={link}>{link}</code>
+            <div className="settings-row">
+              <button
+                className="btn-small"
+                onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
+              >
+                {copiedInvite === inv.code ? t("invites.copied") : t("invites.copy")}
+              </button>
+              <button className="btn-small danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
+            </div>
+          </SettingRow>
         );
       })}
     </section>

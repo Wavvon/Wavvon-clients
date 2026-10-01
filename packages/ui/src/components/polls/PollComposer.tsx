@@ -1,6 +1,8 @@
 import React, { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Poll } from "../../types";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
+import { CloseIcon } from "../Icons";
 
 interface Props {
   channelId: string;
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export function PollComposer({ channelId, onCreatePoll, onCreated, onClose }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [question, setQuestion] = useState("");
   const nextId = useRef(2);
@@ -102,8 +105,8 @@ export function PollComposer({ channelId, onCreatePoll, onCreated, onClose }: Pr
                     className="btn-ghost"
                     onClick={() => removeOption(i)}
                     aria-label={t("polls.composer.remove_option")}
-                  >
-                    ×
+                  >
+                    <CloseIcon size={13} />
                   </button>
                 )}
               </div>

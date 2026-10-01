@@ -4,6 +4,8 @@ import { FocusTrap } from "./FocusTrap";
 import { StagingSlotGroup } from "./StagingSlotGroup";
 import type { ClaimantVoiceStatus, StagingGroup } from "../types";
 import type { VoiceMoveChannelOption } from "./VoiceMoveMenu";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
+import { CloseIcon } from "./Icons";
 
 interface Props {
   eventTitle: string;
@@ -39,6 +41,7 @@ export function StagingPanel({
   squadRoomCount, onSquadRoomCountChange, squadRoomPrefix, onSquadRoomPrefixChange, onSpawnSquadRooms,
   spawningSquadRooms, squadRoomError,
 }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   return (
     <div
@@ -54,7 +57,7 @@ export function StagingPanel({
             <h3 style={{ margin: 0, fontSize: "var(--text-md)" }}>
               {t("events.staging.title", { event: eventTitle })}
             </h3>
-            <button className="btn-ghost" onClick={onClose} aria-label={t("events.staging.close")}>×</button>
+            <button className="btn-ghost" onClick={onClose} aria-label={t("events.staging.close")}><CloseIcon size={13} /></button>
           </div>
 
           <div className="settings-section" style={{ marginBottom: 10 }}>

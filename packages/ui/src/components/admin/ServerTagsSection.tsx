@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { HubBadge, HubSelfTagSettings, PendingBadgeOffer } from "../../types";
+import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 export interface ServerTagsSectionActions {
   getDiscoveryTags: () => Promise<HubSelfTagSettings>;
@@ -19,6 +21,12 @@ interface Props {
 
 export function ServerTagsSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const [tagsInput, setTagsInput] = useState("");
   const [nsfw, setNsfw] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | string>("idle");
@@ -77,7 +85,20 @@ export function ServerTagsSection({ actions }: Props) {
   }
 
   async function handleRemoveBadge(id: string) {
-    try { await actions.removeBadge(id); await loadBadgeData(); } catch { /* ignore */ }
+    const ok = await confirm({
+      title: t("hub.admin.tags.remove_badge_confirm"),
+      confirmLabel: t("hub.admin.tags.remove_badge"),
+      danger: true,
+    });
+    if (!ok) return;
+    // The old body swallowed every failure, so a refused removal looked
+    // exactly like a successful one.
+    try {
+      await actions.removeBadge(id);
+      await loadBadgeData();
+    } catch (e) {
+      setSaveStatus(e instanceof Error ? e.message : String(e));
+    }
   }
 
   async function handleGrantBadge() {
@@ -96,10 +117,14 @@ export function ServerTagsSection({ actions }: Props) {
 
   return (
     <section>
+      {dialog}
       <h1>{t("hub.admin.tags.title")}</h1>
 
-      <div className="settings-section">
-        <label className="settings-label">{t("hub.admin.tags.self.label")}</label>
+      <SettingRow
+        title={t("hub.admin.tags.self.label")}
+        state={tagsInput.trim() || t("settings.row.none")}
+        {...row("self")}
+      >
         <p className="muted">{t("hub.admin.tags.self.hint")}</p>
         <input
           type="text"
@@ -116,13 +141,20 @@ export function ServerTagsSection({ actions }: Props) {
         {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
           <p className="error-text">{saveStatus}</p>
         )}
-        <button onClick={handleSaveTags} disabled={saveStatus === "saving"}>
+        <button className="btn-primary" onClick={handleSaveTags} disabled={saveStatus === "saving"}>
           {saveStatus === "saving" ? t("hub.admin.tags.saving") : t("hub.admin.tags.save")}
         </button>
-      </div>
+      </SettingRow>
 
-      <div className="settings-section">
-        <label className="settings-label">{t("hub.admin.tags.badges.label")}</label>
+      <SettingRow
+        title={t("hub.admin.tags.badges.label")}
+        state={badges.length === 0
+          ? t("hub.admin.tags.badges.empty")
+          : t("hub.admin.tags.state.badges", { count: badges.length })}
+        meta={badges.length > 0 ? String(badges.length) : undefined}
+        attention={pendingBadges.length > 0}
+        {...row("badges")}
+      >
         <p className="muted">{t("hub.admin.tags.badges.hint")}</p>
         {loadingBadges && <p className="muted">{t("hub.admin.tags.badges.loading")}</p>}
         {badges.length === 0 && !loadingBadges && (
@@ -139,7 +171,7 @@ export function ServerTagsSection({ actions }: Props) {
             <button className="btn-secondary danger" onClick={() => handleRemoveBadge(b.id)}>{t("hub.admin.tags.badges.remove")}</button>
           </div>
         ))}
-      </div>
+      </SettingRow>
 
       {pendingBadges.length > 0 && (
         <div className="settings-section">
@@ -153,7 +185,7 @@ export function ServerTagsSection({ actions }: Props) {
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => handleAccept(p.id)}>{t("hub.admin.tags.offers.accept")}</button>
+                <button className="btn-primary" onClick={() => handleAccept(p.id)}>{t("hub.admin.tags.offers.accept")}</button>
                 <button className="btn-secondary" onClick={() => handleDecline(p.id)}>{t("hub.admin.tags.offers.decline")}</button>
               </div>
             </div>
@@ -161,8 +193,11 @@ export function ServerTagsSection({ actions }: Props) {
         </div>
       )}
 
-      <div className="settings-section">
-        <label className="settings-label">{t("hub.admin.tags.grant.label")}</label>
+      <SettingRow
+        title={t("hub.admin.tags.grant.label")}
+        state={t("hub.admin.tags.state.grant")}
+        {...row("grant")}
+      >
         <p className="muted">{t("hub.admin.tags.grant.hint")}</p>
         <div className="settings-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
           <input
@@ -185,12 +220,13 @@ export function ServerTagsSection({ actions }: Props) {
           <p className="error-text">{grantStatus}</p>
         )}
         <button
+          className="btn-primary"
           onClick={handleGrantBadge}
           disabled={!grantTargetUrl.trim() || !grantLabel.trim() || grantStatus === "sending"}
         >
           {grantStatus === "sending" ? t("hub.admin.tags.grant.sending") : t("hub.admin.tags.grant.submit")}
         </button>
-      </div>
+      </SettingRow>
     </section>
   );
 }

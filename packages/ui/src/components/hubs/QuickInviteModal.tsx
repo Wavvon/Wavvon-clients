@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { buildInviteLink } from "@wavvon/core";
 import type { RoleInfo } from "../../types";
 import { FocusTrap } from "../FocusTrap";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 // Mirrors hub/src/routes/invites.rs::ADMIN_GRANT_DEFAULT_EXPIRY_SECS — for
 // client-side annotation only, the server remains authoritative.
@@ -40,6 +41,7 @@ interface Props {
  *  panel. Mints a plain invite by default; offers a role picker only when
  *  the viewer actually has grantable roles below their own priority. */
 export function QuickInviteModal({ activeHubUrl, myMaxPriority, onClose, actions }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const [grantRoleId, setGrantRoleId] = useState("");

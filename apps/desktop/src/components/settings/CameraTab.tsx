@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SettingRow } from "@wavvon/ui";
 import { CameraSection } from "../CameraSection";
 import type { BackgroundMode } from "../../utils/backgroundProcessor";
 
@@ -14,14 +16,21 @@ interface Props {
 
 export function CameraTab({ videoInputs, videoInputDevice, onVideoInputDeviceChange, ...cameraSectionProps }: Props) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.camera")}</h1>
+      <h1>{t("settings.tabs.camera")}</h1>
       {videoInputs.length > 0 && (
-        <div className="settings-section">
-          <label className="settings-label" htmlFor="settings-camera">{t("settings.voice.camera", "Camera")}</label>
+        <SettingRow
+          title={t("settings.camera.device_label")}
+          state={videoInputs.find((d) => d.deviceId === videoInputDevice)?.label
+            ?? t("settings.voice.system_default")}
+          open={open}
+          onToggle={() => setOpen((v) => !v)}
+        >
           <select
             id="settings-camera"
+            aria-label={t("settings.camera.device_aria")}
             value={videoInputDevice}
             onChange={(e) => onVideoInputDeviceChange(e.target.value)}
           >
@@ -30,7 +39,7 @@ export function CameraTab({ videoInputs, videoInputDevice, onVideoInputDeviceCha
               <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
             ))}
           </select>
-        </div>
+        </SettingRow>
       )}
       <CameraSection videoInputDevice={videoInputDevice} {...cameraSectionProps} />
     </section>

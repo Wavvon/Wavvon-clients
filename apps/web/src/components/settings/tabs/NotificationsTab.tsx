@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, NotifLevel } from "@shared/types";
+import { SettingRow } from "@wavvon/ui";
 import { getNotifPref, setNotifPref } from "@platform";
 import { getScoped, setScoped } from "@shared/utils/accountScope";
 
@@ -31,45 +32,58 @@ export function NotificationsTab(props: Props) {
     }
     return prefs;
   });
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
+
+  const mentionOn = props.mentionPingEnabled ?? true;
+  const permission = typeof Notification !== "undefined" ? Notification.permission : null;
 
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.notifications")}</h1>
-      <div className="settings-section" style={{ marginBottom: 20 }}>
-        <label className="settings-label">{t("settings.notifications.mention.label")}</label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          {t("settings.notifications.mention.hint")}
-        </p>
-        <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <h1>{t("settings.tabs.notifications")}</h1>
+
+      <SettingRow
+        title={t("settings.notifications.mention.label")}
+        state={mentionOn ? t("settings.state.on") : t("settings.state.off")}
+        control={
           <input
             type="checkbox"
-            checked={props.mentionPingEnabled ?? true}
+            checked={mentionOn}
+            aria-label={t("settings.notifications.mention.enable")}
             onChange={(e) => props.onMentionPingChange?.(e.target.checked)}
           />
-          {t("settings.notifications.mention.enable")}
-        </label>
-      </div>
-      <div className="settings-section" style={{ marginBottom: 20 }}>
-        <label className="settings-label">{t("settings.notifications.voice_sounds.label")}</label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          {t("settings.notifications.voice_sounds.hint")}
-        </p>
-        <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        }
+        {...row("mention")}
+      />
+
+      <SettingRow
+        title={t("settings.notifications.voice_sounds.label")}
+        state={voiceSounds ? t("settings.state.on") : t("settings.state.off")}
+        control={
           <input
             type="checkbox"
             checked={voiceSounds}
+            aria-label={t("settings.notifications.voice_sounds.enable")}
             onChange={(e) => toggleVoiceSounds(e.target.checked)}
           />
-          {t("settings.notifications.voice_sounds.enable")}
-        </label>
-      </div>
-      <div className="settings-section" style={{ marginBottom: 20 }}>
-        <label className="settings-label">{t("settings.notifications.desktop.label")}</label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          {t("settings.notifications.desktop.hint")}
-        </p>
+        }
+        {...row("voice-sounds")}
+      />
+
+      <SettingRow
+        title={t("settings.notifications.desktop.label")}
+        state={permission
+          ? t(`settings.notifications.desktop.state.${permission}`)
+          : t("settings.notifications.desktop.state.unsupported")}
+        {...row("desktop")}
+      >
+        <p className="muted">{t("settings.notifications.desktop.hint")}</p>
         <button
-          className="btn-secondary"
+          className="btn-small"
+          disabled={permission !== "default"}
           onClick={() => {
             if (typeof Notification !== "undefined") {
               Notification.requestPermission().catch(() => {});
@@ -78,31 +92,27 @@ export function NotificationsTab(props: Props) {
         >
           {t("settings.notifications.desktop.request")}
         </button>
-        {typeof Notification !== "undefined" && (
-          <p className="muted" style={{ marginTop: 8, fontSize: "var(--text-sm)" }}>
-            {t("settings.notifications.desktop.permission", { value: Notification.permission })}
-          </p>
-        )}
-      </div>
+      </SettingRow>
+
       {props.hubs.length > 0 && (
-        <div className="settings-section">
-          <label className="settings-label">{t("settings.notifications.per_hub.label")}</label>
-          <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 12 }}>
-            {t("settings.notifications.per_hub.hint")}
-          </p>
+        <SettingRow
+          title={t("settings.notifications.per_hub.label")}
+          state={t("settings.notifications.per_hub.state", { count: props.hubs.length })}
+          {...row("per-hub")}
+        >
+          <p className="muted">{t("settings.notifications.per_hub.hint")}</p>
           {props.hubs.map((hub) => (
             <div
               key={hub.hub_id}
               className="settings-row"
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}
+              style={{ alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}
             >
-              <span style={{ fontSize: "var(--text-sm)", fontWeight: 500 }}>{hub.hub_name}</span>
+              <span>{hub.hub_name}</span>
               <div style={{ display: "flex", gap: 4 }}>
                 {NOTIF_LEVELS.map((level) => (
                   <button
                     key={level.value}
-                    className={hubNotifPrefs[hub.hub_url] === level.value ? "btn-primary" : "btn-secondary"}
-                    style={{ fontSize: "var(--text-xs)", padding: "3px 8px" }}
+                    className={`btn-small${hubNotifPrefs[hub.hub_url] === level.value ? " btn-primary" : ""}`}
                     onClick={() => {
                       setNotifPref(hub.hub_url, level.value);
                       setHubNotifPrefs((prev) => ({ ...prev, [hub.hub_url]: level.value }));
@@ -114,7 +124,7 @@ export function NotificationsTab(props: Props) {
               </div>
             </div>
           ))}
-        </div>
+        </SettingRow>
       )}
     </section>
   );

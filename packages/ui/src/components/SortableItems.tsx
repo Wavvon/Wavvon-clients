@@ -4,7 +4,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel } from "@wavvon/core";
 import type { VoiceParticipant } from "../types";
-import { ChannelIcon } from "./Icons";
+import { ChannelIcon, VolumeIcon, GearIcon, PlusIcon, CloseIcon, ChevronIcon, ExpandIcon, BellOffIcon } from "./Icons";
+import { Avatar } from "./Avatar";
 import { safeRoleColor } from "../utils/roleAppearance";
 
 /** Hub icon wrapped in dnd-kit's useSortable so the user can drag-reorder
@@ -68,11 +69,13 @@ function VoiceParticipantRow({
           : undefined
       }
     >
-      <span className="channel-participant-icon" aria-hidden="true">🎙️</span>
-      {label}
+      {/* A face, at the same size as a channel name. Who is in a room is the
+          reason anyone walks into it, so the roster is not a footnote. */}
+      <Avatar name={label} pubkey={participant.public_key} size={22} />
+      <span className="channel-participant-name">{label}</span>
       {participant.visiting_from && (
         <span className="participant-visiting-from" title={t("voice.participant.visiting_from", { hub: participant.visiting_from })}>
-          {" · "}{participant.visiting_from}
+          {participant.visiting_from}
         </span>
       )}
       {isWhisperingToMe && (
@@ -85,7 +88,7 @@ function VoiceParticipantRow({
           className={`participant-gain-badge ${gain === 0 ? "gain-muted" : gain > 100 ? "gain-boosted" : "gain-reduced"}`}
           aria-label={`Volume: ${gain}%`}
         >
-          {gain === 0 ? "🔇" : gain > 100 ? "🔊" : "🔉"}
+          <VolumeIcon level={gain === 0 ? "muted" : gain > 100 ? "boosted" : "reduced"} />
         </span>
       )}
       {open && onSetGain && (
@@ -107,7 +110,7 @@ function VoiceParticipantRow({
             >
               {t("channel.sidebar.volume_reset")}
             </button>
-            <button className="participant-volume-close" onClick={() => setOpen(false)} aria-label={t("modal.close")} title={t("modal.close")}>✕</button>
+            <button className="participant-volume-close" onClick={() => setOpen(false)} aria-label={t("modal.close")} title={t("modal.close")}><CloseIcon size={12} /></button>
           </div>
         </div>
       )}
@@ -233,8 +236,8 @@ export function SortableChannelItem({
               onClick={(e) => { e.stopPropagation(); onSettings(e); }}
               title={t("channel.sidebar.channel_settings")}
               aria-label={t("channel.sidebar.channel_settings")}
-            >
-              ⚙
+            >
+              <GearIcon size={14} />
             </button>
           </div>
         )}
@@ -297,9 +300,6 @@ export function SortableChannelItem({
         {!isSpawner && unread && <span className="channel-unread-dot" aria-hidden="true" />}
         <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
         <span className="channel-name">{channel.name}</span>
-        {channel.channel_type === "forum" && (
-          <span className="forum-type-badge" title={t("channel.sidebar.forum_badge")} aria-label={t("channel.sidebar.forum_badge")}>📋</span>
-        )}
         {isTemporary && (
           <span className="channel-temp-badge">{t("channel.temp.badge")}</span>
         )}
@@ -309,15 +309,19 @@ export function SortableChannelItem({
         {!isSpawner && activeHubId && hasDraft?.(`${activeHubId}/${channel.id}`) && (
           <span className="channel-draft-badge" title={t("channel.sidebar.draft_title")}>{t("channel.sidebar.draft_badge")}</span>
         )}
-        {!isSpawner && muted && <span className="channel-muted-icon" title={t("channel.sidebar.muted")} aria-hidden="true">🔕</span>}
+        {!isSpawner && muted && (
+          <span className="channel-muted-icon" title={t("channel.sidebar.muted")} aria-hidden="true">
+            <BellOffIcon size={12} />
+          </span>
+        )}
         {onSettings && (
           <button
             className="channel-settings-btn"
             onClick={(e) => { e.stopPropagation(); onSettings(e); }}
             title={t("channel.sidebar.channel_settings")}
             aria-label={t("channel.sidebar.channel_settings")}
-          >
-            ⚙
+          >
+            <GearIcon size={14} />
           </button>
         )}
       </div>
@@ -424,7 +428,7 @@ export function SortableCategoryItem({
           }}
           title={collapsed ? t("channel.sidebar.expand") : t("channel.sidebar.collapse")}
         >
-          {collapsed ? "▸" : "▾"}
+          <ChevronIcon size={12} dir={collapsed ? "right" : "down"} />
         </button>
         {depthOverflow && (
           <span className="channel-depth-marker" aria-hidden="true">›</span>
@@ -432,7 +436,9 @@ export function SortableCategoryItem({
         {(channel.icon || channel.custom_icon_svg) && (
           <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} size={13} />
         )}
-        <span className="category-name">{channel.name.toUpperCase()}</span>
+        {/* Shown as the owner typed it. Upper-casing it here is why the
+            stylesheet's own text-transform sweep could never reach it. */}
+        <span className="category-name">{channel.name}</span>
         {collapsed && childCount > 0 && (
           <span className="category-count" aria-hidden="true">{childCount}</span>
         )}
@@ -442,24 +448,24 @@ export function SortableCategoryItem({
             onClick={(e) => { e.stopPropagation(); onFocusSubtree(); }}
             title={focusSubtreeLabel}
             aria-label={focusSubtreeLabel}
-          >
-            ⤢
+          >
+            <ExpandIcon size={13} />
           </button>
         )}
         <button
           className="btn-icon-small"
           onClick={(e) => { e.stopPropagation(); onAdd(); }}
           title={t("channel.sidebar.add")}
-        >
-          +
+        >
+          <PlusIcon size={13} />
         </button>
         {onSettings && (
           <button
             className="btn-icon-small category-settings-btn"
             onClick={(e) => { e.stopPropagation(); onSettings(e); }}
             title={t("channel.sidebar.category_settings")}
-          >
-            ⚙
+          >
+            <GearIcon size={14} />
           </button>
         )}
       </div>

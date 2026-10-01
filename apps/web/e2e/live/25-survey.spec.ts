@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
+import { expectInHub, hubApi, newMemberPage, openSettingRow, uniqueName } from "./helpers/live";
 
 // P25 — onboarding survey: admin builds + enables a survey, a new member
 // fills and submits it, and the admin sees the response. Disables the survey
@@ -22,22 +22,27 @@ test("build a survey, a member submits it, admin sees the response", async ({ pa
   const prompt2 = uniqueName("Favorite mode");
 
   // Scope to the first rendered survey section (the responsive shell renders
-  // the admin twice).
+  // the admin twice). The tab is three settings rows — enable, questions,
+  // answers — and it is an accordion, so each is opened as it is needed.
   const admin = page.locator("section", { has: page.getByRole("heading", { name: "Onboarding survey" }) }).first();
 
   // A text question and a choice question with two choices.
-  await admin.getByRole("button", { name: "+ Text question" }).click();
-  await admin.getByRole("textbox", { name: "Question 1 prompt" }).fill(prompt1);
-  await admin.getByRole("button", { name: "+ Choice question" }).click();
-  await admin.getByRole("textbox", { name: "Question 2 prompt" }).fill(prompt2);
-  await admin.getByRole("button", { name: "+ Add choice" }).click();
-  await admin.getByRole("button", { name: "+ Add choice" }).click();
-  const choiceInputs = admin.getByRole("textbox", { name: "Choice label" });
+  const questions = await openSettingRow(page, "Questions");
+  await questions.getByRole("button", { name: "+ Text question" }).click();
+  await questions.getByRole("textbox", { name: "Question 1 prompt" }).fill(prompt1);
+  await questions.getByRole("button", { name: "+ Choice question" }).click();
+  await questions.getByRole("textbox", { name: "Question 2 prompt" }).fill(prompt2);
+  await questions.getByRole("button", { name: "+ Add choice" }).click();
+  await questions.getByRole("button", { name: "+ Add choice" }).click();
+  const choiceInputs = questions.getByRole("textbox", { name: "Choice label" });
   await choiceInputs.nth(0).fill("PvP");
   await choiceInputs.nth(1).fill("PvE");
+  await questions.getByRole("button", { name: "Save survey" }).click();
+  await expect(admin.getByText("Survey saved")).toBeVisible({ timeout: 10000 });
 
-  await admin.getByRole("checkbox", { name: "Enable this survey" }).check();
-  await admin.getByRole("button", { name: "Save survey" }).click();
+  const enable = await openSettingRow(page, "Enable this survey");
+  await enable.getByRole("checkbox", { name: "Enable this survey" }).check();
+  await enable.getByRole("button", { name: "Save survey" }).click();
   await expect(admin.getByText("Survey saved")).toBeVisible({ timeout: 10000 });
 
   // A fresh member is shown the survey on load and submits it.
@@ -56,8 +61,9 @@ test("build a survey, a member submits it, admin sees the response", async ({ pa
   } finally {
     await context.close();
     // Cleanup: disable the survey so later tests' members aren't gated.
-    await admin.getByRole("checkbox", { name: "Enable this survey" }).uncheck();
-    await admin.getByRole("button", { name: "Save survey" }).click();
+    const off = await openSettingRow(page, "Enable this survey");
+    await off.getByRole("checkbox", { name: "Enable this survey" }).uncheck();
+    await off.getByRole("button", { name: "Save survey" }).click();
     await expect(admin.getByText("Survey saved")).toBeVisible({ timeout: 10000 });
   }
 });

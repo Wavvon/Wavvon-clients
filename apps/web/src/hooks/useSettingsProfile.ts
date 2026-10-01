@@ -40,10 +40,10 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
       const raw = localStorage.getItem(APPEARANCE_KEY);
       if (raw) {
         const a = JSON.parse(raw) as { slot: string };
-        if (["calm", "classic", "linear", "light", "custom"].includes(a.slot)) return a.slot as ThemeId;
+        if (["dark", "light", "custom"].includes(a.slot)) return a.slot as ThemeId;
       }
     } catch {}
-    return "calm";
+    return "dark";
   });
   const [customThemeStore, setCustomThemeStoreState] = useState<CustomThemeStore>(loadCustomThemeStore);
   const activeCustomTheme = customThemeStore.themes.find((ct) => ct.id === customThemeStore.activeId) ?? null;
@@ -102,7 +102,7 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
   }
 
   function handleNewCustomTheme() {
-    const base = activeCustomTheme?.skin.base ?? "calm";
+    const base = activeCustomTheme?.skin.base ?? "dark";
     const seed = makeSeed(base, "New theme");
     const created: NamedCustomTheme = { id: newCustomThemeId(), name: seed.name, skin: seed };
     persistCustomThemeStore({ themes: [...customThemeStore.themes, created], activeId: created.id });

@@ -41,7 +41,7 @@ export function ThemePicker({
             onClick={() => onChange(t.id)}
             type="button"
           >
-            {t.id === "calm" && (
+            {t.id === "dark" && (
               <span className="theme-card-default">{translate("settings.theme.default_badge")}</span>
             )}
             <div className="theme-card-name">{label}</div>

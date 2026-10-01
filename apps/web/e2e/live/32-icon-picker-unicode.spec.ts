@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { channelButton, createChannel, expectInHub, hubApi, uniqueName } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
 
 // P32 — icon pickers (role/channel/category/soundboard) are unicode-only.
 // Hub custom emoji are returned as `:name:` shortcodes that only resolve in
@@ -45,12 +45,12 @@ test("hub custom emoji appear in the composer but not in icon pickers", async ({
   // A role icon picker (unicodeOnly) does NOT — no "This server" section.
   await openRolesAdmin(page);
   const roleName = uniqueName("Emo");
-  await page.getByRole("button", { name: "New role" }).click();
-  await page.getByRole("textbox", { name: "Role name" }).fill(roleName);
-  await page.getByRole("button", { name: "Create role" }).click();
+  const creator = await openSettingRow(page, "New role");
+  await creator.getByRole("textbox", { name: "Role name" }).fill(roleName);
+  await creator.getByRole("button", { name: "Create role" }).click();
 
-  const row = page.locator(".settings-row").filter({ hasText: roleName }).first();
-  await expect(row).toBeVisible({ timeout: 10000 });
+  // The icon picker is part of the form the role's row opens to.
+  const row = await openSettingRow(page, roleName);
   await row.getByRole("button", { name: "Add reaction" }).click();
   // The picker is open, but with no hub-emoji section.
   await expect(page.getByText("Standard").first()).toBeVisible({ timeout: 10000 });
@@ -58,7 +58,7 @@ test("hub custom emoji appear in the composer but not in icon pickers", async ({
 
   // Cleanup the role.
   await page.keyboard.press("Escape");
-  page.on("dialog", (d) => d.accept());
   await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmInApp(page);
   await expect(row).toBeHidden({ timeout: 10000 });
 });

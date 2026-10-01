@@ -170,6 +170,35 @@ export {
   CHANNEL_ICONS,
   ChannelIconGlyph,
   ChannelIcon,
+  PinIcon,
+  SearchIcon,
+  MembersIcon,
+  LinkIcon,
+  FlagIcon,
+  ReplyIcon,
+  EditIcon,
+  TrashIcon,
+  VolumeIcon,
+  GearIcon,
+  PlusIcon,
+  CloseIcon,
+  ChevronIcon,
+  ExpandIcon,
+  ResetIcon,
+  ForumIcon,
+  BellOffIcon,
+  LockIcon,
+  PaperclipIcon,
+  SpeakerIcon,
+  ClockIcon,
+  WhisperIcon,
+  CakeIcon,
+  CalendarIcon,
+  WaveIcon,
+  ReactionAddIcon,
+  MessagesIcon,
+  DiscoverIcon,
+  MentionIcon,
 } from "./components/Icons";
 export { HubStreamsPanel } from "./components/HubStreamsPanel";
 export type { HubStreamInfo } from "./types";
@@ -378,6 +407,12 @@ export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry
 export type { StoredPresence } from "./utils/presenceExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useConfirm } from "./components/ConfirmDialog";
+export { SettingRow } from "./components/SettingRow";
+export type { SettingRowProps } from "./components/SettingRow";
+export type { ConfirmRequest } from "./components/ConfirmDialog";
+export { useHubPing, applyProbeResult, PING_INTERVAL_MS, OFFLINE_AFTER_FAILURES } from "./hooks/useHubPing";
+export type { PingByHub, HubPingState } from "./hooks/useHubPing";
 export { useWhisper } from "./hooks/useWhisper";
 export { useTypingIndicators, typingKey, typingForScope } from "./hooks/useTypingIndicators";
 export type { TypingDeps, TypingMap } from "./hooks/useTypingIndicators";

@@ -97,10 +97,10 @@ export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platfo
   // Theme is device-level (shared across every account on this device), so
   // it's read unscoped; the rest are per-account preferences of the
   // identity being archived.
-  let theme = "calm";
+  let theme = "dark";
   try {
     const raw = localStorage.getItem("wavvon:appearance");
-    if (raw) theme = (JSON.parse(raw) as { slot?: string }).slot ?? "calm";
+    if (raw) theme = (JSON.parse(raw) as { slot?: string }).slot ?? "dark";
   } catch {
     // ignore malformed local state
   }

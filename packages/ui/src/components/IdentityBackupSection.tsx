@@ -169,11 +169,10 @@ export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase
           {t("settings.security.recovery.hint")}
         </p>
         {recoveryPhrase ? (
-          <div
-            className="recovery-phrase"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "10px 14px", fontFamily: "monospace", lineHeight: 1.8, fontSize: "var(--text-sm)" }}
-          >
-            {recoveryPhrase}
+          <div className="recovery-phrase">
+            {recoveryPhrase.split(/\s+/).filter(Boolean).map((word, i) => (
+              <span key={`${i}-${word}`}>{word}</span>
+            ))}
           </div>
         ) : (
           <button className="btn-secondary" onClick={onRevealPhrase}>

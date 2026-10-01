@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "./FocusTrap";
+import { CloseIcon } from "./Icons";
 
 export function Lightbox({
   src,
@@ -34,8 +35,8 @@ export function Lightbox({
           onClick={onClose}
           title={t("lightbox.close_title")}
           aria-label={t("modal.close")}
-        >
-          ×
+        >
+          <CloseIcon size={13} />
         </button>
       </FocusTrap>
     </div>

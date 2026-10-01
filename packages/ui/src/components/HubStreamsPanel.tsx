@@ -2,6 +2,7 @@ import type { Channel } from "@wavvon/core";
 import { useTranslation } from "react-i18next";
 import type { HubStreamInfo } from "../types";
 import { FocusTrap } from "./FocusTrap";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 interface Props {
   streams: HubStreamInfo[];
@@ -17,6 +18,7 @@ interface Props {
 // Cross-channel screen-share discovery: watch a share happening in another
 // channel without joining it.
 export function HubStreamsPanel({ streams, subscribedIds, currentChannelId, channels, nameFor, onWatch, onStopWatch, onClose }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? id.slice(0, 8);
   // Only screen shares in OTHER channels are worth surfacing here.

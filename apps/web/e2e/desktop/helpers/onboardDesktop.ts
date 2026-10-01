@@ -14,7 +14,7 @@ export async function createDesktopIdentity(page: Page, displayName?: string): P
   await expect(page.getByRole("heading", { name: "Welcome to Wavvon" })).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByRole("button", { name: "Create new identity" }).click();
+  await page.getByRole("button", { name: /^Create a new identity/ }).click();
   await dismissSetupSteps(page, displayName);
 }
 

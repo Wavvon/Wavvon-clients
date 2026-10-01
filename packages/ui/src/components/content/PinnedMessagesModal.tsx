@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
+import { CloseIcon } from "../Icons";
 
 /** One entry of `GET /channels/{id}/pins` — matches the hub's `PinResponse`. */
 export interface PinnedMessageEntry {
@@ -83,7 +84,7 @@ export function PinnedMessagesModal({
           <h2 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>
             📌 Pinned messages · #{channelName}
           </h2>
-          <button className="btn-ghost" onClick={onClose} aria-label={t("modal.close")}>×</button>
+          <button className="btn-ghost" onClick={onClose} aria-label={t("modal.close")}><CloseIcon size={13} /></button>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>

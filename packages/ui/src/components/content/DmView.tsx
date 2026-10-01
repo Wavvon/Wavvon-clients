@@ -5,6 +5,7 @@ import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelativ
 import { MessageAttachments, PendingAttachments } from "../Attachments";
 import { MessageContent } from "../MessageContent";
 import { TypingIndicator } from "../TypingIndicator";
+import { PaperclipIcon, LockIcon } from "../Icons";
 
 interface TypingEntry { name: string; ts: number }
 
@@ -125,14 +126,14 @@ export function DmView({
               </span>
             ) : null;
             const lockIcon = m.is_encrypted
-              ? <span className="dm-lock-icon" title={t("dm.encrypted")}>🔒</span>
+              ? <span className="dm-lock-icon" title={t("dm.encrypted")}><LockIcon size={12} /></span>
               : null;
             const actionText = meAction(m.content);
             if (actionText !== null) {
               return (
                 <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message message-action">
                   <span className="action-asterisk">*</span>
-                  <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                  <span className="message-sender">
                     {senderLabel}
                   </span>
                   <span className="action-text">
@@ -148,7 +149,7 @@ export function DmView({
             }
             return (
               <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message">
-                <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                <span className="message-sender">
                   {senderLabel}
                 </span>
                 <span className="message-time" title={formatFullTimestamp(m.timestamp)}>
@@ -180,8 +181,8 @@ export function DmView({
         onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
         onClick={handleContainerClick}
       >
-        <label className="btn-attach" title={t("composer.attach")}>
-          📎
+        <label className="btn-attach" title={t("composer.attach")}>
+          <PaperclipIcon size={16} />
           <input
             type="file"
             multiple

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { SettingRow } from "../SettingRow";
 import { useTranslation } from "react-i18next";
 import { formatRelative, type Channel } from "@wavvon/core";
 import type { WebhookInfo, WebhookCreatedResult } from "../../types";
+import { useConfirm } from "../ConfirmDialog";
 
 export interface WebhooksSectionActions {
   loadWebhooks: () => Promise<WebhookInfo[]>;
@@ -23,11 +25,13 @@ function maskUrl(url: string): string {
 
 export function WebhooksSection({ channels, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [webhooks, setWebhooks] = useState<WebhookInfo[]>([]);
   const [channelId, setChannelId] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [creating, setCreating] = useState(false);
+  const [open, setOpen] = useState(false);
   const [createdResult, setCreatedResult] = useState<WebhookCreatedResult | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [regeneratedUrl, setRegeneratedUrl] = useState<string | null>(null);
@@ -82,7 +86,11 @@ export function WebhooksSection({ channels, actions }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t("webhooks.delete") + "?")) return;
+    if (!(await confirm({
+      title: t("webhooks.delete_confirm"),
+      confirmLabel: t("webhooks.delete"),
+      danger: true,
+    }))) return;
     try {
       await actions.deleteWebhook(id);
       await loadWebhooks();
@@ -92,16 +100,22 @@ export function WebhooksSection({ channels, actions }: Props) {
   }
 
   return (
-    <section>
-      <h1>{t("webhooks.title")}</h1>
-
-      <h2>{t("webhooks.section")}</h2>
+    <SettingRow
+      title={t("webhooks.section")}
+      state={webhooks.length === 0
+        ? t("webhooks.state.none")
+        : t("webhooks.state.some", { count: webhooks.length })}
+      meta={webhooks.length > 0 ? String(webhooks.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      {dialog}
       <p className="muted">
         {t("webhooks.hint")}
       </p>
 
       {error && (
-        <p style={{ color: "var(--color-error, red)", marginBottom: "var(--space-3)" }}>{error}</p>
+        <p className="error-text">{error}</p>
       )}
 
       <div className="settings-section">
@@ -220,6 +234,6 @@ export function WebhooksSection({ channels, actions }: Props) {
           </tbody>
         </table>
       )}
-    </section>
+    </SettingRow>
   );
 }

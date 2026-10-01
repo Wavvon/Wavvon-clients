@@ -39,6 +39,9 @@ export function Avatar({
   }
   const initials = initialsFrom(name);
   const hue = hashToHue(pubkey || name || "?");
+  // The hue is handed to CSS rather than baked into a colour here: telling two
+  // people apart is worth a tint, but how saturated that tint gets is the
+  // theme's call, and a fully saturated one here fights the single accent.
   return (
     <span
       className="avatar-fallback"
@@ -46,8 +49,7 @@ export function Avatar({
         width: size,
         height: size,
         fontSize: Math.round(size * 0.45),
-        background: `hsl(${hue}, 55%, 42%)`,
-        color: "#fff",
+        ["--avatar-hue" as string]: String(hue),
       }}
     >
       {initials}

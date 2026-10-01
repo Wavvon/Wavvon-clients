@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import {
   IdentityBackupSection,
   RecoveryContactsSection,
+  SettingRow,
   type IdentityBackupSectionActions,
   type RecoveryContactsSectionActions,
   type RecoveryContactItem,
@@ -75,9 +77,11 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
     },
   };
 
+  const [localDataOpen, setLocalDataOpen] = useState(false);
+
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.accounts")}</h1>
+      <h1>{t("settings.tabs.accounts")}</h1>
       <AccountSwitcherSection />
       <IdentityBackupSection
         accounts={backupAccounts}
@@ -90,13 +94,17 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
       <HomeHubSection hubs={hubs} />
-      <div className="settings-section">
-        <label className="settings-label">{t("settings.account.local_data.label")}</label>
+      <SettingRow
+        title={t("settings.account.local_data.label")}
+        state={t("settings.account.local_data.state")}
+        open={localDataOpen}
+        onToggle={() => setLocalDataOpen((v) => !v)}
+      >
         <p className="muted">{t("settings.account.local_data.hint")}</p>
-        <button className="btn-secondary" onClick={onClearLocalData}>
+        <button className="btn-small danger" onClick={onClearLocalData}>
           {t("settings.account.local_data.button")}
         </button>
-      </div>
+      </SettingRow>
     </section>
   );
 }

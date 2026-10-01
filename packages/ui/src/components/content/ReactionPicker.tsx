@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { loadRecentEmojis, pushRecentEmoji } from "@wavvon/core";
 import { EMOJI_CATALOG } from "../../emojiCatalog";
 import { FocusTrap } from "../FocusTrap";
+import { ReactionAddIcon } from "../Icons";
 
 const POPUP_HEIGHT = 300; // estimated max height in px
 
@@ -71,8 +72,8 @@ export function ReactionPicker({
         className="reaction-add-btn"
         onClick={handleOpen}
         title={t("reaction.add")}
-      >
-        🙂+
+      >
+        <ReactionAddIcon size={15} />
       </button>
       {open && (
         <>

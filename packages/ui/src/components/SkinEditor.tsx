@@ -12,8 +12,9 @@ import {
   splitRgba,
   validateSkin,
 } from "../skinValidation";
+import { ResetIcon } from "./Icons";
 
-const BASES: SkinBase[] = ["calm", "classic", "linear", "light"];
+const BASES: SkinBase[] = ["dark", "light"];
 
 
 interface Props {
@@ -63,8 +64,8 @@ function TokenRow({
         />
         <span style={{ width: 36, textAlign: "right", fontSize: "var(--text-xs)" }}>{numVal.toFixed(2)}×</span>
         {isOverridden && (
-          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
-            ↺
+          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
+            <ResetIcon size={13} />
           </button>
         )}
       </div>
@@ -83,8 +84,8 @@ function TokenRow({
           aria-label={label}
         />
         {isOverridden && (
-          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
-            ↺
+          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
+            <ResetIcon size={13} />
           </button>
         )}
       </div>
@@ -115,8 +116,8 @@ function TokenRow({
         />
         <span style={{ width: 32, fontSize: "var(--text-xs)", textAlign: "right" }}>{Math.round(alpha * 100)}%</span>
         {isOverridden && (
-          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
-            ↺
+          <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
+            <ResetIcon size={13} />
           </button>
         )}
       </div>
@@ -143,8 +144,8 @@ function TokenRow({
         aria-label={`${label} hex`}
       />
       {isOverridden && (
-        <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
-          ↺
+        <button className="btn-icon" onClick={onReset} title={t("settings.skin.reset_token")} aria-label={t("settings.skin.reset_token_aria", { label })} style={{ marginLeft: 4 }}>
+          <ResetIcon size={13} />
         </button>
       )}
     </div>

@@ -339,10 +339,14 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
 
   if (step === "generated") {
     return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+      <div className="onboarding"><div className="onboarding-card">
         <h2>{t("identity_setup.generated.title")}</h2>
-        <p className="muted">{t("identity_setup.generated.hint")}</p>
-        <div style={{ background: "var(--bg-elevated)", padding: 16, borderRadius: "var(--r-md)", fontFamily: "monospace", lineHeight: 1.8, marginBottom: 16 }}>{generatedPhrase}</div>
+        <p className="onboarding-lede">{t("identity_setup.generated.hint")}</p>
+        <div className="recovery-phrase">
+          {generatedPhrase.split(/\s+/).filter(Boolean).map((word, i) => (
+            <span key={`${i}-${word}`}>{word}</span>
+          ))}
+        </div>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
           <button
             className="btn-ghost"
@@ -354,8 +358,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           {showHexBackup && <code style={{ display: "block", marginTop: 4, wordBreak: "break-all" }}>{generatedSeed}</code>}
         </p>
 
-        <div className="settings-section" style={{ marginBottom: 16 }}>
-          <label className="settings-label">{t("identity_setup.backup.label")}</label>
+        <div className="onboarding-block">
+          <span className="onboarding-block-title">{t("identity_setup.backup.label")}</span>
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("identity_setup.backup.hint")}</p>
 
           {backupDone && (
@@ -409,34 +413,34 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           )}
         </div>
 
-        <label className="settings-label">{t("identity_setup.label.field_label")}</label>
-        <input
-          type="text"
-          value={labelDraft}
-          onChange={(e) => setLabelDraft(e.target.value)}
-          placeholder={t("identity_setup.label.placeholder")}
-          aria-label={t("identity_setup.label.field_label")}
-          maxLength={48}
-          style={{ width: "100%", marginBottom: 12 }}
-        />
+        <div className="onboarding-field">
+          <label htmlFor="account-label">{t("identity_setup.label.field_label")}</label>
+          <input
+            id="account-label"
+            type="text"
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+            placeholder={t("identity_setup.label.placeholder")}
+            maxLength={48}
+          />
+        </div>
         <button
           className="btn-primary"
           onClick={() => void finalizeNewAccountLabel()}
           disabled={!labelDraft.trim()}
-          style={{ marginTop: 4 }}
         >
           {t("identity_setup.generated.continue")}
         </button>
-      </div>
+      </div></div>
     );
   }
 
   if (step === "label" && pendingAccount) {
     return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+      <div className="onboarding"><div className="onboarding-card">
         <h2>{t("identity_setup.label.title")}</h2>
-        <p className="muted">{t("identity_setup.label.hint")}</p>
-        <label className="settings-label">{t("identity_setup.label.field_label")}</label>
+        <p className="onboarding-lede">{t("identity_setup.label.hint")}</p>
+        <label className="onboarding-field-label">{t("identity_setup.label.field_label")}</label>
         <input
           type="text"
           autoFocus
@@ -451,7 +455,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         <button className="btn-primary" onClick={() => void finalizeNewAccountLabel()} disabled={!labelDraft.trim()}>
           {t("identity_setup.label.continue")}
         </button>
-      </div>
+      </div></div>
     );
   }
 
@@ -466,29 +470,29 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
 
   if (step === "recover") {
     return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+      <div className="onboarding"><div className="onboarding-card">
         <h2>{t("identity_setup.recover.title")}</h2>
-        <label className="settings-label">{t("identity_setup.recover.phrase_label")}</label>
+        <label className="onboarding-field-label">{t("identity_setup.recover.phrase_label")}</label>
         <textarea rows={3} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder={t("identity_setup.recover.phrase_placeholder")} style={{ width: "100%", marginBottom: 8 }} />
         <button onClick={doRecoverPhrase} style={{ marginBottom: 16 }}>{t("identity_setup.recover.from_phrase")}</button>
-        <label className="settings-label">{t("identity_setup.recover.hex_label")}</label>
+        <label className="onboarding-field-label">{t("identity_setup.recover.hex_label")}</label>
         <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder={t("identity_setup.recover.hex_placeholder")} style={{ width: "100%", fontFamily: "monospace", marginBottom: 8 }} />
         <button onClick={doRecoverHex} style={{ marginBottom: 8 }}>{t("identity_setup.recover.from_hex")}</button>
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
         <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>{t("modal.back")}</button>
-      </div>
+      </div></div>
     );
   }
 
   if (step === "pair") {
     return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+      <div className="onboarding"><div className="onboarding-card">
         <h2>{t("identity_setup.pair.title")}</h2>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
           {t("identity_setup.pair.hint")}
         </p>
-        <label className="settings-label">{t("identity_setup.pair.device_name_label")}</label>
+        <label className="onboarding-field-label">{t("identity_setup.pair.device_name_label")}</label>
         <input
           type="text"
           value={pairLabel}
@@ -497,7 +501,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           aria-label={t("identity_setup.pair.device_name_label")}
           style={{ width: "100%", marginBottom: 8 }}
         />
-        <label className="settings-label">{t("identity_setup.pair.code_label")}</label>
+        <label className="onboarding-field-label">{t("identity_setup.pair.code_label")}</label>
         <textarea
           rows={3}
           value={pairCode}
@@ -517,20 +521,23 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
         <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>{t("modal.back")}</button>
-      </div>
+      </div></div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: "120px auto", padding: 32, textAlign: "center" }}>
-      <h1 style={{ marginBottom: 12 }}>
+    <div className="onboarding"><div className="onboarding-card">
+      {variant !== "add" && !invitedToHub && (
+        <p className="onboarding-mark">{t("app.title")}</p>
+      )}
+      <h1>
         {variant === "add"
           ? t("identity_setup.add.title")
           : invitedToHub
             ? t("identity_setup.choose.invited_to", { name: invitedToHub })
-            : t("app.title")}
+            : t("identity_setup.choose.headline")}
       </h1>
-      <p className="muted">{variant === "add" ? t("identity_setup.add.hint") : t("identity_setup.choose.hint")}</p>
+      <p className="onboarding-lede">{variant === "add" ? t("identity_setup.add.hint") : t("identity_setup.choose.hint")}</p>
       {/* This origin was left for the user client. Say so instead of
           silently offering a fresh start, which is how one person ends up
           as two users on one hub. Not an automatic redirect: sending
@@ -544,14 +551,19 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           </a>
         </p>
       )}
-      <button className="btn-primary" style={{ width: "100%", marginBottom: 12 }} onClick={doGenerate}>
-        {t("identity_setup.choose.create")}
+      {/* Each option says what it does to your keys — that is the only
+          difference between them, and the one thing worth reading here. */}
+      <button className="choice primary" onClick={doGenerate}>
+        <span className="choice-title">{t("identity_setup.choose.create")}</span>
+        <span className="choice-hint">{t("identity_setup.choose.create_hint")}</span>
       </button>
-      <button className="btn-secondary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setStep("recover")}>
-        {t("identity_setup.choose.recover")}
+      <button className="choice" onClick={() => setStep("recover")}>
+        <span className="choice-title">{t("identity_setup.choose.recover")}</span>
+        <span className="choice-hint">{t("identity_setup.choose.recover_hint")}</span>
       </button>
-      <button className="btn-secondary" style={{ width: "100%" }} onClick={() => setStep("pair")}>
-        {t("identity_setup.pair.title")}
+      <button className="choice" onClick={() => setStep("pair")}>
+        <span className="choice-title">{t("identity_setup.pair.title")}</span>
+        <span className="choice-hint">{t("identity_setup.choose.pair_hint")}</span>
       </button>
       {/* Hub build only (USER_CLIENT_URL is null in the user build). Offered
           *before* an identity exists on purpose: nothing has to be moved yet,
@@ -567,10 +579,10 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       )}
       {error && <p style={{ color: "var(--danger)", marginTop: 12 }}>{error}</p>}
       {variant === "add" && onCancel && (
-        <button className="btn-ghost" style={{ width: "100%", marginTop: 12 }} onClick={onCancel}>
+        <button className="btn-ghost" style={{ marginTop: 12 }} onClick={onCancel}>
           {t("identity_setup.add.cancel")}
         </button>
       )}
-    </div>
+    </div></div>
   );
 }

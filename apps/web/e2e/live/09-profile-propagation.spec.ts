@@ -10,7 +10,7 @@ import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } 
 
 async function openProfileSettings(page: import("@playwright/test").Page) {
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Profile", exact: true }).click();
+  await page.locator(".settings-nav").getByRole("button", { name: "Profile", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -17,6 +18,7 @@ export function PasskeySection({ hubId }: { hubId: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!hubId) return;
@@ -51,11 +53,18 @@ export function PasskeySection({ hubId }: { hubId: string | null }) {
   if (!hubId) return null;
 
   return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">{t("settings.account.passkeys.label")}</label>
-      <p className="muted" style={{ marginBottom: 12 }}>
-        {t("settings.account.passkeys.desktop_hint")}
-      </p>
+    <SettingRow
+      title={t("settings.account.passkeys.label")}
+      state={passkeys === null
+        ? t("modal.loading")
+        : passkeys.length === 0
+          ? t("settings.account.passkeys.empty")
+          : t("settings.account.passkeys.state", { count: passkeys.length })}
+      meta={passkeys && passkeys.length > 0 ? String(passkeys.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      <p className="muted">{t("settings.account.passkeys.desktop_hint")}</p>
       {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
       {passkeys === null ? (
         <p className="muted">{t("modal.loading")}</p>
@@ -126,6 +135,6 @@ export function PasskeySection({ hubId }: { hubId: string | null }) {
           ))}
         </ul>
       )}
-    </div>
+    </SettingRow>
   );
 }

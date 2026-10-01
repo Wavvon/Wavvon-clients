@@ -53,7 +53,7 @@ export async function onboardWithSeed(
   await claimPrefsReload(page);
   try {
     await page
-      .getByRole("button", { name: "Recover existing identity" })
+      .getByRole("button", { name: /^Recover from/ })
       .click({ timeout: 20000 });
   } catch (e) {
     const body = await page.locator("body").innerText().catch(() => "<no body>");
@@ -312,4 +312,55 @@ export async function createChannel(
   await dialog.getByRole("button", { name: "Create", exact: true }).click();
   await expect(dialog).not.toBeVisible();
   return name;
+}
+
+/**
+ * Go through with the app's own confirmation dialog.
+ *
+ * Destructive admin actions used to raise `window.confirm()`, which a spec
+ * accepted with `page.on("dialog", d => d.accept())`. They now raise a dialog
+ * the app draws, so nothing native fires and that handler silently never runs
+ * — the click lands, the modal opens, and the assertion waits for a row that
+ * is still there. Call this right after the click instead.
+ */
+export async function confirmInApp(page: Page): Promise<void> {
+  const modal = page.locator(".confirm-modal");
+  await modal.waitFor({ state: "visible", timeout: 10_000 });
+  // The confirm is the last button in the actions row; cancel is the first.
+  await modal.locator(".confirm-modal-actions button").last().click();
+  await modal.waitFor({ state: "hidden", timeout: 10_000 });
+}
+
+/**
+ * One settings row, open or closed. Its head is always in the DOM, so this is
+ * what to use for the title, the `.setting-row-state` line, and the `meta`
+ * count — everything the row says about itself without being opened.
+ */
+export function settingRow(page: Page, title: string | RegExp) {
+  return page
+    .locator(".setting-row")
+    .filter({ has: page.locator(".setting-row-title", { hasText: title }) })
+    .first();
+}
+
+/**
+ * Every settings tab is a list of rows that state what they are set to and
+ * open to the form that changes it. A spec that reaches straight for the
+ * control finds nothing: until the row is open, the form is not in the DOM.
+ *
+ * Several tabs are accordions — opening one closes the one before it — so
+ * assert what an open row says before opening the next.
+ *
+ * Returns the row, so the caller can scope its queries to it.
+ */
+export async function openSettingRow(page: Page, title: string | RegExp) {
+  const row = settingRow(page, title);
+  await expect(row).toBeVisible({ timeout: 15000 });
+  const alreadyOpen = await row.evaluate((el) => el.classList.contains("open"));
+  if (!alreadyOpen) {
+    // Closed, the head's disclosure is the row's only button.
+    await row.getByRole("button").first().click();
+    await expect(row).toHaveClass(/\bopen\b/, { timeout: 10000 });
+  }
+  return row;
 }

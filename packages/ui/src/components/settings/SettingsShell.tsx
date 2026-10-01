@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { CloseIcon } from "../Icons";
 
 export interface SettingsTabDef<TTab extends string = string> {
   id: TTab;
@@ -26,7 +27,7 @@ export function SettingsShell<TTab extends string>({ title, tabs, activeTab, onT
   return (
     <div className="settings-page" style={{ display: "flex", height: "100%", minHeight: 0 }}>
       <aside className="settings-nav" style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border)", padding: "16px 8px", display: "flex", flexDirection: "column" }}>
-        <h2 style={{ padding: "0 8px", marginBottom: 12, fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".05em" }}>{title}</h2>
+        <h2>{title}</h2>
         <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
           {tabs.map((tab, i) => (
             <li key={tab.id}>
@@ -54,8 +55,8 @@ export function SettingsShell<TTab extends string>({ title, tabs, activeTab, onT
           onClick={onClose}
           title={t("modal.close")}
           style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--text-muted)" }}
-        >
-          ×
+        >
+          <CloseIcon size={13} />
         </button>
         {children}
       </main>

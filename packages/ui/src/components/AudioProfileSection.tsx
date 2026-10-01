@@ -69,8 +69,6 @@ export function AudioProfileSection({
 
   return (
     <div className="settings-section">
-      <label className="settings-label">{t("settings.voice.quality.label")}</label>
-
       <div className="audio-profile-picker">
         {profiles.map((p) => (
           <button

@@ -60,7 +60,7 @@ function makeArchive(overrides: Partial<ArchiveDocument> = {}): ArchiveDocument 
     devices: { subkey_certs: [], revocations: [] },
     prefs: {
       hub_list: [],
-      theme: "calm",
+      theme: "dark",
       ignored_users: [],
       voice_gains: {},
       mention_ping_enabled: true,
@@ -146,7 +146,7 @@ describe("planRestore — conflict policy", () => {
     const archive = makeArchive({
       prefs: {
         hub_list: [makeHub({ hub_id: "shared", hub_name: "Archive name" })],
-        theme: "calm",
+        theme: "dark",
         ignored_users: ["peer-1"],
         voice_gains: { "hub-1": 0.5 },
         mention_ping_enabled: false,
@@ -187,8 +187,8 @@ describe("planRestore — conflict policy", () => {
   it("skips a custom theme whose name already exists and restores the rest", () => {
     const archive = makeArchive({
       themes: [
-        { format: "wavvon.skin", version: 1, name: "Existing", base: "calm", tokens: {} },
-        { format: "wavvon.skin", version: 1, name: "New Theme", base: "calm", tokens: {} },
+        { format: "wavvon.skin", version: 1, name: "Existing", base: "dark", tokens: {} },
+        { format: "wavvon.skin", version: 1, name: "New Theme", base: "dark", tokens: {} },
       ],
     });
     const existing = emptySnapshot({ themeNames: ["Existing"] });
@@ -226,14 +226,14 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
     const archive = makeArchive({
       prefs: {
         hub_list: [makeHub({ hub_id: "new-hub" })],
-        theme: "calm",
+        theme: "dark",
         ignored_users: ["peer-x"],
         voice_gains: {},
         mention_ping_enabled: true,
         hub_synced: null,
         gap_note: "gap",
       },
-      themes: [{ format: "wavvon.skin", version: 1, name: "Restored", base: "calm", tokens: {} }],
+      themes: [{ format: "wavvon.skin", version: 1, name: "Restored", base: "dark", tokens: {} }],
     });
 
     const existing = readExistingAccountSnapshot("target-account");

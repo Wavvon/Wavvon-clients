@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { CloseIcon } from "../Icons";
 
 export interface SlotRow {
   key: string;
@@ -41,8 +42,8 @@ export function EventSlotEditor({ slots, onAdd, onRemove, onUpdate }: Props) {
             className="btn-ghost"
             aria-label={t("events.composer.remove_slot")}
             onClick={() => onRemove(slot.key)}
-          >
-            ✕
+          >
+            <CloseIcon size={14} />
           </button>
         </div>
       ))}

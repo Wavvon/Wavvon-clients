@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ErrorRetry } from "../ErrorRetry";
 import type { HubIcon } from "../../types";
 import { sanitizeSvgMarkup } from "../../utils/svgSanitize";
+import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 const RASTER_SIZE = 64;
 
@@ -69,6 +71,13 @@ function errorMessage(e: unknown): string {
 // SVG icon library for the hub (MANAGE_HUB_ICONS). SVG markup, ≤50KB.
 export function HubIconsSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
+  const [open, setOpen] = useState<string | null>(null);
+  const [renames, setRenames] = useState<Record<string, string>>({});
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const [icons, setIcons] = useState<HubIcon[] | null>(null);
   const [name, setName] = useState("");
   const [svg, setSvg] = useState("");
@@ -119,10 +128,18 @@ export function HubIconsSection({ actions }: Props) {
 
   return (
     <section>
+      {dialog}
       <h1>{t("hub.admin.icons.title")}</h1>
       <p className="muted">{t("hub.admin.icons.hint", { size: RASTER_SIZE })}</p>
       {error && <p className="error-text">{error}</p>}
 
+      <SettingRow
+        title={t("hub.admin.icons.add.title")}
+        state={icons === null
+          ? t("hub.admin.icons.loading")
+          : t("hub.admin.icons.state.count", { count: icons.length })}
+        {...row("add")}
+      >
       <div className="settings-section">
         <input
           type="text"
@@ -171,41 +188,69 @@ export function HubIconsSection({ actions }: Props) {
         </details>
 
         <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
-          <button onClick={handleCreate} disabled={busy || !name.trim() || !svg.trim()}>{t("hub.admin.icons.add")}</button>
+          <button className="btn-primary" onClick={handleCreate} disabled={busy || !name.trim() || !svg.trim()}>{t("hub.admin.icons.add")}</button>
         </div>
       </div>
+      </SettingRow>
 
       {icons === null ? (
         error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("hub.admin.icons.loading")}</p>
-      ) : icons.length === 0 ? (
-        <p className="muted">{t("hub.admin.icons.empty")}</p>
-      ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)" }}>
+      ) : icons.length === 0 ? null : (
+        <div>
           {icons.map((icon) => (
-            <div key={icon.id} className="settings-section" style={{ width: 140, textAlign: "center" }}>
-              <div
-                aria-hidden="true"
-                style={{ width: 40, height: 40, margin: "0 auto" }}
-                // Server validates + stores the SVG; render at fixed size.
-                dangerouslySetInnerHTML={{ __html: icon.svg_content }}
-              />
-              <div style={{ fontSize: "var(--text-sm)", margin: "var(--space-2) 0", wordBreak: "break-word" }}>{icon.name}</div>
-              <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                <button
-                  className="btn-small btn-secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    const next = window.prompt(t("hub.admin.icons.rename_prompt"), icon.name);
-                    if (next && next.trim()) void run(() => actions.renameHubIcon(icon.id, next.trim()));
-                  }}
-                >
-                  {t("hub.admin.icons.rename")}
-                </button>
-                <button className="btn-small btn-secondary danger" disabled={busy} onClick={() => run(() => actions.deleteHubIcon(icon.id))}>
-                  {t("hub.admin.icons.delete")}
-                </button>
+            <SettingRow
+              key={icon.id}
+              title={icon.name}
+              state={t("hub.admin.icons.state.icon")}
+              {...row(icon.id)}
+            >
+              <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "flex-start" }}>
+                <div
+                  aria-hidden="true"
+                  style={{ width: 40, height: 40, flexShrink: 0 }}
+                  // Server validates + stores the SVG; render at fixed size.
+                  dangerouslySetInnerHTML={{ __html: icon.svg_content }}
+                />
+                <div style={{ flexGrow: 1 }}>
+                  <label className="settings-label" htmlFor={`icon-name-${icon.id}`}>
+                    {t("hub.admin.icons.name_placeholder")}
+                  </label>
+                  <div className="settings-row">
+                    <input
+                      id={`icon-name-${icon.id}`}
+                      type="text"
+                      defaultValue={icon.name}
+                      onChange={(e) => setRenames((r) => ({ ...r, [icon.id]: e.target.value }))}
+                      style={{ maxWidth: 280 }}
+                    />
+                    <button
+                      className="btn-small"
+                      disabled={busy || !(renames[icon.id] ?? icon.name).trim()}
+                      onClick={() => {
+                        const next = (renames[icon.id] ?? icon.name).trim();
+                        if (next && next !== icon.name) void run(() => actions.renameHubIcon(icon.id, next));
+                      }}
+                    >
+                      {t("hub.admin.icons.rename")}
+                    </button>
+                    <button
+                      className="btn-small danger"
+                      disabled={busy}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: t("hub.admin.icons.delete_confirm", { name: icon.name }),
+                          confirmLabel: t("hub.admin.icons.delete"),
+                          danger: true,
+                        });
+                        if (ok) run(() => actions.deleteHubIcon(icon.id));
+                      }}
+                    >
+                      {t("hub.admin.icons.delete")}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </SettingRow>
           ))}
         </div>
       )}

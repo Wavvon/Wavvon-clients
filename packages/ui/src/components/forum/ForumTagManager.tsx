@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import type { ForumTagDef } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 import { ColorSwatchPicker } from "../admin/ColorSwatchPicker";
+import { useConfirm } from "../ConfirmDialog";
+import { ChevronIcon } from "../Icons";
 
 export interface ForumTagManagerActions {
   createTag: (channelId: string, label: string, color?: string | null, position?: number) => Promise<ForumTagDef>;
@@ -25,6 +27,7 @@ interface Props {
  * pattern one-for-one. */
 export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [newLabel, setNewLabel] = useState("");
   const [creating, setCreating] = useState(false);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
@@ -79,7 +82,11 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
   }
 
   async function handleDelete(tag: ForumTagDef) {
-    if (!window.confirm(t("forum.tags.delete_confirm", { label: tag.label }))) return;
+    if (!(await confirm({
+      title: t("forum.tags.delete_confirm", { label: tag.label }),
+      confirmLabel: t("forum.tags.delete"),
+      danger: true,
+    }))) return;
     await runMutation(async () => {
       await actions.deleteTag(tag.id);
       onChange(tags.filter((t) => t.id !== tag.id));
@@ -88,6 +95,7 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
 
   return (
     <div className="settings-section">
+      {dialog}
       <label className="settings-label">{t("forum.tags.title")}</label>
       <p className="muted">{t("forum.tags.hint")}</p>
       {error && <p className="error-text">{error}</p>}
@@ -103,8 +111,8 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
             disabled={index === 0}
             aria-label={t("forum.tags.move_up")}
             title={t("forum.tags.move_up")}
-          >
-            ↑
+          >
+            <ChevronIcon size={12} dir="up" />
           </button>
           <button
             type="button"
@@ -113,8 +121,8 @@ export function ForumTagManager({ channelId, tags, onChange, actions }: Props) {
             disabled={index === sorted.length - 1}
             aria-label={t("forum.tags.move_down")}
             title={t("forum.tags.move_down")}
-          >
-            ↓
+          >
+            <ChevronIcon size={12} dir="down" />
           </button>
           <input
             type="text"

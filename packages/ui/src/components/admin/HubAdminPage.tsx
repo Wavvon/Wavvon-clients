@@ -16,6 +16,8 @@ import { CertificationsSection, type CertificationsSectionActions } from "./Cert
 import { SoundboardAdminSection, type SoundboardAdminSectionActions } from "./SoundboardAdminSection";
 import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./OnboardingAdminSection";
 import { moveChannelOptions } from "../../utils/voiceMove";
+import { SettingRow } from "../SettingRow";
+import { CloseIcon } from "../Icons";
 
 export type HubAdminTab =
   | "overview"
@@ -172,6 +174,11 @@ function hubToWavvonUrl(hubUrl: string): string {
 
 export function HubAdminPage(props: HubAdminPageProps) {
   const { t } = useTranslation();
+  const [adminOpen, setAdminOpen] = useState<string | null>(null);
+  const adminRow = (id: string) => ({
+    open: adminOpen === id,
+    onToggle: () => setAdminOpen((cur) => (cur === id ? null : id)),
+  });
   const [copiedShare, setCopiedShare] = useState(false);
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
@@ -265,14 +272,16 @@ export function HubAdminPage(props: HubAdminPageProps) {
         <button className="settings-nav-close" onClick={props.onClose}>{t("modal.close")}</button>
       </aside>
       <main className="settings-content">
-        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}>×</button>
+        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}><CloseIcon size={13} /></button>
 
         {props.tab === "overview" && (
           <section>
             <h1>{t("hub.admin.overview.title")}</h1>
-            <div className="settings-cards">
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.identity")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.identity")}
+              state={props.hubName.trim() || t("hub.admin.overview.state.unnamed")}
+              {...adminRow("identity")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
                   <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => props.onHubNameChange(e.target.value)} />
@@ -297,10 +306,15 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     />
                   </div>
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.access")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.access")}
+              state={props.requireApproval
+                ? t("hub.admin.overview.state.approval_on")
+                : t("hub.admin.overview.state.approval_off")}
+              {...adminRow("access")}
+            >
                 <div className="settings-section">
                   <label className="settings-label">{t("hub.admin.overview.membership")}</label>
                   <label className="checkbox-label">
@@ -312,10 +326,13 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   <label className="settings-label" htmlFor="admin-antispam">{t("hub.admin.overview.antispam")}</label>
                   <input id="admin-antispam" type="number" min={0} max={9999} value={props.minSecurityLevel} onChange={(e) => props.onMinSecurityLevelChange(Number(e.target.value))} />
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.locale")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.locale")}
+              state={props.timezone || t("hub.admin.overview.timezone_unset")}
+              {...adminRow("locale")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-timezone">{t("hub.admin.overview.timezone")}</label>
                   <p className="muted">{t("hub.admin.overview.timezone_hint")}</p>
@@ -360,10 +377,14 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     <option value="none">{t("hub.admin.overview.name_colors.none")}</option>
                   </select>
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.channels_voice")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.channels_voice")}
+              state={props.channels.find((c) => c.id === props.afkChannelId)?.name
+                || t("hub.admin.overview.afk_channel_none")}
+              {...adminRow("channels-voice")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-afk-channel">{t("hub.admin.overview.afk_channel")}</label>
                   <p className="muted">{t("hub.admin.overview.afk_channel_hint")}</p>
@@ -405,10 +426,15 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   <p className="muted">{t("hub.admin.overview.max_depth_hint")}</p>
                   <input id="admin-max-depth" type="number" min={0} max={20} value={props.maxChannelDepth} onChange={(e) => props.onMaxChannelDepthChange(Number(e.target.value))} />
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.limits")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.limits")}
+              state={t("hub.admin.overview.state.attachment_cap", {
+                mb: Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024)),
+              })}
+              {...adminRow("limits")}
+            >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-attachment-cap">
                     {t("hub.admin.overview.attachment_cap")}
@@ -443,10 +469,13 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     {t("hub.admin.overview.startup_only.rest")}
                   </p>
                 </div>
-              </div>
+            </SettingRow>
 
-              <div className="settings-card">
-                <h3>{t("hub.admin.overview.welcome")}</h3>
+            <SettingRow
+              title={t("hub.admin.overview.welcome")}
+              state={props.welcomeLabel.trim() || t("hub.admin.overview.state.no_welcome")}
+              {...adminRow("welcome")}
+            >
                 <div className="settings-section">
                   <p className="muted">{t("hub.admin.overview.welcome_intro")}</p>
                   <div className="settings-card-row">
@@ -493,11 +522,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
                     })}</p>
                   )}
                 </div>
-              </div>
-            </div>
+            </SettingRow>
             {props.saveError && <p className="error-text">{props.saveError}</p>}
             <div className="settings-save-bar">
-              <button onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
+              <button className="btn-primary" onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
             </div>
           </section>
         )}
@@ -592,49 +620,50 @@ export function HubAdminPage(props: HubAdminPageProps) {
               </div>
             )}
             <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
-            <table className="members-table">
-              <thead><tr>
-                <th>{t("hub.admin.members.col.name")}</th>
-                <th>{t("hub.admin.members.col.roles")}</th>
-                <th>{t("hub.admin.members.col.joined")}</th>
-                <th>{t("hub.admin.members.col.actions")}</th>
-              </tr></thead>
-              <tbody>
-                {props.members.map((m) => (
-                  <tr key={m.public_key}>
-                    <td>
-                      <div>{m.display_name || t("hub.admin.members.pending.no_name")}</div>
-                      <div className="member-pk" title={m.public_key}>{formatPubkey(m.public_key)}</div>
-                    </td>
-                    <td>
-                      {props.canManageRoles ? (
-                        <MemberRoleManager
-                          pubkey={m.public_key}
-                          currentRoles={m.roles}
-                          myMaxPriority={props.myMaxPriority}
-                          onChanged={(roles) => props.onMemberRolesChanged(m.public_key, roles)}
-                          actions={props.memberRoleActions}
-                        />
-                      ) : (
-                        m.roles.map((r) => r.name).join(", ") || "—"
-                      )}
-                    </td>
-                    <td>{formatRelative(m.first_seen_at)}</td>
-                    <td style={{ display: "flex", gap: "var(--space-1)", flexWrap: "wrap" }}>
-                      <button className="btn-small" onClick={() => props.onKickMember(m.public_key)}>{t("hub.admin.members.kick")}</button>
-                      <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("hub.admin.members.ban")}</button>
-                      <button className="btn-small btn-secondary" onClick={() => props.onMuteMember(m.public_key)}>{t("hub.admin.members.mute")}</button>
-                      <button className="btn-small btn-secondary" onClick={() => props.onTimeoutMember(m.public_key)}>{t("hub.admin.members.timeout")}</button>
-                      {props.voiceMutedKeys.has(m.public_key) ? (
-                        <button className="btn-small btn-secondary" onClick={() => props.onVoiceUnmuteMember(m.public_key)}>{t("hub.admin.members.voice_unmute")}</button>
-                      ) : (
-                        <button className="btn-small btn-secondary" onClick={() => props.onVoiceMuteMember(m.public_key)}>{t("hub.admin.members.voice_mute")}</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {props.members.map((m) => (
+              <SettingRow
+                key={m.public_key}
+                title={m.display_name || t("hub.admin.members.pending.no_name")}
+                state={t("hub.admin.members.state", {
+                  roles: m.roles.map((r) => r.name).join(", ") || t("hub.admin.members.state.no_roles"),
+                  joined: formatRelative(m.first_seen_at),
+                })}
+                {...adminRow(m.public_key)}
+              >
+                <p className="member-pk" title={m.public_key} style={{ marginBottom: "var(--space-3)" }}>
+                  {formatPubkey(m.public_key)}
+                </p>
+
+                {props.canManageRoles && (
+                  <div style={{ marginBottom: "var(--space-4)" }}>
+                    <MemberRoleManager
+                      pubkey={m.public_key}
+                      currentRoles={m.roles}
+                      myMaxPriority={props.myMaxPriority}
+                      onChanged={(roles) => props.onMemberRolesChanged(m.public_key, roles)}
+                      actions={props.memberRoleActions}
+                    />
+                  </div>
+                )}
+
+                <span className="settings-label">{t("hub.admin.members.group.limit")}</span>
+                <div className="settings-row" style={{ marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
+                  <button className="btn-small" onClick={() => props.onMuteMember(m.public_key)}>{t("hub.admin.members.mute")}</button>
+                  <button className="btn-small" onClick={() => props.onTimeoutMember(m.public_key)}>{t("hub.admin.members.timeout")}</button>
+                  {props.voiceMutedKeys.has(m.public_key) ? (
+                    <button className="btn-small" onClick={() => props.onVoiceUnmuteMember(m.public_key)}>{t("hub.admin.members.voice_unmute")}</button>
+                  ) : (
+                    <button className="btn-small" onClick={() => props.onVoiceMuteMember(m.public_key)}>{t("hub.admin.members.voice_mute")}</button>
+                  )}
+                </div>
+
+                <span className="settings-label">{t("hub.admin.members.group.remove")}</span>
+                <div className="settings-row" style={{ flexWrap: "wrap" }}>
+                  <button className="btn-small danger" onClick={() => props.onKickMember(m.public_key)}>{t("hub.admin.members.kick")}</button>
+                  <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("hub.admin.members.ban")}</button>
+                </div>
+              </SettingRow>
+            ))}
             {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
           </section>
         )}
@@ -643,28 +672,22 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <section>
             <h1>{t("hub.admin.bans.title", { count: props.bans.length })}</h1>
             {props.bans.length === 0 && <p className="muted">{t("hub.admin.bans.empty")}</p>}
-            {props.bans.length > 0 && (
-              <table className="members-table">
-                <thead><tr>
-                  <th>{t("hub.admin.bans.col.user")}</th>
-                  <th>{t("hub.admin.bans.col.reason")}</th>
-                  <th>{t("hub.admin.bans.col.banned_by")}</th>
-                  <th>{t("hub.admin.bans.col.when")}</th>
-                  <th>{t("hub.admin.bans.col.actions")}</th>
-                </tr></thead>
-                <tbody>
-                  {props.bans.map((b) => (
-                    <tr key={b.target_public_key}>
-                      <td><span className="member-pk">{formatPubkey(b.target_public_key)}</span></td>
-                      <td>{b.reason || <span className="muted">—</span>}</td>
-                      <td><span className="member-pk" title={b.banned_by}>{formatPubkey(b.banned_by)}</span></td>
-                      <td>{formatRelative(b.created_at)}</td>
-                      <td><button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>{t("hub.admin.bans.unban")}</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            {props.bans.map((b) => (
+              <SettingRow
+                key={b.target_public_key}
+                title={formatPubkey(b.target_public_key)}
+                state={t("hub.admin.bans.state", {
+                  reason: b.reason || t("hub.admin.bans.state.no_reason"),
+                  when: formatRelative(b.created_at),
+                })}
+                {...adminRow(b.target_public_key)}
+              >
+                <p className="muted" style={{ marginBottom: "var(--space-3)" }}>
+                  {t("hub.admin.bans.state.by", { who: formatPubkey(b.banned_by) })}
+                </p>
+                <button className="btn-small" onClick={() => props.onUnban(b.target_public_key)}>{t("hub.admin.bans.unban")}</button>
+              </SettingRow>
+            ))}
           </section>
         )}
 
@@ -683,17 +706,23 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "roles" && <RolesSection actions={props.rolesActions} />}
 
         {props.tab === "integrations" && (
-          <>
+          <section>
+            <h1>{t("webhooks.title")}</h1>
             <WebhooksSection channels={props.channels} actions={props.webhookActions} />
             {props.renderOutgoingWebhooks?.()}
-          </>
+          </section>
         )}
 
         {props.tab === "certifications" && (
           <CertificationsSection actions={props.certActions} />
         )}
 
-        {props.tab === "recovery" && props.renderRecoveryContacts?.()}
+        {props.tab === "recovery" && (
+          <section>
+            <h1>{t("hub.admin.tabs.recovery")}</h1>
+            {props.renderRecoveryContacts?.()}
+          </section>
+        )}
 
         {props.tab === "soundboard" && props.canManageSoundboard && props.soundboardActions && (
           <SoundboardAdminSection actions={props.soundboardActions} />

@@ -1,5 +1,6 @@
 import type { ChallengeDifficulty, ChallengeMode } from "../../types";
 import { useTranslation } from "react-i18next";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface Props {
   mode: ChallengeMode;
@@ -27,6 +28,7 @@ function PuzzleMock({ difficulty }: { difficulty: ChallengeDifficulty }) {
 }
 
 export function ChallengePreviewModal({ mode, difficulty, onClose }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const showsClickFirst = mode === "click" || mode === "both";
   const showsPuzzle = mode === "puzzle" || mode === "both";

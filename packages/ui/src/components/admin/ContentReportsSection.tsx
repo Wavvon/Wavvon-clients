@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatRelative } from "@wavvon/core";
+import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 import type { Report, ReportAction } from "../../types";
 
 export interface ContentReportsActions {
@@ -23,6 +25,8 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
+  const [open, setOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -44,6 +48,19 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
   }, []);
 
   async function handleReview(reportId: string, action: ReportAction) {
+    // Dismissing a report is undoable by reopening it; the other two are not.
+    // Both were a single click, while revoking a certification two sections
+    // over asked first — the guard followed whoever wrote the section rather
+    // than what the action costs.
+    if (action !== "dismiss") {
+      const ok = await confirm({
+        title: t(`hub.admin.reports.confirm.${action}.title`),
+        body: t(`hub.admin.reports.confirm.${action}.body`),
+        confirmLabel: t(`hub.admin.reports.${action === "ban_user" ? "ban_user" : "delete_message"}`),
+        danger: true,
+      });
+      if (!ok) return;
+    }
     try {
       await actions.reviewReport(reportId, action);
       await load();
@@ -53,10 +70,16 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
   }
 
   return (
-    <div className="settings-section">
-      <h2>{t("hub.admin.reports.title")}</h2>
+    <SettingRow
+      title={t("hub.admin.reports.title")}
+      state={loading ? t("hub.admin.reports.loading") : reports.length === 0 ? t("hub.admin.reports.empty") : t("hub.admin.reports.waiting", { count: reports.length })}
+      attention={reports.length > 0}
+      meta={reports.length > 0 ? String(reports.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      {dialog}
       {error && <p className="error-text">{error}</p>}
-      {loading && <p className="muted">{t("hub.admin.reports.loading")}</p>}
       {!loading && reports.length === 0 && (
         <p className="muted">{t("hub.admin.reports.empty")}</p>
       )}
@@ -109,6 +132,6 @@ export function ContentReportsSection({ actions }: { actions: ContentReportsActi
           </tbody>
         </table>
       )}
-    </div>
+    </SettingRow>
   );
 }

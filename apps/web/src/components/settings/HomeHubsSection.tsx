@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { masterSeedHex, buildHomeHubList, masterPubkeyOf, holdsMasterSeed, type IdentityRecord } from "@identity/index";
 import { getHomeHubDesignation, putHomeHubDesignation } from "@platform";
-import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
+import { AccountLabelSuffix, PerAccountHint, ChevronIcon } from "@wavvon/ui";
 
 // Personal-axis home-hub list (a master-signed HomeHubList). This is the
 // ordered set of hubs that other users and hubs consult to deliver DMs to you —
@@ -138,8 +138,8 @@ export function HomeHubsSection({ activeHubUrl, account }: Props) {
             </span>
             {!isPairedDevice && (
               <span style={{ display: "flex", gap: 4 }}>
-                <button className="btn-small btn-secondary" disabled={i === 0} onClick={() => move(i, -1)} aria-label={t("settings.account.home_hubs.move_up_aria")}>↑</button>
-                <button className="btn-small btn-secondary" disabled={i === hubs.length - 1} onClick={() => move(i, 1)} aria-label={t("settings.account.home_hubs.move_down_aria")}>↓</button>
+                <button className="btn-small btn-secondary" disabled={i === 0} onClick={() => move(i, -1)} aria-label={t("settings.account.home_hubs.move_up_aria")}><ChevronIcon size={12} dir="up" /></button>
+                <button className="btn-small btn-secondary" disabled={i === hubs.length - 1} onClick={() => move(i, 1)} aria-label={t("settings.account.home_hubs.move_down_aria")}><ChevronIcon size={12} dir="down" /></button>
                 <button className="btn-small btn-secondary danger" onClick={() => removeHub(i)}>{t("settings.account.home_hubs.remove_button")}</button>
               </span>
             )}

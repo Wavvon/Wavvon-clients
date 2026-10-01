@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { HubListing } from "../../types";
+import { CloseIcon } from "../Icons";
 
 interface Props {
   onClose: () => void;
@@ -102,7 +103,7 @@ export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl }: Pro
     <div className="discover-page">
       <div className="discover-header">
         <h1>{t("discover.title")}</h1>
-        <button className="settings-close-x" onClick={onClose} title={t("modal.close")}>×</button>
+        <button className="settings-close-x" onClick={onClose} title={t("modal.close")}><CloseIcon size={13} /></button>
       </div>
 
       <form className="discover-search-bar" onSubmit={handleSearch}>

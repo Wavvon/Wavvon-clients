@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SettingRow } from "../SettingRow";
 import { useTranslation } from "react-i18next";
 import type { BanlistSource, FederatedBanEntry, BanlistOverride } from "../../types";
 
@@ -26,7 +27,9 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
   const [overrides, setOverrides] = useState<BanlistOverride[]>([]);
   const [publishBanlist, setPublishBanlist] = useState(false);
   const [entriesOpen, setEntriesOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const [newSourceUrl, setNewSourceUrl] = useState("");
   const [newSourcePolicy, setNewSourcePolicy] = useState<"hard-reject" | "soft-flag">("hard-reject");
@@ -49,6 +52,8 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
       setOverrides(overridesData);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoaded(true);
     }
   }
 
@@ -117,9 +122,23 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
     }
   }
 
+  const stateLine = !loaded ? t("modal.loading") : [
+    sources.length === 0
+      ? t("hub.admin.banlist.sources_empty")
+      : t("hub.admin.banlist.state.sources", { count: sources.length }),
+    publishBanlist
+      ? t("hub.admin.banlist.state.published")
+      : t("hub.admin.banlist.state.unpublished"),
+  ].join(" · ");
+
   return (
-    <div className="settings-section">
-      <h2>{t("hub.admin.banlist.title")}</h2>
+    <SettingRow
+      title={t("hub.admin.banlist.title")}
+      state={stateLine}
+      meta={entries.length > 0 ? String(entries.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
       {error && <p className="error-text">{error}</p>}
 
       <h3>{t("hub.admin.banlist.sources")}</h3>
@@ -292,6 +311,6 @@ export function FederatedBanlistSection({ actions }: { actions: FederatedBanlist
           {t("hub.admin.banlist.add_override")}
         </button>
       </div>
-    </div>
+    </SettingRow>
   );
 }

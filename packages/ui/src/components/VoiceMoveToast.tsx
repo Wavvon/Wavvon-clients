@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { CloseIcon } from "./Icons";
 
 interface Props {
   channelName: string;
@@ -18,7 +19,7 @@ export function VoiceMoveToast({ channelName, canRejoin, onRejoin, onDismiss }: 
     <div className="voice-move-toast" role="status">
       <div className="voice-move-toast-header">
         <span>{t("voice.move.toast", { channel: channelName })}</span>
-        <button className="btn-ghost" onClick={onDismiss} aria-label={t("voice.move.toast.dismiss")}>×</button>
+        <button className="btn-ghost" onClick={onDismiss} aria-label={t("voice.move.toast.dismiss")}><CloseIcon size={13} /></button>
       </div>
       {canRejoin && (
         <div className="voice-move-toast-actions">

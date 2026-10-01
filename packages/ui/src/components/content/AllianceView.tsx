@@ -67,7 +67,7 @@ export function AllianceView({
           return (
             <div key={m.id} className="message">
               <Avatar src={null} name={senderLabel} size={28} />
-              <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+              <span className="message-sender">
                 {senderLabel}
               </span>
               <span className="message-content">

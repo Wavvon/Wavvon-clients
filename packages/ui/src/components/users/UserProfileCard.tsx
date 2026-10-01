@@ -9,6 +9,8 @@ import { insertAtLineStart } from "../../utils/activityEmoji";
 import { AutoGrowTextarea } from "../profile/AutoGrowTextarea";
 import { GameEmojiRow } from "../profile/GameEmojiRow";
 import { StatusBubble } from "../profile/StatusBubble";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
+import { CloseIcon } from "../Icons";
 
 const ACTIVITIES_MAX = 500;
 
@@ -57,6 +59,7 @@ function loadRoleCategories(hubId: string, listRoleCategories: (hubId: string) =
 }
 
 export function UserProfileCard({ pubkey, myPubkey, activeHubId, actions, onClose, onStartConversation }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
@@ -153,8 +156,8 @@ export function UserProfileCard({ pubkey, myPubkey, activeHubId, actions, onClos
           onClick={onClose}
           aria-label={t("user.profile.close")}
           style={{ position: "absolute", top: 10, right: 12, zIndex: 2, background: "rgba(0,0,0,0.3)", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, color: "#fff", borderRadius: "var(--r-pill)", width: 26, height: 26 }}
-        >
-          ×
+        >
+          <CloseIcon size={13} />
         </button>
 
         {error && <p style={{ color: "var(--danger)", padding: 24 }}>{error}</p>}

@@ -7,6 +7,7 @@ import { toggleTagSelection } from "../../utils/forumTags";
 import { AutoGrowTextarea } from "../profile/AutoGrowTextarea";
 import { EmojiPicker } from "../content/EmojiPicker";
 import type { ForumActions } from "./ForumView";
+import { CloseIcon } from "../Icons";
 
 // 5 text rows at the --leading-normal line-height (1.5 * 14px).
 const COMPOSER_MIN_HEIGHT = 5 * 21;
@@ -129,7 +130,9 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
         />
       )}
       {!allianceId && showNoTagsHint && tags.length === 0 && (
-        <p className="muted">{t("forum.no_tags_hint")}</p>
+        <div className="settings-section">
+          <p className="muted">{t("forum.no_tags_hint")}</p>
+        </div>
       )}
       {actions.uploadAttachment && !allianceId && (
         <div className="settings-section">
@@ -158,8 +161,8 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
                     className="btn-ghost danger"
                     onClick={() => removeFile(f.objectUrl)}
                     aria-label={`Remove ${f.file.name}`}
-                  >
-                    ×
+                  >
+                    <CloseIcon size={13} />
                   </button>
                 </li>
               ))}
