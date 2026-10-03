@@ -181,7 +181,7 @@ export function ServerTagsSection({ actions }: Props) {
               <div>
                 <span>🏅 {p.label}</span>
                 <span className="muted" style={{ marginLeft: 8, fontSize: "var(--text-sm)" }}>
-                  {t("hub.admin.tags.from", { url: p.issuer_url })}
+                  {t("hub.admin.tags.from", { url: p.from_hub_url })}
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
