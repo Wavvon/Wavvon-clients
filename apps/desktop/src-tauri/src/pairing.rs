@@ -410,6 +410,8 @@ pub async fn claim_pairing_offer(
 /// verified again here as a final guard.
 /// Also attempts to unwrap the prefs blob key and pull current prefs
 /// from the home hubs.
+// Same as `open_mini_app`: these arguments are the command's JSON wire shape.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn save_paired_identity(
     master_pubkey: String,

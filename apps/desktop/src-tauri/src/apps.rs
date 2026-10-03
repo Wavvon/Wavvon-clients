@@ -54,7 +54,6 @@ pub(crate) async fn send_component_interaction(
         .map_err(|_| "WS closed".to_string())
 }
 
-
 // ---------------------------------------------------------------------------
 // App profile
 // ---------------------------------------------------------------------------
@@ -73,7 +72,6 @@ pub(crate) struct AppProfileResult {
     pub description: Option<String>,
     pub commands: Vec<AppCommandDef>,
 }
-
 
 // ---------------------------------------------------------------------------
 // Webhooks

@@ -51,7 +51,7 @@ pub(crate) async fn spawn_ws_task(
                         .map(|d| d.as_millis() as i64)
                         .unwrap_or(0);
                     let json = serde_json::json!({ "type": "ping", "nonce": nonce }).to_string();
-                    if ws_tx.send(WsMessage::Text(json.into())).await.is_err() {
+                    if ws_tx.send(WsMessage::Text(json)).await.is_err() {
                         break;
                     }
                 }

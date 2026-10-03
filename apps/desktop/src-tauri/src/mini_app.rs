@@ -1,5 +1,8 @@
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
+// A Tauri command's arguments are its JSON wire shape, so grouping them into a
+// struct to satisfy the lint would change what the frontend sends.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub(crate) fn open_mini_app(
     app: AppHandle,

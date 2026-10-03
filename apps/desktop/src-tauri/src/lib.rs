@@ -4,9 +4,9 @@
 mod accounts;
 mod admin;
 mod admin_alliance;
+mod apps;
 mod auth_creds;
 mod backup;
-mod apps;
 mod certs;
 mod channels;
 mod deep_link;

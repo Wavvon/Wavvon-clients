@@ -504,6 +504,14 @@ fn save_sender_key_state(state: &serde_json::Value) -> Result<(), String> {
     std::fs::write(&path, text).map_err(|e| e.to_string())
 }
 
+/// Not dead, despite having no caller in the shell: this is one of the three
+/// mirrors of the DM envelope's signing bytes that must match the server's
+/// `identity` crate byte-for-byte, and it is pinned by the shared vector in
+/// `identity.rs::dm_envelope_signing_bytes_vector`. Product code never calls
+/// it because `send_dm` takes the envelope already built and signed on the
+/// TypeScript side and forwards it. Deleting it would delete the Rust half of
+/// a cross-repo contract and leave the vector with nothing to check.
+#[allow(dead_code)]
 pub(crate) fn dm_envelope_signing_bytes(
     conv_id: &str,
     ciphertext_hex: &str,
