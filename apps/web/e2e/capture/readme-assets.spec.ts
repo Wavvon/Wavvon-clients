@@ -46,14 +46,21 @@ function identityByName(creds: DemoCreds, name: string): DemoIdentity {
 }
 
 // First-run onboarding with a recovered identity, then join the demo hub.
-// The demo hub already knows each identity's display name, so no name
-// prompt appears. demo-seed writes recovery phrases (not seed hex), so we
-// recover through the 24-word phrase path.
+// demo-seed writes recovery phrases (not seed hex), so we recover through the
+// 24-word phrase path.
+//
+// Two screens sit between recovery and the hub prompt that did not exist when
+// this was written: "Name this account" (device-local, multi-account) and
+// "Set up your profile". The profile one is skipped — the demo hub already
+// knows each identity's display name, and typing it again would overwrite the
+// roster with the same string.
 async function onboard(page: Page, recoveryPhrase: string): Promise<void> {
   await page.goto("/");
   await page.getByRole("button", { name: /^Recover from/ }).click({ timeout: 20000 });
   await page.getByPlaceholder(/word1 word2/).fill(recoveryPhrase);
   await page.getByRole("button", { name: "Recover from phrase" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByPlaceholder(/hub\.example\.com/).fill(HUB_URL);
   await page.getByRole("button", { name: "Join hub" }).click();
   await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({ timeout: 20000 });
@@ -67,6 +74,9 @@ async function newIdentityContext(
 ): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({
     baseURL: "http://localhost:1421",
+    // browser.newContext() does not inherit the config's `use`, so the
+    // locale has to be repeated here or the English selectors miss.
+    locale: "en-US",
     storageState: { cookies: [], origins: [] },
     viewport,
   });
@@ -123,30 +133,36 @@ test("capture join-flow video", async ({ browser }) => {
   test.setTimeout(300000);
   const context = await browser.newContext({
     baseURL: "http://localhost:1421",
+    // browser.newContext() does not inherit the config's `use`, so the
+    // locale has to be repeated here or the English selectors miss.
+    locale: "en-US",
     storageState: { cookies: [], origins: [] },
     viewport: { width: 1280, height: 800 },
     recordVideo: { dir: OUT_DIR, size: { width: 1280, height: 800 } },
   });
   const page = await context.newPage();
 
-  // The flow the GIF shows: create an identity, save the phrase, join the
-  // hub by URL, pick a name, land in the community.
+  // The flow the GIF shows: create an identity, save the phrase, pick a name,
+  // join the hub by URL, land in the community.
+  //
+  // The name is typed on the profile screen now, before the hub is named. It
+  // used to be a prompt the hub raised after the join — the create path asks
+  // for the account label on the phrase screen itself, so there is no
+  // separate "Name this account" step here the way there is after a recovery.
   await page.goto("/");
   await page.waitForTimeout(1500);
   await page.getByRole("button", { name: /^Create a new identity/ }).click();
   await page.waitForTimeout(3000); // linger on the recovery phrase
   await page.getByRole("button", { name: /I saved my phrase/ }).click();
+  await page.waitForTimeout(1200);
+  await page.getByPlaceholder("Your name").pressSequentially("kestrel", { delay: 120 });
+  await page.waitForTimeout(600);
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.waitForTimeout(1000);
   await page.getByPlaceholder(/hub\.example\.com/).fill(HUB_URL);
   await page.waitForTimeout(800);
   await page.getByRole("button", { name: "Join hub" }).click();
   await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({ timeout: 20000 });
-  const namePrompt = page.getByText("What should we call you?");
-  await namePrompt.waitFor({ state: "visible", timeout: 8000 }).catch(() => {});
-  if (await namePrompt.isVisible()) {
-    await page.getByPlaceholder("Your name").pressSequentially("kestrel", { delay: 120 });
-    await page.getByRole("button", { name: "Save name" }).click();
-  }
   await channelButton(page, "general").click();
   await expect(page.locator(".message").first()).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(2500);
