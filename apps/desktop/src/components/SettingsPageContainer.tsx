@@ -120,13 +120,7 @@ export function SettingsPageContainer({
       onCustomVadThresholdChange={(v) => {
         voice.setCustomVadThreshold(v);
         voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, v);
-      }}
-      customChannels={voice.customChannels}
-      onCustomChannelsChange={(v) => {
-        voice.setCustomChannels(v);
-        voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, v);
-      }}
-      customFrameMs={voice.customFrameMs}
+      }}      customFrameMs={voice.customFrameMs}
       onCustomFrameMsChange={(v) => {
         voice.setCustomFrameMs(v);
         voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, undefined, v);

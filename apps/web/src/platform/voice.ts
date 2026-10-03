@@ -6,6 +6,7 @@ import { parseDownlinkDatagram, peekSealedKeyId, ReplayGuard } from './voiceData
 import { nextPlayoutStart } from './voicePlayout';
 import { lossPercent, trackPacket, type LossTracker } from './connectionStats';
 import { CAPTURE_SAMPLE_RATE, captureMic } from './micCapture';
+import { resolveOpusConfig } from './opusConfig';
 import {
   DEFAULT_SPEAKING,
   INITIAL_SPEAKING_STATE,
@@ -207,26 +208,10 @@ export class VoiceWtSession {
   }
 
   async start(): Promise<void> {
-    let opusApp = OpusScript.Application.VOIP;
-    let channels = 1;
+    const opus = resolveOpusConfig(this.audioConfig);
 
-    if (this.audioConfig) {
-      if (this.audioConfig.profile === 'music') {
-        opusApp = OpusScript.Application.AUDIO;
-        channels = 2;
-      } else if (this.audioConfig.profile === 'custom') {
-        const appMap = {
-          voip: OpusScript.Application.VOIP,
-          audio: OpusScript.Application.AUDIO,
-          lowdelay: OpusScript.Application.RESTRICTED_LOWDELAY,
-        };
-        opusApp = appMap[this.audioConfig.customApp ?? 'voip'];
-        channels = this.audioConfig.customChannels ?? 1;
-      }
-    }
-
-    this.encoder = new OpusScript(48000, channels, opusApp, { wasm: false }) as unknown as OpusCodec;
-    this.decoder = new OpusScript(48000, 1, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
+    this.encoder = new OpusScript(48000, opus.channels, opus.app, { wasm: false }) as unknown as OpusCodec;
+    this.decoder = new OpusScript(48000, opus.channels, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
 
     // Honors the user's chosen input device (Settings → Voice), if any, and
     // states the processing constraints rather than inheriting whatever this
