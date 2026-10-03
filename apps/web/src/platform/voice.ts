@@ -5,6 +5,7 @@ import { VoiceKeyManager, type VoiceKeyBundle } from './voiceKeys';
 import { parseDownlinkDatagram, peekSealedKeyId, ReplayGuard } from './voiceDatagram';
 import { nextPlayoutStart } from './voicePlayout';
 import { lossPercent, trackPacket, type LossTracker } from './connectionStats';
+import { CAPTURE_SAMPLE_RATE, captureMic } from './micCapture';
 import {
   DEFAULT_SPEAKING,
   INITIAL_SPEAKING_STATE,
@@ -227,14 +228,12 @@ export class VoiceWtSession {
     this.encoder = new OpusScript(48000, channels, opusApp, { wasm: false }) as unknown as OpusCodec;
     this.decoder = new OpusScript(48000, 1, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
 
-    // Honor the user's chosen input device (Settings → Voice), if any.
-    let inputId: string | null = null;
-    try { inputId = localStorage.getItem("wavvon.audioInputDevice"); } catch { /* ignore */ }
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: inputId ? { deviceId: { exact: inputId } } : true,
-    });
+    // Honors the user's chosen input device (Settings → Voice), if any, and
+    // states the processing constraints rather than inheriting whatever this
+    // browser defaults to — see micCapture.ts.
+    this.mediaStream = await captureMic();
 
-    this.audioCtx = new AudioContext({ sampleRate: 48000 });
+    this.audioCtx = new AudioContext({ sampleRate: CAPTURE_SAMPLE_RATE });
     // Route playback to the chosen output device where supported (Chrome 110+).
     try {
       const outputId = localStorage.getItem("wavvon.audioOutputDevice");
