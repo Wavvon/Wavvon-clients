@@ -12,7 +12,9 @@
   },
   "scripts": {
     "check-hardcoded": "node find-hardcoded.mjs",
-    "baseline-hardcoded": "node find-hardcoded.mjs --baseline"
+    "baseline-hardcoded": "node find-hardcoded.mjs --baseline",
+    "check-unused-keys": "node find-unused-keys.mjs",
+    "baseline-unused-keys": "node find-unused-keys.mjs --baseline"
   },
   "devDependencies": {
     "intl-messageformat": "^11.2.8"

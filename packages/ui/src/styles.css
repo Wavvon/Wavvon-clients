@@ -277,25 +277,7 @@ h4 { font-size: var(--text-md); }
    Every interactive element shares a consistent transition.
    Disabled when the user prefers reduced motion.
    ============================================================ */
-button,
-a,
-input,
-textarea,
-select,
-.channel-item,
-.hub-icon,
-.user-list-item,
-.hub-dropdown-item,
-.hub-header-button,
-.settings-nav-item,
-.context-menu-item,
-.message-action,
-.btn-icon,
-.btn-icon-gear,
-.btn-small,
-.btn-voice,
-.btn-secondary,
-.member-role-chip {
+button, a, input, textarea, select, .channel-item, .hub-icon, .user-list-item, .hub-dropdown-item, .hub-header-button, .settings-nav-item, .context-menu-item, .message-action, .btn-icon, .btn-icon-gear, .btn-small, .btn-secondary {
   transition:
     background-color var(--transition-fast),
     color var(--transition-fast),
@@ -624,22 +606,7 @@ select,
   font-weight: var(--weight-bold);
   margin-bottom: var(--space-5);
   letter-spacing: -0.01em;
-}
-
-/* Groups related sections within a single tab (e.g. Voice & Video's
-   Audio vs. Camera controls) without the weight of another h1. */
-.settings-subheading {
-  color: var(--text);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semi);
-  margin: var(--space-6) 0 var(--space-3);
-}
-
-.settings-subheading:first-of-type {
-  margin-top: 0;
-}
-
-.settings-close-x {
+}.settings-close-x {
   position: absolute;
   top: var(--space-5);
   right: var(--space-5);
@@ -660,16 +627,6 @@ select,
 .settings-close-x:hover {
   background: var(--surface);
   color: var(--text);
-}
-
-.scope-toggle-btn:hover:not(:disabled):not(.active) {
-  color: var(--text);
-  background: var(--surface);
-}
-
-.scope-toggle-btn.active {
-  background: var(--accent);
-  color: var(--accent-text);
 }/* ============================================================
    THEME SWITCHER (Settings → Appearance)
    ============================================================ */
@@ -1539,11 +1496,6 @@ select,
   border: none;
   background: transparent;
   margin: 0;
-}
-
-.profile-hub-row.active-hub {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
 }/* ============================================================
    ROLES (admin)
    ============================================================ */
@@ -1601,22 +1553,7 @@ select,
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.role-perms .checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-sm);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.role-perms .checkbox-label input[type="checkbox"]:disabled + * {
-  color: var(--text-faint);
-}
-
-.role-badge {
+}.role-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1709,19 +1646,6 @@ select,
 .channel-item.alliance-noninteractive:hover {
   background: transparent;
   color: var(--text-muted);
-}
-
-.alliance-list-item.active {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--text);
-  font-weight: var(--weight-semi);
-}
-
-.alliances-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  font-weight: var(--weight-semi);
-  background: transparent;
 }/* ============================================================
    MEMBERS TABLE (admin)
    ============================================================ */
@@ -1904,13 +1828,7 @@ tr.account-drop-target td {
   align-items: center;
   margin-left: 6px;
   opacity: 0.7;
-}
-
-.channel-item.selected .channel-voice-badge {
-  color: var(--accent-text);
-}
-
-.channel-type-hash {
+}.channel-type-hash {
   font-size: 13px;
   font-weight: var(--weight-medium);
   opacity: 0.55;
@@ -2004,11 +1922,7 @@ tr.account-drop-target td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.channel-item .channel-settings-btn,
-.channel-item .channel-temp-badge,
-.channel-item .channel-draft-badge,
-.channel-item .channel-voice-badge,
-.channel-item .channel-muted-icon {
+.channel-item .channel-settings-btn, .channel-item .channel-temp-badge, .channel-item .channel-draft-badge, .channel-item .channel-muted-icon {
   flex-shrink: 0;
 }
 
@@ -2435,33 +2349,7 @@ tr.account-drop-target td {
 
 .sidebar-drill-crumb-sep {
   color: var(--text-faint);
-}
-
-.btn-voice.join {
-  background: var(--success);
-  color: var(--bg);
-}
-
-.btn-voice.join:hover:not(:disabled) {
-  filter: brightness(0.92);
-}
-
-.btn-voice.join:disabled {
-  background: var(--border);
-  color: var(--text-faint);
-  cursor: not-allowed;
-}
-
-.btn-voice.leave {
-  background: var(--danger);
-  color: white;
-}
-
-.btn-voice.leave:hover {
-  background: var(--danger-hover);
-}
-
-/* Sidebar voice participants — nested under each channel that has
+}/* Sidebar voice participants — nested under each channel that has
    anyone in voice. Indented under the channel name so the tree shape
    matches the room/people relationship. */
 .channel-item-wrap {
@@ -2538,14 +2426,7 @@ tr.account-drop-target td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.voice-ping.good    { color: var(--success); }
-.voice-ping.okay    { color: var(--warning); }
-.voice-ping.bad     { color: var(--danger); }
-.voice-ping.offline { color: var(--text-faint); }
-
-/* Signal-strength ping icon */
+}/* Signal-strength ping icon */
 .ping-icon { fill: currentColor; }
 .ping-good    { color: var(--success); }
 .ping-okay    { color: var(--warning); }
@@ -2672,25 +2553,7 @@ select:focus-visible {
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
   margin-bottom: var(--space-2);
-}
-
-/* Settings cards — the compact layout for field-heavy admin tabs.
-   Stacked .settings-section gives every field a full-width band with a
-   full-width divider under it, while the control inside keeps the
-   browser's default ~185px width: on a 1360px pane that reads as broken
-   (a 1265px rule under a 185px input) and cost the Overview tab 1673px
-   of scrolling for eleven fields. Cards group related fields and the
-   grid spends the horizontal space instead. */
-.settings-cards {
-  display: grid;
-  /* min() keeps the track from exceeding its container on narrow panes —
-     a bare minmax(320px, 1fr) forces a 320px column into a 300px box. */
-  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
-  gap: var(--space-4);
-  align-items: start;
-}
-
-.settings-card {
+}.settings-card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -4393,13 +4256,7 @@ select:focus-visible {
   color: var(--text-faint);
   opacity: 0.6;
   margin-right: 2px;
-}
-
-.channel-sublist .channel-item {
-  padding-left: 20px;
-}
-
-.forum-tag-row {
+}.forum-tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -5312,14 +5169,7 @@ select:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
   border-radius: var(--r-sm);
-}
-
-.message-row:focus .message-actions-toolbar,
-.message-row:focus-within .message-actions-toolbar {
-  display: flex;
-}
-
-.keyboard-shortcuts-modal {
+}.keyboard-shortcuts-modal {
   max-width: 560px;
   width: 100%;
 }
@@ -5451,17 +5301,7 @@ select:focus-visible {
   max-height: 60vh;
   flex: 1 1 0;
   min-width: 0;
-}
-
-.screen-share-panel--multi .screen-share-main-wrap {
-  max-height: 40vh;
-}
-
-.screen-share-panel--multi video.main-stream {
-  max-height: 40vh;
-}
-
-.screen-share-main-wrap:hover .pip-btn {
+}.screen-share-main-wrap:hover .pip-btn {
   opacity: 1;
 }
 
@@ -5720,20 +5560,7 @@ select:focus-visible {
   background: var(--surface);
   border-radius: var(--r-sm);
   padding: var(--space-2) var(--space-3);
-}
-
-.screen-share-active-bar .stop-btn {
-  margin-left: auto;
-  color: var(--danger);
-  background: none;
-  border: 1px solid var(--danger);
-  border-radius: var(--r-sm);
-  padding: 2px var(--space-3);
-  cursor: pointer;
-  font-size: var(--text-xs);
-}
-
-.screen-share-self-preview {
+}.screen-share-self-preview {
   position: fixed;
   right: var(--space-4);
   bottom: var(--space-4);
@@ -6341,20 +6168,7 @@ select:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   font-size: var(--text-sm);
-}
-
-.survey-question-item.active {
-  background: var(--surface);
-  font-weight: var(--weight-medium);
-}
-
-.survey-editor-tab.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
-  font-weight: var(--weight-medium);
-}
-
-/* One answered survey, opening to the answers. The editor rows above it are
+}/* One answered survey, opening to the answers. The editor rows above it are
    forms; these are records, so they sit flatter. */
 .survey-question-edit {
   padding: var(--space-2) 0;
@@ -6842,12 +6656,7 @@ a.embed-title:hover {
 .whisper-inbox-status { flex: 1; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .whisper-inbox-time { font-size: 11px; white-space: nowrap; }
 .whisper-inbox-dismiss { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 12px; }
-.whisper-inbox-dismiss:hover { color: var(--text); }
-
-.voice-more-item.active {
-  color: var(--accent);
-}
-.participant-whisper-badge { font-size: 10px; font-weight: 600; color: var(--warning); margin-left: 4px; }
+.whisper-inbox-dismiss:hover { color: var(--text); }.participant-whisper-badge { font-size: 10px; font-weight: 600; color: var(--warning); margin-left: 4px; }
 
 /* A visitor from an allied hub. Muted and never badge-styled: the name beside
    it is hub-asserted, not proven, so it must not read as a verified marker. */
@@ -6855,11 +6664,7 @@ a.embed-title:hover {
 
 /* A badge whose issuer the viewer chose to believe. Muted, not a seal: the
    trust is this viewer's own decision, not an attestation anyone else made. */
-.issuer-trusted { font-size: var(--text-xs); color: var(--text-muted); }
-
-.cosmetics-item.owned { border-color: var(--accent); opacity: 0.8; }
-
-.audio-profile-picker {
+.issuer-trusted { font-size: var(--text-xs); color: var(--text-muted); }.audio-profile-picker {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -6927,15 +6732,7 @@ a.embed-title:hover {
 .video-self-view { position: fixed; bottom: 80px; right: 12px; width: 120px; border-radius: 6px; overflow: hidden; border: 2px solid var(--border); cursor: grab; z-index: 100; user-select: none; }
 .video-self-view .video-tile-video { width: 100%; aspect-ratio: 4/3; object-fit: cover; transform: scaleX(-1); }
 .video-self-view .video-tile-name { font-size: 10px; }
-.video-self-resize-handle { position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; background: rgba(255,255,255,0.25); border-radius: 3px 0 0 0; }
-
-.video-bg-picker button.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-/* ============================================================
+.video-self-resize-handle { position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; background: rgba(255,255,255,0.25); border-radius: 3px 0 0 0; }/* ============================================================
    GLOBAL MESSAGE SEARCH (Task #28)
    ============================================================ */
 .global-search-wrap {
@@ -7076,37 +6873,11 @@ a.embed-title:hover {
 
 /* ---- Context menu extras ---- */
 .context-menu-separator { height: 1px; background: var(--border); margin: 4px 0; }
-.context-menu-item-active { background: var(--surface-hover); }
-
-/* ---- Event card active RSVP ---- */
-.event-card-btn.active { opacity: 1; font-weight: 700; box-shadow: 0 0 0 2px currentColor; }/* ---- Top-level error boundary fallback ---- */
-.error-boundary-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; color: var(--text); font-size: var(--text-md, 16px); }
-
-.welcome-recovery .recovery-phrase {
-  margin-bottom: var(--space-3);
-}
-
-.welcome-recovery.acked {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  border-color: var(--success);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.sidebar-header-alliance h3 {
+.context-menu-item-active { background: var(--surface-hover); }/* ---- Top-level error boundary fallback ---- */
+.error-boundary-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; color: var(--text); font-size: var(--text-md, 16px); }.sidebar-header-alliance h3 {
   font-size: var(--text-xs);
   color: var(--text-muted);
-}
-
-.alliance-item.active {
-  border-color: var(--accent);
-  background: var(--surface);
-}
-
-.faq-entry {
+}.faq-entry {
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
   background: var(--bg-sunken);
@@ -7130,14 +6901,7 @@ a.embed-title:hover {
   margin-top: var(--space-3);
   color: var(--text-muted);
   font-size: var(--text-xs);
-}
-
-.channel-item.game-item:hover .game-item-gear,
-.game-item-gear:focus-visible {
-  opacity: 1;
-}
-
-.btn-primary {
+}.btn-primary {
   background: var(--accent);
   color: var(--accent-text);
   border: none;
@@ -7464,44 +7228,7 @@ a.embed-title:hover {
 
 .app-launch-card {
   max-width: 480px;
-}
-
-.mini-app-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 8000;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-}
-
-.mini-app-header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.mini-app-header button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: var(--text-lg);
-  color: var(--text-muted);
-  padding: var(--space-1);
-  border-radius: var(--r-sm);
-  line-height: 1;
-}
-
-.mini-app-header button:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-
-/* ============================================================
+}/* ============================================================
    FLOATING CAMERA WINDOW (picture-in-picture)
    Follows the user's voice session, not the selected channel.
    Dragged by its title bar; resized via the native corner handle.
@@ -7776,16 +7503,7 @@ a.embed-title:hover {
 
 .onboarding-field input {
   width: 100%;
-}
-
-.onboarding-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.onboarding-block {
+}.onboarding-block {
   border-top: 1px solid var(--border);
   padding-top: var(--space-5);
   margin-bottom: var(--space-5);
