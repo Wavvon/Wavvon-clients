@@ -40,6 +40,7 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
       <FocusTrap>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-hub-title" onClick={(e) => e.stopPropagation()}>
         <h3 id="add-hub-title">{t("hub.add_modal.title")}</h3>
+        {/* eslint-disable-next-line react/no-danger -- our own i18n catalog, not hub input. */}
         <p className="muted" style={{ marginBottom: "var(--space-3)" }} dangerouslySetInnerHTML={{ __html: t("hub.add_modal.intro") }} />
         <input
           type="text"

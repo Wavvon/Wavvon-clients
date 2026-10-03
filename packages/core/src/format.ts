@@ -16,7 +16,7 @@ export function meAction(content: string): string | null {
 export function mentionsName(content: string, name: string | null): boolean {
   if (!name) return false;
   const lower = name.toLowerCase();
-  const re = /@([\w.\-]+)/g;
+  const re = /@([\w.-]+)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
     if (m[1].toLowerCase() === lower) return true;

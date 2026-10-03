@@ -43,12 +43,10 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, allianceId, actions]);
 
   useEffect(() => {
     void load(true, undefined, activeTagId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, activeTagId]);
 
   useEffect(() => {

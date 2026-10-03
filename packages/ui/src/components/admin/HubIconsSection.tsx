@@ -167,6 +167,7 @@ export function HubIconsSection({ actions }: Props) {
             <div
               aria-hidden="true"
               style={{ width: 32, height: 32 }}
+              // eslint-disable-next-line react/no-danger -- sanitized; a locally picked file, rendered as a preview.
               dangerouslySetInnerHTML={{ __html: sanitizeSvgMarkup(svg) }}
             />
           )}
@@ -208,6 +209,7 @@ export function HubIconsSection({ actions }: Props) {
                 <div
                   aria-hidden="true"
                   style={{ width: 40, height: 40, flexShrink: 0 }}
+                  // eslint-disable-next-line react/no-danger -- sanitized; the hub serves this and is not trusted to serve it honestly.
                   dangerouslySetInnerHTML={{ __html: sanitizeSvgMarkup(icon.svg_content) }}
                 />
                 <div style={{ flexGrow: 1 }}>

@@ -35,7 +35,6 @@ export default function AccountRoot() {
     setInPlaceSwitchHandler(({ id }) => setActiveAccountId(id));
     refresh().catch((e) => setError(String(e)));
     return () => setInPlaceSwitchHandler(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const wordCount = phrase.trim().split(/\s+/).filter(Boolean).length;

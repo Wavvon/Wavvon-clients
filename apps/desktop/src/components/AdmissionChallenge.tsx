@@ -146,6 +146,7 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
             {prompt.prompt_svg && (
               <div
                 className="challenge-svg-wrap"
+                // eslint-disable-next-line react/no-danger -- sanitized; a stranger's hub serves this before any trust exists.
                 dangerouslySetInnerHTML={{ __html: sanitizeSvgMarkup(prompt.prompt_svg) }}
               />
             )}
