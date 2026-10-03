@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use tauri::{AppHandle, Manager};
 
 #[derive(serde::Serialize)]

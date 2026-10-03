@@ -504,29 +504,6 @@ fn save_sender_key_state(state: &serde_json::Value) -> Result<(), String> {
     std::fs::write(&path, text).map_err(|e| e.to_string())
 }
 
-/// Not dead, despite having no caller in the shell: this is one of the three
-/// mirrors of the DM envelope's signing bytes that must match the server's
-/// `identity` crate byte-for-byte, and it is pinned by the shared vector in
-/// `identity.rs::dm_envelope_signing_bytes_vector`. Product code never calls
-/// it because `send_dm` takes the envelope already built and signed on the
-/// TypeScript side and forwards it. Deleting it would delete the Rust half of
-/// a cross-repo contract and leave the vector with nothing to check.
-#[allow(dead_code)]
-pub(crate) fn dm_envelope_signing_bytes(
-    conv_id: &str,
-    ciphertext_hex: &str,
-    nonce_hex: &str,
-    dh_pubkey_hex: &str,
-) -> Vec<u8> {
-    let mut out = b"wavvon/dm-ciphertext/v1\0".to_vec();
-    for s in [conv_id, ciphertext_hex, nonce_hex, dh_pubkey_hex] {
-        let b = s.as_bytes();
-        out.extend_from_slice(&(b.len() as u32).to_le_bytes());
-        out.extend_from_slice(b);
-    }
-    out
-}
-
 /// One member's copy of a sender key: the wrapped key and the nonce that
 /// wrapped it, kept apart.
 ///

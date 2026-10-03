@@ -178,7 +178,7 @@ pub fn load_active_credentials() -> Result<AuthCredentials, String> {
         let secret_array: [u8; 32] = secret
             .try_into()
             .map_err(|_| "subkey secret must be 32 bytes".to_string())?;
-        let subkey = DeviceSubkey::from_secret_bytes(&secret_array, paired.device_label.clone());
+        let subkey = DeviceSubkey::from_secret_bytes(&secret_array);
         // Subkey devices bypass PoW — the pairing relationship is already a
         // trust gate; requiring PoW per-subkey would penalise legitimate users.
         return Ok(AuthCredentials {
@@ -275,7 +275,7 @@ pub fn hub_identity(canonical: Option<&str>) -> Result<HubIdentity, String> {
         let secret_array: [u8; 32] = secret
             .try_into()
             .map_err(|_| "subkey secret must be 32 bytes".to_string())?;
-        let subkey = DeviceSubkey::from_secret_bytes(&secret_array, paired.device_label.clone());
+        let subkey = DeviceSubkey::from_secret_bytes(&secret_array);
         return Ok(HubIdentity::Paired {
             canonical_pubkey: canonical
                 .map(str::to_string)

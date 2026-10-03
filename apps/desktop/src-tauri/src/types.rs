@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -421,131 +420,13 @@ pub(crate) struct VoiceKeyBundleInfo {
 // Admin / moderation types
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct BanInfo {
-    pub target_public_key: String,
-    pub banned_by: String,
-    pub reason: Option<String>,
-    pub created_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct MemberAdminInfo {
-    pub public_key: String,
-    pub display_name: Option<String>,
-    pub online: bool,
-    pub first_seen_at: i64,
-    pub last_seen_at: i64,
-    pub roles: Vec<RoleInfo>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct ChannelBanInfo {
-    pub channel_id: String,
-    pub target_public_key: String,
-    pub banned_by: String,
-    pub reason: Option<String>,
-    pub created_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct VoiceMuteInfo {
-    pub target_public_key: String,
-    pub muted_by: String,
-    pub reason: Option<String>,
-    pub created_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct TalkPowerInfo {
-    pub channel_id: String,
-    pub min_talk_power: i64,
-}
-
 // ---------------------------------------------------------------------------
 // Alliance types
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct AllianceInfo {
-    pub id: String,
-    pub name: String,
-    pub created_by: String,
-    pub created_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct AllianceMemberInfo {
-    pub hub_public_key: String,
-    pub hub_name: String,
-    pub hub_url: String,
-    pub joined_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct AllianceDetail {
-    pub id: String,
-    pub name: String,
-    pub created_by: String,
-    pub created_at: i64,
-    pub members: Vec<AllianceMemberInfo>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct AllianceInvite {
-    pub token: String,
-    pub alliance_id: String,
-    pub alliance_name: String,
-    pub hub_url: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct AllianceSharedChannel {
-    pub channel_id: String,
-    pub channel_name: String,
-    pub hub_public_key: String,
-    pub hub_name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct PendingAllianceInvite {
-    pub id: String,
-    pub alliance_id: String,
-    pub alliance_name: String,
-    pub from_hub_url: String,
-    pub from_hub_name: String,
-    pub from_hub_public_key: String,
-    pub invite_token: String,
-    pub created_at: i64,
-    pub message: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct ProxiedMessage {
-    pub id: String,
-    pub channel_id: String,
-    pub sender: String,
-    pub sender_name: Option<String>,
-    pub content: String,
-    pub created_at: i64,
-    pub edited_at: Option<i64>,
-    #[serde(default)]
-    pub attachments: Vec<AttachmentInfo>,
-}
-
 // ---------------------------------------------------------------------------
 // Invite types
 // ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct InviteInfo {
-    pub code: String,
-    pub created_by: String,
-    pub max_uses: Option<i64>,
-    pub uses: i64,
-    pub expires_at: Option<i64>,
-    pub created_at: i64,
-}
 
 // ---------------------------------------------------------------------------
 
@@ -553,227 +434,29 @@ pub(crate) struct InviteInfo {
 // Recovery contacts
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct RecoveryContact {
-    pub pubkey: String,
-    pub display_name: Option<String>,
-    pub added_at: i64,
-    pub hub_url: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct RecoveryContactEntry {
-    pub pubkey: String,
-    pub added_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct RecoveryContactsResponse {
-    pub owner_pubkey: String,
-    pub contacts: Vec<RecoveryContactEntry>,
-    pub threshold: u32,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct RotationRequest {
-    pub id: String,
-    pub new_pubkey: String,
-    pub hub_url: String,
-    pub attestations: Vec<serde_json::Value>,
-    pub threshold: i64,
-    pub submitted_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct MyRotationRequestResponse {
-    pub id: String,
-    pub new_pubkey: String,
-    pub status: String,
-    pub created_at: i64,
-    pub attestation_count: i64,
-    pub threshold: i64,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct SetContactsPayload {
-    pub contacts: Vec<String>,
-    pub threshold: u32,
-}
-
 // ---------------------------------------------------------------------------
 // Survey / questionnaire types
 // ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyChoiceTs {
-    pub id: String,
-    pub label: String,
-    pub display_order: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyQuestionTs {
-    pub id: String,
-    pub prompt: String,
-    pub kind: String,
-    pub required: bool,
-    pub display_order: i64,
-    pub choices: Option<Vec<SurveyChoiceTs>>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyPublicTs {
-    pub id: String,
-    pub questions: Vec<SurveyQuestionTs>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyChoiceAdminTs {
-    pub id: String,
-    pub label: String,
-    pub display_order: i64,
-    pub role_ids: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyQuestionAdminTs {
-    pub id: String,
-    pub prompt: String,
-    pub kind: String,
-    pub required: bool,
-    pub display_order: i64,
-    pub choices: Option<Vec<SurveyChoiceAdminTs>>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyAdminTs {
-    pub id: String,
-    pub enabled: bool,
-    pub questions: Vec<SurveyQuestionAdminTs>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyAnswer {
-    pub question_id: String,
-    pub choice_id: Option<String>,
-    pub text_answer: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveySubmitResult {
-    pub next_state: String,
-    pub applied_roles: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyAnswerView {
-    pub question_id: String,
-    pub prompt: String,
-    pub choice_label: Option<String>,
-    pub text_answer: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct SurveyResponseAdminTs {
-    pub response_id: String,
-    pub pubkey: String,
-    pub display_name: Option<String>,
-    pub submitted_at: i64,
-    pub answers: Vec<SurveyAnswerView>,
-}
 
 // ---------------------------------------------------------------------------
 // Lobby
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct LobbyStatusResult {
-    pub status: String,
-    pub required_level: u32,
-    pub current_level: u32,
-    pub entered_at: Option<i64>,
-    pub welcome_md: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct LobbySubmitResult {
-    pub promoted: bool,
-    pub new_level: u32,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct LobbyWelcome {
-    pub welcome_md: String,
-    pub hub_name: String,
-    pub required_level: u32,
-}
-
 // ---------------------------------------------------------------------------
 // Challenge
 // ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct ChallengePrompt {
-    pub id: String,
-    pub mode: String,
-    pub prompt_svg: Option<String>,
-    pub expires_at: i64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct ChallengeResult {
-    pub ok: bool,
-    pub token: Option<String>,
-    pub expires_at: Option<i64>,
-    pub next_challenge: Option<ChallengePrompt>,
-    pub attempts_remaining: Option<u32>,
-}
 
 // ---------------------------------------------------------------------------
 // Webhooks
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct WebhookInfo {
-    pub id: String,
-    pub display_name: String,
-    pub channel_id: String,
-    pub channel_name: Option<String>,
-    pub webhook_url: String,
-    pub created_by: String,
-    pub created_at: i64,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct WebhookCreatedResult {
-    pub id: String,
-    pub webhook_url: String,
-}
-
 // ---------------------------------------------------------------------------
 // Uploads
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize)]
-pub(crate) struct UploadResult {
-    pub url: String,
-    pub filename: String,
-    pub size_bytes: u64,
-    pub mime_type: String,
-    pub file_id: String,
-}
-
 // ---------------------------------------------------------------------------
 // Screen share / capture
 // ---------------------------------------------------------------------------
-
-#[derive(serde::Serialize)]
-pub struct CaptureSource {
-    pub id: String,
-    pub name: String,
-    pub kind: String,
-    pub thumbnail_b64: String,
-}
 
 // ---------------------------------------------------------------------------
 // WS server messages
@@ -781,7 +464,6 @@ pub struct CaptureSource {
 
 #[derive(serde::Deserialize)]
 #[serde(tag = "type")]
-#[allow(dead_code)]
 pub(crate) enum WsServerMessage {
     #[serde(rename = "message")]
     ChatMessage {
@@ -898,26 +580,19 @@ pub(crate) enum WsServerMessage {
     },
     #[serde(rename = "voice_zone_created")]
     VoiceZoneCreated {
-        channel_id: String,
         zone_id: String,
-        name: String,
-        coordinate_system: String,
         attenuation: AttenuationConfigInfo,
     },
     #[serde(rename = "voice_zone_destroyed")]
-    VoiceZoneDestroyed { channel_id: String, zone_id: String },
+    VoiceZoneDestroyed { zone_id: String },
     #[serde(rename = "voice_position_updated")]
     VoicePositionUpdated {
-        channel_id: String,
         zone_id: String,
         pubkey: String,
         position: Vec<f64>,
     },
     #[serde(rename = "voice_zone_state")]
-    VoiceZoneState {
-        channel_id: String,
-        zones: Vec<VoiceZoneSnapshotInfo>,
-    },
+    VoiceZoneState { zones: Vec<VoiceZoneSnapshotInfo> },
     #[serde(rename = "video_participant_enabled")]
     VideoParticipantEnabled { channel_id: String, pubkey: String },
     #[serde(rename = "video_participant_disabled")]
@@ -964,8 +639,6 @@ pub(crate) enum WsServerMessage {
     #[serde(rename = "voice_key_received")]
     VoiceKeyReceived {
         channel_id: String,
-        #[serde(default)]
-        from_sender_id: u16,
         from_pubkey: String,
         ciphertext_hex: String,
         nonce_hex: String,
@@ -975,8 +648,6 @@ pub(crate) enum WsServerMessage {
     #[serde(rename = "voice_key_request")]
     VoiceKeyRequest {
         channel_id: String,
-        #[serde(default)]
-        new_sender_id: u16,
         new_pubkey: String,
     },
     #[serde(rename = "app_launch")]
@@ -1039,21 +710,6 @@ pub(crate) enum WsServerMessage {
 // Link preview
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub(crate) struct LinkPreviewInfo {
-    pub url: String,
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub image_url: Option<String>,
-}
-
 // ---------------------------------------------------------------------------
 // Public profile
 // ---------------------------------------------------------------------------
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct PublicHubEntryInput {
-    pub hub_url: String,
-    pub hub_name: String,
-    pub joined_at: u64,
-}

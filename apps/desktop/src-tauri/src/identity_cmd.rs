@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::identity::Identity;
 use crate::local_store::{save_active_hub_id, save_hubs_list};
 use crate::state::{active_session, AppState};
@@ -70,22 +69,9 @@ pub(crate) fn get_my_pubkey(state: State<'_, AppState>) -> Result<String, String
     get_my_public_key(state)
 }
 
-pub(crate) fn load_master_identity() -> Result<crate::identity::MasterIdentity, String> {
-    let path = Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = Identity::load(&path).map_err(|e| e.to_string())?;
-    identity.master().map_err(|e| e.to_string())
-}
-
 // ---------------------------------------------------------------------------
 // Public profile / directory
 // ---------------------------------------------------------------------------
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct PublicHubEntryInput {
-    pub hub_url: String,
-    pub hub_name: String,
-    pub joined_at: u64,
-}
 
 #[tauri::command]
 pub(crate) async fn fetch_public_profile(
