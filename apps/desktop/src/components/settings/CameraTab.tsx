@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingRow } from "@wavvon/ui";
 import { CameraSection } from "../CameraSection";
-import type { BackgroundMode } from "../../utils/backgroundProcessor";
+import type { BackgroundMode } from "@wavvon/ui";
 
 interface Props {
   backgroundMode: BackgroundMode;

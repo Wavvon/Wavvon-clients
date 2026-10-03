@@ -429,3 +429,6 @@ export { applyWhisperLogEvent, pickReplyPubkey } from "./utils/whisperInbox";
 export type { InboundWhisperEntry } from "./utils/whisperInbox";
 export { ChannelContextMenu } from "./components/channels/ChannelContextMenu";
 export type { ChannelContextMenuProps } from "./components/channels/ChannelContextMenu";
+
+export { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./utils/backgroundProcessor";
+export type { BackgroundMode } from "./utils/backgroundProcessor";

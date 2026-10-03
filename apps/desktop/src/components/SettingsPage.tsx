@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BackgroundMode } from "../utils/backgroundProcessor";
+import type { BackgroundMode } from "@wavvon/ui";
 import type { Hub } from "../types";
 import { DISCOVERY_URL } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { activeSession } from "@platform";
 import { WebVideoSession } from "../platform/video";
-import { BackgroundProcessor, loadBgMode, loadBgSource } from "../utils/backgroundProcessor";
+import { BackgroundProcessor, loadBgMode, loadBgSource } from "@wavvon/ui";
 
 export interface UseVideoParams {
   voiceChannelId: string | null;

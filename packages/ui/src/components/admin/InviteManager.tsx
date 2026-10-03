@@ -4,27 +4,12 @@ import { formatRelativeSigned, buildInviteLink } from "@wavvon/core";
 import type { InviteInfo, RoleInfo } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 import { SettingRow } from "../SettingRow";
+import { roleGrantsAdmin, grantableRoles, defaultInviteRoleOptions } from "../../utils/inviteRoles";
 
 // Mirrors hub/src/routes/invites.rs::ADMIN_GRANT_DEFAULT_EXPIRY_SECS — for
 // client-side annotation only, the server remains authoritative and clamps
 // independently of anything sent here.
 const ADMIN_GRANT_DEFAULT_EXPIRY_SECS = 24 * 3600;
-
-function roleGrantsAdmin(role: RoleInfo): boolean {
-  return role.id === "builtin-owner";
-}
-
-function grantableRoles(roles: RoleInfo[], myMaxPriority: number): RoleInfo[] {
-  return roles
-    .filter((r) => r.id !== "builtin-everyone" && r.priority < myMaxPriority)
-    .sort((a, b) => b.priority - a.priority);
-}
-
-function defaultInviteRoleOptions(roles: RoleInfo[]): RoleInfo[] {
-  return roles
-    .filter((r) => r.id !== "builtin-everyone" && !roleGrantsAdmin(r))
-    .sort((a, b) => b.priority - a.priority);
-}
 
 export interface InviteManagerActions {
   listRoles: () => Promise<RoleInfo[]>;

@@ -1,4 +1,11 @@
-import type { RoleInfo } from "../types";
+import type { RoleInfo } from "@wavvon/core";
+
+// One copy of the three invite-role filters. They existed as a file in the
+// web app that nothing imported, while being hand-copied into InviteManager
+// and QuickInviteModal — the right file existed and nobody used it
+// (Wavvon-clients#61). Every one of them mirrors a server-side rule, so
+// three copies meant three places to miss when the hub changes one.
+
 
 /** True if holding `role` alone grants the hub's admin permission — mirrors
  *  hub/src/routes/invites.rs::role_grants_admin. Used both to force

@@ -20,6 +20,13 @@ export function saveBg(mode: BackgroundMode, source?: string | null): void {
   } catch { /* quota exceeded (large video) — the choice still applies this session */ }
 }
 
+// One copy, shared by both apps. There used to be two files whose only
+// difference was a comment claiming the web one had been "ported from the
+// desktop BackgroundProcessor and extended with a looping-video background" —
+// it had not, the code was identical (Wavvon-clients#61). Pure DOM and
+// MediaPipe, no Tauri import and no platform branch, which is why it lives
+// here.
+//
 // Runs the webcam through MediaPipe selfie segmentation and composites the
 // person over a blurred / image / video background, returning a processed
 // MediaStream (canvas.captureStream). The model + WASM are served locally

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./backgroundProcessor";
+import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "../backgroundProcessor";
 
 // Flip to make the eager initialize() fail, exercising the raw-video fallback.
 let failInitialize = false;
