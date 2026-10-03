@@ -26,7 +26,22 @@ function renderMarkdown(text: string): string {
   return DOMPurify.sanitize(raw, { ALLOWED_TAGS, ALLOWED_ATTR });
 }
 
-function substituteHubEmojis(
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Both substitutions below splice into the string DOMPurify already returned,
+// so the sanitizer never sees what they insert. That is deliberate — allowing
+// `img` in ALLOWED_TAGS so the emoji tag could be built before sanitization
+// would also admit the `<img>` marked emits for `![](url)`, turning any message
+// into a remote fetch from an arbitrary host. The cost is that every value
+// interpolated here has to carry its own escaping: `url` and `name` are both
+// hub-controlled fields from `GET /emojis`.
+export function substituteHubEmojis(
   html: string,
   hubEmojiMap: Map<string, HubEmojiEntry>,
   hubBaseUrl: string,
@@ -34,8 +49,9 @@ function substituteHubEmojis(
   return html.replace(/:(?<name>[\w-]+):/g, (_match, name: string) => {
     const entry = hubEmojiMap.get(name);
     if (!entry) return _match;
-    const src = hubBaseUrl ? `${hubBaseUrl}${entry.url}` : entry.url;
-    return `<img src="${src}" alt=":${entry.name}:" title=":${entry.name}:" class="inline-emoji" />`;
+    const src = escapeAttr(hubBaseUrl ? `${hubBaseUrl}${entry.url}` : entry.url);
+    const label = escapeAttr(`:${entry.name}:`);
+    return `<img src="${src}" alt="${label}" title="${label}" class="inline-emoji" />`;
   });
 }
 

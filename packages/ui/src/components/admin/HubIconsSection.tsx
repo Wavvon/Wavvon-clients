@@ -208,8 +208,7 @@ export function HubIconsSection({ actions }: Props) {
                 <div
                   aria-hidden="true"
                   style={{ width: 40, height: 40, flexShrink: 0 }}
-                  // Server validates + stores the SVG; render at fixed size.
-                  dangerouslySetInnerHTML={{ __html: icon.svg_content }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeSvgMarkup(icon.svg_content) }}
                 />
                 <div style={{ flexGrow: 1 }}>
                   <label className="settings-label" htmlFor={`icon-name-${icon.id}`}>
