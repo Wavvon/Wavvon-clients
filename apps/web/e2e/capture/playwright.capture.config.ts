@@ -13,6 +13,12 @@ export default defineConfig({
     actionTimeout: 20000,
     deviceScaleFactor: 2,
     viewport: { width: 1600, height: 1000 },
+    // The README is English and every selector here is an English label, so
+    // the capture cannot inherit the machine's locale: i18next picks the
+    // browser language, and on an Italian box the first click misses and
+    // every step after it cascades into a timeout that looks like a changed
+    // UI. Pinning it also makes the assets reproducible on any machine.
+    locale: "en-US",
     permissions: ["microphone"],
     launchOptions: {
       args: [
