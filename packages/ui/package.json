@@ -23,7 +23,9 @@
     "@mediapipe/selfie_segmentation": ">=0.1"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "check-unused-css": "node find-unused-css.mjs",
+    "baseline-unused-css": "node find-unused-css.mjs --baseline"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

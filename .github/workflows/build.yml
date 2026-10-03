@@ -62,6 +62,12 @@ jobs:
       - name: No new hardcoded UI strings
         run: pnpm --filter wavvon-web run check-hardcoded
 
+      - name: No unread translation keys
+        run: pnpm --filter @wavvon/i18n run check-unused-keys
+
+      - name: No unused CSS classes
+        run: pnpm --filter @wavvon/ui run check-unused-css
+
       - name: No untranslated strings
         run: pnpm --filter wavvon-web run check-untranslated
 
