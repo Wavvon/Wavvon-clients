@@ -15,10 +15,7 @@ interface Props {
   customVad: boolean;
   onCustomVad: (v: boolean) => void;
   customVadThreshold: number;
-  onCustomVadThreshold: (v: number) => void;
-  customChannels: 1 | 2;
-  onCustomChannels: (v: 1 | 2) => void;
-  customFrameMs: 20 | 40 | 60;
+  onCustomVadThreshold: (v: number) => void;  customFrameMs: 20 | 40 | 60;
   onCustomFrameMs: (v: 20 | 40 | 60) => void;
   customComplexity: number;
   onCustomComplexity: (v: number) => void;
@@ -37,10 +34,7 @@ export function AudioProfileSection({
   customVad,
   onCustomVad,
   customVadThreshold,
-  onCustomVadThreshold,
-  customChannels,
-  onCustomChannels,
-  customFrameMs,
+  onCustomVadThreshold,  customFrameMs,
   onCustomFrameMs,
   customComplexity,
   onCustomComplexity,
@@ -125,20 +119,6 @@ export function AudioProfileSection({
             >
               auto
             </button>
-          </div>
-
-          <div className="settings-row">
-            <label className="settings-label" style={{ width: 160 }}>
-              {t("settings.voice.channels.label")}
-            </label>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={customChannels === 2}
-                onChange={(e) => onCustomChannels(e.target.checked ? 2 : 1)}
-              />
-              {t("settings.voice.channels.stereo")}
-            </label>
           </div>
 
           <div className="settings-row">

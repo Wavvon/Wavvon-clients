@@ -144,10 +144,7 @@ export function VoiceTab() {
           customVad={audioProfile.customVad}
           onCustomVad={(v) => updateAudioProfile({ customVad: v })}
           customVadThreshold={audioProfile.customVadThreshold}
-          onCustomVadThreshold={(v) => updateAudioProfile({ customVadThreshold: v })}
-          customChannels={audioProfile.customChannels}
-          onCustomChannels={(v) => updateAudioProfile({ customChannels: v })}
-          customFrameMs={audioProfile.customFrameMs}
+          onCustomVadThreshold={(v) => updateAudioProfile({ customVadThreshold: v })}          customFrameMs={audioProfile.customFrameMs}
           onCustomFrameMs={(v) => updateAudioProfile({ customFrameMs: v })}
           customComplexity={audioProfile.customComplexity}
           onCustomComplexity={(v) => updateAudioProfile({ customComplexity: v })}

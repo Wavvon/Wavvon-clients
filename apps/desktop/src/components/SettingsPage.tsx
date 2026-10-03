@@ -87,10 +87,7 @@ export interface SettingsPageProps {
   customVad: boolean;
   onCustomVadChange: (v: boolean) => void;
   customVadThreshold: number;
-  onCustomVadThresholdChange: (v: number) => void;
-  customChannels: 1 | 2;
-  onCustomChannelsChange: (v: 1 | 2) => void;
-  customFrameMs: 20 | 40 | 60;
+  onCustomVadThresholdChange: (v: number) => void;  customFrameMs: 20 | 40 | 60;
   onCustomFrameMsChange: (v: 20 | 40 | 60) => void;
   customComplexity: number;
   onCustomComplexityChange: (v: number) => void;
@@ -432,10 +429,7 @@ export function SettingsPage(props: SettingsPageProps) {
                 customVad={props.customVad}
                 onCustomVad={props.onCustomVadChange}
                 customVadThreshold={props.customVadThreshold}
-                onCustomVadThreshold={props.onCustomVadThresholdChange}
-                customChannels={props.customChannels}
-                onCustomChannels={props.onCustomChannelsChange}
-                customFrameMs={props.customFrameMs}
+                onCustomVadThreshold={props.onCustomVadThresholdChange}                customFrameMs={props.customFrameMs}
                 onCustomFrameMs={props.onCustomFrameMsChange}
                 customComplexity={props.customComplexity}
                 onCustomComplexity={props.onCustomComplexityChange}
