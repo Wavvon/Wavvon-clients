@@ -139,10 +139,7 @@ pub(crate) enum WsCommand {
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub(crate) struct ZoneInfo {
-    pub zone_id: String,
-    pub coordinate_system: String,
     pub attenuation: crate::types::AttenuationConfigInfo,
     /// pubkey → position
     pub positions: HashMap<String, Vec<f64>>,

@@ -113,8 +113,6 @@ impl VoiceEncoder {
 
 pub struct VoiceDecoder {
     decoder: OpusDecoder,
-    #[allow(dead_code)]
-    frame_size: usize,
     decode_buf: Vec<f32>,
 }
 
@@ -127,7 +125,6 @@ impl VoiceDecoder {
 
         Ok(Self {
             decoder,
-            frame_size,
             decode_buf: vec![0.0f32; frame_size],
         })
     }

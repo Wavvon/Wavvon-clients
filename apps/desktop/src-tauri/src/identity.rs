@@ -1,8 +1,6 @@
 // Local identity primitives — reimplemented directly against standard crypto
 // crates so wavvon-desktop has no dependency on any hub-internal crate.
 
-#![allow(dead_code)]
-
 use anyhow::{anyhow, Context, Result};
 use bip39::{Language, Mnemonic};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
@@ -112,10 +110,6 @@ impl Identity {
         self.signing_key.sign(message)
     }
 
-    pub fn verifying_key(&self) -> VerifyingKey {
-        self.signing_key.verifying_key()
-    }
-
     /// Resolves to the *active account's* identity.json (see `accounts.rs`).
     /// Kept as one function so every existing call site transparently
     /// re-targets to per-account storage with no call-site changes.
@@ -127,12 +121,6 @@ impl Identity {
     pub fn master(&self) -> Result<MasterIdentity> {
         let entropy = self.signing_key.to_bytes();
         MasterIdentity::derive_from_entropy(&entropy)
-    }
-
-    /// Wrap this identity as subkey 0 with a user-facing label.
-    pub fn as_subkey_zero(&self, label: String) -> DeviceSubkey {
-        let entropy = self.signing_key.to_bytes();
-        DeviceSubkey::subkey_zero_from_entropy(&entropy, label)
     }
 
     /// Generate a 24-word BIP39 recovery phrase from the secret key.
@@ -198,15 +186,6 @@ impl Identity {
         }
         self.dh_keypair().0
     }
-
-    /// Improve security level by computing more proof-of-work.
-    pub fn improve_security_level(&mut self, target_level: u32) -> u32 {
-        let pub_key = self.public_key_hex();
-        let (nonce, level) = compute_security_level(&pub_key, self.security_nonce, target_level);
-        self.security_nonce = nonce;
-        self.security_level = level;
-        level
-    }
 }
 
 impl fmt::Display for Identity {
@@ -236,14 +215,8 @@ impl MasterIdentity {
         })
     }
 
-    pub fn derive_from_phrase(phrase: &str) -> Result<Self> {
-        let mnemonic =
-            Mnemonic::parse_in(Language::English, phrase).context("Invalid recovery phrase")?;
-        let entropy = mnemonic.to_entropy();
-        let entropy_array: [u8; 32] = entropy
-            .try_into()
-            .map_err(|_| anyhow!("Recovery phrase must produce exactly 32 bytes"))?;
-        Self::derive_from_entropy(&entropy_array)
+    pub fn secret_seed(&self) -> [u8; 32] {
+        self.signing_key.to_bytes()
     }
 
     pub fn public_key_hex(&self) -> String {
@@ -253,15 +226,6 @@ impl MasterIdentity {
     pub fn sign(&self, message: &[u8]) -> Signature {
         self.signing_key.sign(message)
     }
-
-    pub fn verifying_key(&self) -> VerifyingKey {
-        self.signing_key.verifying_key()
-    }
-
-    /// Raw 32-byte seed of the master signing key.
-    pub fn secret_seed(&self) -> [u8; 32] {
-        self.signing_key.to_bytes()
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -270,29 +234,13 @@ impl MasterIdentity {
 
 pub struct DeviceSubkey {
     signing_key: SigningKey,
-    label: String,
 }
 
 impl DeviceSubkey {
-    pub fn generate(label: String) -> Self {
+    pub fn generate() -> Self {
         Self {
             signing_key: SigningKey::generate(&mut OsRng),
-            label,
         }
-    }
-
-    /// Subkey 0 is the legacy single-key identity. Its pubkey equals
-    /// the existing per-device identity's pubkey, so non-upgraded hubs
-    /// see no change.
-    pub fn subkey_zero_from_entropy(entropy: &[u8; 32], label: String) -> Self {
-        Self {
-            signing_key: SigningKey::from_bytes(entropy),
-            label,
-        }
-    }
-
-    pub fn label(&self) -> &str {
-        &self.label
     }
 
     pub fn public_key_hex(&self) -> String {
@@ -304,24 +252,14 @@ impl DeviceSubkey {
         self.signing_key.to_bytes()
     }
 
-    pub fn from_secret_bytes(secret: &[u8; 32], label: String) -> Self {
+    pub fn from_secret_bytes(secret: &[u8; 32]) -> Self {
         Self {
             signing_key: SigningKey::from_bytes(secret),
-            label,
         }
     }
 
     pub fn sign(&self, message: &[u8]) -> Signature {
         self.signing_key.sign(message)
-    }
-
-    pub fn verifying_key(&self) -> VerifyingKey {
-        self.signing_key.verifying_key()
-    }
-
-    /// Raw 32-byte seed of this device's signing key.
-    pub fn secret_seed(&self) -> [u8; 32] {
-        self.signing_key.to_bytes()
     }
 }
 
@@ -352,67 +290,6 @@ pub fn verify_signature(
 // ---------------------------------------------------------------------------
 // Proof-of-work
 // ---------------------------------------------------------------------------
-
-/// Count leading zero bits in a SHA256 hash.
-pub fn leading_zero_bits(hash: &[u8]) -> u32 {
-    let mut count = 0;
-    for byte in hash {
-        if *byte == 0 {
-            count += 8;
-        } else {
-            count += byte.leading_zeros();
-            break;
-        }
-    }
-    count
-}
-
-/// Compute a proof-of-work nonce that achieves at least `target_level` leading zero bits.
-/// Starts searching from `start_nonce`. Returns (nonce, actual_level_achieved).
-pub fn compute_security_level(
-    public_key_hex: &str,
-    start_nonce: u64,
-    target_level: u32,
-) -> (u64, u32) {
-    let mut best_nonce = start_nonce;
-    let mut best_level = 0;
-
-    if start_nonce > 0 {
-        best_level = hash_level(public_key_hex, start_nonce);
-        if best_level >= target_level {
-            return (best_nonce, best_level);
-        }
-    }
-
-    let mut nonce = start_nonce;
-    loop {
-        nonce += 1;
-        let level = hash_level(public_key_hex, nonce);
-        if level > best_level {
-            best_level = level;
-            best_nonce = nonce;
-            if best_level >= target_level {
-                return (best_nonce, best_level);
-            }
-        }
-    }
-}
-
-/// Verify that a given nonce achieves the claimed security level.
-pub fn verify_security_level(public_key_hex: &str, nonce: u64, claimed_level: u32) -> bool {
-    if claimed_level == 0 {
-        return true;
-    }
-    hash_level(public_key_hex, nonce) >= claimed_level
-}
-
-fn hash_level(public_key_hex: &str, nonce: u64) -> u32 {
-    let mut hasher = Sha256::new();
-    hasher.update(public_key_hex.as_bytes());
-    hasher.update(nonce.to_le_bytes());
-    let result = hasher.finalize();
-    leading_zero_bits(&result)
-}
 
 // ---------------------------------------------------------------------------
 // ECIES: wrap / unwrap a 32-byte blob key for an Ed25519 recipient
@@ -843,60 +720,6 @@ impl DhKeyRecord {
         out.extend_from_slice(dh);
         out
     }
-
-    pub fn verify(&self) -> Result<()> {
-        let msg = Self::signing_bytes(&self.pubkey, &self.dh_pubkey_hex);
-        verify_signature(
-            &self.pubkey,
-            &msg,
-            &hex::decode(&self.signature_hex).context("invalid signature hex")?,
-        )
-    }
-}
-
-/// One entry in a user's public hub list.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PublicHubEntry {
-    pub hub_url: String,
-    pub hub_name: String,
-    pub joined_at: u64,
-}
-
-/// Master-signed public profile declaring which hubs a user wants others
-/// to discover them on.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PublicHubProfile {
-    pub pubkey: String,
-    pub display_name: String,
-    #[serde(default)]
-    pub avatar: Option<String>,
-    pub public_hubs: Vec<PublicHubEntry>,
-    pub issued_at: u64,
-    pub signature: String,
-}
-
-impl PublicHubProfile {
-    pub fn signing_bytes(pubkey: &str, public_hubs: &[PublicHubEntry], issued_at: u64) -> Vec<u8> {
-        let mut buf = Vec::new();
-        buf.extend_from_slice(b"wavvon/public-hub-profile/v1\0");
-        write_str(&mut buf, pubkey);
-        write_u64_le(&mut buf, issued_at);
-        write_u32_le(&mut buf, public_hubs.len() as u32);
-        for entry in public_hubs {
-            write_str(&mut buf, &entry.hub_url);
-            write_str(&mut buf, &entry.hub_name);
-            write_u64_le(&mut buf, entry.joined_at);
-        }
-        buf
-    }
-
-    pub fn to_signing_bytes(&self) -> Vec<u8> {
-        Self::signing_bytes(&self.pubkey, &self.public_hubs, self.issued_at)
-    }
-
-    pub fn verify(&self) -> Result<()> {
-        check_sig(&self.pubkey, &self.to_signing_bytes(), &self.signature)
-    }
 }
 
 /// Shared encoder for the recovery-rotation bundle (hub_pubkey, old_pubkey,
@@ -1173,9 +996,6 @@ mod wire_vector_tests {
     const DM_CIPHERTEXT_HEX: &str = "63697068657274657874"; // hex("ciphertext")
     const DM_NONCE_HEX: &str = "0102030405060708090a0b0c";
 
-    const DM_ENVELOPE_SIGNING_BYTES: &str = "776176766f6e2f646d2d636970686572746578742f76310007000000636f6e76313233140000003633363937303638363537323734363537383734180000003031303230333034303530363037303830393061306230634000000034613338303764303634643037373138316363303730393839653736383931643230646361353535393534386463326337376331613530323733383832623338";
-    const DM_ENVELOPE_SIG: &str = "6d41d6b3f9f4c5b5d87a7d819f4e9b2e1a1340c3aa97cf044037f926c63710dd3edeb5bc66d9dfa89fc0d9fe2a67b8a28c6c5908f42b947b3551c04dbf113709";
-
     // GroupEncryptedEnvelope — sender_key_version = 1, iteration = 2
     const GROUP_DM_ENVELOPE_SIGNING_BYTES: &str = "776176766f6e2f67726f75702d646d2d636970686572746578742f76310007000000636f6e763132330100000031010000003214000000363336393730363836353732373436353738373418000000303130323033303430353036303730383039306130623063";
     const GROUP_DM_ENVELOPE_SIG: &str = "d2788d4211a7fae57b17eae2cb74b56bd8a587ee9a9a57fd1ff0f048d0a86e256786bbdbc486f7754a6dac4975c2b25a2f9b0a7c73c288056e4b4938d6878b07";
@@ -1218,41 +1038,15 @@ mod wire_vector_tests {
         assert_eq!(hex::encode(&sb), DH_KEY_RECORD_SIGNING_BYTES);
     }
 
+    // The `verify()` half of this is gone with the method: the shell publishes
+    // its own DH key and never checks anybody else's, so nothing but this
+    // assertion ever called it. What is left is the part that pins a byte
+    // layout the shell does use.
     #[test]
-    fn dh_key_record_signature_and_verify_vector() {
+    fn dh_key_record_signature_vector() {
         let sb = DhKeyRecord::signing_bytes(MASTER_PUB, MASTER_DH_PUB);
         let sig = master_key().sign(&sb);
         assert_eq!(hex::encode(sig.to_bytes()), DH_KEY_RECORD_SIG);
-        let record = DhKeyRecord {
-            pubkey: MASTER_PUB.to_string(),
-            dh_pubkey_hex: MASTER_DH_PUB.to_string(),
-            signature_hex: DH_KEY_RECORD_SIG.to_string(),
-            published_at: TS as i64,
-        };
-        assert!(record.verify().is_ok());
-    }
-
-    #[test]
-    fn dm_envelope_signing_bytes_vector() {
-        let sb = crate::dm::dm_envelope_signing_bytes(
-            DM_CONV_ID,
-            DM_CIPHERTEXT_HEX,
-            DM_NONCE_HEX,
-            MASTER_DH_PUB,
-        );
-        assert_eq!(hex::encode(&sb), DM_ENVELOPE_SIGNING_BYTES);
-    }
-
-    #[test]
-    fn dm_envelope_signature_vector() {
-        let sb = crate::dm::dm_envelope_signing_bytes(
-            DM_CONV_ID,
-            DM_CIPHERTEXT_HEX,
-            DM_NONCE_HEX,
-            MASTER_DH_PUB,
-        );
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), DM_ENVELOPE_SIG);
     }
 
     #[test]

@@ -5,6 +5,10 @@ use ringbuf::traits::Producer;
 use crate::devices::find_input_device;
 
 pub struct AudioCapture {
+    // Held, never read: a cpal stream stops the moment its handle is
+    // dropped, so this field *is* the capture, not a record of it. The lint
+    // has no way to see that and is wrong here — the only dead-code allow in
+    // this workspace that survived Wavvon-clients#65.
     #[allow(dead_code)]
     stream: cpal::Stream,
     pub actual_sample_rate: u32,
