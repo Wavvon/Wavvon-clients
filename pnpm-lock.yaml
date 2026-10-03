@@ -239,6 +239,9 @@ importers:
 
   packages/i18n:
     dependencies:
+      '@wavvon/core':
+        specifier: workspace:*
+        version: link:../core
       i18next:
         specifier: '>=23'
         version: 24.2.3(typescript@6.0.3)

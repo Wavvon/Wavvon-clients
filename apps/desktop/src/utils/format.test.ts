@@ -6,6 +6,7 @@ import {
   colorForKey,
   dayKey,
   formatRelative,
+  setFormatLocale,
 } from "@wavvon/core";
 
 describe("formatPubkey", () => {
@@ -146,9 +147,13 @@ describe("formatRelative", () => {
 
   beforeEach(() => {
     vi.setSystemTime(NOW * 1000);
+    // These go through Intl now, and the default is the runtime locale: on an
+    // Italian machine the English expectations below read "30 s fa". Pin it.
+    setFormatLocale("en");
   });
 
   afterEach(() => {
+    setFormatLocale(undefined);
     vi.useRealTimers();
   });
 
