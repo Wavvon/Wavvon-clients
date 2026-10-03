@@ -5,6 +5,7 @@
   "main": "index.ts",
   "types": "index.ts",
   "peerDependencies": {
+    "@wavvon/core": "workspace:*",
     "i18next": ">=23",
     "i18next-icu": ">=2",
     "react-i18next": ">=14"

@@ -1,3 +1,27 @@
+// The locale every formatter below renders in.
+//
+// `undefined` means the runtime's own locale, which is what this file used
+// throughout and is the right default for a consumer that never says
+// otherwise. It is not right for the apps: the language is a setting
+// (`wavvon_language`), and somebody who picks Italian on an English browser
+// was getting Italian text beside English dates. `initI18n` sets this at
+// startup and again on every `languageChanged`, so the one place that knows
+// the chosen language is the one place that answers for it — rather than four
+// call sites across two apps, each able to forget.
+let formatLocale: string | undefined;
+
+/** Point the date/duration formatters at a locale. See `formatLocale`. */
+export function setFormatLocale(locale: string | undefined): void {
+  formatLocale = locale;
+}
+
+// Latin-script label at the start of its own line: "oggi", "heute" and
+// "yesterday" all want a capital there, and none of the four locales has a
+// casing rule that makes this wrong.
+function capitalizeFirst(s: string): string {
+  return s ? s[0].toLocaleUpperCase(formatLocale) + s.slice(1) : s;
+}
+
 export function formatPubkey(key: string | null | undefined): string {
   if (!key) return "";
   if (key.length < 20) return key;
@@ -56,10 +80,17 @@ export function formatDayLabel(unixSec: number): string {
   const today = new Date();
   const yest = new Date();
   yest.setDate(today.getDate() - 1);
-  if (dayKey(unixSec) === dayKey(today.getTime() / 1000)) return "Today";
-  if (dayKey(unixSec) === dayKey(yest.getTime() / 1000)) return "Yesterday";
+  // `numeric: "auto"` is what turns -1 day into the *word* — "yesterday",
+  // "ieri", "ayer", "gestern" — instead of "1 day ago".
+  const rel = new Intl.RelativeTimeFormat(formatLocale, { numeric: "auto" });
+  if (dayKey(unixSec) === dayKey(today.getTime() / 1000)) {
+    return capitalizeFirst(rel.format(0, "day"));
+  }
+  if (dayKey(unixSec) === dayKey(yest.getTime() / 1000)) {
+    return capitalizeFirst(rel.format(-1, "day"));
+  }
   const sameYear = d.getFullYear() === today.getFullYear();
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(formatLocale, {
     month: "short",
     day: "numeric",
     year: sameYear ? undefined : "numeric",
@@ -69,7 +100,7 @@ export function formatDayLabel(unixSec: number): string {
 export function formatFullTimestamp(unixSec: number): string {
   if (!unixSec) return "";
   const d = new Date(toUnixSec(unixSec) * 1000);
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(formatLocale, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -89,22 +120,47 @@ export function isBirthdayToday(birthday: string | null | undefined, now: Date =
   return birthday === `${mm}-${dd}`;
 }
 
+/// Largest whole unit that fits, which is the shape both functions below
+/// render — one number and one unit, never "1h 5m". Takes a magnitude; the
+/// caller owns the direction.
+function coarsestUnit(absSeconds: number): { value: number; unit: "second" | "minute" | "hour" | "day" } {
+  const s = Math.max(0, Math.floor(absSeconds));
+  if (s < 60) return { value: s, unit: "second" };
+  if (s < 3600) return { value: Math.floor(s / 60), unit: "minute" };
+  if (s < 86400) return { value: Math.floor(s / 3600), unit: "hour" };
+  return { value: Math.floor(s / 86400), unit: "day" };
+}
+
 export function formatRelative(unixSec: number): string {
   if (!unixSec) return "—";
   const now = Math.floor(Date.now() / 1000);
   const diff = now - toUnixSec(unixSec);
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  const { value, unit } = coarsestUnit(Math.abs(diff));
+  // `style: "narrow"` is the compact form a message list needs, and in English
+  // it is character-for-character what this used to hardcode: "45s ago",
+  // "5m ago", "2h ago", "3d ago".
+  //
+  // The sign is passed through rather than clamped. This is documented as
+  // assuming the past, and fed a future timestamp it used to print the bare
+  // negative offset "-85797s ago"; clamping would have turned that into a
+  // confident "0s ago", which is the quieter kind of wrong. Intl says
+  // "in 23h", and a clock-skewed message reads as one.
+  return new Intl.RelativeTimeFormat(formatLocale, {
+    numeric: "always",
+    style: "narrow",
+  }).format(diff > 0 ? -value : value, unit);
 }
 
-function formatDurationMagnitude(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds));
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86400)}d`;
+function formatDurationMagnitude(absSeconds: number): string {
+  const { value, unit } = coarsestUnit(absSeconds);
+  // A magnitude with no wording and no sign — the caller supplies "expires in
+  // {duration}" or "expired {duration} ago" from the `future` flag, so this
+  // must not carry a direction of its own.
+  return new Intl.NumberFormat(formatLocale, {
+    style: "unit",
+    unit,
+    unitDisplay: "narrow",
+  }).format(value);
 }
 
 export interface RelativeTimeResult {
