@@ -77,7 +77,7 @@ export function MessageContent({
       rendered = substituteHubEmojis(rendered, hubEmojiMap, hubBaseUrl ?? "");
     }
 
-    rendered = rendered.replace(/@([\w.\-]+)/g, (_match, name: string) => {
+    rendered = rendered.replace(/@([\w.-]+)/g, (_match, name: string) => {
       const lower = name.toLowerCase();
       if (!knownNames.has(lower)) return _match;
       const cls = myLower !== null && lower === myLower
@@ -92,6 +92,7 @@ export function MessageContent({
   return (
     <span
       className="md-content"
+      // eslint-disable-next-line react/no-danger -- marked output through DOMPurify; the two splices after it escape their own interpolations, see the comment above substituteHubEmojis.
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

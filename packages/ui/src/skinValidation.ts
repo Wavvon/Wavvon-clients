@@ -106,7 +106,7 @@ function isValidRadiusScale(v: string): boolean {
 
 function isValidShadow(v: string): boolean {
   if (hasForbidden(v)) return false;
-  return /^[\d\s.px%a-zA-Z,()#\-]+$/.test(v);
+  return /^[\d\s.px%a-zA-Z,()#-]+$/.test(v);
 }
 
 export function validateSkin(raw: unknown): WavvonSkin {

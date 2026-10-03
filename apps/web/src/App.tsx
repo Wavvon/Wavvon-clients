@@ -154,7 +154,6 @@ export default function App({ initialView }: AppProps = {}) {
   // answer changes.
   useEffect(() => {
     refreshIdentityBackupState();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publicKey, showSettings]);
 
   // === Hubs ===

@@ -5,16 +5,20 @@ on:
     branches: [main, develop]
     paths:
       - 'apps/web/**'
+      - 'apps/desktop/**'
       - 'packages/**'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
+      - 'eslint.config.mjs'
   pull_request:
     branches: [main, develop]
     paths:
       - 'apps/web/**'
+      - 'apps/desktop/**'
       - 'packages/**'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
+      - 'eslint.config.mjs'
 
 jobs:
   check-web:
@@ -33,6 +37,9 @@ jobs:
 
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm run lint
 
       - name: TypeScript check
         run: pnpm --filter wavvon-web exec tsc --noEmit
