@@ -1,16 +1,60 @@
 import type { GameLaunchCard } from "@wavvon/core";
 
-export interface Attachment {
-  name: string;
-  mime: string;
-  data_b64: string;
-}
+// Referenced by the declarations further down, which is a separate thing from
+// re-exporting them for consumers.
+import type { Attachment, Reaction, FavoriteHub, RoleInfo } from "@wavvon/core";
+// The hub's wire shapes live in @wavvon/core so there is one copy rather than
+// three (Wavvon-clients#60). Re-exported here because every call site in this
+// app already imports from this module.
+export type {
+  RoleInfo,
+  RoleCategory,
+  FavoriteHub,
+  Attachment,
+  PresenceStatus,
+  Reaction,
+  MemberAdminInfo,
+  BanInfo,
+  VoiceMuteInfo,
+  PendingUser,
+  Conversation,
+  DmMessage,
+  DmMessageFull,
+  AllianceInfo,
+  AllianceMemberInfo,
+  AllianceDetail,
+  AllianceInvite,
+  WsScreenShareStarted,
+  WsScreenShareChunkOut,
+  WsScreenShareStopped,
+  SyncResult,
+  PendingAllianceInvite,
+  LobbyStatus,
+  ChallengePrompt,
+  ChallengeResult,
+  SurveyChoice,
+  SurveyQuestion,
+  Survey,
+  SurveyAnswer,
+  SurveySubmitResult,
+  SurveyChoiceAdmin,
+  SurveyQuestionAdmin,
+  SurveyAdmin,
+  SurveyResponseAdmin,
+  HubCertification,
+  BlockEntry,
+  IgnoreEntry,
+  AppOpenEvent,
+  AppCloseEvent,
+  CertPayload,
+  MeInfo,
+  InviteInfo,
+  AllianceSharedChannel,
+  BadgePayload,
+  HubBadge,
+  PendingBadgeOffer,
+} from "@wavvon/core";
 
-export interface Reaction {
-  emoji: string;
-  count: number;
-  me: boolean;
-}
 
 export interface ReplyContext {
   message_id: string;
@@ -111,64 +155,6 @@ export interface LinkPreview {
   description: string | null;
   image: string | null;
   domain: string;
-}
-
-export interface AllianceSharedChannel {
-  channel_id: string;
-  channel_name: string;
-  hub_public_key: string;
-  hub_name: string;
-  // Optional: desktop's own AllianceSharedChannel (apps/desktop/src/types.ts)
-  // hasn't picked up the v2 alliance-sharing fields yet. Keep these optional
-  // here so AllianceView stays a valid sink for both the old and new shape.
-  channel_type?: "text" | "forum" | "banner" | "spawner";
-  parent_id?: string | null;
-  is_category?: boolean;
-  /** Policy governing writes proxied from other alliance-member hubs into
-   * this channel (forum federation phase 2). Absent from peers that haven't
-   * upgraded yet (and from desktop's own AllianceSharedChannel, which hasn't
-   * picked up alliance-forum access at all); treat as "replies_only", the
-   * hub-side column default. */
-  forum_remote_write?: "none" | "replies_only" | "posts_and_replies";
-}
-
-export interface AllianceInfo {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: number;
-}
-
-export interface Conversation {
-  id: string;
-  conv_type: string;
-  members: string[];
-  created_at: number;
-  last_activity_at?: number;
-}
-
-export interface DmMessage {
-  id?: string;
-  sender: string;
-  sender_name: string | null;
-  content: string;
-  timestamp: number;
-  attachments?: Attachment[];
-  is_encrypted?: boolean;
-  /** True when at least one outbox row for this message has bounced
-   *  (retries exhausted). Renders a delivery-failed mark next to the
-   *  message. False/missing for received messages and not-yet-bounced sends. */
-  delivery_failed?: boolean;
-}
-
-export interface BlockEntry {
-  pubkey: string;
-  since: number;
-}
-
-export interface IgnoreEntry {
-  pubkey: string;
-  since: number;
 }
 
 export interface AppLaunchEvent {
@@ -435,32 +421,6 @@ export interface AllianceMember {
   joined_at: number;
 }
 
-export interface AllianceDetail extends Alliance {
-  members: AllianceMember[];
-}
-
-/** Returned by the hub's `POST /alliances/{id}/invite` — `hub_url` is always
- *  "self" from the issuing hub's own point of view, so callers pair it with
- *  their own known hub URL rather than reading it back. */
-export interface AllianceInvite {
-  token: string;
-  alliance_id: string;
-  alliance_name: string;
-  hub_url: string;
-}
-
-export interface PendingAllianceInvite {
-  id: string;
-  alliance_id: string;
-  alliance_name: string;
-  from_hub_url: string;
-  from_hub_name: string;
-  from_hub_public_key: string;
-  invite_token: string;
-  created_at: number;
-  message: string | null;
-}
-
 export interface SharedChannel {
   channel_id: string;
   channel_name: string;
@@ -497,28 +457,6 @@ export interface HubIcon {
   svg_content: string;
   uploaded_by: string;
   created_at: number;
-}
-
-export interface SurveyChoice {
-  id: string;
-  label: string;
-  display_order: number;
-  role_ids: string[];
-}
-
-export interface SurveyQuestion {
-  id: string;
-  prompt: string;
-  kind: "text" | "choice";
-  required: boolean;
-  display_order: number;
-  choices?: SurveyChoice[];
-}
-
-export interface SurveyAdmin {
-  id: string;
-  enabled: boolean;
-  questions: SurveyQuestion[];
 }
 
 export interface SurveyResponseView {
@@ -574,26 +512,6 @@ export interface HubListing {
   badges?: { payload: { label: string; issuer_url: string; issuer_pubkey: string }; signature: string }[];
 }
 
-export interface RoleInfo {
-  id: string;
-  name: string;
-  permissions: string[];
-  priority: number;
-  display_separately?: boolean;
-  color: string | null;
-  icon: string | null;
-  category_id: string | null;
-}
-
-export interface RoleCategory {
-  id: string;
-  name: string;
-  color: string | null;
-  icon: string | null;
-  position: number;
-  created_at: number;
-}
-
 export interface Friend {
   public_key: string;
   display_name: string | null;
@@ -601,12 +519,6 @@ export interface Friend {
    *  routed to this hub via the federated DM outbox. */
   hub_url: string | null;
   since: number;
-}
-
-export interface FavoriteHub {
-  url: string;
-  name: string;
-  icon: string | null;
 }
 
 export interface BadgeSummary {
@@ -785,61 +697,13 @@ export interface ChannelPermissionsResponse {
 // HubAdminPage (parity hoist, 2026-07-20)
 // ---------------------------------------------------------------------------
 
-export interface PendingUser {
-  public_key: string;
-  display_name: string | null;
-  first_seen_at: number;
-}
-
 /** Hub-wide policy for resolving a member's name color when both a role
  *  color and a user-chosen name_color are present. Default "role_over_user". */
 export type NameColorMode = "user_over_role" | "role_over_user" | "role_only" | "user_only" | "none";
 
-export interface MemberAdminInfo {
-  public_key: string;
-  display_name: string | null;
-  online: boolean;
-  first_seen_at: number;
-  last_seen_at: number;
-  roles: RoleInfo[];
-}
-
-export interface BanInfo {
-  target_public_key: string;
-  banned_by: string;
-  reason: string | null;
-  created_at: number;
-}
-
-export interface InviteInfo {
-  code: string;
-  created_by: string;
-  max_uses: number | null;
-  uses: number;
-  expires_at: number | null;
-  created_at: number;
-  /** Role granted to the joining user in addition to `builtin-everyone`, if any. */
-  grant_role_id: string | null;
-  /** The one identity this invite admits, or null for a bearer code. Only on
-   *  hubs advertising `invites.bound`; absent reads as null. */
-  bound_pubkey: string | null;
-}
-
 export interface HubSelfTagSettings {
   self_tags: string[];
   nsfw: boolean;
-}
-
-export interface HubBadge {
-  id: string;
-  label: string;
-  issuer_url: string;
-}
-
-export interface PendingBadgeOffer {
-  id: string;
-  label: string;
-  issuer_url: string;
 }
 
 export interface SoundboardClip {

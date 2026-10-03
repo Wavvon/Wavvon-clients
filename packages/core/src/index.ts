@@ -6,6 +6,7 @@ export * from "./channels";
 export * from "./format";
 export * from "./handover";
 export * from "./hex";
+export * from "./hubWire";
 export * from "./pow";
 export * from "./recentEmoji";
 export * from "./useReconnectBackoff";

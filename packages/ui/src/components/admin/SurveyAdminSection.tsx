@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import { SettingRow } from "../SettingRow";
-import type { SurveyAdmin, SurveyQuestion, SurveyChoice, SurveyResponseView } from "../../types";
+import type { SurveyAdmin, SurveyQuestionAdmin, SurveyChoiceAdmin, SurveyResponseView } from "../../types";
 
 function uid(): string {
   try { return crypto.randomUUID(); } catch { return `s-${Date.now()}-${Math.floor(Math.random() * 1e9)}`; }
@@ -77,7 +77,7 @@ export function SurveyAdminSection({ actions }: Props) {
   function patch(next: Partial<SurveyAdmin>) {
     setSurvey((s) => (s ? { ...s, ...next } : s));
   }
-  function patchQuestion(qid: string, p: Partial<SurveyQuestion>) {
+  function patchQuestion(qid: string, p: Partial<SurveyQuestionAdmin>) {
     setSurvey((s) => s ? { ...s, questions: s.questions.map((q) => q.id === qid ? { ...q, ...p } : q) } : s);
   }
   function addQuestion(kind: "text" | "choice") {
@@ -97,7 +97,7 @@ export function SurveyAdminSection({ actions }: Props) {
       ...s,
       questions: s.questions.map((q) => {
         if (q.id !== qid) return q;
-        const choices: SurveyChoice[] = [...(q.choices ?? []), { id: uid(), label: "", display_order: (q.choices?.length ?? 0), role_ids: [] }];
+        const choices: SurveyChoiceAdmin[] = [...(q.choices ?? []), { id: uid(), label: "", display_order: (q.choices?.length ?? 0), role_ids: [] }];
         return { ...q, choices };
       }),
     } : s);

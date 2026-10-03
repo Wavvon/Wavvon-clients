@@ -5,6 +5,66 @@
 // field in src-tauri or server/wavvon-hub means a rename here too.
 
 // Channel is shared with the channel-tree helpers in @wavvon/utils.
+// The hub's wire shapes live in @wavvon/core so there is one copy rather than
+// three (Wavvon-clients#60). Re-exported here because every call site in this
+// app already imports from this module.
+export type {
+  RoleInfo,
+  RoleCategory,
+  FavoriteHub,
+  Attachment,
+  PresenceStatus,
+  Reaction,
+  MemberAdminInfo,
+  BanInfo,
+  VoiceMuteInfo,
+  PendingUser,
+  Conversation,
+  DmMessage,
+  DmMessageFull,
+  AllianceInfo,
+  AllianceMemberInfo,
+  AllianceDetail,
+  AllianceInvite,
+  WsScreenShareStarted,
+  WsScreenShareChunkOut,
+  WsScreenShareStopped,
+  SyncResult,
+  PendingAllianceInvite,
+  LobbyStatus,
+  ChallengePrompt,
+  ChallengeResult,
+  SurveyChoice,
+  SurveyQuestion,
+  Survey,
+  SurveyAnswer,
+  SurveySubmitResult,
+  SurveyChoiceAdmin,
+  SurveyQuestionAdmin,
+  SurveyAdmin,
+  SurveyResponseAdmin,
+  HubCertification,
+  BlockEntry,
+  IgnoreEntry,
+  AppOpenEvent,
+  AppCloseEvent,
+  CertPayload,
+  MeInfo,
+  InviteInfo,
+  AllianceSharedChannel,
+  BadgePayload,
+  HubBadge,
+  PendingBadgeOffer,
+  WsScreenShareOfferOut,
+  WsScreenShareOfferIn,
+  WsScreenShareAnswerOut,
+  WsScreenShareAnswerIn,
+  WsScreenShareIceOut,
+  WsScreenShareIceIn,
+  WsScreenShareViewerJoined,
+  WsScreenShareViewerLeft,
+} from "@wavvon/core";
+
 export type { Channel } from "@wavvon/core";
 
 export interface HubIcon {
@@ -15,27 +75,11 @@ export interface HubIcon {
   created_at: number;
 }
 
-export interface Attachment {
-  name: string;
-  mime: string;
-  data_b64: string;
-}
-
-export interface Reaction {
-  emoji: string;
-  count: number;
-  me: boolean;
-}
-
 import type { Message } from "@wavvon/ui";
 export type { ReplyContext, Message, User } from "@wavvon/ui";
 
 export type { NotifyMode } from "@wavvon/ui";
 export type { SoundboardClip } from "@wavvon/ui";
-
-/** Own presence: absent/"online" is the default; away/dnd/invisible are
- *  explicit picks. Free-text custom status was removed (decisions.md 2026-07-12). */
-export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
 
 export interface VoiceParticipant {
   public_key: string;
@@ -44,154 +88,8 @@ export interface VoiceParticipant {
 
 export type { Hub } from "@wavvon/ui";
 
-import type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile } from "@wavvon/ui";
-export type { RoleInfo, RoleCategory, Friend, UserProfile, BadgeSummary, FavoriteHub, PublicHubEntry, PublicHubProfile };
-
-export interface MeInfo {
-  public_key: string;
-  display_name: string | null;
-  avatar: string | null;
-  approval_status: "approved" | "pending";
-  roles: RoleInfo[];
-}
-
-export interface MemberAdminInfo {
-  public_key: string;
-  display_name: string | null;
-  online: boolean;
-  first_seen_at: number;
-  last_seen_at: number;
-  roles: RoleInfo[];
-}
-
-export interface BanInfo {
-  target_public_key: string;
-  banned_by: string;
-  reason: string | null;
-  created_at: number;
-}
-
-export interface VoiceMuteInfo {
-  target_public_key: string;
-  muted_by: string;
-  reason: string | null;
-  created_at: number;
-}
-
-export interface InviteInfo {
-  code: string;
-  created_by: string;
-  max_uses: number | null;
-  uses: number;
-  expires_at: number | null;
-  created_at: number;
-  grant_role_id: string | null;
-  /** The one identity this invite admits, or null for a bearer code. Only on
-   *  hubs advertising `invites.bound`; absent reads as null. */
-  bound_pubkey: string | null;
-}
-
-export interface PendingUser {
-  public_key: string;
-  display_name: string | null;
-  first_seen_at: number;
-}
-
-export interface Conversation {
-  id: string;
-  conv_type: string;
-  members: string[];
-  created_at: number;
-  last_activity_at?: number;
-}
-
-export interface DmMessage {
-  id?: string;
-  sender: string;
-  sender_name: string | null;
-  content: string;
-  timestamp: number;
-  attachments?: Attachment[];
-  is_encrypted?: boolean;
-  /** True when at least one outbox row for this message has bounced
-   *  (retries exhausted). Renders a delivery-failed mark next to the
-   *  message. False/missing for received messages and not-yet-bounced sends. */
-  delivery_failed?: boolean;
-}
-
-export interface DmMessageFull {
-  id: string;
-  conversation_id: string;
-  sender: string;
-  sender_name: string | null;
-  content: string;
-  created_at: number;
-  attachments?: Attachment[];
-  is_encrypted?: boolean;
-  delivery_failed?: boolean;
-}
-
-export interface AllianceInfo {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: number;
-}
-
-export interface AllianceMemberInfo {
-  hub_public_key: string;
-  hub_name: string;
-  hub_url: string;
-  joined_at: number;
-}
-
-export interface AllianceDetail {
-  id: string;
-  name: string;
-  created_by: string;
-  created_at: number;
-  members: AllianceMemberInfo[];
-}
-
-export interface AllianceInvite {
-  token: string;
-  alliance_id: string;
-  alliance_name: string;
-  hub_url: string;
-}
-
-export interface AllianceSharedChannel {
-  channel_id: string;
-  channel_name: string;
-  hub_public_key: string;
-  hub_name: string;
-}
-
-export interface WsScreenShareStarted {
-  type: "screen_share_started";
-  channel_id: string;
-  stream_id: string;
-  sharer_pubkey: string;
-  kind: "screen" | "webcam";
-  mime: string;
-  has_audio: boolean;
-}
-
-export interface WsScreenShareChunkOut {
-  type: "screen_share_chunk";
-  channel_id: string;
-  stream_id: string;
-  sharer_pubkey: string;
-  seq: number;
-  is_init: boolean;
-}
-
-export interface WsScreenShareStopped {
-  type: "screen_share_stopped";
-  channel_id: string;
-  stream_id: string;
-  sharer_pubkey: string;
-}
+import type { Friend, UserProfile, BadgeSummary, PublicHubEntry, PublicHubProfile } from "@wavvon/ui";
+export type { Friend, UserProfile, BadgeSummary, PublicHubEntry, PublicHubProfile };
 
 export interface WsStreamSubscribed {
   type: "stream_subscribed";
@@ -226,109 +124,11 @@ export interface ScreenShareOpts {
   webcamDeviceId: string;
 }
 
-export interface SyncResult {
-  synced: boolean;
-  error: string | null;
-}
-
-export interface PendingAllianceInvite {
-  id: string;
-  alliance_id: string;
-  alliance_name: string;
-  from_hub_url: string;
-  from_hub_name: string;
-  from_hub_public_key: string;
-  invite_token: string;
-  message: string | null;
-  created_at: number;
-}
-
 // ---- Security Level Lobby ----
-
-export interface LobbyStatus {
-  status: "lobby" | "promoted" | "member";
-  required_level: number;
-  current_level: number;
-  entered_at: number | null;
-  welcome_md: string | null;
-}
 
 // ---- Admission challenge ----
 
-export interface ChallengePrompt {
-  id: string;
-  mode: "click" | "puzzle" | "both";
-  prompt_svg: string | null;
-  expires_at: number;
-}
-
-export interface ChallengeResult {
-  ok: boolean;
-  token: string | null;
-  expires_at: number | null;
-  next_challenge: ChallengePrompt | null;
-  attempts_remaining: number | null;
-}
-
 // ---- Role Questionnaire / Onboarding Survey ----
-
-export interface SurveyChoice {
-  id: string;
-  label: string;
-  display_order: number;
-}
-
-export interface SurveyQuestion {
-  id: string;
-  prompt: string;
-  kind: "choice" | "text";
-  required: boolean;
-  display_order: number;
-  choices?: SurveyChoice[];
-}
-
-export interface Survey {
-  id: string;
-  questions: SurveyQuestion[];
-}
-
-export interface SurveyAnswer {
-  question_id: string;
-  choice_id?: string;
-  text_answer?: string;
-}
-
-export interface SurveySubmitResult {
-  next_state: "approved" | "pending";
-  applied_roles: string[];
-}
-
-export interface SurveyChoiceAdmin extends SurveyChoice {
-  role_ids: string[];
-}
-
-export interface SurveyQuestionAdmin extends SurveyQuestion {
-  choices?: SurveyChoiceAdmin[];
-}
-
-export interface SurveyAdmin {
-  id: string;
-  enabled: boolean;
-  questions: SurveyQuestionAdmin[];
-}
-
-export interface SurveyResponseAdmin {
-  response_id: string;
-  pubkey: string;
-  display_name: string | null;
-  submitted_at: number;
-  answers: Array<{
-    question_id: string;
-    prompt: string;
-    choice_label: string | null;
-    text_answer: string | null;
-  }>;
-}
 
 // ---- Rich message content ----
 
@@ -376,42 +176,7 @@ export type {
 
 // ---- Server tags / badges ----
 
-export interface HubBadge {
-  payload: {
-    issuer_pubkey: string;
-    issuer_url: string;
-    subject_pubkey: string;
-    label: string;
-    issued_at: string;
-    expires_at: string | null;
-  };
-  signature: string;
-}
-
-export interface PendingBadgeOffer extends HubBadge {
-  id: string;
-  received_at: number;
-}
-
 // ---- Hub certifications ----
-
-export interface CertPayload {
-  subject_kind: "user";
-  issuer_pubkey: string;
-  issuer_url: string;
-  subject_pubkey: string;
-  member_since: number;
-  standing: "good" | "revoked";
-  pow_level: number | null;
-  issued_at: number;
-  expires_at: number;
-  capabilities: string[];
-}
-
-export interface HubCertification {
-  payload: CertPayload;
-  signature: string;
-}
 
 export interface IssuedCertRow {
   id: string;
@@ -436,16 +201,6 @@ export interface CertSettings {
 }
 
 // ---- Block / Ignore / DND ----
-
-export interface BlockEntry {
-  pubkey: string;
-  since: number;
-}
-
-export interface IgnoreEntry {
-  pubkey: string;
-  since: number;
-}
 
 export interface DndSettings {
   active: boolean;
@@ -475,40 +230,6 @@ export interface AuditEntry {
 }
 
 // ---- WebRTC screen share ----
-
-export interface WsScreenShareOffer {
-  type: "screen_share_offer";
-  channel_id: string;
-  to_pubkey: string;
-  from_pubkey: string;
-  sdp: string;
-  stream_id: string;
-}
-
-export interface WsScreenShareAnswer {
-  type: "screen_share_answer";
-  channel_id: string;
-  to_pubkey: string;
-  from_pubkey: string;
-  sdp: string;
-  stream_id: string;
-}
-
-export interface WsScreenShareIce {
-  type: "screen_share_ice";
-  channel_id: string;
-  to_pubkey: string;
-  from_pubkey: string;
-  candidate: string;
-  stream_id: string;
-}
-
-export interface WsScreenShareViewerJoined {
-  type: "screen_share_viewer_joined";
-  channel_id: string;
-  viewer_pubkey: string;
-  stream_id: string;
-}
 
 export interface HubListing {
   name: string;
@@ -555,18 +276,3 @@ export interface TauriFile extends File {
 // ---- Mini-app events ----
 
 export type { AppLaunchEvent } from "@wavvon/ui";
-
-export interface AppOpenEvent {
-  type: 'app_open';
-  app_id: string;
-  channel_id: string;
-  mini_app_url: string;
-  session_token: string;
-  requires_camera: boolean;
-}
-
-export interface AppCloseEvent {
-  type: 'app_close';
-  app_id: string;
-  channel_id: string;
-}
