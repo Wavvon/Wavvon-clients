@@ -54,7 +54,7 @@ impl ConnStats {
         let mut sorted = self.rtt_samples.clone();
         sorted.sort_unstable();
         let mid = sorted.len() / 2;
-        let median = if sorted.len() % 2 == 0 {
+        let median = if sorted.len().is_multiple_of(2) {
             (sorted[mid - 1] as f32 + sorted[mid] as f32) / 2.0
         } else {
             sorted[mid] as f32
