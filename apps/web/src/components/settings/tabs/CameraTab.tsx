@@ -7,7 +7,7 @@ import {
   loadBgSource,
   saveBg,
   type BackgroundMode,
-} from "@shared/utils/backgroundProcessor";
+} from "@wavvon/ui";
 
 // Camera device selection, background effects, and a live preview
 // (Settings → Camera). The chosen device is read by App when enabling the

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "../utils/backgroundProcessor";
-import type { BackgroundMode } from "../utils/backgroundProcessor";
+import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "@wavvon/ui";
+import type { BackgroundMode } from "@wavvon/ui";
 
 const MAX_ACTIVE = 3;
 const LINGER_MS = 3000;

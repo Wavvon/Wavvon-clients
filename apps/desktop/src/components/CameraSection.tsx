@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BackgroundProcessor, type BackgroundMode } from "../utils/backgroundProcessor";
+import { BackgroundProcessor, type BackgroundMode } from "@wavvon/ui";
 
 // Camera background effects + a live preview (Settings → Voice), mirroring
 // web's CameraTab. Mode/source state lives in useVideo (persisted to
