@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
+import { sanitizeSvgMarkup } from "@wavvon/ui";
 import type { ChallengePrompt, ChallengeResult } from "../types";
 
 export interface AdmissionChallengeProps {
@@ -145,7 +146,7 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
             {prompt.prompt_svg && (
               <div
                 className="challenge-svg-wrap"
-                dangerouslySetInnerHTML={{ __html: prompt.prompt_svg }}
+                dangerouslySetInnerHTML={{ __html: sanitizeSvgMarkup(prompt.prompt_svg) }}
               />
             )}
             {wrongMsg && <p className="challenge-wrong-msg">{wrongMsg}</p>}
