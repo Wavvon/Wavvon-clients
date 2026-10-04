@@ -12,6 +12,7 @@ import {
 import type { CredentialInfo } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
 import { SettingRow } from "@wavvon/ui";
+import { formatDate } from "@wavvon/core";
 
 interface Props {
   publicKey: string | null;
@@ -153,8 +154,8 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
                       </span>
                       <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
                         {pk.last_used_at
-                          ? t("settings.account.passkeys.used_date", { date: new Date(pk.last_used_at * 1000).toLocaleDateString() })
-                          : t("settings.account.passkeys.added_date", { date: new Date(pk.created_at * 1000).toLocaleDateString() })}
+                          ? t("settings.account.passkeys.used_date", { date: formatDate(pk.last_used_at) })
+                          : t("settings.account.passkeys.added_date", { date: formatDate(pk.created_at) })}
                       </span>
                       <button
                         className="btn-small"

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPubkey } from "@wavvon/core";
+import { formatPubkey, formatDate, formatTime } from "@wavvon/core";
 import type { AuditLogEntry, AuditLogPage } from "../../types";
 import { ErrorRetry } from "../ErrorRetry";
 
@@ -18,7 +18,7 @@ interface Props {
 function byDay(entries: AuditLogEntry[]): { day: string; entries: AuditLogEntry[] }[] {
   const out: { day: string; entries: AuditLogEntry[] }[] = [];
   for (const e of entries) {
-    const day = new Date(e.at * 1000).toLocaleDateString();
+    const day = formatDate(e.at);
     const last = out[out.length - 1];
     if (last && last.day === day) last.entries.push(e);
     else out.push({ day, entries: [e] });
@@ -70,7 +70,7 @@ export function AuditLogSection({ actions }: Props) {
               {group.entries.map((e) => (
                 <div key={e.seq} className="audit-entry">
                   <span className="audit-entry-time">
-                    {new Date(e.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {formatTime(e.at)}
                   </span>
                   <span className="audit-entry-what">
                     <span className="audit-entry-event">{e.event_type}</span>

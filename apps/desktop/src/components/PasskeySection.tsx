@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { formatDate } from "@wavvon/core";
 
 // Passkey management (view / rename / delete; registration is web-only).
 interface CredentialInfo {
@@ -109,10 +110,10 @@ export function PasskeySection({ hubId }: { hubId: string | null }) {
                   <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
                     {pk.last_used_at
                       ? t("settings.account.passkeys.used_date", {
-                          date: new Date(pk.last_used_at * 1000).toLocaleDateString(),
+                          date: formatDate(pk.last_used_at),
                         })
                       : t("settings.account.passkeys.added_date", {
-                          date: new Date(pk.created_at * 1000).toLocaleDateString(),
+                          date: formatDate(pk.created_at),
                         })}
                   </span>
                   <button

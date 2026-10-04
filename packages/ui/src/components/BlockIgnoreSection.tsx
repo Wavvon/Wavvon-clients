@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPubkey } from "@wavvon/core";
+import { formatPubkey, formatDate } from "@wavvon/core";
 import type { BlockEntry, IgnoreEntry } from "../types";
 import { SettingRow } from "./SettingRow";
 
@@ -38,7 +38,7 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
             <div>
               <span>{knownNames[b.pubkey] || formatPubkey(b.pubkey)}</span>
               <span className="muted" style={{ marginLeft: 8, fontSize: "var(--text-xs)" }}>
-                {t("settings.account.blocked_users.since", { date: new Date(b.since * 1000).toLocaleDateString() })}
+                {t("settings.account.blocked_users.since", { date: formatDate(b.since) })}
               </span>
             </div>
             <button className="btn-small" onClick={() => onUnblock(b.pubkey)}>{t("settings.account.blocked_users.unblock_button")}</button>
@@ -60,7 +60,7 @@ export function BlockIgnoreSection({ blocks, ignores, onUnblock, onUnignore, kno
             <div>
               <span>{knownNames[ig.pubkey] || formatPubkey(ig.pubkey)}</span>
               <span className="muted" style={{ marginLeft: 8, fontSize: "var(--text-xs)" }}>
-                {t("settings.account.ignored_users.since", { date: new Date(ig.since * 1000).toLocaleDateString() })}
+                {t("settings.account.ignored_users.since", { date: formatDate(ig.since) })}
               </span>
             </div>
             <button className="btn-small" onClick={() => onUnignore(ig.pubkey)}>{t("settings.account.ignored_users.unignore_button")}</button>

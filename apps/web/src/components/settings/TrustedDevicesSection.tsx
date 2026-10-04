@@ -4,6 +4,7 @@ import { listTrustedDevices, revokeTrustedDevice, isNotMemberError } from "@plat
 import type { DeviceInfo } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
 import { SettingRow } from "@wavvon/ui";
+import { formatDate } from "@wavvon/core";
 
 interface Props {
   account: IdentityRecord;
@@ -83,7 +84,7 @@ export function TrustedDevicesSection({ account }: Props) {
                 {d.device_name ?? t("settings.account.trusted_devices.unnamed")}
               </span>
               <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                {t("settings.account.trusted_devices.expires", { date: new Date(d.expires_at * 1000).toLocaleDateString() })}
+                {t("settings.account.trusted_devices.expires", { date: formatDate(d.expires_at) })}
               </span>
               <button className="btn-small" onClick={() => handleRevoke(d.id)}>
                 {t("settings.account.revoke_button")}

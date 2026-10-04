@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formatPubkey } from "@wavvon/core";
 import type { EventSlot, RsvpStatus } from "../../types";
 import { canClaimSlot, isClaimedByMe, isSlotFull } from "../../utils/events";
 
@@ -7,13 +8,11 @@ interface Props {
   eventId: string;
   slots: EventSlot[];
   myPubkey: string | null;
+  users?: Array<{ public_key: string; display_name: string | null }>;
   onRsvp: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   onSlotsChange: (slots: EventSlot[]) => void;
 }
 
-function shortPubkey(pubkey: string): string {
-  return pubkey.slice(0, 8) + "…";
-}
 
 // Applies a claim/unclaim result to the local slot list without a refetch:
 // adding myPubkey to `targetSlotId` (or removing it entirely for unclaim)
@@ -33,7 +32,7 @@ function applyClaim(slots: EventSlot[], myPubkey: string, targetSlotId: string |
   });
 }
 
-export function EventSlotList({ eventId, slots, myPubkey, onRsvp, onSlotsChange }: Props) {
+export function EventSlotList({ eventId, slots, myPubkey, users, onRsvp, onSlotsChange }: Props) {
   const { t } = useTranslation();
   const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +100,7 @@ export function EventSlotList({ eventId, slots, myPubkey, onRsvp, onSlotsChange 
                 <span className="muted">
                   {" — "}
                   {slot.claimants
-                    .map((p) => (p === myPubkey ? t("events.slots.you") : shortPubkey(p)))
+                    .map((p) => (p === myPubkey ? t("events.slots.you") : (users?.find((u) => u.public_key === p)?.display_name || formatPubkey(p))))
                     .join(", ")}
                 </span>
               )}

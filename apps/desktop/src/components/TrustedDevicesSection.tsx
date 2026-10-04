@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { formatDate } from "@wavvon/core";
 
 interface DeviceInfo {
   id: string;
@@ -75,7 +76,7 @@ export function TrustedDevicesSection({ hubId }: { hubId: string | null }) {
               </span>
               <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
                 {t("settings.account.trusted_devices.expires", {
-                  date: new Date(d.expires_at * 1000).toLocaleDateString(),
+                  date: formatDate(d.expires_at),
                 })}
               </span>
               <button

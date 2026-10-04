@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { HubEvent } from "../../types";
 import { eventsByDay, monthGrid } from "../../utils/calendar";
+import { formatDate } from "@wavvon/core";
 
 interface Props {
   events: HubEvent[];
@@ -15,8 +16,6 @@ function localKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const WEEKDAY_FORMAT = new Intl.DateTimeFormat(undefined, { weekday: "short" });
-const MONTH_FORMAT = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
 
 export function EventCalendar({ events, month, onMonthChange, onSelectDay, selectedDay }: Props) {
   const { t } = useTranslation();
@@ -44,7 +43,7 @@ export function EventCalendar({ events, month, onMonthChange, onSelectDay, selec
         >
           ‹
         </button>
-        <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>{MONTH_FORMAT.format(month)}</div>
+        <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>{formatDate(month, { month: "long", year: "numeric" })}</div>
         <button
           className="btn-secondary"
           style={{ fontSize: "var(--text-xs)", padding: "2px 8px" }}
@@ -58,7 +57,7 @@ export function EventCalendar({ events, month, onMonthChange, onSelectDay, selec
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 2 }}>
         {grid.slice(0, 7).map((d) => (
           <div key={d.getDay()} className="muted" style={{ textAlign: "center", fontSize: "var(--text-xs)" }}>
-            {WEEKDAY_FORMAT.format(d)}
+            {formatDate(d, { weekday: "short" })}
           </div>
         ))}
       </div>
