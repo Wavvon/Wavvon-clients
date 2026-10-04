@@ -23,7 +23,7 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { publicKeyHex, rotationAppliesTo, type HubKeyRotation } from "@wavvon/core";
+import { publicKeyHex, rotationAppliesTo, classifyHubRefusal, type HubKeyRotation } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
 import { acquireHubToken as authenticate, admitFarmToken } from "./hubAuth";
@@ -612,6 +612,30 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
       // silent drop here is indistinguishable from never having joined it,
       // and it is the only thing the user is shown: no session, no hub in the
       // list, and if it was the only one, the welcome screen back.
+      const refusal = e instanceof HubApiError ? classifyHubRefusal(e.status, e.message) : null;
+      if (refusal) {
+        // The hub answered and said no. Dropping it would read as "never
+        // joined"; keep it listed so the shell can show the reason.
+        setSession(hub.hub_id, {
+          hub_id: hub.hub_id,
+          hub_url: hub.hub_url,
+          hub_pubkey: hub.hub_id,
+          hub_name: hub.hub_name,
+          hub_icon: hub.hub_icon,
+          token: "",
+          ws: null,
+          refusal,
+          capabilities: hub.capabilities,
+          hub_version: hub.hub_version,
+        });
+        result.push({
+          hub_id: hub.hub_id,
+          hub_name: hub.hub_name,
+          hub_url: hub.hub_url,
+          hub_icon: hub.hub_icon,
+          is_active: hub.hub_id === savedActiveId,
+        });
+      }
       console.warn(`[restore] skipping ${hub.hub_url}:`, e);
     }
   }

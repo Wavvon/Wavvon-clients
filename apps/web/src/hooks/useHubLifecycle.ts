@@ -1,3 +1,4 @@
+import type { HubRefusal } from "@wavvon/core";
 import { useEffect, useState } from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
@@ -42,6 +43,7 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
   // (requirement: re-detect on reload) with one code path.
   const [lobbyHubs, setLobbyHubs] = useState<Set<string>>(new Set());
   const [pendingApprovalHubs, setPendingApprovalHubs] = useState<Set<string>>(new Set());
+  const [refusedHubs, setRefusedHubs] = useState<Map<string, HubRefusal>>(new Map());
 
   function handleHubReorder(event: DragEndEvent) {
     const { active, over } = event;
@@ -84,6 +86,7 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
     pingByHub,
     lobbyHubs, setLobbyHubs,
     pendingApprovalHubs, setPendingApprovalHubs,
+    refusedHubs, setRefusedHubs,
     handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
