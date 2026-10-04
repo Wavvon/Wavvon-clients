@@ -337,6 +337,8 @@
   "events.composer.title": "Crea un evento",
   "events.composer.title_label": "Titolo",
   "events.composer.title_placeholder": "Titolo dell'evento",
+  "content.tab.messages": "Messaggi",
+  "content.tab.events": "Eventi",
   "events.open_panel": "Eventi",
   "events.panel.create": "+ Crea evento",
   "events.panel.empty": "Nessun evento in programma.",
