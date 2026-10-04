@@ -6,16 +6,6 @@ import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqu
 // gets the accept/decline prompt (never auto-accepted). Also verifies the
 // menu entry itself is gated on move_members.
 
-// The "Move to channel…" hover submenu opens anchored to the trigger's own
-// top (HoverSubmenu only flips horizontally, not vertically), so on a hub
-// with many voice channels (the shared wavvon_e2e DB accumulates them across
-// the whole live suite) it can render mostly below the fold if the
-// right-click happens low in a long, scrolled sidebar. A tall viewport keeps
-// this test's own destination-picker reachable regardless of how many
-// channels precede it in the run — not a workaround for a real user's
-// screen, just headroom for this suite's shared, ever-growing test hub.
-test.use({ viewport: { width: 1280, height: 2000 } });
-
 function channelRow(page: Page, name: string) {
   return page.locator("li.channel-item-wrap").filter({ has: page.getByRole("button", { name: new RegExp(`^${name}(,| )|^${name}$`) }) });
 }
