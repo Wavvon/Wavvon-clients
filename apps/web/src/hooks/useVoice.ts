@@ -97,6 +97,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
+  const [micBelowGate, setMicBelowGate] = useState(false);
   const voiceSessionRef = useRef<VoiceWtSession | null>(null);
   // A join in flight, waiting for the main WS to reply with `voice_joined`
   // (resolved from onVoiceState below — see the CRITICAL note on
@@ -273,6 +274,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
           voiceSessionRef.current = null;
           extRef.current.disposeVideo();
           setVoiceChannelId(null);
+          setMicBelowGate(false);
           extRef.current.clearVoiceChannelNameHint();
           setSelfMuted(false);
           setSelfDeafened(false);
@@ -285,6 +287,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
         sendSpeaking: (channelId, speaking) => {
           try { ws()?.sendVoiceSpeaking(channelId, speaking); } catch {}
         },
+        onGateWarning: setMicBelowGate,
       },
       loadVoiceAudioProfile(),
       myPk,
@@ -420,6 +423,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
+    setMicBelowGate(false);
     extRef.current.clearVoiceChannelNameHint();
     setSelfMuted(false);
     setSelfDeafened(false);
@@ -599,6 +603,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voiceChannelId,
     selfMuted,
     selfDeafened,
+    micBelowGate,
     voiceSessionRef,
     voiceGains,
     handleSetVoiceGain,

@@ -1857,6 +1857,8 @@
   "voice.move.toast": "Moved to {channel}",
   "voice.move.toast.dismiss": "Dismiss",
   "voice.move.toast.rejoin": "Rejoin previous channel?",
+  "voice.mic_below_gate": "Your mic is below your voice-activity threshold — nobody can hear you",
+  "voice.mic_below_gate.action": "Adjust sensitivity",
   "voice.mute": "Mute microphone",
   "voice.mute.short": "Mute mic",
   "voice.participant.visiting_from": "Visiting from {hub}",

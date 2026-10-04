@@ -1857,6 +1857,8 @@
   "voice.move.toast": "Spostato in {channel}",
   "voice.move.toast.dismiss": "Chiudi",
   "voice.move.toast.rejoin": "Tornare al canale precedente?",
+  "voice.mic_below_gate": "Il microfono è sotto la soglia di attivazione vocale: nessuno ti sente",
+  "voice.mic_below_gate.action": "Regola la sensibilità",
   "voice.mute": "Silenzia microfono",
   "voice.mute.short": "Silenzia mic",
   "voice.participant.visiting_from": "In visita da {hub}",

@@ -1994,6 +1994,29 @@ tr.account-drop-target td {
   white-space: nowrap;
 }
 
+.mic-gate-warning {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: var(--space-1) var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--warning);
+  border-radius: var(--r-md);
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
+.mic-gate-warning-action {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ── Voice controls row (shown only when in voice) ── */
 .user-actions {
   display: flex;

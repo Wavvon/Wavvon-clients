@@ -1857,6 +1857,8 @@
   "voice.move.toast": "Movido a {channel}",
   "voice.move.toast.dismiss": "Cerrar",
   "voice.move.toast.rejoin": "¿Volver al canal anterior?",
+  "voice.mic_below_gate": "Tu micrófono está por debajo del umbral de activación por voz: nadie puede oírte",
+  "voice.mic_below_gate.action": "Ajustar sensibilidad",
   "voice.mute": "Silenciar micrófono",
   "voice.mute.short": "Mute mic",
   "voice.participant.visiting_from": "De visita desde {hub}",
