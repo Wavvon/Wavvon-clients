@@ -33,7 +33,7 @@ import "./pip.css";
 
   function resetMse() {
     if (mediaSource && mediaSource.readyState === "open") {
-      try { mediaSource.endOfStream(); } catch {}
+      try { mediaSource.endOfStream(); } catch { /* already ending: nothing to close */ }
     }
     if (video.src && video.src.startsWith("blob:")) {
       URL.revokeObjectURL(video.src);
@@ -61,7 +61,9 @@ import "./pip.css";
           busy = false;
           drainQueue();
         });
-      } catch {}
+      } catch {
+        // No playable codec: sourceBuffer stays null, so chunks queue and never play.
+      }
     }, { once: true });
 
     video.play().catch(() => {});
