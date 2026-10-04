@@ -5,6 +5,7 @@ import type { HubEvent, RsvpStatus } from "../../types";
 import { EventCalendar } from "./EventCalendar";
 import { EventCard, type EventStagingCapability } from "./EventCard";
 import { EventComposer, type CreateEventPayload } from "./EventComposer";
+import { CloseIcon } from "../Icons";
 
 type EventsView = "list" | "month";
 
@@ -19,11 +20,13 @@ interface Props {
   createEvent: (payload: CreateEventPayload) => Promise<HubEvent>;
   advancedFieldsSupported?: boolean;
   staging?: EventStagingCapability;
+  /** Set when the panel is hosted in a dialog: adds the close control to the header. */
+  onClose?: () => void;
 }
 
 export function EventsPanel({
   channelId, myPubkey, isAdmin, channels, getEvents, deleteEvent, rsvpEvent, createEvent,
-  advancedFieldsSupported, staging,
+  advancedFieldsSupported, staging, onClose,
 }: Props) {
   const { t } = useTranslation();
   const [events, setEvents] = useState<HubEvent[]>([]);
@@ -97,17 +100,25 @@ export function EventsPanel({
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>{t("events.panel.title")}</h3>
-        {isAdmin && (
-          <button className="btn-secondary" onClick={() => setShowComposer(true)}>
-            {t("events.panel.create")}
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {isAdmin && (
+            <button className="btn-secondary" onClick={() => setShowComposer(true)}>
+              {t("events.panel.create")}
+            </button>
+          )}
+          {onClose && (
+            <button className="btn-ghost" onClick={onClose} aria-label={t("modal.close")}>
+              <CloseIcon size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
         <button
           className={view === "list" ? "btn-primary" : "btn-secondary"}
           style={{ fontSize: "var(--text-xs)", padding: "2px 10px" }}
+          aria-pressed={view === "list"}
           onClick={() => setView("list")}
         >
           {t("events.view.list")}
@@ -115,6 +126,7 @@ export function EventsPanel({
         <button
           className={view === "month" ? "btn-primary" : "btn-secondary"}
           style={{ fontSize: "var(--text-xs)", padding: "2px 10px" }}
+          aria-pressed={view === "month"}
           onClick={() => setView("month")}
         >
           {t("events.view.month")}
@@ -134,7 +146,9 @@ export function EventsPanel({
       {loading && <p className="muted">{t("events.panel.loading")}</p>}
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
       {!loading && !error && visibleEvents.length === 0 && (
-        <p className="muted">{view === "month" ? t("events.calendar.no_events") : t("events.panel.empty")}</p>
+        <p className="muted">
+          {view === "month" ? t("events.calendar.no_events") : isAdmin ? t("events.panel.empty_admin") : t("events.panel.empty")}
+        </p>
       )}
 
       {visibleEvents.map((event) => (

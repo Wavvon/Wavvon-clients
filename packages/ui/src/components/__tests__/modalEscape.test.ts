@@ -50,3 +50,13 @@ describe("modal escape", () => {
     expect(files.length).toBeGreaterThan(15);
   });
 });
+
+describe("modal chrome", () => {
+  // `.modal-box` has no CSS rule: a dialog built on it renders with no
+  // background, so the page shows straight through the form. The poll
+  // composer shipped that way.
+  it("no dialog uses the undefined .modal-box class", () => {
+    const offenders = sourceFiles(SRC).filter((f) => /className=["']modal-box["']/.test(readFileSync(f, "utf8")));
+    expect(offenders.map((f) => f.slice(SRC.length + 1).replace(/\\/g, "/"))).toEqual([]);
+  });
+});

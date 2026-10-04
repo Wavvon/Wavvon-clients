@@ -76,7 +76,7 @@ export function PinnedMessagesModal({
     >
       <FocusTrap>
       <div
-        className="modal-box"
+        className="modal"
         style={{ maxWidth: 520, maxHeight: "70vh", display: "flex", flexDirection: "column" }}
         onClick={(e) => e.stopPropagation()}
       >

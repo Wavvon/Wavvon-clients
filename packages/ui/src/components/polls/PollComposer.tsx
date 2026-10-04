@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Poll } from "../../types";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import { CloseIcon } from "../Icons";
+import { FocusTrap } from "../FocusTrap";
 
 interface Props {
   channelId: string;
@@ -40,7 +41,7 @@ export function PollComposer({ channelId, onCreatePoll, onCreated, onClose }: Pr
     e.preventDefault();
     const filled = options.map((o) => o.value.trim()).filter(Boolean);
     if (!question.trim() || filled.length < 2) {
-      setError("Question and at least 2 options are required.");
+      setError(t("polls.composer.error_required"));
       return;
     }
     setSaving(true);
@@ -64,70 +65,73 @@ export function PollComposer({ channelId, onCreatePoll, onCreated, onClose }: Pr
       aria-modal="true"
       aria-label={t("channel.ctx.create_poll")}
     >
-      <div
-        className="modal-box"
-        style={{ maxWidth: 420, padding: 24 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 style={{ margin: "0 0 16px", fontSize: "var(--text-md)", fontWeight: 600 }}>
-          {t("channel.ctx.create_poll")}
-        </h2>
+      <FocusTrap>
+        <div
+          className="modal modal-form"
+          style={{ maxWidth: 420 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 style={{ margin: "0 0 16px", fontSize: "var(--text-md)", fontWeight: 600 }}>
+            {t("channel.ctx.create_poll")}
+          </h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className="settings-section" style={{ marginBottom: 12 }}>
-            <label className="settings-label">{t("polls.composer.question")}</label>
-            <input
-              type="text"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder={t("polls.composer.question_placeholder")}
-              style={{ width: "100%" }}
-              maxLength={200}
-              autoFocus
-            />
-          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="form-field">
+              <label className="settings-label" htmlFor="poll-question">{t("polls.composer.question")}</label>
+              <input
+                id="poll-question"
+                type="text"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder={t("polls.composer.question_placeholder")}
+                style={{ width: "100%" }}
+                maxLength={200}
+                autoFocus
+              />
+            </div>
 
-          <div className="settings-section" style={{ marginBottom: 12 }}>
-            <label className="settings-label">{t("polls.composer.options")}</label>
-            {options.map((opt, i) => (
-              <div key={opt.id} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <input
-                  type="text"
-                  value={opt.value}
-                  onChange={(e) => setOption(i, e.target.value)}
-                  placeholder={t("polls.composer.option_placeholder", { n: i + 1 })}
-                  maxLength={100}
-                  style={{ flex: 1 }}
-                />
-                {options.length > 2 && (
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={() => removeOption(i)}
-                    aria-label={t("polls.composer.remove_option")}
-                  >
-                    <CloseIcon size={13} />
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" className="btn-secondary" onClick={addOption} style={{ marginTop: 4 }}>
-              {t("polls.composer.add_option")}
-            </button>
-          </div>
+            <div className="form-field">
+              <label className="settings-label">{t("polls.composer.options")}</label>
+              {options.map((opt, i) => (
+                <div key={opt.id} className="form-row">
+                  <input
+                    type="text"
+                    value={opt.value}
+                    onChange={(e) => setOption(i, e.target.value)}
+                    placeholder={t("polls.composer.option_placeholder", { n: i + 1 })}
+                    maxLength={100}
+                    style={{ flex: 1 }}
+                  />
+                  {options.length > 2 && (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => removeOption(i)}
+                      aria-label={t("polls.composer.remove_option")}
+                    >
+                      <CloseIcon size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="btn-secondary" onClick={addOption}>
+                {t("polls.composer.add_option")}
+              </button>
+            </div>
 
-          {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
+            {error && <p className="modal-form-error" role="alert">{error}</p>}
 
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>
-              {t("polls.composer.cancel")}
-            </button>
-            <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? t("polls.composer.creating") : t("channel.ctx.create_poll")}
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="modal-form-actions">
+              <button type="button" className="btn-secondary" onClick={onClose}>
+                {t("polls.composer.cancel")}
+              </button>
+              <button type="submit" className="btn-primary" disabled={saving}>
+                {saving ? t("polls.composer.creating") : t("channel.ctx.create_poll")}
+              </button>
+            </div>
+          </form>
+        </div>
+      </FocusTrap>
     </div>
   );
 }

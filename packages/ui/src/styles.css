@@ -2553,6 +2553,54 @@ select:focus-visible {
   max-width: 600px;
 }
 
+/* A form inside a dialog: plain stacked fields. The settings-page
+   .settings-section carries a divider and 56px of spacing that read as a
+   gap between every pair of inputs here. */
+.modal-form .form-field {
+  margin-bottom: var(--space-3);
+}
+
+.modal-form input,
+.modal-form textarea {
+  margin-bottom: 0;
+}
+
+.modal-form .form-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.modal-form .form-row input {
+  min-width: 0;
+}
+
+.modal-form-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
+.modal-form-error {
+  color: var(--danger);
+  font-size: var(--text-sm);
+  margin: var(--space-3) 0 0;
+}
+
+.modal-section {
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 /* ============================================================
    SETTINGS SECTIONS (in settings page)
    ============================================================ */

@@ -91,12 +91,12 @@ export function EventSlotList({ eventId, slots, myPubkey, onRsvp, onSlotsChange 
             }}
           >
             <div>
-              <span>
+              <span>{slot.name}</span>{" "}
+              <span className="muted">
                 {slot.capacity === null
                   ? t("events.slots.fill_unlimited", { claimed: slot.claimed })
                   : t("events.slots.fill", { claimed: slot.claimed, capacity: slot.capacity })}
-              </span>{" "}
-              <span>{slot.name}</span>
+              </span>
               {slot.claimants.length > 0 && (
                 <span className="muted">
                   {" — "}

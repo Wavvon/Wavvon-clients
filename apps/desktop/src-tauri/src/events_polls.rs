@@ -298,8 +298,9 @@ pub(crate) async fn vote_poll(
     // The vote endpoint returns 204 with no body, but MessageRowActions'
     // `votePoll` needs the updated `Poll` back for optimistic UI (same
     // contract as web's `votePoll` in platform/commands/polls.ts). Re-fetch
-    // via GET /polls/:poll_id (PollWithTotals: `poll` has `options` as a
-    // JSON-encoded string, plus separate `totals`/`your_vote`) and reshape
+    // via GET /polls/:poll_id (PollWithTotals: the poll fields flattened into
+    // the body, `options` as a JSON-encoded string, plus separate
+    // `totals`/`your_vote`) and reshape
     // into the flat `Poll` client type.
     let res = state
         .http_client
@@ -310,7 +311,7 @@ pub(crate) async fn vote_poll(
         .map_err(|e| e.to_string())?;
     let raw: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
 
-    let poll = raw.get("poll").cloned().unwrap_or(serde_json::json!({}));
+    let poll = raw.clone();
     let raw_options: Vec<serde_json::Value> = match poll.get("options") {
         Some(serde_json::Value::String(s)) => serde_json::from_str(s).unwrap_or_default(),
         Some(serde_json::Value::Array(a)) => a.clone(),

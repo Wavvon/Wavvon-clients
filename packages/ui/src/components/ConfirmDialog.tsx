@@ -68,7 +68,6 @@ function ConfirmDialog({
       role="dialog"
       aria-modal="true"
       aria-label={request.title}
-      onKeyDown={(e) => { if (e.key === "Escape") onSettle(false); }}
     >
       <FocusTrap>
         <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>

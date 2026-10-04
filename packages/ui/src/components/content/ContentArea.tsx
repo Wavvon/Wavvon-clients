@@ -32,7 +32,8 @@ import { ChannelMessageList } from "./ChannelMessageList";
 import type { MessageRowActions } from "./MessageRow";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
-import { CalendarIcon, CloseIcon } from "../Icons";
+import { CalendarIcon } from "../Icons";
+import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface SelectedAllianceChannel {
@@ -440,6 +441,7 @@ export function ContentArea({
       createEvent={createEvent}
       advancedFieldsSupported
       staging={eventStaging}
+      onClose={eventsPresentation === "modal" ? () => setShowEventsModal(false) : undefined}
     />
   );
 
@@ -722,13 +724,18 @@ export function ContentArea({
       )}
 
       {eventsPresentation === "modal" && showEventsModal && (
-        <div className="modal-overlay" onClick={() => setShowEventsModal(false)}>
-          <div className="modal" style={{ maxWidth: 640, maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="btn-ghost" onClick={() => setShowEventsModal(false)} aria-label={t("modal.close")}><CloseIcon size={14} /></button>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowEventsModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("events.panel.title")}
+        >
+          <FocusTrap>
+            <div className="modal" style={{ maxWidth: 640, width: "100%", padding: 0 }} onClick={(e) => e.stopPropagation()}>
+              {eventsPanel}
             </div>
-            {eventsPanel}
-          </div>
+          </FocusTrap>
         </div>
       )}
     </>
