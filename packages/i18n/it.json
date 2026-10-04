@@ -408,6 +408,7 @@
   "forum.detail.read_only_banner": "👀 Sola lettura: ospitato su un altro hub, le risposte non sono ancora disponibili qui.",
   "forum.detail.remove_file": "Rimuovi {name}",
   "forum.detail.replies": "{count, plural, one {# risposta} other {# risposte}}",
+  "forum.detail.load_more_replies": "Carica altre risposte",
   "forum.detail.reply": "Rispondi",
   "forum.detail.reply_placeholder": "Scrivi una risposta…",
   "forum.detail.replying_to": "Stai rispondendo a un commento",

@@ -5,6 +5,7 @@ import { formatRelative, formatPubkey } from "@wavvon/core";
 import { describeForumWriteError } from "./forumErrors";
 import { ForumTagPicker } from "./ForumTagPicker";
 import { toggleTagSelection } from "../../utils/forumTags";
+import { mergeReplies } from "../../utils/forumReplies";
 import { MessageContent } from "../MessageContent";
 import { AutoGrowTextarea } from "../profile/AutoGrowTextarea";
 import { EmojiPicker } from "../content/EmojiPicker";
@@ -151,6 +152,7 @@ export function ForumPostDetail({
   const [replyBody, setReplyBody] = useState("");
   const [replyTo, setReplyTo] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingPostBody, setEditingPostBody] = useState<string | null>(null);
@@ -166,11 +168,23 @@ export function ForumPostDetail({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, allianceId, actions.listTags]);
 
+  function fetchPage(after?: string) {
+    return allianceId
+      ? actions.getAlliancePost!(allianceId, channelId, postId, after)
+      : actions.getPost(channelId, postId, after);
+  }
+
+  // Re-walks as many pages as were already on screen, so a refresh after an
+  // edit or a new reply does not collapse the list back to the first page.
   async function reload() {
     try {
-      const p = allianceId
-        ? await actions.getAlliancePost!(allianceId, channelId, postId)
-        : await actions.getPost(channelId, postId);
+      const shown = post?.id === postId ? post.replies.length : 0;
+      const p = await fetchPage();
+      while (p.reply_cursor && p.replies.length < shown) {
+        const next = await fetchPage(p.reply_cursor);
+        p.replies = mergeReplies(p.replies, next.replies);
+        p.reply_cursor = next.reply_cursor;
+      }
       setPost(p);
     } catch (e) {
       setError(String(e));
@@ -202,6 +216,19 @@ export function ForumPostDetail({
       if (removed) URL.revokeObjectURL(removed.objectUrl);
       return prev.filter((f) => f.objectUrl !== objectUrl);
     });
+  }
+
+  async function handleLoadMore() {
+    if (!post?.reply_cursor) return;
+    setLoadingMore(true);
+    try {
+      const next = await fetchPage(post.reply_cursor);
+      setPost((cur) => cur && { ...cur, ...next, reply_cursor: next.reply_cursor, replies: mergeReplies(cur.replies, next.replies) });
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoadingMore(false);
+    }
   }
 
   async function handleSendReply() {
@@ -462,6 +489,11 @@ export function ForumPostDetail({
             users={users}
           />
         ))}
+        {post.reply_cursor && (
+          <button className="btn-ghost" onClick={() => void handleLoadMore()} disabled={loadingMore}>
+            {t("forum.detail.load_more_replies")}
+          </button>
+        )}
       </div>
 
       {!canWrite ? (

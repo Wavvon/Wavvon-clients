@@ -408,6 +408,7 @@
   "forum.detail.read_only_banner": "👀 Read-only — hosted on another hub, replies aren't available here yet.",
   "forum.detail.remove_file": "Remove {name}",
   "forum.detail.replies": "{count, plural, one {# reply} other {# replies}}",
+  "forum.detail.load_more_replies": "Load more replies",
   "forum.detail.reply": "Reply",
   "forum.detail.reply_placeholder": "Write a reply…",
   "forum.detail.replying_to": "Replying to a comment",

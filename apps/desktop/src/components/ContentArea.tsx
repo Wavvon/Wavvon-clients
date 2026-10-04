@@ -72,7 +72,7 @@ function dismissWelcome(hubId: string): void {
 const forumActions: ForumActions = {
   listPosts: (channelId, cursor, tagId) =>
     invoke<PostListResponse>("forum_list_posts", { channelId, cursor, tagId }),
-  getPost: (channelId, postId) => invoke<PostDetail>("forum_get_post", { channelId, postId }),
+  getPost: (channelId, postId, after) => invoke<PostDetail>("forum_get_post", { channelId, postId, after }),
   createPost: (channelId, title, body, tagIds) =>
     invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds }),
   createReply: (channelId, postId, body, replyToId) =>
