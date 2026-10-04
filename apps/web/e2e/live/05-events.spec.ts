@@ -39,7 +39,7 @@ test("event with slots: create, claim, capacity, unclaim", async ({ page, browse
   await composer.locator("#event-reminder").selectOption({ label: "1 hour before" });
   await composer.getByRole("button", { name: "+ Add slot" }).click();
   await composer.getByPlaceholder("Slot name (e.g. Tank)").fill("Tank");
-  await composer.getByPlaceholder("Capacity (blank = unlimited)").fill("1");
+  await composer.getByLabel("Capacity (blank = unlimited)").fill("1");
   await composer.getByRole("button", { name: "+ Add slot" }).click();
   await composer.getByPlaceholder("Slot name (e.g. Tank)").nth(1).fill("Healer");
   await composer.getByRole("button", { name: "Create event", exact: true }).click();

@@ -19,7 +19,7 @@ async function joinVoice(page: Page, channel: string) {
 }
 
 function slotGroup(dialog: Locator, slotName: string) {
-  return dialog.locator(".settings-section").filter({ hasText: slotName });
+  return dialog.getByRole("group", { name: slotName });
 }
 
 test("staging panel: live move (auto-accept + rejoin toast) and queued assignment", async ({ page, browser }) => {

@@ -40,7 +40,7 @@ export function StagingSlotGroup({
         : null;
 
   return (
-    <div className="modal-section">
+    <div className="modal-section" role="group" aria-label={title}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>
           {title}
