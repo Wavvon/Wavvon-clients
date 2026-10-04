@@ -39,7 +39,6 @@ export type {
 export { AudioProfileSection } from "./components/AudioProfileSection";
 export { Avatar } from "./components/Avatar";
 export { AvatarPicker } from "./components/AvatarPicker";
-export { AccountLabelSuffix, PerAccountHint } from "./components/AccountScopeNote";
 export { generateAvatarDataUrl, randomAvatarSeed } from "./utils/avatarGenerator";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";

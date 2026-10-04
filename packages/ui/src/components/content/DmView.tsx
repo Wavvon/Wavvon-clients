@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
 import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
@@ -27,12 +27,6 @@ interface Props {
   onPingDmTyping: () => void;
   onSendDm: () => void;
   onOpenImage: (src: string, alt: string) => void;
-  /** Present only on platforms that implement group-DM sender-key E2E
-   *  encryption. Gates the conversation behind a one-time acknowledgment
-   *  and pushes this device's sender key on accept. Platforms without the
-   *  crypto (e.g. web, pending packages/core support) omit it and fall
-   *  back to the plain "not encrypted" banner. */
-  onAcknowledgeGroupDm?: (conversationId: string) => void;
 }
 
 export function DmView({
@@ -53,40 +47,15 @@ export function DmView({
   onPingDmTyping,
   onSendDm,
   onOpenImage,
-  onAcknowledgeGroupDm,
 }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposing = useRef(false);
-  const [groupDmAcknowledged, setGroupDmAcknowledged] = useState(false);
 
   function handleContainerClick(e: React.MouseEvent<HTMLElement>) {
     const target = e.target as HTMLElement;
     if (target.closest("button, a, input, textarea, select, label")) return;
     inputRef.current?.focus();
-  }
-
-  if (selectedConversation.conv_type === "group" && onAcknowledgeGroupDm && !groupDmAcknowledged) {
-    return (
-      <div className="dm-group-ack-overlay">
-        <div className="dm-group-ack-box">
-          <p className="dm-group-ack-title">{t("dm.group_warning_title")}</p>
-          <p className="dm-group-ack-body">
-            {t("dm.group_banner")}
-            {" "}{t("dm.group_banner_detail")}
-          </p>
-          <button
-            className="btn-primary"
-            onClick={() => {
-              setGroupDmAcknowledged(true);
-              onAcknowledgeGroupDm(selectedConversation.id);
-            }}
-          >
-            {t("dm.group_banner_got_it")}
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -105,7 +74,7 @@ export function DmView({
       </div>
       {selectedConversation.conv_type === "group" && (
         <div className="dm-group-banner">
-          {onAcknowledgeGroupDm ? t("dm.group_e2e_active") : t("dm.group_banner")}
+          {t("dm.group_banner")}
         </div>
       )}
       <div className="messages">
@@ -181,7 +150,7 @@ export function DmView({
         onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
         onClick={handleContainerClick}
       >
-        <label className="btn-attach" title={t("composer.attach")}>
+        <label className="btn-attach" title={t("composer.attach")}>
           <PaperclipIcon size={16} />
           <input
             type="file"

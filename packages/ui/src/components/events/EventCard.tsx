@@ -28,9 +28,6 @@ interface Props {
   onRsvp: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   onUpdate: (event: HubEvent) => void;
   onDelete: (eventId: string) => void;
-  /** Role-slot claiming (events.md §7.5) — needs the host's rsvp command to
-   *  forward a slot id, which not every platform's invoke surface supports yet. */
-  slotClaimSupported?: boolean;
   staging?: EventStagingCapability;
 }
 
@@ -41,7 +38,7 @@ const RSVP_KEYS: Record<RsvpStatus, string> = {
 };
 
 export function EventCard({
-  event, myPubkey, isAdmin, onRsvp, onUpdate, onDelete, slotClaimSupported, staging,
+  event, myPubkey, isAdmin, onRsvp, onUpdate, onDelete, staging,
 }: Props) {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
@@ -161,15 +158,13 @@ export function EventCard({
         </div>
       )}
 
-      {slotClaimSupported && (
-        <EventSlotList
-          eventId={event.id}
-          slots={event.slots}
-          myPubkey={myPubkey}
-          onRsvp={onRsvp}
-          onSlotsChange={(slots) => onUpdate({ ...event, slots })}
-        />
-      )}
+      <EventSlotList
+        eventId={event.id}
+        slots={event.slots}
+        myPubkey={myPubkey}
+        onRsvp={onRsvp}
+        onSlotsChange={(slots) => onUpdate({ ...event, slots })}
+      />
 
       {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-xs)", marginTop: 4 }}>{error}</p>}
     </div>

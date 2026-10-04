@@ -24,9 +24,6 @@ interface Props {
   mentionSuggestions: User[];
   mentionSelectedIdx: number;
   mentionQuery: string | null;
-  /** Shows the "Create poll" item in the "more" menu. Defaults to true —
-   * desktop passes false where a channel/hub isn't active yet. */
-  showPollButton?: boolean;
   /** Tracks IME (CJK input method) composition so an in-progress composition
    * isn't reset mid-character — folded in from desktop's copy. */
   isComposing?: React.RefObject<boolean>;
@@ -56,7 +53,6 @@ export function ChannelComposer({
   mentionSuggestions,
   mentionSelectedIdx,
   mentionQuery,
-  showPollButton = true,
   isComposing,
   messageInputRef,
   loadHubEmojis,
@@ -233,21 +229,19 @@ export function ChannelComposer({
                       </svg>
                       {t("composer.attach")}
                     </button>
-                    {showPollButton && (
-                      <button
-                        type="button"
-                        className="composer-more-item"
-                        role="menuitem"
-                        onClick={handleCreatePoll}
-                      >
-                        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <rect x="2" y="13" width="4" height="5" rx="1" />
-                          <rect x="8" y="8" width="4" height="10" rx="1" />
-                          <rect x="14" y="3" width="4" height="15" rx="1" />
-                        </svg>
-                        {t("composer.create_poll")}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="composer-more-item"
+                      role="menuitem"
+                      onClick={handleCreatePoll}
+                    >
+                      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="2" y="13" width="4" height="5" rx="1" />
+                        <rect x="8" y="8" width="4" height="10" rx="1" />
+                        <rect x="14" y="3" width="4" height="15" rx="1" />
+                      </svg>
+                      {t("composer.create_poll")}
+                    </button>
                   </div>
                 </>
               )}
