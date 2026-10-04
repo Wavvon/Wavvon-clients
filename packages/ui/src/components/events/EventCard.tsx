@@ -43,7 +43,7 @@ export function EventCard({
 }: Props) {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
-  const [myStatus, setMyStatus] = useState<RsvpStatus | null>(null);
+  const [myStatus, setMyStatus] = useState<RsvpStatus | null>(event.my_rsvp ?? null);
   const [error, setError] = useState<string | null>(null);
   const [showStaging, setShowStaging] = useState(false);
   const { confirm, dialog } = useConfirm();
@@ -66,7 +66,7 @@ export function EventCard({
       if (myStatus) nextCounts[myStatus] = Math.max(0, nextCounts[myStatus] - 1);
       nextCounts[status] = nextCounts[status] + 1;
       setMyStatus(status);
-      onUpdate({ ...event, rsvp_counts: nextCounts });
+      onUpdate({ ...event, rsvp_counts: nextCounts, my_rsvp: status });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -118,7 +118,7 @@ export function EventCard({
               onClick={handleDelete}
               title={t("events.card.delete")}
               aria-label={t("events.card.delete")}
-            >
+            >
               <CloseIcon size={14} />
             </button>
           )}

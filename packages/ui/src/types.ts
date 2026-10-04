@@ -301,6 +301,7 @@ export interface HubEvent {
   creator_pubkey?: string;
   created_at: number;
   rsvp_counts: { going: number; maybe: number; not_going: number };
+  my_rsvp?: RsvpStatus;
   slots: EventSlot[];
   reminder_minutes: number | null;
   reminder_sent_at: number | null;
