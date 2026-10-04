@@ -78,3 +78,32 @@ test("event with slots: create, claim, capacity, unclaim", async ({ page, browse
   await card.getByRole("button", { name: "Unclaim" }).click();
   await expect(card.getByText("0/1")).toBeVisible();
 });
+
+test("my RSVP survives a reload", async ({ page }) => {
+  await page.goto("/");
+  await expectInHub(page);
+
+  const channel = uniqueName("events");
+  await createChannel(page, channel);
+  await openEventsTab(page, channel);
+
+  await page.getByRole("button", { name: "+ Create event" }).click();
+  const composer = page.getByRole("dialog", { name: "Create event" });
+  const title = uniqueName("rsvp");
+  await composer.getByPlaceholder("Event title").fill(title);
+  await composer.locator("#event-start").fill(futureEventStart());
+  await composer.getByRole("button", { name: "Create event", exact: true }).click();
+  await expect(composer).not.toBeVisible();
+
+  const card = page.locator(".event-card").filter({ hasText: title });
+  const maybe = card.getByRole("button", { name: "Maybe", exact: true });
+  await expect(maybe).toHaveClass(/btn-secondary/);
+  await maybe.click();
+  await expect(maybe).toHaveClass(/btn-primary/);
+
+  await page.reload();
+  await expectInHub(page);
+  await openEventsTab(page, channel);
+  await expect(card.getByRole("button", { name: "Maybe", exact: true })).toHaveClass(/btn-primary/);
+  await expect(card.getByRole("button", { name: "Going", exact: true })).toHaveClass(/btn-secondary/);
+});
