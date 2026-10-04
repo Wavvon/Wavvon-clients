@@ -34,7 +34,7 @@ export function EventCalendar({ events, month, onMonthChange, onSelectDay, selec
   }
 
   return (
-    <div className="settings-section" style={{ padding: 10, marginBottom: 12 }}>
+    <div className="settings-card" style={{ padding: 10, marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <button
           className="btn-secondary"
@@ -89,7 +89,7 @@ export function EventCalendar({ events, month, onMonthChange, onSelectDay, selec
             >
               <span style={{ fontSize: "var(--text-xs)" }}>{day.getDate()}</span>
               {dayEvents.length > 0 && (
-                <span className={isSelected ? undefined : "muted"} style={{ fontSize: "10px" }}>
+                <span style={{ fontSize: "var(--text-xs)", color: isSelected ? undefined : "var(--accent)" }}>
                   {dayEvents.length > 1 ? `${dayEvents.length} •` : "•"}
                 </span>
               )}

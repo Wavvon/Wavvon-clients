@@ -13,6 +13,7 @@ import {
 import { nextHalfHourValue } from "../../utils/calendar";
 import { EventSlotEditor, type SlotRow } from "./EventSlotEditor";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
+import { FocusTrap } from "../FocusTrap";
 
 type EventScope = "channel" | "hub_wide";
 
@@ -104,12 +105,12 @@ export function EventComposer({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !startAt) {
-      setError("Title and start date/time are required.");
+      setError(t("events.composer.error_required"));
       return;
     }
     const startMs = new Date(startAt).getTime();
     if (isNaN(startMs)) {
-      setError("Invalid start date.");
+      setError(t("events.composer.error_invalid_start"));
       return;
     }
     const namedSlots = slots.filter((s) => s.name.trim());
@@ -160,163 +161,165 @@ export function EventComposer({
           without it the composer has no max-height/overflow, so Phase 3's
           extra fields (scope, announcement channel, propagate checkbox) can
           push the submit button past the viewport with no way to reach it. */}
-      <div
-        className="modal"
-        style={{ maxWidth: 440, padding: 24 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 style={{ margin: "0 0 16px", fontSize: "var(--text-md)", fontWeight: 600 }}>
-          {t("events.composer.title")}
-        </h2>
+      <FocusTrap>
+        <div
+          className="modal modal-form"
+          style={{ maxWidth: 440 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 style={{ margin: "0 0 16px", fontSize: "var(--text-md)", fontWeight: 600 }}>
+            {t("events.composer.title")}
+          </h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className="settings-section" style={{ marginBottom: 10 }}>
-            <label className="settings-label" htmlFor="event-title">{t("events.composer.title_label")}</label>
-            <input
-              id="event-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={t("events.composer.title_placeholder")}
-              style={{ width: "100%" }}
-              autoFocus
-            />
-          </div>
-
-          <div className="settings-section" style={{ marginBottom: 10 }}>
-            <label className="settings-label" htmlFor="event-description">{t("events.composer.description_label")}</label>
-            <textarea
-              id="event-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("events.composer.description_placeholder")}
-              rows={3}
-              style={{ width: "100%", resize: "vertical" }}
-            />
-          </div>
-
-          <div className="settings-section" style={{ marginBottom: 10 }}>
-            <label className="settings-label" htmlFor="event-location">{t("events.composer.location_label")}</label>
-            <input
-              id="event-location"
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder={t("events.composer.location_placeholder")}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          {advancedFieldsSupported && canHubWide && (
-            <div className="settings-section" style={{ marginBottom: 10 }}>
-              <label className="settings-label" htmlFor="event-scope">
-                {t("events.composer.scope_label")}
-              </label>
-              <select
-                id="event-scope"
-                value={scope}
-                onChange={(e) => setScope(e.target.value as EventScope)}
+          <form onSubmit={handleSubmit}>
+            <div className="form-field">
+              <label className="settings-label" htmlFor="event-title">{t("events.composer.title_label")}</label>
+              <input
+                id="event-title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t("events.composer.title_placeholder")}
                 style={{ width: "100%" }}
-              >
-                <option value="channel">{t("events.composer.scope_channel")}</option>
-                <option value="hub_wide">{t("events.composer.scope_hub_wide")}</option>
-              </select>
+                autoFocus
+              />
             </div>
-          )}
 
-          {advancedFieldsSupported && scope === "hub_wide" && (
-            <div className="settings-section" style={{ marginBottom: 10 }}>
-              <label className="settings-label" htmlFor="event-announcement-channel">
-                {t("events.composer.announcement_channel_label")}
-              </label>
-              <select
-                id="event-announcement-channel"
-                value={announcementChannelId}
-                onChange={(e) => setAnnouncementChannelId(e.target.value)}
+            <div className="form-field">
+              <label className="settings-label" htmlFor="event-description">{t("events.composer.description_label")}</label>
+              <textarea
+                id="event-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t("events.composer.description_placeholder")}
+                rows={3}
+                style={{ width: "100%", resize: "vertical" }}
+              />
+            </div>
+
+            <div className="form-field">
+              <label className="settings-label" htmlFor="event-location">{t("events.composer.location_label")}</label>
+              <input
+                id="event-location"
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder={t("events.composer.location_placeholder")}
                 style={{ width: "100%" }}
-              >
-                {announcementCandidates.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              />
             </div>
-          )}
 
-          {advancedFieldsSupported && anchorHasDescendants && (
-            <div className="settings-section" style={{ marginBottom: 10 }}>
-              <label className="checkbox-label">
+            {advancedFieldsSupported && canHubWide && (
+              <div className="form-field">
+                <label className="settings-label" htmlFor="event-scope">
+                  {t("events.composer.scope_label")}
+                </label>
+                <select
+                  id="event-scope"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as EventScope)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="channel">{t("events.composer.scope_channel")}</option>
+                  <option value="hub_wide">{t("events.composer.scope_hub_wide")}</option>
+                </select>
+              </div>
+            )}
+
+            {advancedFieldsSupported && scope === "hub_wide" && (
+              <div className="form-field">
+                <label className="settings-label" htmlFor="event-announcement-channel">
+                  {t("events.composer.announcement_channel_label")}
+                </label>
+                <select
+                  id="event-announcement-channel"
+                  value={announcementChannelId}
+                  onChange={(e) => setAnnouncementChannelId(e.target.value)}
+                  style={{ width: "100%" }}
+                >
+                  {announcementCandidates.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {advancedFieldsSupported && anchorHasDescendants && (
+              <div className="form-field">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={propagateToChildren}
+                    onChange={(e) => setPropagateToChildren(e.target.checked)}
+                  />
+                  {t("events.composer.propagate_label")}
+                </label>
+              </div>
+            )}
+
+            {/* minWidth: 0 lets each half shrink below the datetime input's
+                large intrinsic width — without it the row overflows the modal
+                and renders wider than the single-column fields above. */}
+            <div className="form-field" style={{ display: "flex", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label className="settings-label" htmlFor="event-start">{t("events.composer.start")}</label>
                 <input
-                  type="checkbox"
-                  checked={propagateToChildren}
-                  onChange={(e) => setPropagateToChildren(e.target.checked)}
+                  id="event-start"
+                  type="datetime-local"
+                  value={startAt}
+                  onChange={(e) => setStartAt(e.target.value)}
+                  style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
                 />
-                {t("events.composer.propagate_label")}
-              </label>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label className="settings-label" htmlFor="event-end">{t("events.composer.end")}</label>
+                <input
+                  id="event-end"
+                  type="datetime-local"
+                  value={endAt}
+                  onChange={(e) => setEndAt(e.target.value)}
+                  style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
+                />
+              </div>
             </div>
-          )}
 
-          {/* minWidth: 0 lets each half shrink below the datetime input's
-              large intrinsic width — without it the row overflows the modal
-              and renders wider than the single-column fields above. */}
-          <div className="settings-row" style={{ display: "flex", gap: 12, marginBottom: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <label className="settings-label" htmlFor="event-start">{t("events.composer.start")}</label>
-              <input
-                id="event-start"
-                type="datetime-local"
-                value={startAt}
-                onChange={(e) => setStartAt(e.target.value)}
-                style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
-              />
+            {advancedFieldsSupported && (
+              <div className="form-field">
+                <label className="settings-label" htmlFor="event-reminder">
+                  {t("events.reminder.label")}
+                </label>
+                <select
+                  id="event-reminder"
+                  value={reminderOffset}
+                  onChange={(e) => setReminderOffset(e.target.value as ReminderOffset)}
+                  style={{ width: "100%" }}
+                >
+                  {REMINDER_OFFSETS.map((offset) => (
+                    <option key={offset} value={offset}>
+                      {t(`events.reminder.${offset}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {advancedFieldsSupported && (
+              <EventSlotEditor slots={slots} onAdd={addSlot} onRemove={removeSlot} onUpdate={updateSlot} />
+            )}
+
+            {error && <p className="modal-form-error" role="alert">{error}</p>}
+
+            <div className="modal-form-actions">
+              <button type="button" className="btn-secondary" onClick={onClose}>
+                {t("events.composer.cancel")}
+              </button>
+              <button type="submit" className="btn-primary" disabled={saving}>
+                {saving ? t("events.composer.creating") : t("events.composer.submit")}
+              </button>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <label className="settings-label" htmlFor="event-end">{t("events.composer.end")}</label>
-              <input
-                id="event-end"
-                type="datetime-local"
-                value={endAt}
-                onChange={(e) => setEndAt(e.target.value)}
-                style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }}
-              />
-            </div>
-          </div>
-
-          {advancedFieldsSupported && (
-            <div className="settings-section" style={{ marginBottom: 10 }}>
-              <label className="settings-label" htmlFor="event-reminder">
-                {t("events.reminder.label")}
-              </label>
-              <select
-                id="event-reminder"
-                value={reminderOffset}
-                onChange={(e) => setReminderOffset(e.target.value as ReminderOffset)}
-                style={{ width: "100%" }}
-              >
-                {REMINDER_OFFSETS.map((offset) => (
-                  <option key={offset} value={offset}>
-                    {t(`events.reminder.${offset}`)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {advancedFieldsSupported && (
-            <EventSlotEditor slots={slots} onAdd={addSlot} onRemove={removeSlot} onUpdate={updateSlot} />
-          )}
-
-          {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", marginBottom: 8 }}>{error}</p>}
-
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>
-              {t("events.composer.cancel")}
-            </button>
-            <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? t("events.composer.creating") : t("events.composer.submit")}
-            </button>
-          </div>
-        </form>
-      </div>
+          </form>
+        </div>
+      </FocusTrap>
     </div>
   );
 }

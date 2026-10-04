@@ -40,7 +40,7 @@ export function StagingSlotGroup({
         : null;
 
   return (
-    <div className="settings-section" style={{ marginBottom: 10 }}>
+    <div className="modal-section">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>
           {title}

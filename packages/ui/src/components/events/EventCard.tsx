@@ -6,6 +6,7 @@ import { EventSlotList } from "./EventSlotList";
 import { EventStagingPanel } from "./EventStagingPanel";
 import { reminderMinutesToOffset } from "../../utils/events";
 import { CloseIcon } from "../Icons";
+import { useConfirm } from "../ConfirmDialog";
 
 /** Staging (organizer move-members) capability bundle — omitted entirely on
  *  platforms with no voice-move wiring (events.md §7.1 is web-only today). */
@@ -45,6 +46,7 @@ export function EventCard({
   const [myStatus, setMyStatus] = useState<RsvpStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showStaging, setShowStaging] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   // Organizer-only affordance (events.md §7.5): event creator or a hub admin,
   // AND move_members — same rule the Phase-1 right-click surface uses. The
@@ -72,8 +74,19 @@ export function EventCard({
     }
   }
 
+  async function handleDelete() {
+    const ok = await confirm({
+      title: t("events.card.delete_confirm_title", { title: event.title }),
+      body: t("events.card.delete_confirm_body"),
+      confirmLabel: t("events.card.delete"),
+      danger: true,
+    });
+    if (ok) onDelete(event.id);
+  }
+
   return (
-    <div className="event-card settings-section" style={{ padding: 14, marginBottom: 10 }}>
+    <div className="event-card" style={{ padding: 14, marginBottom: 10 }}>
+      {dialog}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
@@ -102,8 +115,9 @@ export function EventCard({
             <button
               className="btn-ghost"
               style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
-              onClick={() => onDelete(event.id)}
+              onClick={handleDelete}
               title={t("events.card.delete")}
+              aria-label={t("events.card.delete")}
             >
               <CloseIcon size={14} />
             </button>
@@ -149,7 +163,7 @@ export function EventCard({
       </div>
 
       <div className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>
-        {counts.going} going · {counts.maybe} maybe
+        {t("events.card.counts", { going: counts.going, maybe: counts.maybe })}
       </div>
 
       {event.reminder_minutes !== null && (

@@ -18,24 +18,27 @@ export function EventSlotEditor({ slots, onAdd, onRemove, onUpdate }: Props) {
   const { t } = useTranslation();
 
   return (
-    <div className="settings-section" style={{ marginBottom: 10 }}>
+    <div className="form-field">
       <label className="settings-label">{t("events.composer.slots_label")}</label>
       {slots.map((slot) => (
-        <div key={slot.key} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <div key={slot.key} className="form-row">
           <input
             type="text"
             value={slot.name}
             onChange={(e) => onUpdate(slot.key, { name: e.target.value })}
             placeholder={t("events.composer.slot_name_placeholder")}
-            style={{ flex: 2 }}
+            aria-label={t("events.composer.slot_name_placeholder")}
+            style={{ flex: 1 }}
           />
           <input
             type="number"
             min={1}
             value={slot.capacity}
             onChange={(e) => onUpdate(slot.key, { capacity: e.target.value })}
-            placeholder={t("events.composer.slot_capacity_placeholder")}
-            style={{ flex: 1 }}
+            placeholder={t("events.composer.slot_capacity_short")}
+            title={t("events.composer.slot_capacity_placeholder")}
+            aria-label={t("events.composer.slot_capacity_placeholder")}
+            style={{ flex: "0 0 112px" }}
           />
           <button
             type="button"

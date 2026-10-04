@@ -53,7 +53,8 @@ export async function votePoll(pollId: string, optionId: string): Promise<Poll> 
   });
   const updated = await hubFetch(`/polls/${pollId}`);
   const raw = await updated.json() as Record<string, unknown>;
-  const rawPoll = raw.poll as Record<string, unknown>;
+  // The hub flattens the poll into the response body (PollWithTotals).
+  const rawPoll = raw;
   const rawOptions: Array<{ id: string; text: string }> =
     typeof rawPoll.options === "string" ? JSON.parse(rawPoll.options as string) : (rawPoll.options as Array<{ id: string; text: string }>);
   const totals = (raw.totals ?? {}) as Record<string, number>;

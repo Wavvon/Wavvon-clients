@@ -52,7 +52,7 @@ export function StagingPanel({
       aria-label={t("events.staging.title", { event: eventTitle })}
     >
       <FocusTrap>
-        <div className="modal" style={{ maxWidth: 520, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal modal-form" style={{ maxWidth: 520, width: "100%" }} onClick={(e) => e.stopPropagation()}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <h3 style={{ margin: 0, fontSize: "var(--text-md)" }}>
               {t("events.staging.title", { event: eventTitle })}
@@ -60,7 +60,7 @@ export function StagingPanel({
             <button className="btn-ghost" onClick={onClose} aria-label={t("events.staging.close")}><CloseIcon size={13} /></button>
           </div>
 
-          <div className="settings-section" style={{ marginBottom: 10 }}>
+          <div className="modal-section">
             <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 6 }}>
               {t("events.staging.squad_rooms.title")}
             </div>
@@ -85,7 +85,6 @@ export function StagingPanel({
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ fontSize: "var(--text-xs)", padding: "4px 10px" }}
                 onClick={onSpawnSquadRooms}
                 disabled={spawningSquadRooms}
               >
