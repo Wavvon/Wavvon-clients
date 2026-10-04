@@ -1,5 +1,5 @@
 import { hexToBytes, signBytes } from "@wavvon/core";
-import { rawFetch } from "../http";
+import { rawFetch, hubFetchWithToken, HubApiError } from "../http";
 import { resolveSessionScope } from "@wavvon/ui";
 
 // Token-acquisition core for the Ed25519 challenge-response auth flow
@@ -72,4 +72,23 @@ export async function acquireHubToken(
     canonicalPubkey: verifyRes.canonical_pubkey,
     scope: resolveSessionScope(verifyRes.scope),
   };
+}
+
+// A farm token carries no invite, and on an invite-only hub the hub refuses a
+// non-member holding one. Probe first rather than redeeming blindly: /join/{code}
+// spends an invite use even for a member. Without a code the 403 is rethrown,
+// the same error /auth/verify gives a hub reached directly. Any other probe
+// failure is left for the first real request to report, as before.
+export async function admitFarmToken(
+  hub_url: string,
+  token: string,
+  invite_code?: string,
+): Promise<void> {
+  try {
+    await hubFetchWithToken(hub_url, token, "/me");
+  } catch (e) {
+    if (!(e instanceof HubApiError && e.status === 403 && /requires an invite code/i.test(e.message))) return;
+    if (!invite_code) throw e;
+    await hubFetchWithToken(hub_url, token, `/join/${encodeURIComponent(invite_code)}`, { method: "POST" });
+  }
 }

@@ -26,7 +26,7 @@ import { loadIdentity, saveIdentity } from "../../identity/store";
 import { publicKeyHex, rotationAppliesTo, type HubKeyRotation } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
-import { acquireHubToken as authenticate } from "./hubAuth";
+import { acquireHubToken as authenticate, admitFarmToken } from "./hubAuth";
 import { ensureHomeHubDesignation, ensureSelfDeviceCert } from "./identity";
 
 interface InfoResponse {
@@ -150,8 +150,9 @@ export async function addHub(
     const identity = await loadIdentity();
     if (!identity) throw new Error("No identity — generate one first");
 
+    const authBase = authBaseUrl(info, url, identity.subkey_cert);
     const res = await authenticate(
-      authBaseUrl(info, url, identity.subkey_cert),
+      authBase,
       publicKeyHex(identity.seed_hex),
       identity.seed_hex,
       identity.security_nonce,
@@ -161,6 +162,7 @@ export async function addHub(
     );
     token = res.token;
     scope = res.scope;
+    if (authBase !== url) await admitFarmToken(url, token, opts?.invite_code);
 
     // Paired device: persist the canonical identity the hub attributes our
     // actions to, so the UI self-identifies as the shared user rather than
