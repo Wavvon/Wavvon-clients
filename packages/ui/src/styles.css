@@ -6514,41 +6514,6 @@ a.embed-title:hover {
    BOT CARD POPOVER
    ============================================================ */
 
-.dm-group-ack-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-  z-index: 10;
-}
-
-.dm-group-ack-box {
-  max-width: 400px;
-  padding: var(--space-6, 24px);
-  background: var(--surface);
-  border-radius: var(--r-md, 8px);
-  border: 1px solid rgba(255, 170, 0, 0.4);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3, 12px);
-}
-
-.dm-group-ack-title {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--warning);
-  margin: 0;
-}
-
-.dm-group-ack-body {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin: 0;
-}
-
 .cert-lockout-warning {
   background: rgba(255, 80, 80, 0.1);
   border: 1px solid rgba(255, 80, 80, 0.35);

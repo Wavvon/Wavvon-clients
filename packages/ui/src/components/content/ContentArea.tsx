@@ -134,7 +134,6 @@ interface Props {
   onOpenHubStreams: () => void;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
-  onOpenUserProfile?: (pubkey: string) => void;
   onStartConversation?: (pubkey: string) => void;
   onShowPinned: () => void;
   profileCardActions: UserProfileCardActions;
@@ -194,7 +193,6 @@ export function ContentArea({
   onOpenHubStreams,
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
-  onOpenUserProfile,
   onStartConversation,
   onShowPinned,
   profileCardActions,
@@ -313,11 +311,7 @@ export function ContentArea({
   }
 
   function handleAuthorClick(pubkey: string) {
-    if (onOpenUserProfile) {
-      onOpenUserProfile(pubkey);
-    } else {
-      setProfileCardPubkey(pubkey);
-    }
+    setProfileCardPubkey(pubkey);
   }
 
   // Same member menu the sidebar member list opens on right-click. The
@@ -445,7 +439,6 @@ export function ContentArea({
       rsvpEvent={rsvpEvent}
       createEvent={createEvent}
       advancedFieldsSupported
-      slotClaimSupported
       staging={eventStaging}
     />
   );

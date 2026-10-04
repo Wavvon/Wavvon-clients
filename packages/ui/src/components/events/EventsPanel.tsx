@@ -18,13 +18,12 @@ interface Props {
   rsvpEvent: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   createEvent: (payload: CreateEventPayload) => Promise<HubEvent>;
   advancedFieldsSupported?: boolean;
-  slotClaimSupported?: boolean;
   staging?: EventStagingCapability;
 }
 
 export function EventsPanel({
   channelId, myPubkey, isAdmin, channels, getEvents, deleteEvent, rsvpEvent, createEvent,
-  advancedFieldsSupported, slotClaimSupported, staging,
+  advancedFieldsSupported, staging,
 }: Props) {
   const { t } = useTranslation();
   const [events, setEvents] = useState<HubEvent[]>([]);
@@ -147,7 +146,6 @@ export function EventsPanel({
           onRsvp={rsvpEvent}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          slotClaimSupported={slotClaimSupported}
           staging={staging}
         />
       ))}

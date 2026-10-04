@@ -118,8 +118,6 @@ export interface MessageSelect {
   type: "select";
   custom_id: string;
   placeholder?: string;
-  min_values?: number;
-  max_values?: number;
   options: SelectOption[];
 }
 
