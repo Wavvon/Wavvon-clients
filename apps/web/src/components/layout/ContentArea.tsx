@@ -63,7 +63,7 @@ type TypingIndicatorsState = ReturnType<typeof useTypingIndicators>;
 const forumActions: ForumActions = {
   listPosts: (channelId, cursor, tagId) => forumListPosts(channelId, cursor, tagId),
   listAlliancePosts: getAllianceChannelPosts,
-  getPost: (channelId, postId) => forumGetPost(channelId, postId),
+  getPost: (channelId, postId, after) => forumGetPost(channelId, postId, after),
   getAlliancePost: getAllianceChannelPost,
   createPost: (channelId, title, body, tagIds, attachments) =>
     forumCreatePost(channelId, title, body, tagIds, attachments),

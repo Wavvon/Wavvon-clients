@@ -270,12 +270,17 @@ pub(crate) async fn forum_list_posts(
 pub(crate) async fn forum_get_post(
     channel_id: String,
     post_id: String,
+    after: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
+    let mut req = state
         .http_client
-        .get(format!("{hub_url}/channels/{channel_id}/posts/{post_id}"))
+        .get(format!("{hub_url}/channels/{channel_id}/posts/{post_id}"));
+    if let Some(after) = after {
+        req = req.query(&[("after", after)]);
+    }
+    let resp = req
         .bearer_auth(&token)
         .send()
         .await

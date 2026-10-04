@@ -408,6 +408,7 @@
   "forum.detail.read_only_banner": "👀 Nur lesen — liegt auf einem anderen Hub, Antworten sind hier noch nicht möglich.",
   "forum.detail.remove_file": "{name} entfernen",
   "forum.detail.replies": "{count, plural, one {# Antwort} other {# Antworten}}",
+  "forum.detail.load_more_replies": "Weitere Antworten laden",
   "forum.detail.reply": "Antworten",
   "forum.detail.reply_placeholder": "Antwort schreiben…",
   "forum.detail.replying_to": "Antwort auf einen Kommentar",

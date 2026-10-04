@@ -27,8 +27,9 @@ export interface ForumAllianceContext {
 export interface ForumActions {
   listPosts: (channelId: string, cursor?: string, tagId?: string) => Promise<PostListResponse>;
   listAlliancePosts?: (allianceId: string, channelId: string, cursor?: string, tagId?: string) => Promise<PostListResponse>;
-  getPost: (channelId: string, postId: string) => Promise<PostDetail>;
-  getAlliancePost?: (allianceId: string, channelId: string, postId: string) => Promise<PostDetail>;
+  /** `after` is the previous page's `reply_cursor`. */
+  getPost: (channelId: string, postId: string, after?: string) => Promise<PostDetail>;
+  getAlliancePost?: (allianceId: string, channelId: string, postId: string, after?: string) => Promise<PostDetail>;
   createPost: (
     channelId: string,
     title: string,

@@ -9,8 +9,8 @@ export async function forumListPosts(channelId: string, cursor?: string, tagId?:
   return r.json() as Promise<PostListResponse>;
 }
 
-export async function forumGetPost(channelId: string, postId: string): Promise<PostDetail> {
-  const r = await hubFetch(`/channels/${channelId}/posts/${postId}`);
+export async function forumGetPost(channelId: string, postId: string, after?: string): Promise<PostDetail> {
+  const r = await hubFetch(`/channels/${channelId}/posts/${postId}${after ? `?after=${encodeURIComponent(after)}` : ""}`);
   return r.json() as Promise<PostDetail>;
 }
 
