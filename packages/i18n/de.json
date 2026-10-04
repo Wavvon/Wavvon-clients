@@ -337,6 +337,8 @@
   "events.composer.title": "Termin erstellen",
   "events.composer.title_label": "Titel",
   "events.composer.title_placeholder": "Titel des Termins",
+  "content.tab.messages": "Nachrichten",
+  "content.tab.events": "Termine",
   "events.open_panel": "Termine",
   "events.panel.create": "+ Termin erstellen",
   "events.panel.empty": "Keine kommenden Termine.",

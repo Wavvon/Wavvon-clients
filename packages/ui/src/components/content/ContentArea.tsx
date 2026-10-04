@@ -544,7 +544,7 @@ export function ContentArea({
                       onClick={() => setActiveContentTab(tab)}
                       className={`content-area-tab${activeContentTab === tab ? " active" : ""}`}
                     >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {t(tab === "messages" ? "content.tab.messages" : "content.tab.events")}
                     </button>
                   ))}
                 </div>
