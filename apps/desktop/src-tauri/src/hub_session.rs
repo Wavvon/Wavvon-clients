@@ -36,6 +36,10 @@ pub(crate) async fn add_hub(
         .await?;
     let token = auth.token;
 
+    if auth_url != hub_url {
+        admit_farm_token(&client, &hub_url, &token, invite_code.as_deref()).await?;
+    }
+
     // Auth just told this hub which master we are (the cert rides on
     // /auth/verify), so the list is now findable — publish it if the identity
     // has none. Order matters: a designation stored under a master no hub can
@@ -396,4 +400,48 @@ pub(crate) async fn connection_stats(
         inbound_loss_percent,
         outbound_loss_percent,
     })
+}
+
+// A farm token carries no invite, and an invite-only hub refuses a non-member
+// holding one. Probe first: /join/{code} spends an invite use even for a
+// member. Other probe failures are left for the first real request to report.
+async fn admit_farm_token(
+    client: &reqwest::Client,
+    hub_url: &str,
+    token: &str,
+    invite_code: Option<&str>,
+) -> Result<(), String> {
+    let Ok(probe) = client
+        .get(format!("{hub_url}/me"))
+        .bearer_auth(token)
+        .send()
+        .await
+    else {
+        return Ok(());
+    };
+    if probe.status() != reqwest::StatusCode::FORBIDDEN {
+        return Ok(());
+    }
+    let body = probe.text().await.unwrap_or_default();
+    if !body.contains("requires an invite code") {
+        return Ok(());
+    }
+    let Some(code) = invite_code else {
+        return Err(body);
+    };
+    let mut join = reqwest::Url::parse(hub_url).map_err(|e| format!("hub url: {e}"))?;
+    join.path_segments_mut()
+        .map_err(|_| "hub url cannot take a path".to_string())?
+        .pop_if_empty()
+        .extend(["join", code]);
+    let resp = client
+        .post(join)
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| format!("join: {e}"))?;
+    if resp.status().is_success() {
+        return Ok(());
+    }
+    Err(resp.text().await.unwrap_or_default())
 }
