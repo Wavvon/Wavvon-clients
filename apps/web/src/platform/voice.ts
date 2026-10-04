@@ -1,5 +1,5 @@
 import OpusScript from 'opusscript';
-import { hexToBytes, voicePacketSeal, voicePacketOpen, INITIAL_SUB_GATE_STATE, nextSubGateState, type SubGateState } from '@wavvon/core';
+import { hexToBytes, voicePacketOpen } from '@wavvon/core';
 import { getScoped, setScoped } from '../utils/accountScope';
 import { VoiceKeyManager, type VoiceKeyBundle } from './voiceKeys';
 import { parseDownlinkDatagram, peekSealedKeyId, ReplayGuard } from './voiceDatagram';
@@ -7,14 +7,13 @@ import { nextPlayoutStart } from './voicePlayout';
 import { lossPercent, trackPacket, type LossTracker } from './connectionStats';
 import { CAPTURE_SAMPLE_RATE, captureMic } from './micCapture';
 import { resolveOpusConfig } from './opusConfig';
-import {
-  DEFAULT_SPEAKING,
-  INITIAL_SPEAKING_STATE,
-  frameEnergy,
-  nextSpeakingState,
-  effectiveVad,
-  type SpeakingState,
-} from './speakingDetector';
+import { effectiveVad } from './speakingDetector';
+import { INITIAL_CAPTURE_STATS, type CaptureStats } from './captureFraming';
+import { downmixChannels } from './soundboardMix';
+import captureWorkletUrl from './captureWorklet?worker&url';
+import type { FromWorker, ToWorker } from './voiceEncodeWorker';
+
+export { mixClipIntoFrame, downmixChannels, type ActiveClip } from './soundboardMix';
 
 export interface VoiceZoneAttenuation {
   model: 'linear' | 'inverse_square' | 'step' | 'exponential';
@@ -96,85 +95,32 @@ export interface AudioProfileConfig {
 }
 
 interface OpusCodec {
-  encode(buffer: Uint8Array, frameSize: number): Uint8Array;
   decode(buffer: Uint8Array): Uint8Array;
   delete(): void;
 }
 
-const OPUS_FRAME_SIZE = 960; // 20 ms at 48 kHz
 const GAINS_STORAGE_KEY = 'wavvon.voice_gains';
 
-/** Playback cursor into a decoded soundboard clip mid-mix (soundboard.md
- *  §1: the clip rides the sender's own outgoing stream). */
-export interface ActiveClip {
-  samples: Float32Array;
-  pos: number;
-}
-
-/** Pure sample-add mix of a mic capture frame with whatever's left of an
- *  in-flight soundboard clip, clamped to the valid float PCM range so a
- *  loud clip under a loud mic can't wrap around instead of just clipping.
- *  Called once per `onaudioprocess` frame, ahead of Opus encoding, so the
- *  clip is baked into the *outgoing* stream rather than played locally. */
-export function mixClipIntoFrame(
-  micFrame: Float32Array,
-  clip: ActiveClip | null,
-): { output: Float32Array; nextClip: ActiveClip | null } {
-  const output = new Float32Array(micFrame.length);
-  const samples = clip?.samples;
-  let pos = clip?.pos ?? 0;
-
-  for (let i = 0; i < micFrame.length; i++) {
-    let sample = micFrame[i];
-    if (samples && pos < samples.length) {
-      sample += samples[pos];
-      pos++;
-    }
-    output[i] = Math.max(-1, Math.min(1, sample));
-  }
-
-  const nextClip = samples && pos < samples.length ? { samples, pos } : null;
-  return { output, nextClip };
-}
-
-/** Averages N channel buffers down to mono. Opus (and this mixer) only
- *  deals in mono at 48 kHz; a stereo clip is folded down before mixing. */
-export function downmixChannels(channels: Float32Array[]): Float32Array {
-  if (channels.length === 0) return new Float32Array(0);
-  if (channels.length === 1) return channels[0];
-  const length = channels[0].length;
-  const out = new Float32Array(length);
-  for (let i = 0; i < length; i++) {
-    let sum = 0;
-    for (const ch of channels) sum += ch[i];
-    out[i] = sum / channels.length;
-  }
-  return out;
-}
-
 export class VoiceWtSession {
-  private transport: WebTransport | null = null;
-  private datagramWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
-  private datagramReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private audioCtx: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
-  private processor: ScriptProcessorNode | null = null;
-  private encoder: OpusCodec | null = null;
+  private captureNode: AudioWorkletNode | null = null;
+  /** Owns the WebTransport session, Opus encode, seal, the speaking detector
+   *  and soundboard mixing — everything between capture and the wire. Nothing
+   *  on the main thread sits in the send path; inbound datagrams are handed
+   *  back here for the (unchanged) receive side. */
+  private encodeWorker: Worker | null = null;
   private decoder: OpusCodec | null = null;
-  private timestamp = 0;
+  private captureStats: CaptureStats = INITIAL_CAPTURE_STATS;
   private muted = false;
   private deafened = false;
   private closed = false;
-  private sampleAccum = new Int16Array(OPUS_FRAME_SIZE);
-  private sampleAccumLen = 0;
   private gainNodes: Map<number, GainNode> = new Map();
   private senderIdToPubkey: Map<number, string> = new Map();
   /** Per-sender playout clock: when that sender's last scheduled
    *  frame ends. Cleared when they leave, so a rejoin does not
    *  inherit a stale future timestamp and start out silent. */
   private playoutEnd: Map<number, number> = new Map();
-  private speakingState: SpeakingState = INITIAL_SPEAKING_STATE;
-  private subGate: SubGateState = INITIAL_SUB_GATE_STATE;
   /** Per-sender inbound loss trackers, keyed by sender id. Fed from the
    *  cleartext `ctr` in each packet header, so gaps are visible without
    *  decrypting anything. */
@@ -182,7 +128,6 @@ export class VoiceWtSession {
   private savedGains: Record<string, number>;
   private zones: Map<string, VoiceZone> = new Map();
   private myPubkey: string;
-  private activeClip: ActiveClip | null = null;
   private activeClipId: string | null = null;
   private channelId: string;
   private keys: VoiceKeyManager;
@@ -213,7 +158,6 @@ export class VoiceWtSession {
   async start(): Promise<void> {
     const opus = resolveOpusConfig(this.audioConfig);
 
-    this.encoder = new OpusScript(48000, opus.channels, opus.app, { wasm: false }) as unknown as OpusCodec;
     this.decoder = new OpusScript(48000, opus.channels, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
 
     // Honors the user's chosen input device (Settings → Voice), if any, and
@@ -230,29 +174,16 @@ export class VoiceWtSession {
         await ctx.setSinkId(outputId).catch(() => { /* device gone — fall back to default */ });
       }
     } catch { /* setSinkId unsupported */ }
+    await this.audioCtx.audioWorklet.addModule(captureWorkletUrl);
     const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
-    this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
-    this.processor.onaudioprocess = (e) => this.onAudioProcess(e);
-    source.connect(this.processor);
-    this.processor.connect(this.audioCtx.destination);
+    this.captureNode = new AudioWorkletNode(this.audioCtx, 'wavvon-capture');
+    source.connect(this.captureNode);
+    // Pulled only while connected downstream; the node writes no output.
+    this.captureNode.connect(this.audioCtx.destination);
 
     const url = `${this.join.wtUrl}?token=${encodeURIComponent(this.join.token)}`;
     const certHash = this.join.certHash;
-    const options: WebTransportOptions | undefined = certHash
-      // Re-wrap: hexToBytes's declared `Uint8Array` return type erases the
-      // `ArrayBuffer` (vs `ArrayBufferLike`) generic BufferSource needs.
-      ? { serverCertificateHashes: [{ algorithm: 'sha-256', value: new Uint8Array(hexToBytes(certHash)) }] }
-      : undefined;
-    this.transport = new WebTransport(url, options);
-    await this.transport.ready;
-    this.datagramWriter = this.transport.datagrams.writable.getWriter();
-    this.datagramReader = this.transport.datagrams.readable.getReader();
-    void this.readLoop();
-    this.transport.closed.then(() => {
-      if (!this.closed) this.handlers.onClose();
-    }).catch(() => {
-      if (!this.closed) this.handlers.onClose();
-    });
+    await this.startEncodeWorker(opus, url, certHash ? new Uint8Array(hexToBytes(certHash)) : null);
 
     // Seal outgoing frames with our own key from the moment capture starts —
     // no need to wait on the (async, network-bound) key offer below, since
@@ -263,18 +194,6 @@ export class VoiceWtSession {
     void this.offerKeyTo(others);
 
     this.handlers.onReady(this.join.senderId, this.join.participants, this.join.channelId);
-  }
-
-  private async readLoop(): Promise<void> {
-    const reader = this.datagramReader;
-    if (!reader) return;
-    try {
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (value) this.onDatagram(value);
-      }
-    } catch { /* transport closed — `.closed` above drives teardown */ }
   }
 
   private onDatagram(data: Uint8Array): void {
@@ -347,72 +266,82 @@ export class VoiceWtSession {
     try {
       const bundles = await this.keys.rotate(remainingPubkeys);
       if (bundles.length > 0) this.handlers.sendKeyOffer(this.channelId, bundles);
-    } catch { /* best-effort */ }
+    } catch { /* best-effort */ } finally {
+      this.postToWorker({ type: 'key', key: this.workerKey() });
+    }
   }
 
-  private onAudioProcess(e: AudioProcessingEvent): void {
-    if (this.muted || !this.datagramWriter || !this.encoder) return;
-
-    const micFrame = e.inputBuffer.getChannelData(0);
-
-    // Speech detection runs on the raw mic frame, before the soundboard mix:
-    // a clip playing through our own stream is not us talking.
-    this.updateSpeaking(micFrame);
-
-    const { output, nextClip } = mixClipIntoFrame(micFrame, this.activeClip);
-    this.activeClip = nextClip;
-    if (!this.activeClip) this.activeClipId = null;
-
-    // "Enable voice activity detection (drops silence)" is what the settings
-    // label promises, and until now nothing read the toggle: the web engine
-    // transmitted every frame, silence included. Hold the datagram back while
-    // there is nothing to send.
-    //
-    // A playing soundboard clip counts, and has to be tested separately:
-    // `updateSpeaking` runs on the raw mic frame on purpose, so a clip never
-    // reads as speech, and gating on speech alone would silence the
-    // soundboard. Safe for receivers by construction -- `ctr` only advances on
-    // a send, so a gap is not counted as inbound loss, and the playout clock
-    // rebuilds its lead after one (voicePlayout.ts).
-    const silenceGated = !this.speakingState.speaking && !this.activeClip;
-
-    let offset = 0;
-
-    while (offset < output.length) {
-      const space = OPUS_FRAME_SIZE - this.sampleAccumLen;
-      const take = Math.min(space, output.length - offset);
-      for (let i = 0; i < take; i++) {
-        this.sampleAccum[this.sampleAccumLen + i] = Math.max(-32768, Math.min(32767, output[offset + i] * 32767));
-      }
-      this.sampleAccumLen += take;
-      offset += take;
-
-      if (this.sampleAccumLen === OPUS_FRAME_SIZE) {
-        let opusBytes: Uint8Array;
-        try {
-          opusBytes = this.encoder.encode(new Uint8Array(this.sampleAccum.buffer), OPUS_FRAME_SIZE);
-        } catch {
-          this.sampleAccumLen = 0;
-          return;
+  /** Opens the transport inside the worker and resolves once it is ready,
+   *  then connects the capture worklet straight to the worker's port so frames
+   *  never pass through this thread. The worklet gets its port only now: audio
+   *  captured before the session exists has nowhere to go and would arrive as
+   *  one stale burst. */
+  private startEncodeWorker(opus: ReturnType<typeof resolveOpusConfig>, url: string, certHash: Uint8Array | null): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(new URL('./voiceEncodeWorker.ts', import.meta.url), { type: 'module' });
+      this.encodeWorker = worker;
+      let ready = false;
+      worker.onmessage = (e: MessageEvent<FromWorker>) => {
+        const msg = e.data;
+        switch (msg.type) {
+          case 'ready':
+            ready = true;
+            this.captureNode!.port.postMessage({ pcmPort: port1 }, [port1]);
+            resolve();
+            break;
+          case 'closed':
+            if (!ready) reject(new Error('Voice transport closed before it was ready'));
+            else if (!this.closed) this.handlers.onClose();
+            break;
+          case 'datagram':
+            this.onDatagram(msg.data);
+            break;
+          case 'speaking':
+            this.handlers.sendSpeaking(this.channelId, msg.speaking);
+            break;
+          case 'gate':
+            this.handlers.onGateWarning?.(msg.warning);
+            break;
+          case 'clipDone':
+            this.activeClipId = null;
+            break;
+          case 'stats':
+            this.captureStats = msg.stats;
+            break;
         }
+      };
+      worker.onerror = () => { if (!ready) reject(new Error('Voice worker failed to start')); };
+      const { port1, port2 } = new MessageChannel();
+      const init: ToWorker = {
+        type: 'init',
+        url,
+        certHash,
+        opusApp: opus.app,
+        channels: opus.channels,
+        vad: effectiveVad(this.audioConfig),
+        muted: this.muted,
+        key: this.workerKey(),
+        pcmPort: port2,
+      };
+      worker.postMessage(init, [port2]);
+    });
+  }
 
-        // The encoder ran either way: it carries state between frames, and
-        // starving it through a silence would make the first frame after one
-        // pop. Only the send is skipped.
-        if (!silenceGated) {
-          const ownKey = this.keys.ownKey();
-          const sealed = voicePacketSeal(ownKey.key, ownKey.salt, ownKey.keyId, this.keys.nextCtr(), this.timestamp, opusBytes);
-          this.datagramWriter.write(sealed).catch(() => {});
-        }
-        // Advanced whether or not the frame went out: `timestamp` is a media
-        // clock, and the desktop pipeline advances it through suppressed
-        // frames too. `ctr` is the opposite -- it counts packets actually
-        // sent, so it must only move inside the branch above or receivers
-        // would read the silence as inbound loss.
-        this.timestamp += OPUS_FRAME_SIZE;
-        this.sampleAccumLen = 0;
-      }
-    }
+  private workerKey() {
+    const { key, salt, keyId } = this.keys.ownKey();
+    return { key, salt, keyId };
+  }
+
+  private postToWorker(msg: ToWorker): void {
+    this.encodeWorker?.postMessage(msg);
+  }
+
+  /** Capture-to-send health, refreshed about once a second: frames the encoder
+   *  saw, frames lost on the way (gaps in the capture timeline) and frames
+   *  that waited longer than 40 ms. Growth in `late` or `dropped` means the
+   *  send path is falling behind. */
+  getCaptureStats(): CaptureStats {
+    return this.captureStats;
   }
 
   private getOrCreateGainNode(senderId: number): GainNode {
@@ -429,45 +358,6 @@ export class VoiceWtSession {
     gainNode.connect(this.audioCtx!.destination);
     this.gainNodes.set(senderId, gainNode);
     return gainNode;
-  }
-
-  /** Advances the speech detector and reports only the on/off edges.
-   *
-   *  Muted counts as not speaking regardless of what the mic hears: we are
-   *  sending no audio, so claiming otherwise would light our name up in
-   *  everyone's member list while they hear silence. */
-  private updateSpeaking(micFrame: Float32Array): void {
-    const vad = effectiveVad(this.audioConfig);
-
-    // VAD off: we transmit continuously, so anything but a steady "speaking"
-    // would be a lie about what the other end is hearing. One edge, no
-    // release — the desktop pipeline's else-branch does the same.
-    if (!vad.enabled) {
-      this.setSubGate(INITIAL_SUB_GATE_STATE);
-      if (!this.speakingState.speaking) {
-        this.speakingState = { speaking: true, lastLoudAt: Date.now() };
-        this.handlers.sendSpeaking(this.channelId, true);
-      }
-      return;
-    }
-
-    const energy = this.muted ? 0 : frameEnergy(micFrame);
-    this.setSubGate(nextSubGateState(this.subGate, {
-      energy, now: Date.now(), vadEnabled: true, threshold: vad.threshold, muted: this.muted,
-    }));
-    const next = nextSpeakingState(this.speakingState, energy, Date.now(), {
-      threshold: vad.threshold,
-      holdMs: DEFAULT_SPEAKING.holdMs,
-    });
-    if (next.speaking !== this.speakingState.speaking) {
-      this.handlers.sendSpeaking(this.channelId, next.speaking);
-    }
-    this.speakingState = next;
-  }
-
-  private setSubGate(next: SubGateState): void {
-    if (next.warning !== this.subGate.warning) this.handlers.onGateWarning?.(next.warning);
-    this.subGate = next;
   }
 
   /** Worst inbound loss across the senders we are hearing, as a percentage,
@@ -620,9 +510,9 @@ export class VoiceWtSession {
    *  that keeps a spam-triggered clip from stacking a wall of overlapping
    *  audio into the caller's own stream. */
   playClip(clipId: string, samples: Float32Array): boolean {
-    if (this.activeClip) return false;
-    this.activeClip = { samples, pos: 0 };
+    if (this.activeClipId) return false;
     this.activeClipId = clipId;
+    this.postToWorker({ type: 'clip', samples });
     return true;
   }
 
@@ -632,22 +522,22 @@ export class VoiceWtSession {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    if (muted) this.setSubGate(INITIAL_SUB_GATE_STATE);
+    this.postToWorker({ type: 'muted', muted });
   }
 
   setDeafened(deafened: boolean): void {
     this.deafened = deafened;
     if (deafened) {
-      this.muted = true;
-      this.setSubGate(INITIAL_SUB_GATE_STATE);
+      this.setMuted(true);
     }
   }
 
   stop(): void {
     this.closed = true;
-    this.sampleAccumLen = 0;
-    this.processor?.disconnect();
-    this.processor = null;
+    this.captureNode?.disconnect();
+    this.captureNode = null;
+    this.postToWorker({ type: 'stop' });
+    this.encodeWorker = null;
     for (const track of this.mediaStream?.getTracks() ?? []) track.stop();
     this.mediaStream = null;
     for (const [, gainNode] of this.gainNodes) {
@@ -656,15 +546,7 @@ export class VoiceWtSession {
     this.gainNodes.clear();
     this.audioCtx?.close().catch(() => {});
     this.audioCtx = null;
-    try { this.datagramWriter?.close(); } catch { /* transport may already be gone */ }
-    this.datagramWriter = null;
-    try { this.datagramReader?.cancel(); } catch { /* transport may already be gone */ }
-    this.datagramReader = null;
-    try { this.transport?.close(); } catch { /* already closed */ }
-    this.transport = null;
-    this.encoder?.delete();
     this.decoder?.delete();
-    this.encoder = null;
     this.decoder = null;
   }
 }

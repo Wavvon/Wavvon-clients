@@ -13,7 +13,7 @@ export interface OpusProfileInput {
 }
 
 // The capture pipeline is mono from end to end and cannot be anything else:
-// `createScriptProcessor(4096, 1, 1)` takes one input channel, the frame is
+// the capture worklet reads one input channel, the frame is
 // read with `getChannelData(0)`, the accumulator holds OPUS_FRAME_SIZE mono
 // samples, and the decoder is constructed with one channel. Asking the encoder
 // for two was therefore never "stereo voice" — Opus reads an N-sample buffer as
@@ -24,7 +24,7 @@ export interface OpusProfileInput {
 // unconditionally and the custom profile offered it as a checkbox.
 //
 // Real stereo capture is a feature, not a fix: it needs a two-channel
-// ScriptProcessor, an interleaved accumulator and a stereo decoder. Until that
+// capture worklet, an interleaved accumulator and a stereo decoder. Until that
 // exists the three ends agree on mono, and the type says so.
 export function resolveOpusConfig(cfg?: OpusProfileInput): OpusConfig {
   if (cfg?.profile === 'music') {
