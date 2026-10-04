@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { MyCertification } from "../../types";
 import { loadHiddenBadgeSet, saveHiddenBadgeSet } from "../../utils/hiddenBadges";
 import { isTrustedIssuer, type TrustRoot } from "../../utils/trustRoots";
+import { formatDate } from "@wavvon/core";
 
 export type { MyCertification } from "../../types";
 
@@ -156,7 +157,7 @@ export function MyCertificationsSection({
                   {c.payload.standing === "revoked" && <span className="muted"> · {t("settings.account.certifications.revoked_suffix")}</span>}
                 </span>
                 <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                  {t("settings.account.certifications.member_since", { date: new Date(c.payload.member_since * 1000).toLocaleDateString() })}
+                  {t("settings.account.certifications.member_since", { date: formatDate(c.payload.member_since) })}
                 </span>
               </div>
             ))

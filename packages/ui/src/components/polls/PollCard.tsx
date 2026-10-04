@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Poll } from "../../types";
 import { CloseIcon } from "../Icons";
 import { useConfirm } from "../ConfirmDialog";
+import { formatDate } from "@wavvon/core";
 
 interface Props {
   poll: Poll;
@@ -62,7 +63,7 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
             onClick={handleDelete}
             title={t("polls.card.delete")}
             aria-label={t("polls.card.delete")}
-          >
+          >
             <CloseIcon size={14} />
           </button>
         )}
@@ -123,7 +124,7 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
       <div className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>
         {t("polls.card.votes", { count: total })}
         {poll.ends_at && Date.now() < poll.ends_at * 1000 && (
-          <span> · {t("polls.card.ends", { date: new Date(poll.ends_at * 1000).toLocaleDateString() })}</span>
+          <span> · {t("polls.card.ends", { date: formatDate(poll.ends_at) })}</span>
         )}
       </div>
 

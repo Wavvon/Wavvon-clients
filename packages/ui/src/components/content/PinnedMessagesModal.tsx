@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
-import { CloseIcon } from "../Icons";
+import { CloseIcon, PinIcon } from "../Icons";
 
 /** One entry of `GET /channels/{id}/pins` — matches the hub's `PinResponse`. */
 export interface PinnedMessageEntry {
@@ -72,7 +72,7 @@ export function PinnedMessagesModal({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`Pinned messages in #${channelName}`}
+      aria-label={`${t("content.pinned.title")} · #${channelName}`}
     >
       <FocusTrap>
       <div
@@ -81,8 +81,8 @@ export function PinnedMessagesModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
-          <h2 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>
-            📌 Pinned messages · #{channelName}
+          <h2 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+            <PinIcon size={16} /> {t("content.pinned.title")} · #{channelName}
           </h2>
           <button className="btn-ghost" onClick={onClose} aria-label={t("modal.close")}><CloseIcon size={13} /></button>
         </div>
@@ -96,7 +96,7 @@ export function PinnedMessagesModal({
           {pins.map((pin) => (
             <div key={pin.message_id} className="pinned-message-row">
               <div className="pinned-message-meta muted">
-                Pinned by {formatPubkey(pin.pinned_by)} · {formatRelative(pin.pinned_at)}
+                {t("message.pinned.by", { name: formatPubkey(pin.pinned_by) })} · {formatRelative(pin.pinned_at)}
               </div>
               <div
                 className="pinned-message-content"

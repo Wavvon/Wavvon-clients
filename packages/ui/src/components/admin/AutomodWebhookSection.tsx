@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ModerationSettings } from "../../types";
 import { SettingRow } from "../SettingRow";
+import { formatDateTime } from "@wavvon/core";
 
 export interface AutomodWebhookActions {
   getModerationSettings: () => Promise<ModerationSettings>;
@@ -13,7 +14,7 @@ export interface AutomodWebhookActions {
 }
 
 function formatTimestamp(ts: number): string {
-  return new Date(ts * 1000).toLocaleString();
+  return formatDateTime(ts);
 }
 
 export function AutomodWebhookSection({ actions }: { actions: AutomodWebhookActions }) {

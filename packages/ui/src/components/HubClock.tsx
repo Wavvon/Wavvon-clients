@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { dateTimeFormat } from "@wavvon/core";
 
 interface Props {
   /** IANA timezone name (e.g. "America/New_York"). Renders nothing when
@@ -23,13 +24,13 @@ export function HubClock({ timezone }: Props) {
   let time: string;
   let hour: number;
   try {
-    time = new Intl.DateTimeFormat(undefined, {
+    time = dateTimeFormat({
       timeZone: timezone,
       hour: "2-digit",
       minute: "2-digit",
     }).format(now);
     hour = Number(
-      new Intl.DateTimeFormat(undefined, { timeZone: timezone, hour: "numeric", hourCycle: "h23" }).format(now),
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", hourCycle: "h23" }).format(now),
     );
   } catch {
     // Unrecognized/stale IANA name — say nothing rather than a garbled clock.

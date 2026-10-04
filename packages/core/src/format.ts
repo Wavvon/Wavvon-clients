@@ -15,6 +15,27 @@ export function setFormatLocale(locale: string | undefined): void {
   formatLocale = locale;
 }
 
+/** `Intl.DateTimeFormat` in the app language. Build one per call: a cached one
+ *  would keep the language it was created under. */
+export function dateTimeFormat(options?: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat(formatLocale, options);
+}
+
+/** Calendar date in the app language. Accepts a Date or unix seconds. */
+export function formatDate(when: Date | number, options?: Intl.DateTimeFormatOptions): string {
+  return dateTimeFormat(options).format(typeof when === "number" ? toUnixSec(when) * 1000 : when);
+}
+
+/** Date plus time in the app language (default: short both). */
+export function formatDateTime(when: Date | number, options?: Intl.DateTimeFormatOptions): string {
+  return formatDate(when, options ?? { dateStyle: "short", timeStyle: "short" });
+}
+
+/** Time of day in the app language. */
+export function formatTime(when: Date | number, options?: Intl.DateTimeFormatOptions): string {
+  return formatDate(when, options ?? { hour: "2-digit", minute: "2-digit" });
+}
+
 // Latin-script label at the start of its own line: "oggi", "heute" and
 // "yesterday" all want a capital there, and none of the four locales has a
 // casing rule that makes this wrong.

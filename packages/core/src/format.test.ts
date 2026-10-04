@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   formatDayLabel,
   formatRelative,
+  formatDate,
+  formatTime,
+  formatDateTime,
   formatRelativeSigned,
   isBirthdayToday,
   setFormatLocale,
@@ -116,5 +119,28 @@ describe("locale-aware durations and day labels", () => {
     expect(formatRelativeSigned(NOW + 259200)).toEqual({ future: true, duration: "3gg" });
     setFormatLocale("en");
     expect(formatRelativeSigned(NOW + 86400)).toEqual({ future: true, duration: "1d" });
+  });
+});
+
+describe("formatDate / formatTime follow the app language", () => {
+  afterEach(() => setFormatLocale(undefined));
+  const when = Date.UTC(2026, 9, 6, 12, 0) / 1000;
+  const opts = { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" } as const;
+
+  it("renders the same instant in each language", () => {
+    setFormatLocale("en");
+    expect(formatDate(when, opts)).toBe("Tue, Oct 6");
+    setFormatLocale("it");
+    expect(formatDate(when, opts)).toBe("mar 6 ott");
+    setFormatLocale("de");
+    expect(formatDate(when, opts)).toBe("Di., 6. Okt.");
+    setFormatLocale("es");
+    expect(formatDate(when, opts)).toBe("mar, 6 oct");
+  });
+
+  it("accepts a Date and formats time of day", () => {
+    setFormatLocale("en");
+    expect(formatTime(new Date(when * 1000), { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })).toBe("12:00");
+    expect(formatDateTime(when, { timeZone: "UTC", dateStyle: "short", timeStyle: "short" })).toContain("12:00");
   });
 });

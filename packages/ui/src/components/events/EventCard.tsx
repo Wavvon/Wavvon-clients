@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Channel } from "@wavvon/core";
+import { formatDate, formatTime } from "@wavvon/core";
 import type { EventMoveAssignment, EventRsvp, HubEvent, RsvpStatus, VoiceParticipant } from "../../types";
 import { EventSlotList } from "./EventSlotList";
 import { EventStagingPanel } from "./EventStagingPanel";
@@ -96,8 +97,8 @@ export function EventCard({
             )}
           </div>
           <div className="muted" style={{ fontSize: "var(--text-xs)" }}>
-            {startDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}{" "}
-            {startDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            {formatDate(startDate, { weekday: "short", month: "short", day: "numeric" })}{" "}
+            {formatTime(startDate, { hour: "2-digit", minute: "2-digit" })}
             {event.location && <span> · {event.location}</span>}
           </div>
         </div>
@@ -176,6 +177,7 @@ export function EventCard({
         eventId={event.id}
         slots={event.slots}
         myPubkey={myPubkey}
+        users={staging?.users}
         onRsvp={onRsvp}
         onSlotsChange={(slots) => onUpdate({ ...event, slots })}
       />

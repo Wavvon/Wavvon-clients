@@ -6868,7 +6868,6 @@ a.embed-title:hover {
   border-radius: 6px;
   padding: 10px 12px;
   margin: 4px 0;
-  max-width: 420px;
 }/* ============================================================
    NATIVE POLLS (Task #31)
    ============================================================ */
@@ -6880,7 +6879,6 @@ a.embed-title:hover {
   border-radius: 6px;
   padding: 10px 12px;
   margin: 4px 0;
-  max-width: 420px;
 }
 
 .poll-option {
@@ -7570,6 +7568,7 @@ a.embed-title:hover {
   flex-direction: column;
   align-items: flex-start;
   min-width: 0;
+  gap: 2px;
 }
 
 .hub-header-address {
