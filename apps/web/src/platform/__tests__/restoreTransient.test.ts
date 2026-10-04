@@ -124,14 +124,15 @@ describe("restorePersistedHubs under a rate-limited hub", () => {
     expect(hubs.map((h) => h.hub_id)).toEqual([HUB_ID]);
   });
 
-  it("does not retry a refusal — a 403 is about this hub, not about timing", async () => {
+  it("does not retry a refusal, and keeps the hub listed with the refusal on its session", async () => {
     saveOneHub();
     const fetchMock = fetchFailingChallenge(1, 403);
     vi.stubGlobal("fetch", fetchMock);
 
     const hubs = await restore();
 
-    expect(hubs).toEqual([]);
+    expect(hubs.map((h) => h.hub_id)).toEqual([HUB_ID]);
+    expect(getSession(HUB_ID)?.refusal?.kind).toBe("other");
     // /info once, /auth/challenge once — no second attempt.
     expect(fetchMock.mock.calls.filter((c) => c[0] === `${HUB_URL}/auth/challenge`)).toHaveLength(1);
   });

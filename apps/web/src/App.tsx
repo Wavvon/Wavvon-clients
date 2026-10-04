@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts, ClockIcon } from "@wavvon/ui";
+import { useUnreadCounts, ClockIcon, HubRefusedPanel } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -25,7 +25,7 @@ import { useAppKeybinds } from "./hooks/useAppKeybinds";
 import { loadWhisperReplyBind, saveWhisperReplyBind } from "./utils/whisperReply";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, channelPath, inviteCodeFromPath } from "@wavvon/core";
+import { flattenTree, descendantIds, computeDepth, channelPath, inviteCodeFromPath, classifyHubRefusal } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
 import { DISCOVERY_URL, MULTI_HUB } from "./constants";
 import { handoffTargetUrl } from "./utils/handoffTarget";
@@ -94,7 +94,7 @@ import {
   getLobbyWelcome,
   submitLobbyPow,
 } from "@platform";
-import { getActiveHubId, redeemInvite } from "@platform";
+import { getActiveHubId, getSession, redeemInvite } from "@platform";
 import {
   getMessages,
   getUnreadCounts,
@@ -165,6 +165,7 @@ export default function App({ initialView }: AppProps = {}) {
     pingByHub,
     lobbyHubs, setLobbyHubs,
     pendingApprovalHubs, setPendingApprovalHubs,
+    refusedHubs, setRefusedHubs,
     handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
@@ -729,6 +730,15 @@ export default function App({ initialView }: AppProps = {}) {
       }
     }
     try {
+      const sessionRefusal = getActiveHubId() ? getSession(getActiveHubId()!)?.refusal : undefined;
+      if (sessionRefusal) {
+        setRefusedHubs((prev) => new Map(prev).set(getActiveHubId()!, sessionRefusal));
+        setChannels([]);
+        setUsers([]);
+        setConversations([]);
+        setSelectedChannel(null);
+        return;
+      }
       const [ch, usr, me, convs, cmds, voiceRoster, dmBlocks] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
         fetchAllUsers(),
@@ -752,6 +762,28 @@ export default function App({ initialView }: AppProps = {}) {
         // previously active member hub — the lobby screen replaces the main
         // content area, but the persistent hub sidebar renders straight off
         // this state and would otherwise show a stale, unrelated hub's data.
+        setChannels([]);
+        setUsers([]);
+        setConversations([]);
+        setSelectedChannel(null);
+        return;
+      }
+      // /me is the one route a pending-approval session may still reach, so a
+      // 403 there (or on /channels, /users) that is not pending/lobby is the
+      // hub refusing the session outright.
+      const refusal = [me, ch, usr]
+        .map((r) => (r.status === "rejected" && r.reason instanceof HubApiError ? classifyHubRefusal(r.reason.status, r.reason.message) : null))
+        .find((x) => x !== null) ?? null;
+      if (hubIdForLobbyCheck) {
+        setRefusedHubs((prev) => {
+          if (!refusal && !prev.has(hubIdForLobbyCheck)) return prev;
+          const next = new Map(prev);
+          if (refusal) next.set(hubIdForLobbyCheck, refusal);
+          else next.delete(hubIdForLobbyCheck);
+          return next;
+        });
+      }
+      if (refusal) {
         setChannels([]);
         setUsers([]);
         setConversations([]);
@@ -1508,6 +1540,19 @@ export default function App({ initialView }: AppProps = {}) {
             }}
             initialHubUrl={homeHubUrl}
             onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
+          />
+        </main>
+      ) : activeHubId && refusedHubs.has(activeHubId) ? (
+        <main className="content" style={{ overflow: "auto" }}>
+          <HubRefusedPanel
+            key={activeHubId}
+            hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
+            refusal={refusedHubs.get(activeHubId)!}
+            onRedeemInvite={getSession(activeHubId)?.refusal ? null : async (code) => {
+              await redeemInvite(code);
+              await loadHubData();
+            }}
+            onRemoveHub={() => removeHubConfirm.requestRemoveHub(activeHubId, hubs)}
           />
         </main>
       ) : activeHubId && lobbyHubs.has(activeHubId) && publicKey ? (

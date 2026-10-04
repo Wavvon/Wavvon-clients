@@ -48,6 +48,7 @@ export { passphraseStrength } from "./utils/passphraseStrength";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
 export { AppLaunchCard } from "./components/AppLaunchCard";
 export { ErrorRetry } from "./components/ErrorRetry";
+export { HubRefusedPanel } from "./components/HubRefusedPanel";
 export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
 export { Lightbox } from "./components/Lightbox";
