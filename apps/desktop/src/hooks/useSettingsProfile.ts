@@ -62,7 +62,8 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
       const phrase = await invoke<string>("get_recovery_phrase");
       setRecoveryPhrase(phrase);
     } catch (e) {
-      setError(String(e));
+      // Declining the native confirmation is a choice, not an error.
+      if (String(e) !== "Cancelled") setError(String(e));
     }
   }
 

@@ -9,7 +9,7 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "label": "main",
@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https: asset: http://asset.localhost; media-src 'self' data: blob: http: https:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost http: https: ws: wss: blob: data:; worker-src 'self' blob:; frame-src http: https:; object-src 'none'; base-uri 'self'; form-action 'none'"
     }
   },
   "bundle": {

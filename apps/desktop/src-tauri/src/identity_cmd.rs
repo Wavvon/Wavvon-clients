@@ -1,10 +1,27 @@
 use crate::identity::Identity;
 use crate::local_store::{save_active_hub_id, save_hubs_list};
 use crate::state::{active_session, AppState};
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 #[tauri::command]
-pub(crate) fn get_recovery_phrase() -> Result<String, String> {
+pub(crate) async fn get_recovery_phrase(app: AppHandle) -> Result<String, String> {
+    let confirmed = app
+        .dialog()
+        .message(
+            "Your recovery phrase unlocks every identity on this device. \
+             Reveal it only if nobody can see your screen.",
+        )
+        .title("Reveal recovery phrase?")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Reveal".into(),
+            "Cancel".into(),
+        ))
+        .blocking_show();
+    if !confirmed {
+        return Err("Cancelled".to_string());
+    }
     let path = Identity::default_path().map_err(|e| e.to_string())?;
     let identity = Identity::load(&path).map_err(|e| e.to_string())?;
     Ok(identity.recovery_phrase())
