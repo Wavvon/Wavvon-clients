@@ -1,5 +1,5 @@
 import OpusScript from 'opusscript';
-import { hexToBytes, voicePacketSeal, voicePacketOpen } from '@wavvon/core';
+import { hexToBytes, voicePacketSeal, voicePacketOpen, INITIAL_SUB_GATE_STATE, nextSubGateState, type SubGateState } from '@wavvon/core';
 import { getScoped, setScoped } from '../utils/accountScope';
 import { VoiceKeyManager, type VoiceKeyBundle } from './voiceKeys';
 import { parseDownlinkDatagram, peekSealedKeyId, ReplayGuard } from './voiceDatagram';
@@ -62,6 +62,8 @@ export interface VoiceSessionHandlers {
   sendKeyOffer: (channelId: string, bundles: VoiceKeyBundle[]) => void;
   /** Called only when speech starts or stops, never per frame. */
   sendSpeaking: (channelId: string, speaking: boolean) => void;
+  /** Called only when the mic-below-threshold warning turns on or off. */
+  onGateWarning?: (warning: boolean) => void;
 }
 
 /** What `voice_join` gets back from the hub (the `voice_joined` reply) —
@@ -172,6 +174,7 @@ export class VoiceWtSession {
    *  inherit a stale future timestamp and start out silent. */
   private playoutEnd: Map<number, number> = new Map();
   private speakingState: SpeakingState = INITIAL_SPEAKING_STATE;
+  private subGate: SubGateState = INITIAL_SUB_GATE_STATE;
   /** Per-sender inbound loss trackers, keyed by sender id. Fed from the
    *  cleartext `ctr` in each packet header, so gaps are visible without
    *  decrypting anything. */
@@ -440,6 +443,7 @@ export class VoiceWtSession {
     // would be a lie about what the other end is hearing. One edge, no
     // release — the desktop pipeline's else-branch does the same.
     if (!vad.enabled) {
+      this.setSubGate(INITIAL_SUB_GATE_STATE);
       if (!this.speakingState.speaking) {
         this.speakingState = { speaking: true, lastLoudAt: Date.now() };
         this.handlers.sendSpeaking(this.channelId, true);
@@ -448,6 +452,9 @@ export class VoiceWtSession {
     }
 
     const energy = this.muted ? 0 : frameEnergy(micFrame);
+    this.setSubGate(nextSubGateState(this.subGate, {
+      energy, now: Date.now(), vadEnabled: true, threshold: vad.threshold, muted: this.muted,
+    }));
     const next = nextSpeakingState(this.speakingState, energy, Date.now(), {
       threshold: vad.threshold,
       holdMs: DEFAULT_SPEAKING.holdMs,
@@ -456,6 +463,11 @@ export class VoiceWtSession {
       this.handlers.sendSpeaking(this.channelId, next.speaking);
     }
     this.speakingState = next;
+  }
+
+  private setSubGate(next: SubGateState): void {
+    if (next.warning !== this.subGate.warning) this.handlers.onGateWarning?.(next.warning);
+    this.subGate = next;
   }
 
   /** Worst inbound loss across the senders we are hearing, as a percentage,
@@ -620,11 +632,15 @@ export class VoiceWtSession {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
+    if (muted) this.setSubGate(INITIAL_SUB_GATE_STATE);
   }
 
   setDeafened(deafened: boolean): void {
     this.deafened = deafened;
-    if (deafened) this.muted = true;
+    if (deafened) {
+      this.muted = true;
+      this.setSubGate(INITIAL_SUB_GATE_STATE);
+    }
   }
 
   stop(): void {

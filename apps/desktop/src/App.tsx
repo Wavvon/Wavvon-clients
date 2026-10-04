@@ -1681,6 +1681,7 @@ function App() {
                   canMoveMembers={canMoveMembers}
                   openFriends={openFriends}
                   openSettings={openSettings}
+                  openVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); void openSettings(); }}
                   onDragEnd={handleDragEnd}
                   setShowSearchBar={setShowSearchBar}
                   myPresence={myPresence}

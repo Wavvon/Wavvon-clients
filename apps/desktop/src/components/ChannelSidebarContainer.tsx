@@ -56,6 +56,7 @@ interface Props {
   canMoveMembers: boolean;
   openFriends: () => void;
   openSettings: () => void;
+  openVoiceSettings: () => void;
   onDragEnd: (event: DragEndEvent) => void;
   setShowSearchBar: (v: boolean) => void;
   myPresence: { status: "online" | "away" | "dnd" | "invisible" };
@@ -95,7 +96,7 @@ export function ChannelSidebarContainer({
   openHubAdmin, openHubAdminInvites, setShowQuickInvite,
   openCreateChannelUnder, onChannelContextMenu,
   setShowCreateChannel, setChannelSettingsModal,
-  leaveVoiceChannel, canMoveMembers, openFriends, openSettings, onDragEnd,
+  leaveVoiceChannel, canMoveMembers, openFriends, openSettings, openVoiceSettings, onDragEnd,
   setShowSearchBar, myPresence, onSetStatus,
   showWhisperPanel, setShowWhisperPanel, soundboardChipsByChannel,
   whisperReplyBind, onSetWhisperReplyBind,
@@ -125,6 +126,8 @@ export function ChannelSidebarContainer({
       voiceChannelNameHint={voiceChannelNameHint}
       selfMuted={voice.selfMuted}
       selfDeafened={voice.selfDeafened}
+      micBelowGate={voice.micBelowGate}
+      onOpenVoiceSettings={openVoiceSettings}
       users={users}
       publicKey={publicKey}
       pingByHub={hubLifecycle.pingByHub}

@@ -1857,6 +1857,8 @@
   "voice.move.toast": "Verschoben nach {channel}",
   "voice.move.toast.dismiss": "Schließen",
   "voice.move.toast.rejoin": "Vorherigem Kanal wieder beitreten?",
+  "voice.mic_below_gate": "Dein Mikrofon liegt unter der Schwelle für die Sprachaktivierung – niemand kann dich hören",
+  "voice.mic_below_gate.action": "Empfindlichkeit anpassen",
   "voice.mute": "Mikrofon stummschalten",
   "voice.mute.short": "Mute mic",
   "voice.participant.visiting_from": "Zu Gast von {hub}",

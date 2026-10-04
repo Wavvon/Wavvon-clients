@@ -18,3 +18,4 @@ export * from "./identity/ecies";
 export * from "./identity/backup";
 export * from "./identity/voice";
 export * from "./identity/hubRotation";
+export * from "./voiceGate";

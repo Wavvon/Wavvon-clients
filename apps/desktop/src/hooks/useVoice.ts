@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "../types";
 import { useScreenShare } from "./useScreenShare";
 import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
-import { playVoiceTone } from "@wavvon/core";
+import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -37,6 +37,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   const [customComplexity, setCustomComplexity] = useState(5);
   const [micTesting, setMicTesting] = useState(false);
   const [micLevel, setMicLevel] = useState<number>(0);
+  const [micBelowGate, setMicBelowGate] = useState(false);
+  const subGateRef = useRef(INITIAL_SUB_GATE_STATE);
+  const gateCfgRef = useRef({ vadEnabled: true, threshold: 0.02, muted: false, inCall: false });
   const [audioInputs, setAudioInputs] = useState<string[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<string[]>([]);
   // Browser-enumerated audio output devices (for setSinkId on <video> elements).
@@ -350,6 +353,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       }
       await invoke("voice_join", { channelId: target.id });
       playVoiceTone("up");
+      // The pipeline reads the saved threshold itself; the sub-threshold warning
+      // needs the same value here, and nothing else loads it before Settings opens.
+      void loadVoiceSettings();
     } catch (e) {
       setError(String(e));
     }
@@ -439,8 +445,23 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     });
   }
 
+  // Mirrors effective_config in crates/voice/src/pipeline.rs.
+  useEffect(() => {
+    gateCfgRef.current = {
+      vadEnabled: audioProfile === "custom" ? customVad : audioProfile !== "music",
+      threshold: audioProfile === "custom" ? customVadThreshold : vadThreshold,
+      muted: selfMuted,
+      inCall: voiceChannelId !== null,
+    };
+    subGateRef.current = INITIAL_SUB_GATE_STATE;
+  }, [audioProfile, customVad, customVadThreshold, vadThreshold, selfMuted, voiceChannelId]);
+
   function onMicLevel(level: number) {
     setMicLevel(level);
+    const cfg = gateCfgRef.current;
+    const next = nextSubGateState(subGateRef.current, { ...cfg, muted: cfg.muted || !cfg.inCall, energy: level, now: Date.now() });
+    subGateRef.current = next;
+    setMicBelowGate(next.warning);
   }
 
   async function onHubErrorVoiceJoin() {
@@ -469,6 +490,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     setMediaOutputDeviceId,
     micTesting,
     micLevel,
+    micBelowGate: micBelowGate && voiceChannelId !== null && !selfMuted,
     adminVoiceMutes,
     voiceMutedKeys,
     showSharePicker,

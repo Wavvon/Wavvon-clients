@@ -36,6 +36,7 @@ import { HoverSubmenu } from "../HoverSubmenu";
 import { HubMenuItems } from "./HubMenuItems";
 import { SoundboardPopover } from "../voice/SoundboardPopover";
 import { WhisperPanel } from "../voice/WhisperPanel";
+import { MicBelowGateWarning } from "../voice/MicBelowGateWarning";
 import {
   DRILL_DEPTH, computeIndent, resolveDrillInScope,
   flattenAllianceChannels, allianceChannelIcon, computeDragIntent,
@@ -98,6 +99,9 @@ interface Props {
   voiceChannelNameHint?: string | null;
   selfMuted: boolean;
   selfDeafened: boolean;
+  /** Unmuted with VAD on, signal present, threshold never crossed. */
+  micBelowGate?: boolean;
+  onOpenVoiceSettings?: () => void;
   users: User[];
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
@@ -205,7 +209,7 @@ interface Props {
 export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
-  voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened,
+  voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
   users, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
@@ -819,6 +823,7 @@ export function ChannelSidebar({
                 <PhoneOffIcon />
               </button>
             </div>
+            {micBelowGate && onOpenVoiceSettings && <MicBelowGateWarning onOpenSensitivity={onOpenVoiceSettings} />}
             <div className="user-actions">
               <div className="user-actions-icons">
                 <button
