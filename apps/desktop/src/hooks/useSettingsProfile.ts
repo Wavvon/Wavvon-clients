@@ -6,7 +6,6 @@ import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from 
 import type { SettingsTab } from "../components/SettingsPage";
 
 interface UseSettingsProfileParams {
-  setPublicKey: (key: string) => void;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
 }
@@ -30,7 +29,7 @@ async function persistTheme(theme: ThemeId | "custom", onError: (msg: string) =>
   }
 }
 
-export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSettingsProfileParams) {
+export function useSettingsProfile({ setError, setToast }: UseSettingsProfileParams) {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
   const [theme, setTheme] = useState<ThemeId>("dark");
