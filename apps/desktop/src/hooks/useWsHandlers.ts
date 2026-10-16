@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { formatPubkey } from "@wavvon/core";
 import { listenerScope } from "../utils/listenerScope";
 import type { DmMessage, VoiceParticipant, Conversation, User, AppLaunchEvent, AppOpenEvent, AppCloseEvent, PresenceStatus } from "../types";
+import i18n from "@wavvon/i18n";
 
 export interface WsHandlersParams {
   activeHubIdRef: RefObject<string | null>;
@@ -108,7 +109,7 @@ export function useWsHandlers({
               if (hub_id === activeHubIdRef.current) {
                 const hubName = hubs.find((h) => h.hub_id === hub_id)?.hub_name ?? "hub";
                 if (connected && was === false) {
-                  setToast("Reconnected");
+                  setToast(i18n.t("toast.reconnected"));
                   setAssertiveAnnouncement(`Reconnected to ${hubName}.`);
                 } else if (!connected && was !== false) {
                   setAssertiveAnnouncement(`Disconnected from ${hubName}. Reconnecting…`);

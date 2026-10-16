@@ -73,7 +73,7 @@ export function useSettingsProfile({ setError, setToast }: UseSettingsProfilePar
       "Clear local preferences?\n\nThis wipes unread, mutes, pinned channels, collapsed categories, voice settings, and recently-used emojis.\n\nYour identity and saved hubs are kept.",
     );
     if (!ok) return;
-    const confirm2 = confirm("Are you sure? This can't be undone.");
+    const confirm2 = confirm(i18n.t("confirm.cannot_undo"));
     if (!confirm2) return;
     try {
       await invoke("clear_local_data");
@@ -82,7 +82,7 @@ export function useSettingsProfile({ setError, setToast }: UseSettingsProfilePar
         localStorage.removeItem("wavvon.memberSidebarHidden");
         localStorage.removeItem("wavvon.mentionPing");
       } catch {}
-      setToast("Local data cleared — reloading…");
+      setToast(i18n.t("toast.local_data_cleared"));
       setTimeout(() => window.location.reload(), 600);
     } catch (e) {
       setError(String(e));
@@ -112,7 +112,7 @@ export function useSettingsProfile({ setError, setToast }: UseSettingsProfilePar
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 2000);
     } catch (e) {
-      setError("Failed to copy: " + e);
+      setError(i18n.t("errors.copy_failed", { error: String(e) }));
     }
   }
 
