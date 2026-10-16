@@ -18,6 +18,7 @@ import {
   resolveOrCreateAccount,
   switchAccount,
   SWITCH_BLOCKED_COOLDOWN,
+  holdsMasterSeed,
   type IdentityRecord,
 } from "@identity/index";
 import type { PerAccountProps } from "@wavvon/ui";
@@ -66,6 +67,8 @@ function pickBackupFile(): Promise<Uint8Array | null> {
 export function ManageAccountsTab(props: Props) {
   const { t } = useTranslation();
   const activeHubUrl = props.hubs.find((h) => h.is_active)?.hub_url;
+  const activeRecord = props.accounts?.find((a) => a.id === props.activeId);
+  const activeIsPaired = activeRecord ? !holdsMasterSeed(activeRecord) : false;
 
   // switchAccount refuses (voice guard, switch cooldown) rather than always
   // succeeding — the import already went through by this point, so surface
@@ -97,7 +100,9 @@ export function ManageAccountsTab(props: Props) {
     pickFile: pickBackupFile,
     importAccount,
   };
-  const backupAccounts = (props.accounts ?? []).map((a) => ({
+  // A paired device's seed is its subkey: exported, it would restore as a
+  // different identity, so only accounts holding their master seed are offered.
+  const backupAccounts = (props.accounts ?? []).filter(holdsMasterSeed).map((a) => ({
     id: a.id,
     label: a.account_label || formatPubkey(a.id),
     secretKeyHex: a.seed_hex,
@@ -124,7 +129,8 @@ export function ManageAccountsTab(props: Props) {
         recoveryPhrase={props.recoveryPhrase}
         onRevealPhrase={props.onShowRecovery}
         actions={backupActions}
-        needsBackup={!isIdentityBackedUp(props.activeId)}
+        needsBackup={!activeIsPaired && !isIdentityBackedUp(props.activeId)}
+        phraseHeldElsewhere={activeIsPaired}
         onSavedOffDevice={markIdentityBackedUp}
       />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}

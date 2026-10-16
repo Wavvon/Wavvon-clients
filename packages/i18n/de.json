@@ -1698,6 +1698,7 @@
   "settings.row.open": "Öffnen",
   "settings.security.recovery.hint": "24 Wörter, mit denen du deine Identität wiederherstellst. Schreib sie auf und bewahre sie sicher auf — wer sie hat, kann sich als du ausgeben.",
   "settings.security.recovery.label": "Recovery phrase",
+  "settings.security.recovery.paired_device": "Dieses Gerät wurde von einem anderen aus gekoppelt und hat einen eigenen Geräteschlüssel, nicht deine Identität. Deine Wiederherstellungsphrase liegt auf dem Gerät, von dem aus du gekoppelt hast – zeige sie dort an.",
   "settings.security.recovery.reveal": "Reveal recovery phrase",
   "settings.skin.base": "Basisthema",
   "settings.skin.base.dark": "Dunkel",
