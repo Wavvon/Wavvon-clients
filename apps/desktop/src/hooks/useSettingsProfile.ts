@@ -4,7 +4,6 @@ import i18n from "@wavvon/i18n";
 import { switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
 import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
-import i18n from "@wavvon/i18n";
 
 interface UseSettingsProfileParams {
   setError: (msg: string) => void;
