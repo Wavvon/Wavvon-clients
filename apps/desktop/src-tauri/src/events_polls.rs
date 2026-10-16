@@ -79,16 +79,20 @@ pub(crate) async fn delete_event(
 #[tauri::command]
 pub(crate) async fn get_hub_events(
     hub_url: String,
+    channel_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let url = format!(
-        "{}/events?upcoming=true&limit=50",
-        hub_url.trim_end_matches('/')
-    );
+    let url = format!("{}/events", hub_url.trim_end_matches('/'));
+    let mut query = vec![("upcoming", "true".to_string()), ("limit", "50".to_string())];
+    // A hub that predates the filter ignores it and answers the hub-wide list.
+    if let Some(id) = channel_id {
+        query.push(("channel_id", id));
+    }
     let res = state
         .http_client
         .get(&url)
+        .query(&query)
         .bearer_auth(&token)
         .send()
         .await

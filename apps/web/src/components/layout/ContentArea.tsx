@@ -226,7 +226,7 @@ export function ContentArea(props: Props) {
     [typing.dmTypingByKey, selectedConversation],
   );
 
-  function getEventsAction(params?: { upcoming?: boolean; limit?: number }): Promise<HubEvent[]> {
+  function getEventsAction(params?: { upcoming?: boolean; limit?: number; channelId?: string }): Promise<HubEvent[]> {
     return getEvents(params);
   }
   function rsvpEventAction(eventId: string, status: RsvpStatus, slotId?: string): Promise<void> {

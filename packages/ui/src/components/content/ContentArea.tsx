@@ -159,7 +159,7 @@ interface Props {
   // desktop's on-demand modal overlay -- rather than forcing either app to
   // change its shipped UX for this hoist.
   eventsPresentation: "tabs" | "modal";
-  getEvents: (params?: { upcoming?: boolean; limit?: number }) => Promise<HubEvent[]>;
+  getEvents: (params?: { upcoming?: boolean; limit?: number; channelId?: string }) => Promise<HubEvent[]>;
   deleteEvent: (eventId: string) => Promise<void>;
   rsvpEvent: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   createEvent: (payload: CreateEventPayload) => Promise<HubEvent>;

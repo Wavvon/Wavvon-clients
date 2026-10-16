@@ -1,10 +1,12 @@
 import { hubFetch } from "../http";
 import type { Channel, EventMoveAssignment, EventRsvp, EventSlot, HubEvent, RsvpStatus } from "@shared/types";
 
-export async function getEvents(params?: { upcoming?: boolean; limit?: number }): Promise<HubEvent[]> {
+export async function getEvents(params?: { upcoming?: boolean; limit?: number; channelId?: string }): Promise<HubEvent[]> {
   const query = new URLSearchParams();
   if (params?.upcoming !== undefined) query.set("upcoming", String(params.upcoming));
   if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  // A hub that predates the filter ignores it and answers the hub-wide list.
+  if (params?.channelId !== undefined) query.set("channel_id", params.channelId);
   const qs = query.toString();
   const res = await hubFetch(qs ? `/events?${qs}` : "/events");
   return res.json() as Promise<HubEvent[]>;

@@ -14,7 +14,7 @@ interface Props {
   myPubkey: string | null;
   isAdmin: boolean;
   channels: Channel[];
-  getEvents: (params?: { upcoming?: boolean; limit?: number }) => Promise<HubEvent[]>;
+  getEvents: (params?: { upcoming?: boolean; limit?: number; channelId?: string }) => Promise<HubEvent[]>;
   deleteEvent: (eventId: string) => Promise<void>;
   rsvpEvent: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   createEvent: (payload: CreateEventPayload) => Promise<HubEvent>;
@@ -39,7 +39,7 @@ export function EventsPanel({
 
   const reload = useCallback(async () => {
     try {
-      const list = await getEvents({ upcoming: true, limit: 100 });
+      const list = await getEvents({ upcoming: true, limit: 100, channelId });
       const now = Math.floor(Date.now() / 1000);
       setEvents(
         list
@@ -51,7 +51,7 @@ export function EventsPanel({
     } finally {
       setLoading(false);
     }
-  }, [getEvents]);
+  }, [getEvents, channelId]);
 
   useEffect(() => {
     void reload();

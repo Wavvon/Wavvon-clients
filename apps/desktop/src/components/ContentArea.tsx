@@ -299,9 +299,9 @@ export function ContentArea(props: Props) {
     };
   }
 
-  function getEvents(): Promise<HubEvent[]> {
+  function getEvents(params?: { channelId?: string }): Promise<HubEvent[]> {
     if (!activeHub) return Promise.resolve([]);
-    return invoke<HubEvent[]>("get_hub_events", { hubUrl: activeHub.hub_url });
+    return invoke<HubEvent[]>("get_hub_events", { hubUrl: activeHub.hub_url, channelId: params?.channelId ?? null });
   }
   function deleteEvent(eventId: string): Promise<void> {
     return invoke<void>("delete_event", { hubUrl: activeHub?.hub_url ?? "", eventId });
