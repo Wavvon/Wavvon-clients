@@ -7,6 +7,7 @@ import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
 import { listenerScope } from "../utils/listenerScope";
 import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
+import i18n from "@wavvon/i18n";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -376,7 +377,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
         targetPublicKey: publicKey,
         reason: reason.trim() || null,
       });
-      setToast("Voice muted");
+      setToast(i18n.t("toast.voice_muted"));
       await refreshVoiceMutes();
     } catch (e) {
       setError(String(e));
@@ -386,7 +387,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   async function handleVoiceUnmuteMember(publicKey: string) {
     try {
       await invoke("voice_unmute_user_cmd", { targetPublicKey: publicKey });
-      setToast("Voice unmuted");
+      setToast(i18n.t("toast.voice_unmuted"));
       await refreshVoiceMutes();
     } catch (e) {
       setError(String(e));

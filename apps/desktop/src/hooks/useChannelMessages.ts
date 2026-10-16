@@ -8,6 +8,7 @@ import { MAX_ATTACHMENT_BYTES } from "../constants";
 import type { SelectedAllianceChannel } from "@wavvon/ui";
 import { listenerScope } from "../utils/listenerScope";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
+import i18n from "@wavvon/i18n";
 
 export interface ChannelMessagesParams {
   activeHubIdRef: RefObject<string | null>;
@@ -476,7 +477,7 @@ export function useChannelMessages({
 
   async function handleDeleteMessage(messageId: string) {
     if (!selectedChannel) return;
-    if (!confirm("Delete this message?")) return;
+    if (!confirm(i18n.t("confirm.delete_message"))) return;
     try {
       await invoke("delete_message", { channelId: selectedChannel.id, messageId });
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
@@ -529,7 +530,7 @@ export function useChannelMessages({
       try {
         const b64 = await readFileAsB64(f);
         if (totalBytes + b64.length > MAX_ATTACHMENT_BYTES) {
-          setError(`Attachments would exceed 3MB cap (already at ${(totalBytes / 1_000_000).toFixed(1)}MB)`);
+          setError(i18n.t("errors.attachments_cap", { size: (totalBytes / 1_000_000).toFixed(1) }));
           break;
         }
         totalBytes += b64.length;

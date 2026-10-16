@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { parseHubInput } from "@wavvon/core";
 import type { Hub, LobbyStatus } from "../types";
+import i18n from "@wavvon/i18n";
 
 export type HubPreviewState =
   | { state: "idle" }
@@ -144,7 +145,7 @@ export function useAddHubFlow({
 
       if (!challengeToken && hubPreview.state === "ok" && hubPreview.challenge_mode && hubPreview.challenge_mode !== "off") {
         if (!publicKey) {
-          setError("Identity not loaded yet. Try again in a moment.");
+          setError(i18n.t("errors.identity_not_loaded"));
           return;
         }
         setAdmissionChallenge({ hubUrl: resolvedUrl, pubkey: publicKey, resolvedUrl });
