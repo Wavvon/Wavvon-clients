@@ -1,5 +1,4 @@
 use crate::identity::Identity;
-use crate::local_store::{save_active_hub_id, save_hubs_list};
 use crate::state::{active_session, AppState};
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
@@ -27,37 +26,14 @@ pub(crate) async fn get_recovery_phrase(app: AppHandle) -> Result<String, String
     Ok(identity.recovery_phrase())
 }
 
+/// Recovering a phrase brings that identity onto this device as an account of
+/// its own (or finds it, if it is already here) and returns its id; the caller
+/// switches to it. It never touches the active account: overwriting its
+/// `identity.json` destroyed a seed that might never have been backed up,
+/// and left the registry id naming a key the account no longer held.
 #[tauri::command]
-pub(crate) fn recover_identity_from_phrase(
-    phrase: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
-    let restored = Identity::from_recovery_phrase(phrase.trim())
-        .map_err(|e| format!("Invalid recovery phrase: {e}"))?;
-    let new_pubkey = restored.public_key_hex();
-
-    let identity_path = Identity::default_path().map_err(|e| e.to_string())?;
-
-    let drained: Vec<_> = state
-        .hubs
-        .lock()
-        .unwrap()
-        .drain()
-        .map(|(_, s)| s.ws_task)
-        .collect();
-    for task in drained {
-        task.abort();
-    }
-    *state.active_hub.lock().unwrap() = None;
-    save_active_hub_id(None);
-
-    let _ = save_hubs_list(&[]);
-
-    restored
-        .save(&identity_path)
-        .map_err(|e| format!("Failed to save identity: {e}"))?;
-
-    Ok(new_pubkey)
+pub(crate) fn recover_identity_from_phrase(phrase: String) -> Result<String, String> {
+    crate::accounts::account_from_phrase(&phrase)
 }
 
 /// This device's own signing pubkey, whatever any hub calls us.

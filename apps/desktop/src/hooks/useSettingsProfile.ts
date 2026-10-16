@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import i18n from "@wavvon/i18n";
+import { switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
 import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
 
 interface UseSettingsProfileParams {
-  setPublicKey: (key: string) => void;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
 }
@@ -28,7 +29,7 @@ async function persistTheme(theme: ThemeId | "custom", onError: (msg: string) =>
   }
 }
 
-export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSettingsProfileParams) {
+export function useSettingsProfile({ setError, setToast }: UseSettingsProfileParams) {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
   const [theme, setTheme] = useState<ThemeId>("dark");
@@ -90,11 +91,14 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
 
   async function handleRecoverIdentity(phrase: string) {
     try {
-      const newPubkey = await invoke<string>("recover_identity_from_phrase", { phrase });
+      // Brings the identity on as its own account (or finds it) and switches
+      // to it in place; the active account is never overwritten.
+      const id = await invoke<string>("recover_identity_from_phrase", { phrase });
       setRecoveryPhrase(null);
-      setPublicKey(newPubkey);
-      setToast("Identity restored — reloading…");
-      setTimeout(() => window.location.reload(), 600);
+      const refused = await switchAccountGuarded(id);
+      if (refused) {
+        throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? i18n.t("settings.account.accounts.switch_cooldown") : refused);
+      }
     } catch (e) {
       setError(String(e));
       throw e;

@@ -15,8 +15,6 @@ export function RestoreIdentitySection({
 
   async function handleRestore() {
     if (!looksValid) return;
-    const ok = confirm(t("settings.account.restore.confirm"));
-    if (!ok) return;
     setBusy(true);
     try {
       await onRestore(phrase.trim());

@@ -279,6 +279,22 @@ fn create_account_in(
     register_new_account_in(base, identity, label)
 }
 
+/// Recovery-phrase restore: the account for that identity, created if this
+/// device does not have it yet. Same dedupe as the backup path below.
+pub(crate) fn account_from_phrase(phrase: &str) -> Result<String, String> {
+    account_from_phrase_in(&wavvon_dir()?, phrase)
+}
+
+fn account_from_phrase_in(base: &Path, phrase: &str) -> Result<String, String> {
+    let identity = Identity::from_recovery_phrase(phrase.trim())
+        .map_err(|e| format!("Invalid recovery phrase: {e}"))?;
+    let id = identity.public_key_hex();
+    if load_registry_in(base).accounts.iter().any(|a| a.id == id) {
+        return Ok(id);
+    }
+    register_new_account_in(base, identity, None).map(|s| s.id)
+}
+
 /// Backup-restore path (settings-ia.md §4a): unlike `create_account_in`, an
 /// identity that's already on this device is not an error — it just returns
 /// the existing account with `is_new: false`, mirroring web's
@@ -593,6 +609,31 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
+    }
+
+    #[test]
+    fn a_restored_phrase_adds_an_account_and_never_overwrites_the_active_one() {
+        let base = TempBase::new("phrase");
+        let active = create_account_in(&base.0, None, None).expect("create active");
+        let active_identity =
+            std::fs::read(account_dir_in(&base.0, &active.id).join("identity.json")).unwrap();
+
+        let phrase = Identity::generate().recovery_phrase();
+        let id = account_from_phrase_in(&base.0, &phrase).expect("restore");
+        assert_ne!(id, active.id);
+
+        // The active account and its key are exactly as they were.
+        let listed = list_accounts_in(&base.0);
+        assert_eq!(listed.len(), 2);
+        assert!(listed.iter().find(|s| s.id == active.id).unwrap().is_active);
+        assert_eq!(
+            std::fs::read(account_dir_in(&base.0, &active.id).join("identity.json")).unwrap(),
+            active_identity
+        );
+
+        // Restoring the same phrase again finds the account rather than failing.
+        assert_eq!(account_from_phrase_in(&base.0, &phrase).unwrap(), id);
+        assert_eq!(list_accounts_in(&base.0).len(), 2);
     }
 
     #[test]

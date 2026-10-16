@@ -688,7 +688,6 @@ function App() {
 
   
   const settingsProfile = useSettingsProfile({
-    setPublicKey,
     setError,
     setToast,
   });
