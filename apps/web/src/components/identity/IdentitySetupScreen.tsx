@@ -19,7 +19,7 @@ import {
 import type { IdentityRecord, PairingOffer } from "@identity/index";
 import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
 import { encryptBackup, suggestBackupFilename } from "@wavvon/core";
-import { inviteCodeFromPath } from "@wavvon/core";
+import { inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
 import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
 import { markIdentityBackedUp } from "../../utils/identityBackup";
@@ -211,7 +211,14 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           // The cert has to name the master the code named. Without this check
           // the hub picks which identity this device joins, which is exactly
           // what carrying the signed offer out of band is for.
-          if (status.cert.master_pubkey !== offer.master_pubkey) {
+          // And it has to be a real cert, for this device's subkey: one the
+          // hub forged or mixed up would be saved, show as paired, and then
+          // fail authentication everywhere with nothing to say why.
+          if (
+            status.cert.master_pubkey !== offer.master_pubkey ||
+            status.cert.subkey_pubkey !== subkeyPubkey ||
+            !verifySubkeyCert(status.cert)
+          ) {
             setError(t("identity_setup.pair.error_wrong_identity"));
             setPairStatus("idle");
             return;
