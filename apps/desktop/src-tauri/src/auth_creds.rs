@@ -102,6 +102,16 @@ impl AuthCredentials {
 
         let challenge_bytes = hex::decode(&challenge_resp.challenge)
             .map_err(|e| format!("bad challenge hex: {e}"))?;
+        // The same key signs envelopes, messages and certs. A Wavvon hub
+        // issues exactly 32 random bytes, and everything else this key signs
+        // is longer, so a hub asking for anything else is asking for a
+        // signature it could replay as one of those (Wavvon-server#111).
+        if challenge_bytes.len() != 32 {
+            return Err(format!(
+                "refusing to sign a {}-byte auth challenge",
+                challenge_bytes.len()
+            ));
+        }
         let signature_bytes = self.sign(&challenge_bytes);
 
         let mut body = serde_json::json!({
