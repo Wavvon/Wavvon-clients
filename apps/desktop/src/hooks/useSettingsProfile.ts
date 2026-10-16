@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "i18next";
+import { switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
 import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
 
@@ -90,11 +92,14 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
 
   async function handleRecoverIdentity(phrase: string) {
     try {
-      const newPubkey = await invoke<string>("recover_identity_from_phrase", { phrase });
+      // Brings the identity on as its own account (or finds it) and switches
+      // to it in place; the active account is never overwritten.
+      const id = await invoke<string>("recover_identity_from_phrase", { phrase });
       setRecoveryPhrase(null);
-      setPublicKey(newPubkey);
-      setToast("Identity restored — reloading…");
-      setTimeout(() => window.location.reload(), 600);
+      const refused = await switchAccountGuarded(id);
+      if (refused) {
+        throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+      }
     } catch (e) {
       setError(String(e));
       throw e;
