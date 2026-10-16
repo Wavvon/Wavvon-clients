@@ -1698,6 +1698,7 @@
   "settings.row.open": "Apri",
   "settings.security.recovery.hint": "24 parole che puoi usare per ripristinare la tua identità. Scrivile e tienile al sicuro — chiunque abbia queste parole può impersonarti.",
   "settings.security.recovery.label": "Frase di recupero",
+  "settings.security.recovery.paired_device": "Questo dispositivo è stato associato da un altro e ha una propria chiave di dispositivo, non la tua identità. La frase di recupero si trova sul dispositivo da cui l'hai associato: mostrala lì.",
   "settings.security.recovery.reveal": "Mostra frase di recupero",
   "settings.skin.base": "Tema di base",
   "settings.skin.base.dark": "Scuro",

@@ -4,6 +4,7 @@ import type { ThemeId, WavvonSkin } from "@wavvon/ui";
 import { applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "@components/settings/SettingsPage";
 import {
+  holdsMasterSeed,
   loadIdentity,
   seedToPhrase,
   phraseToSeed,
@@ -147,7 +148,9 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
 
   function handleShowRecovery() {
     loadIdentity().then((rec) => {
-      if (!rec) return;
+      // A paired device's seed is its own subkey; its words would restore a
+      // different identity, and reading them must not mark anything backed up.
+      if (!rec || !holdsMasterSeed(rec)) return;
       setRecoveryPhrase(seedToPhrase(rec.seed_hex));
       // Reading the words is the point at which they can be written down —
       // the only signal available short of asking the user to type them back.
