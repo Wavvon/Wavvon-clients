@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "@wavvon/ui";
+import { listenerScope } from "../utils/listenerScope";
 import type { BackgroundMode } from "@wavvon/ui";
 
 const MAX_ACTIVE = 3;
@@ -159,18 +160,18 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
 
   useEffect(() => {
     if (!activeHubId) return;
-    const unsubs: Array<() => void> = [];
+    const scope = listenerScope();
 
-    listen<{ hub_id: string; channel_id: string; pubkey: string }>("video-participant-enabled", async (e) => {
+    scope.add(listen<{ hub_id: string; channel_id: string; pubkey: string }>("video-participant-enabled", async (e) => {
       if (e.payload.hub_id !== activeHubId) return;
       const pk = e.payload.pubkey;
       setVideoPubkeys(prev => new Set(prev).add(pk));
       if (publicKey && pk !== publicKey && publicKey < pk) {
         await initiateOffer(pk);
       }
-    }).then(u => unsubs.push(u));
+    }));
 
-    listen<{ hub_id: string; channel_id: string; pubkey: string }>("video-participant-disabled", (e) => {
+    scope.add(listen<{ hub_id: string; channel_id: string; pubkey: string }>("video-participant-disabled", (e) => {
       if (e.payload.hub_id !== activeHubId) return;
       const pk = e.payload.pubkey;
       setVideoPubkeys(prev => {
@@ -188,9 +189,9 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
         m.delete(pk);
         return m;
       });
-    }).then(u => unsubs.push(u));
+    }));
 
-    listen<{ hub_id: string; channel_id: string; pubkeys: string[] }>("video-participants", async (e) => {
+    scope.add(listen<{ hub_id: string; channel_id: string; pubkeys: string[] }>("video-participants", async (e) => {
       if (e.payload.hub_id !== activeHubId) return;
       const pks = e.payload.pubkeys;
       setVideoPubkeys(new Set(pks));
@@ -199,9 +200,9 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
           if (pk !== publicKey && publicKey < pk) await initiateOffer(pk);
         }
       }
-    }).then(u => unsubs.push(u));
+    }));
 
-    listen<{ hub_id: string; from_pubkey: string; to_pubkey: string; sdp: string }>("video-offer-in", async (e) => {
+    scope.add(listen<{ hub_id: string; from_pubkey: string; to_pubkey: string; sdp: string }>("video-offer-in", async (e) => {
       if (e.payload.hub_id !== activeHubId || e.payload.to_pubkey !== publicKey) return;
       const from = e.payload.from_pubkey;
       if (!peers.current.has(from)) createPeer(from);
@@ -217,15 +218,15 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
           sdp: answer.sdp,
         });
       }
-    }).then(u => unsubs.push(u));
+    }));
 
-    listen<{ hub_id: string; from_pubkey: string; to_pubkey: string; sdp: string }>("video-answer-in", async (e) => {
+    scope.add(listen<{ hub_id: string; from_pubkey: string; to_pubkey: string; sdp: string }>("video-answer-in", async (e) => {
       if (e.payload.hub_id !== activeHubId || e.payload.to_pubkey !== publicKey) return;
       const entry = peers.current.get(e.payload.from_pubkey);
       if (entry) await entry.conn.setRemoteDescription({ type: "answer", sdp: e.payload.sdp });
-    }).then(u => unsubs.push(u));
+    }));
 
-    listen<{ hub_id: string; from_pubkey: string; to_pubkey: string; candidate: string }>("video-ice-in", async (e) => {
+    scope.add(listen<{ hub_id: string; from_pubkey: string; to_pubkey: string; candidate: string }>("video-ice-in", async (e) => {
       if (e.payload.hub_id !== activeHubId || e.payload.to_pubkey !== publicKey) return;
       const entry = peers.current.get(e.payload.from_pubkey);
       if (entry) {
@@ -233,9 +234,9 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
           await entry.conn.addIceCandidate(JSON.parse(e.payload.candidate) as RTCIceCandidateInit);
         } catch {}
       }
-    }).then(u => unsubs.push(u));
+    }));
 
-    return () => unsubs.forEach(u => u());
+    return scope.close;
   }, [activeHubId, voiceChannelId, publicKey, videoEnabled, processedStream]);
 
   async function enableVideo(deviceId?: string) {

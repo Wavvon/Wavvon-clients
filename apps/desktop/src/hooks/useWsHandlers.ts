@@ -2,6 +2,7 @@ import { useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { formatPubkey } from "@wavvon/core";
+import { listenerScope } from "../utils/listenerScope";
 import type { DmMessage, VoiceParticipant, Conversation, User, AppLaunchEvent, AppOpenEvent, AppCloseEvent, PresenceStatus } from "../types";
 
 export interface WsHandlersParams {
@@ -93,11 +94,11 @@ export function useWsHandlers({
   onSoundboardPlayed,
 }: WsHandlersParams) {
   useEffect(() => {
-    const unlistens: (() => void)[] = [];
+    const scope = listenerScope();
 
     (async () => {
-      unlistens.push(
-        await listen<{ hub_id: string; connected: boolean }>(
+      scope.add(
+        listen<{ hub_id: string; connected: boolean }>(
           "hub-ws-status",
           (event) => {
             const { hub_id, connected } = event.payload;
@@ -147,22 +148,22 @@ export function useWsHandlers({
       // swallowed by the WS enum's catch-all arm, so desktop showed a stale
       // hub name, a stale channel list, stale member names/avatars and no
       // soundboard attribution while web handled all four.
-      unlistens.push(
-        await listen<{ hub_id: string }>("hub-updated", (event) => {
+      scope.add(
+        listen<{ hub_id: string }>("hub-updated", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           onHubBrandingChanged();
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string }>("channels-updated", (event) => {
+      scope.add(
+        listen<{ hub_id: string }>("channels-updated", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           onChannelsChanged();
         })
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           public_key: string;
           display_name: string | null;
@@ -188,15 +189,15 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string }>("soundboard-played", (event) => {
+      scope.add(
+        listen<{ hub_id: string }>("soundboard-played", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           onSoundboardPlayed(event.payload);
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; public_key: string; status: string | null; custom: string | null }>(
+      scope.add(
+        listen<{ hub_id: string; public_key: string; status: string | null; custom: string | null }>(
           "member-status",
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -211,8 +212,8 @@ export function useWsHandlers({
         )
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           target_channel_id?: string;
           target_channel_name?: string;
@@ -225,8 +226,8 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           conversation_id: string;
           sender: string;
@@ -245,8 +246,8 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           conversation_id: string;
           added: string[];
@@ -256,8 +257,8 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           channel_id: string;
           public_key: string;
@@ -276,8 +277,8 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           channel_id: string;
           participants: VoiceParticipant[];
@@ -295,8 +296,8 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; participant: VoiceParticipant }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; participant: VoiceParticipant }>(
           "voice-participant-joined",
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -316,8 +317,8 @@ export function useWsHandlers({
         )
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; public_key: string }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; public_key: string }>(
           "voice-participant-left",
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -338,14 +339,14 @@ export function useWsHandlers({
         )
       );
 
-      unlistens.push(
-        await listen<number>("mic-level", (event) => {
+      scope.add(
+        listen<number>("mic-level", (event) => {
           onMicLevel(event.payload);
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; context: string; message: string }>(
+      scope.add(
+        listen<{ hub_id: string; context: string; message: string }>(
           "hub-error",
           async (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -357,15 +358,15 @@ export function useWsHandlers({
         )
       );
 
-      unlistens.push(
-        await listen<DmMessage & { hub_id: string; conversation_id: string }>("dm", (event) => {
+      scope.add(
+        listen<DmMessage & { hub_id: string; conversation_id: string }>("dm", (event) => {
           const { conversation_id, hub_id, ...msg } = event.payload;
           onDmEvent(conversation_id, msg, hub_id);
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; hub_name: string }>("hub-session-lost", async (event) => {
+      scope.add(
+        listen<{ hub_id: string; hub_name: string }>("hub-session-lost", async (event) => {
           const { hub_name } = event.payload;
           setToast(
             `Couldn't authenticate with "${hub_name}". The hub may be offline, or you may have been banned. Use Reconnect to retry, or right-click to remove.`
@@ -373,16 +374,16 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<AppLaunchEvent & { hub_id: string }>("app-launch", (event) => {
+      scope.add(
+        listen<AppLaunchEvent & { hub_id: string }>("app-launch", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           const { hub_id: _hub_id, ...ev } = event.payload;
           onBotAppLaunch(ev as AppLaunchEvent);
         })
       );
 
-      unlistens.push(
-        await listen<AppOpenEvent & { hub_id: string }>("app-open", (event) => {
+      scope.add(
+        listen<AppOpenEvent & { hub_id: string }>("app-open", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           const hubId = event.payload.hub_id;
           const hubUrl = hubs.find((h) => h.hub_id === hubId)?.hub_url ?? "";
@@ -391,8 +392,8 @@ export function useWsHandlers({
         })
       );
 
-      unlistens.push(
-        await listen<AppCloseEvent & { hub_id: string }>("app-close", (event) => {
+      scope.add(
+        listen<AppCloseEvent & { hub_id: string }>("app-close", (event) => {
           if (event.payload.hub_id !== activeHubIdRef.current) return;
           const { hub_id: _hub_id, ...ev } = event.payload;
           onBotAppClose(ev as AppCloseEvent);
@@ -401,7 +402,7 @@ export function useWsHandlers({
     })();
 
     return () => {
-      unlistens.forEach((u) => u());
+      scope.close();
       cancelAllReconnectTimers();
     };
   }, []);
