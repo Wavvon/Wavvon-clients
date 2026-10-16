@@ -43,6 +43,13 @@ export async function acquireHubToken(
   ).then((r) => r.json() as Promise<ChallengeResponse>);
 
   const challengeBytes = hexToBytes(challengeRes.challenge);
+  // The same key signs envelopes, messages and certs. A Wavvon hub issues
+  // exactly 32 random bytes, and everything else this key signs is longer,
+  // so a hub asking for anything else is asking for a signature it could
+  // replay as one of those (Wavvon-server#111).
+  if (challengeBytes.length !== 32) {
+    throw new Error(`Refusing to sign a ${challengeBytes.length}-byte auth challenge`);
+  }
   const signatureHex = signBytes(challengeBytes, seedHex);
 
   const body: Record<string, unknown> = {
