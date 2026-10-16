@@ -84,7 +84,10 @@ pub(crate) async fn get_hub_events(
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let url = format!("{}/events", hub_url.trim_end_matches('/'));
-    let mut query = vec![("upcoming", "true".to_string()), ("limit", "50".to_string())];
+    let mut query = vec![
+        ("upcoming", "true".to_string()),
+        ("limit", "50".to_string()),
+    ];
     // A hub that predates the filter ignores it and answers the hub-wide list.
     if let Some(id) = channel_id {
         query.push(("channel_id", id));
