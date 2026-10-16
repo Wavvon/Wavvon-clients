@@ -101,15 +101,20 @@ pub(crate) async fn list_users(
 pub(crate) async fn get_me(state: State<'_, AppState>) -> Result<MeInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    client
+    let res = client
         .get(format!("{hub_url}/me"))
         .bearer_auth(&token)
         .send()
         .await
-        .map_err(|e| format!("Failed: {e}"))?
-        .json()
-        .await
-        .map_err(|e| format!("Invalid: {e}"))
+        .map_err(|e| format!("Failed: {e}"))?;
+    // The status and the hub's own words, so the shell can tell a hub that
+    // refuses this session (classifyHubRefusal) from one it failed to reach.
+    if !res.status().is_success() {
+        let status = res.status().as_u16();
+        let message = res.text().await.unwrap_or_default();
+        return Err(serde_json::json!({ "status": status, "message": message }).to_string());
+    }
+    res.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
 // ---------------------------------------------------------------------------
