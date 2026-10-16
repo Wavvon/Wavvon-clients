@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
 import type { SelectedAllianceChannel } from "@wavvon/ui";
+import { listenerScope } from "../utils/listenerScope";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
 
 export interface ChannelMessagesParams {
@@ -244,10 +245,10 @@ export function useChannelMessages({
   }
 
   useEffect(() => {
-    const unlistens: UnlistenFn[] = [];
+    const scope = listenerScope();
     (async () => {
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message: Message }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; message: Message }>(
           "chat-message",
           (event) => {
             const { hub_id, channel_id, message } = event.payload;
@@ -289,8 +290,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message: Message }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; message: Message }>(
           "chat-message-edited",
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -302,8 +303,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message_id: string }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; message_id: string }>(
           "chat-message-deleted",
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -313,8 +314,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           channel_id: string;
           message_id: string;
@@ -337,8 +338,8 @@ export function useChannelMessages({
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; post_id: string }>(
           "post-created",
           (event) => {
             const { hub_id, channel_id } = event.payload;
@@ -351,8 +352,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; post_id: string }>(
           "reply-created",
           (event) => {
             const { hub_id, channel_id } = event.payload;
@@ -365,7 +366,7 @@ export function useChannelMessages({
         )
       );
     })();
-    return () => { unlistens.forEach((u) => u()); };
+    return scope.close;
   }, []);
 
   async function selectChannel(channel: Channel) {

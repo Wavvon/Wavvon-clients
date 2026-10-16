@@ -5,6 +5,7 @@ import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "
 import { useScreenShare } from "./useScreenShare";
 import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
+import { listenerScope } from "../utils/listenerScope";
 import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
 
 interface UseVoiceParams {
@@ -108,11 +109,10 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     }
     tick();
     const handle = setInterval(tick, 1500);
-    let unlisten: (() => void) | undefined;
-    listen("voice-roster-update", () => { if (!cancelled) tick(); }).then((fn) => { unlisten = fn; });
+    const scope = listenerScope();
+    scope.add(listen("voice-roster-update", () => { if (!cancelled) tick(); }));
 
-    let unlistenSpeaking: (() => void) | undefined;
-    listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
+    scope.add(listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
       if (cancelled) return;
       const { public_key, speaking } = e.payload;
       setSpeakingPubkeys(prev => {
@@ -121,13 +121,12 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
         else next.delete(public_key);
         return next;
       });
-    }).then((fn) => { unlistenSpeaking = fn; });
+    }));
 
     return () => {
       cancelled = true;
       clearInterval(handle);
-      unlisten?.();
-      unlistenSpeaking?.();
+      scope.close();
     };
   }, [activeHubId]);
 
