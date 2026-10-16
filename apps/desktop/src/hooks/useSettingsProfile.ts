@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { t } from "i18next";
+import i18n from "@wavvon/i18n";
 import { switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
 import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
@@ -98,7 +98,7 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
       setRecoveryPhrase(null);
       const refused = await switchAccountGuarded(id);
       if (refused) {
-        throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+        throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? i18n.t("settings.account.accounts.switch_cooldown") : refused);
       }
     } catch (e) {
       setError(String(e));
