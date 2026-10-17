@@ -316,9 +316,41 @@ pub(crate) async fn send_dm(
             "attachments": attachments.unwrap_or_default(),
         })
     } else {
+        let content = content.unwrap_or_default();
+        // A recipient on another hub only takes a plaintext DM the sender
+        // signed; unsigned, it is refused there and sits in our hub's outbox.
+        // Only an account holding its own identity can sign as itself -- a
+        // paired device has a subkey and sends unsigned, as before.
+        let identity = crate::identity::Identity::default_path()
+            .ok()
+            .and_then(|p| crate::identity::Identity::load(&p).ok());
+        let plaintext_signature = match identity {
+            Some(id) => {
+                // The signed bytes name the conversation's type, which only
+                // the hub's record states authoritatively.
+                let conv: serde_json::Value = client
+                    .get(format!("{hub_url}/conversations/{conversation_id}"))
+                    .bearer_auth(&token)
+                    .send()
+                    .await
+                    .map_err(|e| format!("Failed: {e}"))?
+                    .json()
+                    .await
+                    .map_err(|e| format!("Invalid conversation: {e}"))?;
+                let conv_type = conv["conv_type"].as_str().unwrap_or("dm");
+                let sb = crate::identity::federated_plaintext_dm_signing_bytes(
+                    &conversation_id,
+                    conv_type,
+                    &content,
+                );
+                Some(hex::encode(id.sign(&sb).to_bytes()))
+            }
+            None => None,
+        };
         serde_json::json!({
-            "content": content.unwrap_or_default(),
+            "content": content,
             "attachments": attachments.unwrap_or_default(),
+            "plaintext_signature": plaintext_signature,
         })
     };
     let resp = client

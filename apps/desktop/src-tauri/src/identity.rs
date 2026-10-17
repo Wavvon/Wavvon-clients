@@ -778,6 +778,20 @@ pub fn recovery_attestation_signing_bytes(
     buf
 }
 
+/// What the sender of a plaintext DM signs so a receiving hub accepts it
+/// across hubs. Mirrors `federated_plaintext_dm_signing_bytes`.
+pub fn federated_plaintext_dm_signing_bytes(
+    conversation_id: &str,
+    conv_type: &str,
+    content: &str,
+) -> Vec<u8> {
+    let mut buf = b"wavvon/federated-dm/v1 ".to_vec();
+    write_str(&mut buf, conversation_id);
+    write_str(&mut buf, conv_type);
+    write_str(&mut buf, content);
+    buf
+}
+
 // ---------------------------------------------------------------------------
 // Wire-format test vectors
 // ---------------------------------------------------------------------------
@@ -1234,6 +1248,19 @@ mod wire_vector_tests {
         assert_eq!(
             peer_secret.diffie_hellman(&canonical_pub).as_bytes(),
             paired_scalar.diffie_hellman(&peer_pub).as_bytes(),
+        );
+    }
+
+    #[test]
+    fn federated_plaintext_dm_matches_the_server_vector() {
+        let sb = federated_plaintext_dm_signing_bytes("conv-1", "dm", "héllo");
+        assert_eq!(
+            hex::encode(&sb),
+            "776176766f6e2f6665646572617465642d646d2f76310006000000636f6e762d3102000000646d0600000068c3a96c6c6f"
+        );
+        assert_eq!(
+            hex::encode(master_key().sign(&sb).to_bytes()),
+            "19cb16f7d84ee382ee5d2b01ac60e340b6011fe912a733f10b53785ce555e5844e4a49eab1f44fd5543c4a0d5b3a5efdc227bb02ced6c72705c9de15f5e49a0a"
         );
     }
 
