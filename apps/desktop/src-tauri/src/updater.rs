@@ -49,16 +49,19 @@ pub(crate) async fn check_for_updates(app: AppHandle) {
 pub(crate) async fn install_pending_update(
     pending: State<'_, PendingUpdate>,
 ) -> Result<(), String> {
-    let update = {
-        let mut lock = pending.0.lock().map_err(|e| e.to_string())?;
-        lock.take()
-    };
-    if let Some(update) = update {
-        update
-            .download_and_install(|_, _| {}, || {})
-            .await
-            .map_err(|e| e.to_string())?;
-    }
+    // Cloned rather than taken: a failed download leaves the update in place so
+    // the banner's retry has something to install. Silently succeeding with
+    // nothing pending left the banner on "Installing…" forever.
+    let update = pending
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone()
+        .ok_or_else(|| "No update is pending".to_string())?;
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 

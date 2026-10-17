@@ -83,6 +83,7 @@ impl AuthCredentials {
         hub_url: &str,
         client: &reqwest::Client,
         invite_code: Option<&str>,
+        challenge_token: Option<&str>,
     ) -> Result<AuthOutcome, String> {
         let challenge_raw = client
             .post(format!("{hub_url}/auth/challenge"))
@@ -154,6 +155,9 @@ impl AuthCredentials {
         }
         if let Some(code) = invite_code {
             body["invite_code"] = serde_json::Value::String(code.to_string());
+        }
+        if let Some(token) = challenge_token {
+            body["challenge_token"] = serde_json::Value::String(token.to_string());
         }
 
         let resp = client

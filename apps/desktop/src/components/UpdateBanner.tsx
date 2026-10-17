@@ -38,7 +38,7 @@ export function UpdateBanner({ version, notes, onDismiss }: Props) {
           <span className="update-banner-installing">{t("update.installing")}</span>
         ) : (
           <>
-            <button onClick={handleInstall}>
+            <button className="primary" onClick={handleInstall}>
               {t("update.install_button")}
             </button>
             <button
