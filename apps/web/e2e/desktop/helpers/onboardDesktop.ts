@@ -48,7 +48,7 @@ export async function joinHub(
   // invite_only and desktop's AddHubModal has no separate invite-code field —
   // the code travels in the address, which is what `buildInviteLink` builds.
   await url.fill(address);
-  await page.getByRole("button", { name: "Connect" }).click();
+  await page.locator(".modal-actions").getByRole("button", { name: "Join hub" }).click();
 
   // The display-name prompt is optional — an identity that already carries a
   // profile (a paired or imported one) never sees it.

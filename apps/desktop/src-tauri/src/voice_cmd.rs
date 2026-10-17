@@ -1,5 +1,5 @@
 use crate::local_store::{load_voice_gains, load_voice_settings, save_voice_gains_to_disk};
-use crate::state::{active_ws_tx, AppState, VoiceSession, WsCommand, ZoneInfo};
+use crate::state::{active_ws_tx, AppState, VoiceSession, VoiceVisit, WsCommand, ZoneInfo};
 use crate::types::AudioDeviceList;
 use tauri::{AppHandle, Emitter, State};
 
@@ -24,7 +24,118 @@ pub(crate) async fn voice_join(
         let s = hubs.get(&active_id).ok_or("Hub not connected")?;
         (active_id, s.ws_tx.clone())
     };
+    start_voice(channel_id, active_id, ws_tx, None, &state, app)
+}
 
+/// Ask our own hub for a grant into an allied hub's voice channel. Separate
+/// from the join so the caller can name the owning hub — which will see this
+/// device's IP — before anything is signed over there.
+#[tauri::command]
+pub(crate) async fn mint_alliance_voice_grant(
+    alliance_id: String,
+    channel_id: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = crate::state::active_session(&state)?;
+    let resp = state
+        .http_client
+        .post(format!("{hub_url}/alliances/{alliance_id}/voice-grant"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "channel_id": channel_id }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid grant: {e}"))
+}
+
+/// Join a voice channel owned by an allied hub (alliances.md, "Voice in
+/// alliance channels"): redeem the grant there for a voice-only session, open
+/// a socket of our own to it, and run the ordinary voice join on that socket.
+/// Returns the id voice events from that socket carry.
+#[tauri::command]
+pub(crate) async fn alliance_voice_join(
+    channel_id: String,
+    minted: serde_json::Value,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    if state.voice.lock().unwrap().is_some() {
+        return Err("Already in a voice channel".to_string());
+    }
+    let owner_url = minted["owner_hub_url"]
+        .as_str()
+        .ok_or("grant names no hub")?
+        .trim_end_matches('/')
+        .to_string();
+    let client = state.http_client.clone();
+
+    // Ask the owner what it does before touching the identity: a hub that does
+    // not do alliance voice gets no signature from us at all.
+    let info: serde_json::Value = client
+        .get(format!("{owner_url}/info"))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid /info: {e}"))?;
+    let supports = info["capabilities"]
+        .as_array()
+        .is_some_and(|caps| caps.iter().any(|c| c == "voice.alliance"));
+    if !supports {
+        return Err("owner_hub_no_alliance_voice".to_string());
+    }
+    let auth_url = info["farm_url"].as_str().unwrap_or(&owner_url).to_string();
+
+    let creds = crate::auth_creds::load_active_credentials()?;
+    let outcome = creds
+        .authenticate(&auth_url, &client, None, None, minted.get("grant"))
+        .await?;
+
+    // Before the socket: a key offer can arrive the moment we join, and
+    // whoever sends it needs our DH key readable *here*. Not best-effort — a
+    // room we can talk into and hear nothing from is worse than a refusal.
+    crate::dm::publish_dh_key_to(
+        &client,
+        &owner_url,
+        &outcome.token,
+        &outcome.canonical_pubkey,
+    )
+    .await?;
+
+    let visit_id = format!("alliance-visit:{owner_url}");
+    let (ws_tx, task) =
+        crate::ws::spawn_ws_task(visit_id.clone(), owner_url, outcome.token, app.clone()).await?;
+    let abort = task.abort_handle();
+    let visit = VoiceVisit {
+        ws_tx: ws_tx.clone(),
+        task,
+    };
+    if let Err(e) = start_voice(
+        channel_id,
+        visit_id.clone(),
+        ws_tx,
+        Some(visit),
+        &state,
+        app,
+    ) {
+        abort.abort();
+        return Err(e);
+    }
+    Ok(visit_id)
+}
+
+fn start_voice(
+    channel_id: String,
+    hub_id: String,
+    ws_tx: tokio::sync::mpsc::UnboundedSender<WsCommand>,
+    visit: Option<VoiceVisit>,
+    state: &AppState,
+    app: AppHandle,
+) -> Result<(), String> {
     type VoiceReady = Result<
         (
             std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -215,7 +326,7 @@ pub(crate) async fn voice_join(
 
     *state.voice.lock().unwrap() = Some(VoiceSession {
         channel_id,
-        hub_id: active_id,
+        hub_id,
         stop_tx,
         muted,
         deafened,
@@ -228,6 +339,7 @@ pub(crate) async fn voice_join(
         voice_keys,
         active_clip,
         opus_rate,
+        visit,
     });
 
     Ok(())
@@ -259,6 +371,18 @@ pub(crate) fn voice_leave(state: State<'_, AppState>) -> Result<(), String> {
     let session = state.voice.lock().unwrap().take();
     if let Some(s) = session {
         let _ = s.stop_tx.send(());
+        // The visitor socket is the whole of our presence on the owning hub,
+        // so it goes too — once the leave has had a moment to go out on it.
+        if let Some(visit) = s.visit {
+            let _ = visit.ws_tx.send(WsCommand::VoiceLeave {
+                channel_id: s.channel_id,
+            });
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                visit.task.abort();
+            });
+            return Ok(());
+        }
         let hubs = state.hubs.lock().unwrap();
         if let Some(hub) = hubs.get(&s.hub_id) {
             let _ = hub.ws_tx.send(WsCommand::VoiceLeave {
@@ -440,6 +564,7 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
         voice_keys: std::sync::Arc::new(tokio::sync::RwLock::new(wavvon_voice::VoiceKeys::new())),
         active_clip: std::sync::Arc::new(std::sync::Mutex::new(None)),
         opus_rate: 48_000,
+        visit: None,
     });
 
     Ok(())

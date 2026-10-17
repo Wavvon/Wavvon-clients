@@ -38,6 +38,7 @@ pub(crate) async fn add_hub(
             &client,
             invite_code.as_deref(),
             challenge_token.as_deref(),
+            None,
         )
         .await?;
     let token = auth.token;

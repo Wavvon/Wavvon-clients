@@ -55,6 +55,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     [adminVoiceMutes],
   );
   const [showSharePicker, setShowSharePicker] = useState(false);
+  // The id voice events from an allied hub's socket carry while we are in a
+  // room there (alliance_voice_join); null on our own hubs.
+  const voiceVisitIdRef = useRef<string | null>(null);
 
   const [voiceGains, setVoiceGainsState] = useState<Record<string, number>>(() => {
     try {
@@ -332,6 +335,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   async function handleVoiceLeave() {
     try {
       await invoke("voice_leave");
+      voiceVisitIdRef.current = null;
       setVoiceChannelId(null);
       setSelfMuted(false);
       setSelfDeafened(false);
@@ -358,6 +362,39 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       void loadVoiceSettings();
     } catch (e) {
       setError(String(e));
+    }
+  }
+
+  // Voice in an alliance channel (alliances.md, "Voice in alliance channels"):
+  // the owning hub's relay is the room, and the shell dials it directly.
+  // Returns the channel name the grant carries, for the voice bar.
+  async function handleAllianceVoiceJoin(
+    allianceId: string,
+    channelId: string,
+    confirmJoin: (ownerHubUrl: string, channelName: string) => Promise<boolean>,
+  ): Promise<string | null> {
+    if (voiceChannelId === channelId) return null;
+    try {
+      const minted = await invoke<{ owner_hub_url: string; channel_name: string }>("mint_alliance_voice_grant", {
+        allianceId,
+        channelId,
+      });
+      // The visitor dials the owning hub directly, so its operator sees this
+      // device's IP. Name the address before anything is signed over there.
+      if (!(await confirmJoin(minted.owner_hub_url, minted.channel_name))) return null;
+      // One session per identity per hub: the old room goes down first.
+      if (voiceChannelId) await handleVoiceLeave();
+      voiceVisitIdRef.current = await invoke<string>("alliance_voice_join", { channelId, minted });
+      playVoiceTone("up");
+      return minted.channel_name;
+    } catch (e) {
+      voiceVisitIdRef.current = null;
+      setError(
+        String(e) === "owner_hub_no_alliance_voice"
+          ? "Voice: that hub does not support voice in alliance channels yet"
+          : "Voice: " + String(e),
+      );
+      return null;
     }
   }
 
@@ -532,6 +569,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     toggleSelfMute,
     toggleSelfDeafen,
     handleVoiceJoin,
+    handleAllianceVoiceJoin,
+    voiceVisitIdRef,
     handleVoiceLeave,
     refreshVoiceMutes,
     handleVoiceMuteMember,

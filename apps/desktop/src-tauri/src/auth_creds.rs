@@ -84,6 +84,7 @@ impl AuthCredentials {
         client: &reqwest::Client,
         invite_code: Option<&str>,
         challenge_token: Option<&str>,
+        alliance_voice_grant: Option<&serde_json::Value>,
     ) -> Result<AuthOutcome, String> {
         let challenge_raw = client
             .post(format!("{hub_url}/auth/challenge"))
@@ -158,6 +159,11 @@ impl AuthCredentials {
         }
         if let Some(token) = challenge_token {
             body["challenge_token"] = serde_json::Value::String(token.to_string());
+        }
+        // Voice in an alliance channel: a grant our own hub signed, which this
+        // hub redeems for a voice-only session.
+        if let Some(grant) = alliance_voice_grant {
+            body["alliance_voice_grant"] = grant.clone();
         }
 
         let resp = client

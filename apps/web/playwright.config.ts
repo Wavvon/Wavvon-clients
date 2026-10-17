@@ -74,6 +74,16 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         storageState: "e2e/.auth/owner.json",
+        // The web half of a voice spec needs a capture device as much as the
+        // live project does.
+        permissions: ["microphone"],
+        launchOptions: {
+          args: [
+            "--use-fake-ui-for-media-stream",
+            "--use-fake-device-for-media-stream",
+            "--autoplay-policy=no-user-gesture-required",
+          ],
+        },
       },
     },
   ],

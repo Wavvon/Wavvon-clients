@@ -812,6 +812,8 @@ function App() {
     onParticipantLeft: voice.onParticipantLeft,
     onMicLevel: voice.onMicLevel,
     onHubErrorVoiceJoin: voice.onHubErrorVoiceJoin,
+    voiceVisitIdRef: voice.voiceVisitIdRef,
+    onVoiceVisitLost: leaveVoiceChannel,
     pendingVoiceAnnouncementsRef,
     voiceAnnounceTimerRef,
     setVoicePoliteAnnouncement,
@@ -1701,6 +1703,7 @@ function App() {
                   collapsedCategories={collapsedCategories}
                   onToggleCategoryCollapsed={toggleCategoryCollapsed}
                   voiceChannelNameHint={voiceChannelNameHint}
+                  setVoiceChannelNameHint={setVoiceChannelNameHint}
                   setVoiceMoveMenu={setVoiceMoveMenu}
                   hubDropdownOpen={hubDropdownOpen}
                   setHubDropdownOpen={setHubDropdownOpen}

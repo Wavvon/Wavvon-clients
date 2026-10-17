@@ -39,6 +39,10 @@ export interface WsHandlersParams {
   onParticipantLeft: (channelId: string, pubkey: string) => void;
   onMicLevel: (level: number) => void;
   onHubErrorVoiceJoin: () => Promise<void>;
+  /** Set while in an allied hub's voice room: the id its socket's events carry. */
+  voiceVisitIdRef: RefObject<string | null>;
+  /** That socket closed under us — the room is gone. */
+  onVoiceVisitLost: () => void;
   pendingVoiceAnnouncementsRef: RefObject<string[]>;
   voiceAnnounceTimerRef: RefObject<ReturnType<typeof setTimeout> | null>;
   setVoicePoliteAnnouncement: (msg: string) => void;
@@ -57,6 +61,8 @@ export interface WsHandlersParams {
 
 export function useWsHandlers({
   activeHubIdRef,
+  voiceVisitIdRef,
+  onVoiceVisitLost,
   publicKeyRef,
   selectedChannelIdRef,
   selectedConversationIdRef,
@@ -96,6 +102,11 @@ export function useWsHandlers({
 }: WsHandlersParams) {
   useEffect(() => {
     const scope = listenerScope();
+    // By prefix, not by voiceVisitIdRef: the room answers voice_joined before
+    // alliance_voice_join has returned the id to store, and there is only ever
+    // one visit at a time.
+    const isVoiceHub = (hubId: string) =>
+      hubId === activeHubIdRef.current || hubId.startsWith("alliance-visit:");
 
     (async () => {
       scope.add(
@@ -103,6 +114,11 @@ export function useWsHandlers({
           "hub-ws-status",
           (event) => {
             const { hub_id, connected } = event.payload;
+            // Not a hub the user joined: nothing to mark or reconnect.
+            if (hub_id.startsWith("alliance-visit:")) {
+              if (!connected && hub_id === voiceVisitIdRef.current) onVoiceVisitLost();
+              return;
+            }
             setHubConnected((prev) => {
               const was = prev[hub_id];
               const next = { ...prev, [hub_id]: connected };
@@ -284,7 +300,7 @@ export function useWsHandlers({
           channel_id: string;
           participants: VoiceParticipant[];
         }>("voice-joined", (event) => {
-          if (event.payload.hub_id !== activeHubIdRef.current) return;
+          if (!isVoiceHub(event.payload.hub_id)) return;
           onVoiceJoined(event.payload.channel_id, event.payload.participants);
           const channelName = channelsRef.current.find((c) => c.id === event.payload.channel_id)?.name ?? event.payload.channel_id;
           const others = event.payload.participants.filter((p) => p.public_key !== publicKeyRef.current);
@@ -301,7 +317,7 @@ export function useWsHandlers({
         listen<{ hub_id: string; channel_id: string; participant: VoiceParticipant }>(
           "voice-participant-joined",
           (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
+            if (!isVoiceHub(event.payload.hub_id)) return;
             onParticipantJoined(event.payload.channel_id, event.payload.participant);
             if (event.payload.participant.public_key !== publicKeyRef.current) {
               const name = event.payload.participant.display_name || formatPubkey(event.payload.participant.public_key);
@@ -322,7 +338,7 @@ export function useWsHandlers({
         listen<{ hub_id: string; channel_id: string; public_key: string }>(
           "voice-participant-left",
           (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
+            if (!isVoiceHub(event.payload.hub_id)) return;
             onParticipantLeft(event.payload.channel_id, event.payload.public_key);
             if (event.payload.public_key !== publicKeyRef.current) {
               const u = users.find((u) => u.public_key === event.payload.public_key);
@@ -350,7 +366,7 @@ export function useWsHandlers({
         listen<{ hub_id: string; context: string; message: string }>(
           "hub-error",
           async (event) => {
-            if (event.payload.hub_id !== activeHubIdRef.current) return;
+            if (!isVoiceHub(event.payload.hub_id)) return;
             setToast(event.payload.message);
             if (event.payload.context === "voice_join") {
               await onHubErrorVoiceJoin();
