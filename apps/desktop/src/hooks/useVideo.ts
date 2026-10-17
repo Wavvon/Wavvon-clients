@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "@wavvon/ui";
+import { BackgroundProcessor, loadBgMode, loadBgSource } from "@wavvon/ui";
 import { listenerScope } from "../utils/listenerScope";
-import type { BackgroundMode } from "@wavvon/ui";
 
+const CAMERA_DEVICE_KEY = "wavvon.videoInputDevice";
 const MAX_ACTIVE = 3;
 const LINGER_MS = 3000;
 const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -28,32 +28,6 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [videoPubkeys, setVideoPubkeys] = useState<Set<string>>(new Set());
   const [pinnedPubkey, setPinnedPubkey] = useState<string | null>(null);
-  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>(() => loadBgMode());
-  const [backgroundSource, setBackgroundSource] = useState<string | null>(() => loadBgSource());
-  // null = no effect requested / camera off; true/false = effect requested
-  // and running / fell back to raw video (segmentation unavailable).
-  const [backgroundActive, setBackgroundActive] = useState<boolean | null>(null);
-  const [videoInputs, setVideoInputs] = useState<{ deviceId: string; label: string }[]>([]);
-  const [videoInputDevice, setVideoInputDeviceState] = useState<string>(
-    () => localStorage.getItem("wavvon.cameraDevice") ?? ""
-  );
-
-  useEffect(() => {
-    if (!navigator.mediaDevices?.enumerateDevices) return;
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      setVideoInputs(
-        devices
-          .filter((d) => d.kind === "videoinput" && d.deviceId !== "")
-          .map((d) => ({ deviceId: d.deviceId, label: d.label || d.deviceId.slice(0, 8) }))
-      );
-    }).catch(() => {});
-  }, []);
-
-  function setVideoInputDevice(deviceId: string) {
-    setVideoInputDeviceState(deviceId);
-    localStorage.setItem("wavvon.cameraDevice", deviceId);
-  }
-
   const peers = useRef<Map<string, PeerEntry>>(new Map());
   const speakerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const activeSpeakers = useRef<Set<string>>(new Set());
@@ -241,15 +215,14 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
 
   async function enableVideo(deviceId?: string) {
     if (!voiceChannelIdRef.current) return;
-    const targetDevice = deviceId ?? (videoInputDevice || undefined);
+    const targetDevice = deviceId ?? (localStorage.getItem(CAMERA_DEVICE_KEY) || undefined);
     try {
       const videoConstraint = targetDevice ? { deviceId: { exact: targetDevice } } : true;
       const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
       setRawStream(stream);
       const proc = new BackgroundProcessor(stream);
       bgProcessor.current = proc;
-      const out = await proc.start(backgroundMode, backgroundSource);
-      setBackgroundActive(backgroundMode === "none" ? null : proc.activeMode !== "none");
+      const out = await proc.start(loadBgMode(), loadBgSource());
       setProcessedStream(out);
       setVideoEnabled(true);
       sendWs({ type: "video_enable", channel_id: voiceChannelIdRef.current });
@@ -266,7 +239,6 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     bgProcessor.current = null;
     setRawStream(null);
     setProcessedStream(null);
-    setBackgroundActive(null);
     setVideoEnabled(false);
     for (const [, entry] of peers.current) entry.conn.close();
     peers.current.clear();
@@ -279,37 +251,19 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     }
   }, [voiceChannelId]);
 
-  async function switchCamera(deviceId: string) {
-    if (!voiceChannelIdRef.current) return;
-    rawStream?.getTracks().forEach(t => t.stop());
-    bgProcessor.current?.stop();
-    bgProcessor.current = null;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } }, audio: false });
-      setRawStream(stream);
-      const proc = new BackgroundProcessor(stream);
-      bgProcessor.current = proc;
-      const out = await proc.start(backgroundMode, backgroundSource);
-      setBackgroundActive(backgroundMode === "none" ? null : proc.activeMode !== "none");
-      setProcessedStream(out);
-      for (const [, entry] of peers.current) {
-        const sender = entry.conn.getSenders().find(s => s.track?.kind === "video");
-        if (sender) sender.replaceTrack(out.getVideoTracks()[0]);
-      }
-    } catch (e) {
-      console.error("Camera switch failed:", e);
-    }
-  }
-
-  async function changeBackground(mode: BackgroundMode, source?: string | null) {
-    setBackgroundMode(mode);
-    if (source !== undefined) setBackgroundSource(source);
-    saveBg(mode, source !== undefined ? source : backgroundSource);
-    if (bgProcessor.current) {
-      await bgProcessor.current.setMode(mode, source ?? backgroundSource);
-      setBackgroundActive(mode === "none" ? null : bgProcessor.current.activeMode !== "none");
-    }
-  }
+  // Settings → Camera changes the device or background effect through
+  // localStorage and this event; restart the capture so a live call picks it up.
+  const restartRef = useRef<() => Promise<void>>(async () => {});
+  restartRef.current = async () => {
+    if (!videoEnabled) return;
+    await disableVideo();
+    await enableVideo();
+  };
+  useEffect(() => {
+    const onChange = () => { void restartRef.current(); };
+    window.addEventListener("wavvon:bgchange", onChange);
+    return () => window.removeEventListener("wavvon:bgchange", onChange);
+  }, []);
 
   return {
     videoEnabled,
@@ -318,15 +272,7 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     videoPubkeys,
     pinnedPubkey,
     setPinnedPubkey,
-    backgroundMode,
-    backgroundSource,
-    backgroundActive,
     enableVideo,
     disableVideo,
-    switchCamera,
-    changeBackground,
-    videoInputs,
-    videoInputDevice,
-    setVideoInputDevice,
   };
 }

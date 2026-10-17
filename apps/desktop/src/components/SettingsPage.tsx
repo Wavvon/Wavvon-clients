@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BackgroundMode } from "@wavvon/ui";
 import type { Hub } from "../types";
 import { DISCOVERY_URL } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";
@@ -27,11 +26,10 @@ import { listAccounts, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
 import { loadTrustRoots, saveTrustRoots } from "../utils/trustRoots";
-import { addTrustRoot, type TrustRoot } from "@wavvon/ui";
+import { addTrustRoot, CameraTab, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
 import { PrivacyTab } from "./settings/PrivacyTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
-import { CameraTab } from "./settings/CameraTab";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
 export type SettingsTab =
@@ -108,14 +106,7 @@ export interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
-  backgroundMode: BackgroundMode;
-  backgroundSource: string | null;
-  backgroundActive: boolean | null;
-  onChangeBackground: (mode: BackgroundMode, source?: string | null) => void;
   onImportSkin: (skin: WavvonSkin) => void;
-  videoInputs: { deviceId: string; label: string }[];
-  videoInputDevice: string;
-  onVideoInputDeviceChange: (v: string) => void;
 }
 
 function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
@@ -441,17 +432,7 @@ export function SettingsPage(props: SettingsPageProps) {
 
         {props.tab === "help" && <HelpTab />}
 
-        {props.tab === "camera" && (
-          <CameraTab
-            backgroundMode={props.backgroundMode}
-            backgroundSource={props.backgroundSource}
-            backgroundActive={props.backgroundActive}
-            onChangeBackground={props.onChangeBackground}
-            videoInputs={props.videoInputs}
-            videoInputDevice={props.videoInputDevice}
-            onVideoInputDeviceChange={props.onVideoInputDeviceChange}
-          />
-        )}
+        {props.tab === "camera" && <CameraTab />}
     </SettingsShell>
   );
 }
