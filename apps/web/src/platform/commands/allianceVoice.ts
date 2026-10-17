@@ -99,7 +99,7 @@ export async function openAllianceVoiceVisit(
   // Same rule as every other join: a farm-hosted hub authenticates through
   // the farm, and the hub tells us so on /info.
   const authUrl = info.farm_url ?? minted.owner_hub_url;
-  const { token } = await acquireHubToken(
+  const { token, canonicalPubkey } = await acquireHubToken(
     authUrl,
     publicKeyHex(identity.seed_hex),
     identity.seed_hex,
@@ -114,7 +114,7 @@ export async function openAllianceVoiceVisit(
   // whoever sends it needs our DH key readable *here*. Not best-effort: a
   // failed publish means a room we can talk into and hear nothing from, which
   // is worse than a refused join that says so.
-  await publishDhKeyTo(minted.owner_hub_url, token);
+  await publishDhKeyTo(minted.owner_hub_url, token, canonicalPubkey);
 
   const ws = new HubWebSocket(minted.owner_hub_url, token, minted.owner_hub_pubkey, handlers);
   // Not returned until it is open. The caller sends `voice_join` on the next

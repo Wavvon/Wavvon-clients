@@ -11,6 +11,7 @@ import { setAllianceVoiceRemoteJoin } from "../commands/alliances";
 // up: what matters here is the seed reaching the signature, not where it was
 // read from.
 vi.mock("../../identity/store", () => ({
+  holdsMasterSeed: () => true,
   loadIdentity: async () => ({
     id: "acct-1",
     seed_hex: "11".repeat(32),
@@ -177,6 +178,51 @@ describe("openAllianceVoiceVisit", () => {
     );
     expect(publishCall).toBeGreaterThanOrEqual(0);
     expect(opened).toHaveLength(1);
+    visit.close();
+  });
+
+  // A hub meeting an identity for the first time seats the master its
+  // self-signed cert names — which is what a visitor always is, a stranger.
+  // The record has to be published under, and signed by, that master: under
+  // the device key the hub answers 403 and nobody can ever wrap for us.
+  it("publishes the DH key as the master when the owner seated the master", async () => {
+    const { masterPublicKeyHex, dhKeySigningBytes, hexToBytes } = await import("@wavvon/core");
+    const { ed25519 } = await import("@noble/curves/ed25519");
+    const master = masterPublicKeyHex("11".repeat(32));
+    const puts: { url: string; body: { dh_pubkey_hex: string; signature_hex: string } }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === `${OWNER_URL}/info`) {
+        return new Response(JSON.stringify({ public_key: "owner-pub-key", capabilities: ["voice.alliance"] }), { status: 200 });
+      }
+      if (url === `${OWNER_URL}/auth/challenge`) {
+        return new Response(JSON.stringify({ challenge: "aa".repeat(32) }), { status: 200 });
+      }
+      if (url === `${OWNER_URL}/auth/verify`) {
+        return new Response(
+          JSON.stringify({ token: "visit-token", scope: "alliance_voice", canonical_pubkey: master }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/dh-key")) {
+        puts.push({ url, body: JSON.parse(init!.body as string) });
+        return new Response(null, { status: 200 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }));
+    class OpenSocket {
+      static OPEN = 1;
+      readyState = 1;
+      addEventListener() {}
+      removeEventListener() {}
+      close() {}
+    }
+    vi.stubGlobal("WebSocket", OpenSocket);
+
+    const visit = await openAllianceVoiceVisit(MINTED, {});
+    expect(puts).toHaveLength(1);
+    expect(puts[0].url).toBe(`${OWNER_URL}/identity/${master}/dh-key`);
+    const signed = dhKeySigningBytes(master, puts[0].body.dh_pubkey_hex);
+    expect(ed25519.verify(hexToBytes(puts[0].body.signature_hex), signed, hexToBytes(master))).toBe(true);
     visit.close();
   });
 
