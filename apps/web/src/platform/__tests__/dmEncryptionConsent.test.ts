@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { bytesToHex, publicKeyHex } from "@wavvon/core";
+import { ed25519 } from "@noble/curves/ed25519";
+import { bytesToHex, federatedPlaintextDmSigningBytes, hexToBytes, publicKeyHex } from "@wavvon/core";
 
 // The one path where a wrong answer is not a bug but a disclosure: sendDm
 // deciding whether a DM may leave this device readable. It used to decide by
@@ -93,7 +94,11 @@ describe("sendDm and the recipient's encryption key", () => {
 
     expect(confirmUnencrypted).toHaveBeenCalled();
     expect(res).toBe("sent");
-    expect(postedBodies()).toEqual([{ content: "secret", attachments: undefined }]);
+    const [posted] = postedBodies();
+    expect(posted.content).toBe("secret");
+    // Signed, or a recipient on another hub refuses it (Wavvon-clients#126).
+    const sb = federatedPlaintextDmSigningBytes("c1", "dm", "secret");
+    expect(ed25519.verify(hexToBytes(posted.plaintext_signature as string), sb, hexToBytes(SENDER_PUB))).toBe(true);
   });
 
   it("sends nothing when the user declines", async () => {
