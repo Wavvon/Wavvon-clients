@@ -1669,7 +1669,14 @@ function App() {
                 key={activeHubId}
                 hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
                 refusal={refusedHubs.get(activeHubId)!}
-                onRedeemInvite={null}
+                onRedeemInvite={async (code) => {
+                  // Authenticating again with the code is the redemption; the
+                  // new session replaces the refused one.
+                  const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+                  if (!hubUrl) return;
+                  await invoke("add_hub", { hubUrl, inviteCode: code });
+                  await loadHubData();
+                }}
                 onRemoveHub={() => removeHubConfirm.requestRemoveHub(activeHubId, hubs)}
               />
             ) : myApprovalStatus === "pending" ? (
