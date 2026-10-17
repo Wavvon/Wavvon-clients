@@ -937,6 +937,7 @@
   "hub.admin.survey.responses_label": "Risposte",
   "hub.admin.survey.save": "Salva il sondaggio",
   "hub.admin.survey.saved": "Sondaggio salvato",
+  "hub.admin.survey.saved_but_off": "Sondaggio salvato, ma è disattivato: i nuovi membri non lo vedranno.",
   "hub.admin.survey.state.answers": "{count, plural, one {# membro ha risposto} other {# membri hanno risposto}}",
   "hub.admin.survey.state.answers_unread": "Apri per leggerle",
   "hub.admin.survey.state.no_questions": "Ancora niente da chiedere",

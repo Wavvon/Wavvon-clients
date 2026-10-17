@@ -937,6 +937,7 @@
   "hub.admin.survey.responses_label": "Respuestas",
   "hub.admin.survey.save": "Guardar la encuesta",
   "hub.admin.survey.saved": "Encuesta guardada",
+  "hub.admin.survey.saved_but_off": "Encuesta guardada, pero está desactivada: los nuevos miembros no la verán.",
   "hub.admin.survey.state.answers": "{count, plural, one {# miembro respondió} other {# miembros respondieron}}",
   "hub.admin.survey.state.answers_unread": "Ábrelo para leerlas",
   "hub.admin.survey.state.no_questions": "Todavía no hay nada que preguntar",
