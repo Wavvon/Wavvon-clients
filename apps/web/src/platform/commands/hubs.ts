@@ -135,6 +135,10 @@ export class ChallengeRequiredError extends Error {
   }
 }
 
+export function isChallengeRequired(e: unknown): boolean {
+  return e instanceof HubApiError && e.status === 403 && /challenge token required/i.test(e.message);
+}
+
 /** One challenge for the identity about to join `hubUrl`. */
 export async function fetchAdmissionChallenge(hubUrl: string, pubkey: string): Promise<ChallengePrompt> {
   const r = await rawFetch(`${hubUrl}/challenge/new?pubkey=${encodeURIComponent(pubkey)}`);
@@ -164,16 +168,6 @@ export async function addHub(
   const info: InfoResponse = await rawFetch(`${url}/info`).then(
     (r) => r.json() as Promise<InfoResponse>,
   );
-  // Asked here, before any auth, so both join paths meet it: the hub would
-  // only refuse at /auth/verify, with nothing a caller could act on.
-  if (!opts?.sessionToken && !opts?.challenge_token && info.challenge_mode && info.challenge_mode !== "off") {
-    const identity = await loadIdentity();
-    if (!identity) throw new Error("No identity — generate one first");
-    // The hub binds the token to the key /auth/verify will present, which is
-    // this device's own — not the canonical identity a paired device shows.
-    throw new ChallengeRequiredError(url, publicKeyHex(identity.seed_hex));
-  }
-
   let token: string;
   // "member" is the safe default for the sessionToken (webauthn) path below,
   // where we don't get a scope back directly — a wrong "member" guess just
@@ -189,6 +183,10 @@ export async function addHub(
     if (!identity) throw new Error("No identity — generate one first");
 
     const authBase = authBaseUrl(info, url, identity.subkey_cert);
+    // Whether this join needs the admission challenge is the hub's call — it
+    // waives it for a member and for a named invite — so ask by trying, and
+    // offer the challenge only when it says so. The refusal comes before the
+    // hub writes anything, so the retry starts clean.
     const res = await authenticate(
       authBase,
       publicKeyHex(identity.seed_hex),
@@ -199,7 +197,14 @@ export async function addHub(
       identity.subkey_cert,
       undefined,
       opts?.challenge_token,
-    );
+    ).catch((e: unknown) => {
+      if (!opts?.challenge_token && isChallengeRequired(e)) {
+        // The hub binds the token to the key /auth/verify presents, which is
+        // this device's own — not the canonical identity a paired device shows.
+        throw new ChallengeRequiredError(url, publicKeyHex(identity.seed_hex));
+      }
+      throw e;
+    });
     token = res.token;
     scope = res.scope;
     if (authBase !== url) await admitFarmToken(url, token, opts?.invite_code);
