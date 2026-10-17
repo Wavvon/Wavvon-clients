@@ -128,6 +128,7 @@ export function ChannelSidebarContainer({
       micBelowGate={voice.micBelowGate}
       onOpenVoiceSettings={onOpenVoiceSettings}
       users={users}
+      dmPeerNames={dms.peerNames}
       publicKey={publicKey}
       pingByHub={pingByHub}
       isAdmin={isAdmin}

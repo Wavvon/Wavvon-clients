@@ -137,7 +137,9 @@ interface Props {
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   alliancePeopleActions?: AlliancePeopleActions;
-  onStartConversation?: (pubkey: string, via?: { hubUrl: string; masterPubkey: string }) => void;
+  onStartConversation?: (pubkey: string, via?: { hubUrl: string; masterPubkey: string; displayName?: string | null }) => void;
+  /** See dmPeerLabel. */
+  dmPeerNames?: Record<string, string>;
   onShowPinned: () => void;
   profileCardActions: UserProfileCardActions;
 
@@ -197,6 +199,7 @@ export function ContentArea({
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
   onStartConversation,
+  dmPeerNames,
   alliancePeopleActions,
   onShowPinned,
   profileCardActions,
@@ -485,6 +488,7 @@ export function ContentArea({
               publicKey={publicKey}
               blockedUsers={blockedUsers}
               users={users}
+              peerNames={dmPeerNames}
               knownDisplayNames={knownDisplayNames}
               myDisplayName={myDisplayName}
               pendingAttachments={pendingAttachments}
@@ -680,7 +684,7 @@ export function ContentArea({
             people={alliancePeopleActions && onStartConversation ? {
               actions: alliancePeopleActions,
               ownHubId: activeHubId,
-              onMessage: (p, hubUrl) => onStartConversation(p.public_key, { hubUrl, masterPubkey: p.master_pubkey }),
+              onMessage: (p, hubUrl) => onStartConversation(p.public_key, { hubUrl, masterPubkey: p.master_pubkey, displayName: p.display_name }),
             } : undefined}
           />
         ) : (

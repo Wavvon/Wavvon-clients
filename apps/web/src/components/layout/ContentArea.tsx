@@ -333,6 +333,7 @@ export function ContentArea(props: Props) {
         screenShareViewerRef={screenShare.screenShareViewerRef}
         onOpenHubStreams={screenShare.handleOpenHubStreams}
         onStartConversation={dms.handleStartConversation}
+        dmPeerNames={dms.peerNames}
         alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}
         profileCardActions={profileCardActions}
         forumActions={forumActions}
