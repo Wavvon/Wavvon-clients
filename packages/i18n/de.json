@@ -2024,5 +2024,13 @@
   "notify.someone": "Jemand",
   "errors.hub_error": "Auf dem Hub ist ein Fehler aufgetreten.",
   "errors.timed_out_reaching": "Zeitüberschreitung beim Erreichen von {host} – möglicherweise offline oder nicht erreichbar.",
-  "errors.could_not_reach": "{host} ist nicht erreichbar – prüfe die Adresse und deine Verbindung."
+  "errors.could_not_reach": "{host} ist nicht erreichbar – prüfe die Adresse und deine Verbindung.",
+  "settings.account.full_archive.error_unsupported": "Das ist keine Wavvon-Archivdatei.",
+  "settings.account.full_archive.error_too_new": "Dieses Archiv wurde mit einer neueren Wavvon-Version erstellt.",
+  "settings.account.full_archive.error_malformed": "Dieses Archiv ist beschädigt oder unvollständig.",
+  "settings.account.full_archive.error_paired_device": "Dieses Archiv wurde auf einem gekoppelten Gerät erstellt. Hier wiederhergestellt, entstünde eine andere Identität – koppele dieses Gerät stattdessen vom ursprünglichen aus.",
+  "settings.account.full_archive.file_filter": "Wavvon-Archiv",
+  "settings.account.full_archive.note_prefs_gap": "Dieses Archiv wurde auf einem gekoppelten Gerät erstellt und enthält daher keine mit dem Hub synchronisierten Einstellungen (blockierte Nutzer, geräteübergreifende Spracheinstellungen): Nur das Gerät, das sie eingerichtet hat, kann sie entschlüsseln.",
+  "settings.account.full_archive.note_dm_history": "Der DM-Verlauf in diesem Archiv ({conversations, plural, one {# Unterhaltung} other {# Unterhaltungen}}, {messages, plural, one {# Nachricht} other {# Nachrichten}}) wird nicht erneut importiert – ein synchronisierter Home-Hub liefert den Verlauf diesem Konto bereits; das Archiv bleibt die lesbare Kopie für den Fall, dass dieser Hub verschwindet.",
+  "settings.account.full_archive.note_hub_records": "Home-Hub-Festlegung und Gerätezertifikate sind Daten, die der Hub für diese Identität hält; sie werden automatisch wiederhergestellt, sobald sich dieses Konto dort verbindet, und nicht lokal geschrieben."
 }

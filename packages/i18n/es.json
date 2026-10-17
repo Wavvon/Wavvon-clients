@@ -2024,5 +2024,13 @@
   "notify.someone": "Alguien",
   "errors.hub_error": "Se produjo un error en el hub.",
   "errors.timed_out_reaching": "Se agotó el tiempo para conectar con {host}: puede que esté desconectado o inaccesible.",
-  "errors.could_not_reach": "No se pudo conectar con {host}: comprueba la dirección y tu conexión."
+  "errors.could_not_reach": "No se pudo conectar con {host}: comprueba la dirección y tu conexión.",
+  "settings.account.full_archive.error_unsupported": "Este no es un archivo de Wavvon.",
+  "settings.account.full_archive.error_too_new": "Este archivo fue creado por una versión más reciente de Wavvon.",
+  "settings.account.full_archive.error_malformed": "Este archivo está dañado o incompleto.",
+  "settings.account.full_archive.error_paired_device": "Este archivo se creó en un dispositivo vinculado. Restaurarlo aquí crearía una identidad distinta: vincula este dispositivo desde el original.",
+  "settings.account.full_archive.file_filter": "Archivo de Wavvon",
+  "settings.account.full_archive.note_prefs_gap": "Este archivo se creó en un dispositivo vinculado, así que no contiene las preferencias sincronizadas con el hub (usuarios bloqueados, ajustes de voz entre dispositivos): solo el dispositivo que las configuró puede descifrarlas.",
+  "settings.account.full_archive.note_dm_history": "El historial de mensajes directos de este archivo ({conversations, plural, one {# conversación} other {# conversaciones}}, {messages, plural, one {# mensaje} other {# mensajes}}) no se vuelve a importar: un hub principal sincronizado ya entrega el historial a esta cuenta; el archivo sigue siendo la copia legible para cuando ese hub ya no exista.",
+  "settings.account.full_archive.note_hub_records": "La designación de hubs principales y los certificados de dispositivo son registros que el hub guarda para esta identidad; se restablecen automáticamente cuando esta cuenta se conecta allí, no se escriben localmente."
 }

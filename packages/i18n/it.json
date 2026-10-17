@@ -2024,5 +2024,13 @@
   "notify.someone": "Qualcuno",
   "errors.hub_error": "Si è verificato un errore sull'hub.",
   "errors.timed_out_reaching": "Tempo scaduto per raggiungere {host}: potrebbe essere offline o irraggiungibile.",
-  "errors.could_not_reach": "Impossibile raggiungere {host}: controlla l'indirizzo e la connessione."
+  "errors.could_not_reach": "Impossibile raggiungere {host}: controlla l'indirizzo e la connessione.",
+  "settings.account.full_archive.error_unsupported": "Questo non è un file di archivio Wavvon.",
+  "settings.account.full_archive.error_too_new": "Questo archivio è stato creato da una versione più recente di Wavvon.",
+  "settings.account.full_archive.error_malformed": "Questo archivio è danneggiato o incompleto.",
+  "settings.account.full_archive.error_paired_device": "Questo archivio è stato creato su un dispositivo associato. Ripristinarlo qui creerebbe un'identità diversa: associa invece questo dispositivo da quello originale.",
+  "settings.account.full_archive.file_filter": "Archivio Wavvon",
+  "settings.account.full_archive.note_prefs_gap": "Questo archivio è stato creato su un dispositivo associato, quindi non contiene le preferenze sincronizzate con l'hub (utenti bloccati, impostazioni vocali tra dispositivi): solo il dispositivo che le ha impostate può decifrarle.",
+  "settings.account.full_archive.note_dm_history": "La cronologia dei messaggi diretti in questo archivio ({conversations, plural, one {# conversazione} other {# conversazioni}}, {messages, plural, one {# messaggio} other {# messaggi}}) non viene reimportata: un hub di casa sincronizzato consegna già la cronologia a questo account; l'archivio resta la copia leggibile per quando quell'hub non ci sarà più.",
+  "settings.account.full_archive.note_hub_records": "La designazione degli hub di casa e i certificati dei dispositivi sono dati che l'hub conserva per questa identità; vengono ristabiliti automaticamente quando questo account si connette lì, non scritti in locale."
 }

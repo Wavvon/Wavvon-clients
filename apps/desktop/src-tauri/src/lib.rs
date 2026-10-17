@@ -5,6 +5,7 @@ mod accounts;
 mod admin;
 mod admin_alliance;
 mod apps;
+mod archive;
 mod auth_creds;
 mod backup;
 mod certs;
@@ -299,6 +300,9 @@ pub fn run() {
             // Identity backup (unified .wavvon-backup, settings-ia.md §4a)
             backup::export_account_backup,
             backup::import_account_backup,
+            archive::export_full_archive,
+            archive::open_full_archive,
+            archive::apply_full_archive_restore,
             // Identity
             identity_cmd::get_recovery_phrase,
             identity_cmd::recover_identity_from_phrase,

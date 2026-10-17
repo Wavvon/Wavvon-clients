@@ -18,80 +18,19 @@ import {
 } from "@platform";
 import { loadIdentity as platformLoadIdentity, publicKeyHex, masterPublicKeyHex, masterSeedHex } from "@identity/index";
 import { derivePrefsBlobKey, decryptPrefsBlob, verifyPrefsBlob, type PrefsBlobContents } from "@wavvon/core";
-import type { WavvonSkin } from "@wavvon/ui";
+import {
+  ARCHIVE_DOCUMENT_VERSION,
+  ARCHIVE_KIND,
+  buildDmArchiveConversation,
+  type ArchiveDocument,
+  type ArchiveIdentity,
+  type DmArchiveConversation,
+  type LocalPrefsSnapshot,
+  type WavvonSkin,
+} from "@wavvon/ui";
 import { loadAllDrafts } from "./drafts";
 import { loadCustomThemeStore } from "./customThemes";
 import { getScoped } from "./accountScope";
-
-export const ARCHIVE_KIND = "full-archive" as const;
-export const ARCHIVE_DOCUMENT_VERSION = 1;
-
-export interface DmArchiveMessage {
-  sent_at: number;
-  direction: "in" | "out";
-  body: string;
-}
-
-export interface DmArchiveConversation {
-  peer_pubkey: string;
-  conv_type: string;
-  messages: DmArchiveMessage[];
-}
-
-export interface LocalPrefsSnapshot {
-  hub_list: SavedHub[];
-  theme: string;
-  ignored_users: string[];
-  voice_gains: Record<string, number>;
-  mention_ping_enabled: boolean;
-  // Decrypted hub-synced prefs (blocked users, cross-device voice settings) —
-  // null when unavailable: a paired device holds no entropy to derive the
-  // blob key from (only the entropy-holding device can), or nothing has been
-  // published to the home hub yet.
-  hub_synced: PrefsBlobContents | null;
-  gap_note: string | null;
-}
-
-export interface ArchiveIdentity {
-  seed_hex: string;
-  security_nonce: number;
-  security_level: number;
-  // Present once this device has opted into multi-device pairing — see
-  // masterPubkeyOf()/IdentityRecord. A paired device's seed_hex is its own
-  // subkey seed, not the entropy that derives the master keypair.
-  master_pubkey?: string;
-  subkey_cert?: unknown;
-}
-
-export interface ArchiveDocument {
-  version: number;
-  kind: typeof ARCHIVE_KIND;
-  exported_at: number;
-  identity: ArchiveIdentity;
-  home_hubs: { designations: HomeHubList[] };
-  devices: { subkey_certs: SubkeyCert[]; revocations: RevocationEntry[] };
-  prefs: LocalPrefsSnapshot;
-  dms: DmArchiveConversation[];
-  themes: WavvonSkin[];
-  drafts: Record<string, string>;
-}
-
-export function buildDmArchiveConversation(
-  conv: Conversation,
-  messages: DmMessageFull[],
-  myPubkey: string,
-): DmArchiveConversation {
-  const peers = conv.members.filter((m) => m !== myPubkey);
-  return {
-    peer_pubkey: peers.join(","),
-    conv_type: conv.conv_type,
-    messages: messages.map((m) => ({
-      sent_at: m.created_at,
-      direction: m.sender === myPubkey ? "out" : "in",
-      body: m.content,
-    })),
-  };
-}
 
 export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platformLoadSavedHubs): LocalPrefsSnapshot {
   // Theme is device-level (shared across every account on this device), so

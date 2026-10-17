@@ -1,13 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
 import type { BackupAccount } from "@wavvon/core";
-import { IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
+import { FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
 import {
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
-import { FullArchiveSection } from "@components/admin/FullArchiveSection";
 import { HomeHubsSection } from "../HomeHubsSection";
 import { MULTI_HUB } from "../../../constants";
 import { MoveToUserClientSection } from "../MoveToUserClientSection";
@@ -23,6 +22,7 @@ import {
 } from "@identity/index";
 import type { PerAccountProps } from "@wavvon/ui";
 import { isIdentityBackedUp, markIdentityBackedUp } from "../../../utils/identityBackup";
+import { buildFullArchiveActions } from "../../../utils/fullArchiveActions";
 
 interface Props extends PerAccountProps<IdentityRecord> {
   hubs: Hub[];
@@ -134,7 +134,7 @@ export function ManageAccountsTab(props: Props) {
         onSavedOffDevice={markIdentityBackedUp}
       />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
-      <FullArchiveSection publicKey={props.publicKey} />
+      <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
       {props.accounts && props.managing && (
         <ManagingAccountSelector
           accounts={props.accounts}

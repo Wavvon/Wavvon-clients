@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Conversation, DmMessageFull } from "../../types";
-import { buildDmArchiveConversation, assembleArchive, buildThemesSection, type ArchiveFetchers } from "../dataExport";
+import { assembleArchive, buildThemesSection, type ArchiveFetchers } from "../dataExport";
 import { saveCustomThemeStore } from "../customThemes";
 import { setActiveAccountId } from "../../identity/store";
 
@@ -54,31 +54,6 @@ function makeFetchers(overrides: Partial<ArchiveFetchers> = {}): ArchiveFetchers
     ...overrides,
   };
 }
-
-describe("buildDmArchiveConversation", () => {
-  it("groups messages under the other member as peer_pubkey", () => {
-    const conv = makeConversation();
-    const messages = [
-      makeMessage({ sender: PEER_PUBKEY, content: "hey", created_at: 1 }),
-      makeMessage({ sender: MY_PUBKEY, content: "hey back", created_at: 2 }),
-    ];
-
-    const result = buildDmArchiveConversation(conv, messages, MY_PUBKEY);
-
-    expect(result.peer_pubkey).toBe(PEER_PUBKEY);
-    expect(result.conv_type).toBe("dm");
-    expect(result.messages).toEqual([
-      { sent_at: 1, direction: "in", body: "hey" },
-      { sent_at: 2, direction: "out", body: "hey back" },
-    ]);
-  });
-
-  it("joins multiple non-self members for group conversations", () => {
-    const conv = makeConversation({ conv_type: "group", members: [MY_PUBKEY, "a", "b"] });
-    const result = buildDmArchiveConversation(conv, [], MY_PUBKEY);
-    expect(result.peer_pubkey).toBe("a,b");
-  });
-});
 
 describe("assembleArchive", () => {
   it("collects all conversations and reports progress", async () => {

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import {
+  FullArchiveSection,
   IdentityBackupSection,
   RecoveryContactsSection,
   SettingRow,
@@ -14,6 +15,7 @@ import {
 import { suggestBackupFilename } from "@wavvon/core";
 import type { AccountSummary } from "../../accounts/store";
 import { buildRecoveryActions } from "../../utils/recoveryActions";
+import { buildFullArchiveActions } from "../../utils/fullArchiveActions";
 import { isIdentityBackedUp, markIdentityBackedUp } from "../../utils/identityBackup";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
@@ -43,9 +45,9 @@ interface ImportedAccount {
 }
 
 // Everything about getting accounts on/off this device: the switcher table,
-// recovery phrase + identity backup (unified shared component, going through
-// Rust's export_account_backup/import_account_backup so the secret key never
-// enters the renderer), recovery contacts, and the home-hub list.
+// recovery phrase + identity backup and full archive (shared components, going
+// through Rust commands so the secret key never enters the renderer), recovery
+// contacts, and the home-hub list.
 export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData }: Props) {
   const { t } = useTranslation();
 
@@ -93,6 +95,10 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
       />
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
+      <FullArchiveSection
+        canExport={!!activeHubUrl}
+        actions={buildFullArchiveActions(t("settings.account.full_archive.file_filter"), t("settings.account.accounts.switch_cooldown"))}
+      />
       <HomeHubSection hubs={hubs} />
       <SettingRow
         title={t("settings.account.local_data.label")}

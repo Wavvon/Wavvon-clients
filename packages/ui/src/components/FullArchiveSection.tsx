@@ -1,54 +1,79 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { assembleArchive } from "@shared/utils/dataExport";
-import { encryptArchive, decryptArchive } from "@shared/utils/archiveCrypto";
-import {
-  parseArchiveDocument,
-  planRestore,
-  readExistingAccountSnapshot,
-  applyRestorePlan,
-  totalRestored,
-  totalSkipped,
-  type ArchiveIdentityInput,
-  type RestoreSummary,
-} from "@shared/utils/archiveRestore";
-import { listAccounts, resolveOrCreateAccount, switchAccount, SWITCH_BLOCKED_COOLDOWN, type SubkeyCert } from "@identity/index";
-import { passphraseStrength, useConfirm } from "@wavvon/ui";
+import { passphraseStrength } from "../utils/passphraseStrength";
+import { useConfirm } from "./ConfirmDialog";
+import { totalRestored, totalSkipped, type RestoreSummary, type UnrestorableNote } from "../utils/fullArchive";
+
+export interface FullArchiveRestoreResult {
+  accountId: string;
+  summary: RestoreSummary;
+  /** The device had no account before this restore, so there is nothing to
+   *  ask: the app switches straight to it. */
+  wasFirstAccount: boolean;
+}
+
+export interface FullArchiveSectionActions {
+  /** Assemble, encrypt and save the archive. Rejects with "export_cancelled"
+   *  when the user dismisses a save dialog. Desktop does the identity half in
+   *  Rust, so the seed never enters the renderer. */
+  exportArchive: (passphrase: string, onProgress: (done: number, total: number) => void) => Promise<void>;
+  /** `source` is opaque here: the file's text on web, a path on desktop. */
+  pickArchive: () => Promise<{ name: string; source: string } | null>;
+  /** Decrypt, resolve or create the archive's account, merge into it. */
+  restoreArchive: (source: string, passphrase: string) => Promise<FullArchiveRestoreResult>;
+  /** Null when the switch happened, else a refusal already fit to show. */
+  switchAccount: (accountId: string) => Promise<string | null>;
+}
 
 interface Props {
-  publicKey: string | null;
+  canExport: boolean;
+  actions: FullArchiveSectionActions;
 }
 
 type Mode = "idle" | "export" | "restore";
 
-export function FullArchiveSection({ publicKey }: Props) {
+const ERROR_KEYS: Record<string, string> = {
+  unsupported_archive_format: "settings.account.full_archive.error_unsupported",
+  archive_too_new: "settings.account.full_archive.error_too_new",
+  malformed_archive: "settings.account.full_archive.error_malformed",
+  archive_paired_device: "settings.account.full_archive.error_paired_device",
+  decrypt_failed: "settings.account.identity_backup.error_decrypt",
+};
+
+export function FullArchiveSection({ canExport, actions }: Props) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("idle");
   const [passphrase, setPassphrase] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
-  // Named askConfirm: this component already has a `confirm` — the second
-  // passphrase field.
+  // Named askConfirm: `confirm` is already the second passphrase field.
   const { confirm: askConfirm, dialog } = useConfirm();
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
-  const [restoreFileData, setRestoreFileData] = useState<string | null>(null);
-  const [restoreFilename, setRestoreFilename] = useState("");
+  const [picked, setPicked] = useState<{ name: string; source: string } | null>(null);
   const [restorePassphrase, setRestorePassphrase] = useState("");
   const [restoreSummary, setRestoreSummary] = useState<RestoreSummary | null>(null);
-  const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
-  const open = mode === "export";
+  function showError(e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    setError(ERROR_KEYS[message] ? t(ERROR_KEYS[message]) : message);
+  }
 
-  // switchAccount refuses (voice guard, switch cooldown) rather than always
-  // succeeding — surface that the same way every other failure in this
-  // section does.
-  function switchOrShowError(accountId: string) {
-    const refused = switchAccount(accountId, "settings-account");
-    if (refused) {
-      setError(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+  function noteText(note: UnrestorableNote): string {
+    switch (note.kind) {
+      case "prefs_gap":
+        return t("settings.account.full_archive.note_prefs_gap");
+      case "dm_history":
+        return t("settings.account.full_archive.note_dm_history", { conversations: note.conversations, messages: note.messages });
+      case "hub_records":
+        return t("settings.account.full_archive.note_hub_records");
     }
+  }
+
+  async function switchTo(accountId: string) {
+    const refused = await actions.switchAccount(accountId);
+    if (refused) setError(refused);
   }
 
   async function handleExport() {
@@ -64,90 +89,54 @@ export function FullArchiveSection({ publicKey }: Props) {
     setError(null);
     setProgress(null);
     try {
-      const archive = await assembleArchive({
-        onProgress: (done, total) => setProgress({ done, total }),
-      });
-      const json = JSON.stringify(archive, null, 2);
-      const blob = await encryptArchive(json, passphrase);
-
-      const date = new Date().toISOString().slice(0, 10);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `wavvon-archive-${date}.json.enc`;
-      a.click();
-      URL.revokeObjectURL(url);
-
+      await actions.exportArchive(passphrase, (done, total) => setProgress({ done, total }));
       setMode("idle");
       setPassphrase("");
       setConfirm("");
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      if (!(e instanceof Error && e.message === "export_cancelled")) showError(e);
     } finally {
       setWorking(false);
       setProgress(null);
     }
   }
 
-  function handleRestoreFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function handlePick() {
+    const file = await actions.pickArchive();
     if (!file) return;
-    setRestoreFilename(file.name);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setRestoreFileData(ev.target?.result as string);
-      setError(null);
-    };
-    reader.readAsText(file);
+    setPicked(file);
+    setError(null);
   }
 
   async function handleRestore() {
-    if (!restoreFileData || !restorePassphrase) {
+    if (!picked || !restorePassphrase) {
       setError(t("settings.account.full_archive.error_missing_file"));
       return;
     }
     setWorking(true);
     setError(null);
     try {
-      const json = await decryptArchive(restoreFileData, restorePassphrase);
-      const archive = parseArchiveDocument(json);
-
-      const priorAccounts = await listAccounts();
-      const hadAnyAccountBefore = priorAccounts.length > 0;
-
-      const identityInput = archive.identity as unknown as ArchiveIdentityInput;
-      const { account } = await resolveOrCreateAccount(identityInput.seed_hex, {
-        master_pubkey: identityInput.master_pubkey,
-        device_label: identityInput.device_label,
-        subkey_cert: identityInput.subkey_cert as SubkeyCert | undefined,
-        account_label: identityInput.account_label,
-      });
-
-      const existing = readExistingAccountSnapshot(account.id);
-      const plan = planRestore(archive, existing);
-      applyRestorePlan(account.id, plan);
-
+      const result = await actions.restoreArchive(picked.source, restorePassphrase);
       setMode("idle");
       setRestorePassphrase("");
-      setRestoreFileData(null);
-      setRestoreFilename("");
-      setRestoreSummary(plan.summary);
+      setPicked(null);
+      setRestoreSummary(result.summary);
 
-      if (!hadAnyAccountBefore) {
-        switchOrShowError(account.id);
+      if (result.wasFirstAccount) {
+        await switchTo(result.accountId);
         return;
       }
       const ok = await askConfirm({
         title: t("settings.account.full_archive.restore_switch.title"),
         body: t("settings.account.full_archive.restore_switch.body", {
-          restored: totalRestored(plan.summary),
-          skipped: totalSkipped(plan.summary),
+          restored: totalRestored(result.summary),
+          skipped: totalSkipped(result.summary),
         }),
         confirmLabel: t("settings.account.full_archive.restore_switch.confirm"),
       });
-      if (ok) switchOrShowError(account.id);
+      if (ok) await switchTo(result.accountId);
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      showError(e);
     } finally {
       setWorking(false);
     }
@@ -167,17 +156,19 @@ export function FullArchiveSection({ publicKey }: Props) {
               skipped: totalSkipped(restoreSummary),
             })}
           </p>
-          {restoreSummary.unrestorable.map((note, i) => (
-            <p key={i} className="muted" style={{ fontSize: "var(--text-xs)" }}>
-              {note}
+          {restoreSummary.unrestorable.map((note) => (
+            <p key={note.kind} className="muted" style={{ fontSize: "var(--text-xs)" }}>
+              {noteText(note)}
             </p>
           ))}
         </div>
       )}
 
+      {mode === "idle" && error && <p className="error-text">{error}</p>}
+
       {mode === "idle" && (
         <div className="settings-row">
-          <button className="btn-secondary" disabled={!publicKey} onClick={() => { setMode("export"); setError(null); }}>
+          <button className="btn-secondary" disabled={!canExport} onClick={() => { setMode("export"); setError(null); }}>
             {t("settings.account.full_archive.open_button")}
           </button>
           <button className="btn-secondary" onClick={() => { setMode("restore"); setError(null); setRestoreSummary(null); }}>
@@ -186,7 +177,7 @@ export function FullArchiveSection({ publicKey }: Props) {
         </div>
       )}
 
-      {open && (
+      {mode === "export" && (
         <div>
           <p className="muted" style={{ fontSize: "var(--text-sm)", color: "var(--warning)" }}>
             {t("settings.account.full_archive.warning")}
@@ -234,18 +225,11 @@ export function FullArchiveSection({ publicKey }: Props) {
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
             {t("settings.account.full_archive.restore_hint")}
           </p>
-          <input
-            ref={restoreFileInputRef}
-            type="file"
-            accept=".json.enc,application/octet-stream,application/json"
-            onChange={handleRestoreFileSelect}
-            style={{ display: "none" }}
-          />
           <div className="settings-row" style={{ marginBottom: 8 }}>
-            <button className="btn-secondary" onClick={() => restoreFileInputRef.current?.click()}>
+            <button className="btn-secondary" onClick={handlePick} disabled={working}>
               {t("settings.account.identity_backup.choose_file")}
             </button>
-            {restoreFilename && <span className="muted">{restoreFilename}</span>}
+            {picked && <span className="muted">{picked.name}</span>}
           </div>
           <input
             type="password"
@@ -257,7 +241,7 @@ export function FullArchiveSection({ publicKey }: Props) {
           />
           {error && <p className="error-text">{error}</p>}
           <div className="settings-row">
-            <button onClick={handleRestore} disabled={working || !restoreFileData}>
+            <button onClick={handleRestore} disabled={working || !picked}>
               {working ? t("settings.account.identity_backup.restoring") : t("settings.account.identity_backup.restore_now")}
             </button>
             <button className="btn-secondary" onClick={() => { setMode("idle"); setError(null); }} disabled={working}>
