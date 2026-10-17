@@ -396,6 +396,17 @@ export function recoveryAttestationSigningBytes(
   );
 }
 
+/** The scheme a hub or farm names in its /auth/challenge response when it
+ *  accepts an answer signed over authChallengeSigningBytes. */
+export const AUTH_CHALLENGE_SCHEME = "tagged-v1";
+
+/** What a client signs to answer an auth challenge from a server that names
+ *  AUTH_CHALLENGE_SCHEME. Domain-tagged, so the answer cannot double as any
+ *  other object this key signs (Wavvon-server#111). */
+export function authChallengeSigningBytes(challenge: Uint8Array): Uint8Array {
+  return concat(tag("wavvon/auth-challenge/v1 "), challenge);
+}
+
 /** What the sender of a plaintext DM signs so a receiving hub accepts it
  *  across hubs (`federated_plaintext_dm_signing_bytes`). Without it the
  *  receiving hub refuses the message and it sits in the sender's outbox. */

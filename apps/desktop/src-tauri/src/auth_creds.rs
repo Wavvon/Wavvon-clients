@@ -112,7 +112,16 @@ impl AuthCredentials {
                 challenge_bytes.len()
             ));
         }
-        let signature_bytes = self.sign(&challenge_bytes);
+        // Tagged where the server says it takes that; the raw answer remains
+        // only for an older one, guarded by the length check above.
+        let signature_bytes =
+            if challenge_resp.scheme.as_deref() == Some(crate::identity::AUTH_CHALLENGE_SCHEME) {
+                self.sign(&crate::identity::auth_challenge_signing_bytes(
+                    &challenge_bytes,
+                ))
+            } else {
+                self.sign(&challenge_bytes)
+            };
 
         let mut body = serde_json::json!({
             "public_key": self.public_key_hex,
@@ -337,6 +346,9 @@ fn choose_signer(
 #[derive(serde::Deserialize)]
 struct ChallengeResponse {
     challenge: String,
+    /// "tagged-v1" from a hub or farm that takes the tagged answer.
+    #[serde(default)]
+    scheme: Option<String>,
 }
 
 #[derive(serde::Deserialize)]

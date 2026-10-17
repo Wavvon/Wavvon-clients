@@ -1,4 +1,4 @@
-import { hexToBytes, signBytes } from "@wavvon/core";
+import { AUTH_CHALLENGE_SCHEME, authChallengeSigningBytes, hexToBytes, signBytes } from "@wavvon/core";
 import { rawFetch, hubFetchWithToken, HubApiError } from "../http";
 import { resolveSessionScope } from "@wavvon/ui";
 
@@ -10,6 +10,8 @@ import { resolveSessionScope } from "@wavvon/ui";
 
 interface ChallengeResponse {
   challenge: string;
+  /** "tagged-v1" from a hub or farm that takes the tagged answer. */
+  scheme?: string;
 }
 
 interface VerifyResponse {
@@ -50,7 +52,12 @@ export async function acquireHubToken(
   if (challengeBytes.length !== 32) {
     throw new Error(`Refusing to sign a ${challengeBytes.length}-byte auth challenge`);
   }
-  const signatureHex = signBytes(challengeBytes, seedHex);
+  // Tagged where the server says it takes that; the raw answer remains only
+  // for an older one, and the length check above guards it.
+  const signatureHex = signBytes(
+    challengeRes.scheme === AUTH_CHALLENGE_SCHEME ? authChallengeSigningBytes(challengeBytes) : challengeBytes,
+    seedHex,
+  );
 
   const body: Record<string, unknown> = {
     public_key: pubkeyHex,
