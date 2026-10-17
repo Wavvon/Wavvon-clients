@@ -1,11 +1,13 @@
 import type React from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { ChannelSidebar } from "@wavvon/ui";
+import { ChannelSidebar, useConfirm } from "@wavvon/ui";
 import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind, UnreadCounts } from "@wavvon/ui";
 import { formatPubkey, type TreeNode } from "@wavvon/core";
 import { hasDraft } from "../utils/drafts";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import type {
   Channel,
   User,
@@ -34,6 +36,7 @@ interface Props {
   collapsedCategories: Record<string, Record<string, boolean>>;
   onToggleCategoryCollapsed: (hubId: string, categoryId: string) => void;
   voiceChannelNameHint: string | null;
+  setVoiceChannelNameHint: (name: string | null) => void;
   setVoiceMoveMenu: (menu: VoiceMoveMenuState | null) => void;
   hubDropdownOpen: boolean;
   setHubDropdownOpen: (v: boolean) => void;
@@ -88,7 +91,7 @@ interface Props {
 export function ChannelSidebarContainer({
   view, channels, users, publicKey, isAdmin, myRoles,
   collapsedCategories, onToggleCategoryCollapsed,
-  voiceChannelNameHint, setVoiceMoveMenu,
+  voiceChannelNameHint, setVoiceChannelNameHint, setVoiceMoveMenu,
   hubDropdownOpen, setHubDropdownOpen,
   hideSilenced, setHideSilenced, silencedChannelIds,
   userAlliances, allianceChannels,
@@ -111,8 +114,27 @@ export function ChannelSidebarContainer({
     );
   const canCreateInvites = isAdmin || myRoles.some((r) => r.permissions?.includes("channels.manage"));
   const canUseSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.soundboard.use"));
+  const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
+
+  // Offered only where our own hub can mint the grant; the owning hub's half
+  // is checked at join time, by name.
+  const activeHubUrl = hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId)?.hub_url ?? null;
+  const [allianceVoice, setAllianceVoice] = useState(false);
+  useEffect(() => {
+    setAllianceVoice(false);
+    if (!activeHubUrl) return;
+    let cancelled = false;
+    void fetchWithTimeout(`${activeHubUrl.replace(/\/+$/, "")}/info`)
+      .then((r) => r.json() as Promise<{ capabilities?: string[] }>)
+      .then((info) => { if (!cancelled) setAllianceVoice(info.capabilities?.includes("voice.alliance") === true); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeHubUrl]);
 
   return (
+    <>
+    {dialog}
     <ChannelSidebar
       view={view}
       activeHubId={hubLifecycle.activeHubId}
@@ -173,6 +195,13 @@ export function ChannelSidebarContainer({
         });
       } : undefined}
       onSelectAllianceChannel={channelMessages.selectAllianceChannel}
+      onJoinAllianceVoice={allianceVoice ? (a, c) => {
+        void voice.handleAllianceVoiceJoin(a.id, c.channel_id, (ownerHubUrl, channelName) => confirm({
+          title: t("alliance.voice.confirm.title", { channel: channelName }),
+          body: t("alliance.voice.confirm.body", { hub: ownerHubUrl }),
+          confirmLabel: t("alliance.voice.confirm.join"),
+        })).then((name) => { if (name) setVoiceChannelNameHint(name); });
+      } : undefined}
       onSelectConversation={dms.selectConversation}
       onOpenFriends={openFriends}
       onToggleSelfMute={voice.toggleSelfMute}
@@ -213,5 +242,6 @@ export function ChannelSidebarContainer({
       soundboardPlayingClipId={soundboard.playingClipId}
       soundboardChips={voice.voiceChannelId ? soundboardChipsByChannel[voice.voiceChannelId] ?? [] : []}
     />
+    </>
   );
 }

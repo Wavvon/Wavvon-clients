@@ -697,7 +697,9 @@ pub(crate) async fn reauth_session(
         .await
         .map_err(|e| format!("reauth info decode: {e}"))?;
     let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
-    let reauth = creds.authenticate(&auth_url, &client, None, None).await?;
+    let reauth = creds
+        .authenticate(&auth_url, &client, None, None, None)
+        .await?;
     let new_token = reauth.token;
 
     let (old_task, hub_id_clone) = {

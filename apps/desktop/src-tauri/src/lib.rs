@@ -175,6 +175,8 @@ pub fn run() {
             voice_cmd::voice_active_users,
             voice_cmd::voice_channel_participants,
             voice_cmd::voice_join,
+            voice_cmd::mint_alliance_voice_grant,
+            voice_cmd::alliance_voice_join,
             voice_cmd::voice_leave,
             voice_cmd::voice_set_muted,
             voice_cmd::voice_set_deafened,

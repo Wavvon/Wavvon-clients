@@ -184,6 +184,15 @@ pub(crate) struct VoiceSession {
     /// The pipeline's capture/encode sample rate -- a clip must be
     /// resampled to this rate before being placed in `active_clip`.
     pub opus_rate: u32,
+    /// Set when the room belongs to an allied hub: the voice-only socket we
+    /// opened there, which lives exactly as long as the call. Never in `hubs`
+    /// — it is not a hub the user joined.
+    pub visit: Option<VoiceVisit>,
+}
+
+pub(crate) struct VoiceVisit {
+    pub ws_tx: mpsc::UnboundedSender<WsCommand>,
+    pub task: JoinHandle<()>,
 }
 
 // ---------------------------------------------------------------------------

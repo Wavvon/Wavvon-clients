@@ -418,11 +418,6 @@ pub(crate) async fn update_dm_blocks(
 
 #[tauri::command]
 pub(crate) async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), String> {
-    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
-    let (_, dh_pub) = identity.dh_keypair();
-    let dh_pubkey_hex = hex::encode(dh_pub.as_bytes());
-
     // Per hub, not once for all of them: the hub verifies the record against
     // the pubkey in the URL and that must be the identity *it* seated us as,
     // which is not the same on every hub (see HubSession::canonical_pubkey).
@@ -444,30 +439,48 @@ pub(crate) async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), Str
     };
 
     for (hub_url, token, canonical) in hub_sessions {
-        let me = crate::auth_creds::hub_identity(Some(&canonical))?;
-        let pubkey_hex = me.pubkey();
-        // A paired device holds a subkey, and a DH record carries no cert to
-        // chain it — only the device that holds the canonical seed can sign
-        // one. The enrolling device already published it. (Web skips for the
-        // same reason: canPublishDhKey in platform/commands/dms.ts.)
-        if pubkey_hex != canonical {
-            continue;
-        }
-        let signature_hex = hex::encode(me.sign(&crate::identity::DhKeyRecord::signing_bytes(
-            &pubkey_hex,
-            &dh_pubkey_hex,
-        )));
-        let url = format!("{}/identity/{}/dh-key", hub_url, pubkey_hex);
-        let client = state.http_client.clone();
-        let _ = client
-            .put(&url)
-            .bearer_auth(&token)
-            .json(&serde_json::json!({
-                "dh_pubkey_hex": &dh_pubkey_hex,
-                "signature_hex": &signature_hex,
-            }))
-            .send()
-            .await;
+        let _ = publish_dh_key_to(&state.http_client, &hub_url, &token, &canonical).await;
+    }
+    Ok(())
+}
+
+/// Publish this device's DH key on one hub, under the identity that hub
+/// seated us as. Fails only when the hub refused it or could not be asked.
+pub(crate) async fn publish_dh_key_to(
+    client: &reqwest::Client,
+    hub_url: &str,
+    token: &str,
+    canonical: &str,
+) -> Result<(), String> {
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
+    let (_, dh_pub) = identity.dh_keypair();
+    let dh_pubkey_hex = hex::encode(dh_pub.as_bytes());
+    let me = crate::auth_creds::hub_identity(Some(canonical))?;
+    let pubkey_hex = me.pubkey();
+    // A paired device holds a subkey, and a DH record carries no cert to
+    // chain it — only the device that holds the canonical seed can sign
+    // one. The enrolling device already published it. (Web skips for the
+    // same reason: canPublishDhKey in platform/commands/dms.ts.)
+    if pubkey_hex != canonical {
+        return Ok(());
+    }
+    let signature_hex = hex::encode(me.sign(&crate::identity::DhKeyRecord::signing_bytes(
+        &pubkey_hex,
+        &dh_pubkey_hex,
+    )));
+    let resp = client
+        .put(format!("{hub_url}/identity/{pubkey_hex}/dh-key"))
+        .bearer_auth(token)
+        .json(&serde_json::json!({
+            "dh_pubkey_hex": &dh_pubkey_hex,
+            "signature_hex": &signature_hex,
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("DH key publish: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("DH key publish refused ({})", resp.status()));
     }
     Ok(())
 }
