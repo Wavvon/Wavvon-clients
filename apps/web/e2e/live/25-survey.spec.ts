@@ -38,12 +38,13 @@ test("build a survey, a member submits it, admin sees the response", async ({ pa
   await choiceInputs.nth(0).fill("PvP");
   await choiceInputs.nth(1).fill("PvE");
   await questions.getByRole("button", { name: "Save survey" }).click();
-  await expect(admin.getByText("Survey saved")).toBeVisible({ timeout: 10000 });
 
-  const enable = await openSettingRow(page, "Enable this survey");
-  await enable.getByRole("checkbox", { name: "Enable this survey" }).check();
-  await enable.getByRole("button", { name: "Save survey" }).click();
-  await expect(admin.getByText("Survey saved")).toBeVisible({ timeout: 10000 });
+  // The switch lives in another row, so saving questions with it off says
+  // so and offers it right there (Wavvon-clients#137) — which is how this
+  // spec turns it on.
+  await expect(admin.getByText("Survey saved, but it is off")).toBeVisible({ timeout: 10000 });
+  await admin.getByRole("button", { name: "Enable this survey" }).click();
+  await expect(admin.getByText("Survey saved", { exact: true })).toBeVisible({ timeout: 10000 });
 
   // A fresh member is shown the survey on load and submits it.
   const { context, page: member } = await newMemberPage(browser, uniqueName("Recruit"));
@@ -64,6 +65,6 @@ test("build a survey, a member submits it, admin sees the response", async ({ pa
     const off = await openSettingRow(page, "Enable this survey");
     await off.getByRole("checkbox", { name: "Enable this survey" }).uncheck();
     await off.getByRole("button", { name: "Save survey" }).click();
-    await expect(admin.getByText("Survey saved")).toBeVisible({ timeout: 10000 });
+    await expect(admin.getByText("Survey saved, but it is off")).toBeVisible({ timeout: 10000 });
   }
 });

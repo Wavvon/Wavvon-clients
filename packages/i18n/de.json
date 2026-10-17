@@ -937,6 +937,7 @@
   "hub.admin.survey.responses_label": "Antworten",
   "hub.admin.survey.save": "Umfrage speichern",
   "hub.admin.survey.saved": "Umfrage gespeichert",
+  "hub.admin.survey.saved_but_off": "Umfrage gespeichert, aber sie ist deaktiviert: Neue Mitglieder sehen sie nicht.",
   "hub.admin.survey.state.answers": "{count, plural, one {# Mitglied hat geantwortet} other {# Mitglieder haben geantwortet}}",
   "hub.admin.survey.state.answers_unread": "Zum Lesen öffnen",
   "hub.admin.survey.state.no_questions": "Noch nichts zu fragen",

@@ -937,6 +937,7 @@
   "hub.admin.survey.responses_label": "Answers",
   "hub.admin.survey.save": "Save survey",
   "hub.admin.survey.saved": "Survey saved",
+  "hub.admin.survey.saved_but_off": "Survey saved, but it is off: new members will not see it.",
   "hub.admin.survey.state.answers": "{count, plural, one {# member answered} other {# members answered}}",
   "hub.admin.survey.state.answers_unread": "Open to read them",
   "hub.admin.survey.state.no_questions": "Nothing to ask yet",

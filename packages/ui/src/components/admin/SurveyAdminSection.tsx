@@ -119,12 +119,15 @@ export function SurveyAdminSection({ actions }: Props) {
     } : s);
   }
 
-  async function save() {
-    if (!survey) return;
+  async function save(next: SurveyAdmin | null = survey) {
+    if (!next) return;
     setBusy(true); setError(null); setStatus(null);
     try {
-      await actions.setSurveyAdmin(survey);
-      setStatus(t("hub.admin.survey.saved"));
+      await actions.setSurveyAdmin(next);
+      setSurvey(next);
+      // The switch lives in another row, so questions saved with it off would
+      // otherwise sit unseen with nothing saying so.
+      setStatus(t(!next.enabled && next.questions.length > 0 ? "hub.admin.survey.saved_but_off" : "hub.admin.survey.saved"));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -141,7 +144,19 @@ export function SurveyAdminSection({ actions }: Props) {
       <h1>{t("hub.admin.survey.title")}</h1>
       <p className="muted">{t("hub.admin.survey.hint")}</p>
       {error && <p className="error-text">{error}</p>}
-      {status && <p className="muted">{status}</p>}
+      {status && (
+        <p className="muted">
+          {status}
+          {!survey.enabled && survey.questions.length > 0 && (
+            <>
+              {" "}
+              <button className="btn-small btn-primary" onClick={() => save({ ...survey, enabled: true })} disabled={busy}>
+                {t("hub.admin.survey.enable")}
+              </button>
+            </>
+          )}
+        </p>
+      )}
 
       <SettingRow
         step={1}
@@ -155,7 +170,7 @@ export function SurveyAdminSection({ actions }: Props) {
         </label>
         <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("hub.admin.survey.autogrant_hint")}</p>
         <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
-          <button className="btn-primary" onClick={save} disabled={busy}>{t("hub.admin.survey.save")}</button>
+          <button className="btn-primary" onClick={() => save()} disabled={busy}>{t("hub.admin.survey.save")}</button>
         </div>
       </SettingRow>
 
@@ -224,7 +239,7 @@ export function SurveyAdminSection({ actions }: Props) {
           <button className="btn-small" onClick={() => addQuestion("text")}>{t("hub.admin.survey.add_text_question")}</button>
           <button className="btn-small" onClick={() => addQuestion("choice")}>{t("hub.admin.survey.add_choice_question")}</button>
           <span style={{ flex: 1 }} />
-          <button className="btn-primary" onClick={save} disabled={busy}>{t("hub.admin.survey.save")}</button>
+          <button className="btn-primary" onClick={() => save()} disabled={busy}>{t("hub.admin.survey.save")}</button>
         </div>
       </SettingRow>
 
