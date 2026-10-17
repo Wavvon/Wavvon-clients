@@ -1059,8 +1059,12 @@ function App() {
   // member by name).
   const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
   const me = users.find((u) => u.public_key === publicKey);
+  // "Skip for now" is an answer too; without remembering it the prompt came
+  // back on every launch. Keyed by account, since each one is asked once.
+  const nameSkipKey = `wavvon.displayNamePromptSkipped.${publicKey}`;
   useEffect(() => {
     if (hubs.length !== 1 || !me || me.display_name) return;
+    if (localStorage.getItem(nameSkipKey) === "1") return;
     // A default profile means the user already said who they want to be —
     // apply it instead of asking again, the same way web does.
     void loadDefaultProfileAsync()
@@ -1851,7 +1855,10 @@ function App() {
         {showDisplayNamePrompt && (
           <DisplayNamePrompt
             onSave={saveDisplayName}
-            onSkip={() => setShowDisplayNamePrompt(false)}
+            onSkip={() => {
+              localStorage.setItem(nameSkipKey, "1");
+              setShowDisplayNamePrompt(false);
+            }}
           />
         )}
 
