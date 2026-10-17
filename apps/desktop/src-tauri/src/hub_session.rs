@@ -267,7 +267,9 @@ pub(crate) async fn auto_connect_saved(
     let saved = load_saved_hubs();
     let mut unreachable = Vec::new();
     for hub in &saved {
-        if let Err(error) = add_hub(hub.hub_url.clone(), None, None, state.clone(), app.clone()).await {
+        if let Err(error) =
+            add_hub(hub.hub_url.clone(), None, None, state.clone(), app.clone()).await
+        {
             unreachable.push(UnreachableHub {
                 hub_name: hub.hub_name.clone(),
                 hub_url: hub.hub_url.clone(),
