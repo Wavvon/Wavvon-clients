@@ -42,6 +42,7 @@ import {
   flattenAllianceChannels, allianceChannelIcon, computeDragIntent,
 } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../../utils/spawnerChannels";
+import { dmPeerLabel } from "../../utils/dmPeerLabel";
 import { SearchIcon, MembersIcon } from "../Icons";
 
 interface SidebarFlatNode extends FlatNode {
@@ -103,6 +104,8 @@ interface Props {
   micBelowGate?: boolean;
   onOpenVoiceSettings?: () => void;
   users: User[];
+  /** See dmPeerLabel. */
+  dmPeerNames?: Record<string, string>;
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
   isAdmin: boolean;
@@ -210,7 +213,7 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
-  users, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
+  users, dmPeerNames, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
@@ -749,10 +752,7 @@ export function ChannelSidebar({
                 .map((c) => {
                   const others = c.members.filter((m) => m !== publicKey);
                   const label = others
-                    .map((k) => {
-                      const u = users.find((u) => u.public_key === k);
-                      return u?.display_name || k.slice(0, 12);
-                    })
+                    .map((k) => dmPeerLabel(k, users, dmPeerNames))
                     .join(", ");
                   const unread = !!unreadDms[c.id];
                   return (

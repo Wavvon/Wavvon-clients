@@ -5,6 +5,7 @@ import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelativ
 import { MessageAttachments, PendingAttachments } from "../Attachments";
 import { MessageContent } from "../MessageContent";
 import { TypingIndicator } from "../TypingIndicator";
+import { dmPeerLabel } from "../../utils/dmPeerLabel";
 import { PaperclipIcon, LockIcon } from "../Icons";
 
 interface TypingEntry { name: string; ts: number }
@@ -15,6 +16,9 @@ interface Props {
   publicKey: string | null;
   blockedUsers: Set<string>;
   users: User[];
+  /** Names learned where a conversation was started, for peers who are not
+   *  members of this hub (see dmPeerLabel). */
+  peerNames?: Record<string, string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   pendingAttachments: Attachment[];
@@ -35,6 +39,7 @@ export function DmView({
   publicKey,
   blockedUsers,
   users,
+  peerNames,
   knownDisplayNames,
   myDisplayName,
   pendingAttachments,
@@ -65,10 +70,7 @@ export function DmView({
           @{" "}
           {selectedConversation.members
             .filter((m) => m !== publicKey)
-            .map((k) => {
-              const u = users.find((u) => u.public_key === k);
-              return u?.display_name || k.slice(0, 12);
-            })
+            .map((k) => dmPeerLabel(k, users, peerNames))
             .join(", ")}
         </h3>
       </div>
@@ -83,6 +85,7 @@ export function DmView({
           .map((m) => {
             const senderLabel =
               users.find((u) => u.public_key === m.sender)?.display_name ||
+              peerNames?.[m.sender] ||
               m.sender_name ||
               formatPubkey(m.sender);
             const showFailed = m.delivery_failed === true && m.sender === publicKey;
