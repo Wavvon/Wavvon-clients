@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { parseHubInput } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
@@ -13,8 +14,6 @@ interface Props {
   hubUrl: string;
   onHubUrlChange: (v: string) => void;
   hubPreview: HubPreview;
-  inviteCode?: string;
-  onInviteCodeChange?: (v: string) => void;
   loading: boolean;
   error: string | null;
   /** True once the invite's `?fp=`/`#fp=` fingerprint was verified against the hub's /info (lan-mode.md §5). */
@@ -30,10 +29,13 @@ interface Props {
   onBrowse?: () => void;
 }
 
-export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, fingerprintMatch, onAdd, onAddWithPasskey, passkeySupported, onClose, onBrowse }: Props) {
+export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, fingerprintMatch, onAdd, onAddWithPasskey, passkeySupported, onClose, onBrowse }: Props) {
   useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [copiedInvite, setCopiedInvite] = useState(false);
+  // The hint asks for an invite link, so it has nothing to say once the
+  // address already carries one.
+  const carriesInvite = !!parseHubInput(hubUrl)?.inviteCode;
   const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && !!passkeySupported;
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -64,7 +66,7 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
             <p className="muted hub-preview-status" style={{ margin: 0 }}>
               {t("hub.reachable")}
             </p>
-            {hubPreview.invite_only && (
+            {hubPreview.invite_only && !carriesInvite && (
               <p className="muted hub-preview-warn">
                 🔒 {t("hub.invite_only_hint")}
               </p>

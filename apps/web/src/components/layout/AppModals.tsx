@@ -86,7 +86,6 @@ export function AppModals(p: AppModalsProps) {
     hubPreview,
     hubUrl,
     hubs,
-    inviteCode,
     isAdmin,
     myMaxPriority,
     pollComposerChannelId,
@@ -107,7 +106,6 @@ export function AppModals(p: AppModalsProps) {
     setEventComposerChannelId,
     setFingerprintMatch,
     setHubPreview,
-    setInviteCode,
     setPollComposerChannelId,
     setRenameRoomCtx,
     setRenameRoomError,
@@ -152,8 +150,6 @@ export function AppModals(p: AppModalsProps) {
           hubUrl={hubUrl}
           onHubUrlChange={handleHubUrlInput}
           hubPreview={hubPreview}
-          inviteCode={inviteCode}
-          onInviteCodeChange={setInviteCode}
           loading={addingHub}
           error={addHubError}
           fingerprintMatch={fingerprintMatch}
