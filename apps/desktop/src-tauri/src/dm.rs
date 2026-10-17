@@ -290,6 +290,17 @@ fn decrypt_dm_inner(
     Ok(plaintext["content"].as_str().unwrap_or("").to_string())
 }
 
+/// Whether the hub takes `plaintext_signer_cert`. A failed lookup answers no:
+/// the message then goes unsigned, which is what it did before the cert.
+async fn hub_takes_signer_cert(client: &reqwest::Client, hub_url: &str) -> bool {
+    let info: Option<serde_json::Value> = match client.get(format!("{hub_url}/info")).send().await {
+        Ok(resp) => resp.json().await.ok(),
+        Err(_) => None,
+    };
+    info.and_then(|i| i["capabilities"].as_array().cloned())
+        .is_some_and(|caps| caps.iter().any(|c| c == "dms.plaintext.signercert"))
+}
+
 #[tauri::command]
 pub(crate) async fn send_dm(
     conversation_id: String,
@@ -319,38 +330,37 @@ pub(crate) async fn send_dm(
         let content = content.unwrap_or_default();
         // A recipient on another hub only takes a plaintext DM the sender
         // signed; unsigned, it is refused there and sits in our hub's outbox.
-        // Only an account holding its own identity can sign as itself -- a
-        // paired device has a subkey and sends unsigned, as before.
-        let identity = crate::identity::Identity::default_path()
-            .ok()
-            .and_then(|p| crate::identity::Identity::load(&p).ok());
-        let plaintext_signature = match identity {
-            Some(id) => {
-                // The signed bytes name the conversation's type, which only
-                // the hub's record states authoritatively.
-                let conv: serde_json::Value = client
-                    .get(format!("{hub_url}/conversations/{conversation_id}"))
-                    .bearer_auth(&token)
-                    .send()
-                    .await
-                    .map_err(|e| format!("Failed: {e}"))?
-                    .json()
-                    .await
-                    .map_err(|e| format!("Invalid conversation: {e}"))?;
-                let conv_type = conv["conv_type"].as_str().unwrap_or("dm");
-                let sb = crate::identity::federated_plaintext_dm_signing_bytes(
-                    &conversation_id,
-                    conv_type,
-                    &content,
-                );
-                Some(hex::encode(id.sign(&sb).to_bytes()))
-            }
-            None => None,
-        };
+        // Sign as whoever the hub seated us as: the master for a self-certified
+        // identity, the subkey plus its cert for a paired device.
+        let me = crate::auth_creds::hub_identity(
+            crate::state::active_canonical_pubkey(&state).as_deref(),
+        )?;
+        // The signed bytes name the conversation's type, which only the hub's
+        // record states authoritatively.
+        let conv: serde_json::Value = client
+            .get(format!("{hub_url}/conversations/{conversation_id}"))
+            .bearer_auth(&token)
+            .send()
+            .await
+            .map_err(|e| format!("Failed: {e}"))?
+            .json()
+            .await
+            .map_err(|e| format!("Invalid conversation: {e}"))?;
+        let conv_type = conv["conv_type"].as_str().unwrap_or("dm");
+        let sb = crate::identity::federated_plaintext_dm_signing_bytes(
+            &conversation_id,
+            conv_type,
+            &content,
+        );
+        // An older hub checks the signature against the canonical key alone
+        // and refuses a subkey's, so there a paired device sends unsigned.
+        let signer_cert = me.signer_cert();
+        let can_sign = signer_cert.is_none() || hub_takes_signer_cert(&client, &hub_url).await;
         serde_json::json!({
             "content": content,
             "attachments": attachments.unwrap_or_default(),
-            "plaintext_signature": plaintext_signature,
+            "plaintext_signature": can_sign.then(|| hex::encode(me.sign(&sb))),
+            "plaintext_signer_cert": signer_cert.filter(|_| can_sign),
         })
     };
     let resp = client
