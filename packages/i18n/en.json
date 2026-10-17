@@ -1341,7 +1341,6 @@
   "settings.account.accounts.col_order": "#",
   "settings.account.accounts.hint": "Switch between Wavvon identities you've added to this device. Accounts are device-local — this list is never synced to any hub.",
   "settings.account.accounts.import_button": "Import",
-  "settings.account.accounts.import_label": "Or add an existing account from its recovery phrase",
   "settings.account.accounts.key_click_to_copy": "Click to copy the full key",
   "settings.account.accounts.label": "Accounts on this device",
   "settings.account.accounts.last_account_title": "At least one account must remain",
