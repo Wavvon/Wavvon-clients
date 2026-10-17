@@ -23,7 +23,7 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { publicKeyHex, rotationAppliesTo, classifyHubRefusal, type HubKeyRotation } from "@wavvon/core";
+import { publicKeyHex, rotationAppliesTo, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
 import { acquireHubToken as authenticate, admitFarmToken } from "./hubAuth";
@@ -43,6 +43,8 @@ interface InfoResponse {
    * is renamed; the client follows it, keyed on the pubkey that doesn't. */
   canonical_url?: string | null;
   farm_url?: string | null;
+  /** "off", "click", "puzzle" or "both": a join needs a solved challenge first. */
+  challenge_mode?: string | null;
   welcome_label?: string | null;
   welcome_invite_url?: string | null;
   /** SHA-256 hex of the LAN self-signed cert, present when lan_tls === "self". */
@@ -125,16 +127,52 @@ function followKeyRotation(info: InfoResponse, hub_id: string): string {
 }
 
 
+/** The hub runs an admission challenge; solve it, then call addHub again
+ *  with the token. */
+export class ChallengeRequiredError extends Error {
+  constructor(public hubUrl: string, public pubkey: string) {
+    super("challenge_required");
+  }
+}
+
+/** One challenge for the identity about to join `hubUrl`. */
+export async function fetchAdmissionChallenge(hubUrl: string, pubkey: string): Promise<ChallengePrompt> {
+  const r = await rawFetch(`${hubUrl}/challenge/new?pubkey=${encodeURIComponent(pubkey)}`);
+  return r.json() as Promise<ChallengePrompt>;
+}
+
+export async function submitAdmissionChallenge(
+  hubUrl: string,
+  id: string,
+  pubkey: string,
+  answer: string | null,
+): Promise<ChallengeResult> {
+  const r = await rawFetch(`${hubUrl}/challenge/verify`, {
+    method: "POST",
+    body: JSON.stringify({ id, pubkey, answer }),
+  });
+  return r.json() as Promise<ChallengeResult>;
+}
+
 export async function addHub(
   hub_url: string,
   handlers: WsHandlers,
-  opts?: { invite_code?: string; rememberMe?: boolean; sessionToken?: string },
+  opts?: { invite_code?: string; rememberMe?: boolean; sessionToken?: string; challenge_token?: string },
 ): Promise<Hub> {
   const url = hub_url.replace(/\/$/, "");
 
   const info: InfoResponse = await rawFetch(`${url}/info`).then(
     (r) => r.json() as Promise<InfoResponse>,
   );
+  // Asked here, before any auth, so both join paths meet it: the hub would
+  // only refuse at /auth/verify, with nothing a caller could act on.
+  if (!opts?.sessionToken && !opts?.challenge_token && info.challenge_mode && info.challenge_mode !== "off") {
+    const identity = await loadIdentity();
+    if (!identity) throw new Error("No identity — generate one first");
+    // The hub binds the token to the key /auth/verify will present, which is
+    // this device's own — not the canonical identity a paired device shows.
+    throw new ChallengeRequiredError(url, publicKeyHex(identity.seed_hex));
+  }
 
   let token: string;
   // "member" is the safe default for the sessionToken (webauthn) path below,
@@ -159,6 +197,8 @@ export async function addHub(
       identity.security_level,
       opts?.invite_code,
       identity.subkey_cert,
+      undefined,
+      opts?.challenge_token,
     );
     token = res.token;
     scope = res.scope;

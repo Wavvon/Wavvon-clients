@@ -76,6 +76,8 @@ export { ErrorRetry } from "./components/ErrorRetry";
 export { HubRefusedPanel } from "./components/HubRefusedPanel";
 export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
+export { AdmissionChallenge } from "./components/AdmissionChallenge";
+export type { AdmissionChallengeProps } from "./components/AdmissionChallenge";
 export { Lightbox } from "./components/Lightbox";
 export { BannerEditModal } from "./components/channels/BannerEditModal";
 export { ChannelAlliancesTab } from "./components/channels/ChannelAlliancesTab";

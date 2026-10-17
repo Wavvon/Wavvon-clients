@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { allianceActions } from "../hooks/hubAdminActions";
 import {
   AddHubModal,
+  AdmissionChallenge,
   ChannelContextMenu,
   ChannelSettingsModal,
   EditDescriptionModal,
@@ -24,6 +25,8 @@ import {
 } from "@wavvon/ui";
 import type {
   Channel,
+  ChallengePrompt,
+  ChallengeResult,
   ForumTagDef,
   Friend,
   Hub,
@@ -43,7 +46,6 @@ import type { EncryptionWarning } from "@wavvon/ui";
 import { ScreenShareModal } from "./ScreenShareModal";
 import { ScreenShareOverlay } from "./ScreenShareOverlay";
 import { ChannelPalette } from "./ChannelPalette";
-import { AdmissionChallenge } from "./AdmissionChallenge";
 import { SurveyComponent } from "./Survey";
 
 // Every modal, overlay and context menu the app can put over itself.
@@ -198,6 +200,7 @@ export function AppModals(p: AppModalsProps) {
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const canEditChannelPermissions =
     canManageRoles || myRoles.some((r) => r.permissions?.includes("channels.permissions"));
+  const challenge = addHub.admissionChallenge;
 
   return (
     <>
@@ -215,10 +218,10 @@ export function AppModals(p: AppModalsProps) {
         />
       )}
 
-      {addHub.admissionChallenge && (
+      {challenge && (
         <AdmissionChallenge
-          hubUrl={addHub.admissionChallenge.hubUrl}
-          pubkey={addHub.admissionChallenge.pubkey}
+          fetchPrompt={() => invoke<ChallengePrompt>("challenge_fetch", { hubUrl: challenge.hubUrl, pubkey: challenge.pubkey })}
+          submit={(id, answer) => invoke<ChallengeResult>("challenge_submit", { hubUrl: challenge.hubUrl, id, pubkey: challenge.pubkey, answer })}
           onPassed={(token) => {
             addHub.setAdmissionChallenge(null);
             addHub.handleAddHub(token);

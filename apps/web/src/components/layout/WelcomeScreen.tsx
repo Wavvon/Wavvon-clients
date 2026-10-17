@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addHub, previewHubInfo, verifyLanFingerprint } from "@platform";
+import {
+  addHub, previewHubInfo, verifyLanFingerprint,
+  ChallengeRequiredError, fetchAdmissionChallenge, submitAdmissionChallenge,
+} from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
 import { parseHubInput } from "@wavvon/core";
 import type { HubInputResult } from "@wavvon/core";
-import { WelcomeScreen } from "@wavvon/ui";
+import { AdmissionChallenge, WelcomeScreen } from "@wavvon/ui";
 import { MULTI_HUB } from "../../constants";
 
 type HubPreview =
@@ -29,6 +32,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hubPreview, setHubPreview] = useState<HubPreview>({ state: "idle" });
+  const [challenge, setChallenge] = useState<{ hubUrl: string; pubkey: string } | null>(null);
 
   // The invite deep-link handler in App.tsx can set this after we have
   // already mounted, so it is a prop to follow, not just a seed.
@@ -58,7 +62,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
     setError(null);
   }
 
-  async function handleJoin() {
+  async function handleJoin(challengeToken?: string) {
     if (!hubUrl.trim()) return;
     setLoading(true);
     setError(null);
@@ -69,26 +73,41 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
       if (!(await verifyLanFingerprint(cleanUrl, parsed?.fingerprint))) {
         throw new Error(t("hub.add_modal.fingerprint_mismatch"));
       }
-      const hub = await addHub(cleanUrl, wsHandlers, inviteCode ? { invite_code: inviteCode } : undefined);
+      const hub = await addHub(cleanUrl, wsHandlers, { invite_code: inviteCode, challenge_token: challengeToken });
       onHubAdded(hub, parsed?.target);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (e instanceof ChallengeRequiredError) setChallenge({ hubUrl: e.hubUrl, pubkey: e.pubkey });
+      else setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }
 
   return (
+    <>
     <WelcomeScreen
       hubUrl={hubUrl}
       onHubUrlChange={handleHubUrlChange}
       hubPreview={hubPreview}
       loading={loading}
       error={error}
-      onJoin={handleJoin}
+      onJoin={() => handleJoin()}
       onBrowse={onBrowse}
       homeHubHint={initialHubUrl}
       hubUrlLocked={!MULTI_HUB}
     />
+    {/* After the screen, which would otherwise paint over it. */}
+    {challenge && (
+      <AdmissionChallenge
+        fetchPrompt={() => fetchAdmissionChallenge(challenge.hubUrl, challenge.pubkey)}
+        submit={(id, answer) => submitAdmissionChallenge(challenge.hubUrl, id, challenge.pubkey, answer)}
+        onPassed={(token) => {
+          setChallenge(null);
+          void handleJoin(token);
+        }}
+        onCancel={() => setChallenge(null)}
+      />
+    )}
+    </>
   );
 }
