@@ -236,14 +236,38 @@ pub(crate) fn remove_hub(hub_id: String, state: State<'_, AppState>) -> Result<(
     Ok(())
 }
 
+/// A saved hub that could not be reconnected at startup. It stays saved; the
+/// app says so instead of the hub vanishing from the sidebar -- and, when it
+/// was the only one, instead of the welcome screen coming back as if there
+/// were no hubs at all.
+#[derive(serde::Serialize)]
+pub(crate) struct UnreachableHub {
+    hub_name: String,
+    hub_url: String,
+    error: String,
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct AutoConnectResult {
+    hubs: Vec<HubInfo>,
+    unreachable: Vec<UnreachableHub>,
+}
+
 #[tauri::command]
 pub(crate) async fn auto_connect_saved(
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<Vec<HubInfo>, String> {
+) -> Result<AutoConnectResult, String> {
     let saved = load_saved_hubs();
+    let mut unreachable = Vec::new();
     for hub in &saved {
-        let _ = add_hub(hub.hub_url.clone(), None, state.clone(), app.clone()).await;
+        if let Err(error) = add_hub(hub.hub_url.clone(), None, state.clone(), app.clone()).await {
+            unreachable.push(UnreachableHub {
+                hub_name: hub.hub_name.clone(),
+                hub_url: hub.hub_url.clone(),
+                error,
+            });
+        }
     }
 
     if let Some(persisted) = load_active_hub_id() {
@@ -254,7 +278,10 @@ pub(crate) async fn auto_connect_saved(
         }
     }
 
-    Ok(list_hubs(state))
+    Ok(AutoConnectResult {
+        hubs: list_hubs(state),
+        unreachable,
+    })
 }
 
 #[tauri::command]

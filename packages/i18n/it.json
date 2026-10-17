@@ -2051,5 +2051,6 @@
   "alliances.people_visible.hint": "Vengono elencati solo i membri che hanno attivato la reperibilità su questo hub, con nome e avatar. Disattivato di default.",
   "settings.profile.findable_by_allies.label": "Permetti ai membri degli hub alleati di trovarmi su questo hub",
   "settings.profile.findable_by_allies.hint": "I membri degli hub alleati con questo vedranno il tuo nome e avatar e potranno scriverti. Potranno anche vedere dove vengono recapitati i tuoi DM. Disattivato di default.",
-  "settings.profile.findable_by_allies.failed": "Impossibile modificare questa impostazione."
+  "settings.profile.findable_by_allies.failed": "Impossibile modificare questa impostazione.",
+  "app.hub_unreachable_at_start": "Impossibile riconnettersi a {hub}. È ancora salvato: potrebbe essere offline, riavvia l'app per riprovare."
 }
