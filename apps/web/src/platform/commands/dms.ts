@@ -17,6 +17,7 @@ import {
   signBytes,
   publicKeyHex,
   dhKeySigningBytes,
+  federatedPlaintextDmSigningBytes,
   verifyDmEnvelopeSigner,
   type DmEnvelope,
   type DRSession,
@@ -300,9 +301,17 @@ export async function sendDm(
   const recipientPubkey = members.find((m) => m !== senderPubkey);
 
   const sendPlaintext = async () => {
+    // A recipient on another hub only takes a plaintext DM the sender signed;
+    // unsigned, it is refused there and sits in our hub's outbox. Only the
+    // key the conversation knows us by can sign it -- a paired device holds a
+    // subkey and cannot, so it sends unsigned as before.
+    const plaintext_signature =
+      publicKeyHex(signingSeedHex) === senderPubkey
+        ? signBytes(federatedPlaintextDmSigningBytes(conversation_id, conversation.conv_type, content), signingSeedHex)
+        : undefined;
     await dmFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
-      body: JSON.stringify({ content, attachments }),
+      body: JSON.stringify({ content, attachments, plaintext_signature }),
     });
   };
 

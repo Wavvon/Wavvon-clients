@@ -16,6 +16,7 @@ import {
   verifyPairingOffer,
   recoveryRequestSigningBytes,
   recoveryAttestationSigningBytes,
+  federatedPlaintextDmSigningBytes,
   signRecoveryRequest,
   signRecoveryAttestation,
   type PairingComplete,
@@ -208,6 +209,16 @@ describe("recovery-attestation wire vectors", () => {
     expect(signHex(sb, MASTER_SEED)).toBe(RECOVERY_ATTESTATION_SIG);
     expect(signRecoveryAttestation(MASTER_SEED, HUB_PUB, OLD_PUB, NEW_PUB, REQUEST_NONCE)).toBe(
       RECOVERY_ATTESTATION_SIG,
+    );
+  });
+
+  it("federatedPlaintextDmSigningBytes matches the server vector and signature", () => {
+    const sb = federatedPlaintextDmSigningBytes("conv-1", "dm", "héllo");
+    expect(bytesToHex(sb)).toBe(
+      "776176766f6e2f6665646572617465642d646d2f76310006000000636f6e762d3102000000646d0600000068c3a96c6c6f",
+    );
+    expect(signHex(sb, MASTER_SEED)).toBe(
+      "19cb16f7d84ee382ee5d2b01ac60e340b6011fe912a733f10b53785ce555e5844e4a49eab1f44fd5543c4a0d5b3a5efdc227bb02ced6c72705c9de15f5e49a0a",
     );
   });
 

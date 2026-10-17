@@ -396,6 +396,17 @@ export function recoveryAttestationSigningBytes(
   );
 }
 
+/** What the sender of a plaintext DM signs so a receiving hub accepts it
+ *  across hubs (`federated_plaintext_dm_signing_bytes`). Without it the
+ *  receiving hub refuses the message and it sits in the sender's outbox. */
+export function federatedPlaintextDmSigningBytes(
+  conversationId: string,
+  convType: string,
+  content: string,
+): Uint8Array {
+  return concat(tag("wavvon/federated-dm/v1 "), writeStr(conversationId), writeStr(convType), writeStr(content));
+}
+
 /** Sign the new-key proof for POST /recovery/rotate-key with the requester's master seed. */
 export function signRecoveryRequest(
   newMasterSeedHex: string,
