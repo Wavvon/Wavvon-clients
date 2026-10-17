@@ -235,7 +235,7 @@ export function planRestore(
   };
 }
 
-function mergeRecord<T>(existing: Record<string, T>, incoming: Record<string, T>) {
+function mergeRecord<T>(existing: { [key: string]: T }, incoming: { [key: string]: T }) {
   const merged = { ...existing };
   let added = 0;
   let skipped = 0;
