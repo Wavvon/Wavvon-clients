@@ -778,6 +778,18 @@ pub fn recovery_attestation_signing_bytes(
     buf
 }
 
+/// The scheme a hub or farm names in its /auth/challenge response when it
+/// accepts an answer signed over `auth_challenge_signing_bytes`.
+pub const AUTH_CHALLENGE_SCHEME: &str = "tagged-v1";
+
+/// What a client signs to answer an auth challenge. Mirrors
+/// `auth_challenge_signing_bytes` (Wavvon-server#111).
+pub fn auth_challenge_signing_bytes(challenge: &[u8]) -> Vec<u8> {
+    let mut buf = b"wavvon/auth-challenge/v1 ".to_vec();
+    buf.extend_from_slice(challenge);
+    buf
+}
+
 /// What the sender of a plaintext DM signs so a receiving hub accepts it
 /// across hubs. Mirrors `federated_plaintext_dm_signing_bytes`.
 pub fn federated_plaintext_dm_signing_bytes(
@@ -1248,6 +1260,20 @@ mod wire_vector_tests {
         assert_eq!(
             peer_secret.diffie_hellman(&canonical_pub).as_bytes(),
             paired_scalar.diffie_hellman(&peer_pub).as_bytes(),
+        );
+    }
+
+    #[test]
+    fn auth_challenge_matches_the_server_vector() {
+        let challenge: Vec<u8> = (0u8..32).collect();
+        let sb = auth_challenge_signing_bytes(&challenge);
+        assert_eq!(
+            hex::encode(&sb),
+            "776176766f6e2f617574682d6368616c6c656e67652f763100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        );
+        assert_eq!(
+            hex::encode(master_key().sign(&sb).to_bytes()),
+            "8a9cb870c40c8f1a4b88e7c8eb4a67bfae8115c98516e62d7bc383f421259cd452915257d6f7030af1e50249b3a08e820f482d1831f3a12a53524bffcd925f04"
         );
     }
 

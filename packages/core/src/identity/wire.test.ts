@@ -17,6 +17,7 @@ import {
   recoveryRequestSigningBytes,
   recoveryAttestationSigningBytes,
   federatedPlaintextDmSigningBytes,
+  authChallengeSigningBytes,
   signRecoveryRequest,
   signRecoveryAttestation,
   type PairingComplete,
@@ -209,6 +210,16 @@ describe("recovery-attestation wire vectors", () => {
     expect(signHex(sb, MASTER_SEED)).toBe(RECOVERY_ATTESTATION_SIG);
     expect(signRecoveryAttestation(MASTER_SEED, HUB_PUB, OLD_PUB, NEW_PUB, REQUEST_NONCE)).toBe(
       RECOVERY_ATTESTATION_SIG,
+    );
+  });
+
+  it("authChallengeSigningBytes matches the server vector and signature", () => {
+    const sb = authChallengeSigningBytes(Uint8Array.from({ length: 32 }, (_, i) => i));
+    expect(bytesToHex(sb)).toBe(
+      "776176766f6e2f617574682d6368616c6c656e67652f763100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    );
+    expect(signHex(sb, MASTER_SEED)).toBe(
+      "8a9cb870c40c8f1a4b88e7c8eb4a67bfae8115c98516e62d7bc383f421259cd452915257d6f7030af1e50249b3a08e820f482d1831f3a12a53524bffcd925f04",
     );
   });
 
