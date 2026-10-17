@@ -1,5 +1,7 @@
 import { hubFetchWithToken } from "../http";
-import { getSession } from "../session";
+import { getSession, hubSupports } from "../session";
+import { getHomeHubDesignation } from "./identity";
+import { loadIdentity, masterPubkeyOf } from "../../identity/store";
 import type { FavoriteHub } from "@shared/types";
 
 // My member profile on a specific hub — not necessarily the active one. The
@@ -124,5 +126,35 @@ export async function updateMyProfileOnHub(hubId: string, profile: MyProfileUpda
       show_hubs: profile.show_hubs,
       birthday: profile.birthday ?? "",
     }),
+  });
+}
+
+// null = the hub does not offer alliance member discovery; the toggle hides.
+export async function getFindableByAllies(hubId: string): Promise<boolean | null> {
+  if (!hubSupports(hubId, "alliance.people")) return null;
+  const s = sessionOf(hubId);
+  const res = await hubFetchWithToken(s.hub_url, s.token, "/me");
+  return ((await res.json()) as { findable_by_allies?: boolean }).findable_by_allies ?? false;
+}
+
+// Turning it on also hands that hub the signed home-hub list it will be
+// looked up by: the hub lists only members whose designation it holds, and an
+// ally's DM resolves delivery from it. The list is re-posted as signed, so a
+// paired device (which cannot sign one) can do it too.
+export async function setFindableByAllies(hubId: string, value: boolean): Promise<void> {
+  const s = sessionOf(hubId);
+  if (value) {
+    const identity = await loadIdentity();
+    const list = identity ? await getHomeHubDesignation(masterPubkeyOf(identity)) : null;
+    if (list) {
+      await hubFetchWithToken(s.hub_url, s.token, `/identity/${list.master_pubkey}/designation`, {
+        method: "POST",
+        body: JSON.stringify(list),
+      });
+    }
+  }
+  await hubFetchWithToken(s.hub_url, s.token, "/me", {
+    method: "PATCH",
+    body: JSON.stringify({ findable_by_allies: value }),
   });
 }

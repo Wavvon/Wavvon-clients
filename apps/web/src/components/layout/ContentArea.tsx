@@ -42,10 +42,14 @@ import {
   getEvents, getEvent, createEvent, rsvpEvent, deleteEvent,
   getEventRsvps, getEventAssignments, createEventSquadRooms, previewHubInfo,
   uploadFile,
+  getAllianceMembers, listAlliancePeople, activeHubSupports,
 } from "@platform";
 import { activeSession } from "../../platform/session";
+
 import { getScoped, setScoped } from "@shared/utils/accountScope";
 import { profileCardActions } from "../../platform/adminActions";
+
+const alliancePeopleActions = { getAllianceMembers, listAlliancePeople };
 
 type ChannelMessagesState = ReturnType<typeof useChannelMessages>;
 type DmsState = ReturnType<typeof useDms>;
@@ -329,6 +333,7 @@ export function ContentArea(props: Props) {
         screenShareViewerRef={screenShare.screenShareViewerRef}
         onOpenHubStreams={screenShare.handleOpenHubStreams}
         onStartConversation={dms.handleStartConversation}
+        alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}
         profileCardActions={profileCardActions}
         forumActions={forumActions}
         messageRowActions={messageRowActions}

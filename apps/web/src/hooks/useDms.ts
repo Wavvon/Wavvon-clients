@@ -59,9 +59,9 @@ export function useDms({
   // The hub dedupes 1:1 DMs server-side (create_conversation returns the
   // existing conversation instead of a duplicate), so this is safe to call
   // even if a conversation with this member already exists locally.
-  async function handleStartConversation(pubkey: string) {
+  async function handleStartConversation(pubkey: string, via?: { hubUrl: string; masterPubkey: string }) {
     try {
-      const conv = await createConversation([pubkey]);
+      const conv = await createConversation([pubkey], via);
       setConversations((prev) => prev.some((c) => c.id === conv.id)
         ? prev.map((c) => c.id === conv.id ? conv : c)
         : [conv, ...prev]);

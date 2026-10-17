@@ -420,6 +420,13 @@ export interface AllianceMember {
   joined_at: number;
 }
 
+export interface AlliancePerson {
+  public_key: string;
+  master_pubkey: string;
+  display_name: string | null;
+  avatar: string | null;
+}
+
 export interface SharedChannel {
   channel_id: string;
   channel_name: string;
@@ -616,6 +623,11 @@ export interface ProfileEditorActions {
   /** Identity-wide badges shown live in the Bio tab's default context —
    *  the same read MyCertificationsSection uses for its full list. */
   listMyCertifications: (pubkey: string) => Promise<MyCertification[]>;
+  /** Per-hub "findable by allies" switch. Both omitted where the platform has
+   *  no wrapper; `loadFindableByAllies` resolves null for a hub without the
+   *  `alliance.people` capability, which hides the control. */
+  loadFindableByAllies?: (hubId: string) => Promise<boolean | null>;
+  saveFindableByAllies?: (hubId: string, value: boolean) => Promise<void>;
 }
 
 export interface UserProfile {

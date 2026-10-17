@@ -1,10 +1,11 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Message, AllianceSharedChannel } from "../../types";
+import type { Message, AllianceSharedChannel, AlliancePerson } from "../../types";
 import { formatPubkey, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 import { MessageContent } from "../MessageContent";
 import { MessageAttachments } from "../Attachments";
+import { AlliancePeoplePanel, type AlliancePeopleActions } from "./AlliancePeoplePanel";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -27,6 +28,12 @@ interface Props {
    *  else's hub lives, so the inbound-loss row is the only thing in the app
    *  that says whether that room's audio is arriving at all. */
   connectionStatus?: React.ReactNode;
+  /** Absent when the hub lacks `alliance.people`: no People control then. */
+  people?: {
+    actions: AlliancePeopleActions;
+    ownHubId: string | null;
+    onMessage: (person: AlliancePerson, hubUrl: string) => void;
+  };
 }
 
 export function AllianceView({
@@ -39,8 +46,11 @@ export function AllianceView({
   onSendAllianceMessage,
   onOpenImage,
   connectionStatus,
+  people,
 }: Props) {
   const { t } = useTranslation();
+  const [showPeople, setShowPeople] = useState(false);
+  useEffect(() => { setShowPeople(false); }, [selectedAllianceChannel.alliance_id]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleContainerClick(e: React.MouseEvent<HTMLElement>) {
@@ -59,8 +69,25 @@ export function AllianceView({
             {selectedAllianceChannel.channel.hub_name}
           </p>
         </div>
+        {people && (
+          <button
+            className="btn-small btn-secondary"
+            aria-pressed={showPeople}
+            onClick={() => setShowPeople((v) => !v)}
+          >
+            {t("alliance.people.tab")}
+          </button>
+        )}
         {connectionStatus}
       </div>
+      {people && showPeople ? (
+        <AlliancePeoplePanel
+          allianceId={selectedAllianceChannel.alliance_id}
+          ownHubId={people.ownHubId}
+          actions={people.actions}
+          onMessage={people.onMessage}
+        />
+      ) : (<>
       <div className="messages">
         {allianceMessages.map((m) => {
           const senderLabel = m.sender_name || formatPubkey(m.sender);
@@ -101,6 +128,7 @@ export function AllianceView({
         />
         <button onClick={onSendAllianceMessage}>{t("composer.send")}</button>
       </div>
+      </>)}
     </>
   );
 }
