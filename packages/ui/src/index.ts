@@ -95,6 +95,9 @@ export { VoiceMovePromptModal } from "./components/VoiceMovePromptModal";
 export { StagingPanel } from "./components/StagingPanel";
 export { StagingSlotGroup } from "./components/StagingSlotGroup";
 export { AllianceView } from "./components/content/AllianceView";
+export { AlliancePeoplePanel } from "./components/content/AlliancePeoplePanel";
+export type { AlliancePeopleActions } from "./components/content/AlliancePeoplePanel";
+export { FindableByAlliesToggle } from "./components/settings/FindableByAlliesToggle";
 export { EmojiPicker } from "./components/content/EmojiPicker";
 export { ReconnectBanner } from "./components/content/ReconnectBanner";
 export { EMOJI_CATALOG, QUICK_REACTIONS } from "./emojiCatalog";
@@ -114,6 +117,7 @@ export { PollComposer } from "./components/polls/PollComposer";
 export type {
   Alliance,
   AllianceMember,
+  AlliancePerson,
   AllianceDetail,
   AllianceInvite,
   PendingAllianceInvite,

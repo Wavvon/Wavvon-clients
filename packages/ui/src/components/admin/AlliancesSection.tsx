@@ -21,6 +21,11 @@ export interface AlliancesSectionActions {
    *  has no wrapper for it yet, and then no control is rendered — a toggle
    *  that quietly changes nothing is worse than none. */
   setAllianceVoiceRemoteJoin?: (allianceId: string, channelId: string, policy: "allowed" | "none") => Promise<void>;
+  /** The alliance-wide people switch. `get` resolves null when the hub has no
+   *  `alliance.people` capability, which hides the control; the hub refuses the
+   *  PUT with 403 for anyone who cannot manage the alliance. */
+  getAlliancePeopleVisible?: (allianceId: string) => Promise<boolean | null>;
+  setAlliancePeopleVisible?: (allianceId: string, visible: boolean) => Promise<void>;
   /** Admin-initiated direct push to another hub's federation endpoint.
    *  Omitted where the platform has no wrapper for it yet. */
   sendAlliancePushInvite?: (allianceId: string, targetHubUrl: string, ownHubUrl: string, message: string | null) => Promise<void>;
@@ -92,6 +97,13 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
   }
 
   useEffect(() => { if (open && shared === null) void loadShared(); }, [open]);
+
+  const [peopleVisible, setPeopleVisible] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!open || !actions.getAlliancePeopleVisible || !actions.setAlliancePeopleVisible) return;
+    actions.getAlliancePeopleVisible(alliance.id).then(setPeopleVisible).catch(() => setPeopleVisible(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, alliance.id]);
 
   async function handleSendPushInvite() {
     if (!actions.sendAlliancePushInvite || !pushTargetUrl.trim()) return;
@@ -199,6 +211,24 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
           </div>
           {selectedToShare?.is_category && (
             <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.share.category_hint")}</p>
+          )}
+
+          {peopleVisible !== null && actions.setAlliancePeopleVisible && (
+            <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
+              <label className="settings-row" style={{ gap: "var(--space-2)", alignItems: "center", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={peopleVisible}
+                  disabled={busy}
+                  onChange={(e) => runGuard(async () => {
+                    await actions.setAlliancePeopleVisible!(alliance.id, e.target.checked);
+                    setPeopleVisible(e.target.checked);
+                  })}
+                />
+                <span style={{ fontSize: "var(--text-sm)" }}>{t("alliances.people_visible.label")}</span>
+              </label>
+              <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.people_visible.hint")}</p>
+            </div>
           )}
 
           {actions.sendAlliancePushInvite && (

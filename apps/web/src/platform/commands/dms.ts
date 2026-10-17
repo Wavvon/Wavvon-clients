@@ -101,12 +101,24 @@ export async function listConversations(): Promise<Conversation[]> {
   });
 }
 
-export async function createConversation(member_pubkeys: string[]): Promise<Conversation> {
+/** `via` is for a person found through an alliance: they are a stranger to our
+ *  hub, so it needs their hub's URL to deliver to and their master key to look
+ *  their home hubs up by. */
+export async function createConversation(
+  member_pubkeys: string[],
+  via?: { hubUrl: string; masterPubkey: string },
+): Promise<Conversation> {
   // Server contract (hub routes/dms/conversations.rs CreateConversationRequest)
   // names the field `members`.
   const res = await dmFetch("/conversations", {
     method: "POST",
-    body: JSON.stringify({ members: member_pubkeys }),
+    body: JSON.stringify({
+      members: member_pubkeys,
+      ...(via && {
+        member_hubs: { [member_pubkeys[0]]: via.hubUrl },
+        member_masters: { [member_pubkeys[0]]: via.masterPubkey },
+      }),
+    }),
   });
   return res.json() as Promise<Conversation>;
 }

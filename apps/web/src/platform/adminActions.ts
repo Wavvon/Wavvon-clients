@@ -29,6 +29,7 @@ import {
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
+  getAlliancePeopleVisible, setAlliancePeopleVisible,
 } from "@platform";
 import { fetchSoundboardAudioBytes } from "@platform";
 import {
@@ -136,6 +137,9 @@ export const allianceActions = {
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite,
+  getAlliancePeopleVisible: (allianceId: string) =>
+    activeHubSupports("alliance.people") ? getAlliancePeopleVisible(allianceId) : Promise.resolve(null),
+  setAlliancePeopleVisible,
   joinAllianceByCode: (inviterHubUrl: string, allianceId: string, inviteToken: string, ownHubUrl: string) =>
     joinAllianceByCode(inviterHubUrl, allianceId, inviteToken, ownHubUrl).then(() => {}),
 };

@@ -1,7 +1,7 @@
 import { hubFetch } from "../http";
-import type { Alliance, AllianceMember, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel } from "@wavvon/ui";
+import type { Alliance, AllianceMember, AlliancePerson, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel } from "@wavvon/ui";
 
-export type { Alliance, AllianceMember, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel };
+export type { Alliance, AllianceMember, AlliancePerson, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel };
 
 export async function listAlliances(): Promise<Alliance[]> {
   const r = await hubFetch("/alliances");
@@ -112,4 +112,33 @@ export async function setAllianceVoiceRemoteJoin(
     method: "POST",
     body: JSON.stringify({ channel_id: channelId, include_descendants: false, voice_remote_join: policy }),
   });
+}
+
+export async function getAllianceMembers(allianceId: string): Promise<AllianceMember[]> {
+  const r = await hubFetch(`/alliances/${allianceId}`);
+  return ((await r.json()) as AllianceDetail).members;
+}
+
+export async function getAlliancePeopleVisible(allianceId: string): Promise<boolean> {
+  const r = await hubFetch(`/alliances/${allianceId}`);
+  return ((await r.json()) as AllianceDetail).people_visible ?? false;
+}
+
+export async function setAlliancePeopleVisible(allianceId: string, visible: boolean): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/people-visibility`, {
+    method: "PUT",
+    body: JSON.stringify({ visible }),
+  });
+}
+
+export async function listAlliancePeople(
+  allianceId: string,
+  hubPublicKey: string,
+  opts: { q: string; cursor: string | null; limit: number },
+): Promise<AlliancePerson[]> {
+  const params = new URLSearchParams({ hub: hubPublicKey, limit: String(opts.limit) });
+  if (opts.q) params.set("q", opts.q);
+  if (opts.cursor) params.set("cursor", opts.cursor);
+  const r = await hubFetch(`/alliances/${allianceId}/people?${params}`);
+  return r.json() as Promise<AlliancePerson[]>;
 }

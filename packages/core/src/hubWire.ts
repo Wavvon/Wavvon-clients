@@ -139,6 +139,7 @@ export interface AllianceDetail {
   created_by: string;
   created_at: number;
   members: AllianceMemberInfo[];
+  people_visible?: boolean;
 }
 
 export interface AllianceInvite {

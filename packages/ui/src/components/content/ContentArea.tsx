@@ -20,6 +20,7 @@ import { UserListGrouped } from "../users/UserListGrouped";
 import { UserProfileCard, type UserProfileCardActions } from "../users/UserProfileCard";
 import { ScreenShareViewer, type ScreenShareViewerRef } from "../ScreenShareViewer";
 import { AllianceView } from "./AllianceView";
+import type { AlliancePeopleActions } from "./AlliancePeoplePanel";
 import { ReconnectBanner } from "./ReconnectBanner";
 import { ForumView, type ForumActions } from "../forum/ForumView";
 import { PollComposer } from "../polls/PollComposer";
@@ -135,7 +136,8 @@ interface Props {
   onOpenHubStreams: () => void;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
-  onStartConversation?: (pubkey: string) => void;
+  alliancePeopleActions?: AlliancePeopleActions;
+  onStartConversation?: (pubkey: string, via?: { hubUrl: string; masterPubkey: string }) => void;
   onShowPinned: () => void;
   profileCardActions: UserProfileCardActions;
 
@@ -195,6 +197,7 @@ export function ContentArea({
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
   onStartConversation,
+  alliancePeopleActions,
   onShowPinned,
   profileCardActions,
   forumActions, messageRowActions,
@@ -674,6 +677,11 @@ export function ContentArea({
             onInputTextChange={onInputTextChange}
             onSendAllianceMessage={onSendAllianceMessage}
             onOpenImage={onOpenImage}
+            people={alliancePeopleActions && onStartConversation ? {
+              actions: alliancePeopleActions,
+              ownHubId: activeHubId,
+              onMessage: (p, hubUrl) => onStartConversation(p.public_key, { hubUrl, masterPubkey: p.master_pubkey }),
+            } : undefined}
           />
         ) : (
           <div className="no-channel"><p>{t("channel.no_selection")}</p></div>
