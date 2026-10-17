@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
+import { SettingRow } from "./SettingRow";
 import {
   BackgroundProcessor,
   loadBgMode,
   loadBgSource,
   saveBg,
   type BackgroundMode,
-} from "@wavvon/ui";
+} from "../utils/backgroundProcessor";
 
 // Camera device selection, background effects, and a live preview
 // (Settings → Camera). The chosen device is read by App when enabling the

@@ -81,7 +81,6 @@ import { HubSidebar } from "@wavvon/ui";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
 import { fetchWithTimeout } from "./utils/fetchWithTimeout";
-import { HubBrowser } from "./components/HubBrowser";
 import { WelcomeScreen } from "@wavvon/ui";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { setSwitchGuard } from "./accounts/store";
@@ -703,7 +702,6 @@ function App() {
   } = settingsProfile;
 
   const [showDiscover, setShowDiscover] = useState(false);
-  const [showHubBrowser, setShowHubBrowser] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
     try {
       return localStorage.getItem("wavvon.seenWelcome") !== "1";
@@ -1579,7 +1577,6 @@ function App() {
             hideBirthdays={hideBirthdays}
             onToggleHideBirthdays={() => setHideBirthdays((v) => !v)}
             voice={voice}
-            video={video}
             channelMessages={channelMessages}
             settingsProfile={settingsProfile}
           />
@@ -1611,16 +1608,6 @@ function App() {
                 fetchUrl={(url) => fetchWithTimeout(url)}
                 directoryUrl={DISCOVERY_URL}
               />
-            ) : showHubBrowser ? (
-              <HubBrowser
-                onClose={() => setShowHubBrowser(false)}
-                onJoinHub={(url, code) => {
-                  setHubUrl(url);
-                  setInviteCode(code);
-                  setShowHubBrowser(false);
-                  setShowAddHub(true);
-                }}
-              />
             ) : !hasActiveHub ? (
               showWelcome ? (
                 <WelcomeScreen
@@ -1631,7 +1618,6 @@ function App() {
                   error={error}
                   onJoin={() => handleAddHub()}
                   onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
-                  onCheckHubUrl={() => setShowHubBrowser(true)}
                   onDismiss={dismissWelcome}
                 />
               ) : (
@@ -1885,7 +1871,7 @@ function App() {
           myRoles={myRoles}
           error={error}
           setToast={setToast}
-          setShowHubBrowser={setShowHubBrowser}
+          setShowDiscover={setShowDiscover}
           pendingSurveyHubId={pendingSurveyHubId}
           setPendingSurveyHubId={setPendingSurveyHubId}
           setMyApprovalStatus={setMyApprovalStatus}

@@ -88,6 +88,12 @@ pub(crate) struct InfoResponse {
     pub timezone: Option<String>,
     #[serde(default = "default_birthdays_enabled")]
     pub birthdays_enabled: bool,
+    #[serde(default)]
+    pub invite_only: Option<bool>,
+    #[serde(default)]
+    pub min_security_level: Option<u32>,
+    #[serde(default)]
+    pub challenge_mode: Option<String>,
 }
 
 pub(crate) fn default_birthdays_enabled() -> bool {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { FocusTrap } from "@wavvon/ui";
 import type { Survey, SurveyAnswer, SurveySubmitResult } from "../types";
 
 export interface SurveyProps {
@@ -87,7 +88,9 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
       {submitState === "pending" && pendingResult && (
         <div className="survey-pending-notice">
           <p>{t("survey.result.pending")}</p>
-          <button onClick={() => onComplete(pendingResult)}>{t("modal.close")}</button>
+          <div className="survey-actions">
+            <button onClick={() => onComplete(pendingResult)}>{t("modal.close")}</button>
+          </div>
         </div>
       )}
       {submitState !== "approved" && submitState !== "pending" && (
@@ -161,10 +164,12 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
 
   return (
     <div className="modal-overlay">
-      <div className="modal modal-wide">
-        <h3>{t("survey.modal.title")}</h3>
-        {formContent}
-      </div>
+      <FocusTrap>
+        <div className="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="survey-title">
+          <h3 id="survey-title">{t("survey.modal.title")}</h3>
+          {formContent}
+        </div>
+      </FocusTrap>
     </div>
   );
 }

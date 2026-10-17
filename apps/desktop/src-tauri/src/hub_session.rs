@@ -10,6 +10,7 @@ use tauri::{AppHandle, State};
 pub(crate) async fn add_hub(
     hub_url: String,
     invite_code: Option<String>,
+    challenge_token: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<HubInfo, String> {
@@ -32,7 +33,12 @@ pub(crate) async fn add_hub(
     let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
 
     let auth = creds
-        .authenticate(&auth_url, &client, invite_code.as_deref())
+        .authenticate(
+            &auth_url,
+            &client,
+            invite_code.as_deref(),
+            challenge_token.as_deref(),
+        )
         .await?;
     let token = auth.token;
 
@@ -261,7 +267,9 @@ pub(crate) async fn auto_connect_saved(
     let saved = load_saved_hubs();
     let mut unreachable = Vec::new();
     for hub in &saved {
-        if let Err(error) = add_hub(hub.hub_url.clone(), None, state.clone(), app.clone()).await {
+        if let Err(error) =
+            add_hub(hub.hub_url.clone(), None, None, state.clone(), app.clone()).await
+        {
             unreachable.push(UnreachableHub {
                 hub_name: hub.hub_name.clone(),
                 hub_url: hub.hub_url.clone(),

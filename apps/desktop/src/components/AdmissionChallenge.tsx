@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { sanitizeSvgMarkup } from "@wavvon/ui";
+import { FocusTrap, sanitizeSvgMarkup } from "@wavvon/ui";
 import type { ChallengePrompt, ChallengeResult } from "../types";
 
 export interface AdmissionChallengeProps {
@@ -112,7 +112,14 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal challenge-modal" onClick={(e) => e.stopPropagation()}>
+      <FocusTrap>
+      <div
+        className="modal challenge-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("challenge.quick_check")}
+        onClick={(e) => e.stopPropagation()}
+      >
         {phase === "loading" && (
           <p className="muted">{t("modal.loading")}</p>
         )}
@@ -157,10 +164,10 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handlePuzzleSubmit(); }}
               placeholder={t("challenge.answer_placeholder")}
+              aria-label={t("challenge.answer_placeholder")}
               autoFocus
             />
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={onCancel}>{t("modal.cancel")}</button>
               <button
                 className="btn-secondary"
                 onClick={fetchPrompt}
@@ -168,6 +175,7 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
               >
                 {t("challenge.new_puzzle")}
               </button>
+              <button className="btn-secondary" onClick={onCancel}>{t("modal.cancel")}</button>
               <button onClick={handlePuzzleSubmit} disabled={!answer.trim()}>
                 {t("modal.send")}
               </button>
@@ -185,6 +193,7 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
           </div>
         )}
       </div>
+      </FocusTrap>
     </div>
   );
 }

@@ -30,11 +30,14 @@ export function PttKeyBinder({
         return;
       }
       e.preventDefault();
-      onChange(e.code);
+      // Capture phase + stop: Escape here only cancels the binding, it must
+      // not also reach the app's Escape-closes-settings handler.
+      e.stopPropagation();
+      if (e.code !== "Escape") onChange(e.code);
       setListening(false);
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [listening, onChange]);
 
   return (

@@ -76,7 +76,7 @@ export interface AppModalsProps {
   setToast: (v: string | null) => void;
 
   // Add a hub / admission challenge / approval survey
-  setShowHubBrowser: (v: boolean) => void;
+  setShowDiscover: (v: boolean) => void;
   pendingSurveyHubId: string | null;
   setPendingSurveyHubId: (v: string | null) => void;
   setMyApprovalStatus: (v: "pending") => void;
@@ -152,7 +152,7 @@ export function AppModals(p: AppModalsProps) {
     myRoles,
     error,
     setToast,
-    setShowHubBrowser,
+    setShowDiscover,
     pendingSurveyHubId,
     setPendingSurveyHubId,
     setMyApprovalStatus,
@@ -201,6 +201,20 @@ export function AppModals(p: AppModalsProps) {
 
   return (
     <>
+      {/* Rendered first: the challenge and survey are later siblings with the same z-index, so they stack above it. */}
+      {addHub.showAddHub && (
+        <AddHubModal
+          hubUrl={addHub.hubUrl}
+          onHubUrlChange={addHub.handleHubUrlChange}
+          hubPreview={addHub.hubPreview}
+          loading={addHub.loading}
+          error={error}
+          onAdd={() => addHub.handleAddHub()}
+          onClose={() => { addHub.setShowAddHub(false); addHub.setHubUrl(""); addHub.setInviteCode(""); }}
+          onBrowse={DISCOVERY_URL ? () => { addHub.setShowAddHub(false); setShowDiscover(true); } : undefined}
+        />
+      )}
+
       {addHub.admissionChallenge && (
         <AdmissionChallenge
           hubUrl={addHub.admissionChallenge.hubUrl}
@@ -231,19 +245,6 @@ export function AppModals(p: AppModalsProps) {
           />
         );
       })()}
-
-      {addHub.showAddHub && (
-        <AddHubModal
-          hubUrl={addHub.hubUrl}
-          onHubUrlChange={addHub.handleHubUrlChange}
-          hubPreview={addHub.hubPreview}
-          loading={addHub.loading}
-          error={error}
-          onAdd={() => addHub.handleAddHub()}
-          onClose={() => { addHub.setShowAddHub(false); addHub.setHubUrl(""); addHub.setInviteCode(""); }}
-          onBrowse={DISCOVERY_URL ? () => { addHub.setShowAddHub(false); setShowHubBrowser(true); } : undefined}
-        />
-      )}
 
       {showQuickInvite && activeHubId && (
         <QuickInviteModal

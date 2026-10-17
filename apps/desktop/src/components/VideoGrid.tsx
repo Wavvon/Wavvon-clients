@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PinIcon } from "@wavvon/ui";
 
 interface VideoTile {
   pubkey: string;
@@ -46,15 +47,18 @@ function Tile({
       <button
         className="video-tile-pin"
         title={tile.pinned ? t("voice.video.unpin") : t("voice.video.pin")}
+        aria-label={tile.pinned ? t("voice.video.unpin") : t("voice.video.pin")}
+        aria-pressed={tile.pinned}
         onClick={() => (tile.pinned ? onUnpin() : onPin(tile.pubkey))}
       >
-        {tile.pinned ? "📌" : "📍"}
+        <PinIcon size={14} />
       </button>
     </div>
   );
 }
 
 export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props) {
+  const { t } = useTranslation();
   const [pipLeft, setPipLeft] = useState<number | null>(null);
   const [pipTop, setPipTop] = useState<number | null>(null);
   const [pipWidth, setPipWidth] = useState(120);
@@ -116,13 +120,13 @@ export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props
             </div>
           )}
           <div className="video-grid-thumbnails">
-            {tiles.slice(1).map((t) => (
-              <Tile key={t.pubkey} tile={t} onPin={onPin} onUnpin={onUnpin} />
+            {tiles.slice(1).map((tile) => (
+              <Tile key={tile.pubkey} tile={tile} onPin={onPin} onUnpin={onUnpin} />
             ))}
           </div>
         </>
       ) : (
-        tiles.map((t) => <Tile key={t.pubkey} tile={t} onPin={onPin} onUnpin={onUnpin} />)
+        tiles.map((tile) => <Tile key={tile.pubkey} tile={tile} onPin={onPin} onUnpin={onUnpin} />)
       )}
       {selfStream && (
         <div
@@ -137,7 +141,7 @@ export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props
           onMouseDown={startDrag}
         >
           <VideoElement stream={selfStream} muted />
-          <div className="video-tile-name">{selfName} (you)</div>
+          <div className="video-tile-name">{t("voice.video.self_label", { name: selfName })}</div>
           <div className="video-self-resize-handle" onMouseDown={startResize} />
         </div>
       )}

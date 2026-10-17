@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { MIC_METER_MAX } from "../constants";
 
 export function MicLevelMeter({
@@ -10,6 +11,7 @@ export function MicLevelMeter({
   threshold: number;
   onChange: (v: number) => void;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -24,6 +26,14 @@ export function MicLevelMeter({
   function handleDown(e: React.MouseEvent) {
     dragging.current = true;
     onChange(valueAt(e.clientX));
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    const step = MIC_METER_MAX / 100;
+    const delta = e.key === "ArrowRight" || e.key === "ArrowUp" ? step : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -step : 0;
+    if (!delta) return;
+    e.preventDefault();
+    onChange(Math.max(0.001, Math.min(MIC_METER_MAX, threshold + delta)));
   }
 
   useEffect(() => {
@@ -47,7 +57,18 @@ export function MicLevelMeter({
   const triggered = level >= threshold;
 
   return (
-    <div className="mic-meter" ref={ref} onMouseDown={handleDown}>
+    <div
+      className="mic-meter"
+      ref={ref}
+      onMouseDown={handleDown}
+      onKeyDown={handleKey}
+      role="slider"
+      tabIndex={0}
+      aria-label={t("settings.voice.vad.sensitivity")}
+      aria-valuemin={0}
+      aria-valuemax={MIC_METER_MAX}
+      aria-valuenow={threshold}
+    >
       <div
         className={`mic-meter-fill ${triggered ? "triggered" : ""}`}
         style={{ width: `${fillPct}%` }}

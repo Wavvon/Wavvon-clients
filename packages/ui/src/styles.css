@@ -1190,7 +1190,16 @@ button, a, input, textarea, select, .channel-item, .hub-icon, .user-list-item, .
   justify-content: flex-end;
 }
 
+/* The banner is fixed so it can sit above everything, which also meant it
+   covered the hub header; the app root yields the same height instead. */
+body:has(.update-banner) #root {
+  box-sizing: border-box;
+  padding-top: 49px;
+}
+
 .update-banner {
+  box-sizing: border-box;
+  height: 49px;
   position: fixed;
   top: 0;
   left: 0;
@@ -6204,6 +6213,13 @@ select:focus-visible {
   cursor: pointer;
 }
 
+/* Global input rules stretch a bare radio to full width. */
+.survey-choice-label input {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+}
+
 .survey-text-wrap {
   display: flex;
   flex-direction: column;
@@ -6751,7 +6767,12 @@ a.embed-title:hover {
 }/* ============================================================
    VIDEO GRID
    ============================================================ */
-.video-grid { display: grid; gap: 4px; padding: 4px; background: var(--bg); }
+/* The grid sits above the message list in the content column, so it is
+   capped rather than letting 4:3 tiles push the chat off screen. */
+.video-grid { display: grid; gap: 4px; padding: 4px; background: var(--bg); max-height: 50vh; overflow-y: auto; }
+.video-grid-1 .video-tile { aspect-ratio: auto; height: 45vh; }
+.video-grid-4 .video-tile { aspect-ratio: auto; height: calc((50vh - 12px) / 2); }
+.video-grid-main .video-tile { aspect-ratio: auto; height: 40vh; }
 .video-grid-1 { grid-template-columns: 1fr; }
 .video-grid-4 { grid-template-columns: repeat(2, 1fr); }
 .video-grid-speaker { display: flex; flex-direction: column; }
@@ -6760,10 +6781,13 @@ a.embed-title:hover {
 .video-grid-thumbnails .video-tile { width: 140px; flex-shrink: 0; }
 .video-tile { position: relative; background: #000; border-radius: 6px; overflow: hidden; border: 2px solid transparent; aspect-ratio: 4/3; }
 .video-tile.speaking { border-color: var(--accent); }
-.video-tile.pinned { border-color: var(--warning); }
+/* Speaking already owns the accent; a pinned tile is told apart by its
+   persistent pin button and a neutral border, not a second amber. */
+.video-tile.pinned { border-color: var(--text-muted); }
+.video-tile.pinned .video-tile-pin { opacity: 1; }
 .video-tile-video { width: 100%; height: 100%; object-fit: cover; }
 .video-tile-name { position: absolute; bottom: 4px; left: 6px; font-size: 11px; color: #fff; background: rgba(0,0,0,0.6); border-radius: 3px; padding: 1px 4px; }
-.video-tile-pin { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border: none; border-radius: 3px; cursor: pointer; font-size: 12px; opacity: 0; transition: opacity 0.15s; padding: 2px 4px; }
+.video-tile-pin { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border: none; border-radius: 3px; cursor: pointer; color: #fff; display: flex; opacity: 0; transition: opacity 0.15s; padding: 2px 4px; }
 .video-tile:hover .video-tile-pin { opacity: 1; }
 .video-self-view { position: fixed; bottom: 80px; right: 12px; width: 120px; border-radius: 6px; overflow: hidden; border: 2px solid var(--border); cursor: grab; z-index: 100; user-select: none; }
 .video-self-view .video-tile-video { width: 100%; aspect-ratio: 4/3; object-fit: cover; transform: scaleX(-1); }
