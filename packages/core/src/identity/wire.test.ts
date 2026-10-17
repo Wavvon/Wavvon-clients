@@ -17,6 +17,7 @@ import {
   recoveryRequestSigningBytes,
   recoveryAttestationSigningBytes,
   federatedPlaintextDmSigningBytes,
+  dmMemberChangeSigningBytes,
   authChallengeSigningBytes,
   signRecoveryRequest,
   signRecoveryAttestation,
@@ -230,6 +231,16 @@ describe("recovery-attestation wire vectors", () => {
     );
     expect(signHex(sb, MASTER_SEED)).toBe(
       "19cb16f7d84ee382ee5d2b01ac60e340b6011fe912a733f10b53785ce555e5844e4a49eab1f44fd5543c4a0d5b3a5efdc227bb02ced6c72705c9de15f5e49a0a",
+    );
+  });
+
+  it("dmMemberChangeSigningBytes matches the server vector and signature", () => {
+    const sb = dmMemberChangeSigningBytes("conv-1", "actor", ["new-a", "new-b"], [], 1_700_000_000);
+    expect(bytesToHex(sb)).toBe(
+      "776176766f6e2f646d2d6d656d6265722d6368616e67652f76310006000000636f6e762d31050000006163746f7202000000050000006e65772d61050000006e65772d620000000000f1536500000000",
+    );
+    expect(signHex(sb, MASTER_SEED)).toBe(
+      "1a141f3f3d17e7aac9ecfb851df6d4cc4ea7d0dd46aa87658a21c4d53e2efd9290578d11f1dafcc51131325fe4e85de005e73e524bda4d2751d68b9e21b35b00",
     );
   });
 

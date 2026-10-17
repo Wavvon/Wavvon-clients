@@ -785,7 +785,7 @@ pub const AUTH_CHALLENGE_SCHEME: &str = "tagged-v1";
 /// What a client signs to answer an auth challenge. Mirrors
 /// `auth_challenge_signing_bytes` (Wavvon-server#111).
 pub fn auth_challenge_signing_bytes(challenge: &[u8]) -> Vec<u8> {
-    let mut buf = b"wavvon/auth-challenge/v1 ".to_vec();
+    let mut buf = b"wavvon/auth-challenge/v1\0".to_vec();
     buf.extend_from_slice(challenge);
     buf
 }
@@ -797,7 +797,7 @@ pub fn federated_plaintext_dm_signing_bytes(
     conv_type: &str,
     content: &str,
 ) -> Vec<u8> {
-    let mut buf = b"wavvon/federated-dm/v1 ".to_vec();
+    let mut buf = b"wavvon/federated-dm/v1\0".to_vec();
     write_str(&mut buf, conversation_id);
     write_str(&mut buf, conv_type);
     write_str(&mut buf, content);

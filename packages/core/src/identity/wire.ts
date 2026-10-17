@@ -404,7 +404,7 @@ export const AUTH_CHALLENGE_SCHEME = "tagged-v1";
  *  AUTH_CHALLENGE_SCHEME. Domain-tagged, so the answer cannot double as any
  *  other object this key signs (Wavvon-server#111). */
 export function authChallengeSigningBytes(challenge: Uint8Array): Uint8Array {
-  return concat(tag("wavvon/auth-challenge/v1 "), challenge);
+  return concat(tag("wavvon/auth-challenge/v1\0"), challenge);
 }
 
 /** What the sender of a plaintext DM signs so a receiving hub accepts it
@@ -415,7 +415,27 @@ export function federatedPlaintextDmSigningBytes(
   convType: string,
   content: string,
 ): Uint8Array {
-  return concat(tag("wavvon/federated-dm/v1 "), writeStr(conversationId), writeStr(convType), writeStr(content));
+  return concat(tag("wavvon/federated-dm/v1\0"), writeStr(conversationId), writeStr(convType), writeStr(content));
+}
+
+/** What a group member signs to add members to a group DM or to leave it, so
+ *  the other members' hubs apply the change (`dm_member_change_signing_bytes`,
+ *  Wavvon-server#119). `issuedAt` is unix seconds. */
+export function dmMemberChangeSigningBytes(
+  conversationId: string,
+  actor: string,
+  added: string[],
+  removed: string[],
+  issuedAt: number,
+): Uint8Array {
+  return concat(
+    tag("wavvon/dm-member-change/v1\0"),
+    writeStr(conversationId),
+    writeStr(actor),
+    writeStrVec(added),
+    writeStrVec(removed),
+    writeU64Le(issuedAt),
+  );
 }
 
 /** Sign the new-key proof for POST /recovery/rotate-key with the requester's master seed. */
