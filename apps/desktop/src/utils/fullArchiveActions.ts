@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import { suggestArchiveFilename, type Conversation, type DmMessageFull } from "@wavvon/core";
 import {
   buildDmArchiveConversation,
@@ -37,8 +37,6 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
   const filters = [{ name: fileFilterName, extensions: ["enc"] }];
   return {
     async exportArchive(passphrase, onProgress) {
-      const path = await save({ defaultPath: suggestArchiveFilename(), filters });
-      if (!path) throw new Error("export_cancelled");
       const me = await invoke<string>("get_my_public_key");
       const conversations = await invoke<Conversation[]>("list_conversations");
       const dms: DmArchiveConversation[] = [];
@@ -48,9 +46,12 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
         dms.push(buildDmArchiveConversation(conv, messages, me));
         onProgress(i + 1, conversations.length);
       }
+      // Rust opens the save dialog itself: the renderer never picks where a
+      // seed-bearing file is written.
       await invoke("export_full_archive", {
-        path,
         passphrase,
+        suggestedName: suggestArchiveFilename(),
+        filterName: fileFilterName,
         sections: { dms, drafts: loadAllDrafts(), mention_ping_enabled: localStorage.getItem(MENTION_PING_KEY) !== "0" },
       });
     },

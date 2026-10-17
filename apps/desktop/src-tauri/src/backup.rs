@@ -136,12 +136,41 @@ fn decrypt_backup(envelope_json: &str, passphrase: &str) -> Result<BackupAccount
 // Tauri commands
 // ---------------------------------------------------------------------------
 
+/// Ask the user where a file carrying a secret goes, in a native dialog the
+/// renderer cannot steer. The renderer supplies only the suggested name and
+/// the filter's label; if it chose the path, a compromised renderer could
+/// write an encrypted copy of the seed anywhere, under a passphrase it picked.
+pub(crate) async fn choose_save_path(
+    app: &tauri::AppHandle,
+    suggested_name: &str,
+    filter_name: &str,
+    extension: &str,
+) -> Result<std::path::PathBuf, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter(filter_name, &[extension])
+        .set_file_name(suggested_name)
+        .save_file(move |p| {
+            let _ = tx.send(p);
+        });
+    rx.await
+        .map_err(|_| "export_cancelled".to_string())?
+        .ok_or_else(|| "export_cancelled".to_string())?
+        .into_path()
+        .map_err(|e| format!("save path: {e}"))
+}
+
 #[tauri::command]
-pub(crate) fn export_account_backup(
+pub(crate) async fn export_account_backup(
+    app: tauri::AppHandle,
     id: String,
     passphrase: String,
-    path: String,
+    suggested_name: String,
+    filter_name: String,
 ) -> Result<(), String> {
+    let path = choose_save_path(&app, &suggested_name, &filter_name, "wavvon-backup").await?;
     let identity_path = accounts::account_identity_path_for(&id)?;
     let identity = Identity::load(&identity_path)
         .map_err(|_| "No identity on this device for that account".to_string())?;
