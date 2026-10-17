@@ -264,11 +264,14 @@ async fn hub_get(
 
 #[tauri::command]
 pub(crate) async fn export_full_archive(
-    path: String,
+    app: tauri::AppHandle,
     passphrase: String,
     sections: RendererSections,
+    suggested_name: String,
+    filter_name: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let path = crate::backup::choose_save_path(&app, &suggested_name, &filter_name, "enc").await?;
     let account_dir = accounts::active_account_dir()?;
     let account_id = account_dir
         .file_name()

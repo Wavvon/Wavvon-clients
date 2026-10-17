@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { save, open } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   FullArchiveSection,
   IdentityBackupSection,
@@ -59,12 +59,14 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
 
   const backupActions: IdentityBackupSectionActions = {
     async exportToPath(accountId, passphrase) {
-      const path = await save({
-        defaultPath: suggestBackupFilename(backupAccounts.find((a) => a.id === accountId)?.label ?? accountId),
-        filters: [{ name: t("settings.account.identity_backup.file_filter"), extensions: ["wavvon-backup"] }],
+      // Rust opens the save dialog itself: the renderer never picks where a
+      // seed-bearing file is written.
+      await invoke("export_account_backup", {
+        id: accountId,
+        passphrase,
+        suggestedName: suggestBackupFilename(backupAccounts.find((a) => a.id === accountId)?.label ?? accountId),
+        filterName: t("settings.account.identity_backup.file_filter"),
       });
-      if (!path) throw new Error("export_cancelled");
-      await invoke("export_account_backup", { id: accountId, passphrase, path });
     },
     async pickImportPath() {
       const path = await open({
