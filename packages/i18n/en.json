@@ -2051,5 +2051,6 @@
   "alliances.people_visible.hint": "Only members who turned on findability on this hub are listed, with their name and avatar. Off by default.",
   "settings.profile.findable_by_allies.label": "Let members of allied hubs find me on this hub",
   "settings.profile.findable_by_allies.hint": "Members of hubs allied with this one will see your name and avatar and can message you. They can also see where your DMs are delivered. Off by default.",
-  "settings.profile.findable_by_allies.failed": "Could not change this setting."
+  "settings.profile.findable_by_allies.failed": "Could not change this setting.",
+  "app.hub_unreachable_at_start": "Couldn't reconnect to {hub}. It's still saved — it may be offline; restart the app to try again."
 }

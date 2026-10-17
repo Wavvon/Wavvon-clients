@@ -1009,7 +1009,17 @@ function App() {
         } catch {}
       }
       try {
-        const allHubs = await invoke<Hub[]>("auto_connect_saved");
+        const { hubs: allHubs, unreachable } = await invoke<{
+          hubs: Hub[];
+          unreachable: { hub_name: string; hub_url: string; error: string }[];
+        }>("auto_connect_saved");
+        // A hub that could not be reached is still saved; say so rather than
+        // let it vanish, and never fall back to the welcome screen for it.
+        if (unreachable.length > 0) {
+          for (const h of unreachable) console.warn("Saved hub unreachable at startup:", h.hub_url, h.error);
+          setToast(t("app.hub_unreachable_at_start", { hub: unreachable.map((h) => h.hub_name || h.hub_url).join(", ") }));
+          setShowWelcome(false);
+        }
         if (allHubs.length > 0) {
           setHubs(allHubs);
           const active = allHubs.find((h) => h.is_active) ?? allHubs[0];
@@ -1659,7 +1669,14 @@ function App() {
                 key={activeHubId}
                 hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
                 refusal={refusedHubs.get(activeHubId)!}
-                onRedeemInvite={null}
+                onRedeemInvite={async (code) => {
+                  // Authenticating again with the code is the redemption; the
+                  // new session replaces the refused one.
+                  const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+                  if (!hubUrl) return;
+                  await invoke("add_hub", { hubUrl, inviteCode: code });
+                  await loadHubData();
+                }}
                 onRemoveHub={() => removeHubConfirm.requestRemoveHub(activeHubId, hubs)}
               />
             ) : myApprovalStatus === "pending" ? (

@@ -2051,5 +2051,6 @@
   "alliances.people_visible.hint": "Solo se listan los miembros que activaron ser localizables en este hub, con su nombre y avatar. Desactivado por defecto.",
   "settings.profile.findable_by_allies.label": "Permitir que los miembros de hubs aliados me encuentren en este hub",
   "settings.profile.findable_by_allies.hint": "Los miembros de hubs aliados con este verán tu nombre y avatar y podrán escribirte. También podrán ver dónde se entregan tus mensajes directos. Desactivado por defecto.",
-  "settings.profile.findable_by_allies.failed": "No se pudo cambiar este ajuste."
+  "settings.profile.findable_by_allies.failed": "No se pudo cambiar este ajuste.",
+  "app.hub_unreachable_at_start": "No se pudo reconectar a {hub}. Sigue guardado: puede estar desconectado; reinicia la app para intentarlo de nuevo."
 }

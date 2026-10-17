@@ -2051,5 +2051,6 @@
   "alliances.people_visible.hint": "Aufgeführt werden nur Mitglieder, die auf diesem Hub die Auffindbarkeit aktiviert haben, mit Name und Avatar. Standardmäßig aus.",
   "settings.profile.findable_by_allies.label": "Mitgliedern verbündeter Hubs erlauben, mich auf diesem Hub zu finden",
   "settings.profile.findable_by_allies.hint": "Mitglieder verbündeter Hubs sehen deinen Namen und Avatar und können dir schreiben. Sie sehen auch, wohin deine Direktnachrichten zugestellt werden. Standardmäßig aus.",
-  "settings.profile.findable_by_allies.failed": "Diese Einstellung konnte nicht geändert werden."
+  "settings.profile.findable_by_allies.failed": "Diese Einstellung konnte nicht geändert werden.",
+  "app.hub_unreachable_at_start": "Keine erneute Verbindung zu {hub}. Er ist weiterhin gespeichert – möglicherweise offline; starte die App neu, um es erneut zu versuchen."
 }
