@@ -12,13 +12,16 @@ import { bytesToHex, federatedPlaintextDmSigningBytes, hexToBytes, publicKeyHex 
 const SENDER_SEED = bytesToHex(new Uint8Array(32).fill(1));
 const SENDER_PUB = publicKeyHex(SENDER_SEED);
 const RECIPIENT_PUB = publicKeyHex(bytesToHex(new Uint8Array(32).fill(2)));
+const CANONICAL_PUB = publicKeyHex(bytesToHex(new Uint8Array(32).fill(3)));
 const HUB = "https://hub.example";
 
 const dmFetch = vi.fn();
+let identity: Record<string, unknown> = {};
+let capabilities: string[] = [];
 
 vi.mock("../dmHub", () => ({
   dmFetch: (path: string, init?: RequestInit) => dmFetch(path, init),
-  dmSession: async () => ({ hub_url: HUB, token: "t" }),
+  dmSession: async () => ({ hub_url: HUB, token: "t", capabilities }),
 }));
 
 vi.mock("../session", () => ({
@@ -26,7 +29,7 @@ vi.mock("../session", () => ({
 }));
 
 vi.mock("../../identity/store", () => ({
-  loadIdentity: async () => ({ id: "acct", seed_hex: SENDER_SEED, security_nonce: 0, security_level: 0 }),
+  loadIdentity: async () => identity,
   saveIdentity: async () => {},
 }));
 
@@ -57,6 +60,8 @@ function dhKeyResponse(status: number, hex?: string) {
 beforeEach(() => {
   vi.resetModules();
   dmFetch.mockReset();
+  identity = { id: "acct", seed_hex: SENDER_SEED, security_nonce: 0, security_level: 0 };
+  capabilities = [];
   // The conversation read, then the message POST.
   dmFetch.mockImplementation(async (path: string, init?: RequestInit) => {
     if (init?.method === "POST") return new Response(JSON.stringify({ id: "m1" }), { status: 201 });
@@ -99,6 +104,30 @@ describe("sendDm and the recipient's encryption key", () => {
     // Signed, or a recipient on another hub refuses it (Wavvon-clients#126).
     const sb = federatedPlaintextDmSigningBytes("c1", "dm", "secret");
     expect(ed25519.verify(hexToBytes(posted.plaintext_signature as string), sb, hexToBytes(SENDER_PUB))).toBe(true);
+  });
+
+  it("signs a paired device's plaintext with its subkey and sends the cert", async () => {
+    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(404)));
+    const cert = { master_pubkey: RECIPIENT_PUB, subkey_pubkey: SENDER_PUB };
+    // The conversation knows us by the canonical key; this device holds a subkey.
+    identity = { ...identity, canonical_pubkey: CANONICAL_PUB, subkey_cert: cert };
+    dmFetch.mockImplementation(async (_path: string, init?: RequestInit) => {
+      if (init?.method === "POST") return new Response(JSON.stringify({ id: "m1" }), { status: 201 });
+      return new Response(JSON.stringify({ id: "c1", members: [CANONICAL_PUB, RECIPIENT_PUB], conv_type: "dm" }), {
+        status: 200,
+      });
+    });
+    const sb = federatedPlaintextDmSigningBytes("c1", "dm", "secret");
+
+    // An older hub would refuse a signature it checks against the canonical key.
+    await sendDm("c1", "secret", undefined, { confirmUnencrypted: async () => true });
+    expect(postedBodies()[0].plaintext_signature).toBeUndefined();
+
+    capabilities = ["dms.plaintext.signercert"];
+    await sendDm("c1", "secret", undefined, { confirmUnencrypted: async () => true });
+    const posted = postedBodies()[1];
+    expect(ed25519.verify(hexToBytes(posted.plaintext_signature as string), sb, hexToBytes(SENDER_PUB))).toBe(true);
+    expect(posted.plaintext_signer_cert).toEqual(cert);
   });
 
   it("sends nothing when the user declines", async () => {

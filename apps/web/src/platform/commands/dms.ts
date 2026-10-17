@@ -7,6 +7,8 @@ import i18n from "@wavvon/i18n";
 import { loadIdentity } from "../../identity/store";
 import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
+
+const PLAINTEXT_SIGNER_CERT_CAP = "dms.plaintext.signercert";
 import {
   dhKeypairFromSeed,
   encryptDm,
@@ -302,16 +304,21 @@ export async function sendDm(
 
   const sendPlaintext = async () => {
     // A recipient on another hub only takes a plaintext DM the sender signed;
-    // unsigned, it is refused there and sits in our hub's outbox. Only the
-    // key the conversation knows us by can sign it -- a paired device holds a
-    // subkey and cannot, so it sends unsigned as before.
+    // unsigned, it is refused there and sits in our hub's outbox. A device
+    // signing with a key other than the one the conversation knows us by
+    // sends the cert that ties the two together -- where the hub takes it; an
+    // older hub refuses such a signature, so there it goes unsigned as before.
+    const asSelf = publicKeyHex(signingSeedHex) === senderPubkey;
+    const certOk =
+      !asSelf && !!signerCert && !!(await dmSession()).capabilities?.includes(PLAINTEXT_SIGNER_CERT_CAP);
     const plaintext_signature =
-      publicKeyHex(signingSeedHex) === senderPubkey
+      asSelf || certOk
         ? signBytes(federatedPlaintextDmSigningBytes(conversation_id, conversation.conv_type, content), signingSeedHex)
         : undefined;
+    const plaintext_signer_cert = certOk ? signerCert : undefined;
     await dmFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
-      body: JSON.stringify({ content, attachments, plaintext_signature }),
+      body: JSON.stringify({ content, attachments, plaintext_signature, plaintext_signer_cert }),
     });
   };
 
