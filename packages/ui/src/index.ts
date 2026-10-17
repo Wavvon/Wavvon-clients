@@ -46,6 +46,31 @@ export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
+export { FullArchiveSection } from "./components/FullArchiveSection";
+export type { FullArchiveSectionActions, FullArchiveRestoreResult } from "./components/FullArchiveSection";
+export {
+  ARCHIVE_KIND,
+  ARCHIVE_DOCUMENT_VERSION,
+  buildDmArchiveConversation,
+  parseArchiveDocument,
+  planRestore,
+  totalRestored,
+  totalSkipped,
+} from "./utils/fullArchive";
+export type {
+  ArchiveDocument,
+  ArchiveHub,
+  ArchiveIdentity,
+  DmArchiveConversation,
+  DmArchiveMessage,
+  ExistingAccountSnapshot,
+  LocalPrefsSnapshot,
+  RestorableArchive,
+  RestoredTheme,
+  RestorePlan,
+  RestoreSummary,
+  UnrestorableNote,
+} from "./utils/fullArchive";
 export { AppLaunchCard } from "./components/AppLaunchCard";
 export { ErrorRetry } from "./components/ErrorRetry";
 export { HubRefusedPanel } from "./components/HubRefusedPanel";

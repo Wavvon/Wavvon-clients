@@ -2024,5 +2024,13 @@
   "notify.someone": "Someone",
   "errors.hub_error": "An error occurred on the hub.",
   "errors.timed_out_reaching": "Timed out reaching {host} — it may be offline or unreachable.",
-  "errors.could_not_reach": "Could not reach {host} — check the address and your connection."
+  "errors.could_not_reach": "Could not reach {host} — check the address and your connection.",
+  "settings.account.full_archive.error_unsupported": "This isn't a Wavvon archive file.",
+  "settings.account.full_archive.error_too_new": "This archive was made by a newer version of Wavvon.",
+  "settings.account.full_archive.error_malformed": "This archive is damaged or incomplete.",
+  "settings.account.full_archive.error_paired_device": "This archive was made on a paired device. Restoring it here would create a different identity — pair this device from the original instead.",
+  "settings.account.full_archive.file_filter": "Wavvon archive",
+  "settings.account.full_archive.note_prefs_gap": "This archive was made on a paired device, so it holds no hub-synced preferences (blocked users, cross-device voice settings): only the device that set them up can decrypt them.",
+  "settings.account.full_archive.note_dm_history": "DM history in this archive ({conversations, plural, one {# conversation} other {# conversations}}, {messages, plural, one {# message} other {# messages}}) is not re-imported — a synced home hub already re-delivers live history to this account; the archive stays the readable copy for when that hub is gone.",
+  "settings.account.full_archive.note_hub_records": "Home-hub designation and device certificates are records the hub holds for this identity; they're re-established automatically once this account connects there, not written locally."
 }

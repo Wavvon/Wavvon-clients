@@ -52,7 +52,11 @@ pub fn encrypt_prefs(blob_key: &[u8; 32], prefs: &LocalPrefs) -> Result<Vec<u8>>
     Ok(out)
 }
 
-pub fn decrypt_prefs(blob_key: &[u8; 32], data: &[u8]) -> Result<LocalPrefs> {
+/// Generic so the archive export can keep fields this client does not model.
+pub fn decrypt_prefs<T: serde::de::DeserializeOwned>(
+    blob_key: &[u8; 32],
+    data: &[u8],
+) -> Result<T> {
     if data.len() < 12 {
         return Err(anyhow!("ciphertext too short"));
     }

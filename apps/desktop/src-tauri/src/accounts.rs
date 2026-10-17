@@ -421,8 +421,15 @@ pub(crate) fn active_own_dm_plaintexts_path() -> Result<PathBuf, String> {
 // unscoped `wavvon.audio_profile`/PTT/device-id keys and unscoped
 // `wavvon:appearance` slot.
 
+// Named because the archive restore writes them into an account that may
+// not be the active one.
+pub(crate) const SAVED_HUBS_FILE: &str = "hubs.json";
+pub(crate) const VOICE_GAINS_FILE: &str = "voice_gains.json";
+pub(crate) const IGNORED_USERS_FILE: &str = "ignored_users.json";
+pub(crate) const SKIN_FILE: &str = "skin.json";
+
 pub(crate) fn active_saved_hubs_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join("hubs.json"))
+    Ok(active_account_dir()?.join(SAVED_HUBS_FILE))
 }
 
 pub(crate) fn active_selected_hub_path() -> Result<PathBuf, String> {
@@ -430,7 +437,7 @@ pub(crate) fn active_selected_hub_path() -> Result<PathBuf, String> {
 }
 
 pub(crate) fn active_voice_gains_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join("voice_gains.json"))
+    Ok(active_account_dir()?.join(VOICE_GAINS_FILE))
 }
 
 pub(crate) fn active_blocked_users_path() -> Result<PathBuf, String> {
@@ -438,7 +445,7 @@ pub(crate) fn active_blocked_users_path() -> Result<PathBuf, String> {
 }
 
 pub(crate) fn active_ignored_users_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join("ignored_users.json"))
+    Ok(active_account_dir()?.join(IGNORED_USERS_FILE))
 }
 
 pub(crate) fn active_pinned_channels_path() -> Result<PathBuf, String> {
@@ -466,7 +473,7 @@ pub(crate) fn active_default_profile_path() -> Result<PathBuf, String> {
 }
 
 pub(crate) fn active_skin_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join("skin.json"))
+    Ok(active_account_dir()?.join(SKIN_FILE))
 }
 
 /// identity.json path for an arbitrary (not necessarily active) registered
@@ -474,6 +481,16 @@ pub(crate) fn active_skin_path() -> Result<PathBuf, String> {
 /// key rather than whichever one is currently active.
 pub(crate) fn account_identity_path_for(id: &str) -> Result<PathBuf, String> {
     Ok(account_dir_in(&wavvon_dir()?, id).join("identity.json"))
+}
+
+/// Directory of a registered account, refusing an id the registry does not
+/// hold — the id arrives from the renderer and becomes a path.
+pub(crate) fn registered_account_dir(id: &str) -> Result<PathBuf, String> {
+    let base = wavvon_dir()?;
+    if !load_registry_in(&base).accounts.iter().any(|a| a.id == id) {
+        return Err("Unknown account".to_string());
+    }
+    Ok(account_dir_in(&base, id))
 }
 
 pub(crate) fn account_label_for(id: &str) -> Result<Option<String>, String> {

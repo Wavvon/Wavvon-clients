@@ -21,9 +21,9 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 
-const BACKUP_M: u32 = 65536;
-const BACKUP_T: u32 = 3;
-const BACKUP_P: u32 = 1;
+pub(crate) const BACKUP_M: u32 = 65536;
+pub(crate) const BACKUP_T: u32 = 3;
+pub(crate) const BACKUP_P: u32 = 1;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct BackupAccount {
@@ -48,7 +48,13 @@ struct BackupEnvelope {
     ciphertext: String,
 }
 
-fn derive_key(passphrase: &str, salt: &[u8], m: u32, t: u32, p: u32) -> Result<[u8; 32], String> {
+pub(crate) fn derive_key(
+    passphrase: &str,
+    salt: &[u8],
+    m: u32,
+    t: u32,
+    p: u32,
+) -> Result<[u8; 32], String> {
     let params = Params::new(m, t, p, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0u8; 32];
