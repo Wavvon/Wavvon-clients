@@ -1,10 +1,10 @@
-import { hexToBytes, bytesToHex } from "@wavvon/core";
+import { hexToBytes, bytesToHex, masterPublicKeyHex, masterSeedHex } from "@wavvon/core";
 import { dmFetch, dmSession } from "../dmHub";
 import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import { hubFetch, rawFetch, HubApiError } from "../http";
 import { activeSession } from "../session";
 import i18n from "@wavvon/i18n";
-import { loadIdentity } from "../../identity/store";
+import { holdsMasterSeed, loadIdentity } from "../../identity/store";
 import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
 
@@ -452,15 +452,29 @@ export function canPublishDhKey(
 
 /** The signed record itself, plus where it goes. Null when this device may
  *  not publish (a paired device — see `canPublishDhKey`). */
-async function dhKeyRecord(): Promise<{ path: string; body: string } | null> {
+async function dhKeyRecord(seatedAs?: string): Promise<{ path: string; body: string } | null> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
-  if (!canPublishDhKey(identity)) return null;
 
   const seedHex = identity.seed_hex;
-  const myPubkeyHex = publicKeyHex(seedHex);
   const { dhPub } = dhKeypairFromSeed(seedHex);
   const dhPubkeyHex = bytesToHex(dhPub);
+  // A hub meeting this identity for the first time seats the master its
+  // self-signed cert names, and a record must be signed by the key the hub
+  // knows us by. Only a device holding the master's entropy can do that.
+  if (seatedAs && seatedAs !== publicKeyHex(seedHex)) {
+    if (!holdsMasterSeed(identity) || seatedAs !== masterPublicKeyHex(seedHex)) return null;
+    return {
+      path: `/identity/${seatedAs}/dh-key`,
+      body: JSON.stringify({
+        dh_pubkey_hex: dhPubkeyHex,
+        signature_hex: signBytes(dhKeySigningBytes(seatedAs, dhPubkeyHex), masterSeedHex(seedHex)),
+      }),
+    };
+  }
+  if (!canPublishDhKey(identity)) return null;
+
+  const myPubkeyHex = publicKeyHex(seedHex);
   const signatureHex = signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex);
 
   return {
@@ -493,8 +507,8 @@ export async function publishDhKey(): Promise<void> {
  * (auth/middleware.rs, `ALLIANCE_VOICE_ALLOWED_PATHS`); no client ever used
  * the publish half.
  */
-export async function publishDhKeyTo(hubUrl: string, token: string): Promise<void> {
-  const record = await dhKeyRecord();
+export async function publishDhKeyTo(hubUrl: string, token: string, seatedAs?: string): Promise<void> {
+  const record = await dhKeyRecord(seatedAs);
   if (!record) return;
   await rawFetch(`${hubUrl}${record.path}`, {
     method: "PUT",
