@@ -1341,7 +1341,6 @@
   "settings.account.accounts.col_order": "#",
   "settings.account.accounts.hint": "Passa da un'identità Wavvon all'altra su questo dispositivo. Gli account restano solo su questo dispositivo — questo elenco non viene mai sincronizzato con un hub.",
   "settings.account.accounts.import_button": "Importa",
-  "settings.account.accounts.import_label": "Oppure aggiungi un account esistente dalla sua frase di recupero",
   "settings.account.accounts.key_click_to_copy": "Clicca per copiare la chiave completa",
   "settings.account.accounts.label": "Account su questo dispositivo",
   "settings.account.accounts.last_account_title": "Deve restare almeno un account",

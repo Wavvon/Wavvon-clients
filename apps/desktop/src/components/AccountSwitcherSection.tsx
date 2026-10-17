@@ -22,7 +22,6 @@ export function AccountSwitcherSection() {
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [phrase, setPhrase] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -44,12 +43,13 @@ export function AccountSwitcherSection() {
     refresh();
   }, []);
 
-  async function handleCreate(withPhrase: boolean) {
+  // Bringing an existing identity here from its phrase is the Restore
+  // section's job, which also notices an account already on this device.
+  async function handleCreate() {
     setBusyId("__create__");
     setError(null);
     try {
-      await createAccount(withPhrase ? { phrase: phrase.trim() } : {});
-      setPhrase("");
+      await createAccount({});
       await refresh();
     } catch (e) {
       setError(String(e));
@@ -112,8 +112,6 @@ export function AccountSwitcherSection() {
       setBusyId(null);
     }
   }
-
-  const wordCount = phrase.trim().split(/\s+/).filter(Boolean).length;
 
   return (
     <SettingRow
@@ -183,27 +181,8 @@ export function AccountSwitcherSection() {
         </div>
       )}
       <div className="settings-row" style={{ marginTop: 8 }}>
-        <button onClick={() => handleCreate(false)} disabled={busyId === "__create__"}>
+        <button onClick={() => handleCreate()} disabled={busyId === "__create__"}>
           {t("settings.account.accounts.new_identity")}
-        </button>
-      </div>
-      <div style={{ marginTop: 8 }}>
-        <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.account.accounts.import_label")}
-        </label>
-        <textarea
-          className="recovery-input"
-          value={phrase}
-          onChange={(e) => setPhrase(e.target.value)}
-          placeholder={t("identity_setup.recover.phrase_placeholder")}
-          rows={2}
-        />
-        <button
-          className="btn-small"
-          onClick={() => handleCreate(true)}
-          disabled={busyId === "__create__" || wordCount !== 24}
-        >
-          {t("settings.account.accounts.import_button")}
         </button>
       </div>
     </SettingRow>
