@@ -38,6 +38,7 @@ export async function acquireHubToken(
   invite_code?: string,
   subkey_cert?: unknown,
   alliance_voice_grant?: unknown,
+  challenge_token?: string,
 ): Promise<HubTokenResult> {
   const challengeRes: ChallengeResponse = await rawFetch(
     `${auth_url}/auth/challenge`,
@@ -75,6 +76,8 @@ export async function acquireHubToken(
   // already has a users row for us — a member session is strictly better, and
   // the hub says so by answering with scope "member".
   if (alliance_voice_grant) body["alliance_voice_grant"] = alliance_voice_grant;
+  // The hub's anti-spam check (challenge_mode), passed just before joining.
+  if (challenge_token) body["challenge_token"] = challenge_token;
 
   const verifyRes: VerifyResponse = await rawFetch(`${auth_url}/auth/verify`, {
     method: "POST",

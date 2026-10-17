@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { FocusTrap, sanitizeSvgMarkup } from "@wavvon/ui";
+import { FocusTrap } from "./FocusTrap";
+import { sanitizeSvgMarkup } from "../utils/svgSanitize";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 import type { ChallengePrompt, ChallengeResult } from "../types";
 
+/** The hub's anti-spam check before a join (challenge_mode). The two calls
+ *  are the platform's: they reach the hub being joined, for the identity that
+ *  is joining it. */
 export interface AdmissionChallengeProps {
-  hubUrl: string;
-  pubkey: string;
+  fetchPrompt: () => Promise<ChallengePrompt>;
+  submit: (id: string, answer: string | null) => Promise<ChallengeResult>;
   onPassed: (token: string) => void;
   onCancel: () => void;
 }
 
 type ChallengePhase = "loading" | "click" | "puzzle" | "submitting" | "passed" | "error";
 
-export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: AdmissionChallengeProps) {
+export function AdmissionChallenge({ fetchPrompt: fetchChallenge, submit, onPassed, onCancel }: AdmissionChallengeProps) {
+  useCloseOnEscape(onCancel);
   const { t } = useTranslation();
   const [phase, setPhase] = useState<ChallengePhase>("loading");
   const [prompt, setPrompt] = useState<ChallengePrompt | null>(null);
@@ -26,7 +31,7 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
     setAnswer("");
     setWrongMsg(null);
     try {
-      const p = await invoke<ChallengePrompt>("challenge_fetch", { hubUrl, pubkey });
+      const p = await fetchChallenge();
       setPrompt(p);
       if (p.mode === "click" || p.mode === "both") {
         setPhase("click");
@@ -47,12 +52,7 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
     if (!prompt) return;
     setPhase("submitting");
     try {
-      const result = await invoke<ChallengeResult>("challenge_submit", {
-        hubUrl,
-        id: prompt.id,
-        pubkey,
-        answer: null,
-      });
+      const result = await submit(prompt.id, null);
       if (result.ok) {
         if (result.next_challenge) {
           setPrompt(result.next_challenge);
@@ -76,12 +76,7 @@ export function AdmissionChallenge({ hubUrl, pubkey, onPassed, onCancel }: Admis
     setPhase("submitting");
     setWrongMsg(null);
     try {
-      const result = await invoke<ChallengeResult>("challenge_submit", {
-        hubUrl,
-        id: prompt.id,
-        pubkey,
-        answer: answer.trim(),
-      });
+      const result = await submit(prompt.id, answer.trim());
       if (result.ok) {
         if (result.next_challenge) {
           setPrompt(result.next_challenge);

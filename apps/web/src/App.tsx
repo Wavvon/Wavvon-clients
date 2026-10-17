@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts, ClockIcon, HubRefusedPanel } from "@wavvon/ui";
+import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -54,6 +54,7 @@ import {
 } from "@platform";
 import type { UserContextMenuActions, WhisperTarget, WhisperReplyBind } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers } from "@platform";
+import { fetchAdmissionChallenge, submitAdmissionChallenge } from "@platform";
 import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
 import { HubStreamsPanel } from "@wavvon/ui";
@@ -920,6 +921,7 @@ export default function App({ initialView }: AppProps = {}) {
     addHubError, setAddHubError,
     fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
+    admissionChallenge, setAdmissionChallenge,
     handleHubUrlInput,
     handlePreviewHub,
     handleAddHub,
@@ -1734,6 +1736,18 @@ export default function App({ initialView }: AppProps = {}) {
         showQuickInvite={showQuickInvite}
         users={users}
       />
+      {/* After AppModals, so it stacks above the Add hub modal it came from. */}
+      {admissionChallenge && (
+        <AdmissionChallenge
+          fetchPrompt={() => fetchAdmissionChallenge(admissionChallenge.hubUrl, admissionChallenge.pubkey)}
+          submit={(id, answer) => submitAdmissionChallenge(admissionChallenge.hubUrl, id, admissionChallenge.pubkey, answer)}
+          onPassed={(token) => {
+            setAdmissionChallenge(null);
+            void handleAddHub(token);
+          }}
+          onCancel={() => setAdmissionChallenge(null)}
+        />
+      )}
     </div>
   );
 }

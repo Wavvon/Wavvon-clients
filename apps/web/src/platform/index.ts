@@ -32,6 +32,9 @@ export {
   reorderHubs,
   restorePersistedHubs,
   connectHubWebSocket,
+  ChallengeRequiredError,
+  fetchAdmissionChallenge,
+  submitAdmissionChallenge,
 } from "./commands/hubs";
 
 export { getLobbyStatus, getLobbyWelcome, submitLobbyPow, isLobbyScopeConfined } from "./commands/lobby";
