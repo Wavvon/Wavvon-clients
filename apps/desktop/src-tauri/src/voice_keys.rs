@@ -182,15 +182,8 @@ pub(crate) async fn build_offer_bundles(
 #[cfg(test)]
 mod wire_vector_tests {
     use super::*;
+    use crate::wire_vectors::{arr, n, out, s, vector};
     use sha2::{Digest, Sha512};
-
-    fn seed(fill_from: u8) -> [u8; 32] {
-        let mut s = [0u8; 32];
-        for (i, b) in s.iter_mut().enumerate() {
-            *b = fill_from.wrapping_add(i as u8);
-        }
-        s
-    }
 
     /// Same ed25519→x25519 derivation as `Identity::dh_keypair`, applied
     /// directly to a fixed seed (test vectors don't go through an
@@ -206,31 +199,33 @@ mod wire_vector_tests {
         x25519_dalek::StaticSecret::from(scalar)
     }
 
+    // Inputs and the expected ciphertext come from wire-vectors.json.
+    fn wrap_vector() -> &'static serde_json::Value {
+        vector("voice_key_wrap")
+    }
+
     fn voice_sender_seed() -> [u8; 32] {
-        seed(0x61)
+        arr(&s(wrap_vector(), "sender_seed"))
     }
 
     fn voice_recipient_seed() -> [u8; 32] {
-        seed(0x81)
+        arr(&s(wrap_vector(), "recipient_seed"))
     }
 
-    const VOICE_CHANNEL_ID: &str = "chan-vector-1";
-    const VOICE_SENDER_KEY: [u8; 32] = [
-        0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
-        0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde,
-        0xdf, 0xe0,
-    ];
-    const VOICE_NONCE_SALT: [u8; 4] = [0xaa, 0xbb, 0xcc, 0xdd];
-    const VOICE_KEY_ID: u32 = 99;
-    const VOICE_WRAP_NONCE: [u8; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    fn voice_channel_id() -> String {
+        s(wrap_vector(), "channel_id")
+    }
 
-    const VOICE_KEY_WRAP_CIPHERTEXT_HEX: &str = "98c781916feb2ea99f7dbf23f15fd58bb9ab8613ec348ebe8c93814ee695a11de59ce0341e00d354b9ff665b5ab38d27a0ab526c71cf495e";
+    fn voice_wrap_nonce() -> [u8; 12] {
+        arr(&s(wrap_vector(), "wrap_nonce"))
+    }
 
     fn gen() -> SenderKeyGen {
+        let v = wrap_vector();
         SenderKeyGen {
-            sender_key: VOICE_SENDER_KEY,
-            nonce_salt: VOICE_NONCE_SALT,
-            key_id: VOICE_KEY_ID,
+            sender_key: arr(&s(v, "sender_key")),
+            nonce_salt: arr(&s(v, "nonce_salt")),
+            key_id: n(v, "key_id") as u32,
         }
     }
 
@@ -243,12 +238,12 @@ mod wire_vector_tests {
         let ciphertext = voice_key_wrap_with_nonce(
             &sender_sec,
             &recipient_pub,
-            VOICE_CHANNEL_ID,
+            &voice_channel_id(),
             &gen(),
-            &VOICE_WRAP_NONCE,
+            &voice_wrap_nonce(),
         )
         .unwrap();
-        assert_eq!(hex::encode(&ciphertext), VOICE_KEY_WRAP_CIPHERTEXT_HEX);
+        assert_eq!(hex::encode(&ciphertext), out(wrap_vector(), "ciphertext"));
     }
 
     #[test]
@@ -261,24 +256,25 @@ mod wire_vector_tests {
         let ciphertext = voice_key_wrap_with_nonce(
             &sender_sec,
             &recipient_pub,
-            VOICE_CHANNEL_ID,
+            &voice_channel_id(),
             &gen(),
-            &VOICE_WRAP_NONCE,
+            &voice_wrap_nonce(),
         )
         .unwrap();
 
         let unwrapped = voice_key_unwrap(
             &recipient_sec,
             &sender_pub,
-            VOICE_CHANNEL_ID,
+            &voice_channel_id(),
             &hex::encode(&ciphertext),
-            &hex::encode(VOICE_WRAP_NONCE),
+            &hex::encode(voice_wrap_nonce()),
         )
         .unwrap();
 
-        assert_eq!(unwrapped.sender_key, VOICE_SENDER_KEY);
-        assert_eq!(unwrapped.nonce_salt, VOICE_NONCE_SALT);
-        assert_eq!(unwrapped.key_id, VOICE_KEY_ID);
+        let expected = gen();
+        assert_eq!(unwrapped.sender_key, expected.sender_key);
+        assert_eq!(unwrapped.nonce_salt, expected.nonce_salt);
+        assert_eq!(unwrapped.key_id, expected.key_id);
     }
 
     #[test]
@@ -291,9 +287,9 @@ mod wire_vector_tests {
         let mut ciphertext = voice_key_wrap_with_nonce(
             &sender_sec,
             &recipient_pub,
-            VOICE_CHANNEL_ID,
+            &voice_channel_id(),
             &gen(),
-            &VOICE_WRAP_NONCE,
+            &voice_wrap_nonce(),
         )
         .unwrap();
         ciphertext[0] ^= 0xFF;
@@ -301,9 +297,9 @@ mod wire_vector_tests {
         let result = voice_key_unwrap(
             &recipient_sec,
             &sender_pub,
-            VOICE_CHANNEL_ID,
+            &voice_channel_id(),
             &hex::encode(&ciphertext),
-            &hex::encode(VOICE_WRAP_NONCE),
+            &hex::encode(voice_wrap_nonce()),
         );
         assert!(result.is_err());
     }
@@ -318,9 +314,9 @@ mod wire_vector_tests {
         let ciphertext = voice_key_wrap_with_nonce(
             &sender_sec,
             &recipient_pub,
-            VOICE_CHANNEL_ID,
+            &voice_channel_id(),
             &gen(),
-            &VOICE_WRAP_NONCE,
+            &voice_wrap_nonce(),
         )
         .unwrap();
 
@@ -329,7 +325,7 @@ mod wire_vector_tests {
             &sender_pub,
             "chan-vector-2",
             &hex::encode(&ciphertext),
-            &hex::encode(VOICE_WRAP_NONCE),
+            &hex::encode(voice_wrap_nonce()),
         );
         assert!(result.is_err());
     }

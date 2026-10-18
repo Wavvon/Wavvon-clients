@@ -35,6 +35,8 @@ mod types;
 mod updater;
 mod voice_cmd;
 mod voice_keys;
+#[cfg(test)]
+mod wire_vectors;
 mod ws;
 
 use tauri::Manager;

@@ -1,2 +1,5 @@
 # Hook scripts run via sh — must stay LF.
 .githooks/* text eol=lf
+
+# Byte-identical copy of the server file; check-wire-vectors.mjs compares bytes.
+wire-vectors/* -text

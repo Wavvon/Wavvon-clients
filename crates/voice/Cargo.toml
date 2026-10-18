@@ -33,3 +33,7 @@ aes-gcm = "0.10"
 
 # Hex for the cert-hash pin passed to wtransport's server-certificate-hashes trust.
 hex = "0.4"
+
+[dev-dependencies]
+# Reads the vendored wire-format vectors (wire-vectors/ at the repo root).
+serde_json = { workspace = true }

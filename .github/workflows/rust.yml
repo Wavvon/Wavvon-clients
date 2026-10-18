@@ -8,6 +8,7 @@ on:
       - 'crates/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'wire-vectors/**'
       - '.github/workflows/rust.yml'
   pull_request:
     branches: [main, develop]
@@ -16,6 +17,7 @@ on:
       - 'crates/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'wire-vectors/**'
       - '.github/workflows/rust.yml'
 
 jobs:
