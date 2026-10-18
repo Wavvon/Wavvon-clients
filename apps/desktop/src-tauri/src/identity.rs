@@ -808,201 +808,232 @@ pub fn federated_plaintext_dm_signing_bytes(
 // Wire-format test vectors
 // ---------------------------------------------------------------------------
 
-/// Canonical hex vectors from hub/docs/wire-format.md (enforced server-side by
-/// hub/identity/tests/wire_vectors.rs). These pin our hand-written encoders to
-/// the exact bytes the hub produces, so the formats cannot drift apart.
-///
-/// Fixed inputs:
-///   master seed: 0x01 0x02 … 0x20  (32 bytes)
-///   subkey seed: 0x21 0x22 … 0x40  (32 bytes)
-///   timestamp  : 1_700_000_000  (unix seconds)
+/// The server's wire-format vectors, read from `wire-vectors/wire-vectors.json`
+/// (see `crate::wire_vectors`). They pin our hand-written encoders to the exact
+/// bytes the hub produces; no expected output is spelled out here.
 #[cfg(test)]
 mod wire_vector_tests {
     use super::*;
+    use crate::wire_vectors::{arr, fixture, inp, n, out, s, strings, vector};
     use ed25519_dalek::{Signer, SigningKey};
 
-    const TS: u64 = 1_700_000_000;
-
-    const MASTER_PUB: &str = "79b5562e8fe654f94078b112e8a98ba7901f853ae695bed7e0e3910bad049664";
-    const SUBKEY_PUB: &str = "e7f162a10bec559afea195e4dce84b69568d5d2cb0963eb446c0685e2b17f2f0";
-
-    const HOME_HUB_LIST_SIGNING_BYTES: &str = "776176766f6e2f686f6d652d6875622d6c6973742f7631004000000037396235353632653866653635346639343037386231313265386139386261373930316638353361653639356265643765306533393130626164303439363634010000001300000068747470733a2f2f6875622e6578616d706c6500f15365000000000100000000000000";
-    const HOME_HUB_LIST_SIG: &str = "193d446382d6dde14c0d85cf3b92a13858c7daa702bf284688af0514019de5665dbe52be683d41f85fa004c2b0c8be329ac608dbb18a4c03e9e0fd4380db0907";
-
-    const SUBKEY_CERT_SIGNING_BYTES: &str = "776176766f6e2f7375626b65792d636572742f76310040000000373962353536326538666536353466393430373862313132653861393862613739303166383533616536393562656437653065333931306261643034393636344000000065376631363261313062656335353961666561313935653464636538346236393536386435643263623039363365623434366330363835653262313766326630060000006c6170746f7000f15365000000000000000000";
-    const SUBKEY_CERT_SIG: &str = "ba99a98b72bef53d3dfc4767728806ca27cd247ecc11383453696d0011fc586e9eaf583c9632ff2805358dfda0de59f0cc8ca9aad33a5877be0d680b40513209";
-
-    const REVOCATION_SIGNING_BYTES: &str = "776176766f6e2f7265766f636174696f6e2f76310040000000373962353536326538666536353466393430373862313132653861393862613739303166383533616536393562656437653065333931306261643034393636344000000065376631363261313062656335353961666561313935653464636538346236393536386435643263623039363365623434366330363835653262313766326630f4f2536500000000";
-    const REVOCATION_SIG: &str = "6020787fb48d42085cbc7dbd8b3c78c7a4d1bcaa390baf2a9248af5d1d4b240813e2775acb86820f4ec106ae3b36df01a65c1db784fc40b36f279af50e0d910d";
-
-    const PREFS_CIPHERTEXT_HEX: &str = "63697068657274657874";
-    const PREFS_SIGNING_BYTES: &str = "776176766f6e2f70726566732d626c6f622f76310040000000373962353536326538666536353466393430373862313132653861393862613739303166383533616536393562656437653065333931306261643034393636340100000000000000305531dcc50ebca31cf1d5b31e9fc76ed51f66b3b6dd5a030c6539ae6532f979";
-    const PREFS_SIG: &str = "7c463797b5cc76b3d8f47e6f86eff82bdbb8797bb538efcecfb8f743aed0c621d71d62612bd7aa750745710f0b3796ac60c8b4aefaeeb0f98883c5f47c8a1b0c";
-
-    const PAIRING_OFFER_SIGNING_BYTES: &str = "776176766f6e2f70616972696e672d6f666665722f7631004000000037396235353632653866653635346639343037386231313265386139386261373930316638353361653639356265643765306533393130626164303439363634010000001300000068747470733a2f2f6875622e6578616d706c6506000000746f6b31323300f15365000000002cf2536500000000";
-    const PAIRING_OFFER_SIG: &str = "93add8ced681c4dda4060417ba2f7301bff6a64876d015c30fa976307edeec75b69ff0af42a9415a50ce605ef2c561a70d19de0820334c16054336f904ec540f";
-
-    const PAIRING_CLAIM_SIGNING_BYTES: &str = "776176766f6e2f70616972696e672d636c61696d2f76310006000000746f6b3132334000000065376631363261313062656335353961666561313935653464636538346236393536386435643263623039363365623434366330363835653262313766326630060000006c6170746f70";
-    const PAIRING_CLAIM_PROOF: &str = "cea1002c8bcad922848865158e5e7b2a7241929fcb13ce4a288e52cfecf912b71e2527ee0929198c2450027fb06ae04ac5f82acfffca28494feca7d253e22709";
+    fn key(seed_hex: &str) -> SigningKey {
+        SigningKey::from_bytes(&arr::<32>(seed_hex))
+    }
 
     fn master_key() -> SigningKey {
-        let mut seed = [0u8; 32];
-        for (i, b) in seed.iter_mut().enumerate() {
-            *b = (i + 1) as u8;
-        }
-        SigningKey::from_bytes(&seed)
+        key(&fixture("master_seed"))
     }
 
     fn subkey_signing_key() -> SigningKey {
-        let mut seed = [0u8; 32];
-        for (i, b) in seed.iter_mut().enumerate() {
-            *b = (i + 0x21) as u8;
-        }
-        SigningKey::from_bytes(&seed)
+        key(&fixture("subkey_seed"))
     }
 
     fn hex_pubkey(k: &SigningKey) -> String {
         hex::encode(k.verifying_key().as_bytes())
     }
 
+    /// Signs `sb` with the vector's `signer_seed` and asserts the result
+    /// against its `field`; returns the signature hex.
+    fn assert_signed(name: &str, field: &str, sb: &[u8]) -> String {
+        let v = vector(name);
+        let sig = key(&s(v, "signer_seed")).sign(sb);
+        assert_eq!(hex::encode(sig.to_bytes()), out(v, field), "{name}.{field}");
+        out(v, field)
+    }
+
+    fn assert_signing_bytes(name: &str, sb: &[u8]) {
+        assert_eq!(
+            hex::encode(sb),
+            out(vector(name), "signing_bytes"),
+            "{name}.signing_bytes"
+        );
+    }
+
     #[test]
     fn master_pubkey_vector() {
-        assert_eq!(hex_pubkey(&master_key()), MASTER_PUB);
+        let v = vector("master_pubkey");
+        assert_eq!(hex_pubkey(&key(&s(v, "seed"))), out(v, "public_key"));
     }
 
     #[test]
     fn subkey_pubkey_vector() {
-        assert_eq!(hex_pubkey(&subkey_signing_key()), SUBKEY_PUB);
+        let v = vector("subkey_pubkey");
+        assert_eq!(hex_pubkey(&key(&s(v, "seed"))), out(v, "public_key"));
+    }
+
+    fn home_hub_list_sb() -> Vec<u8> {
+        let v = vector("home_hub_list");
+        HomeHubList::signing_bytes(
+            &s(v, "master_pubkey"),
+            &strings(v, "hubs"),
+            n(v, "issued_at"),
+            n(v, "sequence"),
+        )
     }
 
     #[test]
     fn home_hub_list_signing_bytes_vector() {
-        let hubs = vec!["https://hub.example".to_string()];
-        let sb = HomeHubList::signing_bytes(MASTER_PUB, &hubs, TS, 1);
-        assert_eq!(hex::encode(&sb), HOME_HUB_LIST_SIGNING_BYTES);
+        assert_signing_bytes("home_hub_list", &home_hub_list_sb());
     }
 
     #[test]
     fn home_hub_list_signature_and_verify_vector() {
-        let hubs = vec!["https://hub.example".to_string()];
-        let sb = HomeHubList::signing_bytes(MASTER_PUB, &hubs, TS, 1);
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), HOME_HUB_LIST_SIG);
+        let v = vector("home_hub_list");
+        let signature = assert_signed("home_hub_list", "signature", &home_hub_list_sb());
         let entry = HomeHubList {
-            master_pubkey: MASTER_PUB.to_string(),
-            hubs,
-            issued_at: TS,
-            sequence: 1,
-            signature: HOME_HUB_LIST_SIG.to_string(),
+            master_pubkey: s(v, "master_pubkey"),
+            hubs: strings(v, "hubs"),
+            issued_at: n(v, "issued_at"),
+            sequence: n(v, "sequence"),
+            signature,
         };
         assert!(entry.verify().is_ok());
+    }
+
+    fn subkey_cert_sb() -> Vec<u8> {
+        let v = vector("subkey_cert");
+        assert!(inp(v, "not_after").is_null());
+        assert!(strings(v, "fallback_hubs").is_empty());
+        SubkeyCert::signing_bytes(
+            &s(v, "master_pubkey"),
+            &s(v, "subkey_pubkey"),
+            &s(v, "device_label"),
+            n(v, "issued_at"),
+            None,
+            &[],
+        )
     }
 
     #[test]
     fn subkey_cert_signing_bytes_vector() {
-        let sb = SubkeyCert::signing_bytes(MASTER_PUB, SUBKEY_PUB, "laptop", TS, None, &[]);
-        assert_eq!(hex::encode(&sb), SUBKEY_CERT_SIGNING_BYTES);
+        assert_signing_bytes("subkey_cert", &subkey_cert_sb());
     }
 
     #[test]
     fn subkey_cert_signature_and_verify_vector() {
-        let sb = SubkeyCert::signing_bytes(MASTER_PUB, SUBKEY_PUB, "laptop", TS, None, &[]);
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), SUBKEY_CERT_SIG);
+        let v = vector("subkey_cert");
+        let signature = assert_signed("subkey_cert", "signature", &subkey_cert_sb());
         let cert = SubkeyCert {
-            master_pubkey: MASTER_PUB.to_string(),
-            subkey_pubkey: SUBKEY_PUB.to_string(),
-            device_label: "laptop".to_string(),
-            issued_at: TS,
+            master_pubkey: s(v, "master_pubkey"),
+            subkey_pubkey: s(v, "subkey_pubkey"),
+            device_label: s(v, "device_label"),
+            issued_at: n(v, "issued_at"),
             not_after: None,
             fallback_hubs: vec![],
-            signature: SUBKEY_CERT_SIG.to_string(),
+            signature,
         };
         assert!(cert.verify().is_ok());
     }
 
+    fn revocation_sb() -> Vec<u8> {
+        let v = vector("revocation");
+        RevocationEntry::signing_bytes(
+            &s(v, "master_pubkey"),
+            &s(v, "subkey_pubkey"),
+            n(v, "revoked_at"),
+        )
+    }
+
     #[test]
     fn revocation_signing_bytes_vector() {
-        let sb = RevocationEntry::signing_bytes(MASTER_PUB, SUBKEY_PUB, TS + 500);
-        assert_eq!(hex::encode(&sb), REVOCATION_SIGNING_BYTES);
+        assert_signing_bytes("revocation", &revocation_sb());
     }
 
     #[test]
     fn revocation_signature_and_verify_vector() {
-        let sb = RevocationEntry::signing_bytes(MASTER_PUB, SUBKEY_PUB, TS + 500);
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), REVOCATION_SIG);
+        let v = vector("revocation");
+        let signature = assert_signed("revocation", "signature", &revocation_sb());
         let entry = RevocationEntry {
-            master_pubkey: MASTER_PUB.to_string(),
-            subkey_pubkey: SUBKEY_PUB.to_string(),
-            revoked_at: TS + 500,
-            signature: REVOCATION_SIG.to_string(),
+            master_pubkey: s(v, "master_pubkey"),
+            subkey_pubkey: s(v, "subkey_pubkey"),
+            revoked_at: n(v, "revoked_at"),
+            signature,
         };
         assert!(entry.verify().is_ok());
     }
 
+    fn prefs_blob_sb() -> Vec<u8> {
+        let v = vector("prefs_blob");
+        SignedPrefsBlob::signing_bytes(
+            &s(v, "master_pubkey"),
+            n(v, "blob_version"),
+            &hex::decode(s(v, "ciphertext")).unwrap(),
+        )
+    }
+
     #[test]
     fn prefs_blob_signing_bytes_vector() {
-        let ct = hex::decode(PREFS_CIPHERTEXT_HEX).unwrap();
-        let sb = SignedPrefsBlob::signing_bytes(MASTER_PUB, 1, &ct);
-        assert_eq!(hex::encode(&sb), PREFS_SIGNING_BYTES);
+        assert_signing_bytes("prefs_blob", &prefs_blob_sb());
     }
 
     #[test]
     fn prefs_blob_signature_and_verify_vector() {
-        let ct = hex::decode(PREFS_CIPHERTEXT_HEX).unwrap();
-        let sb = SignedPrefsBlob::signing_bytes(MASTER_PUB, 1, &ct);
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), PREFS_SIG);
+        let v = vector("prefs_blob");
+        let signature = assert_signed("prefs_blob", "signature", &prefs_blob_sb());
         let blob = SignedPrefsBlob {
-            master_pubkey: MASTER_PUB.to_string(),
-            blob_version: 1,
-            ciphertext_hex: PREFS_CIPHERTEXT_HEX.to_string(),
-            signature: PREFS_SIG.to_string(),
+            master_pubkey: s(v, "master_pubkey"),
+            blob_version: n(v, "blob_version"),
+            ciphertext_hex: s(v, "ciphertext"),
+            signature,
         };
         assert!(blob.verify().is_ok());
     }
 
+    fn pairing_offer_sb() -> Vec<u8> {
+        let v = vector("pairing_offer");
+        PairingOffer::signing_bytes(
+            &s(v, "master_pubkey"),
+            &strings(v, "home_hubs"),
+            &s(v, "pairing_token"),
+            n(v, "issued_at"),
+            n(v, "expires_at"),
+        )
+    }
+
     #[test]
     fn pairing_offer_signing_bytes_vector() {
-        let hubs = vec!["https://hub.example".to_string()];
-        let sb = PairingOffer::signing_bytes(MASTER_PUB, &hubs, "tok123", TS, TS + 300);
-        assert_eq!(hex::encode(&sb), PAIRING_OFFER_SIGNING_BYTES);
+        assert_signing_bytes("pairing_offer", &pairing_offer_sb());
     }
 
     #[test]
     fn pairing_offer_signature_and_verify_vector() {
-        let hubs = vec!["https://hub.example".to_string()];
-        let sb = PairingOffer::signing_bytes(MASTER_PUB, &hubs, "tok123", TS, TS + 300);
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), PAIRING_OFFER_SIG);
+        let v = vector("pairing_offer");
+        let signature = assert_signed("pairing_offer", "signature", &pairing_offer_sb());
         let offer = PairingOffer {
-            master_pubkey: MASTER_PUB.to_string(),
-            home_hubs: hubs,
-            pairing_token: "tok123".to_string(),
-            issued_at: TS,
-            expires_at: TS + 300,
-            signature: PAIRING_OFFER_SIG.to_string(),
+            master_pubkey: s(v, "master_pubkey"),
+            home_hubs: strings(v, "home_hubs"),
+            pairing_token: s(v, "pairing_token"),
+            issued_at: n(v, "issued_at"),
+            expires_at: n(v, "expires_at"),
+            signature,
         };
         assert!(offer.verify().is_ok());
     }
 
+    fn pairing_claim_sb() -> Vec<u8> {
+        let v = vector("pairing_claim");
+        PairingClaim::signing_bytes(
+            &s(v, "pairing_token"),
+            &s(v, "subkey_pubkey"),
+            &s(v, "device_label"),
+        )
+    }
+
     #[test]
     fn pairing_claim_signing_bytes_vector() {
-        let sb = PairingClaim::signing_bytes("tok123", SUBKEY_PUB, "laptop");
-        assert_eq!(hex::encode(&sb), PAIRING_CLAIM_SIGNING_BYTES);
+        assert_signing_bytes("pairing_claim", &pairing_claim_sb());
     }
 
     #[test]
     fn pairing_claim_proof_and_verify_vector() {
-        let sb = PairingClaim::signing_bytes("tok123", SUBKEY_PUB, "laptop");
-        let sig = subkey_signing_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), PAIRING_CLAIM_PROOF);
+        let v = vector("pairing_claim");
+        let proof = assert_signed("pairing_claim", "proof", &pairing_claim_sb());
         let claim = PairingClaim {
-            pairing_token: "tok123".to_string(),
-            subkey_pubkey: SUBKEY_PUB.to_string(),
-            device_label: "laptop".to_string(),
-            proof: PAIRING_CLAIM_PROOF.to_string(),
+            pairing_token: s(v, "pairing_token"),
+            subkey_pubkey: s(v, "subkey_pubkey"),
+            device_label: s(v, "device_label"),
+            proof,
         };
         assert!(claim.verify().is_ok());
     }
@@ -1011,32 +1042,12 @@ mod wire_vector_tests {
     // DhKeyRecord + DM-envelope vectors
     // -----------------------------------------------------------------------
 
-    // X25519 DH pubkey derived from the master seed (SHA-512 + clamp)
-    const MASTER_DH_PUB: &str = "4a3807d064d077181cc070989e76891d20dca5559548dc2c77c1a50273882b38";
-
-    const DH_KEY_RECORD_SIGNING_BYTES: &str = "776176766f6e2f64682d6b65792f76310040000000373962353536326538666536353466393430373862313132653861393862613739303166383533616536393562656437653065333931306261643034393636344000000034613338303764303634643037373138316363303730393839653736383931643230646361353535393534386463326337376331613530323733383832623338";
-    const DH_KEY_RECORD_SIG: &str = "6fbb512c648347920f714a831b0e1b13266c60fef157fd93922092e04bb281ecc2918d6bd6ffce7e6602463753188fde022d04763bc30cd5d720829ddcff5603";
-
-    // Shared DM-envelope fixed inputs
-    const DM_CONV_ID: &str = "conv123";
-    const DM_CIPHERTEXT_HEX: &str = "63697068657274657874"; // hex("ciphertext")
-    const DM_NONCE_HEX: &str = "0102030405060708090a0b0c";
-
-    // GroupEncryptedEnvelope — sender_key_version = 1, iteration = 2
-    const GROUP_DM_ENVELOPE_SIGNING_BYTES: &str = "776176766f6e2f67726f75702d646d2d636970686572746578742f76310007000000636f6e763132330100000031010000003214000000363336393730363836353732373436353738373418000000303130323033303430353036303730383039306130623063";
-    const GROUP_DM_ENVELOPE_SIG: &str = "d2788d4211a7fae57b17eae2cb74b56bd8a587ee9a9a57fd1ff0f048d0a86e256786bbdbc486f7754a6dac4975c2b25a2f9b0a7c73c288056e4b4938d6878b07";
-
-    // Sender-key distribution — version 1, recipients supplied unsorted
-    // (subkey first) to exercise the canonical sort by recipient_pubkey.
-    const SENDER_KEY_DIST_SIGNING_BYTES: &str = "776176766f6e2f67726f75702d6b65792d646973742f76310007000000636f6e76313233010000003140000000373962353536326538666536353466393430373862313132653861393862613739303166383533616536393562656437653065333931306261643034393636340800000031313232333334344000000065376631363261313062656335353961666561313935653464636538346236393536386435643263623039363365623434366330363835653262313766326630080000003535363637373838";
-    const SENDER_KEY_DIST_SIG: &str = "b3edd408f6a0700da3a9445be38cc6de2dcee4a927049b98e9f423e9654ee0b9c6adf9ff9ff4364f8ccd4f629d672b0c9cb517a0bb5b4e4de200f8a66f88fd04";
-
     /// Standard ed25519→x25519 derivation: SHA-512(seed)[0..32] → clamp.
     /// Mirrors `Identity::dh_keypair()`; replicated here so the derivation
-    /// itself is pinned by the MASTER_DH_PUB vector.
-    fn master_dh_pub_hex() -> String {
+    /// itself is pinned by the master_dh_pubkey vector.
+    fn dh_pub_hex(seed: &[u8; 32]) -> String {
         use sha2::{Digest, Sha512};
-        let hash = Sha512::digest(master_key().to_bytes());
+        let hash = Sha512::digest(seed);
         let mut scalar = [0u8; 32];
         scalar.copy_from_slice(&hash[..32]);
         scalar[0] &= 248;
@@ -1046,22 +1057,20 @@ mod wire_vector_tests {
         hex::encode(x25519_dalek::PublicKey::from(&secret).as_bytes())
     }
 
-    fn dist_recipients() -> Vec<(String, String)> {
-        vec![
-            (SUBKEY_PUB.to_string(), "55667788".to_string()),
-            (MASTER_PUB.to_string(), "11223344".to_string()),
-        ]
-    }
-
     #[test]
     fn master_dh_pubkey_vector() {
-        assert_eq!(master_dh_pub_hex(), MASTER_DH_PUB);
+        let v = vector("master_dh_pubkey");
+        assert_eq!(dh_pub_hex(&arr(&s(v, "seed"))), out(v, "dh_pubkey"));
+    }
+
+    fn dh_key_record_sb() -> Vec<u8> {
+        let v = vector("dh_key_record");
+        DhKeyRecord::signing_bytes(&s(v, "pubkey"), &s(v, "dh_pubkey"))
     }
 
     #[test]
     fn dh_key_record_signing_bytes_vector() {
-        let sb = DhKeyRecord::signing_bytes(MASTER_PUB, MASTER_DH_PUB);
-        assert_eq!(hex::encode(&sb), DH_KEY_RECORD_SIGNING_BYTES);
+        assert_signing_bytes("dh_key_record", &dh_key_record_sb());
     }
 
     // The `verify()` half of this is gone with the method: the shell publishes
@@ -1070,110 +1079,118 @@ mod wire_vector_tests {
     // layout the shell does use.
     #[test]
     fn dh_key_record_signature_vector() {
-        let sb = DhKeyRecord::signing_bytes(MASTER_PUB, MASTER_DH_PUB);
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), DH_KEY_RECORD_SIG);
+        assert_signed("dh_key_record", "signature", &dh_key_record_sb());
+    }
+
+    fn group_dm_envelope_sb() -> Vec<u8> {
+        let v = vector("group_dm_envelope");
+        crate::dm::group_envelope_signing_bytes(
+            &s(v, "conversation_id"),
+            n(v, "sender_key_version") as u32,
+            n(v, "iteration") as u32,
+            &s(v, "ciphertext"),
+            &s(v, "nonce"),
+        )
     }
 
     #[test]
     fn group_dm_envelope_signing_bytes_vector() {
-        let sb = crate::dm::group_envelope_signing_bytes(
-            DM_CONV_ID,
-            1,
-            2,
-            DM_CIPHERTEXT_HEX,
-            DM_NONCE_HEX,
-        );
-        assert_eq!(hex::encode(&sb), GROUP_DM_ENVELOPE_SIGNING_BYTES);
+        assert_signing_bytes("group_dm_envelope", &group_dm_envelope_sb());
     }
 
     #[test]
     fn group_dm_envelope_signature_vector() {
-        let sb = crate::dm::group_envelope_signing_bytes(
-            DM_CONV_ID,
-            1,
-            2,
-            DM_CIPHERTEXT_HEX,
-            DM_NONCE_HEX,
-        );
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), GROUP_DM_ENVELOPE_SIG);
+        assert_signed("group_dm_envelope", "signature", &group_dm_envelope_sb());
+    }
+
+    /// Recipients arrive unsorted in the vector, to exercise the canonical
+    /// sort by recipient_pubkey.
+    fn sender_key_dist_sb() -> Vec<u8> {
+        let v = vector("sender_key_dist");
+        let recipients: Vec<(String, String)> = inp(v, "recipients")
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| (crate::wire_vectors::r(&p[0]), crate::wire_vectors::r(&p[1])))
+            .collect();
+        crate::dm::sender_key_dist_signing_bytes(
+            &s(v, "conversation_id"),
+            n(v, "version") as u32,
+            &recipients,
+        )
     }
 
     #[test]
     fn sender_key_dist_signing_bytes_vector() {
-        let sb = crate::dm::sender_key_dist_signing_bytes(DM_CONV_ID, 1, &dist_recipients());
-        assert_eq!(hex::encode(&sb), SENDER_KEY_DIST_SIGNING_BYTES);
+        assert_signing_bytes("sender_key_dist", &sender_key_dist_sb());
     }
 
     #[test]
     fn sender_key_dist_signature_vector() {
-        let sb = crate::dm::sender_key_dist_signing_bytes(DM_CONV_ID, 1, &dist_recipients());
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), SENDER_KEY_DIST_SIG);
+        assert_signed("sender_key_dist", "signature", &sender_key_dist_sb());
     }
 
     // -----------------------------------------------------------------------
-    // Recovery-attestation bundle (docs/recovery-attestation.md §2, §4). HUB_PUB
-    // and OLD_PUB reuse MASTER_PUB/SUBKEY_PUB; NEW_PUB is a third fixed
-    // identity continuing the seed pattern (0x41..0x60).
+    // Recovery-attestation bundle (docs/recovery-attestation.md §2, §4).
     // -----------------------------------------------------------------------
 
-    const HUB_PUB: &str = MASTER_PUB;
-    const OLD_PUB: &str = SUBKEY_PUB;
-    const REQUEST_NONCE: &str = "req-nonce-0001";
-
-    const RECOVERY_REQUEST_SIGNING_BYTES: &str = "776176766f6e2f7265636f766572792d726571756573742f763100400000003739623535363265386665363534663934303738623131326538613938626137393031663835336165363935626564376530653339313062616430343936363440000000653766313632613130626563353539616665613139356534646365383462363935363864356432636230393633656234343663303638356532623137663266304000000061646331343031316638326431633536643935366161346639643733643838353833363161363036303438353235653064303863363338646337356464386337";
-    const RECOVERY_REQUEST_PROOF: &str = "31d6892113f05da64c22ee7b3a108bf61e4df1592f820d53de0eeb15a7d3a1c50859df4dc08e72d4997047f590b001b2fa3378e77a64d678e277c5edc78a160b";
-
-    const RECOVERY_ATTESTATION_SIGNING_BYTES: &str = "776176766f6e2f7265636f766572792d6174746573746174696f6e2f7631004000000037396235353632653866653635346639343037386231313265386139386261373930316638353361653639356265643765306533393130626164303439363634400000006537663136326131306265633535396166656131393565346463653834623639353638643564326362303936336562343436633036383565326231376632663040000000616463313430313166383264316335366439353661613466396437336438383538333631613630363034383532356530643038633633386463373564643863370e0000007265712d6e6f6e63652d30303031";
-    const RECOVERY_ATTESTATION_SIG: &str = "878bd554b21b60e63d1725db9a829d0107830e58ed0d8e80149368a833f1c09948490afd7cba160f34bc808092b15cf99141a86656c0d383fbaf04151edfb302";
-
-    fn new_key_signing_key() -> SigningKey {
-        let mut seed = [0u8; 32];
-        for (i, b) in seed.iter_mut().enumerate() {
-            *b = (i + 0x41) as u8;
-        }
-        SigningKey::from_bytes(&seed)
+    fn recovery_request_sb() -> Vec<u8> {
+        let v = vector("recovery_request");
+        recovery_request_signing_bytes(
+            &s(v, "hub_pubkey"),
+            &s(v, "old_pubkey"),
+            &s(v, "new_pubkey"),
+        )
     }
 
-    fn new_pub() -> String {
-        hex_pubkey(&new_key_signing_key())
+    fn recovery_attestation_sb() -> Vec<u8> {
+        let v = vector("recovery_attestation");
+        recovery_attestation_signing_bytes(
+            &s(v, "hub_pubkey"),
+            &s(v, "old_pubkey"),
+            &s(v, "new_pubkey"),
+            &s(v, "request_nonce"),
+        )
     }
 
     #[test]
     fn recovery_request_signing_bytes_vector() {
-        let sb = recovery_request_signing_bytes(HUB_PUB, OLD_PUB, &new_pub());
-        assert_eq!(hex::encode(&sb), RECOVERY_REQUEST_SIGNING_BYTES);
+        let v = vector("recovery_request");
+        // The new key is the one the recovery vectors rotate to.
+        assert_eq!(
+            hex_pubkey(&key(&s(v, "signer_seed"))),
+            out(vector("new_key_pubkey"), "public_key")
+        );
+        assert_signing_bytes("recovery_request", &recovery_request_sb());
     }
 
     #[test]
     fn recovery_request_proof_vector() {
-        let sb = recovery_request_signing_bytes(HUB_PUB, OLD_PUB, &new_pub());
-        let sig = new_key_signing_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), RECOVERY_REQUEST_PROOF);
+        assert_signed("recovery_request", "proof", &recovery_request_sb());
     }
 
     #[test]
     fn recovery_attestation_signing_bytes_vector() {
-        let sb = recovery_attestation_signing_bytes(HUB_PUB, OLD_PUB, &new_pub(), REQUEST_NONCE);
-        assert_eq!(hex::encode(&sb), RECOVERY_ATTESTATION_SIGNING_BYTES);
+        assert_signing_bytes("recovery_attestation", &recovery_attestation_sb());
     }
 
     #[test]
     fn recovery_attestation_signature_vector() {
-        let sb = recovery_attestation_signing_bytes(HUB_PUB, OLD_PUB, &new_pub(), REQUEST_NONCE);
-        let sig = master_key().sign(&sb);
-        assert_eq!(hex::encode(sig.to_bytes()), RECOVERY_ATTESTATION_SIG);
+        assert_signed(
+            "recovery_attestation",
+            "signature",
+            &recovery_attestation_sb(),
+        );
     }
 
     #[test]
     fn recovery_request_and_attestation_bytes_differ() {
-        let new_pub = new_pub();
-        let request_sb = recovery_request_signing_bytes(HUB_PUB, OLD_PUB, &new_pub);
-        let attestation_sb =
-            recovery_attestation_signing_bytes(HUB_PUB, OLD_PUB, &new_pub, REQUEST_NONCE);
-        assert_ne!(request_sb, attestation_sb);
+        let v = vector("recovery_attestation");
+        let (hub, old, new) = (s(v, "hub_pubkey"), s(v, "old_pubkey"), s(v, "new_pubkey"));
+        assert_ne!(
+            recovery_request_signing_bytes(&hub, &old, &new),
+            recovery_attestation_sb()
+        );
     }
 
     // -----------------------------------------------------------------
@@ -1189,16 +1206,17 @@ mod wire_vector_tests {
         // JSON from an enrolling device that predates the field must still
         // deserialize — pairing against an older peer degrades to "no E2E",
         // it does not fail.
+        let v = vector("subkey_cert");
         let json = serde_json::json!({
             "pairing_token": "tok123",
             "cert": {
-                "master_pubkey": MASTER_PUB,
-                "subkey_pubkey": SUBKEY_PUB,
-                "device_label": "laptop",
-                "issued_at": TS,
+                "master_pubkey": s(v, "master_pubkey"),
+                "subkey_pubkey": s(v, "subkey_pubkey"),
+                "device_label": s(v, "device_label"),
+                "issued_at": n(v, "issued_at"),
                 "not_after": null,
                 "fallback_hubs": [],
-                "signature": SUBKEY_CERT_SIG,
+                "signature": out(v, "signature"),
             },
             "wrapped_blob_key_hex": "deadbeef",
         });
@@ -1265,29 +1283,22 @@ mod wire_vector_tests {
 
     #[test]
     fn auth_challenge_matches_the_server_vector() {
-        let challenge: Vec<u8> = (0u8..32).collect();
-        let sb = auth_challenge_signing_bytes(&challenge);
-        assert_eq!(
-            hex::encode(&sb),
-            "776176766f6e2f617574682d6368616c6c656e67652f763100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-        );
-        assert_eq!(
-            hex::encode(master_key().sign(&sb).to_bytes()),
-            "8a9cb870c40c8f1a4b88e7c8eb4a67bfae8115c98516e62d7bc383f421259cd452915257d6f7030af1e50249b3a08e820f482d1831f3a12a53524bffcd925f04"
-        );
+        let v = vector("auth_challenge");
+        let sb = auth_challenge_signing_bytes(&hex::decode(s(v, "challenge")).unwrap());
+        assert_signing_bytes("auth_challenge", &sb);
+        assert_signed("auth_challenge", "signature", &sb);
     }
 
     #[test]
     fn federated_plaintext_dm_matches_the_server_vector() {
-        let sb = federated_plaintext_dm_signing_bytes("conv-1", "dm", "héllo");
-        assert_eq!(
-            hex::encode(&sb),
-            "776176766f6e2f6665646572617465642d646d2f76310006000000636f6e762d3102000000646d0600000068c3a96c6c6f"
+        let v = vector("federated_plaintext_dm");
+        let sb = federated_plaintext_dm_signing_bytes(
+            &s(v, "conversation_id"),
+            &s(v, "kind"),
+            &s(v, "content"),
         );
-        assert_eq!(
-            hex::encode(master_key().sign(&sb).to_bytes()),
-            "19cb16f7d84ee382ee5d2b01ac60e340b6011fe912a733f10b53785ce555e5844e4a49eab1f44fd5543c4a0d5b3a5efdc227bb02ced6c72705c9de15f5e49a0a"
-        );
+        assert_signing_bytes("federated_plaintext_dm", &sb);
+        assert_signed("federated_plaintext_dm", "signature", &sb);
     }
 
     /// The failure this replaces: deriving from the paired device's own

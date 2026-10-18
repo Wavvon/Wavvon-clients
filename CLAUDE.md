@@ -211,7 +211,11 @@ prop plus a precise gap note in the wiki's `client-parity.md`.
 **Wire-format changes are cross-repo operations.** The signing bytes in
 `packages/core/src/identity/wire.ts` and `apps/desktop/src-tauri/src/identity.rs`
 must match the server's `identity` crate **byte-for-byte**, pinned by shared test
-vectors. Same discipline for the `.wavvon-backup` format (core TS + desktop
+vectors. Those vectors are data: `wire-vectors/wire-vectors.json` is a
+byte-identical copy of the server's `crates/identity/wire-vectors.json`, synced
+only by `node scripts/sync-wire-vectors.mjs [ref]` (which records the commit in
+`wire-vectors/SOURCE`; CI's `check-wire-vectors.mjs` holds it to that commit),
+and both mirrors' tests read their expected outputs from it. Same discipline for the `.wavvon-backup` format (core TS + desktop
 `backup.rs` assert one fixed vector). Use the **`wire-format-change`** skill.
 
 **Recovery/attestation envelopes are signed with the roster identity key** — the

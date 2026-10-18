@@ -1,29 +1,20 @@
-// Canonical vectors from server/crates/identity/tests/wire_vectors.rs — pin
-// this file's encoders to the exact bytes the Rust identity crate produces.
+// Vectors from wire-vectors/wire-vectors.json (the server's vectors, vendored
+// byte-for-byte) — pin this file's encoders to the exact bytes the Rust
+// identity crate produces.
 import { describe, it, expect } from "vitest";
 import { bytesToHex, hexToBytes } from "../hex";
 import { dhKeypairFromSeed } from "./crypto";
 import { voiceKeyWrap, voiceKeyUnwrap, voicePacketSeal, voicePacketOpen } from "./voice";
+import { vector } from "./wireVectors";
 
-function seed(fillFrom: number): Uint8Array {
-  return Uint8Array.from({ length: 32 }, (_, i) => (fillFrom + i) & 0xff);
-}
-
-const SENDER_SEED = seed(0x61);
-const RECIPIENT_SEED = seed(0x81);
-const SENDER_KEY = seed(0xc1);
-const CHANNEL_ID = "chan-vector-1";
-const NONCE_SALT = hexToBytes("aabbccdd");
-const KEY_ID = 99;
-const WRAP_NONCE = hexToBytes("0102030405060708090a0b0c");
-
-const EXPECTED_WRAP_CIPHERTEXT =
-  "98c781916feb2ea99f7dbf23f15fd58bb9ab8613ec348ebe8c93814ee695a11de59ce0341e00d354b9ff665b5ab38d27a0ab526c71cf495e";
-
-const EXPECTED_PACKET_CTR0 =
-  "000000630000000000000000000003e832dbc83526f73e83a90b59aaab331078f359b00fcfab1fa0e6c514ea2034da79b2";
-const EXPECTED_PACKET_CTR7 =
-  "0000006300000000000000070000138823adf6d5a771baa49d8de5ed1c99e5d5f12e9fffa9ba4fb471ca80882171360024";
+const wrap = vector("voice_key_wrap");
+const SENDER_SEED = hexToBytes(wrap.str("sender_seed"));
+const RECIPIENT_SEED = hexToBytes(wrap.str("recipient_seed"));
+const SENDER_KEY = hexToBytes(wrap.str("sender_key"));
+const CHANNEL_ID = wrap.str("channel_id");
+const NONCE_SALT = hexToBytes(wrap.str("nonce_salt"));
+const KEY_ID = wrap.num("key_id");
+const WRAP_NONCE = hexToBytes(wrap.str("wrap_nonce"));
 
 describe("voiceKeyWrap / voiceKeyUnwrap", () => {
   it("matches the fixed wrap vector", () => {
@@ -40,7 +31,7 @@ describe("voiceKeyWrap / voiceKeyUnwrap", () => {
     );
 
     expect(bytesToHex(nonce)).toBe(bytesToHex(WRAP_NONCE));
-    expect(bytesToHex(ciphertext)).toBe(EXPECTED_WRAP_CIPHERTEXT);
+    expect(bytesToHex(ciphertext)).toBe(wrap.out("ciphertext"));
   });
 
   it("unwraps the fixed vector back to sender_key/nonce_salt/key_id", () => {
@@ -50,7 +41,7 @@ describe("voiceKeyWrap / voiceKeyUnwrap", () => {
       RECIPIENT_SEED,
       senderPub,
       CHANNEL_ID,
-      hexToBytes(EXPECTED_WRAP_CIPHERTEXT),
+      hexToBytes(wrap.out("ciphertext")),
       WRAP_NONCE,
     );
 
@@ -91,15 +82,21 @@ describe("voiceKeyWrap / voiceKeyUnwrap", () => {
 describe("voicePacketSeal / voicePacketOpen", () => {
   const opus = new TextEncoder().encode("opus-frame-vector");
 
-  it("matches the fixed vector at ctr=0", () => {
-    const packet = voicePacketSeal(SENDER_KEY, NONCE_SALT, KEY_ID, 0n, 1000, opus);
-    expect(bytesToHex(packet)).toBe(EXPECTED_PACKET_CTR0);
-  });
+  for (const name of ["voice_packet_ctr0", "voice_packet_ctr7"]) {
+    it(`matches the fixed vector ${name} and opens it back`, () => {
+      const v = vector(name);
+      const key = hexToBytes(v.str("sender_key"));
+      const salt = hexToBytes(v.str("nonce_salt"));
+      const packet = voicePacketSeal(key, salt, v.num("key_id"), BigInt(v.num("counter")), v.num("timestamp"), hexToBytes(v.str("opus")));
+      expect(bytesToHex(packet)).toBe(v.out("packet"));
 
-  it("matches the fixed vector at ctr=7", () => {
-    const packet = voicePacketSeal(SENDER_KEY, NONCE_SALT, KEY_ID, 7n, 5000, opus);
-    expect(bytesToHex(packet)).toBe(EXPECTED_PACKET_CTR7);
-  });
+      const opened = voicePacketOpen(key, salt, hexToBytes(v.out("packet")));
+      expect(opened.keyId).toBe(v.num("key_id"));
+      expect(opened.ctr).toBe(BigInt(v.num("counter")));
+      expect(opened.ts).toBe(v.num("timestamp"));
+      expect(bytesToHex(opened.opus)).toBe(v.str("opus"));
+    });
+  }
 
   it("throws when the header is tampered with", () => {
     const packet = voicePacketSeal(SENDER_KEY, NONCE_SALT, KEY_ID, 0n, 1000, opus);
