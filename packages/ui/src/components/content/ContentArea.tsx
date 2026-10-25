@@ -20,6 +20,7 @@ import { UserListGrouped } from "../users/UserListGrouped";
 import { UserProfileCard, type UserProfileCardActions } from "../users/UserProfileCard";
 import { ScreenShareViewer, type ScreenShareViewerRef } from "../ScreenShareViewer";
 import { AllianceView } from "./AllianceView";
+import type { AlliancePeopleActions } from "./AlliancePeoplePanel";
 import { ReconnectBanner } from "./ReconnectBanner";
 import { ForumView, type ForumActions } from "../forum/ForumView";
 import { PollComposer } from "../polls/PollComposer";
@@ -32,6 +33,9 @@ import { ChannelMessageList } from "./ChannelMessageList";
 import type { MessageRowActions } from "./MessageRow";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
+import { CalendarIcon } from "../Icons";
+import { FocusTrap } from "../FocusTrap";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -132,8 +136,10 @@ interface Props {
   onOpenHubStreams: () => void;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
-  onOpenUserProfile?: (pubkey: string) => void;
-  onStartConversation?: (pubkey: string) => void;
+  alliancePeopleActions?: AlliancePeopleActions;
+  onStartConversation?: (pubkey: string, via?: { hubUrl: string; masterPubkey: string; displayName?: string | null }) => void;
+  /** See dmPeerLabel. */
+  dmPeerNames?: Record<string, string>;
   onShowPinned: () => void;
   profileCardActions: UserProfileCardActions;
 
@@ -157,7 +163,7 @@ interface Props {
   // desktop's on-demand modal overlay -- rather than forcing either app to
   // change its shipped UX for this hoist.
   eventsPresentation: "tabs" | "modal";
-  getEvents: (params?: { upcoming?: boolean; limit?: number }) => Promise<HubEvent[]>;
+  getEvents: (params?: { upcoming?: boolean; limit?: number; channelId?: string }) => Promise<HubEvent[]>;
   deleteEvent: (eventId: string) => Promise<void>;
   rsvpEvent: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   createEvent: (payload: CreateEventPayload) => Promise<HubEvent>;
@@ -192,8 +198,9 @@ export function ContentArea({
   onOpenHubStreams,
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
-  onOpenUserProfile,
   onStartConversation,
+  dmPeerNames,
+  alliancePeopleActions,
   onShowPinned,
   profileCardActions,
   forumActions, messageRowActions,
@@ -221,6 +228,7 @@ export function ContentArea({
   const [channelPolls, setChannelPolls] = useState<Poll[]>([]);
   const [activeContentTab, setActiveContentTab] = useState<"messages" | "events">("messages");
   const [showEventsModal, setShowEventsModal] = useState(false);
+  useCloseOnEscape(() => setShowEventsModal(false), eventsPresentation === "modal" && showEventsModal);
 
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() =>
     selectedChannel ? loadExpandedThreads(selectedChannel.id) : new Set()
@@ -310,11 +318,7 @@ export function ContentArea({
   }
 
   function handleAuthorClick(pubkey: string) {
-    if (onOpenUserProfile) {
-      onOpenUserProfile(pubkey);
-    } else {
-      setProfileCardPubkey(pubkey);
-    }
+    setProfileCardPubkey(pubkey);
   }
 
   // Same member menu the sidebar member list opens on right-click. The
@@ -442,8 +446,8 @@ export function ContentArea({
       rsvpEvent={rsvpEvent}
       createEvent={createEvent}
       advancedFieldsSupported
-      slotClaimSupported
       staging={eventStaging}
+      onClose={eventsPresentation === "modal" ? () => setShowEventsModal(false) : undefined}
     />
   );
 
@@ -484,6 +488,7 @@ export function ContentArea({
               publicKey={publicKey}
               blockedUsers={blockedUsers}
               users={users}
+              peerNames={dmPeerNames}
               knownDisplayNames={knownDisplayNames}
               myDisplayName={myDisplayName}
               pendingAttachments={pendingAttachments}
@@ -546,7 +551,7 @@ export function ContentArea({
                       onClick={() => setActiveContentTab(tab)}
                       className={`content-area-tab${activeContentTab === tab ? " active" : ""}`}
                     >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {t(tab === "messages" ? "content.tab.messages" : "content.tab.events")}
                     </button>
                   ))}
                 </div>
@@ -559,8 +564,8 @@ export function ContentArea({
                   className="btn-icon-header"
                   title={t("events.open_panel")}
                   aria-label={t("events.open_panel")}
-                >
-                  📅
+                >
+                  <CalendarIcon size={14} />
                 </button>
               </div>
             )}
@@ -676,6 +681,11 @@ export function ContentArea({
             onInputTextChange={onInputTextChange}
             onSendAllianceMessage={onSendAllianceMessage}
             onOpenImage={onOpenImage}
+            people={alliancePeopleActions && onStartConversation ? {
+              actions: alliancePeopleActions,
+              ownHubId: activeHubId,
+              onMessage: (p, hubUrl) => onStartConversation(p.public_key, { hubUrl, masterPubkey: p.master_pubkey, displayName: p.display_name }),
+            } : undefined}
           />
         ) : (
           <div className="no-channel"><p>{t("channel.no_selection")}</p></div>
@@ -726,13 +736,18 @@ export function ContentArea({
       )}
 
       {eventsPresentation === "modal" && showEventsModal && (
-        <div className="modal-overlay" onClick={() => setShowEventsModal(false)}>
-          <div className="modal" style={{ maxWidth: 640, maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="btn-ghost" onClick={() => setShowEventsModal(false)} aria-label={t("modal.close")}>✕</button>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowEventsModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("events.panel.title")}
+        >
+          <FocusTrap>
+            <div className="modal" style={{ maxWidth: 640, width: "100%", padding: 0 }} onClick={(e) => e.stopPropagation()}>
+              {eventsPanel}
             </div>
-            {eventsPanel}
-          </div>
+          </FocusTrap>
         </div>
       )}
     </>

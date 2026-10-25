@@ -75,7 +75,15 @@ impl VoiceSettings {
             AudioProfile::Music => EffectiveVoiceConfig {
                 opus_app: audiopus::Application::Audio,
                 bitrate: Some(128),
-                channels: audiopus::Channels::Stereo,
+                // Mono, like every other profile: `capture.rs` averages the
+                // device's channels down to one before anything downstream
+                // sees them, and `codec.rs` builds the decoder with
+                // `Channels::Mono`. A stereo encoder fed that mono buffer
+                // reads it as half as many interleaved pairs, so each channel
+                // carried the signal decimated by two with no filter — the far
+                // end heard the speaker plus an aliased, pitch-shifted copy.
+                // Stereo needs a stereo capture path first.
+                channels: audiopus::Channels::Mono,
                 frame_duration_ms: 20,
                 complexity: 9,
                 noise_suppress: false,
@@ -89,11 +97,9 @@ impl VoiceSettings {
                     _ => audiopus::Application::Voip,
                 },
                 bitrate: self.custom_bitrate,
-                channels: if self.custom_channels == Some(2) {
-                    audiopus::Channels::Stereo
-                } else {
-                    audiopus::Channels::Mono
-                },
+                // `custom_channels` is deliberately not read — see the music
+                // arm above. The setting is gone from the UI.
+                channels: audiopus::Channels::Mono,
                 frame_duration_ms: self.custom_frame_ms.unwrap_or(20),
                 complexity: self.custom_complexity.unwrap_or(5),
                 noise_suppress: self.custom_noise_suppress.unwrap_or(true),

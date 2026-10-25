@@ -40,18 +40,18 @@ export function StagingSlotGroup({
         : null;
 
   return (
-    <div className="settings-section" style={{ marginBottom: 10 }}>
+    <div className="modal-section" role="group" aria-label={title}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>
           {title}
           {fill && <span className="muted" style={{ fontWeight: 400 }}> ({fill})</span>}
         </div>
         {destinationChannels.length > 0 && group.claimants.length > 0 && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
             <select
               value={bulkTarget}
               onChange={(e) => setBulkTarget(e.target.value)}
-              style={{ fontSize: "var(--text-xs)" }}
+              style={{ fontSize: "var(--text-xs)", padding: "2px 8px" }}
               aria-label={t("events.staging.move_all", { group: title })}
             >
               {destinationChannels.map((c) => (
@@ -95,11 +95,11 @@ export function StagingSlotGroup({
                 )}
               </div>
               {destinationChannels.length > 0 && (
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
                   <select
                     value={rowTarget(pubkey)}
                     onChange={(e) => setRowTargets((prev) => ({ ...prev, [pubkey]: e.target.value }))}
-                    style={{ fontSize: "var(--text-xs)" }}
+                    style={{ fontSize: "var(--text-xs)", padding: "2px 8px" }}
                     aria-label={t("events.staging.move")}
                   >
                     {destinationChannels.map((c) => (

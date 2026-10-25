@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CloseIcon } from "../Icons";
 
 interface Props {
   hubId: string;
@@ -80,8 +81,8 @@ export function WelcomeInviteBanner({ hubId, hubUrl, loadHubInfo, isDismissed, d
         onClick={handleDismiss}
         aria-label={t("modal.close")}
         style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "var(--text-md)", lineHeight: 1, padding: "0 4px" }}
-      >
-        ×
+      >
+        <CloseIcon size={13} />
       </button>
     </div>
   );

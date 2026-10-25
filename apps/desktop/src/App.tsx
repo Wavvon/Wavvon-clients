@@ -33,7 +33,7 @@ import type {
   AppOpenEvent,
   AppCloseEvent,
 } from "./types";
-import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll } from "@wavvon/ui";
+import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel } from "@wavvon/ui";
 import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
 import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
@@ -55,7 +55,7 @@ import {
   descendantIds,
   computeDepth,
 } from "@wavvon/core";
-import { parseHubInput } from "@wavvon/core";
+import { parseHubInput, classifyHubRefusal, type HubRefusal } from "@wavvon/core";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts } from "@wavvon/ui";
 import { unreadPersistence } from "./unreadPersistence";
@@ -81,7 +81,6 @@ import { HubSidebar } from "@wavvon/ui";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
 import { fetchWithTimeout } from "./utils/fetchWithTimeout";
-import { HubBrowser } from "./components/HubBrowser";
 import { WelcomeScreen } from "@wavvon/ui";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { setSwitchGuard } from "./accounts/store";
@@ -92,6 +91,9 @@ function App() {
   const { t } = useTranslation();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   const [pendingSurveyHubId, setPendingSurveyHubId] = useState<string | null>(null);
+  // Hubs whose answer to /me was a refusal (banned, invite required, ...),
+  // shown as such rather than as an empty hub.
+  const [refusedHubs, setRefusedHubs] = useState<Map<string, HubRefusal>>(new Map());
   const unreadCounts = useUnreadCounts(unreadPersistence);
   const {
     unreadByChannel,
@@ -688,7 +690,6 @@ function App() {
 
   
   const settingsProfile = useSettingsProfile({
-    setPublicKey,
     setError,
     setToast,
   });
@@ -701,7 +702,6 @@ function App() {
   } = settingsProfile;
 
   const [showDiscover, setShowDiscover] = useState(false);
-  const [showHubBrowser, setShowHubBrowser] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
     try {
       return localStorage.getItem("wavvon.seenWelcome") !== "1";
@@ -812,6 +812,8 @@ function App() {
     onParticipantLeft: voice.onParticipantLeft,
     onMicLevel: voice.onMicLevel,
     onHubErrorVoiceJoin: voice.onHubErrorVoiceJoin,
+    voiceVisitIdRef: voice.voiceVisitIdRef,
+    onVoiceVisitLost: leaveVoiceChannel,
     pendingVoiceAnnouncementsRef,
     voiceAnnounceTimerRef,
     setVoicePoliteAnnouncement,
@@ -859,6 +861,17 @@ function App() {
     onSoundboardPlayed: receiveSoundboardPlayed,
   });
 
+  // get_me reports a hub's answer as {"status","message"}; anything else is a
+  // failure to ask, which must not read as a refusal.
+  function refusalFrom(e: unknown): HubRefusal | null {
+    try {
+      const { status, message } = JSON.parse(String(e)) as { status: number; message: string };
+      return classifyHubRefusal(status, message);
+    } catch {
+      return null;
+    }
+  }
+
   async function loadHubData() {
     try {
       const activeHub = hubs.find((h) => h.hub_id === activeHubId) ?? hubs.find((h) => h.is_active);
@@ -886,13 +899,31 @@ function App() {
       // Pull /me FIRST. If we're pending approval, the rest of the calls
       // would just 403 and bury the user under a wall of error toasts.
       let me: MeInfo | null = null;
+      let refusal: HubRefusal | null = null;
       try {
         me = await invoke<MeInfo>("get_me");
         setMyRoles(me.roles);
         setMyApprovalStatus(me.approval_status);
-      } catch {
+      } catch (e) {
         setMyRoles([]);
         setMyApprovalStatus("unknown");
+        refusal = refusalFrom(e);
+      }
+      if (activeHub) {
+        const hubId = activeHub.hub_id;
+        setRefusedHubs((prev) => {
+          if (!refusal && !prev.has(hubId)) return prev;
+          const next = new Map(prev);
+          if (refusal) next.set(hubId, refusal);
+          else next.delete(hubId);
+          return next;
+        });
+      }
+      if (refusal) {
+        setChannels([]);
+        setUsers([]);
+        setConversations([]);
+        return;
       }
 
       if (me?.approval_status === "pending") {
@@ -943,22 +974,21 @@ function App() {
           applySkinTokens(s);
         } else {
           const valid =
-            appearance.slot === "calm" || appearance.slot === "classic" ||
-            appearance.slot === "linear" || appearance.slot === "light"
+            appearance.slot === "dark" || appearance.slot === "light"
               ? (appearance.slot as ThemeId)
-              : "calm";
+              : "dark";
           setTheme(valid);
           document.documentElement.dataset.theme = valid;
         }
       } catch {
         try {
           const profile = await invoke<{ theme?: string | null }>("get_profile");
-          const t = (profile.theme ?? "calm") as ThemeId;
-          const valid = t === "calm" || t === "classic" || t === "linear" || t === "light" ? t : "calm";
+          const t = (profile.theme ?? "dark") as ThemeId;
+          const valid = t === "dark" || t === "light" ? t : "dark";
           setTheme(valid);
           document.documentElement.dataset.theme = valid;
         } catch {
-          document.documentElement.dataset.theme = "calm";
+          document.documentElement.dataset.theme = "dark";
         }
       }
       try {
@@ -979,7 +1009,17 @@ function App() {
         } catch {}
       }
       try {
-        const allHubs = await invoke<Hub[]>("auto_connect_saved");
+        const { hubs: allHubs, unreachable } = await invoke<{
+          hubs: Hub[];
+          unreachable: { hub_name: string; hub_url: string; error: string }[];
+        }>("auto_connect_saved");
+        // A hub that could not be reached is still saved; say so rather than
+        // let it vanish, and never fall back to the welcome screen for it.
+        if (unreachable.length > 0) {
+          for (const h of unreachable) console.warn("Saved hub unreachable at startup:", h.hub_url, h.error);
+          setToast(t("app.hub_unreachable_at_start", { hub: unreachable.map((h) => h.hub_name || h.hub_url).join(", ") }));
+          setShowWelcome(false);
+        }
         if (allHubs.length > 0) {
           setHubs(allHubs);
           const active = allHubs.find((h) => h.is_active) ?? allHubs[0];
@@ -1019,8 +1059,12 @@ function App() {
   // member by name).
   const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
   const me = users.find((u) => u.public_key === publicKey);
+  // "Skip for now" is an answer too; without remembering it the prompt came
+  // back on every launch. Keyed by account, since each one is asked once.
+  const nameSkipKey = `wavvon.displayNamePromptSkipped.${publicKey}`;
   useEffect(() => {
     if (hubs.length !== 1 || !me || me.display_name) return;
+    if (localStorage.getItem(nameSkipKey) === "1") return;
     // A default profile means the user already said who they want to be —
     // apply it instead of asking again, the same way web does.
     void loadDefaultProfileAsync()
@@ -1128,7 +1172,7 @@ function App() {
     try {
       const profile = await invoke<{ theme?: string | null }>("get_profile");
       const t = profile.theme;
-      if (t === "calm" || t === "classic" || t === "linear" || t === "light") {
+      if (t === "dark" || t === "light") {
         setTheme(t);
       }
     } catch {}
@@ -1539,7 +1583,6 @@ function App() {
             hideBirthdays={hideBirthdays}
             onToggleHideBirthdays={() => setHideBirthdays((v) => !v)}
             voice={voice}
-            video={video}
             channelMessages={channelMessages}
             settingsProfile={settingsProfile}
           />
@@ -1571,16 +1614,6 @@ function App() {
                 fetchUrl={(url) => fetchWithTimeout(url)}
                 directoryUrl={DISCOVERY_URL}
               />
-            ) : showHubBrowser ? (
-              <HubBrowser
-                onClose={() => setShowHubBrowser(false)}
-                onJoinHub={(url, code) => {
-                  setHubUrl(url);
-                  setInviteCode(code);
-                  setShowHubBrowser(false);
-                  setShowAddHub(true);
-                }}
-              />
             ) : !hasActiveHub ? (
               showWelcome ? (
                 <WelcomeScreen
@@ -1591,7 +1624,6 @@ function App() {
                   error={error}
                   onJoin={() => handleAddHub()}
                   onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
-                  onCheckHubUrl={() => setShowHubBrowser(true)}
                   onDismiss={dismissWelcome}
                 />
               ) : (
@@ -1624,9 +1656,24 @@ function App() {
                     .catch(() => {});
                 }}
               />
+            ) : activeHubId && refusedHubs.has(activeHubId) ? (
+              <HubRefusedPanel
+                key={activeHubId}
+                hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
+                refusal={refusedHubs.get(activeHubId)!}
+                onRedeemInvite={async (code) => {
+                  // Authenticating again with the code is the redemption; the
+                  // new session replaces the refused one.
+                  const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+                  if (!hubUrl) return;
+                  await invoke("add_hub", { hubUrl, inviteCode: code });
+                  await loadHubData();
+                }}
+                onRemoveHub={() => removeHubConfirm.requestRemoveHub(activeHubId, hubs)}
+              />
             ) : myApprovalStatus === "pending" ? (
               <div className="empty-state pending-approval">
-                <div className="pending-approval-icon">⏳</div>
+                <div className="pending-approval-icon"><ClockIcon size={32} /></div>
                 <h1>{t("app.approval.title")}</h1>
                 <p>
                   {t("app.approval.hub_requires", {
@@ -1660,6 +1707,7 @@ function App() {
                   collapsedCategories={collapsedCategories}
                   onToggleCategoryCollapsed={toggleCategoryCollapsed}
                   voiceChannelNameHint={voiceChannelNameHint}
+                  setVoiceChannelNameHint={setVoiceChannelNameHint}
                   setVoiceMoveMenu={setVoiceMoveMenu}
                   hubDropdownOpen={hubDropdownOpen}
                   setHubDropdownOpen={setHubDropdownOpen}
@@ -1682,6 +1730,7 @@ function App() {
                   canMoveMembers={canMoveMembers}
                   openFriends={openFriends}
                   openSettings={openSettings}
+                  openVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); void openSettings(); }}
                   onDragEnd={handleDragEnd}
                   setShowSearchBar={setShowSearchBar}
                   myPresence={myPresence}
@@ -1806,7 +1855,10 @@ function App() {
         {showDisplayNamePrompt && (
           <DisplayNamePrompt
             onSave={saveDisplayName}
-            onSkip={() => setShowDisplayNamePrompt(false)}
+            onSkip={() => {
+              localStorage.setItem(nameSkipKey, "1");
+              setShowDisplayNamePrompt(false);
+            }}
           />
         )}
 
@@ -1829,7 +1881,7 @@ function App() {
           myRoles={myRoles}
           error={error}
           setToast={setToast}
-          setShowHubBrowser={setShowHubBrowser}
+          setShowDiscover={setShowDiscover}
           pendingSurveyHubId={pendingSurveyHubId}
           setPendingSurveyHubId={setPendingSurveyHubId}
           setMyApprovalStatus={setMyApprovalStatus}

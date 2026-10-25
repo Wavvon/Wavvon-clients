@@ -24,7 +24,6 @@ export interface ChannelContextMenuProps {
   onCreateChannelIn?: (parentId: string) => void;
   onCreateChannel?: () => void;
   onCreateCategory?: () => void;
-  onEditAppearance?: (channel: Channel) => void;
   onEditChannel?: (channel: Channel) => void;
   onDeleteChannel?: (channel: Channel) => void;
 }
@@ -39,7 +38,7 @@ export function ChannelContextMenu({
   menu, activeHubId, effectiveNotifyMode, onSetNotifyMode, onClose,
   onCopyLink, onCreateEvent, onCreatePoll, onRenameTempRoom, onEditBanner,
   onCreateChannelIn, onCreateChannel, onCreateCategory,
-  onEditAppearance, onEditChannel, onDeleteChannel,
+  onEditChannel, onDeleteChannel,
 }: ChannelContextMenuProps) {
   const { t } = useTranslation();
   const { x, y, channel } = menu;
@@ -105,8 +104,6 @@ export function ChannelContextMenu({
   ].filter(Boolean);
 
   const manageEntries = [
-    channel.is_category && onEditAppearance &&
-      item(t("channel.ctx.appearance"), () => onEditAppearance(channel)),
     onEditChannel &&
       item(t("channel.ctx.edit_name", { name: channel.name }), () => onEditChannel(channel)),
     onDeleteChannel &&

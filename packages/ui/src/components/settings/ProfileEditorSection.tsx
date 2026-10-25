@@ -12,7 +12,10 @@ import { insertAtLineStart } from "../../utils/activityEmoji";
 import { profileBannerStyle } from "../../utils/identityColor";
 import { loadHiddenBadgeSet } from "../../utils/hiddenBadges";
 import { FavoriteHubsEditor } from "./FavoriteHubsEditor";
+import { FindableByAlliesToggle } from "./FindableByAlliesToggle";
 import { AvatarChooser } from "./AvatarChooser";
+import { EditIcon, CloseIcon } from "../Icons";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 interface Props {
   hubs: Hub[];
@@ -137,6 +140,8 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
   const [identityBadges, setIdentityBadges] = useState<string[]>([]);
   const [choosingAvatar, setChoosingAvatar] = useState(false);
   const [editingBanner, setEditingBanner] = useState(false);
+  useCloseOnEscape(() => setChoosingAvatar(false), choosingAvatar);
+  useCloseOnEscape(() => setEditingBanner(false), editingBanner);
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved">("idle");
   const [error, setError] = useState<"no_session" | "name_required" | string | null>(null);
   const [hasDefault, setHasDefault] = useState(false);
@@ -510,7 +515,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
               aria-label={t("settings.profile.banner.edit")}
               title={t("settings.profile.banner.edit")}
             >
-              <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
+              <span className="avatar-edit-overlay" aria-hidden="true"><EditIcon size={16} /></span>
             </button>
             <div className="profile-card-body">
               {/* Avatar + a thought bubble carrying the status — the avatar
@@ -525,7 +530,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     title={t("profile.avatar_chooser.change_avatar")}
                   >
                     <Avatar src={draft.avatar} name={draft.display_name} size={80} />
-                    <span className="avatar-edit-overlay" aria-hidden="true">✏️</span>
+                    <span className="avatar-edit-overlay" aria-hidden="true"><EditIcon size={16} /></span>
                   </button>
                 </div>
                 <StatusBubble
@@ -654,7 +659,11 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                         onChange={(v) => update({ bio: v })}
                         placeholder={t("settings.profile.fields.bio_placeholder")}
                         ariaLabel={t("settings.profile.fields.bio_label")}
-                        minHeight={200}
+                        // It grows as you type, so the floor only has to be
+                        // enough to read a short bio in. At 200 it reserved
+                        // most of the card for an empty box and pushed Save
+                        // below the fold.
+                        minHeight={88}
                       />
                       <div className="muted" style={{ fontSize: "var(--text-xs)", textAlign: "right" }}>
                         {draft.bio.length}/{BIO_MAX}
@@ -702,6 +711,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                 )}
 
                 {tab === "hubs" && (
+                  <>
                   <FavoriteHubsEditor
                     hubs={hubs}
                     favorites={draft.favorite_hubs}
@@ -709,6 +719,14 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     onToggleShow={(show) => update({ show_hubs: show })}
                     onChange={(favorite_hubs) => update({ favorite_hubs })}
                   />
+                  {!isDefault && actions.loadFindableByAllies && actions.saveFindableByAllies && (
+                    <FindableByAlliesToggle
+                      hubId={context}
+                      load={actions.loadFindableByAllies}
+                      save={actions.saveFindableByAllies}
+                    />
+                  )}
+                  </>
                 )}
               </div>
             </div>
@@ -727,7 +745,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                   aria-label={t("modal.close")}
                   style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}
                 >
-                  ×
+                  <CloseIcon size={13} />
                 </button>
                 <label className="settings-label" style={{ marginBottom: 8, display: "block" }}>
                   {t("profile.avatar_chooser.change_avatar")}
@@ -758,7 +776,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                   aria-label={t("modal.close")}
                   style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}
                 >
-                  ×
+                  <CloseIcon size={13} />
                 </button>
                 <label className="settings-label" style={{ marginBottom: 8, display: "block" }}>
                   {t("settings.profile.banner.edit")}

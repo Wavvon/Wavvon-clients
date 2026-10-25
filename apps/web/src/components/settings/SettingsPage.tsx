@@ -2,17 +2,16 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
 import type { ThemeId, WavvonSkin, ProfileEditorActions, SettingsTabDef, TrustRoot } from "@wavvon/ui";
-import { HelpTab, ProfileTab, resolveManagingAccount, SettingsShell } from "@wavvon/ui";
+import { CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsShell } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
-import { getMyProfileOnHub, updateMyProfileOnHub, NO_HUB_SESSION, listMyCertifications } from "@platform";
+import { getMyProfileOnHub, updateMyProfileOnHub, getFindableByAllies, setFindableByAllies, NO_HUB_SESSION, listMyCertifications } from "@platform";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { addTrustRoot } from "@wavvon/ui";
 import { loadTrustRoots, saveTrustRoots } from "@shared/utils/trustRoots";
 import { NotificationsTab } from "./tabs/NotificationsTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { VoiceTab } from "./tabs/VoiceTab";
-import { CameraTab } from "./tabs/CameraTab";
 import { ManageAccountsTab } from "./tabs/ManageAccountsTab";
 import { DevicesTab } from "./tabs/DevicesTab";
 import { PrivacyTab } from "./tabs/PrivacyTab";
@@ -29,6 +28,8 @@ const profileEditorActions: ProfileEditorActions = {
   loadFollowsDefault: (accountId) => loadFollowsDefault(accountId),
   saveFollowsDefault: (hubIds, accountId) => saveFollowsDefault(hubIds, accountId),
   listMyCertifications,
+  loadFindableByAllies: getFindableByAllies,
+  saveFindableByAllies: setFindableByAllies,
 };
 
 export type SettingsTab =

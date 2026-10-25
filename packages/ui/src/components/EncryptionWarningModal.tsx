@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "./FocusTrap";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 export interface EncryptionWarning {
   /** An i18n key, resolved here. Both callers pass one of the
@@ -21,6 +22,7 @@ export interface EncryptionWarning {
  *  can read is a different promise from the one the product makes — and the
  *  user is the only one who can decide to make it anyway. */
 export function EncryptionWarningModal({ messageKey, onConfirm, onCancel }: EncryptionWarning) {
+  useCloseOnEscape(onCancel);
   const { t } = useTranslation();
 
   return (

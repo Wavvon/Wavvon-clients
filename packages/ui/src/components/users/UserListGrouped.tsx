@@ -4,6 +4,7 @@ import type { User } from "../../types";
 import { formatPubkey, isBirthdayToday } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 import { nameColorStyle, safeRoleColor } from "../../utils/roleAppearance";
+import { CakeIcon, MicOnIcon } from "../Icons";
 
 export function UserListGrouped({
   users,
@@ -165,7 +166,7 @@ export function UserListGrouped({
                   >
                     {u.display_name || u.public_key.slice(0, 16)}
                     {!hideBirthdays && isBirthdayToday(u.birthday) && (
-                      <span title={t("message.birthday")} aria-label={t("message.birthday")}> 🎂</span>
+                      <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={12} /></span>
                     )}
                     {u.status_custom && (
                       <span className="user-custom-status"> — {u.status_custom}</span>
@@ -173,7 +174,7 @@ export function UserListGrouped({
                   </span>
                   {speaking?.has(u.public_key) && (
                     <span className="user-speaking" title={t("voice.speaking")} aria-label={t("voice.speaking")}>
-                      🎙️
+                      <MicOnIcon size={12} />
                     </span>
                   )}
                 </li>
@@ -213,7 +214,7 @@ export function UserListGrouped({
                   >
                     {u.display_name || u.public_key.slice(0, 16)}
                     {!hideBirthdays && isBirthdayToday(u.birthday) && (
-                      <span title={t("message.birthday")} aria-label={t("message.birthday")}> 🎂</span>
+                      <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={12} /></span>
                     )}
                     {isSelfInvisible && (
                       <span className="user-custom-status"> — {t("presence.invisible")}</span>
@@ -221,7 +222,7 @@ export function UserListGrouped({
                   </span>
                   {speaking?.has(u.public_key) && (
                     <span className="user-speaking" title={t("voice.speaking")} aria-label={t("voice.speaking")}>
-                      🎙️
+                      <MicOnIcon size={12} />
                     </span>
                   )}
                 </li>

@@ -1,5 +1,5 @@
-import { hexToBytes, signBytes } from "@wavvon/core";
-import { rawFetch } from "../http";
+import { AUTH_CHALLENGE_SCHEME, authChallengeSigningBytes, hexToBytes, signBytes } from "@wavvon/core";
+import { rawFetch, hubFetchWithToken, HubApiError } from "../http";
 import { resolveSessionScope } from "@wavvon/ui";
 
 // Token-acquisition core for the Ed25519 challenge-response auth flow
@@ -10,6 +10,8 @@ import { resolveSessionScope } from "@wavvon/ui";
 
 interface ChallengeResponse {
   challenge: string;
+  /** "tagged-v1" from a hub or farm that takes the tagged answer. */
+  scheme?: string;
 }
 
 interface VerifyResponse {
@@ -36,6 +38,7 @@ export async function acquireHubToken(
   invite_code?: string,
   subkey_cert?: unknown,
   alliance_voice_grant?: unknown,
+  challenge_token?: string,
 ): Promise<HubTokenResult> {
   const challengeRes: ChallengeResponse = await rawFetch(
     `${auth_url}/auth/challenge`,
@@ -43,7 +46,19 @@ export async function acquireHubToken(
   ).then((r) => r.json() as Promise<ChallengeResponse>);
 
   const challengeBytes = hexToBytes(challengeRes.challenge);
-  const signatureHex = signBytes(challengeBytes, seedHex);
+  // The same key signs envelopes, messages and certs. A Wavvon hub issues
+  // exactly 32 random bytes, and everything else this key signs is longer,
+  // so a hub asking for anything else is asking for a signature it could
+  // replay as one of those (Wavvon-server#111).
+  if (challengeBytes.length !== 32) {
+    throw new Error(`Refusing to sign a ${challengeBytes.length}-byte auth challenge`);
+  }
+  // Tagged where the server says it takes that; the raw answer remains only
+  // for an older one, and the length check above guards it.
+  const signatureHex = signBytes(
+    challengeRes.scheme === AUTH_CHALLENGE_SCHEME ? authChallengeSigningBytes(challengeBytes) : challengeBytes,
+    seedHex,
+  );
 
   const body: Record<string, unknown> = {
     public_key: pubkeyHex,
@@ -61,6 +76,8 @@ export async function acquireHubToken(
   // already has a users row for us — a member session is strictly better, and
   // the hub says so by answering with scope "member".
   if (alliance_voice_grant) body["alliance_voice_grant"] = alliance_voice_grant;
+  // The hub's anti-spam check (challenge_mode), passed just before joining.
+  if (challenge_token) body["challenge_token"] = challenge_token;
 
   const verifyRes: VerifyResponse = await rawFetch(`${auth_url}/auth/verify`, {
     method: "POST",
@@ -72,4 +89,23 @@ export async function acquireHubToken(
     canonicalPubkey: verifyRes.canonical_pubkey,
     scope: resolveSessionScope(verifyRes.scope),
   };
+}
+
+// A farm token carries no invite, and on an invite-only hub the hub refuses a
+// non-member holding one. Probe first rather than redeeming blindly: /join/{code}
+// spends an invite use even for a member. Without a code the 403 is rethrown,
+// the same error /auth/verify gives a hub reached directly. Any other probe
+// failure is left for the first real request to report, as before.
+export async function admitFarmToken(
+  hub_url: string,
+  token: string,
+  invite_code?: string,
+): Promise<void> {
+  try {
+    await hubFetchWithToken(hub_url, token, "/me");
+  } catch (e) {
+    if (!(e instanceof HubApiError && e.status === 403 && /requires an invite code/i.test(e.message))) return;
+    if (!invite_code) throw e;
+    await hubFetchWithToken(hub_url, token, `/join/${encodeURIComponent(invite_code)}`, { method: "POST" });
+  }
 }

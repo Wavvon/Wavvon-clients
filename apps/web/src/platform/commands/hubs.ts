@@ -11,6 +11,7 @@ import {
 import { HubWebSocket, type WsHandlers } from "../ws";
 import {
   loadSavedHubs,
+  rekeySavedHub,
   upsertSavedHub,
   removeSavedHub,
   updateSavedHub,
@@ -22,10 +23,10 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { publicKeyHex } from "@wavvon/core";
+import { publicKeyHex, rotationAppliesTo, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import { probeSessionScope } from "./lobby";
-import { acquireHubToken as authenticate } from "./hubAuth";
+import { acquireHubToken as authenticate, admitFarmToken } from "./hubAuth";
 import { ensureHomeHubDesignation, ensureSelfDeviceCert } from "./identity";
 
 interface InfoResponse {
@@ -42,10 +43,15 @@ interface InfoResponse {
    * is renamed; the client follows it, keyed on the pubkey that doesn't. */
   canonical_url?: string | null;
   farm_url?: string | null;
+  /** "off", "click", "puzzle" or "both": a join needs a solved challenge first. */
+  challenge_mode?: string | null;
   welcome_label?: string | null;
   welcome_invite_url?: string | null;
   /** SHA-256 hex of the LAN self-signed cert, present when lan_tls === "self". */
   lan_fingerprint?: string | null;
+  /** Present while a key rotation's transition window is open: the old key's
+   * signed endorsement of the new one. See `followKeyRotation`. */
+  rotation?: HubKeyRotation | null;
 }
 
 /** Where this identity's `/auth/*` calls go.
@@ -63,23 +69,105 @@ interface InfoResponse {
  * the join succeeded and the device was simply somebody else. Authenticating
  * at the hub costs that one device farm SSO and is otherwise identical.
  */
+/**
+ * How much of a pubkey a log line carries. Enough to recognise which hub a
+ * message is about, short enough to stay readable — never used to compare or
+ * match anything, only to print.
+ */
+const LOG_KEY_CHARS = 8;
+const logKey = (key: string): string => key.slice(0, LOG_KEY_CHARS);
+
 function authBaseUrl(info: InfoResponse, hub_url: string, subkeyCert?: unknown): string {
   if (subkeyCert) return hub_url;
   return info.farm_url ?? hub_url;
 }
 
+/**
+ * Follow a hub that has rotated its identity key, and return the id to carry
+ * on with.
+ *
+ * A hub's pubkey is its name here — the list entry, the cached token and the
+ * active-hub pointer are all filed under it. So when the key changes there
+ * are exactly two honest outcomes: we can prove it is the same hub and move
+ * everything across, or we cannot and it is a different hub, which is the
+ * case worth refusing rather than quietly adopting.
+ *
+ * The proof is the endorsement the old key signed
+ * (`rotationAppliesTo`, verified against the key we already hold). Without
+ * one, or with one we cannot verify, this does nothing and the caller carries
+ * on under the old id — a hub presenting an unexplained new key is a stranger
+ * at a familiar address, and today nothing else in the client would notice.
+ *
+ * Sibling of the `canonical_url` follow below: that one moves *where* we
+ * look while the identity holds still, this one moves *who* we think we are
+ * talking to while the address holds still. Neither is allowed to do both.
+ */
+function followKeyRotation(info: InfoResponse, hub_id: string): string {
+  if (info.public_key === hub_id) return hub_id;
+  if (!rotationAppliesTo(info.rotation, hub_id)) {
+    if (info.public_key) {
+      console.warn(
+        `[hubs] ${logKey(hub_id)} now presents ${logKey(info.public_key)} with no verifiable endorsement — not following`,
+      );
+    }
+    return hub_id;
+  }
+
+  const newId = info.public_key;
+  if (!rekeySavedHub(hub_id, newId)) return hub_id;
+
+  const s = getSession(hub_id);
+  if (s) {
+    removeSession(hub_id);
+    setSession(newId, { ...s, hub_id: newId });
+  }
+  if (getActiveHubId() === hub_id) setActiveHubId(newId);
+  console.info(`[hubs] ${logKey(hub_id)} rotated its key to ${logKey(newId)}`);
+  return newId;
+}
+
+
+/** The hub runs an admission challenge; solve it, then call addHub again
+ *  with the token. */
+export class ChallengeRequiredError extends Error {
+  constructor(public hubUrl: string, public pubkey: string) {
+    super("challenge_required");
+  }
+}
+
+export function isChallengeRequired(e: unknown): boolean {
+  return e instanceof HubApiError && e.status === 403 && /challenge token required/i.test(e.message);
+}
+
+/** One challenge for the identity about to join `hubUrl`. */
+export async function fetchAdmissionChallenge(hubUrl: string, pubkey: string): Promise<ChallengePrompt> {
+  const r = await rawFetch(`${hubUrl}/challenge/new?pubkey=${encodeURIComponent(pubkey)}`);
+  return r.json() as Promise<ChallengePrompt>;
+}
+
+export async function submitAdmissionChallenge(
+  hubUrl: string,
+  id: string,
+  pubkey: string,
+  answer: string | null,
+): Promise<ChallengeResult> {
+  const r = await rawFetch(`${hubUrl}/challenge/verify`, {
+    method: "POST",
+    body: JSON.stringify({ id, pubkey, answer }),
+  });
+  return r.json() as Promise<ChallengeResult>;
+}
 
 export async function addHub(
   hub_url: string,
   handlers: WsHandlers,
-  opts?: { invite_code?: string; rememberMe?: boolean; sessionToken?: string },
+  opts?: { invite_code?: string; rememberMe?: boolean; sessionToken?: string; challenge_token?: string },
 ): Promise<Hub> {
   const url = hub_url.replace(/\/$/, "");
 
   const info: InfoResponse = await rawFetch(`${url}/info`).then(
     (r) => r.json() as Promise<InfoResponse>,
   );
-
   let token: string;
   // "member" is the safe default for the sessionToken (webauthn) path below,
   // where we don't get a scope back directly — a wrong "member" guess just
@@ -94,17 +182,32 @@ export async function addHub(
     const identity = await loadIdentity();
     if (!identity) throw new Error("No identity — generate one first");
 
+    const authBase = authBaseUrl(info, url, identity.subkey_cert);
+    // Whether this join needs the admission challenge is the hub's call — it
+    // waives it for a member and for a named invite — so ask by trying, and
+    // offer the challenge only when it says so. The refusal comes before the
+    // hub writes anything, so the retry starts clean.
     const res = await authenticate(
-      authBaseUrl(info, url, identity.subkey_cert),
+      authBase,
       publicKeyHex(identity.seed_hex),
       identity.seed_hex,
       identity.security_nonce,
       identity.security_level,
       opts?.invite_code,
       identity.subkey_cert,
-    );
+      undefined,
+      opts?.challenge_token,
+    ).catch((e: unknown) => {
+      if (!opts?.challenge_token && isChallengeRequired(e)) {
+        // The hub binds the token to the key /auth/verify presents, which is
+        // this device's own — not the canonical identity a paired device shows.
+        throw new ChallengeRequiredError(url, publicKeyHex(identity.seed_hex));
+      }
+      throw e;
+    });
     token = res.token;
     scope = res.scope;
+    if (authBase !== url) await admitFarmToken(url, token, opts?.invite_code);
 
     // Paired device: persist the canonical identity the hub attributes our
     // actions to, so the UI self-identifies as the shared user rather than
@@ -222,7 +325,7 @@ export function listHubs(): Hub[] {
 // runs on connect and on every hub_updated, which is exactly when what a hub
 // can do could have changed (it was restarted onto a new version).
 export async function refreshHubInfo(
-  hub_id: string,
+  hubIdIn: string,
 ): Promise<{
   name: string;
   icon: string | null;
@@ -230,6 +333,7 @@ export async function refreshHubInfo(
   capabilities: string[];
   version: string | null;
 } | null> {
+  let hub_id = hubIdIn;
   const s = getSession(hub_id);
   if (!s) return null;
   try {
@@ -237,6 +341,10 @@ export async function refreshHubInfo(
       (r) => r.json() as Promise<InfoResponse & { timezone?: string | null }>,
     );
     const capabilities = info.capabilities ?? [];
+
+    // Identity first, address second: a rotation renames the hub we are
+    // holding, and everything below this line is filed under that name.
+    hub_id = followKeyRotation(info, hub_id);
 
     // Follow the hub if it has moved. A path-hosted hub lives at an
     // owner-chosen name that can change, and `canonical_url` is how it tells
@@ -249,7 +357,7 @@ export async function refreshHubInfo(
     const movedTo =
       info.canonical_url && info.canonical_url !== s.hub_url ? info.canonical_url : null;
     if (movedTo) {
-      console.info(`[hubs] ${hub_id.slice(0, 8)} moved to ${movedTo}`);
+      console.info(`[hubs] ${logKey(hub_id)} moved to ${movedTo}`);
       updateSavedHubUrl(hub_id, movedTo);
     }
 
@@ -490,6 +598,9 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
         );
+        // This branch re-authenticates from scratch, which is exactly where an
+        // unfollowed rotation would file the same hub a second time.
+        hub.hub_id = followKeyRotation(hubInfo, hub.hub_id);
         const authRes = await authenticateForRestore(
           authBaseUrl(hubInfo, hub.hub_url, identity.subkey_cert),
           pubkeyHex,
@@ -546,6 +657,30 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
       // silent drop here is indistinguishable from never having joined it,
       // and it is the only thing the user is shown: no session, no hub in the
       // list, and if it was the only one, the welcome screen back.
+      const refusal = e instanceof HubApiError ? classifyHubRefusal(e.status, e.message) : null;
+      if (refusal) {
+        // The hub answered and said no. Dropping it would read as "never
+        // joined"; keep it listed so the shell can show the reason.
+        setSession(hub.hub_id, {
+          hub_id: hub.hub_id,
+          hub_url: hub.hub_url,
+          hub_pubkey: hub.hub_id,
+          hub_name: hub.hub_name,
+          hub_icon: hub.hub_icon,
+          token: "",
+          ws: null,
+          refusal,
+          capabilities: hub.capabilities,
+          hub_version: hub.hub_version,
+        });
+        result.push({
+          hub_id: hub.hub_id,
+          hub_name: hub.hub_name,
+          hub_url: hub.hub_url,
+          hub_icon: hub.hub_icon,
+          is_active: hub.hub_id === savedActiveId,
+        });
+      }
       console.warn(`[restore] skipping ${hub.hub_url}:`, e);
     }
   }

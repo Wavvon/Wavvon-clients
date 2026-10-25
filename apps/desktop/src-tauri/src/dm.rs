@@ -290,6 +290,17 @@ fn decrypt_dm_inner(
     Ok(plaintext["content"].as_str().unwrap_or("").to_string())
 }
 
+/// Whether the hub takes `plaintext_signer_cert`. A failed lookup answers no:
+/// the message then goes unsigned, which is what it did before the cert.
+async fn hub_takes_signer_cert(client: &reqwest::Client, hub_url: &str) -> bool {
+    let info: Option<serde_json::Value> = match client.get(format!("{hub_url}/info")).send().await {
+        Ok(resp) => resp.json().await.ok(),
+        Err(_) => None,
+    };
+    info.and_then(|i| i["capabilities"].as_array().cloned())
+        .is_some_and(|caps| caps.iter().any(|c| c == "dms.plaintext.signercert"))
+}
+
 #[tauri::command]
 pub(crate) async fn send_dm(
     conversation_id: String,
@@ -316,9 +327,40 @@ pub(crate) async fn send_dm(
             "attachments": attachments.unwrap_or_default(),
         })
     } else {
+        let content = content.unwrap_or_default();
+        // A recipient on another hub only takes a plaintext DM the sender
+        // signed; unsigned, it is refused there and sits in our hub's outbox.
+        // Sign as whoever the hub seated us as: the master for a self-certified
+        // identity, the subkey plus its cert for a paired device.
+        let me = crate::auth_creds::hub_identity(
+            crate::state::active_canonical_pubkey(&state).as_deref(),
+        )?;
+        // The signed bytes name the conversation's type, which only the hub's
+        // record states authoritatively.
+        let conv: serde_json::Value = client
+            .get(format!("{hub_url}/conversations/{conversation_id}"))
+            .bearer_auth(&token)
+            .send()
+            .await
+            .map_err(|e| format!("Failed: {e}"))?
+            .json()
+            .await
+            .map_err(|e| format!("Invalid conversation: {e}"))?;
+        let conv_type = conv["conv_type"].as_str().unwrap_or("dm");
+        let sb = crate::identity::federated_plaintext_dm_signing_bytes(
+            &conversation_id,
+            conv_type,
+            &content,
+        );
+        // An older hub checks the signature against the canonical key alone
+        // and refuses a subkey's, so there a paired device sends unsigned.
+        let signer_cert = me.signer_cert();
+        let can_sign = signer_cert.is_none() || hub_takes_signer_cert(&client, &hub_url).await;
         serde_json::json!({
-            "content": content.unwrap_or_default(),
+            "content": content,
             "attachments": attachments.unwrap_or_default(),
+            "plaintext_signature": can_sign.then(|| hex::encode(me.sign(&sb))),
+            "plaintext_signer_cert": signer_cert.filter(|_| can_sign),
         })
     };
     let resp = client
@@ -376,11 +418,6 @@ pub(crate) async fn update_dm_blocks(
 
 #[tauri::command]
 pub(crate) async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), String> {
-    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
-    let (_, dh_pub) = identity.dh_keypair();
-    let dh_pubkey_hex = hex::encode(dh_pub.as_bytes());
-
     // Per hub, not once for all of them: the hub verifies the record against
     // the pubkey in the URL and that must be the identity *it* seated us as,
     // which is not the same on every hub (see HubSession::canonical_pubkey).
@@ -402,30 +439,48 @@ pub(crate) async fn publish_dh_key(state: State<'_, AppState>) -> Result<(), Str
     };
 
     for (hub_url, token, canonical) in hub_sessions {
-        let me = crate::auth_creds::hub_identity(Some(&canonical))?;
-        let pubkey_hex = me.pubkey();
-        // A paired device holds a subkey, and a DH record carries no cert to
-        // chain it — only the device that holds the canonical seed can sign
-        // one. The enrolling device already published it. (Web skips for the
-        // same reason: canPublishDhKey in platform/commands/dms.ts.)
-        if pubkey_hex != canonical {
-            continue;
-        }
-        let signature_hex = hex::encode(me.sign(&crate::identity::DhKeyRecord::signing_bytes(
-            &pubkey_hex,
-            &dh_pubkey_hex,
-        )));
-        let url = format!("{}/identity/{}/dh-key", hub_url, pubkey_hex);
-        let client = state.http_client.clone();
-        let _ = client
-            .put(&url)
-            .bearer_auth(&token)
-            .json(&serde_json::json!({
-                "dh_pubkey_hex": &dh_pubkey_hex,
-                "signature_hex": &signature_hex,
-            }))
-            .send()
-            .await;
+        let _ = publish_dh_key_to(&state.http_client, &hub_url, &token, &canonical).await;
+    }
+    Ok(())
+}
+
+/// Publish this device's DH key on one hub, under the identity that hub
+/// seated us as. Fails only when the hub refused it or could not be asked.
+pub(crate) async fn publish_dh_key_to(
+    client: &reqwest::Client,
+    hub_url: &str,
+    token: &str,
+    canonical: &str,
+) -> Result<(), String> {
+    let identity_path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&identity_path).map_err(|e| e.to_string())?;
+    let (_, dh_pub) = identity.dh_keypair();
+    let dh_pubkey_hex = hex::encode(dh_pub.as_bytes());
+    let me = crate::auth_creds::hub_identity(Some(canonical))?;
+    let pubkey_hex = me.pubkey();
+    // A paired device holds a subkey, and a DH record carries no cert to
+    // chain it — only the device that holds the canonical seed can sign
+    // one. The enrolling device already published it. (Web skips for the
+    // same reason: canPublishDhKey in platform/commands/dms.ts.)
+    if pubkey_hex != canonical {
+        return Ok(());
+    }
+    let signature_hex = hex::encode(me.sign(&crate::identity::DhKeyRecord::signing_bytes(
+        &pubkey_hex,
+        &dh_pubkey_hex,
+    )));
+    let resp = client
+        .put(format!("{hub_url}/identity/{pubkey_hex}/dh-key"))
+        .bearer_auth(token)
+        .json(&serde_json::json!({
+            "dh_pubkey_hex": &dh_pubkey_hex,
+            "signature_hex": &signature_hex,
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("DH key publish: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("DH key publish refused ({})", resp.status()));
     }
     Ok(())
 }
@@ -502,21 +557,6 @@ fn save_sender_key_state(state: &serde_json::Value) -> Result<(), String> {
     }
     let text = serde_json::to_string_pretty(state).map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| e.to_string())
-}
-
-pub(crate) fn dm_envelope_signing_bytes(
-    conv_id: &str,
-    ciphertext_hex: &str,
-    nonce_hex: &str,
-    dh_pubkey_hex: &str,
-) -> Vec<u8> {
-    let mut out = b"wavvon/dm-ciphertext/v1\0".to_vec();
-    for s in [conv_id, ciphertext_hex, nonce_hex, dh_pubkey_hex] {
-        let b = s.as_bytes();
-        out.extend_from_slice(&(b.len() as u32).to_le_bytes());
-        out.extend_from_slice(b);
-    }
-    out
 }
 
 /// One member's copy of a sender key: the wrapped key and the nonce that

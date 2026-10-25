@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Poll } from "../../types";
+import { CloseIcon } from "../Icons";
+import { useConfirm } from "../ConfirmDialog";
+import { formatDate } from "@wavvon/core";
 
 interface Props {
   poll: Poll;
@@ -15,6 +18,7 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
   const { t } = useTranslation();
   const [voting, setVoting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   async function handleVote(optionId: string) {
     setVoting(optionId);
@@ -30,6 +34,13 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
   }
 
   async function handleDelete() {
+    const ok = await confirm({
+      title: t("polls.card.delete_confirm_title"),
+      body: t("polls.card.delete_confirm_body"),
+      confirmLabel: t("polls.card.delete"),
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await onDeletePoll(poll.id);
       onDelete(poll.id);
@@ -41,7 +52,8 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
   const total = poll.total_votes;
 
   return (
-    <div className="poll-card settings-section" style={{ padding: 14, marginTop: 8 }}>
+    <div className="poll-card" style={{ padding: 14, marginTop: 8 }}>
+      {dialog}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
         <strong style={{ fontSize: "var(--text-sm)" }}>{poll.question}</strong>
         {isAdmin && (
@@ -50,8 +62,9 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
             style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
             onClick={handleDelete}
             title={t("polls.card.delete")}
+            aria-label={t("polls.card.delete")}
           >
-            ✕
+            <CloseIcon size={14} />
           </button>
         )}
       </div>
@@ -84,11 +97,11 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
                   top: 0,
                   bottom: 0,
                   width: `${pct}%`,
-                  background: opt.voted ? "var(--accent-subtle, rgba(99,102,241,.15))" : "var(--bg-elevated)",
+                  background: opt.voted ? "var(--accent-wash)" : "var(--bg-elevated)",
                   transition: "width .4s ease",
                 }}
               />
-              <span style={{ position: "relative" }}>
+              <span style={{ position: "relative", display: "block", paddingRight: 44 }}>
                 {opt.text}
               </span>
               <span
@@ -109,9 +122,9 @@ export function PollCard({ poll, isAdmin, onVote, onUpdate, onDeletePoll, onDele
       </div>
 
       <div className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>
-        {total} {total === 1 ? "vote" : "votes"}
+        {t("polls.card.votes", { count: total })}
         {poll.ends_at && Date.now() < poll.ends_at * 1000 && (
-          <span> · ends {new Date(poll.ends_at * 1000).toLocaleDateString()}</span>
+          <span> · {t("polls.card.ends", { date: formatDate(poll.ends_at) })}</span>
         )}
       </div>
 

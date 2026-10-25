@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts } from "@wavvon/ui";
+import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -25,7 +25,7 @@ import { useAppKeybinds } from "./hooks/useAppKeybinds";
 import { loadWhisperReplyBind, saveWhisperReplyBind } from "./utils/whisperReply";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, channelPath, inviteCodeFromPath } from "@wavvon/core";
+import { flattenTree, descendantIds, computeDepth, channelPath, inviteCodeFromPath, classifyHubRefusal } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
 import { DISCOVERY_URL, MULTI_HUB } from "./constants";
 import { handoffTargetUrl } from "./utils/handoffTarget";
@@ -54,6 +54,7 @@ import {
 } from "@platform";
 import type { UserContextMenuActions, WhisperTarget, WhisperReplyBind } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers } from "@platform";
+import { fetchAdmissionChallenge, submitAdmissionChallenge } from "@platform";
 import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
 import { HubStreamsPanel } from "@wavvon/ui";
@@ -94,7 +95,7 @@ import {
   getLobbyWelcome,
   submitLobbyPow,
 } from "@platform";
-import { getActiveHubId, redeemInvite } from "@platform";
+import { getActiveHubId, getSession, redeemInvite } from "@platform";
 import {
   getMessages,
   getUnreadCounts,
@@ -154,7 +155,6 @@ export default function App({ initialView }: AppProps = {}) {
   // answer changes.
   useEffect(() => {
     refreshIdentityBackupState();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publicKey, showSettings]);
 
   // === Hubs ===
@@ -166,6 +166,7 @@ export default function App({ initialView }: AppProps = {}) {
     pingByHub,
     lobbyHubs, setLobbyHubs,
     pendingApprovalHubs, setPendingApprovalHubs,
+    refusedHubs, setRefusedHubs,
     handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
@@ -730,6 +731,15 @@ export default function App({ initialView }: AppProps = {}) {
       }
     }
     try {
+      const sessionRefusal = getActiveHubId() ? getSession(getActiveHubId()!)?.refusal : undefined;
+      if (sessionRefusal) {
+        setRefusedHubs((prev) => new Map(prev).set(getActiveHubId()!, sessionRefusal));
+        setChannels([]);
+        setUsers([]);
+        setConversations([]);
+        setSelectedChannel(null);
+        return;
+      }
       const [ch, usr, me, convs, cmds, voiceRoster, dmBlocks] = await Promise.allSettled([
         hubFetch("/channels").then((r) => r.json() as Promise<Channel[]>),
         fetchAllUsers(),
@@ -753,6 +763,28 @@ export default function App({ initialView }: AppProps = {}) {
         // previously active member hub — the lobby screen replaces the main
         // content area, but the persistent hub sidebar renders straight off
         // this state and would otherwise show a stale, unrelated hub's data.
+        setChannels([]);
+        setUsers([]);
+        setConversations([]);
+        setSelectedChannel(null);
+        return;
+      }
+      // /me is the one route a pending-approval session may still reach, so a
+      // 403 there (or on /channels, /users) that is not pending/lobby is the
+      // hub refusing the session outright.
+      const refusal = [me, ch, usr]
+        .map((r) => (r.status === "rejected" && r.reason instanceof HubApiError ? classifyHubRefusal(r.reason.status, r.reason.message) : null))
+        .find((x) => x !== null) ?? null;
+      if (hubIdForLobbyCheck) {
+        setRefusedHubs((prev) => {
+          if (!refusal && !prev.has(hubIdForLobbyCheck)) return prev;
+          const next = new Map(prev);
+          if (refusal) next.set(hubIdForLobbyCheck, refusal);
+          else next.delete(hubIdForLobbyCheck);
+          return next;
+        });
+      }
+      if (refusal) {
         setChannels([]);
         setUsers([]);
         setConversations([]);
@@ -889,6 +921,7 @@ export default function App({ initialView }: AppProps = {}) {
     addHubError, setAddHubError,
     fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
+    admissionChallenge, setAdmissionChallenge,
     handleHubUrlInput,
     handlePreviewHub,
     handleAddHub,
@@ -1262,9 +1295,9 @@ export default function App({ initialView }: AppProps = {}) {
         <div
           style={{
             position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)",
-            background: "var(--surface)", border: "1px solid var(--danger, #e05252)",
+            background: "var(--surface)", border: "1px solid var(--danger)",
             borderRadius: "var(--r-md)", padding: "8px 16px", zIndex: 9999,
-            fontSize: "var(--text-sm)", color: "var(--danger, #e05252)",
+            fontSize: "var(--text-sm)", color: "var(--danger)",
           }}
         >
           {hubErrorToast}
@@ -1311,7 +1344,7 @@ export default function App({ initialView }: AppProps = {}) {
       )}
 
       {showDiscover && DISCOVERY_URL && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg, #1a1a2e)", overflow: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg)", overflow: "auto" }}>
           <DiscoverPage
             onClose={() => setShowDiscover(false)}
             onJoinHub={(hubUrl, inviteCode) => {
@@ -1472,6 +1505,7 @@ export default function App({ initialView }: AppProps = {}) {
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}
         settingsNeedsAttention={identityNeedsBackup}
         onOpenSearch={() => setShowSearchBar(true)}
         onDragEnd={handleChannelDragEnd}
@@ -1510,6 +1544,19 @@ export default function App({ initialView }: AppProps = {}) {
             onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
           />
         </main>
+      ) : activeHubId && refusedHubs.has(activeHubId) ? (
+        <main className="content" style={{ overflow: "auto" }}>
+          <HubRefusedPanel
+            key={activeHubId}
+            hubName={hubs.find((h) => h.hub_id === activeHubId)?.hub_name ?? ""}
+            refusal={refusedHubs.get(activeHubId)!}
+            onRedeemInvite={getSession(activeHubId)?.refusal ? null : async (code) => {
+              await redeemInvite(code);
+              await loadHubData();
+            }}
+            onRemoveHub={() => removeHubConfirm.requestRemoveHub(activeHubId, hubs)}
+          />
+        </main>
       ) : activeHubId && lobbyHubs.has(activeHubId) && publicKey ? (
         <main className="content" style={{ overflow: "auto" }}>
           <Lobby
@@ -1527,7 +1574,7 @@ export default function App({ initialView }: AppProps = {}) {
         </main>
       ) : activeHubId && pendingApprovalHubs.has(activeHubId) ? (
         <main className="content" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 40 }}>⏳</div>
+          <div className="pending-approval-icon"><ClockIcon size={32} /></div>
           <h2 style={{ margin: 0 }}>{t("app.approval.title")}</h2>
           <p className="muted" style={{ margin: 0, textAlign: "center", maxWidth: 320 }}>
             {t("app.approval.body")}
@@ -1689,6 +1736,18 @@ export default function App({ initialView }: AppProps = {}) {
         showQuickInvite={showQuickInvite}
         users={users}
       />
+      {/* After AppModals, so it stacks above the Add hub modal it came from. */}
+      {admissionChallenge && (
+        <AdmissionChallenge
+          fetchPrompt={() => fetchAdmissionChallenge(admissionChallenge.hubUrl, admissionChallenge.pubkey)}
+          submit={(id, answer) => submitAdmissionChallenge(admissionChallenge.hubUrl, id, admissionChallenge.pubkey, answer)}
+          onPassed={(token) => {
+            setAdmissionChallenge(null);
+            void handleAddHub(token);
+          }}
+          onCancel={() => setAdmissionChallenge(null)}
+        />
+      )}
     </div>
   );
 }

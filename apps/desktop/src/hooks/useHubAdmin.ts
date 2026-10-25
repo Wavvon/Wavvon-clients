@@ -9,6 +9,7 @@ import type {
   PendingUser,
 } from "../types";
 import type { HubAdminTab, NameColorMode } from "@wavvon/ui";
+import i18n from "@wavvon/i18n";
 
 interface UseHubAdminParams {
   activeHubId: string | null;
@@ -137,7 +138,7 @@ export function useHubAdmin({
       });
       const refreshed = await invoke<Hub[]>("list_hubs");
       setHubs(() => refreshed);
-      setToast("Hub settings saved");
+      setToast(i18n.t("toast.hub_settings_saved"));
     } catch (e) {
       setError(String(e));
     }
@@ -164,7 +165,7 @@ export function useHubAdmin({
   async function handleApproveMember(publicKey: string) {
     try {
       await invoke("approve_member", { targetPublicKey: publicKey });
-      setToast("Member approved");
+      setToast(i18n.t("toast.member_approved"));
       await refreshPending();
       await refreshMembers();
     } catch (e) {
@@ -188,7 +189,7 @@ export function useHubAdmin({
         targetPublicKey: publicKey,
         reason: reason.trim() || null,
       });
-      setToast("Kicked");
+      setToast(i18n.t("message.ctx.kicked"));
       await refreshMembers();
     } catch (e) {
       setError(String(e));
@@ -197,13 +198,13 @@ export function useHubAdmin({
 
   async function handleBanMember(publicKey: string) {
     const reason = prompt("Reason for ban (optional)") ?? "";
-    if (!confirm("Ban this user? They won't be able to rejoin.")) return;
+    if (!confirm(i18n.t("confirm.ban_user"))) return;
     try {
       await invoke("ban_user_cmd", {
         targetPublicKey: publicKey,
         reason: reason.trim() || null,
       });
-      setToast("Banned");
+      setToast(i18n.t("message.ctx.banned"));
       await refreshMembers();
     } catch (e) {
       setError(String(e));
@@ -217,7 +218,7 @@ export function useHubAdmin({
         targetPublicKey: publicKey,
         reason: reason.trim() || null,
       });
-      setToast("Muted");
+      setToast(i18n.t("message.ctx.muted"));
       await refreshMembers();
     } catch (e) {
       setError(String(e));
@@ -229,7 +230,7 @@ export function useHubAdmin({
     if (!durationStr) return;
     const minutes = Number(durationStr);
     if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) {
-      setError("Invalid duration");
+      setError(i18n.t("errors.invalid_duration"));
       return;
     }
     const reason = prompt("Reason (optional)") ?? "";
@@ -239,7 +240,7 @@ export function useHubAdmin({
         durationSeconds: Math.floor(minutes * 60),
         reason: reason.trim() || null,
       });
-      setToast(`Timed out for ${minutes}m`);
+      setToast(i18n.t("toast.timed_out", { minutes }));
       await refreshMembers();
     } catch (e) {
       setError(String(e));
@@ -256,10 +257,10 @@ export function useHubAdmin({
   }
 
   async function handleUnban(publicKey: string) {
-    if (!confirm("Unban this user? They'll be able to rejoin.")) return;
+    if (!confirm(i18n.t("confirm.unban_user"))) return;
     try {
       await invoke("unban_user", { targetPublicKey: publicKey });
-      setToast("Unbanned");
+      setToast(i18n.t("toast.unbanned"));
       await refreshBans();
     } catch (e) {
       setError(String(e));
@@ -283,18 +284,18 @@ export function useHubAdmin({
     try {
       await invoke<InviteInfo>("create_invite", { maxUses, expiresInSeconds, grantRoleId });
       await refreshInvites();
-      setToast("Invite created");
+      setToast(i18n.t("toast.invite_created"));
     } catch (e) {
       setError(String(e));
     }
   }
 
   async function handleRevokeInvite(code: string) {
-    if (!confirm(`Revoke invite ${code}?`)) return;
+    if (!confirm(i18n.t("confirm.revoke_invite", { code }))) return;
     try {
       await invoke("revoke_invite", { code });
       await refreshInvites();
-      setToast("Invite revoked");
+      setToast(i18n.t("toast.invite_revoked"));
     } catch (e) {
       setError(String(e));
     }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 interface Props {
   miniAppUrl: string;
@@ -26,6 +27,7 @@ export function GameModal({
   requiresCamera,
   onClose,
 }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 

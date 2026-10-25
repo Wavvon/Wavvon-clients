@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RoleInfo, User, PublicHubProfile, MemberHistoryEntry } from "../../types";
-import { formatPubkey } from "@wavvon/core";
+import { formatPubkey, formatDateTime } from "@wavvon/core";
 import { safeRoleColor } from "../../utils/roleAppearance";
 
 /** Platform-calling operations the roster context menu needs. Role
@@ -299,7 +299,7 @@ export function UserContextMenu({
                     ? "context-menu-item muted danger"
                     : "context-menu-item muted"
                 }
-                title={`${h.source_hub_pubkey}\n${new Date(h.added_at * 1000).toLocaleString()}`}
+                title={`${h.source_hub_pubkey}\n${formatDateTime(h.added_at)}`}
               >
                 {h.reason?.trim()
                   ? h.reason

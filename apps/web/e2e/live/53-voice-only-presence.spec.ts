@@ -104,7 +104,7 @@ test("a member moved into a channel they can't read gets voice-only presence, ne
     await card.getByRole("button", { name: "Staging", exact: true }).click();
     const staging = page.getByRole("dialog", { name: new RegExp(`^Staging: ${title}`) });
     await expect(staging).toBeVisible();
-    const unassignedGroup = staging.locator(".settings-section").filter({ hasText: "Unassigned" });
+    const unassignedGroup = staging.getByRole("group", { name: "Unassigned" });
     await expect(unassignedGroup).toContainText(memberName);
 
     await unassignedGroup.getByRole("combobox", { name: "Move to…" }).selectOption({ label: hidden });

@@ -4,7 +4,7 @@ import { parseHubInput } from "@wavvon/core";
 import type { HubInputResult } from "@wavvon/core";
 import {
   addHub, listHubs, previewHubInfo, verifyLanFingerprint, authenticateWithPasskey,
-  publishDhKey, HubApiError,
+  publishDhKey, HubApiError, ChallengeRequiredError,
 } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
@@ -45,6 +45,8 @@ export function useAddHubFlow({
   const [expectedFingerprint, setExpectedFingerprint] = useState<string | undefined>(undefined);
   const [fingerprintMatch, setFingerprintMatch] = useState(false);
   const [showAddHub, setShowAddHub] = useState(false);
+  // Set while the hub's admission challenge is open; solving it re-runs the join.
+  const [admissionChallenge, setAdmissionChallenge] = useState<{ hubUrl: string; pubkey: string } | null>(null);
   const pendingDeepLinkTargetRef = useRef<NonNullable<HubInputResult["target"]> | null>(null);
 
   // Matches a wavvon:// deep-link host against an already-joined hub
@@ -98,7 +100,7 @@ export function useAddHubFlow({
   // Also the join path a redeemed owner invite takes from the "Create a
   // hub" self-host handoff (docs/docs/hub-creation-wizard.md §4) — no
   // separate join mechanism for that flow.
-  async function handleAddHub() {
+  async function handleAddHub(challengeToken?: string) {
     setAddingHub(true);
     setAddHubError(null);
     try {
@@ -107,7 +109,10 @@ export function useAddHubFlow({
         return;
       }
       if (expectedFingerprint) setFingerprintMatch(true);
-      const hub = await addHub(hubUrl, stableHandlers, { invite_code: inviteCode || undefined });
+      const hub = await addHub(hubUrl, stableHandlers, {
+        invite_code: inviteCode || undefined,
+        challenge_token: challengeToken,
+      });
       setHubs(listHubs());
       setActiveHubIdState(hub.hub_id);
       setShowAddHub(false);
@@ -122,7 +127,8 @@ export function useAddHubFlow({
         await applyDeepLinkTarget(hub.hub_id, target);
       }
     } catch (e) {
-      setAddHubError(e instanceof HubApiError ? e.message : String(e));
+      if (e instanceof ChallengeRequiredError) setAdmissionChallenge({ hubUrl: e.hubUrl, pubkey: e.pubkey });
+      else setAddHubError(e instanceof HubApiError ? e.message : String(e));
     } finally {
       setAddingHub(false);
     }
@@ -172,6 +178,7 @@ export function useAddHubFlow({
     expectedFingerprint,
     fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
+    admissionChallenge, setAdmissionChallenge,
     pendingDeepLinkTargetRef,
     handleHubUrlInput,
     handlePreviewHub,

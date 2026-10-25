@@ -9,6 +9,7 @@ interface Props {
 export function HoverSubmenu({ trigger, children, triggerClassName }: Props) {
   const groupRef = useRef<HTMLDivElement>(null);
   const [side, setSide] = useState<"right" | "left" | "below">("right");
+  const [shiftUp, setShiftUp] = useState(0);
 
   function handleMouseEnter() {
     if (!groupRef.current) return;
@@ -21,6 +22,13 @@ export function HoverSubmenu({ trigger, children, triggerClassName }: Props) {
     } else {
       setSide("below");
     }
+    // Opened beside its trigger, the list starts at the trigger's top; low in
+    // a long sidebar that put most of it below the fold, out of reach. Lift it
+    // by what would overflow, never above the top of the viewport. Matches the
+    // .hover-submenu-items max-height, min(320px, 70vh).
+    const height = Math.min(320, window.innerHeight * 0.7);
+    const overflow = rect.top + height - window.innerHeight;
+    setShiftUp(overflow > 0 ? Math.min(overflow + 8, rect.top) : 0);
   }
 
   return (
@@ -30,7 +38,12 @@ export function HoverSubmenu({ trigger, children, triggerClassName }: Props) {
       onMouseEnter={handleMouseEnter}
     >
       <div className="hover-submenu-trigger">{trigger}</div>
-      <div className="hover-submenu-items">{children}</div>
+      <div
+        className="hover-submenu-items"
+        style={side !== "below" && shiftUp > 0 ? { top: -shiftUp } : undefined}
+      >
+        {children}
+      </div>
     </div>
   );
 }

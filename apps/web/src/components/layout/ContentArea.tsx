@@ -42,10 +42,14 @@ import {
   getEvents, getEvent, createEvent, rsvpEvent, deleteEvent,
   getEventRsvps, getEventAssignments, createEventSquadRooms, previewHubInfo,
   uploadFile,
+  getAllianceMembers, listAlliancePeople, activeHubSupports,
 } from "@platform";
 import { activeSession } from "../../platform/session";
+
 import { getScoped, setScoped } from "@shared/utils/accountScope";
 import { profileCardActions } from "../../platform/adminActions";
+
+const alliancePeopleActions = { getAllianceMembers, listAlliancePeople };
 
 type ChannelMessagesState = ReturnType<typeof useChannelMessages>;
 type DmsState = ReturnType<typeof useDms>;
@@ -63,7 +67,7 @@ type TypingIndicatorsState = ReturnType<typeof useTypingIndicators>;
 const forumActions: ForumActions = {
   listPosts: (channelId, cursor, tagId) => forumListPosts(channelId, cursor, tagId),
   listAlliancePosts: getAllianceChannelPosts,
-  getPost: (channelId, postId) => forumGetPost(channelId, postId),
+  getPost: (channelId, postId, after) => forumGetPost(channelId, postId, after),
   getAlliancePost: getAllianceChannelPost,
   createPost: (channelId, title, body, tagIds, attachments) =>
     forumCreatePost(channelId, title, body, tagIds, attachments),
@@ -226,7 +230,7 @@ export function ContentArea(props: Props) {
     [typing.dmTypingByKey, selectedConversation],
   );
 
-  function getEventsAction(params?: { upcoming?: boolean; limit?: number }): Promise<HubEvent[]> {
+  function getEventsAction(params?: { upcoming?: boolean; limit?: number; channelId?: string }): Promise<HubEvent[]> {
     return getEvents(params);
   }
   function rsvpEventAction(eventId: string, status: RsvpStatus, slotId?: string): Promise<void> {
@@ -329,6 +333,8 @@ export function ContentArea(props: Props) {
         screenShareViewerRef={screenShare.screenShareViewerRef}
         onOpenHubStreams={screenShare.handleOpenHubStreams}
         onStartConversation={dms.handleStartConversation}
+        dmPeerNames={dms.peerNames}
+        alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}
         profileCardActions={profileCardActions}
         forumActions={forumActions}
         messageRowActions={messageRowActions}

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
 import { MessageRow, type MessageRowActions } from "./MessageRow";
 import { TypingIndicator } from "../TypingIndicator";
+import { WaveIcon } from "../Icons";
 
 type HubEmojiEntry = { id: string; name: string; url: string };
 
@@ -137,7 +138,7 @@ export function ChannelMessageList({
               <p>{t("channel.empty.no_search")}</p>
             ) : (
               <>
-                <div className="channel-empty-icon">👋</div>
+                <div className="channel-empty-icon"><WaveIcon size={28} /></div>
                 <h2>{t("channel.empty.welcome", { channel: selectedChannelName })}</h2>
                 <p>
                   {selectedChannelDescription
@@ -145,10 +146,12 @@ export function ChannelMessageList({
                     : t("channel.start_hint")}
                 </p>
                 <ul className="channel-empty-tips">
+                  {/* eslint-disable react/no-danger -- our own i18n catalogs, which ship in the bundle; the markup is the <strong>/<em> in the translated sentence. */}
                   <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_voice") }} />
                   <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_drag") }} />
                   <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_mentions") }} />
                   <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_jump") }} />
+                  {/* eslint-enable react/no-danger */}
                 </ul>
               </>
             )}

@@ -9,6 +9,8 @@ import type {
   OutgoingWebhookSummary,
 } from "../../types";
 import { EventSubscriptionEditor, eventSubscriptionsAreValid } from "../events/EventSubscriptionEditor";
+import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 /** Every hub call this section makes, injected — the same shape the other
  *  admin sections use, so the component itself has no transport. */
@@ -83,10 +85,12 @@ function SecretRevealDialog({
   onDismiss: () => void;
 }) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   return (
     <div className="secret-reveal">
+      {dialog}
       <p className="secret-warning">{title}</p>
       <p className="muted">{warning}</p>
       <code className="secret-value">{secret}</code>
@@ -116,6 +120,7 @@ function SecretRevealDialog({
 
 export function OutgoingWebhooksSection({ channels, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [webhooks, setWebhooks] = useState<OutgoingWebhookSummary[]>([]);
   const [url, setUrl] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -124,6 +129,7 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
   const [rotatedSecret, setRotatedSecret] = useState<{ id: string; secret: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [panels, setPanels] = useState<Record<string, PanelState>>({});
+  const [open, setOpen] = useState(false);
 
   const textChannels = channels.filter((c) => !c.is_category);
 
@@ -167,7 +173,11 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t("hub.admin.owh.delete_confirm"))) return;
+    if (!(await confirm({
+      title: t("hub.admin.owh.delete_confirm"),
+      confirmLabel: t("hub.admin.owh.delete"),
+      danger: true,
+    }))) return;
     try {
       await actions.remove(id);
       await loadWebhooks();
@@ -284,11 +294,19 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
   }
 
   return (
-    <section style={{ marginTop: "var(--space-5)" }}>
-      <h2>{t("hub.admin.tabs.outgoing_webhooks")}</h2>
+    <SettingRow
+      title={t("hub.admin.tabs.outgoing_webhooks")}
+      state={webhooks.length === 0
+        ? t("hub.admin.owh.state.none")
+        : t("hub.admin.owh.state.some", { count: webhooks.length })}
+      meta={webhooks.length > 0 ? String(webhooks.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      {dialog}
       <p className="muted">{t("hub.admin.owh.hint")}</p>
 
-      {error && <p className="muted" style={{ color: "var(--danger)", marginBottom: "var(--space-3)" }}>{error}</p>}
+      {error && <p className="error-text">{error}</p>}
 
       <div className="settings-section">
         <label className="settings-label">URL</label>
@@ -507,6 +525,6 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
           </tbody>
         </table>
       )}
-    </section>
+    </SettingRow>
   );
 }

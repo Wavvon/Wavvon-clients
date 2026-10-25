@@ -57,12 +57,6 @@ export class VoiceKeyManager {
     return this.own;
   }
 
-  nextCtr(): bigint {
-    const ctr = this.own.ctr;
-    this.own.ctr += 1n;
-    return ctr;
-  }
-
   private async wrapForRecipient(recipientPubkey: string): Promise<VoiceKeyBundle | null> {
     const recipientDhHex = await this.fetchDhKey(recipientPubkey);
     if (!recipientDhHex) return null;

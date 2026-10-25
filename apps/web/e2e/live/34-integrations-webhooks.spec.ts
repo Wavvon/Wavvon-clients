@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createChannel, expectInHub, uniqueName } from "./helpers/live";
+import { createChannel, expectInHub, openSettingRow, uniqueName } from "./helpers/live";
 
 // P34 — the Integrations tab (incoming webhooks). Listing used GET
 // /admin/webhooks and regenerate used PATCH /admin/webhooks/{id}, but the
@@ -12,7 +12,7 @@ async function openIntegrations(page: import("@playwright/test").Page) {
   // The admin nav tab is labeled "Webhooks" (HubAdminPage.tsx), even though
   // the page it opens is titled "Integrations".
   await page.getByRole("button", { name: "Webhooks", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Incoming Webhooks" })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 10000 });
 }
 
 test("integrations tab loads and a webhook can be created, listed, regenerated", async ({ page }) => {
@@ -28,8 +28,9 @@ test("integrations tab loads and a webhook can be created, listed, regenerated",
   // The list load no longer 405s.
   await expect(page.getByText(/Method Not Allowed|HubApiError/)).toHaveCount(0);
 
-  // Create a webhook.
-  const section = page.locator("section", { has: page.getByRole("heading", { name: "Incoming Webhooks" }) }).first();
+  // Create a webhook. Incoming webhooks are one settings row, and the whole
+  // form is in what it opens to.
+  const section = await openSettingRow(page, "Incoming webhooks");
   await section.locator("select").selectOption({ label: `#${channel}` });
   await section.getByPlaceholder("My Integration").fill(uniqueName("Hook"));
   await section.getByRole("button", { name: "Create webhook" }).click();

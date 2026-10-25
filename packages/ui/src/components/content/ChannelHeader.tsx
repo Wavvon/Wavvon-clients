@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { channelPath } from "@wavvon/core";
 import type { Channel } from "@wavvon/core";
 import type { Message } from "../../types";
+import { PinIcon, SearchIcon, MembersIcon, ScreenShareIcon } from "../Icons";
 
 interface Props {
   selectedChannel: Channel;
@@ -101,7 +102,7 @@ export function ChannelHeader({
             title={t("content.streams.title")}
             aria-label={t("content.streams.title")}
           >
-            📡
+            <ScreenShareIcon />
           </button>
         )}
         <button
@@ -110,21 +111,21 @@ export function ChannelHeader({
           title={t("content.pinned.title")}
           aria-label={t("content.pinned.title")}
         >
-          📌
+          <PinIcon />
         </button>
         <button
           onClick={onToggleSearch}
           className="btn-icon-header"
           title={t("content.search.title")}
         >
-          🔍
+          <SearchIcon />
         </button>
         <button
           onClick={onToggleMemberSidebar}
           className="btn-icon-header"
           title={memberSidebarHidden ? t("content.members.show") : t("content.members.hide")}
         >
-          {memberSidebarHidden ? "👥" : "👤"}
+          <MembersIcon />
         </button>
       </div>
 

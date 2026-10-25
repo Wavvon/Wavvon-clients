@@ -4,9 +4,10 @@
 mod accounts;
 mod admin;
 mod admin_alliance;
+mod apps;
+mod archive;
 mod auth_creds;
 mod backup;
-mod apps;
 mod certs;
 mod channels;
 mod deep_link;
@@ -34,6 +35,8 @@ mod types;
 mod updater;
 mod voice_cmd;
 mod voice_keys;
+#[cfg(test)]
+mod wire_vectors;
 mod ws;
 
 use tauri::Manager;
@@ -174,6 +177,8 @@ pub fn run() {
             voice_cmd::voice_active_users,
             voice_cmd::voice_channel_participants,
             voice_cmd::voice_join,
+            voice_cmd::mint_alliance_voice_grant,
+            voice_cmd::alliance_voice_join,
             voice_cmd::voice_leave,
             voice_cmd::voice_set_muted,
             voice_cmd::voice_set_deafened,
@@ -299,6 +304,9 @@ pub fn run() {
             // Identity backup (unified .wavvon-backup, settings-ia.md §4a)
             backup::export_account_backup,
             backup::import_account_backup,
+            archive::export_full_archive,
+            archive::open_full_archive,
+            archive::apply_full_archive_restore,
             // Identity
             identity_cmd::get_recovery_phrase,
             identity_cmd::recover_identity_from_phrase,

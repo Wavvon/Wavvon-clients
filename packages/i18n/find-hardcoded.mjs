@@ -23,10 +23,20 @@ import { fileURLToPath } from "node:url";
 const BASELINE = join(dirname(fileURLToPath(import.meta.url)), "hardcoded-baseline.json");
 const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf8" }).trim();
 
-const files = execSync('git ls-files "*.tsx"', { encoding: "utf8", cwd: repoRoot })
+// .tsx, plus the .ts that renders text. Scanning every .ts would drown the
+// signal in keys, URLs and discriminants, but `formatRelative` shipped "s ago"
+// and `formatDayLabel` shipped "Today" in an app advertising four locales, and
+// neither guard could see them: both walk only .tsx (Wavvon-clients#64). These
+// two directories are where the shared rendering helpers live.
+const TS_DIRS = ["packages/core/src/", "packages/ui/src/utils/"];
+const isScanned = (f) =>
+  f.endsWith(".tsx") || (f.endsWith(".ts") && TS_DIRS.some((d) => f.startsWith(d)));
+
+const files = execSync('git ls-files "*.tsx" "*.ts"', { encoding: "utf8", cwd: repoRoot })
   // existsSync: a file deleted in the working tree is still tracked, and a
   // deletion is the direction this check wants — don't crash on it.
-  .split("\n").filter(f => f && !f.includes("__tests__") && existsSync(join(repoRoot, f)));
+  .split("\n").filter(f => f && isScanned(f) && !f.includes("__tests__")
+    && !f.endsWith(".test.ts") && existsSync(join(repoRoot, f)));
 
 /** Does this look like something a person reads, rather than code? */
 function looksHuman(s) {
@@ -53,6 +63,13 @@ function looksHuman(s) {
   if (/^\//.test(t)) return false;                            // an API path, not a sentence
   if (/^(Cmd|Ctrl|Alt|Shift|Meta|Esc|Enter|Tab|Space|Home|End)\b[\s+/↑↓←→A-Za-z,]*$/.test(t)) return false;
   if (/^[)}]\s|&&|\|\||=>|\?\s*\($/.test(t)) return false;    // torn-out JSX, not text
+  if (/^<\/?[a-z]/i.test(t)) return false;                    // a markup tag, e.g. a returned "</svg>"
+  // Two shapes the .ts half brought with it, both identifiers rather than
+  // prose: a namespaced protocol token (`wavvon:handover-ready`, which the
+  // colon kept out of the identifier rule above), and the product's own name,
+  // which is not translated into anything.
+  if (/^[a-z][\w.-]*:[\w.:-]+$/i.test(t)) return false;
+  if (t === "Wavvon") return false;
   return true;
 }
 
@@ -104,6 +121,14 @@ for (const f of files) {
   // `{busy ? "Saving…" : "Save"}` and `err ?? "Something went wrong"`.
   for (const m of src.matchAll(/(?:\?\?|[?:])\s*"([^"]{3,})"/g)) {
     if (looksHuman(m[1])) add(m.index, "expr", m[1]);
+  }
+  // A helper handing back a label: `return "Today"`, `` return `${n}s ago` ``.
+  // This is the shape neither guard had a rule for, and it is how a formatter
+  // ships one language in an app that offers four. Template literals count —
+  // the interpolation is the number, the English is everything around it.
+  for (const m of src.matchAll(/\breturn\s+(?:"([^"]{3,})"|`([^`$]{3,})`|`[^`]*?\$\{[^}]*\}([^`$]{2,})`)/g)) {
+    const v = m[1] ?? m[2] ?? m[3];
+    if (looksHuman(v)) add(m.index, "return", v);
   }
 }
 

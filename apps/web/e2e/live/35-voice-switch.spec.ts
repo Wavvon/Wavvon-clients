@@ -25,6 +25,10 @@ test("joining a second voice channel leaves the first", async ({ page }) => {
   await channelButton(page, b).dblclick();
   await expect(page.locator(".voice-status-label").first()).toHaveText(`#${b}`, { timeout: 15000 });
 
-  // No lingering voice status for A (the "in two rooms at once" bug).
-  await expect(page.getByText(`#${a}`, { exact: true })).toHaveCount(0);
+  // No lingering voice status for A (the "in two rooms at once" bug). One
+  // status bar, naming B: the sidebar row for A spells its own name "#<name>"
+  // too, so a page-wide text search for it finds the channel list, not a
+  // second voice session.
+  await expect(page.locator(".voice-status-label")).toHaveCount(1);
+  await expect(page.locator(".voice-status-label")).toHaveText(`#${b}`);
 });

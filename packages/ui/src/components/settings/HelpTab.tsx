@@ -18,9 +18,9 @@ const FAQ_KEYS = [
 export function HelpTab() {
   const { t } = useTranslation();
   return (
-    <div className="settings-section">
-      <label className="settings-label">{t("settings.help.title")}</label>
-      <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.help.intro")}</p>
+    <section>
+      <h1>{t("settings.help.title")}</h1>
+      <p className="muted">{t("settings.help.intro")}</p>
 
       {FAQ_KEYS.map((k) => (
         <details key={k} className="faq-entry">
@@ -30,6 +30,6 @@ export function HelpTab() {
       ))}
 
       <p className="faq-disclaimer">{t("settings.help.alpha_disclaimer")}</p>
-    </div>
+    </section>
   );
 }

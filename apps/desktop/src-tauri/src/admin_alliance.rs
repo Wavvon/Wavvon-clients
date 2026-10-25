@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::state::{active_session, AppState};
 use crate::types::AttachmentInfo;
 use tauri::State;

@@ -1,4 +1,5 @@
 import { activeSession } from "./session";
+import i18n from "@wavvon/i18n";
 
 export class HubApiError extends Error {
   constructor(public status: number, message: string) {
@@ -44,11 +45,11 @@ export async function fetchWithTimeout(
     return await fetch(url, { ...init, signal: init?.signal ?? controller.signal });
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError" && controller.signal.aborted) {
-      throw new Error(`Timed out reaching ${hostOf(url)} — it may be offline or unreachable.`);
+      throw new Error(i18n.t("errors.timed_out_reaching", { host: hostOf(url) }));
     }
     if (e instanceof TypeError) {
       // Browser network failure (DNS, refused, CORS, offline).
-      throw new Error(`Could not reach ${hostOf(url)} — check the address and your connection.`);
+      throw new Error(i18n.t("errors.could_not_reach", { host: hostOf(url) }));
     }
     throw e;
   } finally {

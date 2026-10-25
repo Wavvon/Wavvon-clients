@@ -83,6 +83,8 @@ impl AuthCredentials {
         hub_url: &str,
         client: &reqwest::Client,
         invite_code: Option<&str>,
+        challenge_token: Option<&str>,
+        alliance_voice_grant: Option<&serde_json::Value>,
     ) -> Result<AuthOutcome, String> {
         let challenge_raw = client
             .post(format!("{hub_url}/auth/challenge"))
@@ -102,7 +104,26 @@ impl AuthCredentials {
 
         let challenge_bytes = hex::decode(&challenge_resp.challenge)
             .map_err(|e| format!("bad challenge hex: {e}"))?;
-        let signature_bytes = self.sign(&challenge_bytes);
+        // The same key signs envelopes, messages and certs. A Wavvon hub
+        // issues exactly 32 random bytes, and everything else this key signs
+        // is longer, so a hub asking for anything else is asking for a
+        // signature it could replay as one of those (Wavvon-server#111).
+        if challenge_bytes.len() != 32 {
+            return Err(format!(
+                "refusing to sign a {}-byte auth challenge",
+                challenge_bytes.len()
+            ));
+        }
+        // Tagged where the server says it takes that; the raw answer remains
+        // only for an older one, guarded by the length check above.
+        let signature_bytes =
+            if challenge_resp.scheme.as_deref() == Some(crate::identity::AUTH_CHALLENGE_SCHEME) {
+                self.sign(&crate::identity::auth_challenge_signing_bytes(
+                    &challenge_bytes,
+                ))
+            } else {
+                self.sign(&challenge_bytes)
+            };
 
         let mut body = serde_json::json!({
             "public_key": self.public_key_hex,
@@ -135,6 +156,14 @@ impl AuthCredentials {
         }
         if let Some(code) = invite_code {
             body["invite_code"] = serde_json::Value::String(code.to_string());
+        }
+        if let Some(token) = challenge_token {
+            body["challenge_token"] = serde_json::Value::String(token.to_string());
+        }
+        // Voice in an alliance channel: a grant our own hub signed, which this
+        // hub redeems for a voice-only session.
+        if let Some(grant) = alliance_voice_grant {
+            body["alliance_voice_grant"] = grant.clone();
         }
 
         let resp = client
@@ -178,7 +207,7 @@ pub fn load_active_credentials() -> Result<AuthCredentials, String> {
         let secret_array: [u8; 32] = secret
             .try_into()
             .map_err(|_| "subkey secret must be 32 bytes".to_string())?;
-        let subkey = DeviceSubkey::from_secret_bytes(&secret_array, paired.device_label.clone());
+        let subkey = DeviceSubkey::from_secret_bytes(&secret_array);
         // Subkey devices bypass PoW — the pairing relationship is already a
         // trust gate; requiring PoW per-subkey would penalise legitimate users.
         return Ok(AuthCredentials {
@@ -275,7 +304,7 @@ pub fn hub_identity(canonical: Option<&str>) -> Result<HubIdentity, String> {
         let secret_array: [u8; 32] = secret
             .try_into()
             .map_err(|_| "subkey secret must be 32 bytes".to_string())?;
-        let subkey = DeviceSubkey::from_secret_bytes(&secret_array, paired.device_label.clone());
+        let subkey = DeviceSubkey::from_secret_bytes(&secret_array);
         return Ok(HubIdentity::Paired {
             canonical_pubkey: canonical
                 .map(str::to_string)
@@ -327,6 +356,9 @@ fn choose_signer(
 #[derive(serde::Deserialize)]
 struct ChallengeResponse {
     challenge: String,
+    /// "tagged-v1" from a hub or farm that takes the tagged answer.
+    #[serde(default)]
+    scheme: Option<String>,
 }
 
 #[derive(serde::Deserialize)]

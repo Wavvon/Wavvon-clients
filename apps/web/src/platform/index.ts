@@ -32,6 +32,9 @@ export {
   reorderHubs,
   restorePersistedHubs,
   connectHubWebSocket,
+  ChallengeRequiredError,
+  fetchAdmissionChallenge,
+  submitAdmissionChallenge,
 } from "./commands/hubs";
 
 export { getLobbyStatus, getLobbyWelcome, submitLobbyPow, isLobbyScopeConfined } from "./commands/lobby";
@@ -157,7 +160,7 @@ export { pinMessage, unpinMessage, getPins } from "./commands/pins";
 
 export { getUserProfile } from "./commands/profiles";
 
-export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
+export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, getFindableByAllies, setFindableByAllies, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
 
 export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 
@@ -245,6 +248,7 @@ export {
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
+  getAllianceMembers, getAlliancePeopleVisible, setAlliancePeopleVisible, listAlliancePeople,
 } from "./commands/alliances";
 export type { Alliance, AllianceDetail, AllianceMember, AllianceInvite, PendingAllianceInvite, SharedChannel } from "./commands/alliances";
 export {

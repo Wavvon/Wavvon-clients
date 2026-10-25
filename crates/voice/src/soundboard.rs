@@ -142,8 +142,11 @@ pub struct ActiveClip {
 pub fn mix_clip_into_frame(frame: &mut [f32], clip: &mut ActiveClip) -> bool {
     let remaining = clip.samples.len().saturating_sub(clip.pos);
     let n = frame.len().min(remaining);
-    for i in 0..n {
-        frame[i] = (frame[i] + clip.samples[clip.pos + i]).clamp(-1.0, 1.0);
+    for (out, clip_sample) in frame[..n]
+        .iter_mut()
+        .zip(&clip.samples[clip.pos..clip.pos + n])
+    {
+        *out = (*out + clip_sample).clamp(-1.0, 1.0);
     }
     clip.pos += n;
     clip.pos >= clip.samples.len()

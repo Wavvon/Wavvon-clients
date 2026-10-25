@@ -72,7 +72,7 @@ function dismissWelcome(hubId: string): void {
 const forumActions: ForumActions = {
   listPosts: (channelId, cursor, tagId) =>
     invoke<PostListResponse>("forum_list_posts", { channelId, cursor, tagId }),
-  getPost: (channelId, postId) => invoke<PostDetail>("forum_get_post", { channelId, postId }),
+  getPost: (channelId, postId, after) => invoke<PostDetail>("forum_get_post", { channelId, postId, after }),
   createPost: (channelId, title, body, tagIds) =>
     invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds }),
   createReply: (channelId, postId, body, replyToId) =>
@@ -299,9 +299,9 @@ export function ContentArea(props: Props) {
     };
   }
 
-  function getEvents(): Promise<HubEvent[]> {
+  function getEvents(params?: { channelId?: string }): Promise<HubEvent[]> {
     if (!activeHub) return Promise.resolve([]);
-    return invoke<HubEvent[]>("get_hub_events", { hubUrl: activeHub.hub_url });
+    return invoke<HubEvent[]>("get_hub_events", { hubUrl: activeHub.hub_url, channelId: params?.channelId ?? null });
   }
   function deleteEvent(eventId: string): Promise<void> {
     return invoke<void>("delete_event", { hubUrl: activeHub?.hub_url ?? "", eventId });

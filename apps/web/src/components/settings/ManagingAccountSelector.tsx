@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
+import { SettingRow } from "@wavvon/ui";
 import type { IdentityRecord } from "@identity/index";
 
 interface Props {
@@ -16,29 +17,28 @@ interface Props {
 // switching stays a separate, voice-guarded action (AccountsSwitcherSection).
 export function ManagingAccountSelector({ accounts, activeId, selectedId, onChange }: Props) {
   const { t } = useTranslation();
+  const optionLabel = (a: IdentityRecord) => {
+    const label = a.account_label || formatPubkey(a.id);
+    return a.id === activeId ? t("settings.account.managing.active_option", { label }) : label;
+  };
+  const chosen = accounts.find((a) => a.id === selectedId);
+  const selected = chosen ? optionLabel(chosen) : formatPubkey(selectedId);
   return (
-    <div className="settings-section">
-      <label className="settings-label" htmlFor="managing-account-select">
-        {t("settings.account.managing.label")}
-      </label>
-      <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-        {t("settings.account.managing.hint")}
-      </p>
-      <select
-        id="managing-account-select"
-        value={selectedId}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ maxWidth: 320 }}
-      >
-        {accounts.map((a) => {
-          const label = a.account_label || formatPubkey(a.id);
-          return (
-            <option key={a.id} value={a.id}>
-              {a.id === activeId ? t("settings.account.managing.active_option", { label }) : label}
-            </option>
-          );
-        })}
-      </select>
-    </div>
+    <SettingRow
+      title={t("settings.account.managing.label")}
+      state={selected}
+      control={
+        <select
+          id="managing-account-select"
+          aria-label={t("settings.account.managing.label")}
+          value={selectedId}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>{optionLabel(a)}</option>
+          ))}
+        </select>
+      }
+    />
   );
 }

@@ -14,6 +14,7 @@ import {
   channelBansTabActions,
   channelTalkPowerTabActions,
 } from "./channelSettingsTabActions";
+import i18n from "@wavvon/i18n";
 
 interface UseChannelCrudParams {
   hubs: Hub[];
@@ -181,7 +182,7 @@ export function useChannelCrud({
   }
 
   async function handleDeleteChannel(channelId: string) {
-    if (!confirm("Delete this channel? Messages will be lost.")) return;
+    if (!confirm(i18n.t("confirm.delete_channel"))) return;
     try {
       await invoke("delete_channel", { channelId });
       setChannels((prev) => prev.filter((c) => c.id !== channelId));

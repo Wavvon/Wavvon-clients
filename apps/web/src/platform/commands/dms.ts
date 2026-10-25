@@ -1,12 +1,14 @@
-import { hexToBytes, bytesToHex } from "@wavvon/core";
+import { hexToBytes, bytesToHex, masterPublicKeyHex, masterSeedHex } from "@wavvon/core";
 import { dmFetch, dmSession } from "../dmHub";
 import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import { hubFetch, rawFetch, HubApiError } from "../http";
 import { activeSession } from "../session";
 import i18n from "@wavvon/i18n";
-import { loadIdentity } from "../../identity/store";
+import { holdsMasterSeed, loadIdentity } from "../../identity/store";
 import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
+
+const PLAINTEXT_SIGNER_CERT_CAP = "dms.plaintext.signercert";
 import {
   dhKeypairFromSeed,
   encryptDm,
@@ -17,6 +19,7 @@ import {
   signBytes,
   publicKeyHex,
   dhKeySigningBytes,
+  federatedPlaintextDmSigningBytes,
   verifyDmEnvelopeSigner,
   type DmEnvelope,
   type DRSession,
@@ -101,12 +104,24 @@ export async function listConversations(): Promise<Conversation[]> {
   });
 }
 
-export async function createConversation(member_pubkeys: string[]): Promise<Conversation> {
+/** `via` is for a person found through an alliance: they are a stranger to our
+ *  hub, so it needs their hub's URL to deliver to and their master key to look
+ *  their home hubs up by. */
+export async function createConversation(
+  member_pubkeys: string[],
+  via?: { hubUrl: string; masterPubkey: string },
+): Promise<Conversation> {
   // Server contract (hub routes/dms/conversations.rs CreateConversationRequest)
   // names the field `members`.
   const res = await dmFetch("/conversations", {
     method: "POST",
-    body: JSON.stringify({ members: member_pubkeys }),
+    body: JSON.stringify({
+      members: member_pubkeys,
+      ...(via && {
+        member_hubs: { [member_pubkeys[0]]: via.hubUrl },
+        member_masters: { [member_pubkeys[0]]: via.masterPubkey },
+      }),
+    }),
   });
   return res.json() as Promise<Conversation>;
 }
@@ -288,9 +303,22 @@ export async function sendDm(
   const recipientPubkey = members.find((m) => m !== senderPubkey);
 
   const sendPlaintext = async () => {
+    // A recipient on another hub only takes a plaintext DM the sender signed;
+    // unsigned, it is refused there and sits in our hub's outbox. A device
+    // signing with a key other than the one the conversation knows us by
+    // sends the cert that ties the two together -- where the hub takes it; an
+    // older hub refuses such a signature, so there it goes unsigned as before.
+    const asSelf = publicKeyHex(signingSeedHex) === senderPubkey;
+    const certOk =
+      !asSelf && !!signerCert && !!(await dmSession()).capabilities?.includes(PLAINTEXT_SIGNER_CERT_CAP);
+    const plaintext_signature =
+      asSelf || certOk
+        ? signBytes(federatedPlaintextDmSigningBytes(conversation_id, conversation.conv_type, content), signingSeedHex)
+        : undefined;
+    const plaintext_signer_cert = certOk ? signerCert : undefined;
     await dmFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
-      body: JSON.stringify({ content, attachments }),
+      body: JSON.stringify({ content, attachments, plaintext_signature, plaintext_signer_cert }),
     });
   };
 
@@ -424,15 +452,29 @@ export function canPublishDhKey(
 
 /** The signed record itself, plus where it goes. Null when this device may
  *  not publish (a paired device — see `canPublishDhKey`). */
-async function dhKeyRecord(): Promise<{ path: string; body: string } | null> {
+async function dhKeyRecord(seatedAs?: string): Promise<{ path: string; body: string } | null> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
-  if (!canPublishDhKey(identity)) return null;
 
   const seedHex = identity.seed_hex;
-  const myPubkeyHex = publicKeyHex(seedHex);
   const { dhPub } = dhKeypairFromSeed(seedHex);
   const dhPubkeyHex = bytesToHex(dhPub);
+  // A hub meeting this identity for the first time seats the master its
+  // self-signed cert names, and a record must be signed by the key the hub
+  // knows us by. Only a device holding the master's entropy can do that.
+  if (seatedAs && seatedAs !== publicKeyHex(seedHex)) {
+    if (!holdsMasterSeed(identity) || seatedAs !== masterPublicKeyHex(seedHex)) return null;
+    return {
+      path: `/identity/${seatedAs}/dh-key`,
+      body: JSON.stringify({
+        dh_pubkey_hex: dhPubkeyHex,
+        signature_hex: signBytes(dhKeySigningBytes(seatedAs, dhPubkeyHex), masterSeedHex(seedHex)),
+      }),
+    };
+  }
+  if (!canPublishDhKey(identity)) return null;
+
+  const myPubkeyHex = publicKeyHex(seedHex);
   const signatureHex = signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex);
 
   return {
@@ -465,8 +507,8 @@ export async function publishDhKey(): Promise<void> {
  * (auth/middleware.rs, `ALLIANCE_VOICE_ALLOWED_PATHS`); no client ever used
  * the publish half.
  */
-export async function publishDhKeyTo(hubUrl: string, token: string): Promise<void> {
-  const record = await dhKeyRecord();
+export async function publishDhKeyTo(hubUrl: string, token: string, seatedAs?: string): Promise<void> {
+  const record = await dhKeyRecord(seatedAs);
   if (!record) return;
   await rawFetch(`${hubUrl}${record.path}`, {
     method: "PUT",

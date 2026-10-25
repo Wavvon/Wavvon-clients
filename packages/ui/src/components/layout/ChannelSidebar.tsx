@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Channel, TreeNode, FlatNode } from "@wavvon/core";
-import { channelPath, findTreeNode, formatPubkey } from "@wavvon/core";
+import { channelPath, findTreeNode, formatPubkey, displayHubAddress } from "@wavvon/core";
 import type {
   Hub,
   NotifyMode,
@@ -29,18 +29,21 @@ import type {
   WhisperList,
   WhisperReplyBind,
 } from "../../types";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon } from "../Icons";
+import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, GearIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
 import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
 import { HoverSubmenu } from "../HoverSubmenu";
 import { HubMenuItems } from "./HubMenuItems";
 import { SoundboardPopover } from "../voice/SoundboardPopover";
 import { WhisperPanel } from "../voice/WhisperPanel";
+import { MicBelowGateWarning } from "../voice/MicBelowGateWarning";
 import {
   DRILL_DEPTH, computeIndent, resolveDrillInScope,
   flattenAllianceChannels, allianceChannelIcon, computeDragIntent,
 } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../../utils/spawnerChannels";
+import { dmPeerLabel } from "../../utils/dmPeerLabel";
+import { SearchIcon, MembersIcon } from "../Icons";
 
 interface SidebarFlatNode extends FlatNode {
   indentDepth: number;
@@ -97,7 +100,12 @@ interface Props {
   voiceChannelNameHint?: string | null;
   selfMuted: boolean;
   selfDeafened: boolean;
+  /** Unmuted with VAD on, signal present, threshold never crossed. */
+  micBelowGate?: boolean;
+  onOpenVoiceSettings?: () => void;
   users: User[];
+  /** See dmPeerLabel. */
+  dmPeerNames?: Record<string, string>;
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
   isAdmin: boolean;
@@ -204,8 +212,8 @@ interface Props {
 export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
-  voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened,
-  users, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
+  voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
+  users, dmPeerNames, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
@@ -482,9 +490,16 @@ export function ChannelSidebar({
             className="hub-header-button"
             onClick={() => onHubDropdownOpenChange(!hubDropdownOpen)}
           >
-            <span className="hub-header-name">{activeHub?.hub_name ?? t("hub.placeholder_name")}</span>
+            {/* The address, not just the name. Self-hosted means whose machine
+                you are on is part of knowing where you are. */}
+            <span className="hub-header-id">
+              <span className="hub-header-name">{activeHub?.hub_name ?? t("hub.placeholder_name")}</span>
+              {activeHub?.hub_url && (
+                <span className="hub-header-address">{displayHubAddress(activeHub.hub_url)}</span>
+              )}
+            </span>
             <HubClock timezone={hubTimezone} />
-            <span className="hub-header-chevron">{hubDropdownOpen ? "▴" : "▾"}</span>
+            <span className="hub-header-chevron"><ChevronIcon size={12} dir={hubDropdownOpen ? "up" : "down"} /></span>
           </button>
           {hubDropdownOpen && (
             <div className="hub-dropdown">
@@ -492,6 +507,7 @@ export function ChannelSidebar({
                 variant="dropdown"
                 onDone={() => onHubDropdownOpenChange(false)}
                 activeHubId={activeHubId}
+                hubUrl={activeHub?.hub_url}
                 isAdmin={isAdmin}
                 canCreateInvites={canCreateInvites}
                 hideSilenced={hideSilenced}
@@ -518,7 +534,7 @@ export function ChannelSidebar({
           style={{ width: "100%", textAlign: "left", padding: "6px 12px" }}
           onClick={onOpenSearch}
         >
-          🔍 {t("search.placeholder")}
+          <SearchIcon size={13} /> {t("search.placeholder")}
         </button>
       )}
 
@@ -646,7 +662,7 @@ export function ChannelSidebar({
                     style={{ paddingLeft: computeIndent(activeNode.indentDepth).paddingLeft }}
                   >
                     {activeNode.node.is_category
-                      ? `▾ ${activeNode.node.name.toUpperCase()}`
+                      ? `▾ ${activeNode.node.name}`
                       : <><ChannelIcon icon={activeNode.node.icon} customIconSvg={activeNode.node.custom_icon_svg} />{" "}{activeNode.node.name}</>}
                   </div>
                 )}
@@ -703,7 +719,7 @@ export function ChannelSidebar({
                                   aria-label={t("alliance.voice.join_title", { hub: c.hub_name })}
                                   onClick={(e) => { e.stopPropagation(); onJoinAllianceVoice(a, c); }}
                                 >
-                                  🔊
+                                  <SpeakerIcon size={13} />
                                 </button>
                               )}
                               <span className="alliance-channel-host">{c.hub_name}</span>
@@ -727,7 +743,7 @@ export function ChannelSidebar({
                   (avoids a dead button on callers that haven't built it yet). */}
               {onOpenFriends && (
                 <button className="btn-icon" onClick={onOpenFriends} title={t("friends.title")}>
-                  👥
+                  <MembersIcon />
                 </button>
               )}
             </div>
@@ -737,10 +753,7 @@ export function ChannelSidebar({
                 .map((c) => {
                   const others = c.members.filter((m) => m !== publicKey);
                   const label = others
-                    .map((k) => {
-                      const u = users.find((u) => u.public_key === k);
-                      return u?.display_name || k.slice(0, 12);
-                    })
+                    .map((k) => dmPeerLabel(k, users, dmPeerNames))
                     .join(", ");
                   const unread = !!unreadDms[c.id];
                   return (
@@ -777,6 +790,7 @@ export function ChannelSidebar({
               variant="context"
               onDone={() => setHubCtxMenu(null)}
               activeHubId={activeHubId}
+              hubUrl={activeHub?.hub_url}
               isAdmin={isAdmin}
               canCreateInvites={canCreateInvites}
               hideSilenced={hideSilenced}
@@ -811,6 +825,7 @@ export function ChannelSidebar({
                 <PhoneOffIcon />
               </button>
             </div>
+            {micBelowGate && onOpenVoiceSettings && <MicBelowGateWarning onOpenSensitivity={onOpenVoiceSettings} />}
             <div className="user-actions">
               <div className="user-actions-icons">
                 <button
@@ -858,7 +873,7 @@ export function ChannelSidebar({
                     title={t("voice.whisper", "Whisper")}
                     aria-pressed={!!isWhispering}
                   >
-                    🤫
+                    <WhisperIcon size={15} />
                   </button>
                 )}
                 {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
@@ -965,7 +980,7 @@ export function ChannelSidebar({
             className="btn-icon-gear"
             title={settingsNeedsAttention ? t("settings.identity_backup.badge") : t("settings.title")}
           >
-            ⚙
+            <GearIcon size={15} />
             {settingsNeedsAttention && (
               <span className="gear-attention-dot" aria-label={t("settings.identity_backup.badge")} />
             )}

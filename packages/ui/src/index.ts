@@ -39,7 +39,6 @@ export type {
 export { AudioProfileSection } from "./components/AudioProfileSection";
 export { Avatar } from "./components/Avatar";
 export { AvatarPicker } from "./components/AvatarPicker";
-export { AccountLabelSuffix, PerAccountHint } from "./components/AccountScopeNote";
 export { generateAvatarDataUrl, randomAvatarSeed } from "./utils/avatarGenerator";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
@@ -47,10 +46,38 @@ export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
+export { FullArchiveSection } from "./components/FullArchiveSection";
+export type { FullArchiveSectionActions, FullArchiveRestoreResult } from "./components/FullArchiveSection";
+export {
+  ARCHIVE_KIND,
+  ARCHIVE_DOCUMENT_VERSION,
+  buildDmArchiveConversation,
+  parseArchiveDocument,
+  planRestore,
+  totalRestored,
+  totalSkipped,
+} from "./utils/fullArchive";
+export type {
+  ArchiveDocument,
+  ArchiveHub,
+  ArchiveIdentity,
+  DmArchiveConversation,
+  DmArchiveMessage,
+  ExistingAccountSnapshot,
+  LocalPrefsSnapshot,
+  RestorableArchive,
+  RestoredTheme,
+  RestorePlan,
+  RestoreSummary,
+  UnrestorableNote,
+} from "./utils/fullArchive";
 export { AppLaunchCard } from "./components/AppLaunchCard";
 export { ErrorRetry } from "./components/ErrorRetry";
+export { HubRefusedPanel } from "./components/HubRefusedPanel";
 export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
+export { AdmissionChallenge } from "./components/AdmissionChallenge";
+export type { AdmissionChallengeProps } from "./components/AdmissionChallenge";
 export { Lightbox } from "./components/Lightbox";
 export { BannerEditModal } from "./components/channels/BannerEditModal";
 export { ChannelAlliancesTab } from "./components/channels/ChannelAlliancesTab";
@@ -70,6 +97,9 @@ export { VoiceMovePromptModal } from "./components/VoiceMovePromptModal";
 export { StagingPanel } from "./components/StagingPanel";
 export { StagingSlotGroup } from "./components/StagingSlotGroup";
 export { AllianceView } from "./components/content/AllianceView";
+export { AlliancePeoplePanel } from "./components/content/AlliancePeoplePanel";
+export type { AlliancePeopleActions } from "./components/content/AlliancePeoplePanel";
+export { FindableByAlliesToggle } from "./components/settings/FindableByAlliesToggle";
 export { EmojiPicker } from "./components/content/EmojiPicker";
 export { ReconnectBanner } from "./components/content/ReconnectBanner";
 export { EMOJI_CATALOG, QUICK_REACTIONS } from "./emojiCatalog";
@@ -89,6 +119,7 @@ export { PollComposer } from "./components/polls/PollComposer";
 export type {
   Alliance,
   AllianceMember,
+  AlliancePerson,
   AllianceDetail,
   AllianceInvite,
   PendingAllianceInvite,
@@ -170,6 +201,35 @@ export {
   CHANNEL_ICONS,
   ChannelIconGlyph,
   ChannelIcon,
+  PinIcon,
+  SearchIcon,
+  MembersIcon,
+  LinkIcon,
+  FlagIcon,
+  ReplyIcon,
+  EditIcon,
+  TrashIcon,
+  VolumeIcon,
+  GearIcon,
+  PlusIcon,
+  CloseIcon,
+  ChevronIcon,
+  ExpandIcon,
+  ResetIcon,
+  ForumIcon,
+  BellOffIcon,
+  LockIcon,
+  PaperclipIcon,
+  SpeakerIcon,
+  ClockIcon,
+  WhisperIcon,
+  CakeIcon,
+  CalendarIcon,
+  WaveIcon,
+  ReactionAddIcon,
+  MessagesIcon,
+  DiscoverIcon,
+  MentionIcon,
 } from "./components/Icons";
 export { HubStreamsPanel } from "./components/HubStreamsPanel";
 export type { HubStreamInfo } from "./types";
@@ -378,6 +438,13 @@ export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry
 export type { StoredPresence } from "./utils/presenceExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useConfirm } from "./components/ConfirmDialog";
+export { SettingRow } from "./components/SettingRow";
+export type { SettingRowProps } from "./components/SettingRow";
+export { CameraTab } from "./components/CameraTab";
+export type { ConfirmRequest } from "./components/ConfirmDialog";
+export { useHubPing, applyProbeResult, PING_INTERVAL_MS, OFFLINE_AFTER_FAILURES } from "./hooks/useHubPing";
+export type { PingByHub, HubPingState } from "./hooks/useHubPing";
 export { useWhisper } from "./hooks/useWhisper";
 export { useTypingIndicators, typingKey, typingForScope } from "./hooks/useTypingIndicators";
 export type { TypingDeps, TypingMap } from "./hooks/useTypingIndicators";
@@ -394,3 +461,6 @@ export { applyWhisperLogEvent, pickReplyPubkey } from "./utils/whisperInbox";
 export type { InboundWhisperEntry } from "./utils/whisperInbox";
 export { ChannelContextMenu } from "./components/channels/ChannelContextMenu";
 export type { ChannelContextMenuProps } from "./components/channels/ChannelContextMenu";
+
+export { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./utils/backgroundProcessor";
+export type { BackgroundMode } from "./utils/backgroundProcessor";

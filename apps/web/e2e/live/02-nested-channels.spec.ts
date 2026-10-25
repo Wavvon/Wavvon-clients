@@ -11,7 +11,7 @@ async function createNestedCategory(page: Page, parentName: string, name: string
   await parentRow.hover();
   // Child rows nest inside the parent <li>; the parent's own header row
   // comes first, so .first() picks the parent's add button.
-  await parentRow.getByRole("button", { name: "+", exact: true }).first().click();
+  await parentRow.getByRole("button", { name: "Add…", exact: true }).first().click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.locator("select").selectOption({ label: "Category" });
@@ -24,7 +24,7 @@ async function createNestedCategory(page: Page, parentName: string, name: string
 async function createChannelInCategory(page: Page, parentName: string, name: string) {
   const parentRow = page.getByRole("group", { name: parentName });
   await parentRow.hover();
-  await parentRow.getByRole("button", { name: "+", exact: true }).first().click();
+  await parentRow.getByRole("button", { name: "Add…", exact: true }).first().click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.getByPlaceholder(/channel-name|category-name/).fill(name);
@@ -71,7 +71,7 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
 
   // Permalink round-trip: copy the channel link from the channel's
   // right-click context menu, clear the selection by reloading, then paste
-  // the wavvon:// link into the Add Hub modal — for an already-joined hub
+  // the wavvon:// link into the Join-a-hub modal — for an already-joined hub
   // it must select the channel directly.
   await page.getByRole("button", { name: leaf, exact: true }).click();
   await page.getByRole("button", { name: leaf, exact: true }).click({ button: "right" });
@@ -87,10 +87,14 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
 
   await page.reload();
   await expectInHub(page);
-  // The + in the hub rail opens the Add Hub modal directly — there is no
-  // join/create menu in front of it since the create-hub wizard went.
-  await page.getByRole("navigation", { name: "Hubs" }).getByRole("button", { name: "+" }).click();
-  const addHub = page.getByRole("dialog", { name: "Add Hub" });
+  // The add button in the hub rail opens the Join-a-hub modal directly — there
+  // is no join/create menu in front of it since the create-hub wizard went. It
+  // draws a plus icon rather than a "+" glyph, so its title is its only name.
+  await page
+    .getByRole("navigation", { name: "Hubs" })
+    .getByRole("button", { name: "Join a hub" })
+    .click();
+  const addHub = page.getByRole("dialog", { name: "Join a hub" });
   await expect(addHub).toBeVisible();
   await addHub.getByRole("textbox").fill(link);
   await expect(addHub).not.toBeVisible({ timeout: 10000 });

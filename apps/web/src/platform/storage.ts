@@ -133,3 +133,41 @@ export function clearToken(hubId: string, accountId?: string): void {
   sessionStorage.removeItem(key);
   localStorage.removeItem(key);
 }
+
+/**
+ * Move a saved hub from one pubkey to another, after the hub proved the
+ * handover with an endorsement signed by the key we already held
+ * (`rotationAppliesTo` in `@wavvon/core`).
+ *
+ * Everything keyed on the hub's pubkey moves together: the list entry, the
+ * cached token in whichever storage holds it, and the active-hub pointer if
+ * it named this one. Leaving any of them behind is how one hub becomes two —
+ * the entry follows the rotation, the token does not, and the next reconnect
+ * authenticates from scratch and files the result as a second hub.
+ *
+ * Returns false and changes nothing when there is no hub under `oldId`, or
+ * when something already sits under `newId` — that would be two hubs
+ * collapsing into one, which is not what a rotation is.
+ */
+export function rekeySavedHub(oldId: string, newId: string, accountId?: string): boolean {
+  const list = loadSavedHubs();
+  const hub = list.find((h) => h.hub_id === oldId);
+  if (!hub || list.some((h) => h.hub_id === newId)) return false;
+
+  hub.hub_id = newId;
+  saveSavedHubs(list);
+
+  // The token is a bearer token and stays valid across a rotation; it just
+  // has to be findable under the new name.
+  const oldKey = accountKey(TOKEN_PREFIX + oldId, accountId);
+  const newKey = accountKey(TOKEN_PREFIX + newId, accountId);
+  const fromSession = sessionStorage.getItem(oldKey);
+  const fromLocal = localStorage.getItem(oldKey);
+  if (fromSession !== null) sessionStorage.setItem(newKey, fromSession);
+  if (fromLocal !== null) localStorage.setItem(newKey, fromLocal);
+  sessionStorage.removeItem(oldKey);
+  localStorage.removeItem(oldKey);
+
+  if (loadActiveHubId() === oldId) saveActiveHubId(newId);
+  return true;
+}

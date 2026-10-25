@@ -1,10 +1,12 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
 import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
 import { MessageAttachments, PendingAttachments } from "../Attachments";
 import { MessageContent } from "../MessageContent";
 import { TypingIndicator } from "../TypingIndicator";
+import { dmPeerLabel } from "../../utils/dmPeerLabel";
+import { PaperclipIcon, LockIcon } from "../Icons";
 
 interface TypingEntry { name: string; ts: number }
 
@@ -14,6 +16,9 @@ interface Props {
   publicKey: string | null;
   blockedUsers: Set<string>;
   users: User[];
+  /** Names learned where a conversation was started, for peers who are not
+   *  members of this hub (see dmPeerLabel). */
+  peerNames?: Record<string, string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   pendingAttachments: Attachment[];
@@ -26,12 +31,6 @@ interface Props {
   onPingDmTyping: () => void;
   onSendDm: () => void;
   onOpenImage: (src: string, alt: string) => void;
-  /** Present only on platforms that implement group-DM sender-key E2E
-   *  encryption. Gates the conversation behind a one-time acknowledgment
-   *  and pushes this device's sender key on accept. Platforms without the
-   *  crypto (e.g. web, pending packages/core support) omit it and fall
-   *  back to the plain "not encrypted" banner. */
-  onAcknowledgeGroupDm?: (conversationId: string) => void;
 }
 
 export function DmView({
@@ -40,6 +39,7 @@ export function DmView({
   publicKey,
   blockedUsers,
   users,
+  peerNames,
   knownDisplayNames,
   myDisplayName,
   pendingAttachments,
@@ -52,40 +52,15 @@ export function DmView({
   onPingDmTyping,
   onSendDm,
   onOpenImage,
-  onAcknowledgeGroupDm,
 }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposing = useRef(false);
-  const [groupDmAcknowledged, setGroupDmAcknowledged] = useState(false);
 
   function handleContainerClick(e: React.MouseEvent<HTMLElement>) {
     const target = e.target as HTMLElement;
     if (target.closest("button, a, input, textarea, select, label")) return;
     inputRef.current?.focus();
-  }
-
-  if (selectedConversation.conv_type === "group" && onAcknowledgeGroupDm && !groupDmAcknowledged) {
-    return (
-      <div className="dm-group-ack-overlay">
-        <div className="dm-group-ack-box">
-          <p className="dm-group-ack-title">{t("dm.group_warning_title")}</p>
-          <p className="dm-group-ack-body">
-            {t("dm.group_banner")}
-            {" "}{t("dm.group_banner_detail")}
-          </p>
-          <button
-            className="btn-primary"
-            onClick={() => {
-              setGroupDmAcknowledged(true);
-              onAcknowledgeGroupDm(selectedConversation.id);
-            }}
-          >
-            {t("dm.group_banner_got_it")}
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -95,16 +70,13 @@ export function DmView({
           @{" "}
           {selectedConversation.members
             .filter((m) => m !== publicKey)
-            .map((k) => {
-              const u = users.find((u) => u.public_key === k);
-              return u?.display_name || k.slice(0, 12);
-            })
+            .map((k) => dmPeerLabel(k, users, peerNames))
             .join(", ")}
         </h3>
       </div>
       {selectedConversation.conv_type === "group" && (
         <div className="dm-group-banner">
-          {onAcknowledgeGroupDm ? t("dm.group_e2e_active") : t("dm.group_banner")}
+          {t("dm.group_banner")}
         </div>
       )}
       <div className="messages">
@@ -113,6 +85,7 @@ export function DmView({
           .map((m) => {
             const senderLabel =
               users.find((u) => u.public_key === m.sender)?.display_name ||
+              peerNames?.[m.sender] ||
               m.sender_name ||
               formatPubkey(m.sender);
             const showFailed = m.delivery_failed === true && m.sender === publicKey;
@@ -125,14 +98,14 @@ export function DmView({
               </span>
             ) : null;
             const lockIcon = m.is_encrypted
-              ? <span className="dm-lock-icon" title={t("dm.encrypted")}>🔒</span>
+              ? <span className="dm-lock-icon" title={t("dm.encrypted")}><LockIcon size={12} /></span>
               : null;
             const actionText = meAction(m.content);
             if (actionText !== null) {
               return (
                 <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message message-action">
                   <span className="action-asterisk">*</span>
-                  <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                  <span className="message-sender">
                     {senderLabel}
                   </span>
                   <span className="action-text">
@@ -148,7 +121,7 @@ export function DmView({
             }
             return (
               <div key={m.id ?? `${m.timestamp}-${m.sender}`} className="message">
-                <span className="message-sender" style={{ color: colorForKey(m.sender) }}>
+                <span className="message-sender">
                   {senderLabel}
                 </span>
                 <span className="message-time" title={formatFullTimestamp(m.timestamp)}>
@@ -181,7 +154,7 @@ export function DmView({
         onClick={handleContainerClick}
       >
         <label className="btn-attach" title={t("composer.attach")}>
-          📎
+          <PaperclipIcon size={16} />
           <input
             type="file"
             multiple

@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Hub, FavoriteHub } from "../../types";
+import { CloseIcon } from "../Icons";
 
 interface Props {
   // The hubs the user has joined — the pool they pick favorites from.
@@ -160,8 +161,8 @@ function FavoriteRow({
       <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--text-sm)" }}>
         {fav.name || fav.url}
       </span>
-      <button type="button" className="btn-small btn-secondary" onClick={onRemove} aria-label={removeLabel} title={removeLabel} style={{ flexShrink: 0 }}>
-        ×
+      <button type="button" className="btn-small btn-secondary" onClick={onRemove} aria-label={removeLabel} title={removeLabel} style={{ flexShrink: 0 }}>
+        <CloseIcon size={13} />
       </button>
     </li>
   );

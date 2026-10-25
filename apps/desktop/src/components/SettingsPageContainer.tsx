@@ -1,7 +1,6 @@
 import { SettingsPage } from "./SettingsPage";
 import type { Hub } from "../types";
 import type { useVoice } from "../hooks/useVoice";
-import type { useVideo } from "../hooks/useVideo";
 import type { useChannelMessages } from "../hooks/useChannelMessages";
 import type { useSettingsProfile } from "../hooks/useSettingsProfile";
 
@@ -21,13 +20,12 @@ interface Props {
   onToggleHideBirthdays: () => void;
 
   voice: ReturnType<typeof useVoice>;
-  video: ReturnType<typeof useVideo>;
   channelMessages: ReturnType<typeof useChannelMessages>;
   settingsProfile: ReturnType<typeof useSettingsProfile>;
 }
 
 // Absorbs the SettingsPage call site the same way the sidebar/content-area
-// containers do: grouped hook-result objects (voice, video, channelMessages,
+// containers do: grouped hook-result objects (voice, channelMessages,
 // settingsProfile) replace the flat prop list. The voice-settings persist
 // callbacks (onInputDeviceChange, onVadChange, ...) all close purely over
 // `voice` fields, so they move in wholesale rather than staying as
@@ -36,7 +34,7 @@ export function SettingsPageContainer({
   onClose, onHubProfileSaved, hubs, activeHubId, isAdmin, publicKey,
   blockedUsers, ignoredUsers, onUnblock, onUnignore, knownNames,
   hideBirthdays, onToggleHideBirthdays,
-  voice, video, channelMessages, settingsProfile,
+  voice, channelMessages, settingsProfile,
 }: Props) {
   return (
     <SettingsPage
@@ -50,13 +48,6 @@ export function SettingsPageContainer({
       skin={settingsProfile.skin}
       onSkinChange={settingsProfile.handleSkinChange}
       onImportSkin={(s) => { settingsProfile.handleSkinChange(s); settingsProfile.handleSetTheme("custom"); }}
-      backgroundMode={video.backgroundMode}
-      backgroundSource={video.backgroundSource}
-      backgroundActive={video.backgroundActive}
-      onChangeBackground={video.changeBackground}
-      videoInputs={video.videoInputs}
-      videoInputDevice={video.videoInputDevice}
-      onVideoInputDeviceChange={video.setVideoInputDevice}
       activeHubId={activeHubId}
       activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
       isAdmin={isAdmin}
@@ -120,13 +111,7 @@ export function SettingsPageContainer({
       onCustomVadThresholdChange={(v) => {
         voice.setCustomVadThreshold(v);
         voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, v);
-      }}
-      customChannels={voice.customChannels}
-      onCustomChannelsChange={(v) => {
-        voice.setCustomChannels(v);
-        voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, v);
-      }}
-      customFrameMs={voice.customFrameMs}
+      }}      customFrameMs={voice.customFrameMs}
       onCustomFrameMsChange={(v) => {
         voice.setCustomFrameMs(v);
         voice.persistAudioSettings(undefined, undefined, undefined, undefined, undefined, undefined, undefined, v);

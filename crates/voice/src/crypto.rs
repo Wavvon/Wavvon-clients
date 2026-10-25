@@ -120,79 +120,115 @@ pub fn peek_header(packet: &[u8]) -> Option<(u32, u64, u32)> {
 mod tests {
     use super::*;
 
-    const SENDER_KEY: [u8; 32] = [
-        0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
-        0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde,
-        0xdf, 0xe0,
-    ];
-    const NONCE_SALT: [u8; 4] = [0xaa, 0xbb, 0xcc, 0xdd];
-    const KEY_ID: u32 = 99;
-
-    const PACKET_CTR0_HEX: &str = "000000630000000000000000000003e832dbc83526f73e83a90b59aaab331078f359b00fcfab1fa0e6c514ea2034da79b2";
-    const PACKET_CTR7_HEX: &str = "0000006300000000000000070000138823adf6d5a771baa49d8de5ed1c99e5d5f12e9fffa9ba4fb471ca80882171360024";
-
-    #[test]
-    fn packet_seal_ctr0_vector() {
-        let packet = voice_packet_seal(
-            &SENDER_KEY,
-            &NONCE_SALT,
-            KEY_ID,
-            0,
-            1000,
-            b"opus-frame-vector",
-        );
-        assert_eq!(hex::encode(&packet), PACKET_CTR0_HEX);
+    // Inputs and expected packets come from wire-vectors/wire-vectors.json at
+    // the repo root: the server's vectors, vendored byte-for-byte.
+    fn vector(name: &str) -> serde_json::Value {
+        let doc: serde_json::Value =
+            serde_json::from_str(include_str!("../../../wire-vectors/wire-vectors.json")).unwrap();
+        assert_eq!(doc["format"], 1, "unknown wire-vectors.json format");
+        let resolve = |x: &serde_json::Value| -> serde_json::Value {
+            match x.as_str().and_then(|s| s.strip_prefix('@')) {
+                Some(name) => doc["fixtures"][name].clone(),
+                None => x.clone(),
+            }
+        };
+        let mut v = doc["vectors"][name].clone();
+        assert!(!v.is_null(), "no vector {name}");
+        for (_, x) in v["inputs"].as_object_mut().unwrap() {
+            *x = resolve(x);
+        }
+        v
     }
 
+    fn hex_in(v: &serde_json::Value, key: &str) -> Vec<u8> {
+        hex::decode(v["inputs"][key].as_str().unwrap()).unwrap()
+    }
+
+    fn num_in(v: &serde_json::Value, key: &str) -> u64 {
+        v["inputs"][key].as_u64().unwrap()
+    }
+
+    fn sender_key() -> [u8; 32] {
+        hex_in(&vector("voice_packet_ctr0"), "sender_key")
+            .try_into()
+            .unwrap()
+    }
+
+    fn nonce_salt() -> [u8; 4] {
+        hex_in(&vector("voice_packet_ctr0"), "nonce_salt")
+            .try_into()
+            .unwrap()
+    }
+
+    fn key_id() -> u32 {
+        num_in(&vector("voice_packet_ctr0"), "key_id") as u32
+    }
+
+    const PACKET_VECTORS: [&str; 2] = ["voice_packet_ctr0", "voice_packet_ctr7"];
+
     #[test]
-    fn packet_seal_ctr7_vector() {
-        let packet = voice_packet_seal(
-            &SENDER_KEY,
-            &NONCE_SALT,
-            KEY_ID,
-            7,
-            5000,
-            b"opus-frame-vector",
-        );
-        assert_eq!(hex::encode(&packet), PACKET_CTR7_HEX);
+    fn packet_seal_vectors() {
+        for name in PACKET_VECTORS {
+            let v = vector(name);
+            let packet = voice_packet_seal(
+                &hex_in(&v, "sender_key").try_into().unwrap(),
+                &hex_in(&v, "nonce_salt").try_into().unwrap(),
+                num_in(&v, "key_id") as u32,
+                num_in(&v, "counter"),
+                num_in(&v, "timestamp") as u32,
+                &hex_in(&v, "opus"),
+            );
+            assert_eq!(
+                hex::encode(&packet),
+                v["packet"].as_str().unwrap(),
+                "{name}"
+            );
+        }
     }
 
     #[test]
     fn packet_open_round_trips_ctr0_and_ctr7_vectors() {
-        for hex_packet in [PACKET_CTR0_HEX, PACKET_CTR7_HEX] {
-            let packet = hex::decode(hex_packet).unwrap();
-            let (key_id, _ctr, _ts, opus) =
-                voice_packet_open(&SENDER_KEY, &NONCE_SALT, &packet).unwrap();
-            assert_eq!(key_id, KEY_ID);
-            assert_eq!(opus, b"opus-frame-vector");
+        for name in PACKET_VECTORS {
+            let v = vector(name);
+            let packet = hex::decode(v["packet"].as_str().unwrap()).unwrap();
+            let (key_id, ctr, ts, opus) = voice_packet_open(
+                &hex_in(&v, "sender_key").try_into().unwrap(),
+                &hex_in(&v, "nonce_salt").try_into().unwrap(),
+                &packet,
+            )
+            .unwrap();
+            assert_eq!(key_id as u64, num_in(&v, "key_id"), "{name}");
+            assert_eq!(ctr, num_in(&v, "counter"), "{name}");
+            assert_eq!(ts as u64, num_in(&v, "timestamp"), "{name}");
+            assert_eq!(opus, hex_in(&v, "opus"), "{name}");
         }
     }
 
     #[test]
     fn packet_open_rejects_short_packet() {
-        let result = voice_packet_open(&SENDER_KEY, &NONCE_SALT, &[0u8; 31]);
+        let result = voice_packet_open(&sender_key(), &nonce_salt(), &[0u8; 31]);
         assert!(result.is_err());
     }
 
     #[test]
     fn packet_open_rejects_tampered_header() {
         let mut packet = voice_packet_seal(
-            &SENDER_KEY,
-            &NONCE_SALT,
-            KEY_ID,
+            &sender_key(),
+            &nonce_salt(),
+            key_id(),
             0,
             1000,
             b"opus-frame-vector",
         );
         packet[0] ^= 0xFF; // flip a header byte (key_id)
-        let result = voice_packet_open(&SENDER_KEY, &NONCE_SALT, &packet);
+        let result = voice_packet_open(&sender_key(), &nonce_salt(), &packet);
         assert!(result.is_err());
     }
 
     #[test]
     fn peek_header_matches_seal_inputs() {
-        let packet = voice_packet_seal(&SENDER_KEY, &NONCE_SALT, KEY_ID, 42, 9000, b"x");
-        assert_eq!(peek_header(&packet), Some((KEY_ID, 42, 9000)));
+        let packet = voice_packet_seal(&sender_key(), &nonce_salt(), key_id(), 42, 9000, b"x");
+        assert_eq!(peek_header(&packet), Some((key_id(), 42, 9000)));
     }
 
     #[test]

@@ -7,6 +7,8 @@ import { EmojiPicker } from "../content/EmojiPicker";
 import { ErrorRetry } from "../ErrorRetry";
 import { ColorSwatchPicker } from "./ColorSwatchPicker";
 import { RoleCategoryManager, type RoleCategoryManagerActions } from "./RoleCategoryManager";
+import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 /** Permission ids, in display order. Each label is the catalog key
  *  `hub.admin.roles.perm.<id>`, so a new permission is one id here plus one
@@ -129,6 +131,12 @@ const isBuiltin = (role: RoleInfo) => role.id.startsWith("builtin-");
 
 export function RolesSection({ actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const [roles, setRoles] = useState<RoleInfo[] | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
   // What this screen offers to tick. It comes from the hub, not from
@@ -138,9 +146,7 @@ export function RolesSection({ actions }: Props) {
   const [permissionIds, setPermissionIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
-  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
-
-  const [showCreate, setShowCreate] = useState(false);
+  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newPriority, setNewPriority] = useState(1);
   const [newPerms, setNewPerms] = useState<Set<string>>(new Set());
@@ -222,8 +228,7 @@ export function RolesSection({ actions }: Props) {
       setNewName("");
       setNewPriority(1);
       setNewPerms(new Set());
-      setNewHoist(false);
-      setShowCreate(false);
+      setNewHoist(false);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -232,7 +237,11 @@ export function RolesSection({ actions }: Props) {
   }
 
   async function handleDelete(role: RoleInfo) {
-    if (!window.confirm(t("hub.admin.roles.delete_confirm", { name: role.name }))) return;
+    if (!(await confirm({
+      title: t("hub.admin.roles.delete_confirm", { name: role.name }),
+      confirmLabel: t("hub.admin.roles.delete"),
+      danger: true,
+    }))) return;
     setError(null);
     try {
       await actions.deleteRole(role.id);
@@ -246,6 +255,7 @@ export function RolesSection({ actions }: Props) {
     if (error) {
       return (
         <section>
+          {dialog}
           <h1>{t("hub.admin.roles.title")}</h1>
           <ErrorRetry message={error} onRetry={load} />
         </section>
@@ -259,13 +269,16 @@ export function RolesSection({ actions }: Props) {
   return (
     <section>
       <h1>{t("hub.admin.roles.title")}</h1>
+      {dialog}
       <p className="muted">{t("hub.admin.roles.hint")}</p>
       {error && <p className="error-text">{error}</p>}
 
-      {!showCreate ? (
-        <button type="button" onClick={() => setShowCreate(true)}>{t("hub.admin.roles.new")}</button>
-      ) : (
-        <div className="settings-section" style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "var(--space-3)" }}>
+      <SettingRow
+        title={t("hub.admin.roles.new")}
+        state={t("hub.admin.roles.state.new")}
+        {...row("new")}
+      >
+        <div className="settings-section">
           <div className="settings-row" style={{ gap: "var(--space-2)" }}>
             <input
               type="text"
@@ -305,27 +318,14 @@ export function RolesSection({ actions }: Props) {
             {t("hub.admin.roles.hoist")}
           </label>
           <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
-            <button type="button" onClick={handleCreate} disabled={creating || !newName.trim()}>
+            <button type="button" className="btn-primary" onClick={handleCreate} disabled={creating || !newName.trim()}>
               {creating ? t("hub.admin.roles.creating") : t("hub.admin.roles.create")}
-            </button>
-            <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)} disabled={creating}>
-              {t("hub.admin.roles.cancel")}
             </button>
           </div>
         </div>
-      )}
+      </SettingRow>
 
-      {supportsAppearance && (
-        <RoleCategoryManager
-          categories={categories}
-          onChange={setCategories}
-          actions={{
-            createRoleCategory: actions.createRoleCategory!,
-            updateRoleCategory: actions.updateRoleCategory!,
-            deleteRoleCategory: actions.deleteRoleCategory!,
-          }}
-        />
-      )}
+
 
       {groups.map((group) => (
         <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
@@ -342,79 +342,57 @@ export function RolesSection({ actions }: Props) {
           )}
 
           {group.roles.map((role) => (
-            <div key={role.id}>
-              <div className="settings-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ minWidth: 20, textAlign: "center" }}>{role.icon ?? "—"}</span>
-                <span style={{ minWidth: 140 }}>{role.name}</span>
-                <span className="muted" style={{ fontSize: "var(--text-xs)", flex: 1 }}>
-                  {role.permissions.join(", ") || "—"}
-                </span>
+            <SettingRow
+              key={role.id}
+              title={role.name}
+              state={t("hub.admin.roles.state", {
+                priority: role.priority,
+                count: role.permissions.length,
+              })}
+              meta={role.icon ?? undefined}
+              {...row(role.id)}
+            >
+              {!isBuiltin(role) && supportsAppearance && (
+                <div className="settings-row" style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
+                  <select
+                    value={role.category_id ?? ""}
+                    onChange={(e) => applyUpdate(role.id, { category_id: e.target.value || null })}
+                    title={t("hub.admin.roles.category_label")}
+                  >
+                    <option value="">{t("hub.admin.roles.category_none")}</option>
+                    {categories
+                      .slice()
+                      .sort((a, b) => a.position - b.position)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                  </select>
 
-                {/* Appearance (color/icon/category) is rejected server-side for
-                    built-in roles, and the whole block requires the desktop
-                    Tauri-command gap above to be closed first. */}
-                {!isBuiltin(role) && supportsAppearance && (
-                  <>
-                    <select
-                      value={role.category_id ?? ""}
-                      onChange={(e) => applyUpdate(role.id, { category_id: e.target.value || null })}
-                      title={t("hub.admin.roles.category_label")}
-                    >
-                      <option value="">{t("hub.admin.roles.category_none")}</option>
-                      {categories
-                        .slice()
-                        .sort((a, b) => a.position - b.position)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                    </select>
-
-                    <EmojiPicker onPick={(icon) => applyUpdate(role.id, { icon })} unicodeOnly />
-                    {role.icon && (
-                      <button
-                        type="button"
-                        className="btn-small btn-secondary"
-                        onClick={() => applyUpdate(role.id, { icon: null })}
-                      >
-                        {t("hub.admin.roles.clear_icon")}
-                      </button>
-                    )}
-
+                  <EmojiPicker onPick={(icon) => applyUpdate(role.id, { icon })} unicodeOnly />
+                  {role.icon && (
                     <button
                       type="button"
-                      className="color-swatch"
-                      style={{
-                        background: safeRoleColor(role.color) ?? "transparent",
-                        border: safeRoleColor(role.color) ? undefined : "1px solid var(--border)",
-                      }}
-                      onClick={() => setColorPickerFor(colorPickerFor === role.id ? null : role.id)}
-                      title={t("hub.admin.roles.color_label")}
-                    />
-                  </>
-                )}
+                      className="btn-small"
+                      onClick={() => applyUpdate(role.id, { icon: null })}
+                    >
+                      {t("hub.admin.roles.clear_icon")}
+                    </button>
+                  )}
 
-                {role.id !== "builtin-owner" && (
                   <button
                     type="button"
-                    className="btn-small btn-secondary"
-                    aria-expanded={permsOpenFor === role.id}
-                    onClick={() => setPermsOpenFor(permsOpenFor === role.id ? null : role.id)}
-                  >
-                    {t("hub.admin.roles.permissions")} {permsOpenFor === role.id ? "▴" : "▾"}
-                  </button>
-                )}
-                {!isBuiltin(role) && (
-                  <button
-                    type="button"
-                    className="btn-small btn-secondary danger"
-                    onClick={() => handleDelete(role)}
-                  >
-                    {t("hub.admin.roles.delete")}
-                  </button>
-                )}
-              </div>
+                    className="color-swatch"
+                    style={{
+                      background: safeRoleColor(role.color) ?? "transparent",
+                      border: safeRoleColor(role.color) ? undefined : "1px solid var(--border)",
+                    }}
+                    onClick={() => setColorPickerFor(colorPickerFor === role.id ? null : role.id)}
+                    title={t("hub.admin.roles.color_label")}
+                  />
+                </div>
+              )}
 
               {colorPickerFor === role.id && (
                 <ColorSwatchPicker
@@ -424,24 +402,48 @@ export function RolesSection({ actions }: Props) {
                 />
               )}
 
-              {permsOpenFor === role.id && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", padding: "var(--space-2) 0 var(--space-3) var(--space-4)" }}>
-                  {editableIdsFor(role).map((perm) => (
-                    <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
-                      <input
-                        type="checkbox"
-                        checked={role.permissions.includes(perm)}
-                        onChange={() => toggleRolePerm(role, perm)}
-                      />
-                      {permLabel(perm)}
-                    </label>
-                  ))}
-                </div>
+              {role.id !== "builtin-owner" && (
+                <>
+                  <span className="settings-label">{t("hub.admin.roles.permissions")}</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", margin: "var(--space-2) 0 var(--space-3)" }}>
+                    {editableIdsFor(role).map((perm) => (
+                      <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
+                        <input
+                          type="checkbox"
+                          checked={role.permissions.includes(perm)}
+                          onChange={() => toggleRolePerm(role, perm)}
+                        />
+                        {permLabel(perm)}
+                      </label>
+                    ))}
+                  </div>
+                </>
               )}
-            </div>
+
+              {!isBuiltin(role) && (
+                <button
+                  type="button"
+                  className="btn-small danger"
+                  onClick={() => handleDelete(role)}
+                >
+                  {t("hub.admin.roles.delete")}
+                </button>
+              )}
+            </SettingRow>
           ))}
         </div>
       ))}
+      {supportsAppearance && (
+        <RoleCategoryManager
+          categories={categories}
+          onChange={setCategories}
+          actions={{
+            createRoleCategory: actions.createRoleCategory!,
+            updateRoleCategory: actions.updateRoleCategory!,
+            deleteRoleCategory: actions.deleteRoleCategory!,
+          }}
+        />
+      )}
     </section>
   );
 }

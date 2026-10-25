@@ -1,4 +1,4 @@
-export type SkinBase = "calm" | "classic" | "linear" | "light";
+export type SkinBase = "dark" | "light";
 export type ThemeId = SkinBase | "custom";
 
 export interface WavvonSkin {
@@ -106,7 +106,7 @@ function isValidRadiusScale(v: string): boolean {
 
 function isValidShadow(v: string): boolean {
   if (hasForbidden(v)) return false;
-  return /^[\d\s.px%a-zA-Z,()#\-]+$/.test(v);
+  return /^[\d\s.px%a-zA-Z,()#-]+$/.test(v);
 }
 
 export function validateSkin(raw: unknown): WavvonSkin {
@@ -116,7 +116,7 @@ export function validateSkin(raw: unknown): WavvonSkin {
   if (s.version !== 1) throw new Error("Unsupported version");
   if (typeof s.name !== "string" || s.name.trim() === "" || s.name.length > 48)
     throw new Error("Invalid name (must be 1–48 characters)");
-  const BASES = ["calm", "classic", "linear", "light"] as const;
+  const BASES = ["dark", "light"] as const;
   if (!BASES.includes(s.base as never)) throw new Error("Invalid base theme");
   if (typeof s.tokens !== "object" || s.tokens === null) throw new Error("Invalid tokens field");
 

@@ -41,6 +41,7 @@ export function ModerationTab() {
   return (
     <section>
       <h1>{t("channel.settings.tab_moderation")}</h1>
+      <p className="muted">{t("hub.admin.moderation.hint")}</p>
       <ContentReportsSection actions={contentReportActions} />
       <AutomodWebhookSection actions={automodActions} />
       <FederatedBanlistSection actions={banlistActions} />

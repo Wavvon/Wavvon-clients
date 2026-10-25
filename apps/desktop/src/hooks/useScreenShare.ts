@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ScreenShareOpts } from "../types";
+import i18n from "@wavvon/i18n";
 
 interface WsInfo {
   hub_url: string;
@@ -81,7 +82,7 @@ export function useScreenShare(channelId: string | null) {
     const ws = new WebSocket(buildWsUrl(wsInfo.hub_url, wsInfo.token));
     wsRef.current = ws;
 
-    ws.onerror = () => setError("Screen share connection failed");
+    ws.onerror = () => setError(i18n.t("errors.screen_share_connection"));
 
     const mime = pickMime();
 
@@ -94,7 +95,7 @@ export function useScreenShare(channelId: string | null) {
     } catch (e) {
       ws.close();
       wsRef.current = null;
-      setError("Could not capture screen: " + String(e));
+      setError(i18n.t("errors.screen_capture", { error: String(e) }));
       return;
     }
 

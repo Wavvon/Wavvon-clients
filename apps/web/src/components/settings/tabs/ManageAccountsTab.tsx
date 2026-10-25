@@ -1,13 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
 import type { BackupAccount } from "@wavvon/core";
-import { IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
+import { FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
 import {
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
-import { FullArchiveSection } from "@components/admin/FullArchiveSection";
 import { HomeHubsSection } from "../HomeHubsSection";
 import { MULTI_HUB } from "../../../constants";
 import { MoveToUserClientSection } from "../MoveToUserClientSection";
@@ -18,10 +17,12 @@ import {
   resolveOrCreateAccount,
   switchAccount,
   SWITCH_BLOCKED_COOLDOWN,
+  holdsMasterSeed,
   type IdentityRecord,
 } from "@identity/index";
 import type { PerAccountProps } from "@wavvon/ui";
 import { isIdentityBackedUp, markIdentityBackedUp } from "../../../utils/identityBackup";
+import { buildFullArchiveActions } from "../../../utils/fullArchiveActions";
 
 interface Props extends PerAccountProps<IdentityRecord> {
   hubs: Hub[];
@@ -66,6 +67,8 @@ function pickBackupFile(): Promise<Uint8Array | null> {
 export function ManageAccountsTab(props: Props) {
   const { t } = useTranslation();
   const activeHubUrl = props.hubs.find((h) => h.is_active)?.hub_url;
+  const activeRecord = props.accounts?.find((a) => a.id === props.activeId);
+  const activeIsPaired = activeRecord ? !holdsMasterSeed(activeRecord) : false;
 
   // switchAccount refuses (voice guard, switch cooldown) rather than always
   // succeeding — the import already went through by this point, so surface
@@ -97,7 +100,9 @@ export function ManageAccountsTab(props: Props) {
     pickFile: pickBackupFile,
     importAccount,
   };
-  const backupAccounts = (props.accounts ?? []).map((a) => ({
+  // A paired device's seed is its subkey: exported, it would restore as a
+  // different identity, so only accounts holding their master seed are offered.
+  const backupAccounts = (props.accounts ?? []).filter(holdsMasterSeed).map((a) => ({
     id: a.id,
     label: a.account_label || formatPubkey(a.id),
     secretKeyHex: a.seed_hex,
@@ -124,11 +129,12 @@ export function ManageAccountsTab(props: Props) {
         recoveryPhrase={props.recoveryPhrase}
         onRevealPhrase={props.onShowRecovery}
         actions={backupActions}
-        needsBackup={!isIdentityBackedUp(props.activeId)}
+        needsBackup={!activeIsPaired && !isIdentityBackedUp(props.activeId)}
+        phraseHeldElsewhere={activeIsPaired}
         onSavedOffDevice={markIdentityBackedUp}
       />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
-      <FullArchiveSection publicKey={props.publicKey} />
+      <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
       {props.accounts && props.managing && (
         <ManagingAccountSelector
           accounts={props.accounts}

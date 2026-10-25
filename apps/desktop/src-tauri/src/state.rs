@@ -54,7 +54,7 @@ impl ConnStats {
         let mut sorted = self.rtt_samples.clone();
         sorted.sort_unstable();
         let mid = sorted.len() / 2;
-        let median = if sorted.len() % 2 == 0 {
+        let median = if sorted.len().is_multiple_of(2) {
             (sorted[mid - 1] as f32 + sorted[mid] as f32) / 2.0
         } else {
             sorted[mid] as f32
@@ -139,10 +139,7 @@ pub(crate) enum WsCommand {
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub(crate) struct ZoneInfo {
-    pub zone_id: String,
-    pub coordinate_system: String,
     pub attenuation: crate::types::AttenuationConfigInfo,
     /// pubkey → position
     pub positions: HashMap<String, Vec<f64>>,
@@ -187,6 +184,15 @@ pub(crate) struct VoiceSession {
     /// The pipeline's capture/encode sample rate -- a clip must be
     /// resampled to this rate before being placed in `active_clip`.
     pub opus_rate: u32,
+    /// Set when the room belongs to an allied hub: the voice-only socket we
+    /// opened there, which lives exactly as long as the call. Never in `hubs`
+    /// — it is not a hub the user joined.
+    pub visit: Option<VoiceVisit>,
+}
+
+pub(crate) struct VoiceVisit {
+    pub ws_tx: mpsc::UnboundedSender<WsCommand>,
+    pub task: JoinHandle<()>,
 }
 
 // ---------------------------------------------------------------------------

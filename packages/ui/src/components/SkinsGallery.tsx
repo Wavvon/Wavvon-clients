@@ -31,7 +31,7 @@ interface Props {
 }
 
 // "" is the no-filter option; the rest reuse the skin editor's base names.
-const BASE_OPTIONS = ["", "calm", "classic", "linear", "light"];
+const BASE_OPTIONS = ["", "dark", "light"];
 
 function truncatePubkey(pk: string): string {
   if (pk.length <= 20) return pk;

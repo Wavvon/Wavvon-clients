@@ -1,11 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "../types";
 import { useScreenShare } from "./useScreenShare";
 import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
-import { playVoiceTone } from "@wavvon/core";
+import { listenerScope } from "../utils/listenerScope";
+import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
+import i18n from "@wavvon/i18n";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -37,6 +39,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   const [customComplexity, setCustomComplexity] = useState(5);
   const [micTesting, setMicTesting] = useState(false);
   const [micLevel, setMicLevel] = useState<number>(0);
+  const [micBelowGate, setMicBelowGate] = useState(false);
+  const subGateRef = useRef(INITIAL_SUB_GATE_STATE);
+  const gateCfgRef = useRef({ vadEnabled: true, threshold: 0.02, muted: false, inCall: false });
   const [audioInputs, setAudioInputs] = useState<string[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<string[]>([]);
   // Browser-enumerated audio output devices (for setSinkId on <video> elements).
@@ -50,6 +55,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     [adminVoiceMutes],
   );
   const [showSharePicker, setShowSharePicker] = useState(false);
+  // The id voice events from an allied hub's socket carry while we are in a
+  // room there (alliance_voice_join); null on our own hubs.
+  const voiceVisitIdRef = useRef<string | null>(null);
 
   const [voiceGains, setVoiceGainsState] = useState<Record<string, number>>(() => {
     try {
@@ -105,11 +113,10 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     }
     tick();
     const handle = setInterval(tick, 1500);
-    let unlisten: (() => void) | undefined;
-    listen("voice-roster-update", () => { if (!cancelled) tick(); }).then((fn) => { unlisten = fn; });
+    const scope = listenerScope();
+    scope.add(listen("voice-roster-update", () => { if (!cancelled) tick(); }));
 
-    let unlistenSpeaking: (() => void) | undefined;
-    listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
+    scope.add(listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
       if (cancelled) return;
       const { public_key, speaking } = e.payload;
       setSpeakingPubkeys(prev => {
@@ -118,13 +125,12 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
         else next.delete(public_key);
         return next;
       });
-    }).then((fn) => { unlistenSpeaking = fn; });
+    }));
 
     return () => {
       cancelled = true;
       clearInterval(handle);
-      unlisten?.();
-      unlistenSpeaking?.();
+      scope.close();
     };
   }, [activeHubId]);
 
@@ -329,6 +335,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   async function handleVoiceLeave() {
     try {
       await invoke("voice_leave");
+      voiceVisitIdRef.current = null;
       setVoiceChannelId(null);
       setSelfMuted(false);
       setSelfDeafened(false);
@@ -350,8 +357,44 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       }
       await invoke("voice_join", { channelId: target.id });
       playVoiceTone("up");
+      // The pipeline reads the saved threshold itself; the sub-threshold warning
+      // needs the same value here, and nothing else loads it before Settings opens.
+      void loadVoiceSettings();
     } catch (e) {
       setError(String(e));
+    }
+  }
+
+  // Voice in an alliance channel (alliances.md, "Voice in alliance channels"):
+  // the owning hub's relay is the room, and the shell dials it directly.
+  // Returns the channel name the grant carries, for the voice bar.
+  async function handleAllianceVoiceJoin(
+    allianceId: string,
+    channelId: string,
+    confirmJoin: (ownerHubUrl: string, channelName: string) => Promise<boolean>,
+  ): Promise<string | null> {
+    if (voiceChannelId === channelId) return null;
+    try {
+      const minted = await invoke<{ owner_hub_url: string; channel_name: string }>("mint_alliance_voice_grant", {
+        allianceId,
+        channelId,
+      });
+      // The visitor dials the owning hub directly, so its operator sees this
+      // device's IP. Name the address before anything is signed over there.
+      if (!(await confirmJoin(minted.owner_hub_url, minted.channel_name))) return null;
+      // One session per identity per hub: the old room goes down first.
+      if (voiceChannelId) await handleVoiceLeave();
+      voiceVisitIdRef.current = await invoke<string>("alliance_voice_join", { channelId, minted });
+      playVoiceTone("up");
+      return minted.channel_name;
+    } catch (e) {
+      voiceVisitIdRef.current = null;
+      setError(
+        String(e) === "owner_hub_no_alliance_voice"
+          ? "Voice: that hub does not support voice in alliance channels yet"
+          : "Voice: " + String(e),
+      );
+      return null;
     }
   }
 
@@ -371,7 +414,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
         targetPublicKey: publicKey,
         reason: reason.trim() || null,
       });
-      setToast("Voice muted");
+      setToast(i18n.t("toast.voice_muted"));
       await refreshVoiceMutes();
     } catch (e) {
       setError(String(e));
@@ -381,7 +424,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   async function handleVoiceUnmuteMember(publicKey: string) {
     try {
       await invoke("voice_unmute_user_cmd", { targetPublicKey: publicKey });
-      setToast("Voice unmuted");
+      setToast(i18n.t("toast.voice_unmuted"));
       await refreshVoiceMutes();
     } catch (e) {
       setError(String(e));
@@ -439,8 +482,23 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     });
   }
 
+  // Mirrors effective_config in crates/voice/src/pipeline.rs.
+  useEffect(() => {
+    gateCfgRef.current = {
+      vadEnabled: audioProfile === "custom" ? customVad : audioProfile !== "music",
+      threshold: audioProfile === "custom" ? customVadThreshold : vadThreshold,
+      muted: selfMuted,
+      inCall: voiceChannelId !== null,
+    };
+    subGateRef.current = INITIAL_SUB_GATE_STATE;
+  }, [audioProfile, customVad, customVadThreshold, vadThreshold, selfMuted, voiceChannelId]);
+
   function onMicLevel(level: number) {
     setMicLevel(level);
+    const cfg = gateCfgRef.current;
+    const next = nextSubGateState(subGateRef.current, { ...cfg, muted: cfg.muted || !cfg.inCall, energy: level, now: Date.now() });
+    subGateRef.current = next;
+    setMicBelowGate(next.warning);
   }
 
   async function onHubErrorVoiceJoin() {
@@ -469,6 +527,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     setMediaOutputDeviceId,
     micTesting,
     micLevel,
+    micBelowGate: micBelowGate && voiceChannelId !== null && !selfMuted,
     adminVoiceMutes,
     voiceMutedKeys,
     showSharePicker,
@@ -510,6 +569,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     toggleSelfMute,
     toggleSelfDeafen,
     handleVoiceJoin,
+    handleAllianceVoiceJoin,
+    voiceVisitIdRef,
     handleVoiceLeave,
     refreshVoiceMutes,
     handleVoiceMuteMember,

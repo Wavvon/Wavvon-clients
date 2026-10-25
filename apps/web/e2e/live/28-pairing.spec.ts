@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, HUB_URL, OWNER_PUBKEY, hubApi, APP_URL } from "./helpers/live";
+import { expectInHub, HUB_URL, OWNER_PUBKEY, hubApi, APP_URL, openSettingRow } from "./helpers/live";
 
 // P28 — multi-device pairing. The owner (existing device) enables multi-device,
 // creates a pairing offer, and approves the new device's claim. A brand-new
@@ -15,13 +15,12 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
   // Owner: Settings → Account → Devices → enable multi-device (self-cert +
   // re-auth so the hub records the master on the owner's row).
   await page.locator(".btn-icon-gear").click();
-  await page.getByRole("button", { name: "Devices", exact: true }).click();
-  // Not exact: the section label gains an account-label suffix ("Devices —
-  // <label>") now that naming an account is mandatory (identity_setup.label).
-  const devices = page
-    .locator(".settings-section", { has: page.getByText("Devices") })
-    .first();
-  await expect(devices).toBeVisible({ timeout: 10000 });
+  await page.locator(".settings-nav").getByRole("button", { name: "Devices", exact: true }).click();
+  // Devices is one settings row, and everything below — the master key, the
+  // pairing code, the claim to approve — is in the form it opens to. It has
+  // to stay open for the rest of this spec, which is also what keeps the
+  // section polling for the claim.
+  const devices = await openSettingRow(page, "Devices");
   // Opting in is a precondition here, not the subject, and an identity can
   // arrive already opted in — a self-cert is stored during setup now, so the
   // button is simply absent and the master key is already on screen.

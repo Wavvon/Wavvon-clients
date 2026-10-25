@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Hub } from "../types";
+import { useHubPing } from "@wavvon/ui";
 
 export interface UseHubLifecycleParams {
   setError: (msg: string) => void;
@@ -52,31 +53,10 @@ export function useHubLifecycle({
     [hubScope],
   );
 
-  const [pingByHub, setPingByHub] = useState<Record<string, number | null>>({});
-
-  // Ping every connected hub every 15s so the sidebar shows current latency
-  useEffect(() => {
-    if (hubs.length === 0) return;
-    let cancelled = false;
-    async function tick() {
-      for (const h of hubs) {
-        try {
-          const ms = await invoke<number>("ping_hub", { hubId: h.hub_id });
-          if (cancelled) return;
-          setPingByHub((prev) => ({ ...prev, [h.hub_id]: ms }));
-        } catch {
-          if (cancelled) return;
-          setPingByHub((prev) => ({ ...prev, [h.hub_id]: null }));
-        }
-      }
-    }
-    tick();
-    const interval = setInterval(tick, 15000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [hubs]);
+  const pingByHub = useHubPing(
+    hubs.map((h) => h.hub_id),
+    (hubId) => invoke<number>("ping_hub", { hubId }),
+  );
 
   async function handleHubReorder(event: DragEndEvent) {
     const { active, over } = event;
@@ -155,7 +135,7 @@ export function useHubLifecycle({
     activeHubId, setActiveHubId, activeHubIdRef,
     activeHubTimezone, setActiveHubTimezone,
     hubScope, setHubScope, lobbyHubIds,
-    pingByHub, setPingByHub,
+    pingByHub,
     handleHubReorder,
     handleReconnect,
     handleSwitchHub,

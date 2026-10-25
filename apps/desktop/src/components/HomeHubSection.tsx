@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { Hub } from "../types";
+import { ChevronIcon, CloseIcon } from "@wavvon/ui";
 
 interface HomeHubList {
   master_pubkey: string;
@@ -116,23 +117,23 @@ export function HomeHubSection({ hubs }: { hubs: Hub[] }) {
                 onClick={() => moveUp(i)}
                 disabled={i === 0}
                 title={t("settings.account.home_hubs.move_up_aria")}
-              >
-                ↑
+              >
+                <ChevronIcon size={12} dir="up" />
               </button>
               <button
                 className="btn-secondary"
                 onClick={() => moveDown(i)}
                 disabled={i === order.length - 1}
                 title={t("settings.account.home_hubs.move_down_aria")}
-              >
-                ↓
+              >
+                <ChevronIcon size={12} dir="down" />
               </button>
               <button
                 className="btn-secondary"
                 onClick={() => remove(url)}
                 title={t("settings.account.home_hubs.remove_button")}
-              >
-                ×
+              >
+                <CloseIcon size={13} />
               </button>
             </li>
           ))}

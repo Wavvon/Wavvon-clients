@@ -68,7 +68,7 @@ test("staging panel spawns squad rooms; they're move destinations listed first",
     await expect(page.getByRole("button", { name: room1, exact: true })).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: room2, exact: true })).toBeVisible();
 
-    const raiderGroup = staging.locator(".settings-section").filter({ hasText: "Raider" });
+    const raiderGroup = staging.getByRole("group", { name: "Raider" });
     const destSelect = raiderGroup.getByRole("combobox", { name: "Move to…" });
     // orderDestinationsForEvent puts the event's own rooms first, relative
     // order otherwise preserved — assert set membership, not spawn order.

@@ -4,8 +4,8 @@ import { getAllianceChannelPosts, getAllianceChannelPost } from "../commands/for
 import type { PostListResponse, PostDetail } from "../../types";
 
 // Forum federation read-through (forum.md §9): a shared channel of type
-// "forum" fetches through /alliances/:id/channels/:cid/posts[/​:pid] instead
-// of the local /channels/:cid/posts[/​:pid] routes, but the hub returns the
+// "forum" fetches through /alliances/:id/channels/:cid/posts[/:pid] instead
+// of the local /channels/:cid/posts[/:pid] routes, but the hub returns the
 // exact same PostListResponse/PostDetail shapes either way -- these tests
 // pin down the alliance-scoped URLs and confirm the response passes through
 // untouched.

@@ -356,7 +356,7 @@ pub async fn claim_pairing_offer(
         .verify()
         .map_err(|e| format!("offer signature: {e}"))?;
 
-    let subkey = DeviceSubkey::generate(device_label.clone());
+    let subkey = DeviceSubkey::generate();
     let subkey_pubkey = subkey.public_key_hex();
     let subkey_secret_hex = hex::encode(subkey.secret_bytes());
 
@@ -410,6 +410,8 @@ pub async fn claim_pairing_offer(
 /// verified again here as a final guard.
 /// Also attempts to unwrap the prefs blob key and pull current prefs
 /// from the home hubs.
+// Same as `open_mini_app`: these arguments are the command's JSON wire shape.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn save_paired_identity(
     master_pubkey: String,
@@ -437,7 +439,7 @@ pub async fn save_paired_identity(
     let secret_array: [u8; 32] = secret_bytes
         .try_into()
         .map_err(|_| "subkey secret must be 32 bytes".to_string())?;
-    let reconstructed = DeviceSubkey::from_secret_bytes(&secret_array, device_label.clone());
+    let reconstructed = DeviceSubkey::from_secret_bytes(&secret_array);
     if reconstructed.public_key_hex() != subkey_pubkey {
         return Err("subkey secret doesn't match its pubkey".to_string());
     }

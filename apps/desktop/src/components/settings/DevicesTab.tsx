@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SettingRow } from "@wavvon/ui";
 import { DeviceListSection } from "../DeviceListSection";
 import { PairingSection } from "../PairingSection";
 import { PasskeySection } from "../PasskeySection";
@@ -17,14 +19,21 @@ interface Props {
 // matching the Tauri commands backing them (settings-ia.md piece 3 gap).
 export function DevicesTab({ hubs, activeHubId }: Props) {
   const { t } = useTranslation();
+  const [pairingOpen, setPairingOpen] = useState(false);
 
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.devices")}</h1>
+      <h1>{t("settings.tabs.devices")}</h1>
       <DeviceListSection />
-      <h2 className="settings-subheading">{t("settings.devices.pairing.title")}</h2>
-      <p className="muted">{t("settings.devices.pairing.hint")}</p>
-      <PairingSection hubs={hubs} />
+      <SettingRow
+        title={t("settings.devices.pairing.title")}
+        state={t("settings.devices.pairing.state")}
+        open={pairingOpen}
+        onToggle={() => setPairingOpen((v) => !v)}
+      >
+        <p className="muted">{t("settings.devices.pairing.hint")}</p>
+        <PairingSection hubs={hubs} />
+      </SettingRow>
       {activeHubId && <PasskeySection hubId={activeHubId} />}
       {activeHubId && <TrustedDevicesSection hubId={activeHubId} />}
     </section>

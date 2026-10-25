@@ -4,6 +4,7 @@ import type { ThemeId, WavvonSkin } from "@wavvon/ui";
 import { applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "@components/settings/SettingsPage";
 import {
+  holdsMasterSeed,
   loadIdentity,
   seedToPhrase,
   phraseToSeed,
@@ -40,10 +41,10 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
       const raw = localStorage.getItem(APPEARANCE_KEY);
       if (raw) {
         const a = JSON.parse(raw) as { slot: string };
-        if (["calm", "classic", "linear", "light", "custom"].includes(a.slot)) return a.slot as ThemeId;
+        if (["dark", "light", "custom"].includes(a.slot)) return a.slot as ThemeId;
       }
     } catch {}
-    return "calm";
+    return "dark";
   });
   const [customThemeStore, setCustomThemeStoreState] = useState<CustomThemeStore>(loadCustomThemeStore);
   const activeCustomTheme = customThemeStore.themes.find((ct) => ct.id === customThemeStore.activeId) ?? null;
@@ -102,7 +103,7 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
   }
 
   function handleNewCustomTheme() {
-    const base = activeCustomTheme?.skin.base ?? "calm";
+    const base = activeCustomTheme?.skin.base ?? "dark";
     const seed = makeSeed(base, "New theme");
     const created: NamedCustomTheme = { id: newCustomThemeId(), name: seed.name, skin: seed };
     persistCustomThemeStore({ themes: [...customThemeStore.themes, created], activeId: created.id });
@@ -147,7 +148,9 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
 
   function handleShowRecovery() {
     loadIdentity().then((rec) => {
-      if (!rec) return;
+      // A paired device's seed is its own subkey; its words would restore a
+      // different identity, and reading them must not mark anything backed up.
+      if (!rec || !holdsMasterSeed(rec)) return;
       setRecoveryPhrase(seedToPhrase(rec.seed_hex));
       // Reading the words is the point at which they can be written down —
       // the only signal available short of asking the user to type them back.

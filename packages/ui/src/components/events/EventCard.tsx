@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Channel } from "@wavvon/core";
+import { formatDate, formatTime } from "@wavvon/core";
 import type { EventMoveAssignment, EventRsvp, HubEvent, RsvpStatus, VoiceParticipant } from "../../types";
 import { EventSlotList } from "./EventSlotList";
 import { EventStagingPanel } from "./EventStagingPanel";
 import { reminderMinutesToOffset } from "../../utils/events";
+import { CloseIcon } from "../Icons";
+import { useConfirm } from "../ConfirmDialog";
 
 /** Staging (organizer move-members) capability bundle — omitted entirely on
  *  platforms with no voice-move wiring (events.md §7.1 is web-only today). */
@@ -27,9 +30,6 @@ interface Props {
   onRsvp: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   onUpdate: (event: HubEvent) => void;
   onDelete: (eventId: string) => void;
-  /** Role-slot claiming (events.md §7.5) — needs the host's rsvp command to
-   *  forward a slot id, which not every platform's invoke surface supports yet. */
-  slotClaimSupported?: boolean;
   staging?: EventStagingCapability;
 }
 
@@ -40,13 +40,14 @@ const RSVP_KEYS: Record<RsvpStatus, string> = {
 };
 
 export function EventCard({
-  event, myPubkey, isAdmin, onRsvp, onUpdate, onDelete, slotClaimSupported, staging,
+  event, myPubkey, isAdmin, onRsvp, onUpdate, onDelete, staging,
 }: Props) {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
-  const [myStatus, setMyStatus] = useState<RsvpStatus | null>(null);
+  const [myStatus, setMyStatus] = useState<RsvpStatus | null>(event.my_rsvp ?? null);
   const [error, setError] = useState<string | null>(null);
   const [showStaging, setShowStaging] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   // Organizer-only affordance (events.md §7.5): event creator or a hub admin,
   // AND move_members — same rule the Phase-1 right-click surface uses. The
@@ -66,7 +67,7 @@ export function EventCard({
       if (myStatus) nextCounts[myStatus] = Math.max(0, nextCounts[myStatus] - 1);
       nextCounts[status] = nextCounts[status] + 1;
       setMyStatus(status);
-      onUpdate({ ...event, rsvp_counts: nextCounts });
+      onUpdate({ ...event, rsvp_counts: nextCounts, my_rsvp: status });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -74,8 +75,19 @@ export function EventCard({
     }
   }
 
+  async function handleDelete() {
+    const ok = await confirm({
+      title: t("events.card.delete_confirm_title", { title: event.title }),
+      body: t("events.card.delete_confirm_body"),
+      confirmLabel: t("events.card.delete"),
+      danger: true,
+    });
+    if (ok) onDelete(event.id);
+  }
+
   return (
-    <div className="event-card settings-section" style={{ padding: 14, marginBottom: 10 }}>
+    <div className="event-card" style={{ padding: 14, marginBottom: 10 }}>
+      {dialog}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
@@ -85,8 +97,8 @@ export function EventCard({
             )}
           </div>
           <div className="muted" style={{ fontSize: "var(--text-xs)" }}>
-            {startDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}{" "}
-            {startDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            {formatDate(startDate, { weekday: "short", month: "short", day: "numeric" })}{" "}
+            {formatTime(startDate, { hour: "2-digit", minute: "2-digit" })}
             {event.location && <span> · {event.location}</span>}
           </div>
         </div>
@@ -104,10 +116,11 @@ export function EventCard({
             <button
               className="btn-ghost"
               style={{ fontSize: "var(--text-xs)", color: "var(--danger)" }}
-              onClick={() => onDelete(event.id)}
+              onClick={handleDelete}
               title={t("events.card.delete")}
+              aria-label={t("events.card.delete")}
             >
-              ✕
+              <CloseIcon size={14} />
             </button>
           )}
         </div>
@@ -151,7 +164,7 @@ export function EventCard({
       </div>
 
       <div className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>
-        {counts.going} going · {counts.maybe} maybe
+        {t("events.card.counts", { going: counts.going, maybe: counts.maybe })}
       </div>
 
       {event.reminder_minutes !== null && (
@@ -160,15 +173,14 @@ export function EventCard({
         </div>
       )}
 
-      {slotClaimSupported && (
-        <EventSlotList
-          eventId={event.id}
-          slots={event.slots}
-          myPubkey={myPubkey}
-          onRsvp={onRsvp}
-          onSlotsChange={(slots) => onUpdate({ ...event, slots })}
-        />
-      )}
+      <EventSlotList
+        eventId={event.id}
+        slots={event.slots}
+        myPubkey={myPubkey}
+        users={staging?.users}
+        onRsvp={onRsvp}
+        onSlotsChange={(slots) => onUpdate({ ...event, slots })}
+      />
 
       {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-xs)", marginTop: 4 }}>{error}</p>}
     </div>

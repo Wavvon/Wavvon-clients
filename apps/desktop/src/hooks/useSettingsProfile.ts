@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import i18n from "@wavvon/i18n";
+import { switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
 import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
 
 interface UseSettingsProfileParams {
-  setPublicKey: (key: string) => void;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
 }
@@ -28,10 +29,10 @@ async function persistTheme(theme: ThemeId | "custom", onError: (msg: string) =>
   }
 }
 
-export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSettingsProfileParams) {
+export function useSettingsProfile({ setError, setToast }: UseSettingsProfileParams) {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
-  const [theme, setTheme] = useState<ThemeId>("calm");
+  const [theme, setTheme] = useState<ThemeId>("dark");
   const [skin, setSkin] = useState<WavvonSkin | null>(null);
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
@@ -62,7 +63,8 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
       const phrase = await invoke<string>("get_recovery_phrase");
       setRecoveryPhrase(phrase);
     } catch (e) {
-      setError(String(e));
+      // Declining the native confirmation is a choice, not an error.
+      if (String(e) !== "Cancelled") setError(String(e));
     }
   }
 
@@ -71,7 +73,7 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
       "Clear local preferences?\n\nThis wipes unread, mutes, pinned channels, collapsed categories, voice settings, and recently-used emojis.\n\nYour identity and saved hubs are kept.",
     );
     if (!ok) return;
-    const confirm2 = confirm("Are you sure? This can't be undone.");
+    const confirm2 = confirm(i18n.t("confirm.cannot_undo"));
     if (!confirm2) return;
     try {
       await invoke("clear_local_data");
@@ -80,7 +82,7 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
         localStorage.removeItem("wavvon.memberSidebarHidden");
         localStorage.removeItem("wavvon.mentionPing");
       } catch {}
-      setToast("Local data cleared — reloading…");
+      setToast(i18n.t("toast.local_data_cleared"));
       setTimeout(() => window.location.reload(), 600);
     } catch (e) {
       setError(String(e));
@@ -89,11 +91,14 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
 
   async function handleRecoverIdentity(phrase: string) {
     try {
-      const newPubkey = await invoke<string>("recover_identity_from_phrase", { phrase });
+      // Brings the identity on as its own account (or finds it) and switches
+      // to it in place; the active account is never overwritten.
+      const id = await invoke<string>("recover_identity_from_phrase", { phrase });
       setRecoveryPhrase(null);
-      setPublicKey(newPubkey);
-      setToast("Identity restored — reloading…");
-      setTimeout(() => window.location.reload(), 600);
+      const refused = await switchAccountGuarded(id);
+      if (refused) {
+        throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? i18n.t("settings.account.accounts.switch_cooldown") : refused);
+      }
     } catch (e) {
       setError(String(e));
       throw e;
@@ -107,7 +112,7 @@ export function useSettingsProfile({ setPublicKey, setError, setToast }: UseSett
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 2000);
     } catch (e) {
-      setError("Failed to copy: " + e);
+      setError(i18n.t("errors.copy_failed", { error: String(e) }));
     }
   }
 

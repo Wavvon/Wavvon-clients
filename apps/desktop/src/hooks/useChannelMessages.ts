@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
 import type { SelectedAllianceChannel } from "@wavvon/ui";
+import { listenerScope } from "../utils/listenerScope";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
+import i18n from "@wavvon/i18n";
 
 export interface ChannelMessagesParams {
   activeHubIdRef: RefObject<string | null>;
@@ -244,10 +246,10 @@ export function useChannelMessages({
   }
 
   useEffect(() => {
-    const unlistens: UnlistenFn[] = [];
+    const scope = listenerScope();
     (async () => {
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message: Message }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; message: Message }>(
           "chat-message",
           (event) => {
             const { hub_id, channel_id, message } = event.payload;
@@ -289,8 +291,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message: Message }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; message: Message }>(
           "chat-message-edited",
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -302,8 +304,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; message_id: string }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; message_id: string }>(
           "chat-message-deleted",
           (event) => {
             if (event.payload.hub_id !== activeHubIdRef.current) return;
@@ -313,8 +315,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{
+      scope.add(
+        listen<{
           hub_id: string;
           channel_id: string;
           message_id: string;
@@ -337,8 +339,8 @@ export function useChannelMessages({
         })
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; post_id: string }>(
           "post-created",
           (event) => {
             const { hub_id, channel_id } = event.payload;
@@ -351,8 +353,8 @@ export function useChannelMessages({
         )
       );
 
-      unlistens.push(
-        await listen<{ hub_id: string; channel_id: string; post_id: string }>(
+      scope.add(
+        listen<{ hub_id: string; channel_id: string; post_id: string }>(
           "reply-created",
           (event) => {
             const { hub_id, channel_id } = event.payload;
@@ -365,7 +367,7 @@ export function useChannelMessages({
         )
       );
     })();
-    return () => { unlistens.forEach((u) => u()); };
+    return scope.close;
   }, []);
 
   async function selectChannel(channel: Channel) {
@@ -475,7 +477,7 @@ export function useChannelMessages({
 
   async function handleDeleteMessage(messageId: string) {
     if (!selectedChannel) return;
-    if (!confirm("Delete this message?")) return;
+    if (!confirm(i18n.t("confirm.delete_message"))) return;
     try {
       await invoke("delete_message", { channelId: selectedChannel.id, messageId });
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
@@ -528,7 +530,7 @@ export function useChannelMessages({
       try {
         const b64 = await readFileAsB64(f);
         if (totalBytes + b64.length > MAX_ATTACHMENT_BYTES) {
-          setError(`Attachments would exceed 3MB cap (already at ${(totalBytes / 1_000_000).toFixed(1)}MB)`);
+          setError(i18n.t("errors.attachments_cap", { size: (totalBytes / 1_000_000).toFixed(1) }));
           break;
         }
         totalBytes += b64.length;

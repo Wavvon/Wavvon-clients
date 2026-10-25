@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { encryptBackup, decryptBackup, suggestBackupFilename, type BackupAccount } from "@wavvon/core";
 import { passphraseStrength } from "../utils/passphraseStrength";
@@ -46,6 +46,10 @@ interface Props {
   needsBackup?: boolean;
   /** A copy of that account's key just left the device. */
   onSavedOffDevice?: (accountId: string) => void;
+  /** A paired device: what it holds is its own subkey, so there is no phrase
+   *  here to reveal — 24 words of the subkey would restore a different
+   *  identity. The phrase lives on the device it was paired from. */
+  phraseHeldElsewhere?: boolean;
 }
 
 interface ExportForm {
@@ -58,7 +62,7 @@ interface ExportForm {
 // backup and works on any device. The encrypted `.wavvon-backup` file below
 // is a secondary, one-account-per-file affordance — export several accounts
 // as several files (settings-ia.md §4a).
-export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase, actions, needsBackup, onSavedOffDevice }: Props) {
+export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase, actions, needsBackup, onSavedOffDevice, phraseHeldElsewhere }: Props) {
   const { t } = useTranslation();
   const [exportForm, setExportForm] = useState<ExportForm | null>(null);
   const [importing, setImporting] = useState(false);
@@ -168,12 +172,15 @@ export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
           {t("settings.security.recovery.hint")}
         </p>
-        {recoveryPhrase ? (
-          <div
-            className="recovery-phrase"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "10px 14px", fontFamily: "monospace", lineHeight: 1.8, fontSize: "var(--text-sm)" }}
-          >
-            {recoveryPhrase}
+        {phraseHeldElsewhere ? (
+          <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+            {t("settings.security.recovery.paired_device")}
+          </p>
+        ) : recoveryPhrase ? (
+          <div className="recovery-phrase">
+            {recoveryPhrase.split(/\s+/).filter(Boolean).map((word, i) => (
+              <span key={`${i}-${word}`}>{word}</span>
+            ))}
           </div>
         ) : (
           <button className="btn-secondary" onClick={onRevealPhrase}>

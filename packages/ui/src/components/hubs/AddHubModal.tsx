@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { parseHubInput } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 
 type HubPreview =
   | { state: "idle" }
@@ -12,8 +14,6 @@ interface Props {
   hubUrl: string;
   onHubUrlChange: (v: string) => void;
   hubPreview: HubPreview;
-  inviteCode?: string;
-  onInviteCodeChange?: (v: string) => void;
   loading: boolean;
   error: string | null;
   /** True once the invite's `?fp=`/`#fp=` fingerprint was verified against the hub's /info (lan-mode.md §5). */
@@ -29,15 +29,20 @@ interface Props {
   onBrowse?: () => void;
 }
 
-export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, onInviteCodeChange, loading, error, fingerprintMatch, onAdd, onAddWithPasskey, passkeySupported, onClose, onBrowse }: Props) {
+export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, fingerprintMatch, onAdd, onAddWithPasskey, passkeySupported, onClose, onBrowse }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [copiedInvite, setCopiedInvite] = useState(false);
+  // The hint asks for an invite link, so it has nothing to say once the
+  // address already carries one.
+  const carriesInvite = !!parseHubInput(hubUrl)?.inviteCode;
   const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && !!passkeySupported;
   return (
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-hub-title" onClick={(e) => e.stopPropagation()}>
         <h3 id="add-hub-title">{t("hub.add_modal.title")}</h3>
+        {/* eslint-disable-next-line react/no-danger -- our own i18n catalog, not hub input. */}
         <p className="muted" style={{ marginBottom: "var(--space-3)" }} dangerouslySetInnerHTML={{ __html: t("hub.add_modal.intro") }} />
         <input
           type="text"
@@ -61,7 +66,7 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, inviteCode, on
             <p className="muted hub-preview-status" style={{ margin: 0 }}>
               {t("hub.reachable")}
             </p>
-            {hubPreview.invite_only && (
+            {hubPreview.invite_only && !carriesInvite && (
               <p className="muted hub-preview-warn">
                 🔒 {t("hub.invite_only_hint")}
               </p>

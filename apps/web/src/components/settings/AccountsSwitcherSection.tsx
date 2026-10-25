@@ -14,6 +14,7 @@ import {
 } from "@identity/index";
 import { reorderByDrop, moveByStep } from "@identity/accountOrder";
 import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
+import { EditIcon } from "@wavvon/ui";
 
 // Short, typeable identifier for the "type to confirm" removal guard — the
 // formatted fingerprint (formatPubkey) contains an ellipsis and dashes that
@@ -255,8 +256,8 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
                           title={t("settings.account.accounts.rename_button")}
                           aria-label={t("settings.account.accounts.rename_button")}
                           style={{ padding: "2px 4px", fontSize: "var(--text-sm)", lineHeight: 1 }}
-                        >
-                          ✎
+                        >
+                          <EditIcon size={13} />
                         </button>
                       </span>
                     )}

@@ -3,27 +3,13 @@ import { useTranslation } from "react-i18next";
 import { formatRelativeSigned, buildInviteLink } from "@wavvon/core";
 import type { InviteInfo, RoleInfo } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
+import { SettingRow } from "../SettingRow";
+import { roleGrantsAdmin, grantableRoles, defaultInviteRoleOptions } from "../../utils/inviteRoles";
 
 // Mirrors hub/src/routes/invites.rs::ADMIN_GRANT_DEFAULT_EXPIRY_SECS — for
 // client-side annotation only, the server remains authoritative and clamps
 // independently of anything sent here.
 const ADMIN_GRANT_DEFAULT_EXPIRY_SECS = 24 * 3600;
-
-function roleGrantsAdmin(role: RoleInfo): boolean {
-  return role.id === "builtin-owner";
-}
-
-function grantableRoles(roles: RoleInfo[], myMaxPriority: number): RoleInfo[] {
-  return roles
-    .filter((r) => r.id !== "builtin-everyone" && r.priority < myMaxPriority)
-    .sort((a, b) => b.priority - a.priority);
-}
-
-function defaultInviteRoleOptions(roles: RoleInfo[]): RoleInfo[] {
-  return roles
-    .filter((r) => r.id !== "builtin-everyone" && !roleGrantsAdmin(r))
-    .sort((a, b) => b.priority - a.priority);
-}
 
 export interface InviteManagerActions {
   listRoles: () => Promise<RoleInfo[]>;
@@ -41,18 +27,34 @@ interface Props {
   /** Gates the "Default role for new members" section — mirrors the Overview
    *  tab's own gating, since both read/write the same hub-settings surface. */
   isAdmin: boolean;
-  onCreateInvite: (maxUses: number | null, expiresInSeconds: number | null, grantRoleId: string | null) => void;
+  /** `invites.bound`: this hub can mint an invite that admits one named key.
+   *  Off by default, because a hub that ignores `bound_pubkey` mints an
+   *  ordinary bearer code while the admin believes they named somebody —
+   *  which is the one failure the feature exists to prevent. */
+  supportsBoundInvites?: boolean;
+  onCreateInvite: (
+    maxUses: number | null,
+    expiresInSeconds: number | null,
+    grantRoleId: string | null,
+    boundPubkey: string | null,
+  ) => void;
   onRevokeInvite: (code: string) => void;
   actions: InviteManagerActions;
 }
 
 export function InviteManager(props: Props) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const { actions } = props;
   const [copiedInvite, setCopiedInvite] = useState<string | null>(null);
   const [inviteMaxUses, setInviteMaxUses] = useState("");
   const [inviteExpiry, setInviteExpiry] = useState("");
   const [grantRoleId, setGrantRoleId] = useState("");
+  const [boundPubkey, setBoundPubkey] = useState("");
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const [defaultRoleId, setDefaultRoleId] = useState("");
   const [defaultRoleStatus, setDefaultRoleStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -90,14 +92,22 @@ export function InviteManager(props: Props) {
   }
 
   const selectedRole = grantRoleId ? rolesById.get(grantRoleId) : undefined;
-  const forcesSingleUse = selectedRole ? roleGrantsAdmin(selectedRole) : false;
+  const bound = boundPubkey.trim();
+  // The hub forces a bound invite to one use; say so before it happens rather
+  // than letting the number the admin typed come back changed.
+  const forcesSingleUse = (selectedRole ? roleGrantsAdmin(selectedRole) : false) || bound.length > 0;
+  // The hub's own rule (routes/invites.rs::create_invite). Mirrored here so a
+  // typo is caught beside the field rather than as a 400 after the click.
+  const boundLooksWrong = bound.length > 0 && !/^[0-9a-f]{64}$/i.test(bound);
 
   function handleCreate() {
     props.onCreateInvite(
       forcesSingleUse ? 1 : (inviteMaxUses ? Number(inviteMaxUses) : null),
       forcesSingleUse ? ADMIN_GRANT_DEFAULT_EXPIRY_SECS : (inviteExpiry ? Number(inviteExpiry) : null),
       grantRoleId || null,
+      bound || null,
     );
+    setBoundPubkey("");
   }
 
   async function handleSaveDefaultRole() {
@@ -120,8 +130,12 @@ export function InviteManager(props: Props) {
     <section>
       <h1>{t("invites.heading")}</h1>
       {props.isAdmin && (
-        <div className="settings-section">
-          <label className="settings-label">{t("invites.default_role.title")}</label>
+        <SettingRow
+          title={t("invites.default_role.title")}
+          state={defaultRoleOptions.find((r) => r.id === defaultRoleId)?.name
+            ?? t("invites.default_role.none")}
+          {...row("default-role")}
+        >
           <p className="muted">{t("invites.default_role.hint")}</p>
           <div className="settings-row">
             <select value={defaultRoleId} onChange={(e) => setDefaultRoleId(e.target.value)}>
@@ -130,16 +144,22 @@ export function InviteManager(props: Props) {
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
-            <button onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
+            <button className="btn-primary" onClick={handleSaveDefaultRole} disabled={defaultRoleStatus === "saving"}>
               {t("invites.default_role.save")}
             </button>
             {defaultRoleStatus === "saved" && <span className="muted" style={{ color: "var(--success)" }}>{t("invites.default_role.saved")}</span>}
           </div>
           {defaultRoleError && <p className="error-text">{defaultRoleError}</p>}
-        </div>
+        </SettingRow>
       )}
-      <div className="settings-section">
-        <label className="settings-label">{t("invites.create.title")}</label>
+      <SettingRow
+        title={t("invites.create.title")}
+        state={props.invites.length === 0
+          ? t("invites.state.none")
+          : t("invites.state.active", { count: props.invites.length })}
+        meta={props.invites.length > 0 ? String(props.invites.length) : undefined}
+        {...row("create")}
+      >
         <div className="settings-row">
           <input
             type="number"
@@ -167,38 +187,54 @@ export function InviteManager(props: Props) {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <button onClick={handleCreate}>
+          <button className="btn-primary" onClick={handleCreate} disabled={boundLooksWrong}>
             {t("invites.create.submit")}
           </button>
         </div>
+        {props.supportsBoundInvites && (
+          <div className="settings-section">
+            <label className="settings-label" htmlFor="invite-bound-pubkey">
+              {t("invites.create.bound_label")}
+            </label>
+            <input
+              id="invite-bound-pubkey"
+              type="text"
+              value={boundPubkey}
+              onChange={(e) => setBoundPubkey(e.target.value)}
+              placeholder={t("invites.create.bound_placeholder")}
+              style={{ width: "100%", fontFamily: "var(--font-mono)" }}
+            />
+            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+              {t("invites.create.bound_hint")}
+            </p>
+            {boundLooksWrong && <p className="error-text">{t("invites.create.bound_invalid")}</p>}
+          </div>
+        )}
         {forcesSingleUse && (
           <p className="muted">{t("invites.create.admin_grant_hint")}</p>
         )}
-      </div>
+      </SettingRow>
       {props.invites.map((inv) => {
         const link = buildInviteLink(props.activeHubUrl, inv.code);
         const grantedRole = inv.grant_role_id ? rolesById.get(inv.grant_role_id) : undefined;
-        const grantedRoleColor = grantedRole ? safeRoleColor(grantedRole.color) : null;
         return (
-          <div key={inv.code} className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
-            <code className="pubkey-display" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={link}>{link}</code>
-            <button
-              className="btn-secondary"
-              onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
-            >
-              {copiedInvite === inv.code ? t("invites.copied") : t("invites.copy")}
-            </button>
-            {inv.grant_role_id && (
-              <span className="role-chip" style={grantedRoleColor ? { borderColor: grantedRoleColor, color: grantedRoleColor } : undefined}>
-                {grantedRole?.name ?? inv.grant_role_id}
-              </span>
-            )}
-            <span className="muted">
-              {inv.uses}/{inv.max_uses ?? "∞"} {t("admin.invite.uses_label")}
-              {inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}
-            </span>
-            <button className="btn-secondary danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
-          </div>
+          <SettingRow
+            key={inv.code}
+            title={inv.code}
+            state={`${inv.uses}/${inv.max_uses ?? "∞"} ${t("admin.invite.uses_label")}${inv.expires_at ? ` · ${expiryLabel(inv.expires_at)}` : ""}${grantedRole ? ` · ${grantedRole.name}` : ""}${inv.bound_pubkey ? ` · ${t("invites.bound_to", { key: inv.bound_pubkey.slice(0, 12) })}` : ""}`}
+            {...row(inv.code)}
+          >
+            <code className="pubkey-display" style={{ display: "block", marginBottom: "var(--space-3)", wordBreak: "break-all" }} title={link}>{link}</code>
+            <div className="settings-row">
+              <button
+                className="btn-small"
+                onClick={() => { navigator.clipboard.writeText(link).catch(() => {}); setCopiedInvite(inv.code); setTimeout(() => setCopiedInvite(null), 2000); }}
+              >
+                {copiedInvite === inv.code ? t("invites.copied") : t("invites.copy")}
+              </button>
+              <button className="btn-small danger" onClick={() => props.onRevokeInvite(inv.code)}>{t("invites.revoke")}</button>
+            </div>
+          </SettingRow>
         );
       })}
     </section>

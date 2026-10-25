@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Channel } from "@wavvon/core";
+import { formatPubkey, type Channel } from "@wavvon/core";
 import { StagingPanel } from "../StagingPanel";
 import type { EventMoveAssignment, EventRsvp, EventSlot, HubEvent, VoiceParticipant } from "../../types";
 import {
@@ -86,7 +86,7 @@ export function EventStagingPanel({
   );
 
   const nameFor = useCallback(
-    (pubkey: string) => users.find((u) => u.public_key === pubkey)?.display_name || pubkey.slice(0, 8),
+    (pubkey: string) => users.find((u) => u.public_key === pubkey)?.display_name || formatPubkey(pubkey),
     [users],
   );
 

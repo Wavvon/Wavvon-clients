@@ -3,7 +3,7 @@ import type { BlockEntry, IgnoreEntry } from "@shared/types";
 import { AccountBlockIgnoreSection } from "../AccountBlockIgnoreSection";
 import { ManagingAccountSelector } from "../ManagingAccountSelector";
 import type { PerAccountProps, TrustRoot } from "@wavvon/ui";
-import { TrustedIssuersSection } from "@wavvon/ui";
+import { SettingRow, TrustedIssuersSection } from "@wavvon/ui";
 import type { IdentityRecord } from "@identity/index";
 
 interface Props extends PerAccountProps<IdentityRecord> {
@@ -25,7 +25,7 @@ export function PrivacyTab(props: Props) {
 
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.privacy")}</h1>
+      <h1>{t("settings.tabs.privacy")}</h1>
       {props.accounts && props.managing && (
         <ManagingAccountSelector
           accounts={props.accounts}
@@ -45,17 +45,20 @@ export function PrivacyTab(props: Props) {
         />
       )}
       <TrustedIssuersSection roots={props.trustRoots} onChange={props.onTrustRootsChange} />
-      <div className="settings-section">
-        <label className="settings-label">{t("settings.privacy.birthdays.label")}</label>
-        <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <SettingRow
+        title={t("settings.privacy.birthdays.label")}
+        state={props.hideBirthdays
+          ? t("settings.privacy.birthdays.state.hidden")
+          : t("settings.privacy.birthdays.state.shown")}
+        control={
           <input
             type="checkbox"
             checked={props.hideBirthdays}
+            aria-label={t("settings.privacy.birthdays.hide")}
             onChange={props.onToggleHideBirthdays}
           />
-          {t("settings.privacy.birthdays.hide")}
-        </label>
-      </div>
+        }
+      />
     </section>
   );
 }

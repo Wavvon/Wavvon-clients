@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { buildChannelTree, flattenTree, type Channel } from "@wavvon/core";
 import { ErrorRetry } from "../ErrorRetry";
 import type { Alliance, AllianceInvite, PendingAllianceInvite, SharedChannel } from "../../types";
+import { useConfirm } from "../ConfirmDialog";
+import { SettingRow } from "../SettingRow";
 
 export interface AlliancesSectionActions {
   listAlliances: () => Promise<Alliance[]>;
@@ -19,6 +21,11 @@ export interface AlliancesSectionActions {
    *  has no wrapper for it yet, and then no control is rendered — a toggle
    *  that quietly changes nothing is worse than none. */
   setAllianceVoiceRemoteJoin?: (allianceId: string, channelId: string, policy: "allowed" | "none") => Promise<void>;
+  /** The alliance-wide people switch. `get` resolves null when the hub has no
+   *  `alliance.people` capability, which hides the control; the hub refuses the
+   *  PUT with 403 for anyone who cannot manage the alliance. */
+  getAlliancePeopleVisible?: (allianceId: string) => Promise<boolean | null>;
+  setAlliancePeopleVisible?: (allianceId: string, visible: boolean) => Promise<void>;
   /** Admin-initiated direct push to another hub's federation endpoint.
    *  Omitted where the platform has no wrapper for it yet. */
   sendAlliancePushInvite?: (allianceId: string, targetHubUrl: string, ownHubUrl: string, message: string | null) => Promise<void>;
@@ -90,6 +97,13 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
   }
 
   useEffect(() => { if (open && shared === null) void loadShared(); }, [open]);
+
+  const [peopleVisible, setPeopleVisible] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!open || !actions.getAlliancePeopleVisible || !actions.setAlliancePeopleVisible) return;
+    actions.getAlliancePeopleVisible(alliance.id).then(setPeopleVisible).catch(() => setPeopleVisible(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, alliance.id]);
 
   async function handleSendPushInvite() {
     if (!actions.sendAlliancePushInvite || !pushTargetUrl.trim()) return;
@@ -199,6 +213,24 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
             <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.share.category_hint")}</p>
           )}
 
+          {peopleVisible !== null && actions.setAlliancePeopleVisible && (
+            <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
+              <label className="settings-row" style={{ gap: "var(--space-2)", alignItems: "center", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={peopleVisible}
+                  disabled={busy}
+                  onChange={(e) => runGuard(async () => {
+                    await actions.setAlliancePeopleVisible!(alliance.id, e.target.checked);
+                    setPeopleVisible(e.target.checked);
+                  })}
+                />
+                <span style={{ fontSize: "var(--text-sm)" }}>{t("alliances.people_visible.label")}</span>
+              </label>
+              <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.people_visible.hint")}</p>
+            </div>
+          )}
+
           {actions.sendAlliancePushInvite && (
             <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
               <label className="settings-label" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.invite.push.label")}</label>
@@ -254,6 +286,12 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
 
 export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
+  const { confirm, dialog } = useConfirm();
   const [alliances, setAlliances] = useState<Alliance[] | null>(null);
   const [invites, setInvites] = useState<PendingAllianceInvite[]>([]);
   const [name, setName] = useState("");
@@ -316,9 +354,15 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
   return (
     <section>
       <h1>{t("alliances.title")}</h1>
+      {dialog}
       <p className="muted">{t("alliances.hint")}</p>
       {error && alliances !== null && <p className="error-text">{error}</p>}
 
+      <SettingRow
+        title={t("alliances.create")}
+        state={t("alliances.state.create")}
+        {...row("create")}
+      >
       <div className="settings-row" style={{ gap: "var(--space-2)" }}>
         <input
           type="text"
@@ -328,12 +372,16 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
           placeholder={t("alliances.new.placeholder")}
           aria-label={t("alliances.new.placeholder")}
         />
-        <button onClick={handleCreate} disabled={busy || !name.trim()}>{t("alliances.create")}</button>
+        <button className="btn-primary" onClick={handleCreate} disabled={busy || !name.trim()}>{t("alliances.create")}</button>
       </div>
+      </SettingRow>
 
       {actions.joinAllianceByCode && (
-        <div className="settings-section">
-          <label className="settings-label">{t("alliances.join.label")}</label>
+        <SettingRow
+          title={t("alliances.join.label")}
+          state={t("alliances.state.join")}
+          {...row("join")}
+        >
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("alliances.join.hint")}</p>
           <div className="settings-row" style={{ gap: "var(--space-2)" }}>
             <input
@@ -344,14 +392,19 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
               placeholder={t("alliances.join.placeholder")}
               aria-label={t("alliances.join.label")}
             />
-            <button onClick={handleJoin} disabled={busy || !joinCode.trim()}>{t("alliances.join.button")}</button>
+            <button className="btn-primary" onClick={handleJoin} disabled={busy || !joinCode.trim()}>{t("alliances.join.button")}</button>
           </div>
-        </div>
+        </SettingRow>
       )}
 
       {invites.length > 0 && (
-        <div className="settings-section">
-          <label className="settings-label">{t("alliances.pending")}</label>
+        <SettingRow
+          title={t("alliances.pending")}
+          state={t("alliances.state.pending", { count: invites.length })}
+          attention
+          meta={String(invites.length)}
+          {...row("pending")}
+        >
           {invites.map((inv) => (
             <div key={inv.id} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
               <span>{inv.alliance_name} <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.invite_from", { hub: inv.from_hub_name })}</span></span>
@@ -361,11 +414,19 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
               </span>
             </div>
           ))}
-        </div>
+        </SettingRow>
       )}
 
-      <div className="settings-section">
-        <label className="settings-label">{t("alliances.yours")}</label>
+      <SettingRow
+        title={t("alliances.yours")}
+        state={alliances === null
+          ? t("alliances.loading")
+          : alliances.length === 0
+            ? t("alliances.empty")
+            : t("alliances.state.yours", { count: alliances.length })}
+        meta={alliances && alliances.length > 0 ? String(alliances.length) : undefined}
+        {...row("yours")}
+      >
         {alliances === null ? (
           error ? <ErrorRetry message={error} onRetry={load} /> : <p className="muted">{t("alliances.loading")}</p>
         ) : alliances.length === 0 ? (
@@ -378,14 +439,22 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
               myChannels={channels}
               busy={busy}
               activeHubUrl={activeHubUrl}
-              onLeave={() => run(() => actions.leaveAlliance(a.id))}
+              onLeave={async () => {
+                const ok = await confirm({
+                  title: t("alliances.detail.leave_confirm", { name: a.name }),
+                  body: t("alliances.detail.leave_body"),
+                  confirmLabel: t("alliances.detail.leave"),
+                  danger: true,
+                });
+                if (ok) run(() => actions.leaveAlliance(a.id));
+              }}
               onError={setError}
               runGuard={runGuard}
               actions={actions}
             />
           ))
         )}
-      </div>
+      </SettingRow>
     </section>
   );
 }

@@ -51,7 +51,7 @@ pub(crate) async fn spawn_ws_task(
                         .map(|d| d.as_millis() as i64)
                         .unwrap_or(0);
                     let json = serde_json::json!({ "type": "ping", "nonce": nonce }).to_string();
-                    if ws_tx.send(WsMessage::Text(json.into())).await.is_err() {
+                    if ws_tx.send(WsMessage::Text(json)).await.is_err() {
                         break;
                     }
                 }
@@ -396,8 +396,6 @@ pub(crate) async fn spawn_ws_task(
                                                 zmap.clear();
                                                 for z in &zones {
                                                     zmap.insert(z.zone_id.clone(), ZoneInfo {
-                                                        zone_id: z.zone_id.clone(),
-                                                        coordinate_system: z.coordinate_system.clone(),
                                                         attenuation: z.attenuation.clone(),
                                                         positions: z.positions.clone(),
                                                     });
@@ -407,7 +405,7 @@ pub(crate) async fn spawn_ws_task(
                                         }
                                         let _ = app.emit("voice-zone-state", serde_json::json!({ "hub_id": hub_id_for_task, "zones": zones }));
                                     }
-                                    WsServerMessage::VoiceZoneCreated { zone_id, coordinate_system, attenuation, .. } => {
+                                    WsServerMessage::VoiceZoneCreated { zone_id, attenuation, .. } => {
                                         let session_data = {
                                             let app_state = app.state::<AppState>();
                                             let lock = app_state.voice.lock().unwrap();
@@ -415,8 +413,6 @@ pub(crate) async fn spawn_ws_task(
                                         };
                                         if let Some(voice_zones) = session_data {
                                             voice_zones.lock().unwrap().insert(zone_id.clone(), ZoneInfo {
-                                                zone_id: zone_id.clone(),
-                                                coordinate_system: coordinate_system.clone(),
                                                 attenuation: attenuation.clone(),
                                                 positions: std::collections::HashMap::new(),
                                             });
@@ -701,7 +697,9 @@ pub(crate) async fn reauth_session(
         .await
         .map_err(|e| format!("reauth info decode: {e}"))?;
     let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
-    let reauth = creds.authenticate(&auth_url, &client, None).await?;
+    let reauth = creds
+        .authenticate(&auth_url, &client, None, None, None)
+        .await?;
     let new_token = reauth.token;
 
     let (old_task, hub_id_clone) = {

@@ -1,47 +1,39 @@
-#![allow(dead_code)]
 use crate::identity::Identity;
-use crate::local_store::{save_active_hub_id, save_hubs_list};
 use crate::state::{active_session, AppState};
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 #[tauri::command]
-pub(crate) fn get_recovery_phrase() -> Result<String, String> {
+pub(crate) async fn get_recovery_phrase(app: AppHandle) -> Result<String, String> {
+    let confirmed = app
+        .dialog()
+        .message(
+            "Your recovery phrase unlocks every identity on this device. \
+             Reveal it only if nobody can see your screen.",
+        )
+        .title("Reveal recovery phrase?")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Reveal".into(),
+            "Cancel".into(),
+        ))
+        .blocking_show();
+    if !confirmed {
+        return Err("Cancelled".to_string());
+    }
     let path = Identity::default_path().map_err(|e| e.to_string())?;
     let identity = Identity::load(&path).map_err(|e| e.to_string())?;
     Ok(identity.recovery_phrase())
 }
 
+/// Recovering a phrase brings that identity onto this device as an account of
+/// its own (or finds it, if it is already here) and returns its id; the caller
+/// switches to it. It never touches the active account: overwriting its
+/// `identity.json` destroyed a seed that might never have been backed up,
+/// and left the registry id naming a key the account no longer held.
 #[tauri::command]
-pub(crate) fn recover_identity_from_phrase(
-    phrase: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
-    let restored = Identity::from_recovery_phrase(phrase.trim())
-        .map_err(|e| format!("Invalid recovery phrase: {e}"))?;
-    let new_pubkey = restored.public_key_hex();
-
-    let identity_path = Identity::default_path().map_err(|e| e.to_string())?;
-
-    let drained: Vec<_> = state
-        .hubs
-        .lock()
-        .unwrap()
-        .drain()
-        .map(|(_, s)| s.ws_task)
-        .collect();
-    for task in drained {
-        task.abort();
-    }
-    *state.active_hub.lock().unwrap() = None;
-    save_active_hub_id(None);
-
-    let _ = save_hubs_list(&[]);
-
-    restored
-        .save(&identity_path)
-        .map_err(|e| format!("Failed to save identity: {e}"))?;
-
-    Ok(new_pubkey)
+pub(crate) fn recover_identity_from_phrase(phrase: String) -> Result<String, String> {
+    crate::accounts::account_from_phrase(&phrase)
 }
 
 /// This device's own signing pubkey, whatever any hub calls us.
@@ -70,22 +62,9 @@ pub(crate) fn get_my_pubkey(state: State<'_, AppState>) -> Result<String, String
     get_my_public_key(state)
 }
 
-pub(crate) fn load_master_identity() -> Result<crate::identity::MasterIdentity, String> {
-    let path = Identity::default_path().map_err(|e| e.to_string())?;
-    let identity = Identity::load(&path).map_err(|e| e.to_string())?;
-    identity.master().map_err(|e| e.to_string())
-}
-
 // ---------------------------------------------------------------------------
 // Public profile / directory
 // ---------------------------------------------------------------------------
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct PublicHubEntryInput {
-    pub hub_url: String,
-    pub hub_name: String,
-    pub joined_at: u64,
-}
 
 #[tauri::command]
 pub(crate) async fn fetch_public_profile(

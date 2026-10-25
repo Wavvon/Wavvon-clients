@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SettingRow } from "@wavvon/ui";
 
 interface Props {
   mentionPingEnabled: boolean;
@@ -11,23 +13,24 @@ interface Props {
 // separately); there's no second, distinct desktop setting to carry over.
 export function NotificationsTab({ mentionPingEnabled, onMentionPingChange }: Props) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.notifications")}</h1>
-      <div className="settings-section">
-        <label className="settings-label">{t("settings.notifications.mention.label")}</label>
-        <p className="muted" style={{ fontSize: "var(--text-sm)", marginBottom: 8 }}>
-          {t("settings.notifications.mention.hint")}
-        </p>
-        <label className="checkbox-label">
+      <h1>{t("settings.tabs.notifications")}</h1>
+      <SettingRow
+        title={t("settings.notifications.mention.label")}
+        state={mentionPingEnabled ? t("settings.state.on") : t("settings.state.off")}
+        control={
           <input
             type="checkbox"
             checked={mentionPingEnabled}
+            aria-label={t("settings.notifications.mention.enable")}
             onChange={(e) => onMentionPingChange(e.target.checked)}
           />
-          {t("settings.notifications.mention.enable")}
-        </label>
-      </div>
+        }
+        open={open}
+        onToggle={() => setOpen((v) => !v)}
+      />
     </section>
   );
 }

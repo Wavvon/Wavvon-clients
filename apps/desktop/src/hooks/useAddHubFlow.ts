@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { parseHubInput } from "@wavvon/core";
 import type { Hub, LobbyStatus } from "../types";
+import i18n from "@wavvon/i18n";
 
 export type HubPreviewState =
   | { state: "idle" }
@@ -142,15 +143,6 @@ export function useAddHubFlow({
     try {
       const resolvedUrl = parseHubInput(hubUrl)?.hubUrl ?? hubUrl;
 
-      if (!challengeToken && hubPreview.state === "ok" && hubPreview.challenge_mode && hubPreview.challenge_mode !== "off") {
-        if (!publicKey) {
-          setError("Identity not loaded yet. Try again in a moment.");
-          return;
-        }
-        setAdmissionChallenge({ hubUrl: resolvedUrl, pubkey: publicKey, resolvedUrl });
-        return;
-      }
-
       const hub = await invoke<Hub>("add_hub", {
         hubUrl: resolvedUrl,
         inviteCode: inviteCode.trim() || null,
@@ -189,6 +181,15 @@ export function useAddHubFlow({
         // lobby/survey check is best-effort
       }
     } catch (e) {
+      // Whether this join needs the admission challenge is the hub's call — it
+      // waives it for a member and for a named invite — so the challenge opens
+      // only on its refusal, which comes before the hub writes anything.
+      if (!challengeToken && /challenge token required/i.test(String(e))) {
+        const resolvedUrl = parseHubInput(hubUrl)?.hubUrl ?? hubUrl;
+        if (publicKey) setAdmissionChallenge({ hubUrl: resolvedUrl, pubkey: publicKey, resolvedUrl });
+        else setError(i18n.t("errors.identity_not_loaded"));
+        return;
+      }
       setError(String(e));
     } finally {
       setLoading(false);

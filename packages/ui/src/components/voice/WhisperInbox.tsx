@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { formatRelative } from "@wavvon/core";
+import { CloseIcon } from "../Icons";
 
 export interface WhisperInboxEntry {
   pubkey: string;
@@ -42,8 +43,8 @@ export function WhisperInbox({ entries, onDismiss, onClearAll }: Props) {
               onClick={() => onDismiss(e.pubkey, e.startedAt)}
               aria-label={t("voice.whisper.inbox.dismiss")}
               title={t("voice.whisper.inbox.dismiss")}
-            >
-              ✕
+            >
+              <CloseIcon size={14} />
             </button>
           </div>
         ))}

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, uniqueName } from "./helpers/live";
+import { expectInHub, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
 
 // P31 — appearance controls (color / icon / category) are hidden for built-in
 // roles. The hub rejects appearance PATCHes on @everyone/Owner
@@ -18,25 +18,26 @@ test("built-in roles hide appearance controls; custom roles keep them", async ({
   await expectInHub(page);
   await openRolesAdmin(page);
 
-  // Built-in roles: no color swatch (the clearest appearance control).
-  const everyone = page.locator(".settings-row").filter({ hasText: "everyone" }).first();
-  await expect(everyone).toBeVisible({ timeout: 10000 });
+  // Built-in roles: no color swatch (the clearest appearance control). The
+  // controls are part of the form a role row opens to, so a closed row proves
+  // nothing — each row has to be opened to be asked. The list is an accordion,
+  // so each open closes the one before it; assert before moving on.
+  const everyone = await openSettingRow(page, "everyone");
   await expect(everyone.locator(".color-swatch")).toHaveCount(0);
-  const owner = page.locator(".settings-row").filter({ hasText: "Owner" }).first();
+  const owner = await openSettingRow(page, "Owner");
   await expect(owner.locator(".color-swatch")).toHaveCount(0);
 
   // A custom role keeps the swatch.
   const roleName = uniqueName("Trim");
-  await page.getByRole("button", { name: "New role" }).click();
-  await page.getByRole("textbox", { name: "Role name" }).fill(roleName);
-  await page.getByRole("button", { name: "Create role" }).click();
+  const creator = await openSettingRow(page, "New role");
+  await creator.getByRole("textbox", { name: "Role name" }).fill(roleName);
+  await creator.getByRole("button", { name: "Create role" }).click();
 
-  const custom = page.locator(".settings-row").filter({ hasText: roleName }).first();
-  await expect(custom).toBeVisible({ timeout: 10000 });
+  const custom = await openSettingRow(page, roleName);
   await expect(custom.locator(".color-swatch").first()).toBeVisible();
 
   // Cleanup so re-runs against the persistent DB stay clean.
-  page.on("dialog", (d) => d.accept());
   await custom.getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmInApp(page);
   await expect(custom).toBeHidden({ timeout: 10000 });
 });

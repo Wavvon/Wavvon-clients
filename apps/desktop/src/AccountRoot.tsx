@@ -35,7 +35,6 @@ export default function AccountRoot() {
     setInPlaceSwitchHandler(({ id }) => setActiveAccountId(id));
     refresh().catch((e) => setError(String(e)));
     return () => setInPlaceSwitchHandler(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const wordCount = phrase.trim().split(/\s+/).filter(Boolean).length;
@@ -65,7 +64,7 @@ export default function AccountRoot() {
       <div className="account-gate" style={{ maxWidth: 480, margin: "10vh auto", padding: "0 16px" }}>
         <h1>{t("account_gate.title")}</h1>
         <p className="muted">{t("account_gate.hint")}</p>
-        {error && <p style={{ color: "var(--color-error, red)" }}>{error}</p>}
+        {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <div className="settings-section">
           <button disabled={busy} onClick={() => handleCreate(false)}>
             {t("identity_setup.choose.create")}

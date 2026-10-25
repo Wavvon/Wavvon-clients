@@ -8,6 +8,7 @@ import type { WsHandlers } from "@platform";
 import { mentionsName, playMentionPing } from "@wavvon/core";
 import type { Channel, Message, User, Hub, MeInfo, VoiceParticipant, NotifyMode } from "@shared/types";
 import type { AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
+import i18n from "@wavvon/i18n";
 
 export interface UseWsHandlersParams {
   activeHubIdRef: RefObject<string | null>;
@@ -114,7 +115,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
             try { playMentionPing(); } catch { /* audio context may not be ready */ }
           }
           if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-            new Notification(`${msg.sender_name ?? "Someone"} mentioned you`, {
+            new Notification(i18n.t("notify.mentioned_you", { name: msg.sender_name ?? i18n.t("notify.someone") }), {
               body: msg.content.slice(0, 100),
               tag: msg.id,
             });
@@ -198,7 +199,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     onError: (raw) => {
       const m = raw as Record<string, unknown>;
       if (m._hub_id !== activeHubIdRef.current) return;
-      const message = (m.message as string | undefined) ?? "An error occurred on the hub.";
+      const message = (m.message as string | undefined) ?? i18n.t("errors.hub_error");
       showHubError(message);
     },
     onDmMemberChanged,

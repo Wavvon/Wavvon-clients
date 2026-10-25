@@ -79,16 +79,23 @@ pub(crate) async fn delete_event(
 #[tauri::command]
 pub(crate) async fn get_hub_events(
     hub_url: String,
+    channel_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let url = format!(
-        "{}/events?upcoming=true&limit=50",
-        hub_url.trim_end_matches('/')
-    );
+    let url = format!("{}/events", hub_url.trim_end_matches('/'));
+    let mut query = vec![
+        ("upcoming", "true".to_string()),
+        ("limit", "50".to_string()),
+    ];
+    // A hub that predates the filter ignores it and answers the hub-wide list.
+    if let Some(id) = channel_id {
+        query.push(("channel_id", id));
+    }
     let res = state
         .http_client
         .get(&url)
+        .query(&query)
         .bearer_auth(&token)
         .send()
         .await
@@ -298,8 +305,9 @@ pub(crate) async fn vote_poll(
     // The vote endpoint returns 204 with no body, but MessageRowActions'
     // `votePoll` needs the updated `Poll` back for optimistic UI (same
     // contract as web's `votePoll` in platform/commands/polls.ts). Re-fetch
-    // via GET /polls/:poll_id (PollWithTotals: `poll` has `options` as a
-    // JSON-encoded string, plus separate `totals`/`your_vote`) and reshape
+    // via GET /polls/:poll_id (PollWithTotals: the poll fields flattened into
+    // the body, `options` as a JSON-encoded string, plus separate
+    // `totals`/`your_vote`) and reshape
     // into the flat `Poll` client type.
     let res = state
         .http_client
@@ -310,7 +318,7 @@ pub(crate) async fn vote_poll(
         .map_err(|e| e.to_string())?;
     let raw: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
 
-    let poll = raw.get("poll").cloned().unwrap_or(serde_json::json!({}));
+    let poll = raw.clone();
     let raw_options: Vec<serde_json::Value> = match poll.get("options") {
         Some(serde_json::Value::String(s)) => serde_json::from_str(s).unwrap_or_default(),
         Some(serde_json::Value::Array(a)) => a.clone(),

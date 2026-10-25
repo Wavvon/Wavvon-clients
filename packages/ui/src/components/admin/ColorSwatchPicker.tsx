@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HEX_RE } from "../../utils/roleAppearance";
+import { CloseIcon } from "../Icons";
 
 const ROLE_ACCENT_COLORS: string[] = [
   "#e74c3c",
@@ -33,8 +34,8 @@ export function ColorSwatchPicker({ value, onChange, noColorLabel }: Props) {
         className={`color-swatch color-swatch-none ${value === null ? "selected" : ""}`}
         onClick={() => onChange(null)}
         title={noColorLabel}
-      >
-        ✕
+      >
+        <CloseIcon size={12} />
       </button>
       {ROLE_ACCENT_COLORS.map((hex) => (
         <button

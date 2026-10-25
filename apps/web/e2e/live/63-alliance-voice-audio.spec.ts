@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { channelButton, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
+import { channelButton, expectInHub, newMemberPage, uniqueName, confirmInApp } from "./helpers/live";
 
 // P63 — audio crosses a hub boundary.
 //
@@ -97,11 +97,12 @@ test("a visitor hears the allied hub's room, not just its roster", async ({ page
     // opens).
     await channel.click({ position: { x: 4, y: 4 } });
 
-    // The join asks first, through `window.confirm`, because the visitor dials
-    // the owning hub direct and that hub's operator sees the IP. Playwright
-    // dismisses dialogs by default, which aborts the join silently.
-    page.on("dialog", (d) => void d.accept());
     await channel.getByRole("button", { name: /Join voice on/ }).click();
+
+    // The join asks first, because the visitor dials the owning hub direct
+    // and that hub's operator sees the IP. The app draws the dialog now, so
+    // nothing native fires and a `page.on("dialog")` handler would never run.
+    await confirmInApp(page);
     await expect(page.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`, {
       timeout: 40000,
     });

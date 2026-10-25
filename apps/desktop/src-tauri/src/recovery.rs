@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::state::AppState;
 use tauri::State;
 

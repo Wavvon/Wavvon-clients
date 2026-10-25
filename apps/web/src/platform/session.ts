@@ -1,4 +1,5 @@
 import { loadSavedHubs } from "./storage";
+import type { HubRefusal } from "@wavvon/core";
 import type { HubWebSocket } from "./ws";
 import { resetDmHubCache } from "./dmHub";
 
@@ -17,6 +18,8 @@ export interface HubSession {
    * Defaults to "member" for every pre-lobby code path.
    */
   scope?: "member" | "lobby";
+  /** Set when startup re-auth was refused with a 403: no token, no socket. */
+  refusal?: HubRefusal;
   /** `capabilities` from this hub's `/info` — see hubSupports() below. */
   capabilities?: string[];
   /** This hub's version string. Display only; gate on `capabilities`. */

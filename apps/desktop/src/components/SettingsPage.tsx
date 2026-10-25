@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BackgroundMode } from "../utils/backgroundProcessor";
 import type { Hub } from "../types";
 import { DISCOVERY_URL } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";
@@ -14,6 +13,7 @@ import {
   HelpTab,
   ProfileTab,
   SettingsShell,
+  SettingRow,
   resolveManagingAccount,
   type ThemeId,
   type WavvonSkin,
@@ -26,11 +26,10 @@ import { listAccounts, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
 import { loadTrustRoots, saveTrustRoots } from "../utils/trustRoots";
-import { addTrustRoot, type TrustRoot } from "@wavvon/ui";
+import { addTrustRoot, CameraTab, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
 import { PrivacyTab } from "./settings/PrivacyTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
-import { CameraTab } from "./settings/CameraTab";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
 export type SettingsTab =
@@ -86,10 +85,7 @@ export interface SettingsPageProps {
   customVad: boolean;
   onCustomVadChange: (v: boolean) => void;
   customVadThreshold: number;
-  onCustomVadThresholdChange: (v: number) => void;
-  customChannels: 1 | 2;
-  onCustomChannelsChange: (v: 1 | 2) => void;
-  customFrameMs: 20 | 40 | 60;
+  onCustomVadThresholdChange: (v: number) => void;  customFrameMs: 20 | 40 | 60;
   onCustomFrameMsChange: (v: 20 | 40 | 60) => void;
   customComplexity: number;
   onCustomComplexityChange: (v: number) => void;
@@ -110,19 +106,19 @@ export interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
-  backgroundMode: BackgroundMode;
-  backgroundSource: string | null;
-  backgroundActive: boolean | null;
-  onChangeBackground: (mode: BackgroundMode, source?: string | null) => void;
   onImportSkin: (skin: WavvonSkin) => void;
-  videoInputs: { deviceId: string; label: string }[];
-  videoInputDevice: string;
-  onVideoInputDeviceChange: (v: string) => void;
 }
 
 function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
   return { id: a.id, account_label: a.label ?? undefined };
 }
+
+const LANGUAGES: { id: string; label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "it", label: "Italiano" },
+  { id: "es", label: "Español" },
+  { id: "de", label: "Deutsch" },
+];
 
 export function SettingsPage(props: SettingsPageProps) {
   const { t, i18n } = useTranslation();
@@ -132,6 +128,11 @@ export function SettingsPage(props: SettingsPageProps) {
   // DevicesTab/PrivacyTab comments), so they don't need this.
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
   const [managingId, setManagingId] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const settingRow = (id: string) => ({
+    open: openRow === id,
+    onToggle: () => setOpenRow((cur) => (cur === id ? null : id)),
+  });
   const activeId = accounts?.find((a) => a.is_active)?.id ?? null;
 
   useEffect(() => {
@@ -234,19 +235,47 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "appearance" && (
           <section>
             <h1>{t("settings.tabs.appearance")}</h1>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.theme.label")}</label>
-              <p className="muted">
-                {t("settings.theme.hint")}
-              </p>
+
+            <SettingRow
+              title={t("settings.language.label")}
+              state={LANGUAGES.find((l) => l.id === i18n.language.slice(0, 2))?.label ?? i18n.language}
+              control={
+                <select
+                  id="settings-language"
+                  aria-label={t("settings.language.label")}
+                  value={i18n.language.slice(0, 2)}
+                  onChange={(e) => {
+                    i18n.changeLanguage(e.target.value);
+                    localStorage.setItem("wavvon_language", e.target.value);
+                  }}
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.id} value={l.id}>{l.label}</option>
+                  ))}
+                </select>
+              }
+            />
+
+            <SettingRow
+              title={t("settings.theme.label")}
+              state={props.theme === "custom"
+                ? t("settings.theme.custom")
+                : t(`settings.skin.base.${props.theme}`)}
+              {...settingRow("theme")}
+            >
+              <p className="muted">{t("settings.theme.hint")}</p>
               <ThemePicker value={props.theme} skin={props.skin} onChange={props.onThemeChange} />
-            </div>
-            {props.theme === "custom" && (
-              <SkinEditor
-                skin={props.skin ?? makeSeed("calm")}
-                onChange={props.onSkinChange}
-              />
-            )}
+              {props.theme === "custom" && (
+                <SkinEditor
+                  skin={props.skin ?? makeSeed("dark")}
+                  onChange={props.onSkinChange}
+                />
+              )}
+            </SettingRow>
+
+            {/* Not a row: the gallery renders nothing when discovery is
+                unreachable, and a row that opens onto nothing is worse than
+                no row at all. */}
             {DISCOVERY_URL && (
               <SkinsGallery
                 fetchWithTimeout={fetchWithTimeout}
@@ -254,20 +283,7 @@ export function SettingsPage(props: SettingsPageProps) {
                 discoveryUrl={DISCOVERY_URL}
               />
             )}
-            <div className="settings-section">
-              <label className="settings-label" htmlFor="settings-language">{t("settings.language.label")}</label>
-              <div className="settings-row">
-                <select id="settings-language" value={i18n.language} onChange={e => {
-                  i18n.changeLanguage(e.target.value);
-                  localStorage.setItem('wavvon_language', e.target.value);
-                }}>
-                  <option value="en">English</option>
-                  <option value="it">Italiano</option>
-                  <option value="es">Español</option>
-                  <option value="de">Deutsch</option>
-                </select>
-              </div>
-            </div>
+
             {/* About folded in here rather than its own tab (settings-ia.md
                 piece 4) — a static footnote doesn't need a nav slot. */}
             <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 24 }}>
@@ -279,28 +295,12 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "voice" && (
           <section>
             <h1>{t("settings.tabs.voice")}</h1>
-            <AudioProfileSection
-              profile={props.audioProfile}
-              onProfile={props.onAudioProfileChange}
-              customBitrate={props.customBitrate}
-              onCustomBitrate={props.onCustomBitrateChange}
-              customApp={props.customApp}
-              onCustomApp={props.onCustomAppChange}
-              customNoiseSuppress={props.customNoiseSuppress}
-              onCustomNoiseSuppress={props.onCustomNoiseSuppressChange}
-              customVad={props.customVad}
-              onCustomVad={props.onCustomVadChange}
-              customVadThreshold={props.customVadThreshold}
-              onCustomVadThreshold={props.onCustomVadThresholdChange}
-              customChannels={props.customChannels}
-              onCustomChannels={props.onCustomChannelsChange}
-              customFrameMs={props.customFrameMs}
-              onCustomFrameMs={props.onCustomFrameMsChange}
-              customComplexity={props.customComplexity}
-              onCustomComplexity={props.onCustomComplexityChange}
-              inVoice={props.inVoice}
-            />
-            <div className="settings-section">
+
+            <SettingRow
+              title={t("settings.voice.devices.label")}
+              state={props.voiceInputDevice || t("settings.voice.system_default")}
+              {...settingRow("devices")}
+            >
               <div className="voice-devices-row">
                 <div>
                   <label className="settings-label" htmlFor="settings-mic">{t("settings.voice.microphone")}</label>
@@ -346,33 +346,35 @@ export function SettingsPage(props: SettingsPageProps) {
                   </div>
                 </div>
               )}
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">
-                {t("settings.voice.sensitivity.label", { value: props.vadThreshold.toFixed(3) })}
-              </label>
-              <p className="muted">
-                {t("settings.voice.sensitivity.hint")}
-              </p>
+            </SettingRow>
+
+            <SettingRow
+              title={t("settings.voice.vad.sensitivity")}
+              state={props.vadThreshold.toFixed(3)}
+              {...settingRow("sensitivity")}
+            >
+              <p className="muted">{t("settings.voice.sensitivity.hint")}</p>
               <MicLevelMeter
                 level={props.micLevel}
                 threshold={props.vadThreshold}
                 onChange={props.onVadChange}
               />
               <div className="voice-mic-test">
-                <button onClick={props.onToggleMicTest} className="btn-secondary">
+                <button onClick={props.onToggleMicTest} className="btn-small">
                   {props.micTesting ? t("settings.voice.mic_test.stop") : t("settings.voice.mic_test.start")}
                 </button>
                 <span className="muted voice-mic-test-hint">
                   {t("settings.voice.mic_test.hint")}
                 </span>
               </div>
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">{t("settings.voice.mode.label")}</label>
-              <p className="muted">
-                {t("settings.voice.mode.hint")}
-              </p>
+            </SettingRow>
+
+            <SettingRow
+              title={t("settings.voice.mode.label")}
+              state={t(`settings.voice.mode.${props.voiceMode}`)}
+              {...settingRow("mode")}
+            >
+              <p className="muted">{t("settings.voice.mode.hint")}</p>
               <div className="settings-row">
                 <label className="checkbox-label">
                   <input
@@ -399,23 +401,38 @@ export function SettingsPage(props: SettingsPageProps) {
                   onChange={props.onPttKeyChange}
                 />
               )}
-            </div>
+            </SettingRow>
+
+            <SettingRow
+              title={t("settings.voice.quality.label")}
+              state={t(`settings.voice.quality.${props.audioProfile}`)}
+              {...settingRow("quality")}
+            >
+              <AudioProfileSection
+                profile={props.audioProfile}
+                onProfile={props.onAudioProfileChange}
+                customBitrate={props.customBitrate}
+                onCustomBitrate={props.onCustomBitrateChange}
+                customApp={props.customApp}
+                onCustomApp={props.onCustomAppChange}
+                customNoiseSuppress={props.customNoiseSuppress}
+                onCustomNoiseSuppress={props.onCustomNoiseSuppressChange}
+                customVad={props.customVad}
+                onCustomVad={props.onCustomVadChange}
+                customVadThreshold={props.customVadThreshold}
+                onCustomVadThreshold={props.onCustomVadThresholdChange}                customFrameMs={props.customFrameMs}
+                onCustomFrameMs={props.onCustomFrameMsChange}
+                customComplexity={props.customComplexity}
+                onCustomComplexity={props.onCustomComplexityChange}
+                inVoice={props.inVoice}
+              />
+            </SettingRow>
           </section>
         )}
 
         {props.tab === "help" && <HelpTab />}
 
-        {props.tab === "camera" && (
-          <CameraTab
-            backgroundMode={props.backgroundMode}
-            backgroundSource={props.backgroundSource}
-            backgroundActive={props.backgroundActive}
-            onChangeBackground={props.onChangeBackground}
-            videoInputs={props.videoInputs}
-            videoInputDevice={props.videoInputDevice}
-            onVideoInputDeviceChange={props.onVideoInputDeviceChange}
-          />
-        )}
+        {props.tab === "camera" && <CameraTab />}
     </SettingsShell>
   );
 }

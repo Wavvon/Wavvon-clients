@@ -128,7 +128,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
 
     useImperativeHandle(ref, () => ({
       appendChunk(streamId, isInit, data) {
-        let s = streamStates.current.get(streamId);
+        const s = streamStates.current.get(streamId);
         if (!s) return;
 
         if (isInit && s.sourceBuffer) {

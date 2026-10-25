@@ -226,5 +226,329 @@ export function ChannelIcon({
   if (channelType === "spawner") {
     return <span className="channel-type-spawner" aria-hidden="true">+</span>;
   }
+  if (channelType === "forum") {
+    // Forum fell through to null like voice once did, and the sidebar row
+    // compensated with a badge after the name — a badge standing in for the
+    // icon that belonged in the gutter.
+    return <ForumIcon size={size} />;
+  }
+  if (channelType === "voice") {
+    // Voice channels used to fall through to null and sit in an empty gutter,
+    // so a row you talk in looked like a row with a missing icon.
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor"
+        strokeWidth="1.5" strokeLinecap="round" className="channel-type-voice" aria-hidden="true">
+        <rect x="5.5" y="2" width="5" height="8" rx="2.5" />
+        <path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2" />
+      </svg>
+    );
+  }
   return null;
+}
+
+// Interface icons. These replace emoji that were standing in for controls:
+// an emoji renders in the platform's own colour and style, so a toolbar built
+// from them has as many visual languages as it has buttons.
+
+export function PinIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 2h6l-.9 6L18 11.3V14H6v-2.7L9.9 8z" />
+      <line x1="12" y1="14" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <line x1="15.5" y1="15.5" x2="21" y2="21" />
+    </svg>
+  );
+}
+
+export function MembersIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 5a3.5 3.5 0 0 1 0 6.5" />
+      <path d="M17.5 13.6A6.5 6.5 0 0 1 21.5 20" />
+    </svg>
+  );
+}
+
+export function LinkIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7" />
+      <path d="M13.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7" />
+    </svg>
+  );
+}
+
+export function FlagIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 21V4" />
+      <path d="M5 4h12l-2.5 4L17 12H5z" />
+    </svg>
+  );
+}
+
+export function ReplyIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="9 6 4 11 9 16" />
+      <path d="M4 11h9a6 6 0 0 1 6 6v2" />
+    </svg>
+  );
+}
+
+export function EditIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16z" />
+    </svg>
+  );
+}
+
+export function TrashIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 6h16M9 6V4h6v2M7 6l1 14h8l1-14" />
+    </svg>
+  );
+}
+
+/** Playback gain relative to 100%: quiet, normal-but-adjusted, boosted. */
+export function VolumeIcon({ size = 14, level }: { size?: number; level: "muted" | "reduced" | "boosted" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+      {level === "muted" && <path d="M16 9.5l5 5M21 9.5l-5 5" />}
+      {level === "reduced" && <path d="M15.5 10a3 3 0 0 1 0 4" />}
+      {level === "boosted" && <><path d="M15.5 10a3 3 0 0 1 0 4" /><path d="M18 7.5a7 7 0 0 1 0 9" /></>}
+    </svg>
+  );
+}
+
+export function GearIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 8h16M4 16h16" />
+      <circle cx="9" cy="8" r="2.2" />
+      <circle cx="15" cy="16" r="2.2" />
+    </svg>
+  );
+}
+
+export function PlusIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+export function CloseIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+/** One shape, four rotations — a caret that points where it is going. */
+export function ChevronIcon({ size = 16, dir = "down" }: { size?: number; dir?: "up" | "down" | "left" | "right" }) {
+  const deg = { up: 180, down: 0, left: 90, right: -90 }[dir];
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+      style={{ transform: `rotate(${deg}deg)` }}>
+      <polyline points="6 9.5 12 15.5 18 9.5" />
+    </svg>
+  );
+}
+
+export function ExpandIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />
+    </svg>
+  );
+}
+
+export function ResetIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 12a8 8 0 1 1 2.6 5.9" />
+      <polyline points="4 6.5 4 12 9.5 12" />
+    </svg>
+  );
+}
+
+/** A channel where the topic is the thread, not the day — the forum type. */
+export function ForumIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 5.5h13v9h-8l-5 4z" />
+      <path d="M8 5.5V4h12.5v9H19v3.5L16.5 14" />
+    </svg>
+  );
+}
+
+export function BellOffIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6.5 9a5.5 5.5 0 0 1 8.2-4.8M17.5 11v3l2 3H8" />
+      <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
+      <path d="M3 3l18 18" />
+    </svg>
+  );
+}
+
+export function LockIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+      <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+    </svg>
+  );
+}
+
+export function PaperclipIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 11.5l-7.6 7.6a4.7 4.7 0 0 1-6.6-6.6l8.2-8.2a3.1 3.1 0 0 1 4.4 4.4l-8.2 8.2a1.6 1.6 0 0 1-2.2-2.2l7.3-7.3" />
+    </svg>
+  );
+}
+
+export function SpeakerIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+      <path d="M15.5 10a3 3 0 0 1 0 4" />
+      <path d="M18 7.5a7 7 0 0 1 0 9" />
+    </svg>
+  );
+}
+
+export function ClockIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <polyline points="12 7 12 12 15.5 14" />
+    </svg>
+  );
+}
+
+/** Whispering: a voice aimed at one person, so the cone is narrowed. */
+export function WhisperIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="10" rx="3" />
+      <path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V21" />
+      <path d="M19.5 4.5a3 3 0 0 1 0 4" />
+    </svg>
+  );
+}
+
+export function CakeIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20.5h16v-6a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3z" />
+      <path d="M12 8V5M8.5 8V6M15.5 8V6" />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+      <path d="M3.5 10h17M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
+/** The empty-channel illustration: nobody has said anything here yet. */
+export function WaveIcon({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 12a8 8 0 0 1 8-8 8 8 0 0 1 8 8 8 8 0 0 1-8 8H4l2.2-2.2A8 8 0 0 1 4 12z" />
+      <path d="M9 11.5h.01M15 11.5h.01M9.5 14.5a3.2 3.2 0 0 0 5 0" />
+    </svg>
+  );
+}
+
+/** Add a reaction. A drawn face, not the platform emoji it opens a picker
+ *  for: the button is chrome, what it inserts is content. */
+export function ReactionAddIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20.3 12.9A8.5 8.5 0 1 1 11.1 3.7" />
+      <path d="M8.5 9.5h.01M14.5 9.5h.01M8.3 14a4.6 4.6 0 0 0 7.4 0" />
+      <path d="M18.5 2.5v5M16 5h5" />
+    </svg>
+  );
+}
+
+/** Direct messages: the hub rail's first stop, which is not a hub. */
+export function MessagesIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 5.5h16v11H9.5L4.5 20.5V5.5z" />
+    </svg>
+  );
+}
+
+/** The public hub directory — looking outward, not adding what you have. */
+export function DiscoverIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M15.5 8.5l-2 5-5 2 2-5z" />
+    </svg>
+  );
+}
+
+/** A mention waiting on a hub you are not looking at. */
+export function MentionIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.6" />
+      <path d="M15.6 12v2a2.6 2.6 0 0 0 5.2 0v-2a8.8 8.8 0 1 0-3.4 6.9" />
+    </svg>
+  );
 }

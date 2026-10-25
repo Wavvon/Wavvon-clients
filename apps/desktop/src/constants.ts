@@ -35,12 +35,10 @@ export const EXPIRY_OPTIONS: { label: string; seconds: number | null }[] = [
 // English label map is exactly what kept the picker English while every
 // catalog reported full coverage.
 export const THEMES: {
-  id: "calm" | "classic" | "linear" | "light" | "custom";
+  id: "dark" | "light" | "custom";
   swatches: [string, string, string];
 }[] = [
-  { id: "calm", swatches: ["#1c1a1f", "#2c2a31", "#88b8a8"] },
-  { id: "classic", swatches: ["#1a1a2e", "#1e2a47", "#7c3aed"] },
-  { id: "linear", swatches: ["#0c0d11", "#1a1c22", "#6571f0"] },
-  { id: "light", swatches: ["#fafaf7", "#f5f4ef", "#4a8d7a"] },
+  { id: "dark", swatches: ["#12141a", "#181b23", "#e8b33c"] },
+  { id: "light", swatches: ["#f6f6f3", "#fffffe", "#a9741a"] },
   { id: "custom", swatches: ["#888888", "#aaaaaa", "#cccccc"] },
 ];

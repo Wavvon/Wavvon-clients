@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getDmMessages, sendDm, createConversation, getConversation, HubApiError } from "@platform";
 import type { EncryptionWarning } from "@wavvon/ui";
+import { loadDmPeerNames, rememberDmPeerName } from "../utils/dmPeerNames";
 import type { Conversation, DmMessage } from "@shared/types";
 
 interface UseDmsParams {
@@ -36,6 +37,7 @@ export function useDms({
   showHubError,
 }: UseDmsParams) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [peerNames, setPeerNames] = useState<Record<string, string>>(loadDmPeerNames);
   const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [encryptionWarning, setEncryptionWarning] = useState<EncryptionWarning | null>(null);
@@ -59,9 +61,13 @@ export function useDms({
   // The hub dedupes 1:1 DMs server-side (create_conversation returns the
   // existing conversation instead of a duplicate), so this is safe to call
   // even if a conversation with this member already exists locally.
-  async function handleStartConversation(pubkey: string) {
+  async function handleStartConversation(
+    pubkey: string,
+    via?: { hubUrl: string; masterPubkey: string; displayName?: string | null },
+  ) {
     try {
-      const conv = await createConversation([pubkey]);
+      const conv = await createConversation([pubkey], via);
+      if (via?.displayName) setPeerNames(rememberDmPeerName(pubkey, via.displayName));
       setConversations((prev) => prev.some((c) => c.id === conv.id)
         ? prev.map((c) => c.id === conv.id ? conv : c)
         : [conv, ...prev]);
@@ -150,6 +156,7 @@ export function useDms({
     encryptionWarning,
     handleSelectConversation,
     handleStartConversation,
+    peerNames,
     handleSendDm,
     onDm,
     onDmMemberChanged,

@@ -4,6 +4,8 @@ import { FocusTrap } from "./FocusTrap";
 import { StagingSlotGroup } from "./StagingSlotGroup";
 import type { ClaimantVoiceStatus, StagingGroup } from "../types";
 import type { VoiceMoveChannelOption } from "./VoiceMoveMenu";
+import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
+import { CloseIcon } from "./Icons";
 
 interface Props {
   eventTitle: string;
@@ -39,6 +41,7 @@ export function StagingPanel({
   squadRoomCount, onSquadRoomCountChange, squadRoomPrefix, onSquadRoomPrefixChange, onSpawnSquadRooms,
   spawningSquadRooms, squadRoomError,
 }: Props) {
+  useCloseOnEscape(onClose);
   const { t } = useTranslation();
   return (
     <div
@@ -49,15 +52,15 @@ export function StagingPanel({
       aria-label={t("events.staging.title", { event: eventTitle })}
     >
       <FocusTrap>
-        <div className="modal" style={{ maxWidth: 520, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal modal-form" style={{ maxWidth: 520, width: "100%" }} onClick={(e) => e.stopPropagation()}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <h3 style={{ margin: 0, fontSize: "var(--text-md)" }}>
               {t("events.staging.title", { event: eventTitle })}
             </h3>
-            <button className="btn-ghost" onClick={onClose} aria-label={t("events.staging.close")}>×</button>
+            <button className="btn-ghost" onClick={onClose} aria-label={t("events.staging.close")}><CloseIcon size={13} /></button>
           </div>
 
-          <div className="settings-section" style={{ marginBottom: 10 }}>
+          <div className="modal-section">
             <div style={{ fontWeight: 600, fontSize: "var(--text-sm)", marginBottom: 6 }}>
               {t("events.staging.squad_rooms.title")}
             </div>
@@ -82,7 +85,6 @@ export function StagingPanel({
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ fontSize: "var(--text-xs)", padding: "4px 10px" }}
                 onClick={onSpawnSquadRooms}
                 disabled={spawningSquadRooms}
               >

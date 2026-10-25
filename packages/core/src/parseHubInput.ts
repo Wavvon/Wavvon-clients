@@ -225,3 +225,17 @@ export function inviteCodeFromPath(pathname: string): string | null {
   const match = /^\/join\/([A-Za-z0-9_-]+)\/?$/.exec(pathname);
   return match ? match[1] : null;
 }
+
+/** A hub address as a person would read it: host, port when it is not the
+ *  default, and the `/hub/<slug>` prefix when one host serves several. The
+ *  scheme is dropped — it is noise next to a name, and `http` on localhost
+ *  would read as a warning it is not. */
+export function displayHubAddress(hubUrl: string): string {
+  try {
+    const u = new URL(hubUrl);
+    const path = u.pathname.replace(/\/+$/, "");
+    return u.host + (path === "" || path === "/" ? "" : path);
+  } catch {
+    return hubUrl;
+  }
+}

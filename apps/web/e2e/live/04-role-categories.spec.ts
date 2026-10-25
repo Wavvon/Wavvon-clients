@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { expectInHub, hubApi, uniqueName } from "./helpers/live";
+import { expectInHub, hubApi, uniqueName, openSettingRow } from "./helpers/live";
 
 // P4 — role categories + per-role color/icon (role-categories.md §4, §6):
 // create a category, file a custom role under it, set a role color and a
@@ -42,9 +42,9 @@ test("role category grouping, color, and icon persist", async ({ page }) => {
   await expect(group.getByText("No roles in this category.")).toBeVisible();
 
   // File the custom role under the new category via its row's select.
-  const roleRow = page.locator(".settings-row").filter({ hasText: role });
-  await roleRow.locator("select").selectOption({ label: cat });
-  const movedRow = group.locator(".settings-row").filter({ hasText: role });
+  const roleRow = await openSettingRow(page, role);
+  await roleRow.locator("select").first().selectOption({ label: cat });
+  const movedRow = group.locator(".setting-row").filter({ hasText: role });
   await expect(movedRow).toBeVisible();
 
   // Set a role color from the swatch picker.
@@ -67,11 +67,15 @@ test("role category grouping, color, and icon persist", async ({ page }) => {
   const groupAfter = page
     .locator(".role-category-group")
     .filter({ has: page.locator(".role-category-header", { hasText: cat }) });
-  const rowAfter = groupAfter.locator(".settings-row").filter({ hasText: role });
+  const rowAfter = groupAfter.locator(".setting-row").filter({ hasText: role });
   await expect(rowAfter).toBeVisible();
-  await expect(rowAfter.getByTitle("Role color")).toHaveCSS(
+  // The icon rides in the row's head, so it is on screen with the row closed.
+  // The swatch is part of the form the row opens to, and is not in the DOM
+  // until it does.
+  await expect(rowAfter.getByText("🎮")).toBeVisible();
+  const reopened = await openSettingRow(page, role);
+  await expect(reopened.getByTitle("Role color")).toHaveCSS(
     "background-color",
     "rgb(231, 76, 60)",
   );
-  await expect(rowAfter.getByText("🎮")).toBeVisible();
 });

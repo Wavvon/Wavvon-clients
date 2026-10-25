@@ -85,34 +85,13 @@ export const EXPIRY_OPTIONS: { label: string; seconds: number | null }[] = [
   { label: "7 days", seconds: 7 * 24 * 60 * 60 },
 ];
 
+// Labels come from the catalogs under `settings.skin.base.<id>` and
+// `settings.theme.tagline.<id>`. An English label map here is what once kept
+// this picker English while every catalog reported full coverage.
 export const THEMES: {
-  id: "calm" | "classic" | "linear" | "light";
-  name: string;
-  tagline: string;
+  id: "dark" | "light";
   swatches: [string, string, string];
 }[] = [
-  {
-    id: "calm",
-    name: "Calm",
-    tagline: "Warm dark, dusty teal. Soft on the eyes — fits everyone.",
-    swatches: ["#1c1a1f", "#2c2a31", "#88b8a8"],
-  },
-  {
-    id: "classic",
-    name: "Classic",
-    tagline: "Deep navy + violet purple. Familiar and tech-forward.",
-    swatches: ["#1a1a2e", "#1e2a47", "#7c3aed"],
-  },
-  {
-    id: "linear",
-    name: "Linear",
-    tagline: "Near-black with a sharp violet-blue accent. Minimal.",
-    swatches: ["#0c0d11", "#1a1c22", "#6571f0"],
-  },
-  {
-    id: "light",
-    name: "Light",
-    tagline: "Off-white with a dusty teal accent. Reads well in daylight.",
-    swatches: ["#fafaf7", "#f5f4ef", "#4a8d7a"],
-  },
+  { id: "dark", swatches: ["#12141a", "#181b23", "#e8b33c"] },
+  { id: "light", swatches: ["#f6f6f3", "#fffffe", "#a9741a"] },
 ];

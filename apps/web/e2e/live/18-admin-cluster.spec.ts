@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
+import { channelButton, confirmInApp, createChannel, expectInHub, hubApi, newMemberPage, openSettingRow, settingRow, uniqueName } from "./helpers/live";
 
 // P18 — admin features ported from desktop: audit log, hub icon library,
 // alliances, onboarding (lobby/challenge), and per-channel bans. Each is
@@ -16,8 +16,9 @@ test("audit log lists administrative events", async ({ page }) => {
   await expectInHub(page);
   await openAdminTab(page, "Audit log");
   await expect(page.getByRole("heading", { name: "Audit log" })).toBeVisible();
-  // The suite has generated plenty of audit activity by now.
-  await expect(page.locator("table.members-table tbody tr").first()).toBeVisible({ timeout: 10000 });
+  // The suite has generated plenty of audit activity by now. The log is a
+  // list of entries grouped by day, not a table.
+  await expect(page.locator(".audit-entry").first()).toBeVisible({ timeout: 10000 });
 });
 
 test("create and delete a hub SVG icon", async ({ page }) => {
@@ -27,14 +28,16 @@ test("create and delete a hub SVG icon", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Icon library" })).toBeVisible();
 
   const iconName = uniqueName("star");
-  await page.getByPlaceholder("Icon name").fill(iconName);
-  await page.getByText("Advanced: paste SVG markup").click();
-  await page.getByLabel("SVG markup").fill('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>');
-  await page.getByRole("button", { name: "Add icon" }).click();
+  const add = await openSettingRow(page, "Add an icon");
+  await add.getByPlaceholder("Icon name").fill(iconName);
+  await add.getByText("Advanced: paste SVG markup").click();
+  await add.getByLabel("SVG markup").fill('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>');
+  await add.getByRole("button", { name: "Add icon" }).click();
 
-  const card = page.locator(".settings-section", { hasText: iconName });
-  await expect(card).toBeVisible({ timeout: 10000 });
+  // Each icon is its own row, and Delete is in the form it opens to.
+  const card = await openSettingRow(page, iconName);
   await card.getByRole("button", { name: "Delete" }).click();
+  await confirmInApp(page);
   await expect(card).toBeHidden({ timeout: 10000 });
 });
 
@@ -51,10 +54,14 @@ test("alliance: create, share a channel, unshare, leave", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Alliances" })).toBeVisible();
 
   const name = uniqueName("Pact");
-  await page.getByPlaceholder("Alliance name").fill(name);
-  await page.getByRole("button", { name: "Create alliance" }).click();
+  const create = await openSettingRow(page, "Create alliance");
+  await create.getByPlaceholder("Alliance name").fill(name);
+  await create.getByRole("button", { name: "Create alliance" }).click();
 
-  const section = page.locator(".alliance-row", { hasText: name });
+  // The alliances themselves are in the form the "Your alliances" row opens
+  // to; opening it closes the creator above.
+  const yours = await openSettingRow(page, "Your alliances");
+  const section = yours.locator(".alliance-row", { hasText: name });
   await expect(section).toBeVisible({ timeout: 10000 });
 
   // Expand the alliance and share the channel. The select's option label
@@ -73,6 +80,7 @@ test("alliance: create, share a channel, unshare, leave", async ({ page }) => {
 
   // Leave the alliance.
   await section.getByRole("button", { name: "Leave" }).click();
+  await confirmInApp(page);
   await expect(page.locator(".alliance-row", { hasText: name })).toBeHidden({ timeout: 10000 });
 });
 
@@ -83,7 +91,8 @@ test("onboarding: save challenge settings", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Onboarding" })).toBeVisible();
 
   // Challenge settings are write-only; saving should report success.
-  await page.getByRole("button", { name: "Save challenge" }).click();
+  const challenge = await openSettingRow(page, "Anti-spam challenge");
+  await challenge.getByRole("button", { name: "Save challenge" }).click();
   await expect(page.getByText("Challenge settings saved")).toBeVisible({ timeout: 10000 });
 });
 
@@ -135,21 +144,30 @@ test("the moderation tab shows the content report queue", async ({ page }) => {
   await expectInHub(page);
   await openAdminTab(page, "Moderation");
 
-  await expect(page.getByRole("heading", { name: "Content Reports" })).toBeVisible();
+  // Each of the three sections is one settings row, and a row's own line is
+  // computed from what the hub answered — so reading the line is what says
+  // the fetch landed. An error renders in the body instead, and none of these
+  // lines can be reached by a section that rendered its own defaults.
+  //
   // Nobody has reported anything on this hub, and saying so is the section
-  // having loaded — an error would render in its place.
-  await expect(page.getByText("No pending reports", { exact: false })).toBeVisible({
+  // having loaded.
+  const reports = settingRow(page, "Content reports");
+  await expect(reports).toBeVisible({ timeout: 10000 });
+  await expect(reports.locator(".setting-row-state")).toHaveText("No pending reports.", {
     timeout: 10000,
   });
 
   // The automod webhook sits in the same tab and was hoisted with it. Its
-  // circuit-breaker row is what says the section reached the hub rather than
-  // rendering its own defaults.
-  await expect(page.getByRole("heading", { name: "Auto-moderation Webhook" })).toBeVisible();
-  await expect(page.getByText("Circuit closed", { exact: false })).toBeVisible({ timeout: 10000 });
+  // circuit-breaker state is what says the section reached the hub.
+  const automod = settingRow(page, "Auto-moderation webhook");
+  await expect(automod.locator(".setting-row-state")).toContainText("Circuit closed", {
+    timeout: 10000,
+  });
 
-  // Federated ban lists, the third hoisted section. Its synced-entry count
-  // comes from the hub, so rendering it at all means the fetch landed.
-  await expect(page.getByRole("heading", { name: "Federated Ban Lists" })).toBeVisible();
-  await expect(page.getByText("Synced entries", { exact: false })).toBeVisible({ timeout: 10000 });
+  // Federated ban lists, the third hoisted section. Whether our own list is
+  // published comes from the hub, so stating it at all means the fetch landed.
+  const banlist = settingRow(page, "Federated ban lists");
+  await expect(banlist.locator(".setting-row-state")).toContainText("our list is", {
+    timeout: 10000,
+  });
 });

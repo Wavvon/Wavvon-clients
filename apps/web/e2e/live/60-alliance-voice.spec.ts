@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub } from "./helpers/live";
+import { expectInHub, confirmInApp } from "./helpers/live";
 
 // P60 — voice in a channel the *allied* hub hosts.
 //
@@ -34,26 +34,24 @@ test("voice joins the allied hub's relay from a hub that only has the grant", as
     .locator(".channel-item", { hasText: CHANNEL! });
   await expect(channel).toBeVisible({ timeout: 20000 });
 
-  // Joining asks first, through `window.confirm`, because the visitor dials
-  // the owning hub direct and that hub's operator sees the IP — so the address
-  // is named before anything is minted. Playwright dismisses dialogs by
-  // default, which aborts the join silently: without this handler the spec
-  // looks like a broken product and is a dismissed prompt.
-  const asked: string[] = [];
-  page.on("dialog", (d) => {
-    asked.push(d.message());
-    void d.accept();
-  });
-
   // The 🔊 on the row is the alliance-voice affordance; it stops propagation
   // so the row is not selected by it.
   await channel.getByRole("button", { name: /Join voice on/ }).click();
+
+  // Joining asks first, because the visitor dials the owning hub direct and
+  // that hub's operator sees the IP — so the address is named before anything
+  // is minted. The app draws the dialog, so nothing native fires: read it off
+  // the modal before accepting it.
+  const modal = page.locator(".confirm-modal");
+  await modal.waitFor({ state: "visible", timeout: 20000 });
+  const asked = await modal.innerText();
+  await confirmInApp(page);
 
   await expect(page.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`, {
     timeout: 30000,
   });
 
   // The prompt has to name the hub being dialed; that is its whole purpose.
-  expect(asked.join(" ")).toContain(CHANNEL!);
-  expect(asked.join(" ")).toMatch(/https?:\/\//);
+  expect(asked).toContain(CHANNEL!);
+  expect(asked).toMatch(/https?:\/\//);
 });

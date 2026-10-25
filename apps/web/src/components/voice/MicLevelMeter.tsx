@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { effectiveVad, micTestVerdict } from "../../platform/speakingDetector";
+import { CAPTURE_SAMPLE_RATE, captureMic } from "../../platform/micCapture";
 
 // A "test your mic" level meter: opens its own microphone stream, runs it
 // through an AnalyserNode, and animates a bar from the RMS level. Fully
@@ -53,9 +54,13 @@ export function MicLevelMeter({ audioProfile }: Props = {}) {
   async function start() {
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // The same capture the voice session uses. The meter is the evidence the
+      // sensitivity slider is set against, so measuring a different device, a
+      // different sample rate or different processing would draw the line on
+      // the wrong signal.
+      const stream = await captureMic();
       streamRef.current = stream;
-      const ctx = new AudioContext();
+      const ctx = new AudioContext({ sampleRate: CAPTURE_SAMPLE_RATE });
       ctxRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();

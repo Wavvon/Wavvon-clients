@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { save, open } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
+  FullArchiveSection,
   IdentityBackupSection,
   RecoveryContactsSection,
+  SettingRow,
   type IdentityBackupSectionActions,
   type RecoveryContactsSectionActions,
   type RecoveryContactItem,
@@ -12,6 +15,7 @@ import {
 import { suggestBackupFilename } from "@wavvon/core";
 import type { AccountSummary } from "../../accounts/store";
 import { buildRecoveryActions } from "../../utils/recoveryActions";
+import { buildFullArchiveActions } from "../../utils/fullArchiveActions";
 import { isIdentityBackedUp, markIdentityBackedUp } from "../../utils/identityBackup";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
@@ -41,9 +45,9 @@ interface ImportedAccount {
 }
 
 // Everything about getting accounts on/off this device: the switcher table,
-// recovery phrase + identity backup (unified shared component, going through
-// Rust's export_account_backup/import_account_backup so the secret key never
-// enters the renderer), recovery contacts, and the home-hub list.
+// recovery phrase + identity backup and full archive (shared components, going
+// through Rust commands so the secret key never enters the renderer), recovery
+// contacts, and the home-hub list.
 export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData }: Props) {
   const { t } = useTranslation();
 
@@ -55,12 +59,14 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
 
   const backupActions: IdentityBackupSectionActions = {
     async exportToPath(accountId, passphrase) {
-      const path = await save({
-        defaultPath: suggestBackupFilename(backupAccounts.find((a) => a.id === accountId)?.label ?? accountId),
-        filters: [{ name: t("settings.account.identity_backup.file_filter"), extensions: ["wavvon-backup"] }],
+      // Rust opens the save dialog itself: the renderer never picks where a
+      // seed-bearing file is written.
+      await invoke("export_account_backup", {
+        id: accountId,
+        passphrase,
+        suggestedName: suggestBackupFilename(backupAccounts.find((a) => a.id === accountId)?.label ?? accountId),
+        filterName: t("settings.account.identity_backup.file_filter"),
       });
-      if (!path) throw new Error("export_cancelled");
-      await invoke("export_account_backup", { id: accountId, passphrase, path });
     },
     async pickImportPath() {
       const path = await open({
@@ -75,9 +81,11 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
     },
   };
 
+  const [localDataOpen, setLocalDataOpen] = useState(false);
+
   return (
     <section>
-      <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.accounts")}</h1>
+      <h1>{t("settings.tabs.accounts")}</h1>
       <AccountSwitcherSection />
       <IdentityBackupSection
         accounts={backupAccounts}
@@ -89,14 +97,22 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
       />
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
+      <FullArchiveSection
+        canExport={!!activeHubUrl}
+        actions={buildFullArchiveActions(t("settings.account.full_archive.file_filter"), t("settings.account.accounts.switch_cooldown"))}
+      />
       <HomeHubSection hubs={hubs} />
-      <div className="settings-section">
-        <label className="settings-label">{t("settings.account.local_data.label")}</label>
+      <SettingRow
+        title={t("settings.account.local_data.label")}
+        state={t("settings.account.local_data.state")}
+        open={localDataOpen}
+        onToggle={() => setLocalDataOpen((v) => !v)}
+      >
         <p className="muted">{t("settings.account.local_data.hint")}</p>
-        <button className="btn-secondary" onClick={onClearLocalData}>
+        <button className="btn-small danger" onClick={onClearLocalData}>
           {t("settings.account.local_data.button")}
         </button>
-      </div>
+      </SettingRow>
     </section>
   );
 }

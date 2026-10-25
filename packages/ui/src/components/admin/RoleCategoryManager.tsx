@@ -4,6 +4,8 @@ import type { RoleCategory } from "../../types";
 import { safeRoleColor } from "../../utils/roleAppearance";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ColorSwatchPicker } from "./ColorSwatchPicker";
+import { useConfirm } from "../ConfirmDialog";
+import { ChevronIcon } from "../Icons";
 
 export interface RoleCategoryManagerActions {
   createRoleCategory: (input: { name: string; position: number }) => Promise<RoleCategory>;
@@ -22,6 +24,7 @@ interface Props {
 
 export function RoleCategoryManager({ categories, onChange, actions }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
@@ -76,7 +79,11 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
   }
 
   async function handleDelete(cat: RoleCategory) {
-    if (!window.confirm(t("hub.admin.role_categories.delete_confirm", { name: cat.name }))) return;
+    if (!(await confirm({
+      title: t("hub.admin.role_categories.delete_confirm", { name: cat.name }),
+      confirmLabel: t("hub.admin.role_categories.delete"),
+      danger: true,
+    }))) return;
     await runMutation(async () => {
       await actions.deleteRoleCategory(cat.id);
       onChange(categories.filter((c) => c.id !== cat.id));
@@ -84,8 +91,9 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
   }
 
   return (
-    <div className="settings-section">
-      <label className="settings-label">{t("hub.admin.role_categories.title")}</label>
+    <section>
+      {dialog}
+      <h2>{t("hub.admin.role_categories.title")}</h2>
       <p className="muted">{t("hub.admin.role_categories.hint")}</p>
       {error && <p className="error-text">{error}</p>}
 
@@ -100,8 +108,8 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
             disabled={index === 0}
             aria-label={t("hub.admin.role_categories.move_up")}
             title={t("hub.admin.role_categories.move_up")}
-          >
-            ↑
+          >
+            <ChevronIcon size={12} dir="up" />
           </button>
           <button
             type="button"
@@ -110,8 +118,8 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
             disabled={index === sorted.length - 1}
             aria-label={t("hub.admin.role_categories.move_down")}
             title={t("hub.admin.role_categories.move_down")}
-          >
-            ↓
+          >
+            <ChevronIcon size={12} dir="down" />
           </button>
           <span style={{ minWidth: 20, textAlign: "center" }}>{cat.icon ?? "—"}</span>
           <EmojiPicker onPick={(icon) => runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { icon })))} unicodeOnly />
@@ -173,6 +181,6 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
           {t("hub.admin.role_categories.create")}
         </button>
       </div>
-    </div>
+    </section>
   );
 }

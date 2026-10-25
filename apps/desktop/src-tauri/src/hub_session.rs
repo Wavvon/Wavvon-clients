@@ -10,6 +10,7 @@ use tauri::{AppHandle, State};
 pub(crate) async fn add_hub(
     hub_url: String,
     invite_code: Option<String>,
+    challenge_token: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<HubInfo, String> {
@@ -32,9 +33,19 @@ pub(crate) async fn add_hub(
     let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
 
     let auth = creds
-        .authenticate(&auth_url, &client, invite_code.as_deref())
+        .authenticate(
+            &auth_url,
+            &client,
+            invite_code.as_deref(),
+            challenge_token.as_deref(),
+            None,
+        )
         .await?;
     let token = auth.token;
+
+    if auth_url != hub_url {
+        admit_farm_token(&client, &hub_url, &token, invite_code.as_deref()).await?;
+    }
 
     // Auth just told this hub which master we are (the cert rides on
     // /auth/verify), so the list is now findable — publish it if the identity
@@ -232,14 +243,40 @@ pub(crate) fn remove_hub(hub_id: String, state: State<'_, AppState>) -> Result<(
     Ok(())
 }
 
+/// A saved hub that could not be reconnected at startup. It stays saved; the
+/// app says so instead of the hub vanishing from the sidebar -- and, when it
+/// was the only one, instead of the welcome screen coming back as if there
+/// were no hubs at all.
+#[derive(serde::Serialize)]
+pub(crate) struct UnreachableHub {
+    hub_name: String,
+    hub_url: String,
+    error: String,
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct AutoConnectResult {
+    hubs: Vec<HubInfo>,
+    unreachable: Vec<UnreachableHub>,
+}
+
 #[tauri::command]
 pub(crate) async fn auto_connect_saved(
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<Vec<HubInfo>, String> {
+) -> Result<AutoConnectResult, String> {
     let saved = load_saved_hubs();
+    let mut unreachable = Vec::new();
     for hub in &saved {
-        let _ = add_hub(hub.hub_url.clone(), None, state.clone(), app.clone()).await;
+        if let Err(error) =
+            add_hub(hub.hub_url.clone(), None, None, state.clone(), app.clone()).await
+        {
+            unreachable.push(UnreachableHub {
+                hub_name: hub.hub_name.clone(),
+                hub_url: hub.hub_url.clone(),
+                error,
+            });
+        }
     }
 
     if let Some(persisted) = load_active_hub_id() {
@@ -250,7 +287,10 @@ pub(crate) async fn auto_connect_saved(
         }
     }
 
-    Ok(list_hubs(state))
+    Ok(AutoConnectResult {
+        hubs: list_hubs(state),
+        unreachable,
+    })
 }
 
 #[tauri::command]
@@ -396,4 +436,48 @@ pub(crate) async fn connection_stats(
         inbound_loss_percent,
         outbound_loss_percent,
     })
+}
+
+// A farm token carries no invite, and an invite-only hub refuses a non-member
+// holding one. Probe first: /join/{code} spends an invite use even for a
+// member. Other probe failures are left for the first real request to report.
+async fn admit_farm_token(
+    client: &reqwest::Client,
+    hub_url: &str,
+    token: &str,
+    invite_code: Option<&str>,
+) -> Result<(), String> {
+    let Ok(probe) = client
+        .get(format!("{hub_url}/me"))
+        .bearer_auth(token)
+        .send()
+        .await
+    else {
+        return Ok(());
+    };
+    if probe.status() != reqwest::StatusCode::FORBIDDEN {
+        return Ok(());
+    }
+    let body = probe.text().await.unwrap_or_default();
+    if !body.contains("requires an invite code") {
+        return Ok(());
+    }
+    let Some(code) = invite_code else {
+        return Err(body);
+    };
+    let mut join = reqwest::Url::parse(hub_url).map_err(|e| format!("hub url: {e}"))?;
+    join.path_segments_mut()
+        .map_err(|_| "hub url cannot take a path".to_string())?
+        .pop_if_empty()
+        .extend(["join", code]);
+    let resp = client
+        .post(join)
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| format!("join: {e}"))?;
+    if resp.status().is_success() {
+        return Ok(());
+    }
+    Err(resp.text().await.unwrap_or_default())
 }

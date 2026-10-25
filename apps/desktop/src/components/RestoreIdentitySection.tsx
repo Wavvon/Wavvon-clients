@@ -15,8 +15,6 @@ export function RestoreIdentitySection({
 
   async function handleRestore() {
     if (!looksValid) return;
-    const ok = confirm(t("settings.account.restore.confirm"));
-    if (!ok) return;
     setBusy(true);
     try {
       await onRestore(phrase.trim());
@@ -28,9 +26,10 @@ export function RestoreIdentitySection({
 
   return (
     <div className="settings-section">
-      <label className="settings-label">{t("settings.account.restore.label")}</label>
+      <label className="settings-label" htmlFor="restore-phrase">{t("settings.account.restore.label")}</label>
       <p className="muted">{t("settings.account.restore.hint")}</p>
       <textarea
+        id="restore-phrase"
         className="recovery-input"
         value={phrase}
         onChange={(e) => setPhrase(e.target.value)}

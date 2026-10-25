@@ -25,7 +25,7 @@ import {
   postPairingComplete,
   upgradeActiveHubIdentity,
 } from "@platform";
-import { AccountLabelSuffix, PerAccountHint } from "@wavvon/ui";
+import { SettingRow } from "@wavvon/ui";
 
 // Operates on `account` — the account currently selected in AccountTab's
 // "Managing" selector, which defaults to (but need not be) the active one.
@@ -93,6 +93,11 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [offer, setOffer] = useState<OfferState>({ phase: "idle" });
+  const [open, setOpen] = useState<string | null>(null);
+  const row = (id: string) => ({
+    open: open === id,
+    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
+  });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshCerts = useCallback(async (masterPubkey: string) => {
@@ -268,15 +273,15 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
   const pairingCode = offer.phase === "waiting" ? offer.code : null;
 
   return (
-    <div className="settings-section" style={{ marginTop: 20 }}>
-      <label className="settings-label">
-        {t("settings.account.devices.label")}
-        <AccountLabelSuffix label={accountLabel} />
-      </label>
-      <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        {t("settings.account.devices.hint")}
-      </p>
-      <PerAccountHint label={accountLabel} />
+    <SettingRow
+      title={t("settings.account.devices.label")}
+      state={!d.enabled
+        ? t("settings.account.devices.state.single")
+        : t("settings.account.devices.state.linked", { count: certs.length })}
+      meta={d.enabled && certs.length > 0 ? String(certs.length) : undefined}
+      {...row("devices")}
+    >
+      <p className="muted">{t("settings.account.devices.hint")}</p>
 
       {!d.enabled ? (
         <>
@@ -331,11 +336,11 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
                   </span>
                 )}
                 {c.subkey_pubkey === d.devicePubkey ? (
-                  <button className="btn-small btn-secondary" onClick={() => (renaming ? void renameDevice() : setRenaming(true))} disabled={busy}>
+                  <button className="btn-small" onClick={() => (renaming ? void renameDevice() : setRenaming(true))} disabled={busy}>
                     {renaming ? t("settings.account.devices.rename_save") : t("settings.account.devices.rename_button")}
                   </button>
                 ) : (
-                  <button className="btn-small btn-secondary danger" onClick={() => revoke(c)} disabled={busy}>
+                  <button className="btn-small danger" onClick={() => revoke(c)} disabled={busy}>
                     {t("settings.account.revoke_button")}
                   </button>
                 )}
@@ -343,8 +348,8 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
             ))
           )}
 
-          <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
-            <label className="settings-label" style={{ fontSize: "var(--text-sm)" }}>{t("settings.account.devices.pair_label")}</label>
+          <div style={{ marginTop: "var(--space-4)" }}>
+            <span className="settings-label">{t("settings.account.devices.pair_label")}</span>
             {offer.phase === "idle" && (
               <button className="btn-secondary" onClick={startPairing} disabled={!activeHubUrl}>
                 {t("settings.account.devices.start_pairing_button")}
@@ -363,10 +368,10 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
                   style={{ width: "100%", fontFamily: "monospace", fontSize: "var(--text-xs)", minHeight: 60 }}
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                  <button className="btn-small btn-secondary" onClick={() => navigator.clipboard.writeText(pairingCode)}>
+                  <button className="btn-small" onClick={() => navigator.clipboard.writeText(pairingCode)}>
                     {t("settings.account.devices.copy_code_button")}
                   </button>
-                  <button className="btn-small btn-secondary" onClick={resetOffer}>{t("modal.cancel")}</button>
+                  <button className="btn-small" onClick={resetOffer}>{t("modal.cancel")}</button>
                 </div>
                 <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 6 }}>{t("settings.account.devices.waiting_other")}</p>
               </div>
@@ -379,25 +384,25 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
                 </p>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn-primary" onClick={approve}>{t("hub.admin.members.pending.approve")}</button>
-                  <button className="btn-small btn-secondary" onClick={resetOffer}>{t("settings.account.devices.reject_button")}</button>
+                  <button className="btn-small" onClick={resetOffer}>{t("settings.account.devices.reject_button")}</button>
                 </div>
               </div>
             )}
             {offer.phase === "completing" && <p className="muted">{t("settings.account.devices.linking")}</p>}
             {offer.phase === "done" && (
               <p style={{ fontSize: "var(--text-sm)" }}>
-                {t("settings.account.devices.linked_prefix")} <strong>{offer.label}</strong> ✓ <button className="btn-small btn-secondary" onClick={resetOffer}>{t("settings.account.done_button")}</button>
+                {t("settings.account.devices.linked_prefix")} <strong>{offer.label}</strong> ✓ <button className="btn-small" onClick={resetOffer}>{t("settings.account.done_button")}</button>
               </p>
             )}
             {offer.phase === "error" && (
               <p className="error-text">
-                {offer.message} <button className="btn-small btn-secondary" onClick={resetOffer}>{t("settings.account.devices.reset_button")}</button>
+                {offer.message} <button className="btn-small" onClick={resetOffer}>{t("settings.account.devices.reset_button")}</button>
               </p>
             )}
           </div>
         </>
       )}
       {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
-    </div>
+    </SettingRow>
   );
 }

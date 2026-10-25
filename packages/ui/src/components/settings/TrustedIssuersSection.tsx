@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import { addTrustRoot, normalizePubkey, removeTrustRoot, type TrustRoot } from "../../utils/trustRoots";
+import { SettingRow } from "../SettingRow";
 
 // Whose signatures this viewer believes (server-tags.md Part 4).
 //
@@ -22,17 +23,23 @@ export function TrustedIssuersSection({ roots, onChange }: Props) {
   const { t } = useTranslation();
   const [pubkeyInput, setPubkeyInput] = useState("");
   const [labelInput, setLabelInput] = useState("");
+  const [open, setOpen] = useState(false);
 
   const pending = normalizePubkey(pubkeyInput);
   const alreadyTrusted = !!pending && roots.some((r) => r.pubkey === pending);
   const malformed = pubkeyInput.trim().length > 0 && !pending;
 
   return (
-    <div className="settings-section">
-      <label className="settings-label">{t("settings.privacy.trusted_issuers.label")}</label>
-      <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-        {t("settings.privacy.trusted_issuers.hint")}
-      </p>
+    <SettingRow
+      title={t("settings.privacy.trusted_issuers.label")}
+      state={roots.length === 0
+        ? t("settings.privacy.trusted_issuers.empty")
+        : t("settings.privacy.trusted_issuers.state", { count: roots.length })}
+      meta={roots.length > 0 ? String(roots.length) : undefined}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      <p className="muted">{t("settings.privacy.trusted_issuers.hint")}</p>
 
       {roots.length === 0 ? (
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
@@ -50,7 +57,7 @@ export function TrustedIssuersSection({ roots, onChange }: Props) {
               <code className="pubkey-display" title={root.pubkey}>{formatPubkey(root.pubkey)}</code>
             </span>
             <button
-              className="btn-small btn-secondary"
+              className="btn-small"
               onClick={() => onChange(removeTrustRoot(roots, root.pubkey))}
             >
               {t("settings.privacy.trusted_issuers.remove")}
@@ -75,7 +82,7 @@ export function TrustedIssuersSection({ roots, onChange }: Props) {
           style={{ flex: 1, minWidth: 120 }}
         />
         <button
-          className="btn-secondary"
+          className="btn-small"
           disabled={!pending || alreadyTrusted}
           onClick={() => {
             onChange(addTrustRoot(roots, pubkeyInput, labelInput));
@@ -98,6 +105,6 @@ export function TrustedIssuersSection({ roots, onChange }: Props) {
           {t("settings.privacy.trusted_issuers.already")}
         </p>
       )}
-    </div>
+    </SettingRow>
   );
 }
