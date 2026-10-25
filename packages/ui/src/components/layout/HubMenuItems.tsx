@@ -14,6 +14,8 @@ export interface HubMenuItemsProps {
   onDone: () => void;
 
   activeHubId: string | null;
+  /** The address a member pastes into "join a hub". */
+  hubUrl?: string;
   isAdmin: boolean;
   canCreateInvites?: boolean;
   hideSilenced?: boolean;
@@ -44,6 +46,7 @@ export function HubMenuItems({
   variant,
   onDone,
   activeHubId,
+  hubUrl,
   isAdmin,
   canCreateInvites,
   hideSilenced,
@@ -118,6 +121,15 @@ export function HubMenuItems({
         {hideSilenced ? "✓ " : ""}
         {t("hub.hide_silenced")}
       </button>
+
+      {hubUrl && (
+        <button
+          className={item}
+          onClick={() => { onDone(); navigator.clipboard.writeText(hubUrl).catch(() => {}); }}
+        >
+          {t("hub.copy_address")}
+        </button>
+      )}
 
       {hasUnread && activeHubId && (
         <button className={item} onClick={() => { onDone(); onClearHubUnread(activeHubId); }}>
