@@ -507,6 +507,7 @@ export function ChannelSidebar({
                 variant="dropdown"
                 onDone={() => onHubDropdownOpenChange(false)}
                 activeHubId={activeHubId}
+                hubUrl={activeHub?.hub_url}
                 isAdmin={isAdmin}
                 canCreateInvites={canCreateInvites}
                 hideSilenced={hideSilenced}
@@ -789,6 +790,7 @@ export function ChannelSidebar({
               variant="context"
               onDone={() => setHubCtxMenu(null)}
               activeHubId={activeHubId}
+              hubUrl={activeHub?.hub_url}
               isAdmin={isAdmin}
               canCreateInvites={canCreateInvites}
               hideSilenced={hideSilenced}

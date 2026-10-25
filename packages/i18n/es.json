@@ -1000,6 +1000,7 @@
   "hub.invite_people": "Invite people",
   "hub.join": "Unirse a un hub",
   "hub.leave": "Quitar de este dispositivo",
+  "hub.copy_address": "Copiar dirección del hub",
   "hub.mark_all_read": "Marcar todo como leído",
   "hub.mentions_suffix": " — mentions only",
   "hub.notifications": "Notifications",
