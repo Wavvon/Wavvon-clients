@@ -1351,7 +1351,6 @@
   "settings.account.accounts.remove_body": "This deletes its local identity, cached home hub list and DM session state. It cannot be undone.",
   "settings.account.accounts.remove_cancel": "Cancel",
   "settings.account.accounts.remove_confirm_button": "Remove account",
-  "settings.account.accounts.remove_confirm_hint": "Without its recovery phrase, passkey, or a backup file, this identity can't be recovered once removed. Type its fingerprint below to confirm.",
   "settings.account.accounts.remove_confirm_placeholder": "Type \"{fingerprint}\" to confirm",
   "settings.account.accounts.remove_title": "Remove {label} from this device?",
   "settings.account.accounts.rename_button": "Rename",
@@ -2047,5 +2046,15 @@
   "settings.profile.findable_by_allies.label": "Let members of allied hubs find me on this hub",
   "settings.profile.findable_by_allies.hint": "Members of hubs allied with this one will see your name and avatar and can message you. They can also see where your DMs are delivered. Off by default.",
   "settings.profile.findable_by_allies.failed": "Could not change this setting.",
-  "app.hub_unreachable_at_start": "Couldn't reconnect to {hub}. It's still saved — it may be offline; restart the app to try again."
+  "app.hub_unreachable_at_start": "Couldn't reconnect to {hub}. It's still saved — it may be offline; restart the app to try again.",
+  "settings.account.accounts.remove_backed_up_hint": "You can bring it back with its recovery phrase or a backup file.",
+  "settings.account.accounts.remove_paired_hint": "The identity stays on your other devices. Revoke this device under Devices too, or it stays listed as trusted.",
+  "settings.account.accounts.remove_unsaved_warning": "This identity exists only on this device. Removing it deletes it everywhere, permanently: on every hub, with its direct messages.",
+  "settings.account.accounts.remove_unsaved_save_first": "Save its recovery phrase or a backup file first, in the section below.",
+  "settings.account.accounts.remove_show_phrase": "Show recovery phrase",
+  "settings.account.accounts.remove_phrase_hint": "Write these words down. With them you can bring this identity back on any device.",
+  "settings.account.accounts.remove_anyway": "Delete it anyway",
+  "settings.account.accounts.remove_type_fingerprint": "Type its fingerprint below to confirm.",
+  "settings.account.accounts.removed_notice": "{label} removed from this device.",
+  "settings.account.accounts.remove_undo": "Undo"
 }
