@@ -2,10 +2,18 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
+import { readFileSync } from "fs";
 import { mediapipeAssets } from "@wavvon/ui/vite-mediapipe-assets";
+
+// One version for both clients: the desktop's tauri.conf.json is the source
+// the release bumps, and apps/web/package.json is not kept in step with it.
+const appVersion = JSON.parse(readFileSync(resolve(__dirname, "../desktop/src-tauri/tauri.conf.json"), "utf8")).version;
 
 export default defineConfig({
   plugins: [react(), mediapipeAssets()],
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
+  },
   optimizeDeps: {
     include: ["opusscript"],
     exclude: ["@mediapipe/selfie_segmentation"],

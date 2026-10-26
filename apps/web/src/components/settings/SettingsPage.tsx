@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
 import type { ThemeId, WavvonSkin, ProfileEditorActions, SettingsTabDef, TrustRoot } from "@wavvon/ui";
-import { CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsShell } from "@wavvon/ui";
+import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsShell } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
 import { getMyProfileOnHub, updateMyProfileOnHub, getFindableByAllies, setFindableByAllies, NO_HUB_SESSION, listMyCertifications } from "@platform";
@@ -42,7 +42,8 @@ export type SettingsTab =
   | "appearance"
   | "voice"
   | "camera"
-  | "help";
+  | "help"
+  | "about";
 
 interface SettingsPageProps {
   tab: SettingsTab;
@@ -134,6 +135,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const G_ACCOUNTS = t("settings.nav_groups.accounts");
   const G_APP = t("settings.nav_groups.app");
   const G_AV = t("settings.nav_groups.audio_video");
+  const G_INFO = t("settings.nav_groups.info");
   const TABS: SettingsTabDef<SettingsTab>[] = [
     { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
     { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
@@ -141,9 +143,10 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
     { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
     { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
-    { id: "help", label: t("settings.tabs.help"), group: G_APP },
     { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
     { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
+    { id: "help", label: t("settings.tabs.help"), group: G_INFO },
+    { id: "about", label: t("settings.tabs.about"), group: G_INFO },
   ];
 
   return (
@@ -223,6 +226,7 @@ export function SettingsPage(props: SettingsPageProps) {
         {props.tab === "camera" && <CameraTab />}
 
         {props.tab === "help" && <HelpTab />}
+        {props.tab === "about" && <AboutTab version={import.meta.env.VITE_APP_VERSION} />}
     </SettingsShell>
   );
 }
