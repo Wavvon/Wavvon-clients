@@ -144,7 +144,7 @@ test("channel bans: ban and unban a real member", async ({ page, browser }) => {
 test("the moderation tab shows the content report queue", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openAdminTab(page, "Moderation");
+  await openAdminTab(page, "Reports");
 
   // Each of the three sections is one settings row, and a row's own line is
   // computed from what the hub answered — so reading the line is what says
