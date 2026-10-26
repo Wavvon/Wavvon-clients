@@ -21,7 +21,7 @@ import {
   type IdentityRecord,
 } from "@identity/index";
 import type { PerAccountProps } from "@wavvon/ui";
-import { isIdentityBackedUp, markIdentityBackedUp } from "../../../utils/identityBackup";
+import { identityNeedsBackup, markIdentityBackedUp } from "../../../utils/identityBackup";
 import { buildFullArchiveActions } from "../../../utils/fullArchiveActions";
 
 interface Props extends PerAccountProps<IdentityRecord> {
@@ -30,6 +30,7 @@ interface Props extends PerAccountProps<IdentityRecord> {
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
   inVoice: boolean;
+  onBackedUp: () => void;
 }
 
 function downloadBytes(bytes: Uint8Array, filename: string) {
@@ -129,9 +130,12 @@ export function ManageAccountsTab(props: Props) {
         recoveryPhrase={props.recoveryPhrase}
         onRevealPhrase={props.onShowRecovery}
         actions={backupActions}
-        needsBackup={!activeIsPaired && !isIdentityBackedUp(props.activeId)}
+        needsBackup={identityNeedsBackup(activeRecord)}
         phraseHeldElsewhere={activeIsPaired}
-        onSavedOffDevice={markIdentityBackedUp}
+        onSavedOffDevice={(id) => {
+          markIdentityBackedUp(id);
+          props.onBackedUp();
+        }}
       />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
       <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />

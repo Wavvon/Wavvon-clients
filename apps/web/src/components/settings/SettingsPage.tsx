@@ -9,6 +9,7 @@ import { getMyProfileOnHub, updateMyProfileOnHub, getFindableByAllies, setFindab
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { addTrustRoot } from "@wavvon/ui";
 import { loadTrustRoots, saveTrustRoots } from "@shared/utils/trustRoots";
+import { identityNeedsBackup } from "../../utils/identityBackup";
 import { NotificationsTab } from "./tabs/NotificationsTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { VoiceTab } from "./tabs/VoiceTab";
@@ -116,6 +117,13 @@ export function SettingsPage(props: SettingsPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Bumped when a backup is exported, so the tab marker clears at once;
+  // revealing the phrase already re-renders through the recoveryPhrase prop.
+  const [, setBackupTick] = useState(0);
+  const accountsAttention = identityNeedsBackup(accounts?.find((a) => a.id === activeId))
+    ? t("settings.identity_backup.badge")
+    : undefined;
+
   const managing = resolveManagingAccount(accounts, managingId, activeId);
   const perAccount = { accounts, activeId, managing, onManagingChange: setManagingId };
 
@@ -128,7 +136,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const G_AV = t("settings.nav_groups.audio_video");
   const TABS: SettingsTabDef<SettingsTab>[] = [
     { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
-    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS },
+    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
     { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
     { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
@@ -159,6 +167,7 @@ export function SettingsPage(props: SettingsPageProps) {
             recoveryPhrase={props.recoveryPhrase}
             onShowRecovery={props.onShowRecovery}
             inVoice={props.inVoice}
+            onBackedUp={() => setBackupTick((n) => n + 1)}
             {...perAccount}
           />
         )}
