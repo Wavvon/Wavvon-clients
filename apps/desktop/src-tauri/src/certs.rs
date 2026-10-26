@@ -30,12 +30,21 @@ pub(crate) async fn get_audit_log(
     hub_url: String,
     cursor: Option<i64>,
     limit: Option<i64>,
+    event_type: Option<String>,
+    actor: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let mut query = format!("limit={}", limit.unwrap_or(50));
     if let Some(c) = cursor {
         query.push_str(&format!("&cursor={c}"));
+    }
+    // Both are hex keys or dotted event names, so they need no escaping.
+    if let Some(e) = event_type {
+        query.push_str(&format!("&event_type={e}"));
+    }
+    if let Some(a) = actor {
+        query.push_str(&format!("&actor={a}"));
     }
     let res = state
         .http_client
