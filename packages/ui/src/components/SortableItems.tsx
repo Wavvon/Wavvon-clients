@@ -40,6 +40,7 @@ export function SortableHubIcon({
 function VoiceParticipantRow({
   participant,
   avatar,
+  speaking,
   gain,
   isWhisperingToMe,
   onSetGain,
@@ -47,6 +48,7 @@ function VoiceParticipantRow({
 }: {
   participant: VoiceParticipant;
   avatar?: string | null;
+  speaking?: boolean;
   gain: number;
   isWhisperingToMe?: boolean;
   onSetGain?: (publicKey: string, gainPct: number) => void;
@@ -58,7 +60,7 @@ function VoiceParticipantRow({
 
   return (
     <li
-      className="channel-participant"
+      className={`channel-participant${speaking ? " speaking" : ""}`}
       title={participant.public_key}
       onContextMenu={
         onContextMenu || onSetGain
@@ -141,6 +143,7 @@ export function SortableChannelItem({
   onSetVoiceGain,
   inboundWhispers,
   avatars,
+  speaking,
   hasDraft,
   onClick,
   onDoubleClick,
@@ -177,6 +180,7 @@ export function SortableChannelItem({
   /** Member avatars by pubkey, from the member list the client already holds.
    *  An alliance visitor is not in it and falls back to initials. */
   avatars?: Map<string, string | null>;
+  speaking?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
   onClick: () => void;
@@ -338,6 +342,7 @@ export function SortableChannelItem({
               key={p.public_key}
               participant={p}
               avatar={avatars?.get(p.public_key)}
+              speaking={speaking?.has(p.public_key)}
               gain={voiceGains?.[p.public_key] ?? 100}
               isWhisperingToMe={inboundWhispers?.has(p.public_key)}
               onSetGain={onSetVoiceGain}

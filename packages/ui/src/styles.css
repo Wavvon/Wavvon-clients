@@ -2436,8 +2436,12 @@ tr.account-drop-target td {
   color: var(--text);
 }
 
+.channel-participant .avatar {
+  transition: box-shadow 120ms ease-out;
+}
+
 .channel-participant.speaking .avatar {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 8px 2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .voice-status {

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { HUB_URL, channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
+import { HUB_URL, OWNER_NAME, channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
 
 // P62 — audio actually crosses.
 //
@@ -122,6 +122,13 @@ test("a datagram is received, unsealed and decoded — not just a roster row", a
     await expect(connValue(page, "Packet loss (out)")).toHaveText(/^\d+(\.\d+)? %$/, {
       timeout: 60000,
     });
+
+    // The sidebar roster lights up whoever is speaking, yourself included
+    // (Wavvon-clients#157): the class was styled and never applied. Music
+    // reports speaking from the first frame, so both rows qualify.
+    const roster = page.locator(".channel-participants .channel-participant");
+    await expect(roster.filter({ hasText: speakerName })).toHaveClass(/\bspeaking\b/, { timeout: 30000 });
+    await expect(roster.filter({ hasText: OWNER_NAME })).toHaveClass(/\bspeaking\b/, { timeout: 30000 });
   } finally {
     await context.close();
   }

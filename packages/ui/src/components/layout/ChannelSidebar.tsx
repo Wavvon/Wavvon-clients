@@ -180,6 +180,8 @@ interface Props {
   onSetVoiceGain?: (pk: string, gainPct: number) => void;
   /** Pubkeys currently whispering to the local user. */
   inboundWhispers?: Set<string>;
+  /** Pubkeys speaking right now, as the hub broadcasts it (yours included). */
+  speaking?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
   /** Present = render the global-search trigger button above the channel list. */
@@ -227,7 +229,7 @@ export function ChannelSidebar({
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings, settingsNeedsAttention,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
-  voiceGains, onSetVoiceGain, inboundWhispers, hasDraft,
+  voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
   onOpenSearch,
   isWhispering, whisperTargets, whisperLists, showWhisperPanel,
   onToggleWhisperPanel, onCloseWhisperPanel, onStartWhisper, onStopWhisper,
@@ -638,6 +640,7 @@ export function ChannelSidebar({
                         onSetVoiceGain={onSetVoiceGain}
                         inboundWhispers={inboundWhispers}
                         avatars={avatarByKey}
+                        speaking={speaking}
                         hasDraft={hasDraft}
                         onClick={() => {
                           setChannelFocusIndex(index);
