@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettingRow } from "./SettingRow";
 import {
   BackgroundProcessor,
   loadBgMode,
@@ -9,8 +8,10 @@ import {
   type BackgroundMode,
 } from "../utils/backgroundProcessor";
 
-// Camera device selection, background effects, and a live preview
-// (Settings → Camera). The chosen device is read by App when enabling the
+// Camera device selection and background effects around a live preview
+// (Settings → Camera). Every choice here is visual, so the preview leads the
+// page and starts with it; it stops when the tab closes so the camera light
+// goes off. The chosen device is read by App when enabling the
 // camera in voice (wavvon.videoInputDevice); the background effect
 // (wavvon.bgMode/bgSource) is applied there too, and live via a
 // "wavvon:bgchange" event.
@@ -36,12 +37,7 @@ export function CameraTab() {
   const [bgActive, setBgActive] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
-  const [justGranted, setJustGranted] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
-  const row = (id: string) => ({
-    open: open === id,
-    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
-  });
+  const [checked, setChecked] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const rawRef = useRef<MediaStream | null>(null);
   const procRef = useRef<BackgroundProcessor | null>(null);
@@ -56,28 +52,34 @@ export function CameraTab() {
     setBgActive(null);
   }
 
-  async function refresh() {
+  // Labels are blank until camera permission is granted at least once.
+  async function refresh(): Promise<boolean> {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cams = devices.filter((d) => d.kind === "videoinput");
       setCameras(cams);
-      // Labels are blank until camera permission is granted at least once.
-      setNeedsPermission(cams.length > 0 && cams.every((d) => !d.label));
-    } catch { setCameras([]); }
+      const locked = cams.length > 0 && cams.every((d) => !d.label);
+      setNeedsPermission(locked);
+      return locked;
+    } catch {
+      setCameras([]);
+      return false;
+    } finally {
+      setChecked(true);
+    }
   }
 
-  async function grantAndRefresh() {
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true });
-      s.getTracks().forEach((t) => t.stop());
-      await refresh();
-      setJustGranted(true);
-      setTimeout(() => setJustGranted(false), 4000);
-    } catch { /* denied */ }
+  // Asking for the camera is the button's job, never the tab's on open: a
+  // prompt the user did not ask for is the wrong first impression.
+  async function grantAndPreview() {
+    setNeedsPermission(false);
+    await startPreview(device, mode, source);
   }
 
   useEffect(() => {
-    void refresh();
+    void refresh().then((locked) => {
+      if (!locked) void startPreview(device, mode, source);
+    });
     navigator.mediaDevices?.addEventListener?.("devicechange", refresh);
     return () => {
       navigator.mediaDevices?.removeEventListener?.("devicechange", refresh);
@@ -144,106 +146,61 @@ export function CameraTab() {
     }
   }
 
-  const cameraName = () => {
-    if (!device) return t("settings.camera.system_default");
-    const i = cameras.findIndex((d) => d.deviceId === device);
-    if (i < 0) return t("settings.camera.system_default");
-    return cameras[i].label || t("settings.camera.fallback_name", { num: i + 1 });
-  };
+  const MODES: BackgroundMode[] = ["none", "blur", "image", "video"];
 
   return (
     <section>
       <h1>{t("settings.tabs.camera")}</h1>
 
-      <SettingRow
-        title={t("settings.camera.device_label")}
-        state={cameraName()}
-        {...row("device")}
-      >
-        <select id="camera-device" aria-label={t("settings.camera.device_aria")} value={device} onChange={(e) => pickDevice(e.target.value)} style={{ width: "100%", maxWidth: 320 }}>
-          <option value="">{t("settings.camera.system_default")}</option>
-          {cameras.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || t("settings.camera.fallback_name", { num: i + 1 })}</option>)}
-        </select>
-        {needsPermission && (
-          <div style={{ marginTop: "var(--space-2)" }}>
-            <button className="btn-small" onClick={grantAndRefresh}>
-              {t("settings.camera.permission_button")}
-            </button>
-            <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: 4, marginBottom: 0 }}>
-              {t("settings.camera.permission_hint")}
-            </p>
-          </div>
+      <div className="camera-preview">
+        <video ref={videoRef} muted playsInline style={{ visibility: previewing ? "visible" : "hidden" }} />
+        {checked && needsPermission && (
+          <button className="camera-preview-overlay" onClick={grantAndPreview}>
+            {t("settings.camera.permission_button")}
+          </button>
         )}
-        <span aria-live="polite" className="muted" style={{ display: "block", fontSize: "var(--text-xs)" }}>
-          {justGranted ? t("settings.camera.permission_granted") : ""}
-        </span>
-      </SettingRow>
+      </div>
+      {previewing && bgActive !== null && (
+        <p className="muted" aria-live="polite" style={{ fontSize: "var(--text-xs)", marginTop: 6, marginBottom: 0 }}>
+          {t(bgActive ? "settings.camera.bg.status_active" : "settings.camera.bg.status_unavailable")}
+        </p>
+      )}
+      {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
 
-      <SettingRow
-        title={t("settings.camera.background_label")}
-        state={t(`settings.camera.bg.${mode}`)}
-        {...row("background")}
-      >
-        <select
-          id="camera-bg"
-          aria-label={t("settings.camera.background_aria")}
-          value={mode}
-          onChange={(e) => {
-            const m = e.target.value as BackgroundMode;
+      <label className="settings-label" htmlFor="camera-device" style={{ marginTop: "var(--space-4)" }}>
+        {t("settings.camera.device_label")}
+      </label>
+      <select id="camera-device" aria-label={t("settings.camera.device_aria")} value={device} onChange={(e) => pickDevice(e.target.value)} style={{ width: "100%", maxWidth: 320 }}>
+        <option value="">{t("settings.camera.system_default")}</option>
+        {cameras.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || t("settings.camera.fallback_name", { num: i + 1 })}</option>)}
+      </select>
+
+      <span className="settings-label" id="camera-bg-label" style={{ marginTop: "var(--space-4)" }}>
+        {t("settings.camera.background_label")}
+      </span>
+      <div role="radiogroup" aria-label={t("settings.camera.background_aria")} className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
+        {MODES.map((m) => (
+          <button
+            key={m}
+            role="radio"
+            aria-checked={mode === m}
+            className={`discover-tag-chip${mode === m ? " active" : ""}`}
             // Keep the existing source when switching to image/video; clear otherwise.
-            applyMode(m, m === "image" || m === "video" ? source : null);
-          }}
-          style={{ width: "100%", maxWidth: 320 }}
-        >
-          <option value="none">{t("settings.camera.bg.none")}</option>
-          <option value="blur">{t("settings.camera.bg.blur")}</option>
-          <option value="image">{t("settings.camera.bg.image")}</option>
-          <option value="video">{t("settings.camera.bg.video")}</option>
-        </select>
-        {mode === "image" && (
-          <input type="file" accept="image/*" aria-label={t("settings.camera.bg.image_file_aria")} onChange={(e) => onBackgroundFile("image", e.target.files?.[0])} />
-        )}
-        {mode === "video" && (
-          <input type="file" accept="video/*" aria-label={t("settings.camera.bg.video_file_aria")} onChange={(e) => onBackgroundFile("video", e.target.files?.[0])} />
-        )}
-        {(mode === "image" || mode === "video") && !source && (
-          <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t(mode === "image" ? "settings.camera.bg.pick_hint_image" : "settings.camera.bg.pick_hint_video")}</span>
-        )}
-      </SettingRow>
-
-      <SettingRow
-        title={t("settings.camera.preview.label")}
-        state={previewing ? t("settings.camera.preview.state.on") : t("settings.camera.preview.state.off")}
-        {...row("preview")}
-      >
-        <div className="settings-row">
-          {previewing ? (
-            <button className="btn-small" onClick={stopPreview}>{t("settings.camera.preview.stop")}</button>
-          ) : (
-            <button className="btn-small" onClick={() => startPreview(device, mode, source)}>{t("settings.camera.preview.start")}</button>
-          )}
-        </div>
-        {previewing && bgActive !== null && (
-          <p className="muted" aria-live="polite" style={{ fontSize: "var(--text-xs)", marginTop: 6, marginBottom: 0 }}>
-            {t(bgActive ? "settings.camera.bg.status_active" : "settings.camera.bg.status_unavailable")}
-          </p>
-        )}
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          style={{
-            display: previewing ? "block" : "none",
-            marginTop: "var(--space-2)",
-            width: "100%",
-            maxWidth: 320,
-            borderRadius: "var(--r-md)",
-            background: "#000",
-            transform: "scaleX(-1)",
-          }}
-        />
-        {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
-      </SettingRow>
+            onClick={() => applyMode(m, m === "image" || m === "video" ? source : null)}
+          >
+            {t(`settings.camera.bg.${m}`)}
+          </button>
+        ))}
+      </div>
+      {mode === "image" && (
+        <input type="file" accept="image/*" aria-label={t("settings.camera.bg.image_file_aria")} onChange={(e) => onBackgroundFile("image", e.target.files?.[0])} />
+      )}
+      {mode === "video" && (
+        <input type="file" accept="video/*" aria-label={t("settings.camera.bg.video_file_aria")} onChange={(e) => onBackgroundFile("video", e.target.files?.[0])} />
+      )}
+      {(mode === "image" || mode === "video") && !source && (
+        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t(mode === "image" ? "settings.camera.bg.pick_hint_image" : "settings.camera.bg.pick_hint_video")}</p>
+      )}
     </section>
   );
 }

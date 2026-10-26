@@ -364,3 +364,14 @@ export async function openSettingRow(page: Page, title: string | RegExp) {
   }
   return row;
 }
+
+// Without a camera permission the preview area holds the button that asks
+// for it; with one, the preview starts by itself.
+export async function startCameraPreview(page: Page) {
+  const allow = page.getByRole("button", { name: "Allow camera" });
+  const video = page.locator(".camera-preview video");
+  await expect(allow.or(video)).toBeVisible({ timeout: 10000 });
+  if (await allow.isVisible()) await allow.click();
+  await expect(video).toBeVisible({ timeout: 15000 });
+  return video;
+}

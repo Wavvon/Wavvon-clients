@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, openSettingRow } from "./helpers/live";
+import { expectInHub, startCameraPreview } from "./helpers/live";
 
 // P45 — webcam background effects (none/blur/image/video). Actual segmented
 // pixels aren't assertable headless, so we cover: the picker + options, the
@@ -17,13 +17,12 @@ test("background picker offers none/blur/image/video and persists the choice", a
   await expectInHub(page);
   await openCameraSettings(page);
 
-  // The picker is in the form the Background row opens to.
-  const background = await openSettingRow(page, "Background");
-  const select = background.getByLabel("Background effect");
-  await expect(select).toBeVisible({ timeout: 10000 });
-  await expect(select.locator("option")).toHaveText(["None", "Blur", "Image", "Video"]);
+  const picker = page.getByRole("radiogroup", { name: "Background effect" });
+  await expect(picker).toBeVisible({ timeout: 10000 });
+  await expect(picker.getByRole("radio")).toHaveText(["None", "Blur", "Image", "Video"]);
 
-  await select.selectOption("blur");
+  await picker.getByRole("radio", { name: "Blur" }).click();
+  await expect(picker.getByRole("radio", { name: "Blur" })).toHaveAttribute("aria-checked", "true");
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("wavvon.bgMode")))
     .toBe("blur");
@@ -34,16 +33,11 @@ test("camera preview still works with blur selected, and the model is self-hoste
   await expectInHub(page);
   await openCameraSettings(page);
 
-  const background = await openSettingRow(page, "Background");
-  await background.getByLabel("Background effect").selectOption("blur");
+  await page.getByRole("radiogroup", { name: "Background effect" }).getByRole("radio", { name: "Blur" }).click();
 
-  // Background and Preview are separate rows and the tab is an accordion, so
-  // opening the preview closes the picker — the choice is already saved.
-  const preview = await openSettingRow(page, "Preview");
-  await preview.getByRole("button", { name: "Preview camera" }).click();
   // Even if segmentation can't load headless, the pipeline falls back to raw
-  // video, so a preview <video> must still appear (camera never breaks).
-  await expect(preview.locator("video")).toBeVisible({ timeout: 15000 });
+  // video, so the preview must still play (camera never breaks).
+  await startCameraPreview(page);
 
   // The MediaPipe model is served from our own origin (no CDN dependency).
   const res = await page.request.get(`${baseURL}/mediapipe/selfie_segmentation.tflite`);
