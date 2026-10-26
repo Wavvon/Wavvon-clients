@@ -25,6 +25,7 @@ import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { listAccounts, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
+import { identityNeedsBackup } from "../utils/identityBackup";
 import { loadTrustRoots, saveTrustRoots } from "../utils/trustRoots";
 import { addTrustRoot, CameraTab, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
@@ -134,6 +135,12 @@ export function SettingsPage(props: SettingsPageProps) {
     onToggle: () => setOpenRow((cur) => (cur === id ? null : id)),
   });
   const activeId = accounts?.find((a) => a.is_active)?.id ?? null;
+  // Bumped when a backup is exported, so the tab marker clears at once;
+  // revealing the phrase already re-renders through the recoveryPhrase prop.
+  const [, setBackupTick] = useState(0);
+  const accountsAttention = identityNeedsBackup(accounts?.find((a) => a.is_active))
+    ? t("settings.identity_backup.badge")
+    : undefined;
 
   useEffect(() => {
     listAccounts()
@@ -170,7 +177,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const G_AV = t("settings.nav_groups.audio_video");
   const TABS: SettingsTabDef<SettingsTab>[] = [
     { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
-    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS },
+    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
     { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
     { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
@@ -204,6 +211,7 @@ export function SettingsPage(props: SettingsPageProps) {
             onShowRecovery={props.onShowRecovery}
             onRecoverIdentity={props.onRecoverIdentity}
             onClearLocalData={props.onClearLocalData}
+            onBackedUp={() => setBackupTick((n) => n + 1)}
           />
         )}
 

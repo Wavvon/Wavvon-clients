@@ -44,7 +44,7 @@ import { WhisperInbox } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
 import { ChannelSidebarContainer } from "@components/layout/ChannelSidebarContainer";
 import { AppModals } from "@components/layout/AppModals";
-import { isIdentityBackedUp, wasBackupPrompted, markBackupPrompted } from "./utils/identityBackup";
+import { identityNeedsBackup, wasBackupPrompted, markBackupPrompted } from "./utils/identityBackup";
 import { loadDefaultProfile, saveDefaultProfile, type DefaultProfile } from "./utils/profiles";
 import { startPrefsSync } from "./utils/prefsSync";
 import { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
@@ -132,15 +132,18 @@ export default function App({ initialView }: AppProps = {}) {
   // message — see utils/identityBackup.ts. Recomputed rather than watched:
   // the two places that can change it are the settings panel and this prompt,
   // and both close.
-  const [identityNeedsBackup, setIdentityNeedsBackup] = useState(false);
+  const [backupNeeded, setBackupNeeded] = useState(false);
   const [showBackupPrompt, setShowBackupPrompt] = useState(false);
   function refreshIdentityBackupState() {
-    setIdentityNeedsBackup(!isIdentityBackedUp());
+    loadIdentity().then((rec) => setBackupNeeded(identityNeedsBackup(rec)));
   }
   function handleOwnMessageSent() {
-    if (isIdentityBackedUp() || wasBackupPrompted()) return;
-    markBackupPrompted();
-    setShowBackupPrompt(true);
+    if (wasBackupPrompted()) return;
+    loadIdentity().then((rec) => {
+      if (!identityNeedsBackup(rec) || wasBackupPrompted()) return;
+      markBackupPrompted();
+      setShowBackupPrompt(true);
+    });
   }
 
   // Captured wholesale (not just destructured) so it can be passed straight
@@ -1506,7 +1509,7 @@ export default function App({ initialView }: AppProps = {}) {
         onOpenFriends={() => setShowFriends(true)}
         onOpenSettings={() => setShowSettings(true)}
         onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}
-        settingsNeedsAttention={identityNeedsBackup}
+        settingsNeedsAttention={backupNeeded}
         onOpenSearch={() => setShowSearchBar(true)}
         onDragEnd={handleChannelDragEnd}
       />

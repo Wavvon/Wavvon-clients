@@ -6,6 +6,9 @@ export interface SettingsTabDef<TTab extends string = string> {
   id: TTab;
   label: string;
   group: string;
+  /** Accessible label for a marker on the tab: something there needs the
+   *  user. Absent means no marker. */
+  attention?: string;
 }
 
 interface Props<TTab extends string> {
@@ -40,6 +43,7 @@ export function SettingsShell<TTab extends string>({ title, tabs, activeTab, onT
                 style={{ width: "100%", textAlign: "left", padding: "6px 10px", borderRadius: "var(--r-sm)" }}
               >
                 {tab.label}
+                {tab.attention && <span className="settings-nav-dot" aria-label={tab.attention} />}
               </button>
             </li>
           ))}

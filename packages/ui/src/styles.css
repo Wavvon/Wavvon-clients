@@ -7421,6 +7421,15 @@ a.embed-title:hover {
 /* Unsaved-identity marker on the settings gear. Position only — the gear
    itself is styled above. */
 .btn-icon-gear { position: relative; }
+.settings-nav-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--danger);
+}
 .gear-attention-dot {
   position: absolute;
   top: 2px;
