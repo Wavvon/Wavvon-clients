@@ -263,6 +263,8 @@ pub fn run() {
             admin::timeout_user_cmd,
             admin::voice_mute_user_cmd,
             admin::voice_unmute_user_cmd,
+            admin::unmute_user_cmd,
+            admin::list_mutes,
             admin::list_voice_mutes,
             admin::channel_ban_user,
             admin::channel_unban_user,

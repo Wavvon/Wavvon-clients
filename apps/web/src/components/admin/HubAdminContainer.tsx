@@ -88,9 +88,11 @@ export function HubAdminContainer({
         pendingMembers={hubAdmin.hubAdminPending}
         onApproveMember={(pk) => hubFetch(`/hub/pending/${pk}/approve`, { method: "POST" }).catch(() => {})}
         members={hubAdmin.hubAdminMembers}
-        onKickMember={(pk) => hubFetch(`/moderation/kick`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}
-        onBanMember={(pk) => hubFetch(`/moderation/bans`, { method: "POST", body: JSON.stringify({ target_public_key: pk }) }).catch(() => {})}
+        onKickMember={hubAdmin.onKickMember}
+        onBanMember={hubAdmin.onBanMember}
         onMuteMember={hubAdmin.onMuteMember}
+        onUnmuteMember={hubAdmin.onUnmuteMember}
+        mutes={hubAdmin.mutes}
         onTimeoutMember={hubAdmin.onTimeoutMember}
         onVoiceMuteMember={hubAdmin.onVoiceMuteMember}
         onVoiceUnmuteMember={hubAdmin.onVoiceUnmuteMember}

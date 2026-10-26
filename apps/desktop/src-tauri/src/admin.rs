@@ -764,6 +764,50 @@ pub(crate) async fn mute_user_cmd(
 }
 
 #[tauri::command]
+pub(crate) async fn unmute_user_cmd(
+    target_public_key: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .delete(format!("{hub_url}/moderation/mutes/{target_public_key}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+/// A mute when `expires_at` is null, a timeout otherwise: the hub keeps both
+/// in one table.
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct MuteInfo {
+    pub target_public_key: String,
+    pub muted_by: String,
+    pub reason: Option<String>,
+    pub expires_at: Option<i64>,
+    pub created_at: i64,
+}
+
+#[tauri::command]
+pub(crate) async fn list_mutes(state: State<'_, AppState>) -> Result<Vec<MuteInfo>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    crate::paging::fetch_all_pages_as(
+        &client,
+        &token,
+        &format!("{hub_url}/moderation/mutes"),
+        "target_public_key",
+        "list_mutes",
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn timeout_user_cmd(
     target_public_key: String,
     duration_seconds: u64,

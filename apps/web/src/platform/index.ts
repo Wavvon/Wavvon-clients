@@ -206,6 +206,8 @@ export {
   removeBanlistOverride,
   setBanlistPublish,
   muteMember,
+  unmuteMember,
+  listMutes,
   timeoutMember,
   voiceMuteMember,
   voiceUnmuteMember,

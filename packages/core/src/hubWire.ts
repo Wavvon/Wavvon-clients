@@ -79,6 +79,16 @@ export interface VoiceMuteInfo {
   created_at: number;
 }
 
+/** A row of `GET /moderation/mutes`: a mute when `expires_at` is null, a
+ *  timeout otherwise (both share one table on the hub). */
+export interface MuteInfo {
+  target_public_key: string;
+  muted_by: string;
+  reason: string | null;
+  expires_at: number | null;
+  created_at: number;
+}
+
 export interface PendingUser {
   public_key: string;
   display_name: string | null;

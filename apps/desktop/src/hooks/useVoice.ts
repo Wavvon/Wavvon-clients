@@ -408,27 +408,18 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   }
 
   async function handleVoiceMuteMember(publicKey: string) {
-    const reason = prompt("Reason for voice mute (optional)") ?? "";
-    try {
-      await invoke("voice_mute_user_cmd", {
-        targetPublicKey: publicKey,
-        reason: reason.trim() || null,
-      });
-      setToast(i18n.t("toast.voice_muted"));
-      await refreshVoiceMutes();
-    } catch (e) {
-      setError(String(e));
-    }
+    const reason = prompt("Reason for voice mute (optional)");
+    if (reason === null) return false;
+    await invoke("voice_mute_user_cmd", {
+      targetPublicKey: publicKey,
+      reason: reason.trim() || null,
+    });
+    await refreshVoiceMutes();
   }
 
   async function handleVoiceUnmuteMember(publicKey: string) {
-    try {
-      await invoke("voice_unmute_user_cmd", { targetPublicKey: publicKey });
-      setToast(i18n.t("toast.voice_unmuted"));
-      await refreshVoiceMutes();
-    } catch (e) {
-      setError(String(e));
-    }
+    await invoke("voice_unmute_user_cmd", { targetPublicKey: publicKey });
+    await refreshVoiceMutes();
   }
 
   function handleScreenShare() {

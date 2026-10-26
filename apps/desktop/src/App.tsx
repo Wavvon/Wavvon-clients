@@ -305,6 +305,8 @@ function App() {
     handleKickMember,
     handleBanMember,
     handleMuteMember,
+    handleUnmuteMember,
+    adminMutes,
     handleTimeoutMember,
     refreshBans,
     handleUnban,
@@ -318,6 +320,9 @@ function App() {
     setHubs: (updater) => setHubs(updater),
     setError,
     setToast,
+    // The hub only broadcasts MemberOffline on a kick or ban, which would
+    // leave the member listed as merely offline.
+    onMemberRemoved: (pk) => setUsers((prev) => prev.filter((u) => u.public_key !== pk)),
   });
 
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
@@ -1543,6 +1548,8 @@ function App() {
             onKickMember={handleKickMember}
             onBanMember={handleBanMember}
             onMuteMember={handleMuteMember}
+            onUnmuteMember={handleUnmuteMember}
+            mutes={adminMutes}
             onTimeoutMember={handleTimeoutMember}
             onVoiceMuteMember={voice.handleVoiceMuteMember}
             onVoiceUnmuteMember={voice.handleVoiceUnmuteMember}

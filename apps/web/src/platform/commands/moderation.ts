@@ -9,6 +9,7 @@ import type {
   BanlistSource,
   FederatedBanEntry,
   BanlistOverride,
+  MuteInfo,
 } from "../../types";
 
 export async function reportMessage(messageId: string, reason: string): Promise<void> {
@@ -137,6 +138,26 @@ export async function timeoutMember(
   await hubFetch("/moderation/timeout", {
     method: "POST",
     body: JSON.stringify({ target_public_key: targetPublicKey, duration_seconds: durationSeconds, reason }),
+  });
+}
+
+export async function unmuteMember(targetPublicKey: string): Promise<void> {
+  await hubFetch(`/moderation/mutes/${targetPublicKey}`, { method: "DELETE" });
+}
+
+/** Every mute and timeout on this hub, walked to exhaustion. */
+export async function listMutes(): Promise<MuteInfo[]> {
+  return fetchAllPages<MuteInfo>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (m) => m.target_public_key,
+    fetchPage: async (params) =>
+      (await (
+        await hubFetch(params ? `/moderation/mutes?${params}` : "/moderation/mutes")
+      ).json()) as MuteInfo[],
+    label: "listMutes",
   });
 }
 

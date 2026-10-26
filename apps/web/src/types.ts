@@ -16,6 +16,7 @@ export type {
   MemberAdminInfo,
   BanInfo,
   VoiceMuteInfo,
+  MuteInfo,
   PendingUser,
   Conversation,
   DmMessage,

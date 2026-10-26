@@ -2056,5 +2056,18 @@
   "settings.account.accounts.remove_anyway": "Delete it anyway",
   "settings.account.accounts.remove_type_fingerprint": "Type its fingerprint below to confirm.",
   "settings.account.accounts.removed_notice": "{label} removed from this device.",
-  "settings.account.accounts.remove_undo": "Undo"
+  "settings.account.accounts.remove_undo": "Undo",
+  "hub.admin.members.unmute": "Unmute",
+  "hub.admin.members.end_timeout": "End timeout",
+  "hub.admin.members.muted": "muted",
+  "hub.admin.members.timed_out_until": "timed out until {time}",
+  "hub.admin.members.voice_muted": "muted in voice",
+  "hub.admin.members.done.kicked": "{name} was kicked.",
+  "hub.admin.members.done.banned": "{name} was banned.",
+  "hub.admin.members.done.muted": "{name} is muted.",
+  "hub.admin.members.done.timed_out": "{name} is timed out.",
+  "hub.admin.members.done.unmuted": "{name} can write again.",
+  "hub.admin.members.done.voice_muted": "{name} is muted in voice.",
+  "hub.admin.members.done.voice_unmuted": "{name} can speak in voice again.",
+  "hub.admin.members.action_failed": "That did not work: {error}"
 }

@@ -1,11 +1,13 @@
 import { useState } from "react";
+import i18n from "@wavvon/i18n";
 import { hubFetch } from "@platform";
 import { getHubSettings, saveHubSettings, getHubListingStatus, setHubListed as setHubListedRemote } from "@platform";
-import { muteMember, timeoutMember, voiceMuteMember, voiceUnmuteMember, listVoiceMutes } from "@platform";
+import { muteMember, unmuteMember, listMutes, timeoutMember, voiceMuteMember, voiceUnmuteMember, listVoiceMutes } from "@platform";
 import { listBans, listInvites, listPendingUsers } from "@platform";
 import { HubApiError } from "../platform/http";
 import type {
   MemberAdminInfo,
+  MuteInfo,
   BanInfo,
   InviteInfo,
   PendingUser,
@@ -19,9 +21,11 @@ interface UseHubAdminParams {
    * locally-stored hub list (whose hub_name/hub_icon are written at add-time
    * and otherwise never refreshed) and must sync it. */
   onSaved?: () => void;
+  /** A member was kicked or banned: the caller's own member list is stale. */
+  onMemberRemoved?: (publicKey: string) => void;
 }
 
-export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
+export function useHubAdmin({ activeHubId, onSaved, onMemberRemoved }: UseHubAdminParams) {
   const [showHubAdmin, setShowHubAdmin] = useState(false);
   const [hubAdminTab, setHubAdminTab] = useState<HubAdminTab>("overview");
   const [hubAdminName, setHubAdminName] = useState("");
@@ -47,6 +51,7 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
   const [maxChannelDepth, setMaxChannelDepth] = useState(0);
   const [hubListed, setHubListedState] = useState(false);
   const [voiceMutedKeys, setVoiceMutedKeys] = useState<Set<string>>(new Set());
+  const [mutes, setMutes] = useState<MuteInfo[]>([]);
 
   async function openHubAdmin() {
     setShowHubAdmin(true);
@@ -90,6 +95,11 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
       setHubListedState(await getHubListingStatus());
     } catch { /* ignore */ }
     await refreshVoiceMutes();
+    await refreshMutes().catch(() => {});
+  }
+
+  async function refreshMutes() {
+    setMutes(await listMutes());
   }
 
   async function refreshVoiceMutes() {
@@ -106,38 +116,54 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
     } catch { /* leave state unchanged on error */ }
   }
 
+  // Member actions throw on failure: HubAdminPage shows the hub's message.
+  async function removeMember(publicKey: string) {
+    setHubAdminMembers((prev) => prev.filter((m) => m.public_key !== publicKey));
+    onMemberRemoved?.(publicKey);
+  }
+
+  async function handleKickMember(publicKey: string) {
+    await hubFetch("/moderation/kick", { method: "POST", body: JSON.stringify({ target_public_key: publicKey }) });
+    await removeMember(publicKey);
+  }
+
+  async function handleBanMember(publicKey: string) {
+    await hubFetch("/moderation/bans", { method: "POST", body: JSON.stringify({ target_public_key: publicKey }) });
+    await removeMember(publicKey);
+    listBans().then(setHubAdminBans).catch(() => {});
+  }
+
   async function handleMuteMember(publicKey: string) {
-    try {
-      await muteMember(publicKey, null);
-    } catch { /* ignore */ }
+    await muteMember(publicKey, null);
+    await refreshMutes();
+  }
+
+  async function handleUnmuteMember(publicKey: string) {
+    await unmuteMember(publicKey);
+    await refreshMutes();
   }
 
   async function handleTimeoutMember(publicKey: string) {
     const durationStr = prompt("Timeout duration in minutes (1-1440)", "10");
-    if (!durationStr) return;
+    if (!durationStr) return false;
     const minutes = Number(durationStr);
-    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) return;
-    try {
-      await timeoutMember(publicKey, Math.floor(minutes * 60), null);
-    } catch { /* ignore */ }
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) throw new Error(i18n.t("errors.invalid_duration"));
+    await timeoutMember(publicKey, Math.floor(minutes * 60), null);
+    await refreshMutes();
   }
 
   async function handleVoiceMuteMember(publicKey: string) {
-    try {
-      await voiceMuteMember(publicKey, null);
-      setVoiceMutedKeys((prev) => new Set(prev).add(publicKey));
-    } catch { /* ignore */ }
+    await voiceMuteMember(publicKey, null);
+    setVoiceMutedKeys((prev) => new Set(prev).add(publicKey));
   }
 
   async function handleVoiceUnmuteMember(publicKey: string) {
-    try {
-      await voiceUnmuteMember(publicKey);
-      setVoiceMutedKeys((prev) => {
-        const next = new Set(prev);
-        next.delete(publicKey);
-        return next;
-      });
-    } catch { /* ignore */ }
+    await voiceUnmuteMember(publicKey);
+    setVoiceMutedKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(publicKey);
+      return next;
+    });
   }
 
   async function saveHubAdminSettings() {
@@ -221,7 +247,11 @@ export function useHubAdmin({ activeHubId, onSaved }: UseHubAdminParams) {
     hubListed,
     onHubListedChange: handleHubListedChange,
     voiceMutedKeys,
+    onKickMember: handleKickMember,
+    onBanMember: handleBanMember,
     onMuteMember: handleMuteMember,
+    onUnmuteMember: handleUnmuteMember,
+    mutes,
     onTimeoutMember: handleTimeoutMember,
     onVoiceMuteMember: handleVoiceMuteMember,
     onVoiceUnmuteMember: handleVoiceUnmuteMember,

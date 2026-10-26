@@ -2056,5 +2056,18 @@
   "settings.account.accounts.remove_anyway": "Trotzdem löschen",
   "settings.account.accounts.remove_type_fingerprint": "Gib den Fingerabdruck unten ein, um zu bestätigen.",
   "settings.account.accounts.removed_notice": "{label} von diesem Gerät entfernt.",
-  "settings.account.accounts.remove_undo": "Rückgängig"
+  "settings.account.accounts.remove_undo": "Rückgängig",
+  "hub.admin.members.unmute": "Stummschaltung aufheben",
+  "hub.admin.members.end_timeout": "Auszeit beenden",
+  "hub.admin.members.muted": "stummgeschaltet",
+  "hub.admin.members.timed_out_until": "in Auszeit bis {time}",
+  "hub.admin.members.voice_muted": "im Sprachkanal stummgeschaltet",
+  "hub.admin.members.done.kicked": "{name} wurde entfernt.",
+  "hub.admin.members.done.banned": "{name} wurde gebannt.",
+  "hub.admin.members.done.muted": "{name} ist stummgeschaltet.",
+  "hub.admin.members.done.timed_out": "{name} ist in einer Auszeit.",
+  "hub.admin.members.done.unmuted": "{name} kann wieder schreiben.",
+  "hub.admin.members.done.voice_muted": "{name} ist im Sprachkanal stummgeschaltet.",
+  "hub.admin.members.done.voice_unmuted": "{name} kann wieder im Sprachkanal sprechen.",
+  "hub.admin.members.action_failed": "Das hat nicht geklappt: {error}"
 }

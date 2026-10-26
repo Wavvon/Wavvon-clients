@@ -2056,5 +2056,18 @@
   "settings.account.accounts.remove_anyway": "Borrarla de todos modos",
   "settings.account.accounts.remove_type_fingerprint": "Escribe su huella a continuación para confirmar.",
   "settings.account.accounts.removed_notice": "{label} eliminada de este dispositivo.",
-  "settings.account.accounts.remove_undo": "Deshacer"
+  "settings.account.accounts.remove_undo": "Deshacer",
+  "hub.admin.members.unmute": "Quitar silencio",
+  "hub.admin.members.end_timeout": "Terminar suspensión",
+  "hub.admin.members.muted": "silenciado",
+  "hub.admin.members.timed_out_until": "suspendido hasta {time}",
+  "hub.admin.members.voice_muted": "silenciado en voz",
+  "hub.admin.members.done.kicked": "{name} ha sido expulsado.",
+  "hub.admin.members.done.banned": "{name} ha sido baneado.",
+  "hub.admin.members.done.muted": "{name} está silenciado.",
+  "hub.admin.members.done.timed_out": "{name} está suspendido.",
+  "hub.admin.members.done.unmuted": "{name} puede volver a escribir.",
+  "hub.admin.members.done.voice_muted": "{name} está silenciado en voz.",
+  "hub.admin.members.done.voice_unmuted": "{name} puede volver a hablar en voz.",
+  "hub.admin.members.action_failed": "No ha funcionado: {error}"
 }

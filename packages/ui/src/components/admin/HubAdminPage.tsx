@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPubkey, formatRelative, type Channel } from "@wavvon/core";
-import type { BanInfo, InviteInfo, MemberAdminInfo, NameColorMode, PendingUser, RoleInfo } from "../../types";
+import { formatDateTime, formatPubkey, formatRelative, type Channel } from "@wavvon/core";
+import type { BanInfo, InviteInfo, MemberAdminInfo, MuteInfo, NameColorMode, PendingUser, RoleInfo } from "../../types";
 import { ImagePicker } from "../ImagePicker";
 import { AlliancesSection, type AlliancesSectionActions } from "./AlliancesSection";
 import { WebhooksSection, type WebhooksSectionActions } from "./WebhooksSection";
@@ -18,6 +18,8 @@ import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./On
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
 import { CloseIcon } from "../Icons";
+
+export type MemberAction = Promise<boolean | void>;
 
 export type HubAdminTab =
   | "overview"
@@ -100,13 +102,18 @@ export interface HubAdminPageProps {
   pendingMembers: PendingUser[];
   onApproveMember: (publicKey: string) => void;
   members: MemberAdminInfo[];
-  onKickMember: (publicKey: string) => void;
-  onBanMember: (publicKey: string) => void;
-  onMuteMember: (publicKey: string) => void;
-  onTimeoutMember: (publicKey: string) => void;
-  onVoiceMuteMember: (publicKey: string) => void;
-  onVoiceUnmuteMember: (publicKey: string) => void;
+  // Member actions reject with the hub's message on failure and resolve
+  // `false` when the user backed out of a prompt; the page reports either.
+  onKickMember: (publicKey: string) => MemberAction;
+  onBanMember: (publicKey: string) => MemberAction;
+  onMuteMember: (publicKey: string) => MemberAction;
+  onUnmuteMember: (publicKey: string) => MemberAction;
+  onTimeoutMember: (publicKey: string) => MemberAction;
+  onVoiceMuteMember: (publicKey: string) => MemberAction;
+  onVoiceUnmuteMember: (publicKey: string) => MemberAction;
   voiceMutedKeys: Set<string>;
+  /** Mutes and timeouts, as `GET /moderation/mutes` lists them. */
+  mutes: MuteInfo[];
   /** Whether the viewer can assign/remove roles (admin or manage_roles). Gates the inline role manager. */
   canManageRoles: boolean;
   /** Highest priority among the viewer's own roles; only lower-priority roles are assignable (matches the hub guard). */
@@ -188,6 +195,27 @@ export function HubAdminPage(props: HubAdminPageProps) {
     onToggle: () => setAdminOpen((cur) => (cur === id ? null : id)),
   });
   const [copiedShare, setCopiedShare] = useState(false);
+  // One member action at a time: the row's buttons stay disabled until the
+  // hub answers, so a click that seems to do nothing cannot be sent eleven
+  // times, and the outcome is said out loud above the list.
+  const [memberBusy, setMemberBusy] = useState<string | null>(null);
+  const [memberNotice, setMemberNotice] = useState<{ text: string; error: boolean } | null>(null);
+  async function memberAction(m: MemberAdminInfo, run: (publicKey: string) => MemberAction, doneKey: string) {
+    setMemberBusy(m.public_key);
+    setMemberNotice(null);
+    try {
+      if ((await run(m.public_key)) === false) return;
+      setMemberNotice({ text: t(doneKey, { name: m.display_name || formatPubkey(m.public_key) }), error: false });
+    } catch (e) {
+      setMemberNotice({ text: t("hub.admin.members.action_failed", { error: e instanceof Error ? e.message : String(e) }), error: true });
+    } finally {
+      setMemberBusy(null);
+    }
+  }
+  const nowSecs = Date.now() / 1000;
+  const activeMutes = new Map(
+    props.mutes.filter((x) => x.expires_at === null || x.expires_at > nowSecs).map((x) => [x.target_public_key, x]),
+  );
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
   const [dirBio, setDirBio] = useState("");
@@ -628,14 +656,32 @@ export function HubAdminPage(props: HubAdminPageProps) {
               </div>
             )}
             <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
-            {props.members.map((m) => (
+            {memberNotice && (
+              <p role="status" className={memberNotice.error ? "error-text" : "muted"} style={{ marginBottom: "var(--space-3)" }}>
+                {memberNotice.text}
+              </p>
+            )}
+            {props.members.map((m) => {
+              const mute = activeMutes.get(m.public_key);
+              const busy = memberBusy === m.public_key;
+              const state = [
+                t("hub.admin.members.state", {
+                  roles: m.roles.map((r) => r.name).join(", ") || t("hub.admin.members.state.no_roles"),
+                  joined: formatRelative(m.first_seen_at),
+                }),
+                mute &&
+                  (mute.expires_at === null
+                    ? t("hub.admin.members.muted")
+                    : t("hub.admin.members.timed_out_until", { time: formatDateTime(mute.expires_at) })),
+                props.voiceMutedKeys.has(m.public_key) && t("hub.admin.members.voice_muted"),
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
               <SettingRow
                 key={m.public_key}
                 title={m.display_name || t("hub.admin.members.pending.no_name")}
-                state={t("hub.admin.members.state", {
-                  roles: m.roles.map((r) => r.name).join(", ") || t("hub.admin.members.state.no_roles"),
-                  joined: formatRelative(m.first_seen_at),
-                })}
+                state={state}
                 {...adminRow(m.public_key)}
               >
                 <p className="member-pk" title={m.public_key} style={{ marginBottom: "var(--space-3)" }}>
@@ -656,22 +702,31 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
                 <span className="settings-label">{t("hub.admin.members.group.limit")}</span>
                 <div className="settings-row" style={{ marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
-                  <button className="btn-small" onClick={() => props.onMuteMember(m.public_key)}>{t("hub.admin.members.mute")}</button>
-                  <button className="btn-small" onClick={() => props.onTimeoutMember(m.public_key)}>{t("hub.admin.members.timeout")}</button>
-                  {props.voiceMutedKeys.has(m.public_key) ? (
-                    <button className="btn-small" onClick={() => props.onVoiceUnmuteMember(m.public_key)}>{t("hub.admin.members.voice_unmute")}</button>
+                  {mute ? (
+                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onUnmuteMember, "hub.admin.members.done.unmuted")}>
+                      {t(mute.expires_at === null ? "hub.admin.members.unmute" : "hub.admin.members.end_timeout")}
+                    </button>
                   ) : (
-                    <button className="btn-small" onClick={() => props.onVoiceMuteMember(m.public_key)}>{t("hub.admin.members.voice_mute")}</button>
+                    <>
+                      <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onMuteMember, "hub.admin.members.done.muted")}>{t("hub.admin.members.mute")}</button>
+                      <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onTimeoutMember, "hub.admin.members.done.timed_out")}>{t("hub.admin.members.timeout")}</button>
+                    </>
+                  )}
+                  {props.voiceMutedKeys.has(m.public_key) ? (
+                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceUnmuteMember, "hub.admin.members.done.voice_unmuted")}>{t("hub.admin.members.voice_unmute")}</button>
+                  ) : (
+                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceMuteMember, "hub.admin.members.done.voice_muted")}>{t("hub.admin.members.voice_mute")}</button>
                   )}
                 </div>
 
                 <span className="settings-label">{t("hub.admin.members.group.remove")}</span>
                 <div className="settings-row" style={{ flexWrap: "wrap" }}>
-                  <button className="btn-small danger" onClick={() => props.onKickMember(m.public_key)}>{t("hub.admin.members.kick")}</button>
-                  <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("hub.admin.members.ban")}</button>
+                  <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onKickMember, "hub.admin.members.done.kicked")}>{t("hub.admin.members.kick")}</button>
+                  <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onBanMember, "hub.admin.members.done.banned")}>{t("hub.admin.members.ban")}</button>
                 </div>
               </SettingRow>
-            ))}
+              );
+            })}
             {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
           </section>
         )}

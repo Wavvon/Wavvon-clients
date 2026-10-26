@@ -4,6 +4,7 @@ import type {
   Hub,
   RoleInfo,
   MemberAdminInfo,
+  MuteInfo,
   BanInfo,
   InviteInfo,
   PendingUser,
@@ -17,6 +18,8 @@ interface UseHubAdminParams {
   setHubs: (updater: (prev: Hub[]) => Hub[]) => void;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
+  /** A member was kicked or banned: the caller's own member list is stale. */
+  onMemberRemoved?: (publicKey: string) => void;
 }
 
 export function useHubAdmin({
@@ -25,6 +28,7 @@ export function useHubAdmin({
   setHubs,
   setError,
   setToast,
+  onMemberRemoved,
 }: UseHubAdminParams) {
   const [showHubAdmin, setShowHubAdmin] = useState(false);
   const [hubAdminTab, setHubAdminTab] = useState<HubAdminTab>("overview");
@@ -40,6 +44,7 @@ export function useHubAdmin({
   const [adminWelcomeInviteUrl, setAdminWelcomeInviteUrl] = useState("");
   const [adminMembers, setAdminMembers] = useState<MemberAdminInfo[]>([]);
   const [adminBans, setAdminBans] = useState<BanInfo[]>([]);
+  const [adminMutes, setAdminMutes] = useState<MuteInfo[]>([]);
   const [adminInvites, setAdminInvites] = useState<InviteInfo[]>([]);
   const [requireApproval, setRequireApproval] = useState(false);
   const [minSecurityLevel, setMinSecurityLevel] = useState(0);
@@ -182,69 +187,62 @@ export function useHubAdmin({
     }
   }
 
+  // Member actions throw on failure and resolve `false` when a prompt is
+  // dismissed: HubAdminPage reports either. A dismissed reason prompt
+  // (null) backs out; an empty one means "no reason".
   async function handleKickMember(publicKey: string) {
-    const reason = prompt("Reason for kick (optional)") ?? "";
-    try {
-      await invoke("kick_user_cmd", {
-        targetPublicKey: publicKey,
-        reason: reason.trim() || null,
-      });
-      setToast(i18n.t("message.ctx.kicked"));
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
+    const reason = prompt("Reason for kick (optional)");
+    if (reason === null) return false;
+    await invoke("kick_user_cmd", { targetPublicKey: publicKey, reason: reason.trim() || null });
+    removeMember(publicKey);
   }
 
   async function handleBanMember(publicKey: string) {
-    const reason = prompt("Reason for ban (optional)") ?? "";
-    if (!confirm(i18n.t("confirm.ban_user"))) return;
+    const reason = prompt("Reason for ban (optional)");
+    if (reason === null || !confirm(i18n.t("confirm.ban_user"))) return false;
+    await invoke("ban_user_cmd", { targetPublicKey: publicKey, reason: reason.trim() || null });
+    removeMember(publicKey);
+  }
+
+  function removeMember(publicKey: string) {
+    setAdminMembers((prev) => prev.filter((m) => m.public_key !== publicKey));
+    onMemberRemoved?.(publicKey);
+    void refreshMembers();
+  }
+
+  async function refreshMutes() {
     try {
-      await invoke("ban_user_cmd", {
-        targetPublicKey: publicKey,
-        reason: reason.trim() || null,
-      });
-      setToast(i18n.t("message.ctx.banned"));
-      await refreshMembers();
+      setAdminMutes(await invoke<MuteInfo[]>("list_mutes"));
     } catch (e) {
       setError(String(e));
     }
   }
 
   async function handleMuteMember(publicKey: string) {
-    const reason = prompt("Reason for mute (optional)") ?? "";
-    try {
-      await invoke("mute_user_cmd", {
-        targetPublicKey: publicKey,
-        reason: reason.trim() || null,
-      });
-      setToast(i18n.t("message.ctx.muted"));
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
+    const reason = prompt("Reason for mute (optional)");
+    if (reason === null) return false;
+    await invoke("mute_user_cmd", { targetPublicKey: publicKey, reason: reason.trim() || null });
+    await refreshMutes();
+  }
+
+  async function handleUnmuteMember(publicKey: string) {
+    await invoke("unmute_user_cmd", { targetPublicKey: publicKey });
+    await refreshMutes();
   }
 
   async function handleTimeoutMember(publicKey: string) {
     const durationStr = prompt("Timeout duration in minutes (1-1440)", "10");
-    if (!durationStr) return;
+    if (!durationStr) return false;
     const minutes = Number(durationStr);
-    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) {
-      setError(i18n.t("errors.invalid_duration"));
-      return;
-    }
-    const reason = prompt("Reason (optional)") ?? "";
-    try {
-      await invoke("timeout_user_cmd", {
-        targetPublicKey: publicKey,
-        durationSeconds: Math.floor(minutes * 60),
-        reason: reason.trim() || null,
-      });
-      setToast(i18n.t("toast.timed_out", { minutes }));
-      await refreshMembers();
-    } catch (e) {
-      setError(String(e));
-    }
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) throw new Error(i18n.t("errors.invalid_duration"));
+    const reason = prompt("Reason (optional)");
+    if (reason === null) return false;
+    await invoke("timeout_user_cmd", {
+      targetPublicKey: publicKey,
+      durationSeconds: Math.floor(minutes * 60),
+      reason: reason.trim() || null,
+    });
+    await refreshMutes();
   }
 
   async function refreshBans() {
@@ -306,6 +304,7 @@ export function useHubAdmin({
       refreshMembers();
       refreshPending();
       refreshVoiceMutes();
+      refreshMutes();
     } else if (tab === "bans") {
       refreshBans();
     } else if (tab === "invites") {
@@ -368,6 +367,8 @@ export function useHubAdmin({
     handleKickMember,
     handleBanMember,
     handleMuteMember,
+    handleUnmuteMember,
+    adminMutes,
     handleTimeoutMember,
     refreshBans,
     handleUnban,
