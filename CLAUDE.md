@@ -347,6 +347,9 @@ it", the spec is about admission and the feature has no coverage.
 - Type-only imports for interfaces. One component per file, keep them small.
 - Prefer one fixed home per UI control — avoid context-dependent relocation.
 - Any user-visible string goes through i18n; run `npm run check-i18n` from `apps/web` if you touched catalogs.
+  Terms that stay English in every locale (Soundboard, Hub, Ban, Push-to-talk…)
+  and the one rendering each concept gets per locale are in
+  `packages/i18n/GLOSSARY.md`.
 - **Four languages, all four in the bundle, and that is on purpose.** Measured
   2026-08-29 with two real builds of `apps/web`: the three unused catalogues
   cost **44.7 KB brotli out of 541 KB — 8%**, about 15 KB brotli per language
