@@ -356,6 +356,7 @@ export default function App({ initialView }: AppProps = {}) {
         if (info) setHubs(listHubs());
       }).catch(() => {});
     },
+    onMemberRemoved: dropMember,
   });
   const {
     showHubAdmin, setShowHubAdmin,
@@ -624,6 +625,13 @@ export default function App({ initialView }: AppProps = {}) {
     if (hubErrorTimerRef.current) clearTimeout(hubErrorTimerRef.current);
     setHubErrorToast(msg);
     hubErrorTimerRef.current = setTimeout(() => setHubErrorToast(null), 5000);
+  }
+
+  // A kicked or banned member's row goes at once: the hub only broadcasts
+  // MemberOffline, which would leave them listed as merely offline.
+  function dropMember(pubkey: string) {
+    setUsers((prev) => prev.filter((u) => u.public_key !== pubkey));
+    fetchAllUsers().then(setUsers).catch(() => {});
   }
 
   const loadHubDataRef = useRef<() => Promise<void>>(async () => {});
@@ -1215,8 +1223,8 @@ export default function App({ initialView }: AppProps = {}) {
     assignRole: assignRoleToUser,
     removeRole: removeRoleFromUser,
     muteUser: (pubkey) => hubFetch("/moderation/mutes", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
-    kickUser: (pubkey) => hubFetch("/moderation/kick", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
-    banUser: (pubkey) => hubFetch("/moderation/bans", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    kickUser: (pubkey) => hubFetch("/moderation/kick", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => dropMember(pubkey)),
+    banUser: (pubkey) => hubFetch("/moderation/bans", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => dropMember(pubkey)),
     dm: (user) => handleStartConversation(user.public_key),
     addFriend: (user) => {
       void sendFriendRequest(user.public_key)

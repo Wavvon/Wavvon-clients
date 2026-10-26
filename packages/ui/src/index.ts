@@ -338,7 +338,7 @@ export type { VoiceMovePush, VoiceMoveDecision } from "./utils/voiceMove";
 // HubAdminPage (parity hoist, 2026-07-20)
 // ---------------------------------------------------------------------------
 export { HubAdminPage } from "./components/admin/HubAdminPage";
-export type { HubAdminTab, HubAdminPageProps } from "./components/admin/HubAdminPage";
+export type { HubAdminTab, HubAdminPageProps, MemberAction } from "./components/admin/HubAdminPage";
 export { RolesSection, ALL_PERMISSIONS } from "./components/admin/RolesSection";
 export type { RolesSectionActions, RoleUpdateInput } from "./components/admin/RolesSection";
 export { MemberRoleManager } from "./components/admin/MemberRoleManager";
