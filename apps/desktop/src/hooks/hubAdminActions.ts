@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import { normalizeAuditPage } from "@wavvon/ui";
+import { knownIssuerHubs, normalizeAuditPage, type IssuerHub } from "@wavvon/ui";
 import type {
   RoleInfo,
   RoleCategory,
   InviteInfo,
   PendingUser,
+  Hub,
 } from "../types";
 import type {
   PermissionCatalogueEntry,
@@ -14,6 +15,7 @@ import type {
   InviteManagerActions,
   AuditLogSectionActions,
   CertificationsSectionActions,
+  AllianceMember,
   OnboardingAdminSectionActions,
   WebhooksSectionActions,
   AlliancesSectionActions,
@@ -188,6 +190,13 @@ export function makeAuditLogActions(getHubUrl: () => string): AuditLogSectionAct
   };
 }
 
+/** A hub's `/info`, as an issuer the user can trust by address. */
+export async function lookupIssuerHub(url: string): Promise<IssuerHub> {
+  const base = url.trim().replace(/\/$/, "");
+  const info = await invoke<{ name: string; icon?: string | null; public_key: string }>("preview_hub_info", { url: base });
+  return { pubkey: info.public_key, name: info.name, url: base, icon: info.icon ?? null };
+}
+
 export function makeCertActions(getHubUrl: () => string): CertificationsSectionActions {
   return {
     listCertIssuances: () => invoke<CertIssuance[]>("list_issued_certs", { hubUrl: getHubUrl() }),
@@ -197,6 +206,17 @@ export function makeCertActions(getHubUrl: () => string): CertificationsSectionA
     revokeCert: (subjectPubkey) => invoke("revoke_cert", { hubUrl: getHubUrl(), subjectPubkey }),
     grantUserBadge: (subjectPubkey, label) =>
       invoke("grant_user_badge", { hubUrl: getHubUrl(), subjectPubkey, label }),
+    listKnownHubs: async () => {
+      const hubs = await invoke<Hub[]>("list_hubs");
+      const alliances = await invoke<Alliance[]>("list_alliances").catch(() => [] as Alliance[]);
+      const partners = (
+        await Promise.all(
+          alliances.map((a) => invoke<AllianceMember[]>("get_alliance_members", { allianceId: a.id }).catch(() => [] as AllianceMember[])),
+        )
+      ).flat();
+      return knownIssuerHubs(hubs, partners, getHubUrl());
+    },
+    lookupHub: lookupIssuerHub,
   };
 }
 

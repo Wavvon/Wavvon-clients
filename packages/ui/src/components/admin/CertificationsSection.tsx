@@ -4,6 +4,7 @@ import { formatPubkey, formatRelative } from "@wavvon/core";
 import type { CertAdmissionSettings, CertIssuance } from "../../types";
 import { useConfirm } from "../ConfirmDialog";
 import { SettingRow } from "../SettingRow";
+import { IssuerHubPicker, type IssuerHub } from "../settings/IssuerHubPicker";
 
 export interface CertificationsSectionActions {
   listCertIssuances: () => Promise<CertIssuance[]>;
@@ -15,6 +16,10 @@ export interface CertificationsSectionActions {
    *  (ServerTagsSection); omitted where the Tauri command doesn't exist yet.
    *  `icon` is optional — desktop's Tauri command doesn't accept it yet. */
   grantUserBadge?: (subjectPubkey: string, label: string, description?: string, icon?: string) => Promise<void>;
+  /** Hubs to offer as issuers: the ones this client joined and this hub's
+   *  alliance partners. */
+  listKnownHubs: () => Promise<IssuerHub[]>;
+  lookupHub: (url: string) => Promise<IssuerHub>;
 }
 
 interface Props {
@@ -40,6 +45,7 @@ export function CertificationsSection({ actions }: Props) {
   const [badgeLabel, setBadgeLabel] = useState("");
   const [badgeIcon, setBadgeIcon] = useState("");
   const [badgeStatus, setBadgeStatus] = useState("");
+  const [knownHubs, setKnownHubs] = useState<IssuerHub[]>([]);
 
   async function load() {
     setLoading(true);
@@ -55,7 +61,10 @@ export function CertificationsSection({ actions }: Props) {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    actions.listKnownHubs().then(setKnownHubs).catch(() => setKnownHubs([]));
+  }, []);
 
   async function handleSaveSettings() {
     if (!settings) return;
@@ -152,62 +161,52 @@ export function CertificationsSection({ actions }: Props) {
         <div className="settings-section">
           <label className="settings-label">{t("hub.admin.certs.trusted.label")}</label>
           <p className="muted">{t("hub.admin.certs.trusted.hint")}</p>
-          {settings.cert_trusted_issuers.map((pk) => (
-            <div key={pk} className="settings-row" style={{ marginBottom: 4, gap: 6 }}>
-              <code className="pubkey-display">{formatPubkey(pk)}</code>
-              {/* An address is what makes trust usable: without one the hub
-                  can only honour a cert someone pushed, and nothing pushes.
-                  Optional on purpose — an issuer with no URL is still
-                  trusted, just not pullable. */}
+          <IssuerHubPicker
+            hubs={[
+              ...knownHubs,
+              ...settings.cert_trusted_issuers
+                .filter((pk) => !knownHubs.some((h) => h.pubkey === pk))
+                .map((pk) => ({ pubkey: pk, name: formatPubkey(pk), url: settings.cert_issuer_urls?.[pk] ?? "" })),
+            ]}
+            trusted={new Set(settings.cert_trusted_issuers)}
+            // The hub's URL comes with it: an issuer with an address is one the
+            // hub can pull certificates from, not only receive them.
+            onToggle={(hub, on) => {
+              const urls = { ...(settings.cert_issuer_urls ?? {}) };
+              if (on) {
+                if (hub.url) urls[hub.pubkey] = hub.url;
+                setSettings({ ...settings, cert_trusted_issuers: [...settings.cert_trusted_issuers.filter((x) => x !== hub.pubkey), hub.pubkey], cert_issuer_urls: urls });
+              } else {
+                delete urls[hub.pubkey];
+                setSettings({ ...settings, cert_trusted_issuers: settings.cert_trusted_issuers.filter((x) => x !== hub.pubkey), cert_issuer_urls: urls });
+              }
+            }}
+            lookupHub={actions.lookupHub}
+          />
+          <details style={{ marginTop: "var(--space-3)" }}>
+            <summary className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.privacy.trusted_issuers.advanced")}</summary>
+            <div className="settings-row" style={{ marginTop: 8 }}>
               <input
                 type="text"
-                value={settings.cert_issuer_urls?.[pk] ?? ""}
-                onChange={(e) => {
-                  const urls = { ...(settings.cert_issuer_urls ?? {}) };
-                  const url = e.target.value.trim();
-                  if (url) urls[pk] = url; else delete urls[pk];
-                  setSettings({ ...settings, cert_issuer_urls: urls });
-                }}
-                placeholder={t("hub.admin.certs.trusted.url_placeholder")}
-                style={{ flex: 1 }}
+                value={trustedInput}
+                onChange={(e) => setTrustedInput(e.target.value)}
+                placeholder={t("hub.admin.certs.trusted.placeholder")}
               />
               <button
                 className="btn-secondary"
                 onClick={() => {
-                  const urls = { ...(settings.cert_issuer_urls ?? {}) };
-                  delete urls[pk];
-                  setSettings({
-                    ...settings,
-                    cert_trusted_issuers: settings.cert_trusted_issuers.filter((x) => x !== pk),
-                    cert_issuer_urls: urls,
-                  });
+                  const pk = trustedInput.trim();
+                  if (pk && !settings.cert_trusted_issuers.includes(pk)) {
+                    setSettings({ ...settings, cert_trusted_issuers: [...settings.cert_trusted_issuers, pk] });
+                    setTrustedInput("");
+                  }
                 }}
+                disabled={!trustedInput.trim()}
               >
-                {t("hub.admin.certs.trusted.remove")}
+                {t("hub.admin.certs.trusted.add")}
               </button>
             </div>
-          ))}
-          <div className="settings-row" style={{ marginTop: 8 }}>
-            <input
-              type="text"
-              value={trustedInput}
-              onChange={(e) => setTrustedInput(e.target.value)}
-              placeholder={t("hub.admin.certs.trusted.placeholder")}
-            />
-            <button
-              className="btn-secondary"
-              onClick={() => {
-                const pk = trustedInput.trim();
-                if (pk && !settings.cert_trusted_issuers.includes(pk)) {
-                  setSettings({ ...settings, cert_trusted_issuers: [...settings.cert_trusted_issuers, pk] });
-                  setTrustedInput("");
-                }
-              }}
-              disabled={!trustedInput.trim()}
-            >
-              {t("hub.admin.certs.trusted.add")}
-            </button>
-          </div>
+          </details>
         </div>
       )}
 

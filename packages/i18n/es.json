@@ -596,8 +596,6 @@
   "hub.admin.certs.trusted.hint": "Solo se aceptan las certificaciones de estas claves públicas.",
   "hub.admin.certs.trusted.label": "Claves públicas de los emisores de confianza",
   "hub.admin.certs.trusted.placeholder": "Clave pública del hub (hex)",
-  "hub.admin.certs.trusted.remove": "Quitar",
-  "hub.admin.certs.trusted.url_placeholder": "https://emisor.example (opcional)",
   "hub.admin.challenge_preview.answer_placeholder": "Tu respuesta",
   "hub.admin.challenge_preview.click_subtext": "Una comprobación rápida antes de poder enviar mensajes.",
   "hub.admin.challenge_preview.close": "Cerrar la vista previa",
@@ -1613,7 +1611,6 @@
   "settings.privacy.trusted_issuers.label_placeholder": "Tu nota (opcional)",
   "settings.privacy.trusted_issuers.malformed": "Eso no es una clave pública de hub: 64 caracteres hexadecimales, sin espacios.",
   "settings.privacy.trusted_issuers.pubkey_placeholder": "Clave pública del hub (64 caracteres hex)",
-  "settings.privacy.trusted_issuers.remove": "Quitar",
   "settings.privacy.trusted_issuers.state": "{count, plural, one {# emisor} other {# emisores}}",
   "settings.profile.banner.accent_label": "Color de acento",
   "settings.profile.banner.cover_button": "Subir portada",
@@ -2089,5 +2086,14 @@
   "settings.about.credits": "Hecho con",
   "hub.admin.group.joining": "Entrada",
   "hub.admin.group.moderation": "Moderación",
-  "hub.admin.group.connections": "Conexiones"
+  "hub.admin.group.connections": "Conexiones",
+  "settings.privacy.trusted_issuers.advanced": "Añadir por clave pública",
+  "issuer_picker.no_hubs": "Aún no hay hubs para elegir.",
+  "issuer_picker.member": "de confianza: eres miembro",
+  "issuer_picker.address_label": "Dirección del hub",
+  "issuer_picker.address_placeholder": "https://hub.example",
+  "issuer_picker.look_up": "Buscar",
+  "issuer_picker.trust": "Confiar",
+  "issuer_picker.already": "Ya es de confianza",
+  "issuer_picker.lookup_failed": "No se pudo leer ese hub: {error}"
 }

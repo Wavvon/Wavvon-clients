@@ -91,6 +91,27 @@ pub(crate) async fn list_alliances(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
+/// The hubs in one alliance, for offering them as certification issuers.
+#[tauri::command]
+pub(crate) async fn get_alliance_members(
+    alliance_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<AllianceMemberInfo>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .get(format!("{hub_url}/alliances/{alliance_id}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let detail: AllianceDetail = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    Ok(detail.members)
+}
+
 #[tauri::command]
 pub(crate) async fn create_alliance(
     name: String,

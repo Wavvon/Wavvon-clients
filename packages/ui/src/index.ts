@@ -363,6 +363,7 @@ export { ProfileTab } from "./components/settings/ProfileTab";
 export { ProfileEditorSection } from "./components/settings/ProfileEditorSection";
 export { MyCertificationsSection } from "./components/settings/MyCertificationsSection";
 export { TrustedIssuersSection } from "./components/settings/TrustedIssuersSection";
+export { IssuerHubPicker, knownIssuerHubs, type IssuerHub } from "./components/settings/IssuerHubPicker";
 export {
   parseTrustRoots,
   serializeTrustRoots,
