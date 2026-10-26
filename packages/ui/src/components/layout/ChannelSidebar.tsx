@@ -370,6 +370,7 @@ export function ChannelSidebar({
 
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
   const myDisplayName = users.find((u) => u.public_key === publicKey)?.display_name;
+  const avatarByKey = useMemo(() => new Map(users.map((u) => [u.public_key, u.avatar])), [users]);
   const activePing = activeHubId ? pingByHub[activeHubId] : undefined;
   const voiceChannelName = voiceChannelNameHint ?? channels.find((c) => c.id === voiceChannelId)?.name;
 
@@ -636,6 +637,7 @@ export function ChannelSidebar({
                         voiceGains={voiceGains}
                         onSetVoiceGain={onSetVoiceGain}
                         inboundWhispers={inboundWhispers}
+                        avatars={avatarByKey}
                         hasDraft={hasDraft}
                         onClick={() => {
                           setChannelFocusIndex(index);
