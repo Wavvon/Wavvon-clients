@@ -33,12 +33,13 @@ interface Props {
   // Whether this device's active account is currently joined to a voice
   // channel — switching is blocked outright while true (not auto-left).
   inVoice?: boolean;
+  onBackedUp?: () => void;
 }
 
 // Accounts are device-local: this list is just every row in the identity
 // store (see identity/store.ts) — there is no server-side account registry
 // and nothing here is ever synced to a hub.
-export function AccountsSwitcherSection({ inVoice = false }: Props) {
+export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<IdentityRecord[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
   function showPhraseBeforeRemoval(account: IdentityRecord) {
     setRemovePhrase(seedToPhrase(account.seed_hex));
     markIdentityBackedUp(account.id);
+    onBackedUp?.();
   }
 
   // Same value the old standalone "Your public key" section copied: the
