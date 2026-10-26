@@ -414,6 +414,8 @@ export type {
   RecoveryContactItem,
   RecoveryAdminRequest,
   RecoveryRequestBundle,
+  RecoveryRequestToAttest,
+  RecoveryPerson,
 } from "./types";
 export { RecoveryContactsSection } from "./components/settings/RecoveryContactsSection";
 export type { RecoveryContactsSectionActions } from "./components/settings/RecoveryContactsSection";

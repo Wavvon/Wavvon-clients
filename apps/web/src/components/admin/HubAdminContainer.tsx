@@ -14,6 +14,7 @@ import {
   hubIconActions, surveyActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
+import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../platform/commands/recoveryPeople";
 import { outgoingWebhookActions } from "./outgoingWebhookActions";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
 import type { Channel, Hub, InviteInfo } from "@shared/types";
@@ -140,6 +141,8 @@ export function HubAdminContainer({
             getContacts: getRecoveryContacts,
             setContacts: setRecoveryContacts,
             removeContact: removeRecoveryContact,
+            listPeople: listRecoveryPeople,
+            listRequestsToAttest: listRecoveryRequestsToAttest,
             listAdminRequests: isAdmin ? listAdminRecoveryRequests : undefined,
             approveRequest: isAdmin ? approveRecoveryRequest : undefined,
             denyRequest: isAdmin ? denyRecoveryRequest : undefined,

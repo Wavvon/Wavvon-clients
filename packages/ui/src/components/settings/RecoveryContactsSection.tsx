@@ -1,15 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPubkey } from "@wavvon/core";
-import type { RecoveryContactItem, RecoveryAdminRequest, RecoveryRequestBundle } from "../../types";
+import { formatPubkey, formatRelative } from "@wavvon/core";
+import type {
+  RecoveryContactItem,
+  RecoveryAdminRequest,
+  RecoveryRequestBundle,
+  RecoveryRequestToAttest,
+  RecoveryPerson,
+} from "../../types";
 import { SettingRow } from "../SettingRow";
+import { Avatar } from "../Avatar";
 
-export type { RecoveryContactItem, RecoveryAdminRequest, RecoveryRequestBundle } from "../../types";
+export type { RecoveryContactItem, RecoveryAdminRequest, RecoveryRequestBundle, RecoveryRequestToAttest, RecoveryPerson } from "../../types";
 
 export interface RecoveryContactsSectionActions {
   getContacts: () => Promise<{ threshold: number; contacts: RecoveryContactItem[] }>;
   setContacts: (threshold: number, contactPubkeys: string[]) => Promise<void>;
   removeContact: (pubkey: string) => Promise<void>;
+
+  /** This hub's members and the account's friends, to pick contacts from
+   *  and to find the account you were, by name rather than by key. */
+  listPeople: () => Promise<RecoveryPerson[]>;
+  /** Open requests naming this account as a contact; `null` when the hub
+   *  cannot list them (no `recovery.to_attest`), which keeps the
+   *  request-id field. */
+  listRequestsToAttest: () => Promise<RecoveryRequestToAttest[] | null>;
 
   /** Admin queue — omitted on platforms/roles where it doesn't apply. */
   listAdminRequests?: () => Promise<RecoveryAdminRequest[]>;
@@ -38,6 +53,12 @@ interface Props {
 }
 
 const POLL_MS = 5000;
+const MAX_CONTACTS = 5;
+
+/** A majority of `n`: the default the threshold starts from, never 0. */
+function majority(n: number): number {
+  return Math.floor(n / 2) + 1;
+}
 
 export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = true }: Props) {
   const [open, setOpen] = useState<string | null>(null);
@@ -46,19 +67,25 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
     onToggle: () => setOpen((cur) => (cur === id ? null : id)),
   });
   const { t } = useTranslation();
-  const [threshold, setThreshold] = useState(2);
+  const [people, setPeople] = useState<RecoveryPerson[]>([]);
+  const [threshold, setThreshold] = useState(1);
   const [contacts, setContacts] = useState<RecoveryContactItem[]>([]);
-  const [contactsText, setContactsText] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | string>("idle");
 
   const [adminRequests, setAdminRequests] = useState<RecoveryAdminRequest[]>([]);
   const [adminError, setAdminError] = useState<string | null>(null);
 
   const [oldPubkeyInput, setOldPubkeyInput] = useState("");
+  const [oldSearch, setOldSearch] = useState("");
   const [reasonInput, setReasonInput] = useState("");
   const [openRequest, setOpenRequest] = useState<RecoveryRequestBundle | null>(null);
   const [requestStatus, setRequestStatus] = useState<"idle" | "opening" | string>("idle");
 
+  const [toAttest, setToAttest] = useState<RecoveryRequestToAttest[] | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [attestStatus, setAttestStatus] = useState<Record<string, string>>({});
   const [lookupId, setLookupId] = useState("");
   const [reviewBundle, setReviewBundle] = useState<RecoveryRequestBundle | null>(null);
   const [reviewStatus, setReviewStatus] = useState<"idle" | "looking" | "attesting" | "attested" | string>("idle");
@@ -67,6 +94,8 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
 
   useEffect(() => {
     void loadContacts();
+    actions.listPeople().then(setPeople).catch(() => setPeople([]));
+    void loadToAttest();
     if (isAdmin && actions.listAdminRequests) void loadAdminRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
@@ -82,13 +111,25 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest?.id, openRequest?.status]);
 
+  const nameOf = (pubkey: string, fallback?: string | null) =>
+    people.find((p) => p.pubkey === pubkey)?.display_name || fallback || formatPubkey(pubkey);
+
   async function loadContacts() {
     try {
       const s = await actions.getContacts();
-      setThreshold(s.threshold);
+      setThreshold(Math.max(1, s.threshold));
       setContacts(s.contacts);
-      setContactsText(s.contacts.map((c) => c.pubkey).join("\n"));
+      setPicked(s.contacts.map((c) => c.pubkey));
     } catch { /* first load — ignore */ }
+  }
+
+  async function loadToAttest() {
+    try {
+      setToAttest(await actions.listRequestsToAttest());
+    } catch {
+      // Could not ask: fall back to the id field rather than claim "none".
+      setToAttest(null);
+    }
   }
 
   async function loadAdminRequests() {
@@ -100,23 +141,23 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
     }
   }
 
+  function togglePicked(pubkey: string) {
+    setPicked((prev) => {
+      const next = prev.includes(pubkey) ? prev.filter((k) => k !== pubkey) : [...prev, pubkey];
+      // Keep the threshold meaningful as the list changes: within 1..n, and
+      // back to a majority when it would fall outside.
+      setThreshold((th) => (next.length === 0 ? 1 : th < 1 || th > next.length ? majority(next.length) : th));
+      return next;
+    });
+  }
+
   async function handleSave() {
-    const keys = contactsText.split(/[\n,]/).map((k) => k.trim()).filter(Boolean);
     setSaveStatus("saving");
     try {
-      await actions.setContacts(threshold, keys);
+      await actions.setContacts(threshold, picked);
       await loadContacts();
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch (e) {
-      setSaveStatus(String(e));
-    }
-  }
-
-  async function handleRemove(pubkey: string) {
-    try {
-      await actions.removeContact(pubkey);
-      await loadContacts();
     } catch (e) {
       setSaveStatus(String(e));
     }
@@ -169,6 +210,28 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
     }
   }
 
+  async function confirmListed(req: RecoveryRequestToAttest) {
+    setAttestStatus((s) => ({ ...s, [req.id]: "attesting" }));
+    try {
+      await actions.attestRotationRequest(await actions.getRotationRequest(req.id));
+      setAttestStatus((s) => ({ ...s, [req.id]: "attested" }));
+    } catch (e) {
+      setAttestStatus((s) => ({ ...s, [req.id]: String(e) }));
+    }
+  }
+
+  const matches = (p: RecoveryPerson, q: string) =>
+    !q.trim() || (p.display_name ?? "").toLowerCase().includes(q.trim().toLowerCase());
+  const waiting = (toAttest ?? []).filter((r) => !dismissed.has(r.id));
+
+  const personRow = (p: RecoveryPerson, control: React.ReactNode) => (
+    <label key={p.pubkey} className="settings-row" style={{ gap: "var(--space-2)" }} title={p.pubkey}>
+      {control}
+      <Avatar src={p.avatar} name={p.display_name || p.pubkey} pubkey={p.pubkey} size={22} />
+      <span>{p.display_name || formatPubkey(p.pubkey)}</span>
+    </label>
+  );
+
   return (
     <div>
       {showMemberCards && (
@@ -177,48 +240,47 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
         title={t("recovery.contacts.label")}
         state={contacts.length === 0
           ? t("recovery.contacts.state.none")
-          : t("recovery.contacts.state.set", { count: contacts.length, threshold })}
+          : contacts.map((c) => nameOf(c.pubkey, c.display_name)).join(", ")}
         meta={contacts.length > 0 ? String(contacts.length) : undefined}
         {...row("contacts")}
       >
         <p className="muted">{t("recovery.contacts.hint")}</p>
-        <label className="settings-label" htmlFor="recovery-contacts">{t("recovery.contacts.pubkeys_label")}</label>
-        <textarea
-          id="recovery-contacts"
-          rows={4}
-          value={contactsText}
-          onChange={(e) => setContactsText(e.target.value)}
-          placeholder={t("recovery.contacts.pubkeys_placeholder")}
-          style={{ width: "100%", fontFamily: "var(--font-mono)" }}
+        <input
+          type="search"
+          value={contactSearch}
+          onChange={(e) => setContactSearch(e.target.value)}
+          placeholder={t("recovery.people.search")}
+          aria-label={t("recovery.people.search")}
+          style={{ width: "100%", maxWidth: 320 }}
         />
-        {contacts.length > 0 && (
-          <div style={{ marginTop: 4 }}>
-            {contacts.map((c) => (
-              <div key={c.pubkey} className="settings-row" style={{ marginBottom: 2 }}>
-                <code style={{ flex: 1, fontSize: "var(--text-xs)" }}>{c.display_name ?? formatPubkey(c.pubkey)}</code>
-                <button className="btn-small" onClick={() => handleRemove(c.pubkey)}>{t("recovery.contacts.remove")}</button>
-              </div>
-            ))}
+        <div style={{ maxHeight: 220, overflowY: "auto", marginTop: "var(--space-2)" }}>
+          {people.filter((p) => picked.includes(p.pubkey) || matches(p, contactSearch)).map((p) =>
+            personRow(
+              p,
+              <input
+                type="checkbox"
+                checked={picked.includes(p.pubkey)}
+                disabled={!picked.includes(p.pubkey) && picked.length >= MAX_CONTACTS}
+                onChange={() => togglePicked(p.pubkey)}
+              />,
+            ),
+          )}
+          {people.length === 0 && <p className="muted">{t("recovery.people.none")}</p>}
+        </div>
+        {picked.length > 0 && (
+          <div className="settings-row" style={{ marginTop: "var(--space-3)", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            <button className="btn-small btn-secondary" aria-label={t("recovery.contacts.fewer")} disabled={threshold <= 1} onClick={() => setThreshold((n) => n - 1)}>−</button>
+            <strong aria-live="polite">{threshold}</strong>
+            <button className="btn-small btn-secondary" aria-label={t("recovery.contacts.more")} disabled={threshold >= picked.length} onClick={() => setThreshold((n) => n + 1)}>+</button>
+            <span>{t("recovery.contacts.threshold_sentence", { threshold, count: picked.length })}</span>
           </div>
         )}
-        <div className="settings-row" style={{ marginTop: 8 }}>
-          <label className="settings-label" htmlFor="recovery-threshold">{t("recovery.contacts.threshold_label")}</label>
-          <input
-            id="recovery-threshold"
-            type="number"
-            min={1}
-            max={20}
-            value={threshold}
-            onChange={(e) => setThreshold(Number(e.target.value))}
-            style={{ width: 60 }}
-          />
-        </div>
         {saveStatus === "saved" && <p className="muted">{t("recovery.contacts.saved")}</p>}
         {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
           <p className="error-text">{saveStatus}</p>
         )}
         <div className="settings-row">
-          <button className="btn-primary" onClick={handleSave} disabled={saveStatus === "saving"}>
+          <button className="btn-primary" onClick={handleSave} disabled={saveStatus === "saving" || picked.length === 0}>
             {saveStatus === "saving" ? t("recovery.contacts.saving") : t("recovery.contacts.save")}
           </button>
         </div>
@@ -239,15 +301,35 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
         <p className="muted">{t("recovery.request.hint")}</p>
         {!openRequest ? (
           <>
-            <div className="settings-row">
+            <label className="settings-label">{t("recovery.request.who_were_you")}</label>
+            <input
+              type="search"
+              value={oldSearch}
+              onChange={(e) => setOldSearch(e.target.value)}
+              placeholder={t("recovery.people.search")}
+              aria-label={t("recovery.request.who_were_you")}
+              style={{ width: "100%", maxWidth: 320 }}
+            />
+            {oldSearch.trim() && (
+              <div style={{ maxHeight: 200, overflowY: "auto", marginTop: "var(--space-2)" }}>
+                {people.filter((p) => matches(p, oldSearch)).map((p) =>
+                  personRow(
+                    p,
+                    <input type="radio" name="recovery-old-account" checked={oldPubkeyInput === p.pubkey} onChange={() => setOldPubkeyInput(p.pubkey)} />,
+                  ),
+                )}
+              </div>
+            )}
+            <details style={{ marginTop: "var(--space-2)" }}>
+              <summary className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("recovery.request.by_key")}</summary>
               <input
                 type="text"
                 value={oldPubkeyInput}
                 onChange={(e) => setOldPubkeyInput(e.target.value)}
                 placeholder={t("recovery.request.old_pubkey_placeholder")}
-                style={{ flex: 1 }}
+                style={{ width: "100%" }}
               />
-            </div>
+            </details>
             <div className="settings-row" style={{ marginTop: 4 }}>
               <input
                 type="text"
@@ -264,8 +346,14 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
           </>
         ) : (
           <div className="status-readout">
-            <div>{t("recovery.request.id_label")} <code>{openRequest.id}</code></div>
-            <div className="muted">{t("recovery.request.share_hint")}</div>
+            <div>{t("recovery.request.progress_sentence", { count: openRequest.attestation_count, threshold: openRequest.threshold })}</div>
+            {/* Only a hub that cannot list requests to its contacts needs the
+                id passed on by hand. */}
+            <details>
+              <summary className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("recovery.request.id_label")}</summary>
+              <code>{openRequest.id}</code>
+              <div className="muted">{t("recovery.request.share_hint")}</div>
+            </details>
             <div className="settings-row" style={{ marginTop: 4 }}>
               <button className="btn-small" onClick={() => actions.getRotationRequest(openRequest.id).then(setOpenRequest).catch(() => {})}>
                 {t("recovery.request.check_now")}
@@ -278,47 +366,76 @@ export function RecoveryContactsSection({ isAdmin, actions, showMemberCards = tr
 
       <SettingRow
         title={t("recovery.vouch.label")}
-        state={reviewBundle
-          ? t("recovery.vouch.progress", {
-              count: reviewBundle.attestation_count,
-              threshold: reviewBundle.threshold,
-              status: reviewBundle.status,
-            })
+        state={waiting.length > 0
+          ? t("recovery.vouch.state.waiting", { count: waiting.length })
           : t("recovery.vouch.state.idle")}
+        attention={waiting.length > 0}
+        meta={waiting.length > 0 ? String(waiting.length) : undefined}
         {...row("vouch")}
       >
-        <p className="muted">{t("recovery.vouch.hint")}</p>
-        <div className="settings-row">
-          <input
-            type="text"
-            value={lookupId}
-            onChange={(e) => setLookupId(e.target.value)}
-            placeholder={t("recovery.vouch.id_placeholder")}
-            style={{ flex: 1 }}
-          />
-          <button className="btn-small" onClick={handleLookup} disabled={reviewStatus === "looking" || !lookupId.trim()}>
-            {reviewStatus === "looking" ? t("recovery.vouch.looking_up") : t("recovery.vouch.look_up")}
-          </button>
-        </div>
-        {reviewBundle && (
-          <div className="status-readout" style={{ marginTop: 8 }}>
-            <div><strong>{t("recovery.old_key")}</strong> <code>{formatPubkey(reviewBundle.old_pubkey)}</code></div>
-            <div><strong>{t("recovery.new_key")}</strong> <code>{formatPubkey(reviewBundle.new_pubkey)}</code></div>
-            <div className="muted">{t("recovery.hub_key")} <code>{formatPubkey(reviewBundle.hub_pubkey)}</code></div>
-            {reviewStatus === "attested" ? (
+        <p className="muted">{t("recovery.vouch.warning")}</p>
+        {waiting.map((req) => (
+          <div key={req.id} className="status-readout" style={{ marginTop: "var(--space-2)" }}>
+            <div>{t("recovery.vouch.asks", { name: nameOf(req.old_pubkey) })}</div>
+            {req.reason && <div className="muted">{req.reason}</div>}
+            <div className="muted" style={{ fontSize: "var(--text-xs)" }}>
+              {formatRelative(req.created_at)} · {t("recovery.request.progress_sentence", { count: req.attestation_count, threshold: req.threshold })}
+            </div>
+            {attestStatus[req.id] === "attested" ? (
               <p className="muted">{t("recovery.vouch.attested")}</p>
             ) : (
               <div className="settings-row" style={{ marginTop: 4 }}>
-                <button className="btn-primary" onClick={handleAttest} disabled={reviewStatus === "attesting" || reviewBundle.status !== "pending"}>
-                  {reviewStatus === "attesting" ? t("recovery.vouch.signing") : t("recovery.vouch.confirm")}
+                <button className="btn-primary" disabled={attestStatus[req.id] === "attesting"} onClick={() => void confirmListed(req)}>
+                  {attestStatus[req.id] === "attesting" ? t("recovery.vouch.signing") : t("recovery.vouch.confirm")}
+                </button>
+                <button className="btn-small btn-secondary" onClick={() => setDismissed((d) => new Set(d).add(req.id))}>
+                  {t("recovery.vouch.not_them")}
                 </button>
               </div>
             )}
-            {reviewStatus !== "idle" && reviewStatus !== "looking" && reviewStatus !== "attesting" && reviewStatus !== "attested" && (
-              <p className="error-text">{reviewStatus}</p>
+            {attestStatus[req.id] && !["attesting", "attested"].includes(attestStatus[req.id]) && (
+              <p className="error-text">{attestStatus[req.id]}</p>
             )}
           </div>
-        )}
+        ))}
+        {toAttest !== null && waiting.length === 0 && <p className="muted">{t("recovery.vouch.none_waiting")}</p>}
+        <details open={toAttest === null} style={{ marginTop: "var(--space-3)" }}>
+          <summary className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("recovery.vouch.have_id")}</summary>
+          <div className="settings-row">
+            <input
+              type="text"
+              value={lookupId}
+              onChange={(e) => setLookupId(e.target.value)}
+              placeholder={t("recovery.vouch.id_placeholder")}
+              style={{ flex: 1 }}
+            />
+            <button className="btn-small" onClick={handleLookup} disabled={reviewStatus === "looking" || !lookupId.trim()}>
+              {reviewStatus === "looking" ? t("recovery.vouch.looking_up") : t("recovery.vouch.look_up")}
+            </button>
+          </div>
+          {reviewBundle && (
+            <div className="status-readout" style={{ marginTop: 8 }}>
+              <div>{t("recovery.vouch.asks", { name: nameOf(reviewBundle.old_pubkey) })}</div>
+              <div className="muted">{t("recovery.vouch.progress", {
+                count: reviewBundle.attestation_count,
+                threshold: reviewBundle.threshold,
+                status: reviewBundle.status,
+              })}</div>
+              {reviewStatus === "attested" ? (
+                <p className="muted">{t("recovery.vouch.attested")}</p>
+              ) : (
+                <div className="settings-row" style={{ marginTop: 4 }}>
+                  <button className="btn-primary" onClick={handleAttest} disabled={reviewStatus === "attesting" || reviewBundle.status !== "pending"}>
+                    {reviewStatus === "attesting" ? t("recovery.vouch.signing") : t("recovery.vouch.confirm")}
+                  </button>
+                </div>
+              )}
+              {reviewStatus !== "idle" && reviewStatus !== "looking" && reviewStatus !== "attesting" && reviewStatus !== "attested" && (
+                <p className="error-text">{reviewStatus}</p>
+              )}
+            </div>
+          )}
+        </details>
       </SettingRow>
       </>
       )}

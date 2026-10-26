@@ -67,6 +67,47 @@ pub(crate) async fn get_recovery_contacts(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
+/// `GET /recovery/requests/to-attest` — open requests naming this account as
+/// a recovery contact. `None` when the hub lacks `recovery.to_attest`, so the
+/// caller keeps the request-id field instead of reading a 404 as "none".
+#[tauri::command]
+pub(crate) async fn list_recovery_requests_to_attest(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<Option<serde_json::Value>, String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let info: serde_json::Value = state
+        .http_client
+        .get(format!("{base}/info"))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Invalid: {e}"))?;
+    let supported = info["capabilities"]
+        .as_array()
+        .is_some_and(|caps| caps.iter().any(|c| c == "recovery.to_attest"));
+    if !supported {
+        return Ok(None);
+    }
+    let resp = state
+        .http_client
+        .get(format!("{base}/recovery/requests/to-attest"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map(Some)
+        .map_err(|e| format!("Invalid: {e}"))
+}
+
 /// `PUT /recovery/contacts` — replaces the whole contact list + threshold.
 #[tauri::command]
 pub(crate) async fn set_recovery_contacts(

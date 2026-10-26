@@ -3,7 +3,10 @@ import type {
   RecoveryContactsSectionActions,
   RecoveryContactItem,
   RecoveryRequestBundle,
+  RecoveryRequestToAttest,
+  RecoveryPerson,
 } from "@wavvon/ui";
+import type { Friend, User } from "../types";
 
 interface RecoveryContactsResponse {
   owner_pubkey: string;
@@ -29,6 +32,21 @@ export function buildRecoveryActions(hubUrl: string): RecoveryContactsSectionAct
     },
     async removeContact(pubkey) {
       await invoke("remove_recovery_contact", { hubUrl, pubkey });
+    },
+    async listPeople() {
+      const [members, friends] = await Promise.all([
+        invoke<User[]>("list_users"),
+        invoke<Friend[]>("list_friends").catch(() => [] as Friend[]),
+      ]);
+      const byKey = new Map<string, RecoveryPerson>();
+      for (const u of members) byKey.set(u.public_key, { pubkey: u.public_key, display_name: u.display_name, avatar: u.avatar });
+      for (const f of friends) {
+        if (!byKey.has(f.public_key)) byKey.set(f.public_key, { pubkey: f.public_key, display_name: f.display_name });
+      }
+      return [...byKey.values()];
+    },
+    async listRequestsToAttest() {
+      return invoke<RecoveryRequestToAttest[] | null>("list_recovery_requests_to_attest", { hubUrl });
     },
     async openRotationRequest(oldPubkey, reason) {
       return invoke<RecoveryRequestBundle>("submit_rotation_request", { hubUrl, oldPubkey, reason });
