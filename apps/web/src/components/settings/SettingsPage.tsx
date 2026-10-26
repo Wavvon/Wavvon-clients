@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
 import type { ThemeId, WavvonSkin, ProfileEditorActions, SettingsTabDef, TrustRoot } from "@wavvon/ui";
-import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsShell } from "@wavvon/ui";
+import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
 import { getMyProfileOnHub, updateMyProfileOnHub, getFindableByAllies, setFindableByAllies, NO_HUB_SESSION, listMyCertifications } from "@platform";
@@ -141,16 +141,25 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
     { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
-    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
-    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
-    { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
-    { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
-    { id: "help", label: t("settings.tabs.help"), group: G_INFO },
-    { id: "about", label: t("settings.tabs.about"), group: G_INFO },
+    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP, deviceWide: true },
+    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP, deviceWide: true },
+    { id: "voice", label: t("settings.tabs.voice"), group: G_AV, deviceWide: true },
+    { id: "camera", label: t("settings.tabs.camera"), group: G_AV, deviceWide: true },
+    { id: "help", label: t("settings.tabs.help"), group: G_INFO, deviceWide: true },
+    { id: "about", label: t("settings.tabs.about"), group: G_INFO, deviceWide: true },
   ];
 
   return (
-    <SettingsShell title={t("settings.title")} tabs={TABS} activeTab={props.tab} onTab={props.onTab} onClose={props.onClose}>
+    <SettingsShell
+      title={t("settings.title")}
+      tabs={TABS}
+      activeTab={props.tab}
+      onTab={props.onTab}
+      onClose={props.onClose}
+      accountPicker={accounts && accounts.length > 1 && managing ? (
+        <SettingsAccountPicker accounts={accounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
+      ) : undefined}
+    >
         {props.tab === "profile" && (
           <ProfileTab
             hubs={props.hubs}

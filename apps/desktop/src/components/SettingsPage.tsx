@@ -14,6 +14,8 @@ import {
   AboutTab,
   ProfileTab,
   SettingsShell,
+  SettingsAccountPicker,
+  ActiveAccountOnlyNotice,
   SettingRow,
   resolveManagingAccount,
   type ThemeId,
@@ -23,7 +25,7 @@ import {
   type ProfileAccountRef,
 } from "@wavvon/ui";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
-import { listAccounts, type AccountSummary } from "../accounts/store";
+import { listAccounts, switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
 import { identityNeedsBackup } from "../utils/identityBackup";
@@ -183,16 +185,38 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
     { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
-    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
-    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
-    { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
-    { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
-    { id: "help", label: t("settings.tabs.help"), group: G_INFO },
-    { id: "about", label: t("settings.tabs.about"), group: G_INFO },
+    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP, deviceWide: true },
+    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP, deviceWide: true },
+    { id: "voice", label: t("settings.tabs.voice"), group: G_AV, deviceWide: true },
+    { id: "camera", label: t("settings.tabs.camera"), group: G_AV, deviceWide: true },
+    { id: "help", label: t("settings.tabs.help"), group: G_INFO, deviceWide: true },
+    { id: "about", label: t("settings.tabs.about"), group: G_INFO, deviceWide: true },
   ];
 
   return (
-    <SettingsShell title={t("settings.title")} tabs={TABS} activeTab={props.tab} onTab={props.onTab} onClose={props.onClose}>
+    <SettingsShell
+      title={t("settings.title")}
+      tabs={TABS}
+      activeTab={props.tab}
+      onTab={props.onTab}
+      onClose={props.onClose}
+      accountPicker={profileAccounts && profileAccounts.length > 1 && managing ? (
+        <SettingsAccountPicker accounts={profileAccounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
+      ) : undefined}
+    >
+        {/* Desktop's Manage accounts, Devices and Privacy act on the active
+            account only (their Tauri commands are scoped to it), so picking
+            another account says so instead of showing the active one's data. */}
+        {managing && managing.id !== activeId && (props.tab === "accounts" || props.tab === "devices" || props.tab === "privacy") && (
+          <ActiveAccountOnlyNotice
+            label={managing.account_label || managing.id.slice(0, 12)}
+            onSwitch={() => {
+              void switchAccountGuarded(managing.id).then((refused) => {
+                if (refused) alert(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+              });
+            }}
+          />
+        )}
         {props.tab === "profile" && (
           <ProfileTab
             hubs={props.hubs}

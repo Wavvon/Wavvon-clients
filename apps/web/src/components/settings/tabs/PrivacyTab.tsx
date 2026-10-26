@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { BlockEntry, Hub, IgnoreEntry } from "@shared/types";
 import { AccountBlockIgnoreSection } from "../AccountBlockIgnoreSection";
-import { ManagingAccountSelector } from "../ManagingAccountSelector";
 import type { PerAccountProps, TrustRoot } from "@wavvon/ui";
 import { TrustedIssuersSection, knownIssuerHubs } from "@wavvon/ui";
 import { lookupIssuerHub } from "../../../platform/adminActions";
@@ -26,14 +25,6 @@ export function PrivacyTab(props: Props) {
   return (
     <section>
       <h1>{t("settings.tabs.privacy")}</h1>
-      {props.accounts && props.managing && (
-        <ManagingAccountSelector
-          accounts={props.accounts}
-          activeId={props.activeId}
-          selectedId={props.managing.id}
-          onChange={props.onManagingChange}
-        />
-      )}
       {props.managing && (
         <AccountBlockIgnoreSection
           account={props.managing}

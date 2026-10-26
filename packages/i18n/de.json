@@ -1470,7 +1470,6 @@
   "settings.account.local_data.label": "Lokale Daten",
   "settings.account.local_data.state": "Zwischengespeicherte Hub-Daten auf diesem Rechner",
   "settings.account.managing.active_option": "{label} (aktiv)",
-  "settings.account.managing.label": "Verwaltung",
   "settings.account.not_member_notice": "{label} ist kein Mitglied dieses Hubs.",
   "settings.account.passkeys.add_button": "Passkey hinzufügen",
   "settings.account.passkeys.added_date": "Hinzugefügt am {date}",
@@ -1651,7 +1650,6 @@
   "settings.profile.save": "Profil speichern",
   "settings.profile.save_all": "Änderungen speichern",
   "settings.profile.save_name_required": "Jedes bearbeitete Profil braucht vor dem Speichern einen Anzeigenamen.",
-  "settings.profile.scope.for": "für",
   "settings.profile.subtitle": "Name, Avatar und Bio — lege einen Standard für neue Hubs fest oder passe an, wie du in jedem erscheinst.",
   "settings.profile.tabs.activities": "Aktivitäten",
   "settings.profile.tabs.bio": "Bio",
@@ -2095,5 +2093,9 @@
   "issuer_picker.look_up": "Nachschlagen",
   "issuer_picker.trust": "Vertrauen",
   "issuer_picker.already": "Bereits vertraut",
-  "issuer_picker.lookup_failed": "Dieser Hub ließ sich nicht lesen: {error}"
+  "issuer_picker.lookup_failed": "Dieser Hub ließ sich nicht lesen: {error}",
+  "settings.account.picker.label": "Konto",
+  "settings.device_wide": "Gilt für dieses Gerät, für jedes Konto.",
+  "settings.account.active_only": "Diese Bereiche wirken auf das aktive Konto. Um sie für {label} zu verwalten, wechsle zu diesem Konto.",
+  "settings.account.switch_to": "Zu {label} wechseln"
 }

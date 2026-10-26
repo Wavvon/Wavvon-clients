@@ -1470,7 +1470,6 @@
   "settings.account.local_data.label": "Datos locales",
   "settings.account.local_data.state": "Datos de los hubs en caché en esta máquina",
   "settings.account.managing.active_option": "{label} (activa)",
-  "settings.account.managing.label": "Gestionando",
   "settings.account.not_member_notice": "{label} no es miembro de este hub.",
   "settings.account.passkeys.add_button": "Añadir passkey",
   "settings.account.passkeys.added_date": "Añadida el {date}",
@@ -1651,7 +1650,6 @@
   "settings.profile.save": "Guardar perfil",
   "settings.profile.save_all": "Guardar cambios",
   "settings.profile.save_name_required": "Cada perfil editado necesita un nombre visible antes de guardar.",
-  "settings.profile.scope.for": "para",
   "settings.profile.subtitle": "Tu nombre, avatar y biografía — define un valor predeterminado para los hubs nuevos o adapta cómo apareces en cada uno.",
   "settings.profile.tabs.activities": "Actividades",
   "settings.profile.tabs.bio": "Bio",
@@ -2095,5 +2093,9 @@
   "issuer_picker.look_up": "Buscar",
   "issuer_picker.trust": "Confiar",
   "issuer_picker.already": "Ya es de confianza",
-  "issuer_picker.lookup_failed": "No se pudo leer ese hub: {error}"
+  "issuer_picker.lookup_failed": "No se pudo leer ese hub: {error}",
+  "settings.account.picker.label": "Cuenta",
+  "settings.device_wide": "Se aplica a este dispositivo, para todas las cuentas.",
+  "settings.account.active_only": "Estas secciones actúan sobre la cuenta activa. Para gestionarlas para {label}, cambia a ella.",
+  "settings.account.switch_to": "Cambiar a {label}"
 }
