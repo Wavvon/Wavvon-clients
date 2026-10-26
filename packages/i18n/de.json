@@ -1351,7 +1351,6 @@
   "settings.account.accounts.remove_body": "Das löscht die lokale Identität, die zwischengespeicherte Heim-Hub-Liste und den DM-Sitzungsstand. Das lässt sich nicht rückgängig machen.",
   "settings.account.accounts.remove_cancel": "Abbrechen",
   "settings.account.accounts.remove_confirm_button": "Konto entfernen",
-  "settings.account.accounts.remove_confirm_hint": "Ohne Wiederherstellungsphrase, Passkey oder Backup kann diese Identität nach dem Entfernen nicht wiederhergestellt werden. Gib den Fingerabdruck unten ein, um zu bestätigen.",
   "settings.account.accounts.remove_confirm_placeholder": "Gib \"{fingerprint}\" ein, um zu bestätigen",
   "settings.account.accounts.remove_title": "{label} von diesem Gerät entfernen?",
   "settings.account.accounts.rename_button": "Umbenennen",
@@ -2047,5 +2046,15 @@
   "settings.profile.findable_by_allies.label": "Mitgliedern verbündeter Hubs erlauben, mich auf diesem Hub zu finden",
   "settings.profile.findable_by_allies.hint": "Mitglieder verbündeter Hubs sehen deinen Namen und Avatar und können dir schreiben. Sie sehen auch, wohin deine Direktnachrichten zugestellt werden. Standardmäßig aus.",
   "settings.profile.findable_by_allies.failed": "Diese Einstellung konnte nicht geändert werden.",
-  "app.hub_unreachable_at_start": "Keine erneute Verbindung zu {hub}. Er ist weiterhin gespeichert – möglicherweise offline; starte die App neu, um es erneut zu versuchen."
+  "app.hub_unreachable_at_start": "Keine erneute Verbindung zu {hub}. Er ist weiterhin gespeichert – möglicherweise offline; starte die App neu, um es erneut zu versuchen.",
+  "settings.account.accounts.remove_backed_up_hint": "Du kannst sie mit ihrer Wiederherstellungsphrase oder einer Backup-Datei zurückholen.",
+  "settings.account.accounts.remove_paired_hint": "Die Identität bleibt auf deinen anderen Geräten. Widerrufe dieses Gerät auch unter Geräte, sonst bleibt es als vertrauenswürdig gelistet.",
+  "settings.account.accounts.remove_unsaved_warning": "Diese Identität gibt es nur auf diesem Gerät. Wenn du sie entfernst, ist sie überall endgültig gelöscht: auf jedem Hub, samt ihren Direktnachrichten.",
+  "settings.account.accounts.remove_unsaved_save_first": "Sichere zuerst ihre Wiederherstellungsphrase oder eine Backup-Datei, im Abschnitt unten.",
+  "settings.account.accounts.remove_show_phrase": "Wiederherstellungsphrase anzeigen",
+  "settings.account.accounts.remove_phrase_hint": "Schreib diese Wörter auf. Damit holst du diese Identität auf jedes Gerät zurück.",
+  "settings.account.accounts.remove_anyway": "Trotzdem löschen",
+  "settings.account.accounts.remove_type_fingerprint": "Gib den Fingerabdruck unten ein, um zu bestätigen.",
+  "settings.account.accounts.removed_notice": "{label} von diesem Gerät entfernt.",
+  "settings.account.accounts.remove_undo": "Rückgängig"
 }

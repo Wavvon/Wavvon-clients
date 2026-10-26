@@ -1351,7 +1351,6 @@
   "settings.account.accounts.remove_body": "Borra su identidad local, la lista de hubs de casa en caché y el estado de las sesiones de DM. No se puede deshacer.",
   "settings.account.accounts.remove_cancel": "Cancelar",
   "settings.account.accounts.remove_confirm_button": "Quitar cuenta",
-  "settings.account.accounts.remove_confirm_hint": "Sin su frase de recuperación, passkey o una copia de seguridad, esta identidad no se podrá recuperar una vez eliminada. Escribe su huella a continuación para confirmar.",
   "settings.account.accounts.remove_confirm_placeholder": "Escribe \"{fingerprint}\" para confirmar",
   "settings.account.accounts.remove_title": "¿Quitar {label} de este dispositivo?",
   "settings.account.accounts.rename_button": "Renombrar",
@@ -2047,5 +2046,15 @@
   "settings.profile.findable_by_allies.label": "Permitir que los miembros de hubs aliados me encuentren en este hub",
   "settings.profile.findable_by_allies.hint": "Los miembros de hubs aliados con este verán tu nombre y avatar y podrán escribirte. También podrán ver dónde se entregan tus mensajes directos. Desactivado por defecto.",
   "settings.profile.findable_by_allies.failed": "No se pudo cambiar este ajuste.",
-  "app.hub_unreachable_at_start": "No se pudo reconectar a {hub}. Sigue guardado: puede estar desconectado; reinicia la app para intentarlo de nuevo."
+  "app.hub_unreachable_at_start": "No se pudo reconectar a {hub}. Sigue guardado: puede estar desconectado; reinicia la app para intentarlo de nuevo.",
+  "settings.account.accounts.remove_backed_up_hint": "Puedes recuperarla con su frase de recuperación o con un archivo de copia de seguridad.",
+  "settings.account.accounts.remove_paired_hint": "La identidad sigue en tus otros dispositivos. Revoca también este dispositivo en Dispositivos, o seguirá en la lista de confianza.",
+  "settings.account.accounts.remove_unsaved_warning": "Esta identidad solo existe en este dispositivo. Eliminarla la borra en todas partes, para siempre: en cada hub, con sus mensajes directos.",
+  "settings.account.accounts.remove_unsaved_save_first": "Guarda primero su frase de recuperación o un archivo de copia de seguridad, en la sección de abajo.",
+  "settings.account.accounts.remove_show_phrase": "Mostrar frase de recuperación",
+  "settings.account.accounts.remove_phrase_hint": "Apunta estas palabras. Con ellas puedes recuperar esta identidad en cualquier dispositivo.",
+  "settings.account.accounts.remove_anyway": "Borrarla de todos modos",
+  "settings.account.accounts.remove_type_fingerprint": "Escribe su huella a continuación para confirmar.",
+  "settings.account.accounts.removed_notice": "{label} eliminada de este dispositivo.",
+  "settings.account.accounts.remove_undo": "Deshacer"
 }

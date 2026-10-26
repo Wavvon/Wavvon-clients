@@ -124,7 +124,7 @@ export function ManageAccountsTab(props: Props) {
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.accounts")}</h1>
-      <AccountsSwitcherSection inVoice={props.inVoice} />
+      <AccountsSwitcherSection inVoice={props.inVoice} onBackedUp={props.onBackedUp} />
       <IdentityBackupSection
         accounts={backupAccounts}
         recoveryPhrase={props.recoveryPhrase}

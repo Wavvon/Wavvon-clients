@@ -10,8 +10,11 @@ import {
   switchCooldownRemainingMs,
   SWITCH_BLOCKED_COOLDOWN,
   setAccountOrder,
+  holdsMasterSeed,
+  seedToPhrase,
   type IdentityRecord,
 } from "@identity/index";
+import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
 import { reorderByDrop, moveByStep } from "@identity/accountOrder";
 import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
 import { EditIcon } from "@wavvon/ui";
@@ -23,16 +26,20 @@ function shortFingerprint(id: string): string {
   return id.slice(0, 8);
 }
 
+// How long a removal can be undone before the record is actually deleted.
+const UNDO_MS = 8000;
+
 interface Props {
   // Whether this device's active account is currently joined to a voice
   // channel — switching is blocked outright while true (not auto-left).
   inVoice?: boolean;
+  onBackedUp?: () => void;
 }
 
 // Accounts are device-local: this list is just every row in the identity
 // store (see identity/store.ts) — there is no server-side account registry
 // and nothing here is ever synced to a hub.
-export function AccountsSwitcherSection({ inVoice = false }: Props) {
+export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<IdentityRecord[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -40,6 +47,12 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
   const [renameDraft, setRenameDraft] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeConfirmText, setRemoveConfirmText] = useState("");
+  // An identity that never left this device: its phrase shown inline, or the
+  // user's explicit choice to delete it anyway.
+  const [removePhrase, setRemovePhrase] = useState<string | null>(null);
+  const [removeAnyway, setRemoveAnyway] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<IdentityRecord | null>(null);
+  const pendingRef = useRef<{ id: string; wasActive: boolean; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -59,6 +72,10 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
 
   useEffect(() => {
     refresh();
+    // Leaving settings while an undo is still on offer means the user let it
+    // stand: commit it rather than drop it.
+    return () => void commitRemoval();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -96,6 +113,14 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
   function startRemove(id: string) {
     setRemovingId(id);
     setRemoveConfirmText("");
+    setRemovePhrase(null);
+    setRemoveAnyway(false);
+  }
+
+  function showPhraseBeforeRemoval(account: IdentityRecord) {
+    setRemovePhrase(seedToPhrase(account.seed_hex));
+    markIdentityBackedUp(account.id);
+    onBackedUp?.();
   }
 
   // Same value the old standalone "Your public key" section copied: the
@@ -108,12 +133,35 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
     setTimeout(() => setCopiedKeyId(null), 2000);
   }
 
-  async function confirmRemove(account: IdentityRecord) {
+  // The delete is written only once the undo window closes, so an undo just
+  // forgets the pending entry.
+  function confirmRemove(account: IdentityRecord) {
     if (removeConfirmText.trim().toLowerCase() !== shortFingerprint(account.id)) return;
-    const wasActive = account.id === activeId;
-    await removeAccount(account.id);
+    void commitRemoval();
     setRemovingId(null);
-    if (wasActive) {
+    setRemovePhrase(null);
+    pendingRef.current = {
+      id: account.id,
+      wasActive: account.id === activeId,
+      timer: setTimeout(() => void commitRemoval(), UNDO_MS),
+    };
+    setPendingRemoval(account);
+  }
+
+  function undoRemoval() {
+    if (pendingRef.current) clearTimeout(pendingRef.current.timer);
+    pendingRef.current = null;
+    setPendingRemoval(null);
+  }
+
+  async function commitRemoval() {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    pendingRef.current = null;
+    clearTimeout(pending.timer);
+    await removeAccount(pending.id);
+    setPendingRemoval(null);
+    if (pending.wasActive) {
       window.location.reload();
     } else {
       refresh();
@@ -177,6 +225,14 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
         {t("settings.account.accounts.pubkey_hint")}
       </p>
       {switchError && <p className="error-text" style={{ marginBottom: 8 }}>{switchError}</p>}
+      {pendingRemoval && (
+        <div className="settings-row" style={{ marginBottom: 8 }} role="status">
+          <span>{t("settings.account.accounts.removed_notice", { label: pendingRemoval.account_label || formatPubkey(pendingRemoval.id) })}</span>
+          <button type="button" className="btn-small btn-secondary" onClick={undoRemoval}>
+            {t("settings.account.accounts.remove_undo")}
+          </button>
+        </div>
+      )}
 
       <table className="members-table" style={{ marginTop: 4 }}>
         <thead>
@@ -188,10 +244,12 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
           </tr>
         </thead>
         <tbody>
-          {(accounts ?? []).map((account, index) => {
+          {(accounts ?? []).filter((a) => a.id !== pendingRemoval?.id).map((account, index) => {
             const isActive = account.id === activeId;
             const fp = shortFingerprint(account.id);
             const isRemoving = removingId === account.id;
+            const unsaved = isRemoving && identityNeedsBackup(account);
+            const paired = !holdsMasterSeed(account);
             const label = account.account_label || formatPubkey(account.id);
             return (
               <Fragment key={account.id}>
@@ -256,7 +314,7 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
                           title={t("settings.account.accounts.rename_button")}
                           aria-label={t("settings.account.accounts.rename_button")}
                           style={{ padding: "2px 4px", fontSize: "var(--text-sm)", lineHeight: 1 }}
-                        >
+                        >
                           <EditIcon size={13} />
                         </button>
                       </span>
@@ -312,29 +370,53 @@ export function AccountsSwitcherSection({ inVoice = false }: Props) {
                 {isRemoving && (
                   <tr>
                     <td colSpan={4}>
-                      <p className="error-text" style={{ margin: 0 }}>
-                        {t("settings.account.accounts.remove_confirm_hint")}
-                      </p>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
-                        <input
-                          type="text"
-                          value={removeConfirmText}
-                          onChange={(e) => setRemoveConfirmText(e.target.value)}
-                          placeholder={t("settings.account.accounts.remove_confirm_placeholder", { fingerprint: fp })}
-                          style={{ fontFamily: "monospace" }}
-                        />
-                        <button
-                          type="button"
-                          className="btn-small btn-secondary"
-                          disabled={removeConfirmText.trim().toLowerCase() !== fp}
-                          onClick={() => void confirmRemove(account)}
-                        >
-                          {t("settings.account.accounts.remove_confirm_button")}
-                        </button>
-                        <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
-                          {t("settings.account.accounts.remove_cancel")}
-                        </button>
-                      </div>
+                      {removePhrase ? (
+                        <>
+                          <p className="muted" style={{ margin: 0 }}>{t("settings.account.accounts.remove_phrase_hint")}</p>
+                          <code style={{ display: "block", margin: "6px 0", userSelect: "all" }}>{removePhrase}</code>
+                        </>
+                      ) : unsaved ? (
+                        <p className="error-text" style={{ margin: 0 }}>{t("settings.account.accounts.remove_unsaved_warning")}</p>
+                      ) : (
+                        <p className="muted" style={{ margin: 0 }}>
+                          {t(paired ? "settings.account.accounts.remove_paired_hint" : "settings.account.accounts.remove_backed_up_hint")}{" "}
+                          {t("settings.account.accounts.remove_type_fingerprint")}
+                        </p>
+                      )}
+                      {unsaved && !removePhrase && !removeAnyway ? (
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+                          <button type="button" className="btn-small" onClick={() => showPhraseBeforeRemoval(account)}>
+                            {t("settings.account.accounts.remove_show_phrase")}
+                          </button>
+                          <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
+                            {t("settings.account.accounts.remove_cancel")}
+                          </button>
+                          <button type="button" className="btn-small btn-danger" onClick={() => setRemoveAnyway(true)}>
+                            {t("settings.account.accounts.remove_anyway")}
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+                          <input
+                            type="text"
+                            value={removeConfirmText}
+                            onChange={(e) => setRemoveConfirmText(e.target.value)}
+                            placeholder={t("settings.account.accounts.remove_confirm_placeholder", { fingerprint: fp })}
+                            style={{ fontFamily: "monospace" }}
+                          />
+                          <button
+                            type="button"
+                            className="btn-small btn-secondary"
+                            disabled={removeConfirmText.trim().toLowerCase() !== fp}
+                            onClick={() => confirmRemove(account)}
+                          >
+                            {t("settings.account.accounts.remove_confirm_button")}
+                          </button>
+                          <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
+                            {t("settings.account.accounts.remove_cancel")}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}
