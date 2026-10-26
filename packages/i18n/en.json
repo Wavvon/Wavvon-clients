@@ -1615,10 +1615,6 @@
   "settings.pairing.sync_ok": "Done! Preferences synced from your other device.",
   "settings.pairing.sync_skipped": "Done! (Preferences sync skipped)",
   "settings.pairing.sync_skipped_reason": "Done! (Preferences sync skipped: {reason})",
-  "settings.privacy.birthdays.hide": "Hide the 🎂 badge on members' birthdays",
-  "settings.privacy.birthdays.label": "Birthdays",
-  "settings.privacy.birthdays.state.hidden": "Hidden",
-  "settings.privacy.birthdays.state.shown": "Shown on profiles",
   "settings.privacy.trusted_issuers.add": "Trust",
   "settings.privacy.trusted_issuers.already": "Already trusted.",
   "settings.privacy.trusted_issuers.empty": "No trusted issuers yet.",
@@ -2088,5 +2084,7 @@
   "hub.admin.audit.event.role_category.updated": "{actor} changed a role category",
   "hub.admin.audit.event.role_category.deleted": "{actor} deleted a role category",
   "hub.admin.audit.event.soundboard.clip_uploaded": "{actor} added a soundboard clip",
-  "hub.admin.audit.event.soundboard.clip_deleted": "{actor} removed a soundboard clip"
+  "hub.admin.audit.event.soundboard.clip_deleted": "{actor} removed a soundboard clip",
+  "settings.profile.fields.birthday_hint": "Leave it empty to share nothing. Month and day only, never the year.",
+  "settings.profile.fields.show_birthdays": "Show 🎂 on members' birthdays"
 }

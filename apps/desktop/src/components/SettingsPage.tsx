@@ -197,6 +197,10 @@ export function SettingsPage(props: SettingsPageProps) {
             onHubProfileSaved={props.onHubProfileSaved}
             trustRoots={trustRoots}
             onTrustIssuer={(pubkey, label) => updateTrustRoots(addTrustRoot(trustRoots, pubkey, label))}
+            showBirthdays={!props.hideBirthdays}
+            onShowBirthdaysChange={(show) => {
+              if (show === props.hideBirthdays) props.onToggleHideBirthdays();
+            }}
             {...perAccount}
           />
         )}
@@ -226,8 +230,6 @@ export function SettingsPage(props: SettingsPageProps) {
             onUnblock={props.onUnblock}
             onUnignore={props.onUnignore}
             knownNames={props.knownNames}
-            hideBirthdays={props.hideBirthdays}
-            onToggleHideBirthdays={props.onToggleHideBirthdays}
             trustRoots={trustRoots}
             onTrustRootsChange={updateTrustRoots}
           />

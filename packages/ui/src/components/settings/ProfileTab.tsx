@@ -15,6 +15,8 @@ interface Props extends PerAccountProps<ProfileAccountRef> {
    *  synced to keep them. */
   trustRoots?: TrustRoot[];
   onTrustIssuer?: (issuerPubkey: string, label?: string) => void;
+  showBirthdays?: boolean;
+  onShowBirthdaysChange?: (show: boolean) => void;
 }
 
 // Who the selected account is: one profile editor over every context (the
@@ -46,6 +48,8 @@ export function ProfileTab(props: Props) {
             onManagingChange={props.onManagingChange}
             onHubProfileSaved={props.onHubProfileSaved}
             actions={props.actions}
+            showBirthdays={props.showBirthdays}
+            onShowBirthdaysChange={props.onShowBirthdaysChange}
           />
         )}
         {managingIsActive && (
