@@ -12,6 +12,7 @@ import { MULTI_HUB } from "../../../constants";
 import { MoveToUserClientSection } from "../MoveToUserClientSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
 import { ManagingAccountSelector } from "../ManagingAccountSelector";
+import { PasskeySection } from "../PasskeySection";
 import {
   listAccounts,
   resolveOrCreateAccount,
@@ -138,6 +139,7 @@ export function ManageAccountsTab(props: Props) {
         }}
       />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
+      {props.managing && <PasskeySection publicKey={props.publicKey} account={props.managing} activeHubUrl={activeHubUrl} />}
       <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
       {props.accounts && props.managing && (
         <ManagingAccountSelector
