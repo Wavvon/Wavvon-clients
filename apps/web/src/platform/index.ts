@@ -238,7 +238,7 @@ export {
 } from "./commands/friends";
 
 export { getAuditLog } from "./commands/audit";
-export type { AuditLogEntry, AuditLogPage } from "./commands/audit";
+export type { AuditLogEntry, AuditLogPage } from "@wavvon/ui";
 export { listChannelBans, banFromChannel, unbanFromChannel } from "./commands/channelBans";
 export type { ChannelBan } from "./commands/channelBans";
 export { getTalkPower, setTalkPower } from "./commands/talkPower";

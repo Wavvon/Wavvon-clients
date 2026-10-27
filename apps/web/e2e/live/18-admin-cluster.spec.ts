@@ -11,14 +11,16 @@ async function openAdminTab(page: Page, tab: string) {
   await page.getByRole("button", { name: tab, exact: true }).click();
 }
 
-test("audit log lists administrative events", async ({ page }) => {
+test("audit log opens on the newest event, written as a sentence", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
+  // The suite has generated plenty of audit activity by now, so a log that
+  // opened on its oldest page (Wavvon-server#189) would not show this one.
+  const channel = uniqueName("audited");
+  await createChannel(page, channel);
   await openAdminTab(page, "Audit log");
   await expect(page.getByRole("heading", { name: "Audit log" })).toBeVisible();
-  // The suite has generated plenty of audit activity by now. The log is a
-  // list of entries grouped by day, not a table.
-  await expect(page.locator(".audit-entry").first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator(".audit-entry-what").first()).toContainText(`created #${channel}`, { timeout: 10000 });
 });
 
 test("create and delete a hub SVG icon", async ({ page }) => {

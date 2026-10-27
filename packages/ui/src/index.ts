@@ -350,8 +350,8 @@ export { ServerTagsSection } from "./components/admin/ServerTagsSection";
 export type { ServerTagsSectionActions } from "./components/admin/ServerTagsSection";
 export { InviteManager } from "./components/admin/InviteManager";
 export type { InviteManagerActions } from "./components/admin/InviteManager";
-export { AuditLogSection } from "./components/admin/AuditLogSection";
-export type { AuditLogSectionActions } from "./components/admin/AuditLogSection";
+export { AuditLogSection, normalizeAuditPage } from "./components/admin/AuditLogSection";
+export type { AuditLogSectionActions, AuditLogQuery } from "./components/admin/AuditLogSection";
 export { CertificationsSection } from "./components/admin/CertificationsSection";
 export type { CertificationsSectionActions } from "./components/admin/CertificationsSection";
 
