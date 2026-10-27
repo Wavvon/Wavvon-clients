@@ -2086,5 +2086,15 @@
   "hub.admin.audit.event.soundboard.clip_uploaded": "{actor} added a soundboard clip",
   "hub.admin.audit.event.soundboard.clip_deleted": "{actor} removed a soundboard clip",
   "settings.profile.fields.birthday_hint": "Leave it empty to share nothing. Month and day only, never the year.",
-  "settings.profile.fields.show_birthdays": "Show 🎂 on members' birthdays"
+  "settings.profile.fields.show_birthdays": "Show 🎂 on members' birthdays",
+  "settings.nav_groups.info": "Info",
+  "settings.tabs.about": "About & credits",
+  "settings.about.title": "About & credits",
+  "settings.about.version": "Version {version}",
+  "settings.about.license": "Wavvon is free software under the GNU Affero General Public License v3.0. You can read, change and share its code.",
+  "settings.about.source": "Source code of this client",
+  "settings.about.server": "Hub server",
+  "settings.about.docs": "Documentation",
+  "settings.about.discovery": "Hub directory",
+  "settings.about.credits": "Built on"
 }

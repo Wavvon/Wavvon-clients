@@ -11,6 +11,7 @@ import {
   makeSeed,
   SkinsGallery,
   HelpTab,
+  AboutTab,
   ProfileTab,
   SettingsShell,
   SettingRow,
@@ -42,7 +43,8 @@ export type SettingsTab =
   | "appearance"
   | "voice"
   | "camera"
-  | "help";
+  | "help"
+  | "about";
 
 export interface SettingsPageProps {
   tab: SettingsTab;
@@ -175,6 +177,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const G_ACCOUNTS = t("settings.nav_groups.accounts");
   const G_APP = t("settings.nav_groups.app");
   const G_AV = t("settings.nav_groups.audio_video");
+  const G_INFO = t("settings.nav_groups.info");
   const TABS: SettingsTabDef<SettingsTab>[] = [
     { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
     { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
@@ -182,9 +185,10 @@ export function SettingsPage(props: SettingsPageProps) {
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
     { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
     { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
-    { id: "help", label: t("settings.tabs.help"), group: G_APP },
     { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
     { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
+    { id: "help", label: t("settings.tabs.help"), group: G_INFO },
+    { id: "about", label: t("settings.tabs.about"), group: G_INFO },
   ];
 
   return (
@@ -441,6 +445,9 @@ export function SettingsPage(props: SettingsPageProps) {
         )}
 
         {props.tab === "help" && <HelpTab />}
+        {props.tab === "about" && (
+          <AboutTab version={import.meta.env.VITE_APP_VERSION} extraCredits={["Tauri", "Opus", "RNNoise (nnnoiseless)", "cpal", "wtransport"]} />
+        )}
 
         {props.tab === "camera" && <CameraTab />}
     </SettingsShell>
