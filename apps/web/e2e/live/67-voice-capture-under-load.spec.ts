@@ -58,7 +58,7 @@ test("receiver keeps getting audio while the sender main thread is blocked", asy
   await expectInHub(page);
   await transmitContinuously(page);
   const channel = uniqueName("load");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: sender } = await newMemberPage(browser, uniqueName("Sender"));

@@ -13,8 +13,8 @@ test("joining a second voice channel leaves the first", async ({ page }) => {
 
   const a = uniqueName("va");
   const b = uniqueName("vb");
-  await createChannel(page, a);
-  await createChannel(page, b);
+  await createChannel(page, a, "Voice channel");
+  await createChannel(page, b, "Voice channel");
 
   // Join A — a channel row is joined by double-click (see the "Double-click
   // to join voice" row tooltip in SortableItems.tsx), not a header button.

@@ -1,3 +1,4 @@
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { allianceActions } from "../hooks/hubAdminActions";
@@ -196,6 +197,7 @@ export function AppModals(p: AppModalsProps) {
     setShowKeyboardShortcuts,
   } = p;
   const { t } = useTranslation();
+  const hubCaps = useHubCapabilities(hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const canEditChannelPermissions =
@@ -375,6 +377,7 @@ export function AppModals(p: AppModalsProps) {
           isAdmin={isAdmin}
           myMaxPriority={myMaxPriority}
           hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
+          voiceChannels={hubCaps.includes("channels.voice")}
           onSave={channelCrud.channelSettingsModal ? channelCrud.handleSaveChannelSettings : channelCrud.handleCreateChannel}
           onDelete={channelCrud.handleDeleteChannelSettings}
           onClose={() => {

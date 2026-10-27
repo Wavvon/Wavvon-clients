@@ -213,7 +213,7 @@ export function useChannelCrud({
   async function handleSaveChannelSettings(fields: ChannelSettingsSaveFields) {
     if (!channelSettingsModal) return;
     const channel = channelSettingsModal;
-    const { name, description, color, icon, customIconSvg, banner, forumRequireTag, nsfw } = fields;
+    const { name, description, color, icon, customIconSvg, banner, forumRequireTag, nsfw, switchType } = fields;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
     try {
@@ -222,6 +222,9 @@ export function useChannelCrud({
       }
       if (nsfw !== (channel.nsfw ?? false)) {
         await invoke("set_channel_nsfw", { channelId: channel.id, nsfw });
+      }
+      if (switchType) {
+        await invoke("set_channel_type", { channelId: channel.id, channelType: switchType });
       }
       if (name !== channel.name) {
         await invoke("rename_channel", { channelId: channel.id, name });
@@ -266,6 +269,7 @@ export function useChannelCrud({
                 banner_url: banner?.url ?? c.banner_url,
                 forum_require_tag: forumRequireTag ?? c.forum_require_tag,
                 nsfw,
+                channel_type: switchType ?? c.channel_type,
               }
             : c
         )

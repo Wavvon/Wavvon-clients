@@ -29,8 +29,8 @@ test("owner moves a member via right-click; prompt accept/decline both work", as
 
   const a = uniqueName("mova");
   const b = uniqueName("movb");
-  await createChannel(page, a);
-  await createChannel(page, b);
+  await createChannel(page, a, "Voice channel");
+  await createChannel(page, b, "Voice channel");
 
   await joinVoice(page, a);
 
@@ -82,7 +82,7 @@ test("a member without move_members has no 'Move to channel…' entry", async ({
   await expectInHub(page);
 
   const a = uniqueName("movc");
-  await createChannel(page, a);
+  await createChannel(page, a, "Voice channel");
   await joinVoice(page, a);
 
   const moverName = uniqueName("Plain");

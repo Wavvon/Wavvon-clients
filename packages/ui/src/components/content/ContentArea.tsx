@@ -30,6 +30,7 @@ import type { EventStagingCapability } from "../events/EventCard";
 import { ChannelHeader } from "./ChannelHeader";
 import { ChannelComposer } from "./ChannelComposer";
 import { ChannelMessageList } from "./ChannelMessageList";
+import { VoiceStage, type VoiceStageInfo } from "./VoiceStage";
 import type { MessageRowActions } from "./MessageRow";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
@@ -168,6 +169,9 @@ interface Props {
   rsvpEvent: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   createEvent: (payload: CreateEventPayload) => Promise<HubEvent>;
   eventStaging?: EventStagingCapability;
+  /** The room a selected voice channel opens to (decisions.md, "Voice lives
+   *  in voice channels"), drawn above its chat. */
+  voiceStage?: VoiceStageInfo;
 }
 
 export function ContentArea({
@@ -178,7 +182,7 @@ export function ContentArea({
   users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
-  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus,
+  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus, voiceStage,
   selfInvisible,
   hideBirthdays,
   inputText, typingByKey, dmTypingByKey,
@@ -535,6 +539,7 @@ export function ContentArea({
               onOpenHubStreams={onOpenHubStreams}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
+            {selectedChannel.channel_type === "voice" && voiceStage && <VoiceStage {...voiceStage} />}
             {activeScreenShares.length > 0 && screenShareViewerRef && (
               <ScreenShareViewer
                 ref={screenShareViewerRef}

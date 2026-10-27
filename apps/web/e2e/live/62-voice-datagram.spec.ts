@@ -84,7 +84,7 @@ test("a datagram is received, unsealed and decoded — not just a roster row", a
   await transmitContinuously(page);
 
   const channel = uniqueName("audio");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const speakerName = uniqueName("Speaker");

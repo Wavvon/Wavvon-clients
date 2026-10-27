@@ -45,7 +45,7 @@ test("a screen share arrives as decoded frames, not just a panel", async ({ page
   await expectInHub(page);
 
   const channel = uniqueName("frames");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: viewer } = await newMemberPage(browser, uniqueName("Viewer"));

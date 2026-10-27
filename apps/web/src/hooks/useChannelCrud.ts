@@ -143,6 +143,7 @@ export function useChannelCrud({
           banner_file_id: bannerFileId,
           forum_require_tag: fields.forumRequireTag,
           nsfw: fields.nsfw,
+          channel_type: fields.switchType,
         }),
       });
       setChannelSettingsCtx(null);

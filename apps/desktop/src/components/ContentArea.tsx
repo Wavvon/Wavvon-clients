@@ -24,6 +24,7 @@ import type {
 import {
   ConnectionStatus,
   ContentArea as SharedContentArea,
+  type VoiceStageInfo,
   type ForumActions,
   type MessageRowActions,
   type UserProfileCardActions,
@@ -158,6 +159,7 @@ interface Props {
   reconnectingHubs: Record<string, boolean>;
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
+  voiceStage?: VoiceStageInfo;
   hideBirthdays?: boolean;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;

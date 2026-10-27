@@ -66,6 +66,14 @@ describe("moveChannelOptions", () => {
     expect(moveChannelOptions(channels)).toEqual([{ id: "voice-1", name: "Voice Room" }]);
   });
 
+  it("offers only voice channels once the hub has any", () => {
+    const channels: Channel[] = [
+      makeChannel({ id: "text-1", name: "chat" }),
+      makeChannel({ id: "voice-1", channel_type: "voice", name: "Lounge" }),
+    ];
+    expect(moveChannelOptions(channels)).toEqual([{ id: "voice-1", name: "Lounge" }]);
+  });
+
   it("returns an empty list when there are no eligible channels", () => {
     expect(moveChannelOptions([makeChannel({ is_category: true })])).toEqual([]);
   });

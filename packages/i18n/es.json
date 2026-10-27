@@ -2097,5 +2097,13 @@
   "recovery.vouch.asks": "{name} (ahora con una clave nueva) te pide que confirmes que es esa persona.",
   "recovery.vouch.not_them": "No es esa persona",
   "recovery.vouch.none_waiting": "Nadie te está pidiendo una confirmación ahora.",
-  "recovery.vouch.have_id": "¿Tienes un id de solicitud?"
+  "recovery.vouch.have_id": "¿Tienes un id de solicitud?",
+  "channel.create.type_voice": "Canal de voz",
+  "channel.settings.type_label": "Tipo de canal",
+  "channel.settings.type_hint": "Un canal de voz es una sala a la que se entra para hablar; también tiene chat. Al cambiar de tipo se conserva el historial del chat.",
+  "channel.sidebar.dblclick_join": "Doble clic para entrar en voz",
+  "voice.stage.label": "Quién está en esta sala",
+  "voice.stage.empty": "Aún no hay nadie.",
+  "voice.stage.join": "Entrar en voz",
+  "voice.stage.join_hint": "o haz doble clic en el canal"
 }
