@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { User } from "../../types";
-import { formatPubkey, isBirthdayToday } from "@wavvon/core";
+import { isBirthdayToday } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 import { nameColorStyle, safeRoleColor } from "../../utils/roleAppearance";
 import { CakeIcon, MicOnIcon } from "../Icons";

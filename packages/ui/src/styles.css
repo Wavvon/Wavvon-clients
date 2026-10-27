@@ -5239,7 +5239,8 @@ select:focus-visible {
   color: var(--text);
 }
 
-.discover-tag-chip.active {
+.discover-tag-chip.active,
+.discover-tag-chip.active:hover {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
@@ -6939,7 +6940,31 @@ a.embed-title:hover {
 .error-boundary-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px; color: var(--text); font-size: var(--text-md, 16px); }.sidebar-header-alliance h3 {
   font-size: var(--text-xs);
   color: var(--text-muted);
-}.faq-entry {
+}.camera-preview {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-md);
+  background: #000;
+  overflow: hidden;
+}
+.camera-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mirrored like the in-call self view. */
+  transform: scaleX(-1);
+}
+.camera-preview-overlay {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: max-content;
+  height: max-content;
+}
+
+.faq-entry {
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
   background: var(--bg-sunken);

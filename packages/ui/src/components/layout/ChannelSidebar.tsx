@@ -32,7 +32,6 @@ import type {
 import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, GearIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
 import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
-import { HoverSubmenu } from "../HoverSubmenu";
 import { HubMenuItems } from "./HubMenuItems";
 import { SoundboardPopover } from "../voice/SoundboardPopover";
 import { WhisperPanel } from "../voice/WhisperPanel";
