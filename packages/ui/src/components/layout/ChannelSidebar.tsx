@@ -149,6 +149,9 @@ interface Props {
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenChannelSettings?: (channel: Channel) => void;
   onVoiceJoin: (channel?: Channel) => void;
+  /** The hub has `channels.voice`: only a `voice` channel can be joined, so
+   *  a double click on any other channel just opens it. */
+  voiceChannelsOnly?: boolean;
   onVoiceLeave: () => void;
   /** Right-click on a voice-roster participant — the mover's "Move to channel…" surface (events.md §7.1). */
   onParticipantContextMenu?: (e: React.MouseEvent, participant: VoiceParticipant, channelId: string) => void;
@@ -223,7 +226,7 @@ export function ChannelSidebar({
   onHubDropdownOpenChange, onSetHubMode, onClearHubUnread, onRemoveHub,
   onOpenHubAdmin, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
-  onVoiceJoin, onVoiceLeave, onParticipantContextMenu,
+  onVoiceJoin, onVoiceLeave, onParticipantContextMenu, voiceChannelsOnly,
   onSelectAllianceChannel, onJoinAllianceVoice, onSelectConversation,
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings, settingsNeedsAttention,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
@@ -649,7 +652,12 @@ export function ChannelSidebar({
                             onSelectChannel(n.node);
                           }
                         }}
-                        onDoubleClick={() => { if (!isSpawnerChannel(n.node) && voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
+                        joinable={!isSpawnerChannel(n.node) && (!voiceChannelsOnly || n.node.channel_type === "voice")}
+                        onDoubleClick={() => {
+                          if (isSpawnerChannel(n.node) || voiceChannelId === n.node.id) return;
+                          if (voiceChannelsOnly && n.node.channel_type !== "voice") return;
+                          onVoiceJoin(n.node);
+                        }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
                         onSettings={(canOpenChannelSettings ?? isAdmin) && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}

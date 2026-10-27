@@ -2097,5 +2097,13 @@
   "recovery.vouch.asks": "{name} (now using a new key) asks you to confirm it's them.",
   "recovery.vouch.not_them": "Not them",
   "recovery.vouch.none_waiting": "Nobody is asking you to confirm right now.",
-  "recovery.vouch.have_id": "Have a request id?"
+  "recovery.vouch.have_id": "Have a request id?",
+  "channel.create.type_voice": "Voice channel",
+  "channel.settings.type_label": "Channel type",
+  "channel.settings.type_hint": "A voice channel is a room people join to talk; it keeps a chat too. Switching keeps the chat history.",
+  "channel.sidebar.dblclick_join": "Double-click to join voice",
+  "voice.stage.label": "Who is in this room",
+  "voice.stage.empty": "Nobody is here yet.",
+  "voice.stage.join": "Join voice",
+  "voice.stage.join_hint": "or double-click the channel"
 }

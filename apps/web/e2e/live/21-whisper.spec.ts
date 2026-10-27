@@ -23,7 +23,7 @@ test("owner whispers to a member; the member sees the indicator", async ({ page,
   await expectInHub(page);
 
   const channel = uniqueName("whisper");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("WhisperMate"));
@@ -82,7 +82,7 @@ test("whisper inbox: entry persists after the whisper ends, until dismissed", as
   await expectInHub(page);
 
   const channel = uniqueName("wbox");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("InboxMate"));
@@ -115,7 +115,7 @@ test("receive opt-out blocks a whisper; opting back in mid-session restores it",
   await expectInHub(page);
 
   const channel = uniqueName("wopt");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("OptoutMate"));
@@ -157,7 +157,7 @@ test("role-target whisper via the Roles tab reaches a role member in voice", asy
   await expectInHub(page);
 
   const channel = uniqueName("wrole");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const memberName = uniqueName("RoleMate");
@@ -202,7 +202,7 @@ test("reply key (hold mode): whispers back at the last whisperer", async ({ page
   await expectInHub(page);
 
   const channel = uniqueName("wreply");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("ReplyMate"));
@@ -242,7 +242,7 @@ test("per-list keybind (hold mode): whispers while the key is held", async ({ pa
   await expectInHub(page);
 
   const channel = uniqueName("wkey");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("KeybindMate"));

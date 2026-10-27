@@ -179,6 +179,7 @@ export function ChannelSidebarContainer({
         channelCrud.setChannelSettingsError(null);
       }}
       onVoiceJoin={(ch) => ch && void voice.handleVoiceJoin(ch.id)}
+      voiceChannelsOnly={activeHubSupports("channels.voice")}
       onVoiceLeave={voice.handleVoiceLeave}
       onParticipantContextMenu={canMoveMembers ? (e, p, channelId) => {
         e.preventDefault();

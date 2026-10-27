@@ -20,7 +20,7 @@ test("start a screen share; a second client sees it, then stop", async ({ page, 
   await expectInHub(page);
 
   const channel = uniqueName("share");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   // A viewer joins the same voice channel.

@@ -26,7 +26,7 @@ import {
   listHubIcons,
   listRoles,
 } from "@platform";
-import { passkeysUsableWith } from "@platform";
+import { passkeysUsableWith, activeHubSupports } from "@platform";
 import { allianceActions } from "../../platform/adminActions";
 import { DISCOVERY_URL, MULTI_HUB } from "../../constants";
 import { HubAdminContainer } from "../admin/HubAdminContainer";
@@ -206,6 +206,7 @@ export function AppModals(p: AppModalsProps) {
       {(createChannelCtx || channelSettingsCtx) && (
         <ChannelSettingsModal
           channel={channelSettingsCtx}
+          voiceChannels={activeHubSupports("channels.voice")}
           createParentId={createChannelCtx?.parentId ?? null}
           createParentName={createChannelCtx?.parentId ? (channels.find((c) => c.id === createChannelCtx.parentId)?.name ?? null) : null}
           createInitialIsCategory={createChannelCtx?.isCategory}

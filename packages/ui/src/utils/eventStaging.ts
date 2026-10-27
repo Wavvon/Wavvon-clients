@@ -3,22 +3,12 @@
 // unit-testable without a live socket, fetch, or a DOM. Mirrors the
 // voiceMove.ts precedent (apps/web/src/utils/voiceMove.ts).
 
-import type { Channel } from "@wavvon/core";
 import type { VoiceMoveChannelOption } from "../components/VoiceMoveMenu";
 import type { ClaimantVoiceStatus, EventMoveAssignment, EventRsvp, EventSlot, StagingGroup, VoiceParticipant } from "../types";
 
 export const SQUAD_ROOM_COUNT_MIN = 1;
 export const SQUAD_ROOM_COUNT_MAX = 20;
 
-// Voice channels a mover can offer in the "Move to channel…" picker.
-// Categories aren't rooms, banner channels have no voice component, and
-// spawner channels only spawn a personal room on join — none are valid
-// move destinations.
-export function moveChannelOptions(channels: Channel[]): VoiceMoveChannelOption[] {
-  return channels
-    .filter((c) => !c.is_category && c.channel_type !== "banner" && c.channel_type !== "spawner")
-    .map((c) => ({ id: c.id, name: c.name }));
-}
 
 /** Pubkeys with a plain "going" RSVP that never claimed a slot — the
  *  synthesized "Unassigned" bucket (events.md §7.5). */

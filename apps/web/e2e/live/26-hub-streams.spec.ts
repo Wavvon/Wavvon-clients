@@ -13,8 +13,8 @@ test("discover and watch a screen share from another channel", async ({ page, br
   // A control channel the member will sit in, and channel A for the share.
   const other = uniqueName("lobby");
   const shareChan = uniqueName("stage");
-  await createChannel(page, other);
-  await createChannel(page, shareChan);
+  await createChannel(page, other, "Voice channel");
+  await createChannel(page, shareChan, "Voice channel");
 
   // Owner joins voice in channel A and starts a screen share there. Share
   // screen lives in the voice-session footer — a channel row is joined by

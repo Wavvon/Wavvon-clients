@@ -145,6 +145,7 @@ export function SortableChannelItem({
   avatars,
   speaking,
   hasDraft,
+  joinable = true,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -183,6 +184,9 @@ export function SortableChannelItem({
   speaking?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
+  /** A double click joins voice here; false on a hub where only voice
+   *  channels can be joined and this is not one. */
+  joinable?: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -270,8 +274,10 @@ export function SortableChannelItem({
   const itemTitle = isSpawner
     ? t("channel.spawner.tooltip")
     : isTemporary
-      ? t("channel.temp.owner_tooltip", { name: ownerDisplayName || channel.owner_pubkey?.slice(0, 12) || "?" })
-      : "Double-click to join voice";
+      ? t("channel.temp.owner_tooltip", { name: ownerDisplayName || (channel.owner_pubkey ?? "").slice(0, 12) })
+      : joinable
+        ? t("channel.sidebar.dblclick_join")
+        : undefined;
 
   return (
     <li

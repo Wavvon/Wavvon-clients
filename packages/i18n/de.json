@@ -2097,5 +2097,13 @@
   "recovery.vouch.asks": "{name} (jetzt mit neuem Schlüssel) bittet dich zu bestätigen, dass es diese Person ist.",
   "recovery.vouch.not_them": "Nicht die Person",
   "recovery.vouch.none_waiting": "Gerade bittet dich niemand um eine Bestätigung.",
-  "recovery.vouch.have_id": "Hast du eine Anfrage-ID?"
+  "recovery.vouch.have_id": "Hast du eine Anfrage-ID?",
+  "channel.create.type_voice": "Sprachkanal",
+  "channel.settings.type_label": "Kanaltyp",
+  "channel.settings.type_hint": "Ein Sprachkanal ist ein Raum, den man zum Reden betritt; er hat auch einen Chat. Beim Wechsel bleibt der Chatverlauf erhalten.",
+  "channel.sidebar.dblclick_join": "Doppelklick, um dem Sprachkanal beizutreten",
+  "voice.stage.label": "Wer ist in diesem Raum",
+  "voice.stage.empty": "Noch niemand hier.",
+  "voice.stage.join": "Sprachkanal beitreten",
+  "voice.stage.join_hint": "oder Doppelklick auf den Kanal"
 }

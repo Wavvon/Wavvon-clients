@@ -1,13 +1,13 @@
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import type React from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { ChannelSidebar, useConfirm } from "@wavvon/ui";
 import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind, UnreadCounts } from "@wavvon/ui";
 import { formatPubkey, type TreeNode } from "@wavvon/core";
 import { hasDraft } from "../utils/drafts";
-import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import type {
   Channel,
   User,
@@ -120,17 +120,9 @@ export function ChannelSidebarContainer({
   // Offered only where our own hub can mint the grant; the owning hub's half
   // is checked at join time, by name.
   const activeHubUrl = hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId)?.hub_url ?? null;
-  const [allianceVoice, setAllianceVoice] = useState(false);
-  useEffect(() => {
-    setAllianceVoice(false);
-    if (!activeHubUrl) return;
-    let cancelled = false;
-    void fetchWithTimeout(`${activeHubUrl.replace(/\/+$/, "")}/info`)
-      .then((r) => r.json() as Promise<{ capabilities?: string[] }>)
-      .then((info) => { if (!cancelled) setAllianceVoice(info.capabilities?.includes("voice.alliance") === true); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [activeHubUrl]);
+  const caps = useHubCapabilities(activeHubUrl);
+  const allianceVoice = caps.includes("voice.alliance");
+  const voiceChannelsOnly = caps.includes("channels.voice");
 
   return (
     <>
@@ -183,6 +175,7 @@ export function ChannelSidebarContainer({
       onChannelContextMenu={onChannelContextMenu}
       onOpenChannelSettings={(ch) => { setShowCreateChannel(false); setChannelSettingsModal(ch); }}
       onVoiceJoin={voice.handleVoiceJoin}
+      voiceChannelsOnly={voiceChannelsOnly}
       onVoiceLeave={leaveVoiceChannel}
       onParticipantContextMenu={canMoveMembers ? (e, p, channelId) => {
         e.preventDefault();

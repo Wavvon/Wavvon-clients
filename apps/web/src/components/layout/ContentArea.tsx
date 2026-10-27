@@ -249,6 +249,13 @@ export function ContentArea(props: Props) {
         channels={channels}
         onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
         selectedChannel={selectedChannel}
+        voiceStage={selectedChannel ? {
+          participants: voice.voicePartByChannel[selectedChannel.id] ?? [],
+          speaking: voice.voiceActiveUsers,
+          avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
+          inThisRoom: voice.voiceChannelId === selectedChannel.id,
+          onJoin: () => void voice.handleVoiceJoin(selectedChannel.id),
+        } : undefined}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={alliances.selectedAllianceChannel}
         messages={channelMessages.messages}

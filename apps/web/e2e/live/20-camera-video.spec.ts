@@ -29,7 +29,7 @@ test("two members see each other's camera over WebRTC", async ({ page, browser }
   await expectInHub(page);
 
   const channel = uniqueName("cam");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoiceAndEnableCamera(page, channel);
 
   const memberName = uniqueName("CamMate");

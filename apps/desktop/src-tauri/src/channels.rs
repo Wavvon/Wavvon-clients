@@ -202,6 +202,28 @@ pub(crate) async fn set_channel_nsfw(
     Ok(())
 }
 
+/// Switch a channel between text and voice; both keep their chat.
+#[tauri::command]
+pub(crate) async fn set_channel_type(
+    channel_id: String,
+    channel_type: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .patch(format!("{hub_url}/channels/{channel_id}"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "channel_type": channel_type }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) async fn reorder_channels(
     channel_ids: Vec<String>,

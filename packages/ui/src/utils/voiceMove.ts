@@ -11,13 +11,16 @@ export interface VoiceMoveChannelOption {
   name: string;
 }
 
-/** Voice channels a mover can offer in the "Move to channel…" picker.
- *  Categories aren't rooms, banner channels have no voice component, and
- *  spawner channels only spawn a personal room on join — none are valid
- *  move destinations. */
+/** Rooms a member can be moved into, or sent to when away: the voice-move
+ *  picker, event staging and the AFK channel. Where the hub has voice
+ *  channels (`channels.voice`) only those are rooms; on an older hub every
+ *  channel was one, except categories, banners and spawners (which only
+ *  spawn a personal room on join). A hub with voice channels but none created
+ *  yet offers its text channels and refuses the move, which says why. */
 export function moveChannelOptions(channels: Channel[]): VoiceMoveChannelOption[] {
+  const hasVoice = channels.some((c) => c.channel_type === "voice");
   return channels
-    .filter((c) => !c.is_category && c.channel_type !== "banner" && !isSpawnerChannel(c))
+    .filter((c) => !c.is_category && (hasVoice ? c.channel_type === "voice" : c.channel_type !== "banner" && !isSpawnerChannel(c)))
     .map((c) => ({ id: c.id, name: c.name }));
 }
 

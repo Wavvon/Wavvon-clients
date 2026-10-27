@@ -374,7 +374,7 @@ export interface AllianceSharedChannel {
   channel_name: string;
   hub_public_key: string;
   hub_name: string;
-  channel_type: "text" | "forum" | "banner" | "spawner";
+  channel_type: "text" | "voice" | "forum" | "banner" | "spawner";
   parent_id: string | null;
   is_category: boolean;
   /** Policy governing writes proxied from other alliance-member hubs into
