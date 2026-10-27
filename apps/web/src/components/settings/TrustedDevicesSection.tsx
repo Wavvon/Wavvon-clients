@@ -3,14 +3,13 @@ import { useTranslation } from "react-i18next";
 import { listTrustedDevices, revokeTrustedDevice, isNotMemberError } from "@platform";
 import type { DeviceInfo } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
-import { SettingRow } from "@wavvon/ui";
 import { formatDate } from "@wavvon/core";
 
 interface Props {
   account: IdentityRecord;
 }
 
-// Trusted-device list (Settings → Account): devices holding long-lived
+// Sign-ins on the active hub (Settings → Devices, inside the device list):
 // access to whichever account is selected in AccountTab's "Managing"
 // selector, with per-device revoke. For the active account this is the
 // existing active-session-scoped list; for any other on-device account it
@@ -24,7 +23,6 @@ export function TrustedDevicesSection({ account }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [noActiveHub, setNoActiveHub] = useState(false);
   const [notMember, setNotMember] = useState(false);
-  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setDevices(null);
@@ -67,13 +65,9 @@ export function TrustedDevicesSection({ account }: Props) {
           : t("settings.account.trusted_devices.state", { count: devices.length });
 
   return (
-    <SettingRow
-      title={t("settings.account.trusted_devices.label")}
-      state={state}
-      meta={devices && devices.length > 0 ? String(devices.length) : undefined}
-      open={open}
-      onToggle={() => setOpen((v) => !v)}
-    >
+    <div style={{ marginTop: "var(--space-4)" }}>
+      <span className="settings-label">{t("settings.account.trusted_devices.label")}</span>
+      <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{state}</p>
       <p className="muted">{t("settings.account.trusted_devices.hint")}</p>
       {error && <p className="error-text">{error}</p>}
       {devices && devices.length > 0 && (
@@ -93,6 +87,6 @@ export function TrustedDevicesSection({ account }: Props) {
           ))}
         </ul>
       )}
-    </SettingRow>
+    </div>
   );
 }

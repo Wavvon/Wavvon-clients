@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import type { PairedDevice } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 
-export function DeviceListSection() {
+// Paired devices, then whatever else acts as this account on the active hub
+// (`children`), so one view answers "what can sign in as me".
+export function DeviceListSection({ children }: { children?: ReactNode }) {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<PairedDevice[]>([]);
   const [open, setOpen] = useState(false);
@@ -64,6 +66,7 @@ export function DeviceListSection() {
           )}
         </div>
       ))}
+      {children}
     </SettingRow>
   );
 }
