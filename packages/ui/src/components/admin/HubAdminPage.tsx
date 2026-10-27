@@ -252,38 +252,35 @@ export function HubAdminPage(props: HubAdminPageProps) {
     }
   }
 
-  // Grouped into contiguous sections so the long admin nav reads clearly.
+  // Grouped by the job an admin is doing, most frequent first: members and
+  // moderation before connections and cosmetics, and no group of one.
   const G_GENERAL = t("hub.admin.group.general");
   const G_MEMBERS = t("hub.admin.group.members");
-  const G_FEDERATION = t("hub.admin.group.federation");
-  const G_INTEGRATIONS = t("hub.admin.group.integrations");
+  const G_JOINING = t("hub.admin.group.joining");
+  const G_MODERATION = t("hub.admin.group.moderation");
+  const G_CONNECTIONS = t("hub.admin.group.connections");
   const G_CUSTOM = t("hub.admin.group.customization");
-  const G_ADVANCED = t("hub.admin.group.advanced");
   const admin = props.isAdmin;
   const TABS: { id: HubAdminTab; label: string; group: string }[] = [
     { id: "overview", label: t("hub.admin.tabs.overview"), group: G_GENERAL },
     ...(props.discoveryUrl ? [{ id: "discovery" as HubAdminTab, label: t("hub.admin.tabs.discovery"), group: G_GENERAL }] : []),
     { id: "tags", label: t("hub.admin.tabs.tags"), group: G_GENERAL },
-    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
     { id: "members", label: t("hub.admin.tabs.members"), group: G_MEMBERS },
-    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MEMBERS },
+    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
     { id: "invites", label: t("hub.admin.tabs.invites"), group: G_MEMBERS },
-    ...(admin && props.renderModerationTab ? [{ id: "moderation" as HubAdminTab, label: t("hub.admin.tabs.moderation"), group: G_MEMBERS }] : []),
-    ...(admin ? [
-      { id: "onboarding" as HubAdminTab, label: t("hub.admin.tabs.onboarding"), group: G_MEMBERS },
-      { id: "survey" as HubAdminTab, label: t("hub.admin.tabs.survey"), group: G_MEMBERS },
-    ] : []),
     { id: "certifications", label: t("hub.admin.tabs.certifications"), group: G_MEMBERS },
-    ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MEMBERS }] : []),
-    // Alliances is cross-hub channel sharing, not an app/webhook integration —
-    // grouped with other cross-hub features instead. The federated ban list
-    // lives inside the Moderation tab, not its own nav entry, so it doesn't
-    // move here.
-    ...(admin ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_FEDERATION }] : []),
-    { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_INTEGRATIONS },
+    ...(admin ? [
+      { id: "onboarding" as HubAdminTab, label: t("hub.admin.tabs.onboarding"), group: G_JOINING },
+      { id: "survey" as HubAdminTab, label: t("hub.admin.tabs.survey"), group: G_JOINING },
+    ] : []),
+    ...(admin && props.renderModerationTab ? [{ id: "moderation" as HubAdminTab, label: t("hub.admin.tabs.moderation"), group: G_MODERATION }] : []),
+    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MODERATION },
+    ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MODERATION }] : []),
+    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_MODERATION }] : []),
+    ...(admin ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_CONNECTIONS }] : []),
+    { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
-    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_ADVANCED }] : []),
   ];
 
   return (

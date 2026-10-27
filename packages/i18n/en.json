@@ -625,12 +625,9 @@
   "hub.admin.discovery.share.copied": "Copied!",
   "hub.admin.discovery.share.label": "Share this hub",
   "hub.admin.discovery.title": "Discovery",
-  "hub.admin.group.advanced": "Advanced",
   "hub.admin.group.customization": "Customization",
-  "hub.admin.group.federation": "Federation",
   "hub.admin.group.general": "General",
-  "hub.admin.group.integrations": "Integrations",
-  "hub.admin.group.members": "Members & safety",
+  "hub.admin.group.members": "Members",
   "hub.admin.icons.add": "Add icon",
   "hub.admin.icons.add.title": "Add an icon",
   "hub.admin.icons.advanced": "Advanced: paste SVG markup",
@@ -952,7 +949,7 @@
   "hub.admin.tabs.icons": "Icons",
   "hub.admin.tabs.invites": "Invites",
   "hub.admin.tabs.members": "Members",
-  "hub.admin.tabs.moderation": "Moderation",
+  "hub.admin.tabs.moderation": "Reports",
   "hub.admin.tabs.onboarding": "Onboarding",
   "hub.admin.tabs.outgoing_webhooks": "Outgoing webhooks",
   "hub.admin.tabs.overview": "Overview",
@@ -2096,5 +2093,8 @@
   "settings.about.server": "Hub server",
   "settings.about.docs": "Documentation",
   "settings.about.discovery": "Hub directory",
-  "settings.about.credits": "Built on"
+  "settings.about.credits": "Built on",
+  "hub.admin.group.joining": "Joining",
+  "hub.admin.group.moderation": "Moderation",
+  "hub.admin.group.connections": "Connections"
 }
