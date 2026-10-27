@@ -8144,17 +8144,19 @@ input[type="range"] {
   color: var(--text-faint);
 }
 
-.audit-entry-event {
+/* A run of the same action by the same person: one line that opens to the
+   rest. The summary takes the row's grid; the entries inside keep their own. */
+details.audit-entry {
   display: block;
-  font-size: var(--text-md);
 }
-
-.audit-entry-who {
-  display: block;
-  margin-top: 2px;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-faint);
+details.audit-entry > summary {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: var(--space-4);
+  cursor: pointer;
+}
+details.audit-entry > .audit-entry:last-child {
+  border-bottom: none;
 }
 
 .audit-day,

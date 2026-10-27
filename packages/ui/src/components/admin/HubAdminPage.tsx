@@ -811,7 +811,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <SurveyAdminSection actions={props.surveyActions} />
         )}
         {props.tab === "audit-log" && props.isAdmin && (
-          <AuditLogSection actions={props.auditLogActions} />
+          <AuditLogSection actions={props.auditLogActions} members={props.members} channels={props.channels} />
         )}
       </main>
     </div>

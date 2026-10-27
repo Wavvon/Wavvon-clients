@@ -734,11 +734,15 @@ export interface AuditLogEntry {
   at: number;
   actor_pubkey: string | null;
   target_pubkey: string | null;
+  channel_id?: string | null;
+  payload?: unknown;
 }
 
 export interface AuditLogPage {
   entries: AuditLogEntry[];
   next_cursor: number | null;
+  /** False for a hub without `audit.newest`: oldest first, no filters. */
+  newestFirst: boolean;
 }
 
 export interface CertIssuance {

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { normalizeAuditPage } from "@wavvon/ui";
 import type {
   RoleInfo,
   RoleCategory,
@@ -28,7 +29,6 @@ import type {
   PendingBadgeOffer,
   CertIssuance,
   CertAdmissionSettings,
-  AuditLogPage,
   Alliance,
   AllianceInvite,
   PendingAllianceInvite,
@@ -174,8 +174,17 @@ export function makeWebhookActions(getHubUrl: () => string): WebhooksSectionActi
 
 export function makeAuditLogActions(getHubUrl: () => string): AuditLogSectionActions {
   return {
-    getAuditLog: (opts) =>
-      invoke<AuditLogPage>("get_audit_log", { hubUrl: getHubUrl(), cursor: opts.cursor ?? null, limit: opts.limit ?? null }),
+    getAuditLog: async (opts) =>
+      normalizeAuditPage(
+        await invoke<unknown>("get_audit_log", {
+          hubUrl: getHubUrl(),
+          cursor: opts.cursor ?? null,
+          limit: opts.limit,
+          eventType: opts.eventType ?? null,
+          actor: opts.actor ?? null,
+        }),
+        opts.limit,
+      ),
   };
 }
 
