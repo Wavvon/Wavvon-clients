@@ -173,3 +173,27 @@ test("the moderation tab shows the content report queue", async ({ page }) => {
     timeout: 10000,
   });
 });
+
+// Overview has no Save button any more (Wavvon-clients#163): a select saves
+// as soon as it changes. Read back from the hub, not from the page, so a save
+// that never left the client cannot pass.
+test("overview saves a change by itself", async ({ page }) => {
+  await page.goto("/");
+  await expectInHub(page);
+  await openAdminTab(page, "Overview");
+
+  const select = page.getByLabel("Member name colors", { exact: true });
+  const before = await select.inputValue();
+  const next = before === "none" ? "role_over_user" : "none";
+  await select.selectOption(next);
+  await expect(page.getByText("All changes saved.")).toBeVisible({ timeout: 10000 });
+  await expect
+    .poll(async () => (await hubApi<{ name_color_mode: string }>(page, "/hub/settings")).name_color_mode)
+    .toBe(next);
+
+  // Put it back for the specs that follow.
+  await select.selectOption(before);
+  await expect
+    .poll(async () => (await hubApi<{ name_color_mode: string }>(page, "/hub/settings")).name_color_mode)
+    .toBe(before);
+});

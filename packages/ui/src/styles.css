@@ -2704,17 +2704,6 @@ select:focus-visible {
   margin-bottom: var(--space-2);
 }
 
-/* Save stays reachable instead of living at the end of the scroll. */
-.settings-save-bar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
-  padding: var(--space-3) 0;
-  background: linear-gradient(to top, var(--bg) 60%, transparent);
-}
 
 .voice-devices-row {
   display: grid;

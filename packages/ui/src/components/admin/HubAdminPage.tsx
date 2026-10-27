@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDateTime, formatPubkey, formatRelative, type Channel } from "@wavvon/core";
 import type { BanInfo, InviteInfo, MemberAdminInfo, MuteInfo, NameColorMode, PendingUser, RoleInfo } from "../../types";
@@ -86,7 +86,8 @@ export interface HubAdminPageProps {
   afkTimeoutSecs: number;
   onAfkTimeoutSecsChange: (v: number) => void;
   saveError: string | null;
-  onSave: () => void;
+  /** Called after each overview edit settles; there is no Save button. */
+  onSave: () => void | Promise<void>;
 
   /** Whether this hub is currently listed in `/federation/listing`. */
   hubListed: boolean;
@@ -195,6 +196,28 @@ export function HubAdminPage(props: HubAdminPageProps) {
     onToggle: () => setAdminOpen((cur) => (cur === id ? null : id)),
   });
   const [copiedShare, setCopiedShare] = useState(false);
+  // Overview saves itself. `edit` wraps a change handler: the value lands in
+  // the app's state as before, and a save follows `delay` ms after the last
+  // edit, 0 for a toggle or a select and a pause for typing.
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [pendingSave, setPendingSave] = useState<{ delay: number } | null>(null);
+  const saveRef = useRef(props.onSave);
+  saveRef.current = props.onSave;
+  function edit<T>(fn: (value: T) => void, delay = 700) {
+    return (value: T) => {
+      fn(value);
+      setPendingSave({ delay });
+    };
+  }
+  useEffect(() => {
+    if (!pendingSave) return;
+    const id = setTimeout(async () => {
+      setSaveStatus("saving");
+      await saveRef.current();
+      setSaveStatus("saved");
+    }, pendingSave.delay);
+    return () => clearTimeout(id);
+  }, [pendingSave]);
   // One member action at a time: the row's buttons stay disabled until the
   // hub answers, so a click that seems to do nothing cannot be sent eleven
   // times, and the outcome is said out loud above the list.
@@ -310,6 +333,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "overview" && (
           <section>
             <h1>{t("hub.admin.overview.title")}</h1>
+            {/* Every change saves itself: a toggle or a select at once, typing
+                after a short pause. The status sits where the Save button was. */}
+            <p className={props.saveError ? "error-text" : "muted"} role="status" style={{ fontSize: "var(--text-sm)", minHeight: "1.4em" }}>
+              {props.saveError ?? (saveStatus === "saving" ? t("hub.admin.overview.saving") : saveStatus === "saved" ? t("hub.admin.overview.saved") : "")}
+            </p>
             <SettingRow
               title={t("hub.admin.overview.identity")}
               state={props.hubName.trim() || t("hub.admin.overview.state.unnamed")}
@@ -317,11 +345,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
             >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
-                  <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => props.onHubNameChange(e.target.value)} />
+                  <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => edit(props.onHubNameChange)(e.target.value)} />
                 </div>
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
-                  <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => props.onHubDescriptionChange(e.target.value)} />
+                  <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => edit(props.onHubDescriptionChange)(e.target.value)} />
                 </div>
                 <div className="settings-section">
                   <label className="settings-label">{t("hub.admin.overview.icon")}</label>
@@ -332,8 +360,8 @@ export function HubAdminPage(props: HubAdminPageProps) {
                       <div className="hub-icon-preview placeholder">{t("hub.admin.overview.icon_none")}</div>
                     )}
                     <ImagePicker
-                      onPick={props.onHubIconChange}
-                      onClear={() => props.onHubIconChange("")}
+                      onPick={edit(props.onHubIconChange, 0)}
+                      onClear={() => edit(props.onHubIconChange, 0)("")}
                       hasValue={!!props.hubIcon}
                       buttonLabel={t("hub.admin.overview.icon_pick")}
                     />
@@ -342,167 +370,115 @@ export function HubAdminPage(props: HubAdminPageProps) {
             </SettingRow>
 
             <SettingRow
-              title={t("hub.admin.overview.access")}
-              state={props.requireApproval
-                ? t("hub.admin.overview.state.approval_on")
-                : t("hub.admin.overview.state.approval_off")}
-              {...adminRow("access")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label">{t("hub.admin.overview.membership")}</label>
-                  <label className="checkbox-label">
-                    <input type="checkbox" checked={props.requireApproval} onChange={(e) => props.onRequireApprovalChange(e.target.checked)} />
-                    {t("hub.admin.overview.require_approval")}
-                  </label>
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-antispam">{t("hub.admin.overview.antispam")}</label>
-                  <input id="admin-antispam" type="number" min={0} max={9999} value={props.minSecurityLevel} onChange={(e) => props.onMinSecurityLevelChange(Number(e.target.value))} />
-                </div>
-            </SettingRow>
+              title={t("hub.admin.overview.require_approval")}
+              control={<input type="checkbox" aria-label={t("hub.admin.overview.require_approval")} checked={props.requireApproval} onChange={(e) => edit(props.onRequireApprovalChange, 0)(e.target.checked)} />}
+            />
+            <SettingRow
+              title={t("hub.admin.overview.antispam")}
+              control={<input type="number" aria-label={t("hub.admin.overview.antispam")} min={0} max={9999} style={{ width: 90 }} value={props.minSecurityLevel} onChange={(e) => edit(props.onMinSecurityLevelChange)(Number(e.target.value))} />}
+            />
 
             <SettingRow
-              title={t("hub.admin.overview.locale")}
-              state={props.timezone || t("hub.admin.overview.timezone_unset")}
-              {...adminRow("locale")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-hub-timezone">{t("hub.admin.overview.timezone")}</label>
-                  <p className="muted">{t("hub.admin.overview.timezone_hint")}</p>
-                  {typeof supportedTimeZones === "function" ? (
-                    <select
-                      id="admin-hub-timezone"
-                      value={props.timezone}
-                      onChange={(e) => props.onTimezoneChange(e.target.value)}
-                    >
-                      <option value="">{t("hub.admin.overview.timezone_unset")}</option>
-                      {supportedTimeZones("timeZone").map((tz) => (
-                        <option key={tz} value={tz}>{tz}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="muted">{t("hub.admin.overview.timezone_unsupported")}</p>
-                  )}
-                  <label className="checkbox-label" style={{ marginTop: "var(--space-2)" }}>
-                    <input
-                      type="checkbox"
-                      checked={props.birthdaysEnabled}
-                      onChange={(e) => props.onBirthdaysEnabledChange(e.target.checked)}
-                    />
-                    {t("hub.admin.overview.birthdays")}
-                  </label>
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-name-color-mode">{t("hub.admin.overview.name_colors")}</label>
-                  <p className="muted">{t("hub.admin.overview.name_colors_hint")}</p>
+              title={t("hub.admin.overview.timezone")}
+              state={t("hub.admin.overview.timezone_hint")}
+              control={typeof supportedTimeZones === "function" ? (
+                <select
+                  aria-label={t("hub.admin.overview.timezone")}
+                  value={props.timezone}
+                  onChange={(e) => edit(props.onTimezoneChange, 0)(e.target.value)}
+                  style={{ maxWidth: 220 }}
+                >
+                  <option value="">{t("hub.admin.overview.timezone_unset")}</option>
+                  {supportedTimeZones("timeZone").map((tz) => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="muted">{t("hub.admin.overview.timezone_unsupported")}</span>
+              )}
+            />
+            <SettingRow
+              title={t("hub.admin.overview.birthdays")}
+              control={<input type="checkbox" aria-label={t("hub.admin.overview.birthdays")} checked={props.birthdaysEnabled} onChange={(e) => edit(props.onBirthdaysEnabledChange, 0)(e.target.checked)} />}
+            />
+            <SettingRow
+              title={t("hub.admin.overview.name_colors")}
+              state={t("hub.admin.overview.name_colors_hint")}
+              control={
+                <select
+                  aria-label={t("hub.admin.overview.name_colors")}
+                  value={props.nameColorMode}
+                  onChange={(e) => edit(props.onNameColorModeChange, 0)(e.target.value as typeof props.nameColorMode)}
+                >
+                  {/* Short labels: the sentence-length ones overflowed the
+                      select in a narrow card, and the line above already
+                      carries the explanation. */}
+                  <option value="role_over_user">{t("hub.admin.overview.name_colors.role_over_user")}</option>
+                  <option value="user_over_role">{t("hub.admin.overview.name_colors.user_over_role")}</option>
+                  <option value="role_only">{t("hub.admin.overview.name_colors.role_only")}</option>
+                  <option value="user_only">{t("hub.admin.overview.name_colors.user_only")}</option>
+                  <option value="none">{t("hub.admin.overview.name_colors.none")}</option>
+                </select>
+              }
+            />
+
+            {/* Channel and timeout are one decision, so they share a row; the
+                timeout only appears once a channel is picked. */}
+            <SettingRow
+              title={t("hub.admin.overview.afk_channel")}
+              state={t("hub.admin.overview.afk_channel_hint")}
+              control={
+                <span className="settings-row" style={{ gap: "var(--space-2)" }}>
                   <select
-                    id="admin-name-color-mode"
-                    value={props.nameColorMode}
-                    onChange={(e) => props.onNameColorModeChange(e.target.value as typeof props.nameColorMode)}
+                    aria-label={t("hub.admin.overview.afk_channel")}
+                    value={props.afkChannelId}
+                    onChange={(e) => edit(props.onAfkChannelIdChange, 0)(e.target.value)}
                   >
-                    {/* Short labels: the sentence-length ones overflowed the
-                        select in a narrow card, and the paragraph above
-                        already carries the explanation. */}
-                    <option value="role_over_user">{t("hub.admin.overview.name_colors.role_over_user")}</option>
-                    <option value="user_over_role">{t("hub.admin.overview.name_colors.user_over_role")}</option>
-                    <option value="role_only">{t("hub.admin.overview.name_colors.role_only")}</option>
-                    <option value="user_only">{t("hub.admin.overview.name_colors.user_only")}</option>
-                    <option value="none">{t("hub.admin.overview.name_colors.none")}</option>
+                    <option value="">{t("hub.admin.overview.afk_channel_none")}</option>
+                    {moveChannelOptions(props.channels).map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
                   </select>
-                </div>
-            </SettingRow>
-
+                  {props.afkChannelId && (
+                    <select
+                      aria-label={t("hub.admin.overview.afk_timeout")}
+                      value={props.afkTimeoutSecs}
+                      onChange={(e) => edit(props.onAfkTimeoutSecsChange, 0)(Number(e.target.value))}
+                    >
+                      <option value={60}>{t("hub.admin.overview.afk_timeout.1m")}</option>
+                      <option value={300}>{t("hub.admin.overview.afk_timeout.5m")}</option>
+                      <option value={900}>{t("hub.admin.overview.afk_timeout.15m")}</option>
+                      <option value={1800}>{t("hub.admin.overview.afk_timeout.30m")}</option>
+                      <option value={3600}>{t("hub.admin.overview.afk_timeout.1h")}</option>
+                    </select>
+                  )}
+                </span>
+              }
+            />
             <SettingRow
-              title={t("hub.admin.overview.channels_voice")}
-              state={props.channels.find((c) => c.id === props.afkChannelId)?.name
-                || t("hub.admin.overview.afk_channel_none")}
-              {...adminRow("channels-voice")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-afk-channel">{t("hub.admin.overview.afk_channel")}</label>
-                  <p className="muted">{t("hub.admin.overview.afk_channel_hint")}</p>
-                  {/* Channel and timeout are one decision, so they share a row —
-                      the timeout only appears once a channel is picked. */}
-                  <div className="settings-card-row">
-                    <div>
-                      <select
-                        id="admin-afk-channel"
-                        value={props.afkChannelId}
-                        onChange={(e) => props.onAfkChannelIdChange(e.target.value)}
-                      >
-                        <option value="">{t("hub.admin.overview.afk_channel_none")}</option>
-                        {moveChannelOptions(props.channels).map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {props.afkChannelId && (
-                      <div>
-                        <label className="settings-label" htmlFor="admin-afk-timeout">{t("hub.admin.overview.afk_timeout")}</label>
-                        <select
-                          id="admin-afk-timeout"
-                          value={props.afkTimeoutSecs}
-                          onChange={(e) => props.onAfkTimeoutSecsChange(Number(e.target.value))}
-                        >
-                          <option value={60}>{t("hub.admin.overview.afk_timeout.1m")}</option>
-                          <option value={300}>{t("hub.admin.overview.afk_timeout.5m")}</option>
-                          <option value={900}>{t("hub.admin.overview.afk_timeout.15m")}</option>
-                          <option value={1800}>{t("hub.admin.overview.afk_timeout.30m")}</option>
-                          <option value={3600}>{t("hub.admin.overview.afk_timeout.1h")}</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-max-depth">{t("hub.admin.overview.max_depth")}</label>
-                  <p className="muted">{t("hub.admin.overview.max_depth_hint")}</p>
-                  <input id="admin-max-depth" type="number" min={0} max={20} value={props.maxChannelDepth} onChange={(e) => props.onMaxChannelDepthChange(Number(e.target.value))} />
-                </div>
-            </SettingRow>
-
+              title={t("hub.admin.overview.max_depth")}
+              state={t("hub.admin.overview.max_depth_hint")}
+              control={<input type="number" aria-label={t("hub.admin.overview.max_depth")} min={0} max={20} style={{ width: 70 }} value={props.maxChannelDepth} onChange={(e) => edit(props.onMaxChannelDepthChange)(Number(e.target.value))} />}
+            />
             <SettingRow
-              title={t("hub.admin.overview.limits")}
-              state={t("hub.admin.overview.state.attachment_cap", {
-                mb: Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024)),
-              })}
-              {...adminRow("limits")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-attachment-cap">
-                    {t("hub.admin.overview.attachment_cap")}
-                  </label>
-                  <p className="muted">{t("hub.admin.overview.attachment_cap_hint")}</p>
-                  <div className="settings-row">
-                    <input
-                      id="admin-attachment-cap"
-                      type="number"
-                      min={1}
-                      max={8}
-                      step={1}
-                      value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
-                      onChange={(e) =>
-                        props.onMaxAttachmentBytesChange(Number(e.target.value) * 1024 * 1024)
-                      }
-                    />
-                    <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
-                  </div>
-                </div>
-                {/* Deliberately not editable here: these come from the
-                    environment and need a restart, so an input would imply
-                    something this page cannot deliver. Named so an operator
-                    knows what to go and change. */}
-                <div className="settings-section">
-                  <label className="settings-label">{t("hub.admin.overview.startup_only")}</label>
-                  {/* The env var names stay outside the catalog: a translator
-                      must not be able to rename an operator's variable. */}
-                  <p className="muted">
-                    {t("hub.admin.overview.startup_only.db")} — <code>WAVVON_DB_MAX_CONNECTIONS</code>.{" "}
-                    {t("hub.admin.overview.startup_only.udp")} — <code>WAVVON_VOICE_UDP_PORT</code>.{" "}
-                    {t("hub.admin.overview.startup_only.rest")}
-                  </p>
-                </div>
-            </SettingRow>
+              title={t("hub.admin.overview.attachment_cap")}
+              state={t("hub.admin.overview.attachment_cap_hint")}
+              control={
+                <span className="settings-row" style={{ gap: "var(--space-1)" }}>
+                  <input
+                    type="number"
+                    aria-label={t("hub.admin.overview.attachment_cap")}
+                    min={1}
+                    max={8}
+                    step={1}
+                    style={{ width: 60 }}
+                    value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
+                    onChange={(e) => edit(props.onMaxAttachmentBytesChange)(Number(e.target.value) * 1024 * 1024)}
+                  />
+                  <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
+                </span>
+              }
+            />
 
             <SettingRow
               title={t("hub.admin.overview.welcome")}
@@ -520,7 +496,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
                         maxLength={100}
                         value={props.welcomeLabel}
                         placeholder={t("hub.admin.overview.welcome_label_placeholder")}
-                        onChange={(e) => props.onWelcomeLabelChange(e.target.value)}
+                        onChange={(e) => edit(props.onWelcomeLabelChange)(e.target.value)}
                       />
                     </div>
                     <div>
@@ -530,7 +506,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
                         type="text"
                         value={props.welcomeInviteUrl}
                         placeholder={t("hub.admin.overview.welcome_invite_url_placeholder")}
-                        onChange={(e) => props.onWelcomeInviteUrlChange(e.target.value)}
+                        onChange={(e) => edit(props.onWelcomeInviteUrlChange)(e.target.value)}
                       />
                     </div>
                   </div>
@@ -542,7 +518,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
                       maxLength={280}
                       value={props.farewellLabel}
                       placeholder={t("hub.admin.overview.farewell_label_placeholder")}
-                      onChange={(e) => props.onFarewellLabelChange(e.target.value)}
+                      onChange={(e) => edit(props.onFarewellLabelChange)(e.target.value)}
                     />
                     <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
                       {t("hub.admin.overview.farewell_label_hint")}
@@ -556,10 +532,18 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   )}
                 </div>
             </SettingRow>
-            {props.saveError && <p className="error-text">{props.saveError}</p>}
-            <div className="settings-save-bar">
-              <button className="btn-primary" onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
-            </div>
+
+            {/* Deliberately not editable here: these come from the environment
+                and need a restart, so a control would imply something this page
+                cannot deliver. Named so an operator knows what to go and change.
+                The env var names stay outside the catalog: a translator must
+                not be able to rename an operator's variable. */}
+            <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-4)" }}>
+              <strong>{t("hub.admin.overview.startup_only")}</strong>{" "}
+              {t("hub.admin.overview.startup_only.db")} — <code>WAVVON_DB_MAX_CONNECTIONS</code>.{" "}
+              {t("hub.admin.overview.startup_only.udp")} — <code>WAVVON_VOICE_UDP_PORT</code>.{" "}
+              {t("hub.admin.overview.startup_only.rest")}
+            </p>
           </section>
         )}
 

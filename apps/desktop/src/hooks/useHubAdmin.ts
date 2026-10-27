@@ -143,7 +143,6 @@ export function useHubAdmin({
       });
       const refreshed = await invoke<Hub[]>("list_hubs");
       setHubs(() => refreshed);
-      setToast(i18n.t("toast.hub_settings_saved"));
     } catch (e) {
       setError(String(e));
     }
