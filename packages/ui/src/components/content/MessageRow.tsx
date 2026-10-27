@@ -5,7 +5,6 @@ import {
   formatPubkey,
   meAction,
   mentionsName,
-  colorForKey,
   dayKey,
   formatDayLabel,
   formatFullTimestamp,
