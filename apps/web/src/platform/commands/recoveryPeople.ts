@@ -18,6 +18,6 @@ export async function listRecoveryPeople(): Promise<RecoveryPerson[]> {
 
 /** `null` when the hub cannot list them, so the caller keeps the id field. */
 export async function listRecoveryRequestsToAttest(): Promise<RecoveryRequestToAttest[] | null> {
-  if (!activeHubSupports("recovery.to_attest")) return null;
+  if (!activeHubSupports("recovery.attest.requests")) return null;
   return (await hubFetch("/recovery/requests/to-attest")).json() as Promise<RecoveryRequestToAttest[]>;
 }

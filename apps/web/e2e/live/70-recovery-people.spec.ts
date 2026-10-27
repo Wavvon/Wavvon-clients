@@ -19,7 +19,7 @@ async function openManageAccounts(page: Page) {
 test("a contact is picked by name and finds the request that names them", async ({ page, browser }) => {
   test.setTimeout(120000);
   const info = await (await page.request.get(`${process.env.WAVVON_E2E_HUB_URL ?? "http://localhost:3000"}/info`)).json();
-  test.skip(!info.capabilities?.includes("recovery.to_attest"), "hub cannot list requests to their contacts");
+  test.skip(!info.capabilities?.includes("recovery.attest.requests"), "hub cannot list requests to their contacts");
 
   await page.goto("/");
   await expectInHub(page);

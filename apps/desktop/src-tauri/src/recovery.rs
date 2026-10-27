@@ -68,7 +68,7 @@ pub(crate) async fn get_recovery_contacts(
 }
 
 /// `GET /recovery/requests/to-attest` — open requests naming this account as
-/// a recovery contact. `None` when the hub lacks `recovery.to_attest`, so the
+/// a recovery contact. `None` when the hub lacks `recovery.attest.requests`, so the
 /// caller keeps the request-id field instead of reading a 404 as "none".
 #[tauri::command]
 pub(crate) async fn list_recovery_requests_to_attest(
@@ -88,7 +88,7 @@ pub(crate) async fn list_recovery_requests_to_attest(
         .map_err(|e| format!("Invalid: {e}"))?;
     let supported = info["capabilities"]
         .as_array()
-        .is_some_and(|caps| caps.iter().any(|c| c == "recovery.to_attest"));
+        .is_some_and(|caps| caps.iter().any(|c| c == "recovery.attest.requests"));
     if !supported {
         return Ok(None);
     }

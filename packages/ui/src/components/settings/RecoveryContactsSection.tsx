@@ -22,7 +22,7 @@ export interface RecoveryContactsSectionActions {
    *  and to find the account you were, by name rather than by key. */
   listPeople: () => Promise<RecoveryPerson[]>;
   /** Open requests naming this account as a contact; `null` when the hub
-   *  cannot list them (no `recovery.to_attest`), which keeps the
+   *  cannot list them (no `recovery.attest.requests`), which keeps the
    *  request-id field. */
   listRequestsToAttest: () => Promise<RecoveryRequestToAttest[] | null>;
 
