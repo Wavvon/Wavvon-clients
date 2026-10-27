@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { bytesToHex } from "@wavvon/core";
 import {
@@ -32,9 +32,6 @@ import { SettingRow } from "@wavvon/ui";
 interface Props {
   activeHubUrl?: string;
   account: IdentityRecord;
-  /** What else acts as this account on the active hub, listed under the
-   *  devices so one view answers "what can sign in as me". */
-  children?: ReactNode;
 }
 
 interface Derived {
@@ -70,7 +67,7 @@ function deriveFromAccount(account: IdentityRecord): Derived {
   };
 }
 
-export function DevicesSection({ activeHubUrl, account, children }: Props) {
+export function DevicesSection({ activeHubUrl, account }: Props) {
   const { t } = useTranslation();
   const accountLabel = account.account_label ?? null;
   // Only the active account's own hub session can be told "this device's
@@ -406,7 +403,6 @@ export function DevicesSection({ activeHubUrl, account, children }: Props) {
         </>
       )}
       {error && <p className="error-text" style={{ marginTop: 8 }}>{error}</p>}
-      {children}
     </SettingRow>
   );
 }

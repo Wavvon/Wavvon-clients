@@ -437,8 +437,6 @@ pub fn run() {
             passkey_cmd::passkey_list,
             passkey_cmd::passkey_delete,
             passkey_cmd::passkey_rename,
-            passkey_cmd::trusted_device_list,
-            passkey_cmd::trusted_device_revoke,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

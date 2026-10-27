@@ -183,7 +183,7 @@ export async function getDmMessages(
   limit = 50,
 ): Promise<DmMessageFull[]> {
   const params = new URLSearchParams({ limit: String(limit) });
-  if (before) params.set("before", before);
+  if (before) params.set("cursor", before);
   const res = await dmFetch(`/conversations/${conversation_id}/messages?${params}`);
   const raw = (await res.json()) as RawDmMessage[];
 
