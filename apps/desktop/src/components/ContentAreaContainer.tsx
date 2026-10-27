@@ -101,7 +101,7 @@ export function ContentAreaContainer({
         hubConnected={hubConnections.hubConnected}
         reconnectingHubs={hubConnections.reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
-        voiceActiveUsers={voice.voiceActiveUsers}
+        voiceActiveUsers={voice.speakingPubkeys}
         hideBirthdays={hideBirthdays}
         inputText={channelMessages.inputText}
         typingByKey={typingForScope(typing.typingByKey, selectedChannel?.id)}

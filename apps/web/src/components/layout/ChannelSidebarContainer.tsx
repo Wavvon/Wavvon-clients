@@ -212,6 +212,7 @@ export function ChannelSidebarContainer({
       voiceGains={voice.voiceGains}
       onSetVoiceGain={voice.handleSetVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
+      speaking={voice.voiceActiveUsers}
       hasDraft={hasDraft}
       onOpenSearch={onOpenSearch}
       canUseSoundboard={canUseSoundboard}

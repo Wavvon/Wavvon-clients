@@ -22,7 +22,6 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   const [selfDeafened, setSelfDeafened] = useState(false);
   const [speakingPubkeys, setSpeakingPubkeys] = useState<Set<string>>(new Set());
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
-  const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [voiceInputDevice, setVoiceInputDevice] = useState<string>("");
   const [voiceOutputDevice, setVoiceOutputDevice] = useState<string>("");
   const [vadThreshold, setVadThreshold] = useState<number>(0.02);
@@ -95,20 +94,13 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   useEffect(() => {
     if (!activeHubId) {
       setVoicePartByChannel({});
-      setVoiceActiveUsers(new Set());
       return;
     }
     let cancelled = false;
     async function tick() {
       try {
-        const [parts, active] = await Promise.all([
-          invoke<Record<string, VoiceParticipant[]>>("voice_channel_participants"),
-          invoke<string[]>("voice_active_users"),
-        ]);
-        if (!cancelled) {
-          setVoicePartByChannel(parts);
-          setVoiceActiveUsers(new Set(active));
-        }
+        const parts = await invoke<Record<string, VoiceParticipant[]>>("voice_channel_participants");
+        if (!cancelled) setVoicePartByChannel(parts);
       } catch {}
     }
     tick();
@@ -446,12 +438,6 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       if (existing.some((p) => p.public_key === participant.public_key)) return prev;
       return { ...prev, [channelId]: [...existing, participant] };
     });
-    setVoiceActiveUsers((prev) => {
-      if (prev.has(participant.public_key)) return prev;
-      const next = new Set(prev);
-      next.add(participant.public_key);
-      return next;
-    });
   }
 
   function onParticipantLeft(channelId: string, publicKey: string) {
@@ -464,12 +450,6 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
         return rest;
       }
       return { ...prev, [channelId]: next };
-    });
-    setVoiceActiveUsers((prev) => {
-      if (!prev.has(publicKey)) return prev;
-      const next = new Set(prev);
-      next.delete(publicKey);
-      return next;
     });
   }
 
@@ -505,7 +485,6 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     selfDeafened,
     speakingPubkeys,
     voicePartByChannel,
-    voiceActiveUsers,
     voiceInputDevice,
     voiceOutputDevice,
     vadThreshold,

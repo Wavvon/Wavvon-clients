@@ -217,6 +217,7 @@ export function ChannelSidebarContainer({
       voiceGains={voice.voiceGains}
       onSetVoiceGain={voice.setVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
+      speaking={voice.speakingPubkeys}
       isWhispering={whisper.isWhispering}
       whisperTargets={whisper.whisperTargets}
       whisperLists={whisper.whisperLists}

@@ -286,6 +286,17 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
         },
         sendSpeaking: (channelId, speaking) => {
           try { ws()?.sendVoiceSpeaking(channelId, speaking); } catch {}
+          // The hub tells everyone else; your own row lights from the local
+          // detector, which is also the only signal while you are invisible.
+          const me = publicKeyRef.current;
+          if (me) {
+            setVoiceActiveUsers((prev) => {
+              if (speaking === prev.has(me)) return prev;
+              const next = new Set(prev);
+              if (speaking) next.add(me); else next.delete(me);
+              return next;
+            });
+          }
         },
         onGateWarning: setMicBelowGate,
       },

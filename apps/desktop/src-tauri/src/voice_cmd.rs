@@ -603,22 +603,6 @@ pub(crate) async fn voice_channel_participants(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
-#[tauri::command]
-pub(crate) async fn voice_active_users(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let (hub_url, token) = crate::state::active_session(&state)?;
-    let resp = state
-        .http_client
-        .get(format!("{hub_url}/voice/active-users"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
-}
-
 // ---------------------------------------------------------------------------
 // Whisper lists
 // ---------------------------------------------------------------------------
