@@ -71,7 +71,6 @@ export const ALL_PERMISSIONS: string[] = [
   "certs.settings",
   "badges.manage",
   "alliances.manage",
-  "alliances.peers",
   "directory.publish",
   "webhooks.incoming.manage",
   "webhooks.outgoing.manage",

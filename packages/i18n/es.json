@@ -835,7 +835,6 @@
   "hub.admin.roles.new": "Nuevo rol",
   "hub.admin.roles.no_color": "Sin color",
   "hub.admin.roles.perm.alliances.manage": "Gestionar alianzas",
-  "hub.admin.roles.perm.alliances.peers": "Registrar hubs pares",
   "hub.admin.roles.perm.apps.register": "Registrar una app",
   "hub.admin.roles.perm.audit.read": "Leer el registro de actividad",
   "hub.admin.roles.perm.badges.manage": "Gestionar insignias",
