@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
 import { DevicesSection } from "../DevicesSection";
 import { TrustedDevicesSection } from "../TrustedDevicesSection";
-import { ManagingAccountSelector } from "../ManagingAccountSelector";
 import type { PerAccountProps } from "@wavvon/ui";
 import type { IdentityRecord } from "@identity/index";
 
@@ -22,14 +21,6 @@ export function DevicesTab(props: Props) {
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.devices")}</h1>
-      {props.accounts && props.managing && (
-        <ManagingAccountSelector
-          accounts={props.accounts}
-          activeId={props.activeId}
-          selectedId={props.managing.id}
-          onChange={props.onManagingChange}
-        />
-      )}
       {props.managing && (
         <DevicesSection activeHubUrl={activeHubUrl} account={props.managing}>
           <TrustedDevicesSection account={props.managing} />

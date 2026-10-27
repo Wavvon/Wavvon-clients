@@ -559,6 +559,15 @@ button, a, input, textarea, select, .channel-item, .hub-icon, .user-list-item, .
 }
 
 /* Section header within the admin nav — groups the long tab list. */
+.settings-account-picker {
+  display: block;
+  padding: 0 var(--space-1) var(--space-2);
+}
+.settings-account-picker .settings-nav-group {
+  display: block;
+  padding-left: var(--space-2);
+}
+
 .settings-nav-group {
   padding: var(--space-3) var(--space-3) var(--space-1);
   font-size: var(--text-xs);

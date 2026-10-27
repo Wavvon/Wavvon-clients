@@ -1470,7 +1470,6 @@
   "settings.account.local_data.label": "Local data",
   "settings.account.local_data.state": "Cached hub data on this machine",
   "settings.account.managing.active_option": "{label} (active)",
-  "settings.account.managing.label": "Managing",
   "settings.account.not_member_notice": "{label} isn't a member of this hub.",
   "settings.account.passkeys.add_button": "Add passkey",
   "settings.account.passkeys.added_date": "Added {date}",
@@ -1651,7 +1650,6 @@
   "settings.profile.save": "Save profile",
   "settings.profile.save_all": "Save changes",
   "settings.profile.save_name_required": "Every edited profile needs a display name before saving.",
-  "settings.profile.scope.for": "for",
   "settings.profile.subtitle": "Your name, avatar, and bio — set a default for new hubs, or tailor how you appear on each one.",
   "settings.profile.tabs.activities": "Activities",
   "settings.profile.tabs.bio": "Bio",
@@ -2095,5 +2093,9 @@
   "issuer_picker.look_up": "Look up",
   "issuer_picker.trust": "Trust",
   "issuer_picker.already": "Already trusted",
-  "issuer_picker.lookup_failed": "Could not read that hub: {error}"
+  "issuer_picker.lookup_failed": "Could not read that hub: {error}",
+  "settings.account.picker.label": "Account",
+  "settings.device_wide": "Applies to this device, for every account.",
+  "settings.account.active_only": "These sections act on the active account. To manage them for {label}, switch to it.",
+  "settings.account.switch_to": "Switch to {label}"
 }

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
 import type { BackupAccount } from "@wavvon/core";
-import { FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
+import { ActiveAccountOnlyNotice, FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
 import {
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -11,7 +11,6 @@ import { HomeHubsSection } from "../HomeHubsSection";
 import { MULTI_HUB } from "../../../constants";
 import { MoveToUserClientSection } from "../MoveToUserClientSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
-import { ManagingAccountSelector } from "../ManagingAccountSelector";
 import { PasskeySection } from "../PasskeySection";
 import {
   listAccounts,
@@ -126,6 +125,12 @@ export function ManageAccountsTab(props: Props) {
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.accounts")}</h1>
       <AccountsSwitcherSection inVoice={props.inVoice} onBackedUp={props.onBackedUp} />
+      {props.managing && props.managing.id !== props.activeId && (
+        <ActiveAccountOnlyNotice
+          label={props.managing.account_label || formatPubkey(props.managing.id)}
+          onSwitch={() => switchOrAlert(props.managing!.id)}
+        />
+      )}
       <IdentityBackupSection
         accounts={backupAccounts}
         recoveryPhrase={props.recoveryPhrase}
@@ -138,17 +143,9 @@ export function ManageAccountsTab(props: Props) {
           props.onBackedUp();
         }}
       />
+      <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
       {props.managing && <PasskeySection publicKey={props.publicKey} account={props.managing} activeHubUrl={activeHubUrl} />}
-      <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
-      {props.accounts && props.managing && (
-        <ManagingAccountSelector
-          accounts={props.accounts}
-          activeId={props.activeId}
-          selectedId={props.managing.id}
-          onChange={props.onManagingChange}
-        />
-      )}
       {MULTI_HUB && props.managing && <HomeHubsSection activeHubUrl={activeHubUrl} account={props.managing} />}
       {!MULTI_HUB && props.managing && <MoveToUserClientSection account={props.managing} activeHubUrl={activeHubUrl} />}
     </section>

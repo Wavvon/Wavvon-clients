@@ -1470,7 +1470,6 @@
   "settings.account.local_data.label": "Dati locali",
   "settings.account.local_data.state": "Dati degli hub in cache su questa macchina",
   "settings.account.managing.active_option": "{label} (attivo)",
-  "settings.account.managing.label": "Gestione",
   "settings.account.not_member_notice": "{label} non è membro di questo hub.",
   "settings.account.passkeys.add_button": "Aggiungi passkey",
   "settings.account.passkeys.added_date": "Aggiunta il {date}",
@@ -1651,7 +1650,6 @@
   "settings.profile.save": "Salva profilo",
   "settings.profile.save_all": "Salva le modifiche",
   "settings.profile.save_name_required": "Ogni profilo modificato deve avere un nome visualizzato prima di salvare.",
-  "settings.profile.scope.for": "per",
   "settings.profile.subtitle": "Nome, avatar e bio — imposta un valore predefinito per i nuovi hub o personalizza come appari in ciascuno.",
   "settings.profile.tabs.activities": "Attività",
   "settings.profile.tabs.bio": "Bio",
@@ -2095,5 +2093,9 @@
   "issuer_picker.look_up": "Cerca",
   "issuer_picker.trust": "Fidati",
   "issuer_picker.already": "Già fidato",
-  "issuer_picker.lookup_failed": "Impossibile leggere quell'hub: {error}"
+  "issuer_picker.lookup_failed": "Impossibile leggere quell'hub: {error}",
+  "settings.account.picker.label": "Account",
+  "settings.device_wide": "Vale per questo dispositivo, per ogni account.",
+  "settings.account.active_only": "Queste sezioni agiscono sull'account attivo. Per gestirle per {label}, passa a quell'account.",
+  "settings.account.switch_to": "Passa a {label}"
 }
