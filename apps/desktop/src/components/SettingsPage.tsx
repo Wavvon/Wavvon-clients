@@ -248,7 +248,7 @@ export function SettingsPage(props: SettingsPageProps) {
         )}
 
         {props.tab === "devices" && (
-          <DevicesTab hubs={props.hubs} activeHubId={props.activeHubId} />
+          <DevicesTab hubs={props.hubs} />
         )}
 
         {props.tab === "privacy" && (

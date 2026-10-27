@@ -278,7 +278,5 @@ export {
   listPasskeys,
   deletePasskey,
   renamePasskey,
-  listTrustedDevices,
-  revokeTrustedDevice,
 } from "./webauthn";
-export type { CredentialInfo, DeviceInfo } from "./webauthn";
+export type { CredentialInfo } from "./webauthn";

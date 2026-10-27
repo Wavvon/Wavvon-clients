@@ -1278,11 +1278,7 @@ pub(crate) async fn get_user_profile(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let url = format!(
-        "{}/members/{}/profile",
-        hub_url.trim_end_matches('/'),
-        pubkey
-    );
+    let url = format!("{}/users/{}/profile", hub_url.trim_end_matches('/'), pubkey);
     let res = state
         .http_client
         .get(&url)

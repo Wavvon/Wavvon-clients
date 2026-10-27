@@ -43,3 +43,21 @@ describe("acquireHubToken with a server that names the tagged scheme", () => {
     expect(ed25519.verify(hexToBytes(verifyBody.signature), tagged, hexToBytes(publicKeyHex(seed)))).toBe(true);
   });
 });
+
+describe("acquireHubToken with a server that names no scheme", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("refuses rather than signing the raw challenge", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/auth/challenge")) {
+        return new Response(JSON.stringify({ challenge: "ab".repeat(32) }), { status: 200 });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      acquireHubToken("https://hub.example", "ab".repeat(32), "cd".repeat(32), 0, 0),
+    ).rejects.toThrow(/scheme/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

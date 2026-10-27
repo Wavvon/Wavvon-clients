@@ -123,7 +123,7 @@ pub(crate) async fn save_cert_settings(
         body.insert("cert_auto_issue".into(), v.into());
     }
     if let Some(v) = cert_standing_days {
-        body.insert("cert_standing_days".into(), v.into());
+        body.insert("cert_min_age_days".into(), v.into());
     }
     if let Some(v) = cert_validity_days {
         body.insert("cert_validity_days".into(), v.into());
