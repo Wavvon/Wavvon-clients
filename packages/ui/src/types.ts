@@ -776,6 +776,25 @@ export interface RecoveryContactItem {
   display_name?: string | null;
 }
 
+/** `GET /recovery/requests/to-attest`: an open request naming you as a contact. */
+export interface RecoveryRequestToAttest {
+  id: string;
+  old_pubkey: string;
+  new_pubkey: string;
+  reason: string | null;
+  created_at: number;
+  attestation_count: number;
+  threshold: number;
+}
+
+/** Someone who can be picked as a recovery contact, or as the account you
+ *  were: this hub's members and your friends. */
+export interface RecoveryPerson {
+  pubkey: string;
+  display_name: string | null;
+  avatar?: string | null;
+}
+
 export interface RecoveryAdminRequest {
   id: string;
   old_pubkey: string;

@@ -367,6 +367,7 @@ pub fn run() {
             lobby::survey_admin_responses,
             // Identity recovery + key rotation
             recovery::get_recovery_contacts,
+            recovery::list_recovery_requests_to_attest,
             recovery::set_recovery_contacts,
             recovery::remove_recovery_contact,
             recovery::submit_rotation_request,

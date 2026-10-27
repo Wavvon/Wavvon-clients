@@ -1,3 +1,4 @@
+import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../../platform/commands/recoveryPeople";
 import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
 import type { BackupAccount } from "@wavvon/core";
@@ -116,6 +117,8 @@ export function ManageAccountsTab(props: Props) {
     getContacts: getRecoveryContacts,
     setContacts: setRecoveryContacts,
     removeContact: removeRecoveryContact,
+    listPeople: listRecoveryPeople,
+    listRequestsToAttest: listRecoveryRequestsToAttest,
     openRotationRequest: (oldPubkey, reason) => openRotationRequest(activeHubUrl ?? "", oldPubkey, reason),
     getRotationRequest: (id) => getRotationRequestBundle(activeHubUrl ?? "", id),
     attestRotationRequest: (bundle) => attestRotationRequest(activeHubUrl ?? "", bundle),
