@@ -596,8 +596,6 @@
   "hub.admin.certs.trusted.hint": "Es werden nur Zertifizierungen dieser öffentlichen Schlüssel akzeptiert.",
   "hub.admin.certs.trusted.label": "Öffentliche Schlüssel der vertrauenswürdigen Ausstellenden",
   "hub.admin.certs.trusted.placeholder": "Öffentlicher Hub-Schlüssel (hex)",
-  "hub.admin.certs.trusted.remove": "Entfernen",
-  "hub.admin.certs.trusted.url_placeholder": "https://aussteller.example (optional)",
   "hub.admin.challenge_preview.answer_placeholder": "Deine Antwort",
   "hub.admin.challenge_preview.click_subtext": "Eine kurze Prüfung, bevor du Nachrichten senden kannst.",
   "hub.admin.challenge_preview.close": "Vorschau schließen",
@@ -1613,7 +1611,6 @@
   "settings.privacy.trusted_issuers.label_placeholder": "Deine Notiz (optional)",
   "settings.privacy.trusted_issuers.malformed": "Das ist kein öffentlicher Hub-Schlüssel: 64 Hex-Zeichen, keine Leerzeichen.",
   "settings.privacy.trusted_issuers.pubkey_placeholder": "Öffentlicher Hub-Schlüssel (64 Hex-Zeichen)",
-  "settings.privacy.trusted_issuers.remove": "Entfernen",
   "settings.privacy.trusted_issuers.state": "{count, plural, one {# Aussteller} other {# Aussteller}}",
   "settings.profile.banner.accent_label": "Akzentfarbe",
   "settings.profile.banner.cover_button": "Titelbild hochladen",
@@ -2089,5 +2086,14 @@
   "settings.about.credits": "Gebaut mit",
   "hub.admin.group.joining": "Beitritt",
   "hub.admin.group.moderation": "Moderation",
-  "hub.admin.group.connections": "Verbindungen"
+  "hub.admin.group.connections": "Verbindungen",
+  "settings.privacy.trusted_issuers.advanced": "Per öffentlichem Schlüssel hinzufügen",
+  "issuer_picker.no_hubs": "Noch keine Hubs zur Auswahl.",
+  "issuer_picker.member": "vertrauenswürdig: du bist Mitglied",
+  "issuer_picker.address_label": "Hub-Adresse",
+  "issuer_picker.address_placeholder": "https://hub.example",
+  "issuer_picker.look_up": "Nachschlagen",
+  "issuer_picker.trust": "Vertrauen",
+  "issuer_picker.already": "Bereits vertraut",
+  "issuer_picker.lookup_failed": "Dieser Hub ließ sich nicht lesen: {error}"
 }

@@ -30,7 +30,9 @@ import {
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
   getAlliancePeopleVisible, setAlliancePeopleVisible,
+  getAllianceMembers, listHubs, getActiveHubId, rawFetch,
 } from "@platform";
+import { knownIssuerHubs, type IssuerHub } from "@wavvon/ui";
 import { fetchSoundboardAudioBytes } from "@platform";
 import {
   adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
@@ -117,8 +119,23 @@ export const webhookActions = {
 
 export const auditLogActions = { getAuditLog } as AuditLogSectionActions;
 
+/** A hub's `/info`, as an issuer the user can trust by address. */
+export async function lookupIssuerHub(url: string): Promise<IssuerHub> {
+  const base = url.trim().replace(/\/$/, "");
+  const info = (await (await rawFetch(`${base}/info`)).json()) as { name: string; icon?: string | null; public_key: string };
+  return { pubkey: info.public_key, name: info.name, url: base, icon: info.icon ?? null };
+}
+
+async function listKnownIssuerHubs(): Promise<IssuerHub[]> {
+  const alliances = await listAlliances().catch(() => []);
+  const partners = (await Promise.all(alliances.map((a) => getAllianceMembers(a.id).catch(() => [])))).flat();
+  return knownIssuerHubs(listHubs(), partners, listHubs().find((h) => h.hub_id === getActiveHubId())?.hub_url);
+}
+
 export const certActions = {
   listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+  listKnownHubs: listKnownIssuerHubs,
+  lookupHub: lookupIssuerHub,
 } as CertificationsSectionActions;
 
 export const soundboardActions = {

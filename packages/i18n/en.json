@@ -596,8 +596,6 @@
   "hub.admin.certs.trusted.hint": "Only certifications from these hub pubkeys are accepted.",
   "hub.admin.certs.trusted.label": "Trusted issuer pubkeys",
   "hub.admin.certs.trusted.placeholder": "Hub pubkey (hex)",
-  "hub.admin.certs.trusted.remove": "Remove",
-  "hub.admin.certs.trusted.url_placeholder": "https://issuer.example (optional)",
   "hub.admin.challenge_preview.answer_placeholder": "Your answer",
   "hub.admin.challenge_preview.click_subtext": "Quick check before you can send messages.",
   "hub.admin.challenge_preview.close": "Close preview",
@@ -1613,7 +1611,6 @@
   "settings.privacy.trusted_issuers.label_placeholder": "Your note (optional)",
   "settings.privacy.trusted_issuers.malformed": "That is not a hub public key: 64 hexadecimal characters, no spaces.",
   "settings.privacy.trusted_issuers.pubkey_placeholder": "Hub public key (64 hex characters)",
-  "settings.privacy.trusted_issuers.remove": "Remove",
   "settings.privacy.trusted_issuers.state": "{count, plural, one {# issuer} other {# issuers}}",
   "settings.profile.banner.accent_label": "Accent color",
   "settings.profile.banner.cover_button": "Upload cover",
@@ -2089,5 +2086,14 @@
   "settings.about.credits": "Built on",
   "hub.admin.group.joining": "Joining",
   "hub.admin.group.moderation": "Moderation",
-  "hub.admin.group.connections": "Connections"
+  "hub.admin.group.connections": "Connections",
+  "settings.privacy.trusted_issuers.advanced": "Add by public key",
+  "issuer_picker.no_hubs": "No hubs to pick from yet.",
+  "issuer_picker.member": "trusted: you are a member",
+  "issuer_picker.address_label": "Hub address",
+  "issuer_picker.address_placeholder": "https://hub.example",
+  "issuer_picker.look_up": "Look up",
+  "issuer_picker.trust": "Trust",
+  "issuer_picker.already": "Already trusted",
+  "issuer_picker.lookup_failed": "Could not read that hub: {error}"
 }

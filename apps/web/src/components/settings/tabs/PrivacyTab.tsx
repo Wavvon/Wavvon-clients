@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
-import type { BlockEntry, IgnoreEntry } from "@shared/types";
+import type { BlockEntry, Hub, IgnoreEntry } from "@shared/types";
 import { AccountBlockIgnoreSection } from "../AccountBlockIgnoreSection";
 import { ManagingAccountSelector } from "../ManagingAccountSelector";
 import type { PerAccountProps, TrustRoot } from "@wavvon/ui";
-import { TrustedIssuersSection } from "@wavvon/ui";
+import { TrustedIssuersSection, knownIssuerHubs } from "@wavvon/ui";
+import { lookupIssuerHub } from "../../../platform/adminActions";
 import type { IdentityRecord } from "@identity/index";
 
 interface Props extends PerAccountProps<IdentityRecord> {
@@ -14,6 +15,7 @@ interface Props extends PerAccountProps<IdentityRecord> {
   knownNames: Record<string, string | null>;
   trustRoots: TrustRoot[];
   onTrustRootsChange: (roots: TrustRoot[]) => void;
+  hubs: Hub[];
 }
 
 // Who the selected account has blocked or ignored — about other people,
@@ -42,7 +44,12 @@ export function PrivacyTab(props: Props) {
           knownNames={props.knownNames}
         />
       )}
-      <TrustedIssuersSection roots={props.trustRoots} onChange={props.onTrustRootsChange} />
+      <TrustedIssuersSection
+        roots={props.trustRoots}
+        onChange={props.onTrustRootsChange}
+        joinedHubs={knownIssuerHubs(props.hubs, [])}
+        lookupHub={lookupIssuerHub}
+      />
     </section>
   );
 }

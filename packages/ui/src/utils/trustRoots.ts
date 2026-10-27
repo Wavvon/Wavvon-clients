@@ -19,6 +19,9 @@ export interface TrustRoot {
   pubkey: string;
   /** The viewer's own note. Never shown as an attestation of anything. */
   label?: string;
+  /** Where the issuer lives, when it was picked by hub rather than by key,
+   *  so a later key rotation can be noticed instead of silently distrusted. */
+  url?: string;
 }
 
 /**
@@ -51,7 +54,11 @@ export function parseTrustRoots(raw: string | null | undefined): TrustRoot[] {
       typeof entry === "object" && entry !== null && typeof (entry as TrustRoot).label === "string"
         ? (entry as TrustRoot).label!.trim().slice(0, 64)
         : undefined;
-    roots.push(label ? { pubkey, label } : { pubkey });
+    const url =
+      typeof entry === "object" && entry !== null && typeof (entry as TrustRoot).url === "string"
+        ? (entry as TrustRoot).url
+        : undefined;
+    roots.push({ pubkey, ...(label ? { label } : {}), ...(url ? { url } : {}) });
   }
   return roots;
 }
@@ -75,12 +82,12 @@ export function normalizePubkey(value: unknown): string | null {
 }
 
 /** Add a root, or update the label of one already there. */
-export function addTrustRoot(roots: TrustRoot[], pubkey: string, label?: string): TrustRoot[] {
+export function addTrustRoot(roots: TrustRoot[], pubkey: string, label?: string, url?: string): TrustRoot[] {
   const normalized = normalizePubkey(pubkey);
   if (!normalized) return roots;
   const clean = label?.trim().slice(0, 64) || undefined;
   const without = roots.filter((r) => r.pubkey !== normalized);
-  return [...without, clean ? { pubkey: normalized, label: clean } : { pubkey: normalized }];
+  return [...without, { pubkey: normalized, ...(clean ? { label: clean } : {}), ...(url ? { url } : {}) }];
 }
 
 export function removeTrustRoot(roots: TrustRoot[], pubkey: string): TrustRoot[] {

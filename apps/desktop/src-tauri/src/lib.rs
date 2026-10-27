@@ -283,6 +283,7 @@ pub fn run() {
             admin::update_my_profile_on_hub,
             // Alliance / federation
             admin_alliance::list_alliances,
+            admin_alliance::get_alliance_members,
             admin_alliance::create_alliance,
             admin_alliance::create_alliance_invite,
             admin_alliance::join_alliance,

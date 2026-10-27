@@ -192,6 +192,7 @@ export function SettingsPage(props: SettingsPageProps) {
             knownNames={props.knownNames}
             trustRoots={trustRoots}
             onTrustRootsChange={updateTrustRoots}
+            hubs={props.hubs}
             {...perAccount}
           />
         )}

@@ -596,8 +596,6 @@
   "hub.admin.certs.trusted.hint": "Vengono accettate solo le certificazioni di queste chiavi pubbliche.",
   "hub.admin.certs.trusted.label": "Chiavi pubbliche degli emittenti attendibili",
   "hub.admin.certs.trusted.placeholder": "Chiave pubblica dell'hub (hex)",
-  "hub.admin.certs.trusted.remove": "Rimuovi",
-  "hub.admin.certs.trusted.url_placeholder": "https://emittente.example (facoltativo)",
   "hub.admin.challenge_preview.answer_placeholder": "La tua risposta",
   "hub.admin.challenge_preview.click_subtext": "Un controllo veloce prima di poter scrivere.",
   "hub.admin.challenge_preview.close": "Chiudi l'anteprima",
@@ -1613,7 +1611,6 @@
   "settings.privacy.trusted_issuers.label_placeholder": "Nota tua (facoltativa)",
   "settings.privacy.trusted_issuers.malformed": "Non è una chiave pubblica di hub: 64 caratteri esadecimali, senza spazi.",
   "settings.privacy.trusted_issuers.pubkey_placeholder": "Chiave pubblica hub (64 caratteri esadecimali)",
-  "settings.privacy.trusted_issuers.remove": "Rimuovi",
   "settings.privacy.trusted_issuers.state": "{count, plural, one {# emittente} other {# emittenti}}",
   "settings.profile.banner.accent_label": "Colore accento",
   "settings.profile.banner.cover_button": "Carica copertina",
@@ -2089,5 +2086,14 @@
   "settings.about.credits": "Costruito con",
   "hub.admin.group.joining": "Ingresso",
   "hub.admin.group.moderation": "Moderazione",
-  "hub.admin.group.connections": "Collegamenti"
+  "hub.admin.group.connections": "Collegamenti",
+  "settings.privacy.trusted_issuers.advanced": "Aggiungi per chiave pubblica",
+  "issuer_picker.no_hubs": "Ancora nessun hub da scegliere.",
+  "issuer_picker.member": "affidabile: ne sei membro",
+  "issuer_picker.address_label": "Indirizzo dell'hub",
+  "issuer_picker.address_placeholder": "https://hub.example",
+  "issuer_picker.look_up": "Cerca",
+  "issuer_picker.trust": "Fidati",
+  "issuer_picker.already": "Già fidato",
+  "issuer_picker.lookup_failed": "Impossibile leggere quell'hub: {error}"
 }
