@@ -35,6 +35,10 @@ interface Props {
   // Lets the caller refresh meInfo/users when a saved hub is the active one.
   onHubProfileSaved?: (hubId: string) => void;
   actions: ProfileEditorActions;
+  /** The viewer's own preference about other members' birthdays, kept next
+   *  to their own birthday. Omit to hide the toggle. */
+  showBirthdays?: boolean;
+  onShowBirthdaysChange?: (show: boolean) => void;
 }
 
 const DEFAULT_CONTEXT = "__default__";
@@ -126,7 +130,7 @@ const trimToNull = (s: string) => {
 // Edits are kept as per-context drafts (dirty contexts get a • in the
 // dropdown) and a single "Save changes" persists all of them: default →
 // local scoped storage, each hub → its own session (PATCH /me).
-export function ProfileEditorSection({ hubs, account, isActive, publicKey, accounts, activeId, onManagingChange, onHubProfileSaved, actions }: Props) {
+export function ProfileEditorSection({ hubs, account, isActive, publicKey, accounts, activeId, onManagingChange, onHubProfileSaved, actions, showBirthdays, onShowBirthdaysChange }: Props) {
   const { t } = useTranslation();
   const [context, setContext] = useState<string>(DEFAULT_CONTEXT);
   const [tab, setTab] = useState<CardTab>("bio");
@@ -608,6 +612,19 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     </button>
                   )}
                 </div>
+                <p className="muted" style={{ fontSize: "var(--text-xs)", margin: "4px 0 0" }}>
+                  {t("settings.profile.fields.birthday_hint")}
+                </p>
+                {onShowBirthdaysChange && (
+                  <label className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+                    <input
+                      type="checkbox"
+                      checked={showBirthdays ?? true}
+                      onChange={(e) => onShowBirthdaysChange?.(e.target.checked)}
+                    />
+                    {t("settings.profile.fields.show_birthdays")}
+                  </label>
+                )}
               </div>
               <div className="profile-card-idline">
                 {account.id.slice(0, 16)}…{account.id.slice(-8)}

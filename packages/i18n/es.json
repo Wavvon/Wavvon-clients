@@ -1615,10 +1615,6 @@
   "settings.pairing.sync_ok": "¡Listo! Preferencias sincronizadas desde tu otro dispositivo.",
   "settings.pairing.sync_skipped": "¡Listo! (sincronización de preferencias omitida)",
   "settings.pairing.sync_skipped_reason": "¡Listo! (sincronización de preferencias omitida: {reason})",
-  "settings.privacy.birthdays.hide": "Ocultar la insignia 🎂 en los cumpleaños de los miembros",
-  "settings.privacy.birthdays.label": "Cumpleaños",
-  "settings.privacy.birthdays.state.hidden": "Ocultos",
-  "settings.privacy.birthdays.state.shown": "Visibles en los perfiles",
   "settings.privacy.trusted_issuers.add": "Confiar",
   "settings.privacy.trusted_issuers.already": "Ya es de confianza.",
   "settings.privacy.trusted_issuers.empty": "Todavía no hay emisores de confianza.",
@@ -2088,5 +2084,7 @@
   "hub.admin.audit.event.role_category.updated": "{actor} cambió una categoría de roles",
   "hub.admin.audit.event.role_category.deleted": "{actor} eliminó una categoría de roles",
   "hub.admin.audit.event.soundboard.clip_uploaded": "{actor} añadió un clip a la soundboard",
-  "hub.admin.audit.event.soundboard.clip_deleted": "{actor} quitó un clip de la soundboard"
+  "hub.admin.audit.event.soundboard.clip_deleted": "{actor} quitó un clip de la soundboard",
+  "settings.profile.fields.birthday_hint": "Déjalo vacío para no compartir nada. Solo mes y día, nunca el año.",
+  "settings.profile.fields.show_birthdays": "Mostrar 🎂 en el cumpleaños de los miembros"
 }

@@ -1615,10 +1615,6 @@
   "settings.pairing.sync_ok": "Fertig! Einstellungen von deinem anderen Gerät übernommen.",
   "settings.pairing.sync_skipped": "Fertig! (Übernahme der Einstellungen übersprungen)",
   "settings.pairing.sync_skipped_reason": "Fertig! (Übernahme der Einstellungen übersprungen: {reason})",
-  "settings.privacy.birthdays.hide": "Das 🎂-Abzeichen an Geburtstagen von Mitgliedern ausblenden",
-  "settings.privacy.birthdays.label": "Geburtstage",
-  "settings.privacy.birthdays.state.hidden": "Verborgen",
-  "settings.privacy.birthdays.state.shown": "Im Profil sichtbar",
   "settings.privacy.trusted_issuers.add": "Vertrauen",
   "settings.privacy.trusted_issuers.already": "Bereits vertraut.",
   "settings.privacy.trusted_issuers.empty": "Noch keine vertrauenswürdigen Aussteller.",
@@ -2088,5 +2084,7 @@
   "hub.admin.audit.event.role_category.updated": "{actor} hat eine Rollenkategorie geändert",
   "hub.admin.audit.event.role_category.deleted": "{actor} hat eine Rollenkategorie gelöscht",
   "hub.admin.audit.event.soundboard.clip_uploaded": "{actor} hat einen Soundboard-Clip hinzugefügt",
-  "hub.admin.audit.event.soundboard.clip_deleted": "{actor} hat einen Soundboard-Clip entfernt"
+  "hub.admin.audit.event.soundboard.clip_deleted": "{actor} hat einen Soundboard-Clip entfernt",
+  "settings.profile.fields.birthday_hint": "Leer lassen, um nichts zu teilen. Nur Monat und Tag, nie das Jahr.",
+  "settings.profile.fields.show_birthdays": "🎂 am Geburtstag von Mitgliedern zeigen"
 }
