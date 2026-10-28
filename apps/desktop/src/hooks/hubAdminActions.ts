@@ -320,7 +320,7 @@ export const outgoingWebhookActions: OutgoingWebhookActions = {
     invoke<OutgoingWebhookDelivery[]>("admin_list_outgoing_webhook_deliveries", {
       id,
       limit: params.limit ?? null,
-      offset: params.offset ?? null,
+      cursor: params.cursor ?? null,
       eventType: params.eventType ?? null,
       success: params.success ?? null,
     }),

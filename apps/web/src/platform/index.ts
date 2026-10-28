@@ -98,6 +98,7 @@ export {
   removeBadge,
   grantBadge,
   listCertIssuances,
+  listHubMembers,
   getCertSettings,
   saveCertSettings,
   issueCertManual,

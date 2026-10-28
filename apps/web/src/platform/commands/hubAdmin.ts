@@ -1,6 +1,7 @@
 import { hubFetch, rawFetch } from "../http";
 import { activeHubCapabilities } from "../session";
-import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
+import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
+import type { MemberAdminInfo } from "@wavvon/ui";
 import type {
   HubSelfTagSettings,
   HubBadge,
@@ -77,8 +78,30 @@ export async function grantBadge(targetHubUrl: string, label: string): Promise<v
 // ---- Hub certifications ----
 
 export async function listCertIssuances(): Promise<CertIssuance[]> {
-  const r = await hubFetch("/admin/certs");
-  return r.json() as Promise<CertIssuance[]>;
+  return fetchAllPages<CertIssuance>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_ADMIN_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (c) => c.id,
+    fetchPage: async (params) =>
+      (await (await hubFetch(params ? `/admin/certs?${params}` : "/admin/certs")).json()) as CertIssuance[],
+    label: "listCertIssuances",
+  });
+}
+
+/** Every member, walked to exhaustion: the hub used to stop at 1000 silently. */
+export async function listHubMembers(): Promise<MemberAdminInfo[]> {
+  return fetchAllPages<MemberAdminInfo>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_ADMIN_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (m) => m.public_key,
+    fetchPage: async (params) =>
+      (await (await hubFetch(params ? `/hub/members?${params}` : "/hub/members")).json()) as MemberAdminInfo[],
+    label: "listHubMembers",
+  });
 }
 
 export async function getCertSettings(): Promise<CertAdmissionSettings> {
@@ -98,7 +121,7 @@ export async function issueCertManual(subjectPubkey: string): Promise<void> {
 }
 
 export async function revokeCert(subjectPubkey: string): Promise<void> {
-  await hubFetch(`/admin/certs/${subjectPubkey}/revoke`, { method: "POST" });
+  await hubFetch(`/admin/certs/${subjectPubkey}`, { method: "DELETE" });
 }
 
 // ---- Recovery contacts ----

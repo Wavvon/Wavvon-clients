@@ -70,17 +70,14 @@ pub(crate) async fn list_issued_certs(
     state: State<'_, AppState>,
 ) -> Result<Vec<serde_json::Value>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let res = state
-        .http_client
-        .get(format!("{}/admin/certs", hub_url.trim_end_matches('/')))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    if !res.status().is_success() {
-        return Err(format!("HTTP {}", res.status()));
-    }
-    let rows: Vec<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
+    let rows: Vec<serde_json::Value> = crate::admin::get_all_pages(
+        &state.http_client,
+        &format!("{}/admin/certs", hub_url.trim_end_matches('/')),
+        &token,
+        &[],
+        |r: &serde_json::Value| r["id"].as_str().unwrap_or_default().to_string(),
+    )
+    .await?;
     Ok(rows
         .into_iter()
         .map(|r| {
@@ -193,8 +190,8 @@ pub(crate) async fn revoke_cert(
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let res = state
         .http_client
-        .post(format!(
-            "{}/admin/certs/{}/revoke",
+        .delete(format!(
+            "{}/admin/certs/{}",
             hub_url.trim_end_matches('/'),
             subject_pubkey
         ))
