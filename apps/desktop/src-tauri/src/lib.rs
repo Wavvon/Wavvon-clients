@@ -176,6 +176,7 @@ pub fn run() {
             messages::get_pinned_messages,
             // Voice
             voice_cmd::voice_channel_participants,
+            voice_cmd::voice_floor,
             voice_cmd::voice_join,
             voice_cmd::mint_alliance_voice_grant,
             voice_cmd::alliance_voice_join,

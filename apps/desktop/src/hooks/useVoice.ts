@@ -22,6 +22,16 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   const [selfDeafened, setSelfDeafened] = useState(false);
   const [speakingPubkeys, setSpeakingPubkeys] = useState<Set<string>>(new Set());
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
+  // The floor (`voice.hands`): whether the relay carries what we send in the
+  // room we are in, and who there has a hand up. Keyed by channel because
+  // voice-hands can arrive before voice-joined.
+  const [maySpeak, setMaySpeak] = useState(true);
+  const [voiceHands, setVoiceHands] = useState<{ channelId: string; keys: string[] } | null>(null);
+  useEffect(() => {
+    if (voiceChannelId) return;
+    setMaySpeak(true);
+    setVoiceHands(null);
+  }, [voiceChannelId]);
   const [voiceInputDevice, setVoiceInputDevice] = useState<string>("");
   const [voiceOutputDevice, setVoiceOutputDevice] = useState<string>("");
   const [vadThreshold, setVadThreshold] = useState<number>(0.02);
@@ -107,6 +117,10 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     const handle = setInterval(tick, 1500);
     const scope = listenerScope();
     scope.add(listen("voice-roster-update", () => { if (!cancelled) tick(); }));
+    scope.add(listen<{ channel_id: string; public_keys: string[] }>("voice-hands", (e) => {
+      if (!cancelled) setVoiceHands({ channelId: e.payload.channel_id, keys: e.payload.public_keys });
+    }));
+    scope.add(listen("voice-talk-granted", () => { if (!cancelled) setMaySpeak(true); }));
 
     scope.add(listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
       if (cancelled) return;
@@ -427,9 +441,14 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     await startShare(opts);
   }
 
-  function onVoiceJoined(channelId: string, participants: VoiceParticipant[]) {
+  function onVoiceJoined(channelId: string, participants: VoiceParticipant[], maySpeak: boolean) {
     setVoiceChannelId(channelId);
     setVoicePartByChannel((prev) => ({ ...prev, [channelId]: participants }));
+    setMaySpeak(maySpeak);
+    // Hands raised before we arrived: the push only covers what changes.
+    invoke<string[]>("voice_floor", { channelId, action: "list" })
+      .then((keys) => setVoiceHands((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
+      .catch(() => { /* the next voice-hands corrects it */ });
   }
 
   function onParticipantJoined(channelId: string, participant: VoiceParticipant) {
@@ -479,8 +498,23 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     setVoiceChannelId(null);
   }
 
+  // Errors surface and change nothing locally: the hub's next voice-hands is
+  // the truth either way.
+  function floorCall(action: string, publicKey?: string) {
+    if (!voiceChannelId) return;
+    invoke("voice_floor", { channelId: voiceChannelId, action, publicKey }).catch((e) => setError(String(e)));
+  }
+  const floor = voiceChannelId ? {
+    maySpeak,
+    hands: voiceHands?.channelId === voiceChannelId ? voiceHands.keys : [],
+    onRaise: () => floorCall("raise"),
+    onGrant: (pk: string) => floorCall("grant", pk),
+    onDismiss: (pk: string) => floorCall("lower", pk),
+  } : null;
+
   return {
     voiceChannelId,
+    floor,
     selfMuted,
     selfDeafened,
     speakingPubkeys,

@@ -255,6 +255,10 @@ export function ContentArea(props: Props) {
           avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
           inThisRoom: voice.voiceChannelId === selectedChannel.id,
           onJoin: () => void voice.handleVoiceJoin(selectedChannel.id),
+          publicKey,
+          floor: voice.floor && voice.voiceChannelId === selectedChannel.id && activeHubSupports("voice.hands")
+            ? { ...voice.floor, canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
+            : undefined,
         } : undefined}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={alliances.selectedAllianceChannel}

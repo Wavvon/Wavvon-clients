@@ -539,6 +539,10 @@ pub(crate) enum WsServerMessage {
         /// hub is on the self-signed tier; `None` for a CA-issued cert.
         #[serde(default)]
         voice_cert_hash: Option<String>,
+        /// False when the room's talk-power threshold is above ours and nobody
+        /// has given us the floor. An older hub omits it, which is not "muted".
+        #[serde(default)]
+        may_speak: Option<bool>,
     },
     #[serde(rename = "voice_participant_joined")]
     VoiceParticipantJoined {
@@ -578,6 +582,16 @@ pub(crate) enum WsServerMessage {
         conversation_id: String,
         added: Vec<String>,
         removed: Vec<String>,
+    },
+    #[serde(rename = "voice_hands")]
+    VoiceHands {
+        channel_id: String,
+        public_keys: Vec<String>,
+    },
+    #[serde(rename = "voice_talk_granted")]
+    VoiceTalkGranted {
+        channel_id: String,
+        public_key: String,
     },
     #[serde(rename = "voice_roster_update")]
     VoiceRosterUpdate {
