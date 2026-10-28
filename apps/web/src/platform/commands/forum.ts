@@ -1,12 +1,13 @@
+import { forumPage, FORUM_PAGE_SIZE } from "@wavvon/ui";
 import { hubFetch } from "../http";
-import type { PostListResponse, PostDetail, ReplyView, ForumTagDef, ForumAttachment } from "../../types";
+import type { PostListResponse, PostSummary, PostDetail, ReplyView, ForumTagDef, ForumAttachment } from "../../types";
 
 export async function forumListPosts(channelId: string, cursor?: string, tagId?: string): Promise<PostListResponse> {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ limit: String(FORUM_PAGE_SIZE) });
   if (cursor) params.set("cursor", cursor);
   if (tagId) params.set("tag", tagId);
   const r = await hubFetch(`/channels/${channelId}/posts?${params.toString()}`);
-  return r.json() as Promise<PostListResponse>;
+  return forumPage((await r.json()) as PostSummary[]);
 }
 
 export async function forumGetPost(channelId: string, postId: string, after?: string): Promise<PostDetail> {
@@ -168,11 +169,11 @@ export async function getAllianceChannelPosts(
   cursor?: string,
   tagId?: string,
 ): Promise<PostListResponse> {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ limit: String(FORUM_PAGE_SIZE) });
   if (cursor) params.set("cursor", cursor);
   if (tagId) params.set("tag", tagId);
   const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/posts?${params.toString()}`);
-  return r.json() as Promise<PostListResponse>;
+  return forumPage((await r.json()) as PostSummary[]);
 }
 
 export async function getAllianceChannelPost(

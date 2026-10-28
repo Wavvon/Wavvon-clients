@@ -1728,11 +1728,6 @@ pub(crate) struct EventSubscription {
     pub channels: Option<Vec<String>>,
 }
 
-#[derive(serde::Deserialize)]
-struct SubscriptionsBody {
-    subscriptions: Vec<EventSubscription>,
-}
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct SubscriptionCount {
     pub count: i64,
@@ -1863,11 +1858,9 @@ pub(crate) async fn admin_get_outgoing_webhook_subscriptions(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    let body: SubscriptionsBody = resp
-        .json()
+    resp.json()
         .await
-        .map_err(|e| format!("Invalid response: {e}"))?;
-    Ok(body.subscriptions)
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -1942,7 +1935,7 @@ pub(crate) async fn admin_enable_outgoing_webhook(
 pub(crate) async fn admin_list_outgoing_webhook_deliveries(
     id: String,
     limit: Option<u32>,
-    offset: Option<u32>,
+    cursor: Option<String>,
     event_type: Option<String>,
     success: Option<bool>,
     state: State<'_, AppState>,
@@ -1953,8 +1946,8 @@ pub(crate) async fn admin_list_outgoing_webhook_deliveries(
     if let Some(limit) = limit {
         query.push(("limit", limit.to_string()));
     }
-    if let Some(offset) = offset {
-        query.push(("offset", offset.to_string()));
+    if let Some(cursor) = cursor {
+        query.push(("cursor", cursor));
     }
     if let Some(event_type) = event_type.as_deref() {
         query.push(("event_type", event_type.to_string()));

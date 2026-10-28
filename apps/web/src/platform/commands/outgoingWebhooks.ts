@@ -51,8 +51,7 @@ export async function adminGetOutgoingWebhookSubscriptions(
   id: string,
 ): Promise<EventSubscription[]> {
   const res = await hubFetch(`/admin/outgoing-webhooks/${id}/subscriptions`);
-  const body = (await res.json()) as { subscriptions: EventSubscription[] };
-  return body.subscriptions;
+  return res.json() as Promise<EventSubscription[]>;
 }
 
 export async function adminRotateOutgoingWebhookSecret(id: string): Promise<{ secret: string }> {
@@ -69,7 +68,8 @@ export async function adminEnableOutgoingWebhook(id: string): Promise<void> {
 
 export interface ListDeliveriesParams {
   limit?: number;
-  offset?: number;
+  /** The id of the last delivery of the previous page. */
+  cursor?: string;
   eventType?: string;
   success?: boolean;
 }
@@ -80,7 +80,7 @@ export async function adminListOutgoingWebhookDeliveries(
 ): Promise<OutgoingWebhookDelivery[]> {
   const query = new URLSearchParams();
   if (params.limit != null) query.set("limit", String(params.limit));
-  if (params.offset != null) query.set("offset", String(params.offset));
+  if (params.cursor) query.set("cursor", params.cursor);
   if (params.eventType) query.set("event_type", params.eventType);
   if (params.success != null) query.set("success", String(params.success));
   const qs = query.toString();

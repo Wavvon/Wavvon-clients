@@ -16,13 +16,14 @@ import type {
   VoiceParticipant,
   LinkPreview,
   AppProfile,
-  PostListResponse,
+  PostSummary,
   PostDetail,
   ForumTagDef,
   UserProfile,
 } from "../types";
 import {
   ConnectionStatus,
+  forumPage,
   ContentArea as SharedContentArea,
   type VoiceStageInfo,
   type ForumActions,
@@ -71,8 +72,8 @@ function dismissWelcome(hubId: string): void {
 // is dropped here -- the hub never registered a GET route for
 // /channels/:cid/posts/:pid/replies, so that command 404'd already.
 const forumActions: ForumActions = {
-  listPosts: (channelId, cursor, tagId) =>
-    invoke<PostListResponse>("forum_list_posts", { channelId, cursor, tagId }),
+  listPosts: async (channelId, cursor, tagId) =>
+    forumPage(await invoke<PostSummary[]>("forum_list_posts", { channelId, cursor, tagId })),
   getPost: (channelId, postId, after) => invoke<PostDetail>("forum_get_post", { channelId, postId, after }),
   createPost: (channelId, title, body, tagIds) =>
     invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds }),

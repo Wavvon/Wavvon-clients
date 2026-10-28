@@ -245,7 +245,9 @@ pub(crate) async fn forum_list_posts(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let mut query = Vec::new();
+    // Matches FORUM_PAGE_SIZE in packages/ui: a full page is how the UI
+    // knows to offer more.
+    let mut query = vec![("limit", "50".to_string())];
     if let Some(c) = cursor {
         query.push(("cursor", c));
     }

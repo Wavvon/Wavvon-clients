@@ -109,6 +109,7 @@ export { ForumTagPicker } from "./components/forum/ForumTagPicker";
 export { ForumTagManager } from "./components/forum/ForumTagManager";
 export type { ForumTagManagerActions } from "./components/forum/ForumTagManager";
 export { toggleTagSelection } from "./utils/forumTags";
+export { forumPage, FORUM_PAGE_SIZE } from "./utils/forumPage";
 export { EventCard } from "./components/events/EventCard";
 export type { EventStagingCapability } from "./components/events/EventCard";
 export { EventComposer } from "./components/events/EventComposer";
