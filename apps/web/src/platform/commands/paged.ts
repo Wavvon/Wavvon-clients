@@ -72,3 +72,6 @@ export const LIST_MAX_PAGES = 40;
 
 /** The capability gating limit + cursor on the lists paged in 2026-09. */
 export const LIST_CURSOR_CAP = "list.cursor.lists";
+
+/** The capability gating limit + cursor on the admin lists that grow with the hub. */
+export const LIST_CURSOR_ADMIN_CAP = "list.cursor.admin";

@@ -746,6 +746,7 @@ export interface AuditLogPage {
 }
 
 export interface CertIssuance {
+  id: string;
   subject_pubkey: string;
   issued_at: number;
   expires_at: number;

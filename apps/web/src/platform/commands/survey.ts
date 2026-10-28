@@ -1,4 +1,6 @@
 import { hubFetch } from "../http";
+import { activeHubCapabilities } from "../session";
+import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import type { SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView } from "@wavvon/ui";
 
 export type { SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView };
@@ -18,8 +20,16 @@ export async function setSurveyAdmin(survey: SurveyAdmin): Promise<void> {
   await hubFetch("/admin/survey", { method: "PUT", body: JSON.stringify(survey) });
 }
 export async function getSurveyResponses(): Promise<SurveyResponseView[]> {
-  const r = await hubFetch("/admin/survey/responses");
-  return r.json() as Promise<SurveyResponseView[]>;
+  return fetchAllPages<SurveyResponseView>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_ADMIN_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (r) => r.response_id,
+    fetchPage: async (params) =>
+      (await (await hubFetch(params ? `/admin/survey/responses?${params}` : "/admin/survey/responses")).json()) as SurveyResponseView[],
+    label: "getSurveyResponses",
+  });
 }
 
 // --- Member ---

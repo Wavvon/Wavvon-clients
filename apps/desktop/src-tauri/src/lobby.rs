@@ -392,18 +392,12 @@ pub(crate) async fn survey_admin_responses(
 ) -> Result<Vec<SurveyResponseAdminTs>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
-    let resp = state
-        .http_client
-        .get(format!("{base}/admin/survey/responses"))
-        .bearer_auth(&token)
-        .query(&[("status", &status)])
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json()
-        .await
-        .map_err(|e| format!("Invalid response: {e}"))
+    crate::admin::get_all_pages(
+        &state.http_client,
+        &format!("{base}/admin/survey/responses"),
+        &token,
+        &[("status", status)],
+        |r: &SurveyResponseAdminTs| r.response_id.clone(),
+    )
+    .await
 }

@@ -3,7 +3,7 @@ import i18n from "@wavvon/i18n";
 import { hubFetch } from "@platform";
 import { getHubSettings, saveHubSettings, getHubListingStatus, setHubListed as setHubListedRemote } from "@platform";
 import { muteMember, unmuteMember, listMutes, timeoutMember, voiceMuteMember, voiceUnmuteMember, listVoiceMutes } from "@platform";
-import { listBans, listInvites, listPendingUsers } from "@platform";
+import { listBans, listInvites, listPendingUsers, listHubMembers } from "@platform";
 import { HubApiError } from "../platform/http";
 import type {
   MemberAdminInfo,
@@ -76,12 +76,12 @@ export function useHubAdmin({ activeHubId, onSaved, onMemberRemoved }: UseHubAdm
       setHubAdminMaxAttachmentBytes(s.max_attachment_bytes ?? 3 * 1024 * 1024);
     } catch { /* prefill skipped */ }
     try {
-      // The three paged lists go through their platform commands rather than a
+      // The four paged lists go through their platform commands rather than a
       // raw hubFetch: each walks to exhaustion, and an admin table showing a
       // first page while saying nothing is the truncation the paging exists to
       // avoid.
       const [members, bans, invites, pending] = await Promise.allSettled([
-        hubFetch("/hub/members").then((r) => r.json() as Promise<MemberAdminInfo[]>),
+        listHubMembers(),
         listBans(),
         listInvites(),
         listPendingUsers(),
