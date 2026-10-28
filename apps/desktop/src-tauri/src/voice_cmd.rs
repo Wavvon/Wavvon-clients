@@ -603,6 +603,49 @@ pub(crate) async fn voice_channel_participants(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
+/// The floor in a room with a talk-power threshold: `raise` and `lower` your
+/// own hand (or, with `moderation.mute`, someone's: `lower` with their key),
+/// `grant` someone the floor, `list` who has a hand up.
+#[tauri::command]
+pub(crate) async fn voice_floor(
+    channel_id: String,
+    action: String,
+    public_key: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let (hub_url, token) = crate::state::active_session(&state)?;
+    let base = format!("{hub_url}/channels/{channel_id}");
+    let target = || public_key.clone().ok_or("public_key required".to_string());
+    let req = match action.as_str() {
+        "raise" => state.http_client.post(format!("{base}/raise-hand")),
+        "lower" => state
+            .http_client
+            .delete(format!("{base}/raise-hand/{}", target()?)),
+        "grant" => state
+            .http_client
+            .post(format!("{base}/talk-grants/{}", target()?)),
+        "list" => state.http_client.get(format!("{base}/raise-hands")),
+        other => return Err(format!("unknown floor action: {other}")),
+    };
+    let resp = req
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    if action != "list" {
+        return Ok(Vec::new());
+    }
+    #[derive(serde::Deserialize)]
+    struct Hand {
+        pubkey: String,
+    }
+    let hands: Vec<Hand> = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    Ok(hands.into_iter().map(|h| h.pubkey).collect())
+}
+
 // ---------------------------------------------------------------------------
 // Whisper lists
 // ---------------------------------------------------------------------------

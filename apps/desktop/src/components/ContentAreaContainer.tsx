@@ -1,5 +1,6 @@
 import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import { saveDraft } from "../utils/drafts";
 import type { Channel, User, RoleInfo } from "../types";
 import type { useVoice } from "../hooks/useVoice";
@@ -66,6 +67,7 @@ export function ContentAreaContainer({
   voice, hubLifecycle, hubConnections, typing, channelMessages, dms, firstNotify,
 }: Props) {
   const { activeHubId } = hubLifecycle;
+  const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
   const { selectedChannel } = channelMessages;
 
   return (
@@ -82,6 +84,14 @@ export function ContentAreaContainer({
           avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
           inThisRoom: voice.voiceChannelId === selectedChannel.id,
           onJoin: () => void voice.handleVoiceJoin(selectedChannel),
+          publicKey,
+          floor: voice.floor && voice.voiceChannelId === selectedChannel.id && caps.includes("voice.hands")
+            ? {
+                ...voice.floor,
+                onLower: () => { if (publicKey) voice.floor?.onDismiss(publicKey); },
+                canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")),
+              }
+            : undefined,
         } : undefined}
         selectedConversation={dms.selectedConversation}
         selectedAllianceChannel={channelMessages.selectedAllianceChannel}

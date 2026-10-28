@@ -2475,6 +2475,10 @@ tr.account-drop-target td {
 .voice-stage-tile.speaking .avatar {
   box-shadow: 0 0 0 3px var(--accent), 0 0 14px 3px color-mix(in srgb, var(--accent) 55%, transparent);
 }
+.voice-stage-floor-actions {
+  display: flex;
+  gap: var(--space-1);
+}
 .voice-stage-name {
   font-size: var(--text-sm);
   max-width: 100%;

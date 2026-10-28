@@ -137,7 +137,7 @@ pub(crate) async fn spawn_ws_task(
                                             "auto": auto,
                                         }));
                                     }
-                                    WsServerMessage::VoiceJoined { channel_id, participants, voice_token, voice_wt_url, voice_cert_hash } => {
+                                    WsServerMessage::VoiceJoined { channel_id, participants, voice_token, voice_wt_url, voice_cert_hash, may_speak } => {
                                         // Open the WebTransport voice session now that the hub
                                         // has handed over the URL/token/cert hash
                                         // (voice-transport-v2.md). Spawned so the WS receive
@@ -194,7 +194,32 @@ pub(crate) async fn spawn_ws_task(
                                             "hub_id": hub_id_for_task,
                                             "channel_id": channel_id,
                                             "participants": participants,
+                                            "may_speak": may_speak.unwrap_or(true),
                                         }));
+                                    }
+                                    WsServerMessage::VoiceHands { channel_id, public_keys } => {
+                                        let _ = app.emit("voice-hands", serde_json::json!({
+                                            "hub_id": hub_id_for_task,
+                                            "channel_id": channel_id,
+                                            "public_keys": public_keys,
+                                        }));
+                                    }
+                                    WsServerMessage::VoiceTalkGranted { channel_id, public_key } => {
+                                        // Only our own floor changes anything here: the hub
+                                        // knows us by the canonical key, not this device's.
+                                        let mine = app
+                                            .state::<AppState>()
+                                            .hubs
+                                            .lock()
+                                            .unwrap()
+                                            .get(&hub_id_for_task)
+                                            .is_some_and(|s| s.canonical_pubkey == public_key);
+                                        if mine {
+                                            let _ = app.emit("voice-talk-granted", serde_json::json!({
+                                                "hub_id": hub_id_for_task,
+                                                "channel_id": channel_id,
+                                            }));
+                                        }
                                     }
                                     WsServerMessage::VoiceParticipantJoined { channel_id, participant } => {
                                         let _ = app.emit("voice-participant-joined", serde_json::json!({

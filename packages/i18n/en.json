@@ -2097,5 +2097,12 @@
   "voice.stage.label": "Who is in this room",
   "voice.stage.empty": "Nobody is here yet.",
   "voice.stage.join": "Join voice",
-  "voice.stage.join_hint": "or double-click the channel"
+  "voice.stage.join_hint": "or double-click the channel",
+  "voice.stage.hand_raised": "Hand raised",
+  "voice.stage.listening": "You are listening: this room gives the floor on request.",
+  "voice.stage.waiting": "Your hand is up. A moderator can give you the floor.",
+  "voice.stage.raise_hand": "Raise hand",
+  "voice.stage.lower_hand": "Lower hand",
+  "voice.stage.grant": "Give the floor",
+  "voice.stage.dismiss": "Lower"
 }

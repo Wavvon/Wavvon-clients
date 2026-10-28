@@ -34,7 +34,7 @@ export interface WsHandlersParams {
   onHubReconnected: (hubId: string) => void;
   scheduleReconnect: (hubId: string) => void;
   cancelAllReconnectTimers: () => void;
-  onVoiceJoined: (channelId: string, participants: VoiceParticipant[]) => void;
+  onVoiceJoined: (channelId: string, participants: VoiceParticipant[], maySpeak: boolean) => void;
   onParticipantJoined: (channelId: string, participant: VoiceParticipant) => void;
   onParticipantLeft: (channelId: string, pubkey: string) => void;
   onMicLevel: (level: number) => void;
@@ -299,9 +299,10 @@ export function useWsHandlers({
           hub_id: string;
           channel_id: string;
           participants: VoiceParticipant[];
+          may_speak: boolean;
         }>("voice-joined", (event) => {
           if (!isVoiceHub(event.payload.hub_id)) return;
-          onVoiceJoined(event.payload.channel_id, event.payload.participants);
+          onVoiceJoined(event.payload.channel_id, event.payload.participants, event.payload.may_speak);
           const channelName = channelsRef.current.find((c) => c.id === event.payload.channel_id)?.name ?? event.payload.channel_id;
           const others = event.payload.participants.filter((p) => p.public_key !== publicKeyRef.current);
           if (others.length === 0) {

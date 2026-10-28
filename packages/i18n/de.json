@@ -2097,5 +2097,12 @@
   "voice.stage.label": "Wer ist in diesem Raum",
   "voice.stage.empty": "Noch niemand hier.",
   "voice.stage.join": "Sprachkanal beitreten",
-  "voice.stage.join_hint": "oder Doppelklick auf den Kanal"
+  "voice.stage.join_hint": "oder Doppelklick auf den Kanal",
+  "voice.stage.hand_raised": "Hand gehoben",
+  "voice.stage.listening": "Du hörst zu: In diesem Raum bekommt man das Wort auf Anfrage.",
+  "voice.stage.waiting": "Deine Hand ist oben. Ein Moderator kann dir das Wort geben.",
+  "voice.stage.raise_hand": "Hand heben",
+  "voice.stage.lower_hand": "Hand senken",
+  "voice.stage.grant": "Das Wort geben",
+  "voice.stage.dismiss": "Senken"
 }

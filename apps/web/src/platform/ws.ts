@@ -158,7 +158,8 @@ export class HubWebSocket {
       this.handlers.onVideo?.(tagged);
     } else if (
       type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" ||
-      type === "voice_participant_speaking" || type === "voice_roster_update"
+      type === "voice_participant_speaking" || type === "voice_roster_update" ||
+      type === "voice_hands" || type === "voice_talk_granted"
     ) {
       this.handlers.onVoiceState?.(tagged);
     } else if (type === "screen_share_chunk") {

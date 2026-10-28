@@ -2097,5 +2097,12 @@
   "voice.stage.label": "Quién está en esta sala",
   "voice.stage.empty": "Aún no hay nadie.",
   "voice.stage.join": "Entrar en voz",
-  "voice.stage.join_hint": "o haz doble clic en el canal"
+  "voice.stage.join_hint": "o haz doble clic en el canal",
+  "voice.stage.hand_raised": "Mano levantada",
+  "voice.stage.listening": "Estás escuchando: en esta sala la palabra se pide.",
+  "voice.stage.waiting": "Has levantado la mano. Un moderador puede darte la palabra.",
+  "voice.stage.raise_hand": "Levantar la mano",
+  "voice.stage.lower_hand": "Bajar la mano",
+  "voice.stage.grant": "Dar la palabra",
+  "voice.stage.dismiss": "Bajar"
 }

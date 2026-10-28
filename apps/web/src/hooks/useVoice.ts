@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { RefObject } from "react";
-import { activeSession, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
+import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
+import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
 import { playVoiceTone } from "@wavvon/core";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
@@ -111,6 +112,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
+  // The floor (`voice.hands`): whether the relay carries what we send in the
+  // room we are in, and who there has a hand up. Keyed by channel because
+  // `voice_hands` can arrive before the session reports itself ready.
+  const [maySpeak, setMaySpeak] = useState(true);
+  const [voiceHands, setVoiceHands] = useState<{ channelId: string; keys: string[] } | null>(null);
 
   // handleVoiceJoin's "already there" guard is called both from JSX (fresh
   // voiceChannelId) and from the frozen onVoiceMove WS handler (via
@@ -274,6 +280,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
           voiceSessionRef.current = null;
           extRef.current.disposeVideo();
           setVoiceChannelId(null);
+          setMaySpeak(true);
+          setVoiceHands(null);
           setMicBelowGate(false);
           extRef.current.clearVoiceChannelNameHint();
           setSelfMuted(false);
@@ -434,6 +442,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
+    setMaySpeak(true);
+    setVoiceHands(null);
     setMicBelowGate(false);
     extRef.current.clearVoiceChannelNameHint();
     setSelfMuted(false);
@@ -512,9 +522,30 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       pendingVoiceJoinRef.current = null;
     }
 
-    const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean };
+    const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; may_speak?: boolean; public_keys?: string[] };
     if (!m.channel_id) return;
     const channelId = m.channel_id;
+
+    if (m.type === "voice_joined") {
+      // An older hub never sends may_speak; a missing field is not "muted".
+      setMaySpeak(m.may_speak !== false);
+      setVoiceHands(null);
+      // Hands raised before we arrived: the push only covers what changes.
+      if (activeHubSupports("voice.hands")) {
+        listRaisedHands(channelId)
+          .then((keys) => setVoiceHands((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
+          .catch(() => { /* the next voice_hands corrects it */ });
+      }
+      return;
+    }
+    if (m.type === "voice_hands") {
+      setVoiceHands({ channelId, keys: m.public_keys ?? [] });
+      return;
+    }
+    if (m.type === "voice_talk_granted") {
+      if (m.public_key && m.public_key === publicKeyRef.current) setMaySpeak(true);
+      return;
+    }
 
     if (m.type === "voice_roster_update" && m.participants) {
       const rosterParticipants = m.participants as unknown as Array<{ sender_id: number; public_key: string }>;
@@ -610,8 +641,23 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voiceSessionRef.current?.handleKeyRequest(m.new_pubkey);
   }
 
+  // Errors surface as a toast and change nothing locally: the hub's next
+  // voice_hands is the truth either way.
+  function floorCall(call: Promise<void>) {
+    call.catch((e) => showHubError(e instanceof HubApiError ? e.message : String(e)));
+  }
+  const floor = voiceChannelId ? {
+    maySpeak,
+    hands: voiceHands?.channelId === voiceChannelId ? voiceHands.keys : [],
+    onRaise: () => floorCall(raiseHand(voiceChannelId)),
+    onLower: () => { if (publicKeyRef.current) floorCall(lowerHand(voiceChannelId, publicKeyRef.current)); },
+    onGrant: (pk: string) => floorCall(grantTalk(voiceChannelId, pk)),
+    onDismiss: (pk: string) => floorCall(lowerHand(voiceChannelId, pk)),
+  } : null;
+
   return {
     voiceChannelId,
+    floor,
     selfMuted,
     selfDeafened,
     micBelowGate,

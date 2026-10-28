@@ -186,7 +186,7 @@ export { ChannelMessageList } from "./components/content/ChannelMessageList";
 export { DmView } from "./components/content/DmView";
 export { WelcomeInviteBanner } from "./components/content/WelcomeInviteBanner";
 export { ContentArea } from "./components/content/ContentArea";
-export type { VoiceStageInfo } from "./components/content/VoiceStage";
+export type { VoiceStageInfo, VoiceFloor } from "./components/content/VoiceStage";
 export { PinnedMessagesModal } from "./components/content/PinnedMessagesModal";
 export type { PinnedMessageEntry } from "./components/content/PinnedMessagesModal";
 export { ErrorBoundary } from "./components/ErrorBoundary";
