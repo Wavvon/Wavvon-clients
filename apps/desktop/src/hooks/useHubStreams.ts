@@ -46,7 +46,7 @@ export function useHubStreams(
     let cancelled = false;
     let ws: WebSocket | null = null;
 
-    invoke<WsInfo>("get_hub_ws_info").then((info) => {
+    invoke<WsInfo>("get_hub_ws_info", { hubId: activeHubId }).then((info) => {
       if (cancelled) return;
 
       ws = new WebSocket(buildWsUrl(info.hub_url, info.token));

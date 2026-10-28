@@ -6,15 +6,14 @@ import type { HubWebSocket } from "./ws";
 // MediaRecorder blob a `screen_share_chunk` JSON envelope immediately
 // followed by a raw binary frame, then `screen_share_stop`.
 
-const MIME_CANDIDATES = [
-  "video/webm;codecs=vp8,opus",
-  "video/webm;codecs=vp9,opus",
-  "video/webm;codecs=vp8",
-  "video/webm",
-];
-
-function pickMime(): string {
-  for (const m of MIME_CANDIDATES) {
+// The viewer opens its SourceBuffer with this exact type, and Chrome waits
+// forever for a track the codecs list names but the stream lacks: a
+// video-only share advertised as vp8,opus never decodes a frame.
+function pickMime(hasAudio: boolean): string {
+  const candidates = hasAudio
+    ? ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus"]
+    : ["video/webm;codecs=vp8", "video/webm;codecs=vp9"];
+  for (const m of candidates) {
     if (MediaRecorder.isTypeSupported(m)) return m;
   }
   return "video/webm";
@@ -63,7 +62,7 @@ export class WebScreenShareSession {
     });
     this.stream = stream;
     const hasAudio = stream.getAudioTracks().length > 0;
-    const mime = pickMime();
+    const mime = pickMime(hasAudio);
 
     // The hub relays start-before-first-chunk; subscribe so we also receive
     // our own stream events, matching the desktop path.

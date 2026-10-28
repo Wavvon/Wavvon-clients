@@ -82,6 +82,9 @@ export default defineConfig({
             "--use-fake-ui-for-media-stream",
             "--use-fake-device-for-media-stream",
             "--autoplay-policy=no-user-gesture-required",
+            // The fake microphone is a continuous beep, and these specs run on
+            // a developer machine with its speakers on.
+            "--mute-audio",
           ],
         },
       },

@@ -360,6 +360,7 @@ pub(crate) async fn get_hub_ws_info(
         "hub_name": s.hub_name,
         "hub_url": s.hub_url,
         "hub_icon": s.hub_icon,
+        "token": s.token,
     }))
 }
 

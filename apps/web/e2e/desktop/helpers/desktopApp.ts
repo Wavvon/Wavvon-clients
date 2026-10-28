@@ -41,6 +41,8 @@ export async function launchDesktopApp(opts?: {
   port?: number;
   hubUrl?: string;
   timeoutMs?: number;
+  /** More WebView2 switches, such as the fake capture sources a media spec needs. */
+  browserArgs?: string[];
 }): Promise<DesktopApp> {
   const port = opts?.port ?? DEFAULT_PORT;
   const timeoutMs = opts?.timeoutMs ?? 300_000;
@@ -75,7 +77,7 @@ export async function launchDesktopApp(opts?: {
       // The one hook that makes the webview debuggable. It has to be set
       // before the window is created, so it belongs on the process, not on a
       // later IPC call.
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: [`--remote-debugging-port=${port}`, ...(opts?.browserArgs ?? [])].join(" "),
       ...(opts?.hubUrl ? { VITE_DEFAULT_HUB_URL: opts.hubUrl } : {}),
     },
   });

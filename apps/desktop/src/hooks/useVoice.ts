@@ -80,9 +80,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     }
   }
 
-  const { sharing, startShare, stopShare, kbps: shareKbps, error: shareError } = useScreenShare(voiceChannelId);
+  const { sharing, startShare, stopShare, kbps: shareKbps, error: shareError } = useScreenShare(activeHubId, voiceChannelId);
   const { streams: activeScreenShares, viewerRef: screenShareViewerRef } =
-    useScreenShareViewer(voiceChannelId);
+    useScreenShareViewer(activeHubId, voiceChannelId);
   const {
     hubStreams,
     crossChannelStreams,
