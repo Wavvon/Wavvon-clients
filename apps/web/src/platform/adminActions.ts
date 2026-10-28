@@ -30,6 +30,7 @@ import {
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
   getAlliancePeopleVisible, setAlliancePeopleVisible,
+  listAllianceManagers, grantAllianceManager, revokeAllianceManager,
   getAllianceMembers, listHubs, getActiveHubId, rawFetch,
 } from "@platform";
 import { knownIssuerHubs, type IssuerHub } from "@wavvon/ui";
@@ -157,6 +158,10 @@ export const allianceActions = {
   getAlliancePeopleVisible: (allianceId: string) =>
     activeHubSupports("alliance.people") ? getAlliancePeopleVisible(allianceId) : Promise.resolve(null),
   setAlliancePeopleVisible,
+  listAllianceManagers: (allianceId: string) =>
+    activeHubSupports("alliance.permissions") ? listAllianceManagers(allianceId) : Promise.resolve(null),
+  grantAllianceManager,
+  revokeAllianceManager,
   joinAllianceByCode: (inviterHubUrl: string, allianceId: string, inviteToken: string, ownHubUrl: string) =>
     joinAllianceByCode(inviterHubUrl, allianceId, inviteToken, ownHubUrl).then(() => {}),
 };

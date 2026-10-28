@@ -407,6 +407,14 @@ export interface PostListResponse {
 
 // ---- Hub admin: alliances, external bots, webhooks, hub icons, survey ----
 
+/** A local role delegated to manage one alliance (`alliance.permissions`). */
+export interface AllianceManager {
+  role_id: string;
+  role_name: string;
+  granted_by: string;
+  granted_at: number;
+}
+
 export interface Alliance {
   id: string;
   name: string;

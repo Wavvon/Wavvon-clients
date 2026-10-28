@@ -124,6 +124,7 @@ export type {
   AllianceDetail,
   AllianceInvite,
   PendingAllianceInvite,
+  AllianceManager,
   SharedChannel,
   WebhookInfo,
   WebhookCreatedResult,
@@ -138,7 +139,7 @@ export type {
   SurveyResponseView,
 } from "./types";
 export { AlliancesSection } from "./components/admin/AlliancesSection";
-export type { AlliancesSectionActions } from "./components/admin/AlliancesSection";
+export type { AlliancesSectionActions, AllianceManagerRoles } from "./components/admin/AlliancesSection";
 export { WebhooksSection } from "./components/admin/WebhooksSection";
 export type { WebhooksSectionActions } from "./components/admin/WebhooksSection";
 export { HubIconsSection } from "./components/admin/HubIconsSection";

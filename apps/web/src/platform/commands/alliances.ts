@@ -1,5 +1,5 @@
 import { hubFetch } from "../http";
-import type { Alliance, AllianceMember, AlliancePerson, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel } from "@wavvon/ui";
+import type { Alliance, AllianceMember, AlliancePerson, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel, AllianceManager } from "@wavvon/ui";
 
 export type { Alliance, AllianceMember, AlliancePerson, AllianceDetail, AllianceInvite, PendingAllianceInvite, SharedChannel };
 
@@ -141,4 +141,17 @@ export async function listAlliancePeople(
   if (opts.cursor) params.set("cursor", opts.cursor);
   const r = await hubFetch(`/alliances/${allianceId}/people?${params}`);
   return r.json() as Promise<AlliancePerson[]>;
+}
+
+export async function listAllianceManagers(allianceId: string): Promise<AllianceManager[]> {
+  const r = await hubFetch(`/alliances/${allianceId}/managers`);
+  return r.json() as Promise<AllianceManager[]>;
+}
+
+export async function grantAllianceManager(allianceId: string, roleId: string): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/managers/${roleId}`, { method: "PUT" });
+}
+
+export async function revokeAllianceManager(allianceId: string, roleId: string): Promise<void> {
+  await hubFetch(`/alliances/${allianceId}/managers/${roleId}`, { method: "DELETE" });
 }

@@ -252,6 +252,7 @@ export {
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
   getAllianceMembers, getAlliancePeopleVisible, setAlliancePeopleVisible, listAlliancePeople,
+  listAllianceManagers, grantAllianceManager, revokeAllianceManager,
 } from "./commands/alliances";
 export type { Alliance, AllianceDetail, AllianceMember, AllianceInvite, PendingAllianceInvite, SharedChannel } from "./commands/alliances";
 export {
