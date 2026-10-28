@@ -6,19 +6,15 @@ import i18n from "@wavvon/i18n";
 interface WsInfo {
   hub_url: string;
   token: string;
-  hub_pubkey: string;
-  screen_share_v2?: boolean;
-  turn_url?: string;
-  turn_username?: string;
-  turn_credential?: string;
 }
 
-function pickMime(): string {
-  const candidates = [
-    "video/webm;codecs=vp8,opus",
-    "video/webm;codecs=vp9,opus",
-    "video/webm",
-  ];
+// The viewer opens its SourceBuffer with this exact type, and Chrome waits
+// forever for a track the codecs list names but the stream lacks: a
+// video-only share advertised as vp8,opus never decodes a frame.
+function pickMime(hasAudio: boolean): string {
+  const candidates = hasAudio
+    ? ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus"]
+    : ["video/webm;codecs=vp8", "video/webm;codecs=vp9"];
   for (const m of candidates) {
     if (MediaRecorder.isTypeSupported(m)) return m;
   }
@@ -29,9 +25,9 @@ function buildWsUrl(hubUrl: string, token: string): string {
   return `${hubUrl.replace(/^http/, "ws")}/ws?token=${encodeURIComponent(token)}`;
 }
 
-const DEFAULT_STUN = "stun:stun.l.google.com:19302";
-
-export function useScreenShare(channelId: string | null) {
+// Chunks only, like web: a WebRTC sharer would be invisible to every web
+// viewer, which cannot negotiate a peer connection.
+export function useScreenShare(hubId: string | null, channelId: string | null) {
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kbps, setKbps] = useState(0);
@@ -43,48 +39,22 @@ export function useScreenShare(channelId: string | null) {
   const bytesInWindowRef = useRef(0);
   const kbpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const myPubkeyRef = useRef<string | null>(null);
-  const wsInfoRef = useRef<WsInfo | null>(null);
-
-  const canUseWebRtc = typeof RTCPeerConnection !== "undefined";
-
-  function buildIceConfig(info: WsInfo): RTCConfiguration {
-    const iceServers: RTCIceServer[] = [{ urls: DEFAULT_STUN }];
-    if (info.turn_url) {
-      iceServers.push({
-        urls: info.turn_url,
-        username: info.turn_username,
-        credential: info.turn_credential,
-      });
-    }
-    return { iceServers };
-  }
-
   async function startShare(opts: ScreenShareOpts) {
-    if (!channelId) return;
+    if (!hubId || !channelId) return;
     setError(null);
 
     let wsInfo: WsInfo;
     try {
-      wsInfo = await invoke<WsInfo>("get_hub_ws_info");
-      wsInfoRef.current = wsInfo;
+      wsInfo = await invoke<WsInfo>("get_hub_ws_info", { hubId });
     } catch (e) {
       setError(String(e));
       return;
     }
 
-    myPubkeyRef.current = await invoke<string>("get_my_pubkey").catch(() => null);
-
-    const useWebRtc = canUseWebRtc && !!wsInfo.screen_share_v2;
-    const transport: "webrtc" | "chunks" = useWebRtc ? "webrtc" : "chunks";
-
     const ws = new WebSocket(buildWsUrl(wsInfo.hub_url, wsInfo.token));
     wsRef.current = ws;
 
     ws.onerror = () => setError(i18n.t("errors.screen_share_connection"));
-
-    const mime = pickMime();
 
     let displayStream: MediaStream;
     try {
@@ -99,6 +69,8 @@ export function useScreenShare(channelId: string | null) {
       return;
     }
 
+    const hasAudio = displayStream.getAudioTracks().length > 0;
+    const mime = pickMime(hasAudio);
     const screenStreamId = crypto.randomUUID();
     streamIdsRef.current = [screenStreamId];
     streamsRef.current = [displayStream];
@@ -111,8 +83,8 @@ export function useScreenShare(channelId: string | null) {
         stream_id: screenStreamId,
         kind: "screen",
         mime,
-        has_audio: opts.includeAudio,
-        transport,
+        has_audio: hasAudio,
+        transport: "chunks",
       }));
     };
 
@@ -124,87 +96,12 @@ export function useScreenShare(channelId: string | null) {
         stream_id: screenStreamId,
         kind: "screen",
         mime,
-        has_audio: opts.includeAudio,
-        transport,
+        has_audio: hasAudio,
+        transport: "chunks",
       }));
     }
 
-    if (useWebRtc) {
-      ws.onmessage = async (event) => {
-        if (typeof event.data !== "string") return;
-        let msg: { type: string; [k: string]: unknown };
-        try { msg = JSON.parse(event.data); } catch { return; }
-
-        if (msg.type === "screen_share_viewer_joined") {
-          const viewerPubkey = msg.viewer_pubkey as string;
-          const streamId = msg.stream_id as string;
-
-          const pc = new RTCPeerConnection(buildIceConfig(wsInfo));
-          peerConnectionsRef.current.set(viewerPubkey, pc);
-
-          displayStream.getTracks().forEach((track) => pc.addTrack(track, displayStream));
-
-          pc.onicecandidate = (e) => {
-            if (e.candidate && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                type: "screen_share_ice",
-                channel_id: channelId,
-                to_pubkey: viewerPubkey,
-                from_pubkey: myPubkeyRef.current,
-                candidate: JSON.stringify(e.candidate),
-                stream_id: streamId,
-              }));
-            }
-          };
-
-          pc.oniceconnectionstatechange = () => {
-            if (pc.iceConnectionState === "failed") {
-              pc.close();
-              peerConnectionsRef.current.delete(viewerPubkey);
-              if (ws.readyState === WebSocket.OPEN) {
-                startRecorder(ws, displayStream, channelId, screenStreamId, mime);
-              }
-            }
-          };
-
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              type: "screen_share_offer",
-              channel_id: channelId,
-              to_pubkey: viewerPubkey,
-              from_pubkey: myPubkeyRef.current,
-              sdp: offer.sdp,
-              stream_id: streamId,
-            }));
-          }
-        }
-
-        if (msg.type === "screen_share_answer") {
-          const viewerPubkey = msg.from_pubkey as string;
-          const pc = peerConnectionsRef.current.get(viewerPubkey);
-          if (pc) {
-            await pc.setRemoteDescription({ type: "answer", sdp: msg.sdp as string });
-          }
-        }
-
-        if (msg.type === "screen_share_ice") {
-          const senderPubkey = msg.from_pubkey as string;
-          const pc = peerConnectionsRef.current.get(senderPubkey);
-          if (pc) {
-            try {
-              await pc.addIceCandidate(JSON.parse(msg.candidate as string));
-            } catch {
-              // ignore stale candidates
-            }
-          }
-        }
-      };
-    } else {
-      startRecorder(ws, displayStream, channelId, screenStreamId, mime);
-    }
+    startRecorder(ws, displayStream, channelId, screenStreamId, mime);
 
     if (opts.includeWebcam) {
       try {
@@ -222,15 +119,13 @@ export function useScreenShare(channelId: string | null) {
             channel_id: channelId,
             stream_id: webcamStreamId,
             kind: "webcam",
-            mime,
+            mime: pickMime(false),
             has_audio: false,
-            transport,
+            transport: "chunks",
           }));
         }
 
-        if (!useWebRtc) {
-          startRecorder(ws, webcamStream, channelId, webcamStreamId, mime);
-        }
+        startRecorder(ws, webcamStream, channelId, webcamStreamId, pickMime(false));
       } catch {
         // webcam optional — screen share continues without it
       }
@@ -295,10 +190,6 @@ export function useScreenShare(channelId: string | null) {
     for (const stream of streamsRef.current) {
       for (const track of stream.getTracks()) track.stop();
     }
-    for (const [, pc] of peerConnectionsRef.current) {
-      try { pc.close(); } catch {}
-    }
-    peerConnectionsRef.current.clear();
 
     if (ws && ws.readyState === WebSocket.OPEN && channel) {
       for (const id of ids) {
