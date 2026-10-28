@@ -780,6 +780,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
             activeHubUrl={props.activeHubUrl}
             channels={props.channels}
             actions={props.allianceActions}
+            managerRoles={{
+              listRoles: props.rolesActions.listRoles,
+              canManageRoles: props.canManageRoles,
+              myMaxPriority: props.myMaxPriority,
+            }}
           />
         )}
         {props.tab === "hub-icons" && props.isAdmin && (

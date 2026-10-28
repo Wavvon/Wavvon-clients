@@ -16,6 +16,7 @@ import type {
   AuditLogSectionActions,
   CertificationsSectionActions,
   AllianceMember,
+  AllianceManager,
   OnboardingAdminSectionActions,
   WebhooksSectionActions,
   AlliancesSectionActions,
@@ -138,6 +139,12 @@ export const allianceActions: AlliancesSectionActions = {
   createAllianceInvite: (allianceId) => invoke<AllianceInvite>("create_alliance_invite", { allianceId }),
   sendAlliancePushInvite: (allianceId, targetHubUrl, ownHubUrl, message) =>
     invoke("send_alliance_push_invite", { allianceId, targetHubUrl, ownHubUrl, message }),
+  listAllianceManagers: (allianceId) =>
+    invoke<AllianceManager[] | null>("alliance_managers", { allianceId, action: "list" }),
+  grantAllianceManager: (allianceId, roleId) =>
+    invoke("alliance_managers", { allianceId, action: "grant", roleId }).then(() => {}),
+  revokeAllianceManager: (allianceId, roleId) =>
+    invoke("alliance_managers", { allianceId, action: "revoke", roleId }).then(() => {}),
   joinAllianceByCode: (inviterHubUrl, allianceId, inviteToken, ownHubUrl) =>
     invoke("join_alliance", {
       inviterHubUrl, allianceId, inviteToken, ownHubPublicUrl: ownHubUrl,

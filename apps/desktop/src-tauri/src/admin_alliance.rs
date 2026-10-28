@@ -391,3 +391,41 @@ pub(crate) async fn unshare_channel_from_alliance(
     }
     Ok(())
 }
+
+/// The roles delegated to manage one alliance: `list` them (None on a hub
+/// that predates delegation and answers 404), `grant` or `revoke` one.
+#[tauri::command]
+pub(crate) async fn alliance_managers(
+    alliance_id: String,
+    action: String,
+    role_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Option<Vec<serde_json::Value>>, String> {
+    let (hub_url, token) = crate::state::active_session(&state)?;
+    let base = format!("{hub_url}/alliances/{alliance_id}/managers");
+    let role = || role_id.clone().ok_or("role_id required".to_string());
+    let req = match action.as_str() {
+        "list" => state.http_client.get(&base),
+        "grant" => state.http_client.put(format!("{base}/{}", role()?)),
+        "revoke" => state.http_client.delete(format!("{base}/{}", role()?)),
+        other => return Err(format!("unknown action: {other}")),
+    };
+    let resp = req
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if action == "list" && resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    if action != "list" {
+        return Ok(None);
+    }
+    resp.json()
+        .await
+        .map(Some)
+        .map_err(|e| format!("Invalid: {e}"))
+}

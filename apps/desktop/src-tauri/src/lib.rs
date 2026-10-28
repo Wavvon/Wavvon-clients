@@ -298,6 +298,7 @@ pub fn run() {
             admin_alliance::send_alliance_channel_message,
             admin_alliance::share_channel_with_alliance,
             admin_alliance::unshare_channel_from_alliance,
+            admin_alliance::alliance_managers,
             // Accounts (multi-account switcher)
             accounts::list_accounts,
             accounts::create_account,
