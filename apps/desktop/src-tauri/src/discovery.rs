@@ -229,7 +229,7 @@ pub(crate) async fn grant_badge(
     let res = state
         .http_client
         .post(format!(
-            "{}/admin/badges/issue",
+            "{}/admin/badges/issued",
             hub_url.trim_end_matches('/')
         ))
         .bearer_auth(&token)

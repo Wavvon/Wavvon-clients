@@ -98,7 +98,7 @@ export async function issueCertManual(subjectPubkey: string): Promise<void> {
 }
 
 export async function revokeCert(subjectPubkey: string): Promise<void> {
-  await hubFetch(`/admin/certs/${subjectPubkey}/revoke`, { method: "POST" });
+  await hubFetch(`/admin/certs/${subjectPubkey}`, { method: "DELETE" });
 }
 
 // ---- Recovery contacts ----

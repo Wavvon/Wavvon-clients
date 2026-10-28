@@ -193,8 +193,8 @@ pub(crate) async fn revoke_cert(
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let res = state
         .http_client
-        .post(format!(
-            "{}/admin/certs/{}/revoke",
+        .delete(format!(
+            "{}/admin/certs/{}",
             hub_url.trim_end_matches('/'),
             subject_pubkey
         ))

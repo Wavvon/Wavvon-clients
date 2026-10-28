@@ -106,7 +106,7 @@ pub(crate) async fn set_lobby_settings(
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .put(format!("{base}/hub/settings/lobby"))
+        .patch(format!("{base}/admin/settings/lobby"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "lobby_enabled": lobby_enabled, "welcome_md": welcome_md }))
         .send()
@@ -196,7 +196,7 @@ pub(crate) async fn set_challenge_settings(
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .put(format!("{base}/hub/settings/challenge"))
+        .patch(format!("{base}/admin/settings/challenge"))
         .bearer_auth(&token)
         .json(&serde_json::json!({
             "challenge_mode": challenge_mode,
