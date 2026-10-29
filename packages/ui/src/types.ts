@@ -37,6 +37,7 @@ export type {
   SurveyQuestion,
   Survey,
   SurveyAnswer,
+  ApplicationStatus,
   SurveySubmitResult,
   SurveyChoiceAdmin,
   SurveyQuestionAdmin,

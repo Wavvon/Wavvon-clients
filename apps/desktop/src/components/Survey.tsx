@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
-import { FocusTrap } from "@wavvon/ui";
+import { FocusTrap, JoinForm } from "@wavvon/ui";
 import type { Survey, SurveyAnswer, SurveySubmitResult } from "../types";
 
 export interface SurveyProps {
@@ -17,7 +17,6 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
   const { t } = useTranslation();
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [loading, setLoading] = useState(true);
-  const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [pendingResult, setPendingResult] = useState<SurveySubmitResult | null>(null);
 
@@ -38,23 +37,10 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
     return () => { cancelled = true; };
   }, [hubUrl]);
 
-  function setChoiceAnswer(questionId: string, choiceId: string) {
-    setAnswers((prev) => ({ ...prev, [questionId]: { question_id: questionId, choice_id: choiceId } }));
-  }
-
-  function setTextAnswer(questionId: string, text: string) {
-    setAnswers((prev) => ({ ...prev, [questionId]: { question_id: questionId, text_answer: text } }));
-  }
-
-  const allRequiredAnswered = survey
-    ? survey.questions.every((q) => !q.required || !!answers[q.id])
-    : false;
-
-  async function handleSubmit() {
+  async function handleSubmit(answerList: SurveyAnswer[]) {
     if (!survey) return;
     setSubmitState("submitting");
     try {
-      const answerList = Object.values(answers);
       const result = await invoke<SurveySubmitResult>("survey_submit", {
         hubUrl,
         surveyId: survey.id,
@@ -94,66 +80,13 @@ export function SurveyComponent({ hubUrl, onComplete, onSkip, embedded = false }
         </div>
       )}
       {submitState !== "approved" && submitState !== "pending" && (
-        <div className="survey-form">
-          {survey.questions
-            .slice()
-            .sort((a, b) => a.display_order - b.display_order)
-            .map((q) => (
-              <div key={q.id} className="survey-question">
-                <label className="survey-question-label">
-                  {q.prompt}
-                  {q.required && <span className="survey-required"> *</span>}
-                </label>
-                {q.kind === "choice" && q.choices && (
-                  <div className="survey-choices">
-                    {q.choices
-                      .slice()
-                      .sort((a, b) => a.display_order - b.display_order)
-                      .map((c) => (
-                        <label key={c.id} className="survey-choice-label">
-                          <input
-                            type="radio"
-                            name={q.id}
-                            value={c.id}
-                            checked={answers[q.id]?.choice_id === c.id}
-                            onChange={() => setChoiceAnswer(q.id, c.id)}
-                          />
-                          {c.label}
-                        </label>
-                      ))}
-                  </div>
-                )}
-                {q.kind === "text" && (
-                  <div className="survey-text-wrap">
-                    <textarea
-                      maxLength={500}
-                      rows={3}
-                      value={answers[q.id]?.text_answer ?? ""}
-                      onChange={(e) => setTextAnswer(q.id, e.target.value)}
-                    />
-                    <span className="survey-char-count muted">
-                      {(answers[q.id]?.text_answer ?? "").length} / 500
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
-          <div className="survey-actions">
-            {onSkip && (
-              <button className="btn-secondary" onClick={onSkip}>
-                {t("onboarding.display_name.skip")}
-              </button>
-            )}
-            <button
-              onClick={handleSubmit}
-              disabled={!allRequiredAnswered || submitState === "submitting"}
-            >
-              {submitState === "submitting"
-                ? t("survey.modal.submitting")
-                : t("survey.modal.submit")}
-            </button>
-          </div>
-        </div>
+        <JoinForm
+          form={survey}
+          submitting={submitState === "submitting"}
+          onSubmit={(a) => void handleSubmit(a)}
+          onCancel={onSkip}
+          cancelLabel={t("onboarding.display_name.skip")}
+        />
       )}
     </>
   );

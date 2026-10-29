@@ -229,6 +229,18 @@ pub(crate) struct SurveyQuestionTs {
     pub kind: String,
     pub required: bool,
     pub display_order: i64,
+    // Join-form fields (join-forms.md). Carried through rather than dropped,
+    // or an admin save from this client would erase them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiline: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_len: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_choices: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_choices: Option<i32>,
     pub choices: Option<Vec<SurveyChoiceTs>>,
 }
 
@@ -253,6 +265,18 @@ pub(crate) struct SurveyQuestionAdminTs {
     pub kind: String,
     pub required: bool,
     pub display_order: i64,
+    // Join-form fields (join-forms.md). Carried through rather than dropped,
+    // or an admin save from this client would erase them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiline: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_len: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_choices: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_choices: Option<i32>,
     pub choices: Option<Vec<SurveyChoiceAdminTs>>,
 }
 
@@ -267,7 +291,11 @@ pub(crate) struct SurveyAdminTs {
 pub(crate) struct SurveyAnswer {
     pub question_id: String,
     pub choice_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub choice_ids: Option<Vec<String>>,
     pub text_answer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -282,6 +310,8 @@ pub(crate) struct SurveyAnswerView {
     pub prompt: String,
     pub choice_label: Option<String>,
     pub text_answer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
