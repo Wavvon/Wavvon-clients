@@ -21,13 +21,23 @@ export interface SurveyAdminSectionActions {
 
 interface Props {
   actions: SurveyAdminSectionActions;
+  /** Which join form this edits (join-forms.md). The application maps no
+   *  roles, since nobody has approved the applicant yet, and its answers are
+   *  read in the approval queue, not here. */
+  purpose?: "onboarding" | "application";
+  /** The hub has `admission.application`: it takes the multi and consent
+   *  kinds and the per-question limits. An older hub stores any kind string,
+   *  so offering them there would save questions no client can render. */
+  extendedKinds?: boolean;
 }
 
-// Onboarding survey builder. New members answer it; choice answers can grant
-// roles (role assignment on choices is a further follow-up — this builds the
-// questions/choices and enables the survey).
-export function SurveyAdminSection({ actions }: Props) {
+type Kind = SurveyQuestionAdmin["kind"];
+
+// Builder for both join forms. Choice answers on the onboarding survey can
+// grant roles.
+export function SurveyAdminSection({ actions, purpose = "onboarding", extendedKinds = false }: Props) {
   const { t } = useTranslation();
+  const isApplication = purpose === "application";
   const [survey, setSurvey] = useState<SurveyAdmin | null>(null);
   const [responses, setResponses] = useState<SurveyResponseView[] | null>(null);
   const [showResponses, setShowResponses] = useState(false);
@@ -80,15 +90,16 @@ export function SurveyAdminSection({ actions }: Props) {
   function patchQuestion(qid: string, p: Partial<SurveyQuestionAdmin>) {
     setSurvey((s) => s ? { ...s, questions: s.questions.map((q) => q.id === qid ? { ...q, ...p } : q) } : s);
   }
-  function addQuestion(kind: "text" | "choice") {
+  function addQuestion(kind: Kind) {
     setSurvey((s) => s ? {
       ...s,
       questions: [...s.questions, {
-        id: uid(), prompt: "", kind, required: false, display_order: s.questions.length,
-        choices: kind === "choice" ? [] : undefined,
+        id: uid(), prompt: "", kind, required: kind === "consent", display_order: s.questions.length,
+        choices: kind === "choice" || kind === "multi" ? [] : undefined,
       }],
     } : s);
   }
+  const numberOrUndefined = (v: string) => (v.trim() === "" ? undefined : Math.max(1, Number(v) || 1));
   function removeQuestion(qid: string) {
     setSurvey((s) => s ? { ...s, questions: s.questions.filter((q) => q.id !== qid) } : s);
   }
@@ -141,8 +152,8 @@ export function SurveyAdminSection({ actions }: Props) {
 
   return (
     <section>
-      <h1>{t("hub.admin.survey.title")}</h1>
-      <p className="muted">{t("hub.admin.survey.hint")}</p>
+      <h1>{t(isApplication ? "hub.admin.application.title" : "hub.admin.survey.title")}</h1>
+      <p className="muted">{t(isApplication ? "hub.admin.application.hint" : "hub.admin.survey.hint")}</p>
       {error && <p className="error-text">{error}</p>}
       {status && (
         <p className="muted">
@@ -168,7 +179,7 @@ export function SurveyAdminSection({ actions }: Props) {
           <input type="checkbox" checked={survey.enabled} onChange={(e) => patch({ enabled: e.target.checked })} />
           {t("hub.admin.survey.enable")}
         </label>
-        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("hub.admin.survey.autogrant_hint")}</p>
+        {!isApplication && <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("hub.admin.survey.autogrant_hint")}</p>}
         <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
           <button className="btn-primary" onClick={() => save()} disabled={busy}>{t("hub.admin.survey.save")}</button>
         </div>
@@ -200,7 +211,36 @@ export function SurveyAdminSection({ actions }: Props) {
               </label>
               <button className="btn-small danger" onClick={() => removeQuestion(q.id)}>{t("hub.admin.survey.remove")}</button>
             </div>
-            {q.kind === "choice" && (
+            {extendedKinds && (
+              <div className="settings-row" style={{ alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap", marginTop: 4 }}>
+                <input
+                  type="text"
+                  value={q.help ?? ""}
+                  onChange={(e) => patchQuestion(q.id, { help: e.target.value || undefined })}
+                  placeholder={t("hub.admin.survey.help_placeholder")}
+                  aria-label={t("hub.admin.survey.help_placeholder")}
+                  style={{ flex: 1, minWidth: 200 }}
+                />
+                {q.kind === "text" && (
+                  <>
+                    <label className="checkbox-label" style={{ fontSize: "var(--text-xs)" }}>
+                      <input type="checkbox" checked={q.multiline ?? false} onChange={(e) => patchQuestion(q.id, { multiline: e.target.checked })} /> {t("hub.admin.survey.multiline")}
+                    </label>
+                    <label className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                      {t("hub.admin.survey.max_len")}{" "}
+                      <input type="number" min={1} value={q.max_len ?? ""} onChange={(e) => patchQuestion(q.id, { max_len: numberOrUndefined(e.target.value) })} style={{ width: 72 }} />
+                    </label>
+                  </>
+                )}
+                {q.kind === "multi" && (
+                  <label className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                    {t("hub.admin.survey.max_choices")}{" "}
+                    <input type="number" min={1} value={q.max_choices ?? ""} onChange={(e) => patchQuestion(q.id, { max_choices: numberOrUndefined(e.target.value) })} style={{ width: 56 }} />
+                  </label>
+                )}
+              </div>
+            )}
+            {(q.kind === "choice" || q.kind === "multi") && (
               <div style={{ paddingLeft: "var(--space-3)", marginTop: 4 }}>
                 {(q.choices ?? []).map((c) => (
                   <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: 6, flexWrap: "wrap" }}>
@@ -212,21 +252,25 @@ export function SurveyAdminSection({ actions }: Props) {
                       aria-label={t("hub.admin.survey.choice_placeholder")}
                       style={{ width: "100%", maxWidth: 320 }}
                     />
-                    <label className="muted" style={{ fontSize: "var(--text-xs)" }} htmlFor={`choice-roles-${c.id}`}>
-                      {t("hub.admin.survey.autogrant_roles")}
-                    </label>
-                    <select
-                      id={`choice-roles-${c.id}`}
-                      multiple
-                      value={c.role_ids}
-                      onChange={(e) => patchChoiceRoles(q.id, c.id, Array.from(e.target.selectedOptions).map((o) => o.value))}
-                      style={{ minWidth: 160, maxWidth: 240 }}
-                      size={Math.min(4, Math.max(2, assignableRoles.length))}
-                    >
-                      {assignableRoles.map((r) => (
-                        <option key={r.id} value={r.id}>{r.name}</option>
-                      ))}
-                    </select>
+                    {!isApplication && (
+                      <>
+                        <label className="muted" style={{ fontSize: "var(--text-xs)" }} htmlFor={`choice-roles-${c.id}`}>
+                          {t("hub.admin.survey.autogrant_roles")}
+                        </label>
+                        <select
+                          id={`choice-roles-${c.id}`}
+                          multiple
+                          value={c.role_ids}
+                          onChange={(e) => patchChoiceRoles(q.id, c.id, Array.from(e.target.selectedOptions).map((o) => o.value))}
+                          style={{ minWidth: 160, maxWidth: 240 }}
+                          size={Math.min(4, Math.max(2, assignableRoles.length))}
+                        >
+                          {assignableRoles.map((r) => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
                   </div>
                 ))}
                 <button className="btn-small" onClick={() => addChoice(q.id)}>{t("hub.admin.survey.add_choice")}</button>
@@ -238,12 +282,18 @@ export function SurveyAdminSection({ actions }: Props) {
         <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)", flexWrap: "wrap" }}>
           <button className="btn-small" onClick={() => addQuestion("text")}>{t("hub.admin.survey.add_text_question")}</button>
           <button className="btn-small" onClick={() => addQuestion("choice")}>{t("hub.admin.survey.add_choice_question")}</button>
+          {extendedKinds && (
+            <>
+              <button className="btn-small" onClick={() => addQuestion("multi")}>{t("hub.admin.survey.add_multi_question")}</button>
+              <button className="btn-small" onClick={() => addQuestion("consent")}>{t("hub.admin.survey.add_consent_question")}</button>
+            </>
+          )}
           <span style={{ flex: 1 }} />
           <button className="btn-primary" onClick={() => save()} disabled={busy}>{t("hub.admin.survey.save")}</button>
         </div>
       </SettingRow>
 
-      <SettingRow
+      {!isApplication && <SettingRow
         step={3}
         title={t("hub.admin.survey.responses_label")}
         state={responses === null
@@ -287,7 +337,7 @@ export function SurveyAdminSection({ actions }: Props) {
             </div>
           ))
         )}
-      </SettingRow>
+      </SettingRow>}
     </section>
   );
 }

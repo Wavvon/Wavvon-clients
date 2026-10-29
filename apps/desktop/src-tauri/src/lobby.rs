@@ -370,16 +370,30 @@ pub(crate) async fn survey_submit(
         .map_err(|e| format!("Invalid response: {e}"))
 }
 
+/// Which join form an admin command edits: the onboarding survey when absent,
+/// the join application when asked. Anything else is a caller bug, said so.
+fn admin_form_path(form: Option<&str>) -> Result<&'static str, String> {
+    match form {
+        None | Some("survey") => Ok("survey"),
+        Some("application") => Ok("application"),
+        Some(other) => Err(format!("unknown join form '{other}'")),
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn survey_admin_get(
     hub_url: String,
+    form: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Option<SurveyAdminTs>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .get(format!("{base}/admin/survey"))
+        .get(format!(
+            "{base}/admin/{}",
+            admin_form_path(form.as_deref())?
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -396,13 +410,17 @@ pub(crate) async fn survey_admin_get(
 pub(crate) async fn survey_admin_put(
     hub_url: String,
     survey: SurveyAdminTs,
+    form: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .put(format!("{base}/admin/survey"))
+        .put(format!(
+            "{base}/admin/{}",
+            admin_form_path(form.as_deref())?
+        ))
         .bearer_auth(&token)
         .json(&survey)
         .send()

@@ -11,7 +11,7 @@ import {
   rolesActions, memberRoleActions, serverTagsActions, inviteActions,
   webhookActions, auditLogActions,
   certActions, soundboardActions, onboardingActions, allianceActions,
-  hubIconActions, surveyActions,
+  hubIconActions, surveyActions, applicationActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
 import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../platform/commands/recoveryPeople";
@@ -134,6 +134,8 @@ export function HubAdminContainer({
         allianceActions={allianceActions}
         hubIconActions={hubIconActions}
         surveyActions={surveyActions}
+        applicationActions={applicationActions}
+        joinFormsCapable={activeHubSupports("admission.application")}
         renderModerationTab={() => <ModerationTab />}
         renderOutgoingWebhooks={() => (
           <OutgoingWebhooksSection channels={channels} actions={outgoingWebhookActions} />

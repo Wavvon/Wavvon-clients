@@ -2112,5 +2112,16 @@
   "voice.stage.raise_hand": "Raise hand",
   "voice.stage.lower_hand": "Lower hand",
   "voice.stage.grant": "Give the floor",
-  "voice.stage.dismiss": "Lower"
+  "voice.stage.dismiss": "Lower",
+  "hub.admin.tabs.application": "Application",
+  "hub.admin.application.title": "Join application",
+  "hub.admin.application.hint": "Asked before someone joins. A moderator reads the answers in the approval queue and approves or rejects them. While it is on, every newcomer waits for review.",
+  "hub.admin.survey.kind.multi": "multiple choice",
+  "hub.admin.survey.kind.consent": "consent",
+  "hub.admin.survey.add_multi_question": "+ Multiple choice question",
+  "hub.admin.survey.add_consent_question": "+ Consent checkbox",
+  "hub.admin.survey.help_placeholder": "Help text (optional)",
+  "hub.admin.survey.multiline": "Long answer",
+  "hub.admin.survey.max_len": "Max characters",
+  "hub.admin.survey.max_choices": "At most"
 }

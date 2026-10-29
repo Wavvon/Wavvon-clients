@@ -19,6 +19,14 @@ export async function getSurveyAdmin(): Promise<SurveyAdmin | null> {
 export async function setSurveyAdmin(survey: SurveyAdmin): Promise<void> {
   await hubFetch("/admin/survey", { method: "PUT", body: JSON.stringify(survey) });
 }
+// The join application (join-forms.md): same shape, its own route.
+export async function getApplicationAdmin(): Promise<SurveyAdmin | null> {
+  const r = await hubFetch("/admin/application");
+  return r.json() as Promise<SurveyAdmin | null>;
+}
+export async function setApplicationAdmin(form: SurveyAdmin): Promise<void> {
+  await hubFetch("/admin/application", { method: "PUT", body: JSON.stringify(form) });
+}
 export async function getSurveyResponses(): Promise<SurveyResponseView[]> {
   return fetchAllPages<SurveyResponseView>({
     capabilities: activeHubCapabilities(),

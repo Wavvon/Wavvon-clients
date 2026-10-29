@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import {
   HubAdminPage,
   OutgoingWebhooksSection,
@@ -22,6 +22,7 @@ import {
   makeWebhookActions,
   makeAuditLogActions,
   makeCertActions,
+  makeApplicationActions,
   makeOnboardingActions,
   makeSurveyActions,
 } from "../hooks/hubAdminActions";
@@ -66,6 +67,8 @@ export function HubAdminContainer({
   const certActions = useMemo(() => makeCertActions(getActiveHubUrl), [activeHubUrl]);
   const onboardingActions = useMemo(() => makeOnboardingActions(getActiveHubUrl), [activeHubUrl]);
   const surveyActions = useMemo(() => makeSurveyActions(getActiveHubUrl), [activeHubUrl]);
+  const applicationActions = useMemo(() => makeApplicationActions(() => activeHubUrl), [activeHubUrl]);
+  const joinFormsCapable = useHubCapabilities(activeHubUrl || null).includes("admission.application");
 
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
@@ -106,6 +109,8 @@ export function HubAdminContainer({
       certActions={certActions}
       onboardingActions={onboardingActions}
       surveyActions={surveyActions}
+      applicationActions={applicationActions}
+      joinFormsCapable={joinFormsCapable}
     />
   );
 }

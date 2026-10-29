@@ -2112,5 +2112,16 @@
   "voice.stage.raise_hand": "Alza la mano",
   "voice.stage.lower_hand": "Abbassa la mano",
   "voice.stage.grant": "Dai la parola",
-  "voice.stage.dismiss": "Abbassa"
+  "voice.stage.dismiss": "Abbassa",
+  "hub.admin.tabs.application": "Candidatura",
+  "hub.admin.application.title": "Candidatura per entrare",
+  "hub.admin.application.hint": "Si compila prima di entrare. Un moderatore legge le risposte nella coda di approvazione e approva o rifiuta. Finché è attiva, ogni nuovo arrivato aspetta la revisione.",
+  "hub.admin.survey.kind.multi": "scelta multipla",
+  "hub.admin.survey.kind.consent": "consenso",
+  "hub.admin.survey.add_multi_question": "+ Domanda a scelta multipla",
+  "hub.admin.survey.add_consent_question": "+ Casella di consenso",
+  "hub.admin.survey.help_placeholder": "Testo di aiuto (facoltativo)",
+  "hub.admin.survey.multiline": "Risposta lunga",
+  "hub.admin.survey.max_len": "Caratteri massimi",
+  "hub.admin.survey.max_choices": "Al massimo"
 }
