@@ -146,6 +146,8 @@ export interface HubAdminPageProps {
    *  a hardcoded discovery.wavvon.io, a host that does not resolve. */
   discoveryUrl?: string;
   canManageSoundboard: boolean;
+  /** `alliances.manage`. */
+  canManageHubAlliances: boolean;
   channels: Channel[];
 
   rolesActions: RolesSectionActions;
@@ -284,6 +286,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
   const G_CONNECTIONS = t("hub.admin.group.connections");
   const G_CUSTOM = t("hub.admin.group.customization");
   const admin = props.isAdmin;
+  // The tab holds the hub-scoped acts (alliances.manage) and the per-alliance
+  // grant lists (roles.manage edits them); either is reason to reach it.
+  const showAlliances = props.canManageHubAlliances || props.canManageRoles;
   const TABS: { id: HubAdminTab; label: string; group: string }[] = [
     { id: "overview", label: t("hub.admin.tabs.overview"), group: G_GENERAL },
     ...(props.discoveryUrl ? [{ id: "discovery" as HubAdminTab, label: t("hub.admin.tabs.discovery"), group: G_GENERAL }] : []),
@@ -300,7 +305,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MODERATION },
     ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MODERATION }] : []),
     ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_MODERATION }] : []),
-    ...(admin ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_CONNECTIONS }] : []),
+    ...(showAlliances ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_CONNECTIONS }] : []),
     { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
@@ -775,7 +780,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "moderation" && props.isAdmin && props.renderModerationTab?.()}
 
-        {props.tab === "alliances" && props.isAdmin && (
+        {props.tab === "alliances" && showAlliances && (
           <AlliancesSection
             activeHubUrl={props.activeHubUrl}
             channels={props.channels}
@@ -785,6 +790,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
               canManageRoles: props.canManageRoles,
               myMaxPriority: props.myMaxPriority,
             }}
+            canManageHubAlliances={props.canManageHubAlliances}
           />
         )}
         {props.tab === "hub-icons" && props.isAdmin && (

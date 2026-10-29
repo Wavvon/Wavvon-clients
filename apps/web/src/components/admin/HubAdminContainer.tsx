@@ -30,6 +30,7 @@ export interface HubAdminContainerProps {
   isAdmin: boolean;
   canManageRoles: boolean;
   canManageSoundboard: boolean;
+  canManageHubAlliances: boolean;
   myMaxPriority: number;
   onClose: () => void;
 }
@@ -41,7 +42,7 @@ export interface HubAdminContainerProps {
 // explicitly allowed to live outside packages/ui (decisions.md 2026-07-18/20).
 export function HubAdminContainer({
   hubAdmin, channels, hubs, activeHubId, publicKey,
-  isAdmin, canManageRoles, canManageSoundboard, myMaxPriority, onClose,
+  isAdmin, canManageRoles, canManageSoundboard, canManageHubAlliances, myMaxPriority, onClose,
 }: HubAdminContainerProps) {
   const activeHubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
 
@@ -105,6 +106,7 @@ export function HubAdminContainer({
         myPubkey={publicKey ?? ""}
         isAdmin={isAdmin}
         canManageSoundboard={canManageSoundboard}
+        canManageHubAlliances={canManageHubAlliances}
         canManageRoles={canManageRoles}
         myMaxPriority={myMaxPriority}
         onMemberRolesChanged={hubAdmin.setMemberRoles}

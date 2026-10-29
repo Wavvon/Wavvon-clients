@@ -52,6 +52,7 @@ export function AppModals(p: AppModalsProps) {
     canManageRoles,
     canEditChannelPermissions,
     canManageSoundboard,
+    canManageHubAlliances,
     canSendMessages,
     channelBansTabActions,
     channelCtxMenu,
@@ -140,6 +141,7 @@ export function AppModals(p: AppModalsProps) {
           isAdmin={isAdmin}
           canManageRoles={canManageRoles}
           canManageSoundboard={canManageSoundboard}
+          canManageHubAlliances={canManageHubAlliances}
           myMaxPriority={myMaxPriority}
           onClose={() => setShowHubAdmin(false)}
         />
