@@ -138,8 +138,11 @@ export function sendSetStatusTo(hubId: string, status: PresenceWire, custom?: st
 export async function getAllianceChannelMessages(
   allianceId: string,
   channelId: string,
+  before?: string,
 ): Promise<Message[]> {
-  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages`);
+  const params = new URLSearchParams({ limit: "50" });
+  if (before) params.set("cursor", before);
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages?${params}`);
   const msgs = await r.json() as Message[];
   return [...msgs].reverse();
 }

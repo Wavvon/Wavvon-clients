@@ -10,6 +10,7 @@ import {
   markChannelRead,
   subscribeChannel,
 } from "@platform";
+import { useOlderPages } from "@wavvon/ui";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import type { SelectedAllianceChannel } from "./useAlliances";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel } from "@shared/types";
@@ -68,6 +69,14 @@ export function useChannelMessages({
   const messagesEndChannelRef = useRef<HTMLLIElement | null>(null);
   const messagesContainerRef = useRef<HTMLOListElement | null>(null);
   const messageInputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadOlderMessages = useOlderPages({
+    containerRef: messagesContainerRef,
+    items: messages,
+    setItems: setMessages,
+    fetchOlder: (beforeId) => getMessages(selectedChannel!.id, beforeId),
+    resetKey: selectedChannel?.id ?? null,
+  });
 
   useEffect(() => {
     if (!selectedChannel) {
@@ -242,6 +251,7 @@ export function useChannelMessages({
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     setStickToBottom(atBottom);
     if (atBottom) setNewWhileScrolledUp(0);
+    loadOlderMessages();
   }
 
   function handleInputTextChange(v: string) {

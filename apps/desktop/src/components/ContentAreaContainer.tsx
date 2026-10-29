@@ -1,3 +1,4 @@
+import type { AllianceScrollback } from "@wavvon/ui";
 import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
@@ -18,6 +19,7 @@ interface SlashCommandEntry {
 }
 
 interface Props {
+  allianceScrollback: AllianceScrollback;
   view: "channels" | "dms";
   channels: Channel[];
   users: User[];
@@ -58,7 +60,7 @@ interface Props {
 // it and reads the same groups, so App no longer threads voice/channels/users
 // through a second call site for it.
 export function ContentAreaContainer({
-  view, channels, users, publicKey, blockedUsers, ignoredUsers,
+  allianceScrollback, view, channels, users, publicKey, blockedUsers, ignoredUsers,
   knownDisplayNames, myDisplayName, isAdmin, myRoles,
   memberSidebarHidden, setMemberSidebarHidden, hideBirthdays,
   openEditDescription, setUserContextMenu, slashCommands, openImage,
@@ -101,6 +103,7 @@ export function ContentAreaContainer({
         searchQuery={channelMessages.searchQuery}
         dmMessages={dms.dmMessages}
         allianceMessages={channelMessages.allianceMessages}
+        allianceScrollback={allianceScrollback}
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}

@@ -447,6 +447,8 @@ export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry
 export type { StoredPresence } from "./utils/presenceExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useOlderPages, mergeOlderPage, MESSAGE_PAGE_SIZE } from "./hooks/useOlderPages";
+export type { AllianceScrollback } from "./hooks/useAlliances";
 export { useConfirm } from "./components/ConfirmDialog";
 export { SettingRow } from "./components/SettingRow";
 export type { SettingRowProps } from "./components/SettingRow";

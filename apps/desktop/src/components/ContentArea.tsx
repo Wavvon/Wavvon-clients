@@ -40,6 +40,7 @@ import {
   type PinnedMessageEntry,
   PinnedMessagesModal,
 } from "@wavvon/ui";
+import type { AllianceScrollback } from "@wavvon/ui";
 
 function domainOf(url: string): string {
   try { return new URL(url).hostname; } catch { return url; }
@@ -142,6 +143,7 @@ interface Props {
   searchQuery: string;
   dmMessages: Record<string, DmMessage[]>;
   allianceMessages: Message[];
+  allianceScrollback: AllianceScrollback;
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;

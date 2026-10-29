@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, AllianceSharedChannel, AlliancePerson } from "../../types";
+import type { AllianceScrollback } from "../../hooks/useAlliances";
 import { formatPubkey, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 import { MessageContent } from "../MessageContent";
@@ -28,6 +29,7 @@ interface Props {
    *  else's hub lives, so the inbound-loss row is the only thing in the app
    *  that says whether that room's audio is arriving at all. */
   connectionStatus?: React.ReactNode;
+  scrollback: AllianceScrollback;
   /** Absent when the hub lacks `alliance.people`: no People control then. */
   people?: {
     actions: AlliancePeopleActions;
@@ -47,6 +49,7 @@ export function AllianceView({
   onOpenImage,
   connectionStatus,
   people,
+  scrollback,
 }: Props) {
   const { t } = useTranslation();
   const [showPeople, setShowPeople] = useState(false);
@@ -88,7 +91,7 @@ export function AllianceView({
           onMessage={people.onMessage}
         />
       ) : (<>
-      <div className="messages">
+      <div className="messages" ref={scrollback.ref} onScroll={scrollback.onScroll}>
         {allianceMessages.map((m) => {
           const senderLabel = m.sender_name || formatPubkey(m.sender);
           return (
