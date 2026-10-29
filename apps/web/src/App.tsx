@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge } from "@wavvon/ui";
+import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -54,6 +54,15 @@ import {
 } from "@platform";
 import type { UserContextMenuActions, WhisperTarget, WhisperReplyBind } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers } from "@platform";
+import { getApplicationForm, getApplicationStatus, submitApplication, activeHubSupports } from "@platform";
+
+// Module-level so the panel's load effect sees one object for the app's life;
+// each call goes to whichever hub is active, and the panel is keyed by hub.
+const applicationActions = {
+  getForm: getApplicationForm,
+  getStatus: getApplicationStatus,
+  submit: submitApplication,
+};
 import { fetchAdmissionChallenge, submitAdmissionChallenge } from "@platform";
 import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
@@ -1591,6 +1600,9 @@ export default function App({ initialView }: AppProps = {}) {
           <p className="muted" style={{ margin: 0, textAlign: "center", maxWidth: 320 }}>
             {t("app.approval.body")}
           </p>
+          {activeHubSupports("admission.application") && (
+            <ApplicationPanel key={activeHubId} actions={applicationActions} />
+          )}
           <button className="btn-secondary" onClick={() => loadHubData()}>{t("app.approval.check_again")}</button>
         </main>
       ) : <>

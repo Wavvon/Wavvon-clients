@@ -33,6 +33,7 @@ import type {
   AppOpenEvent,
   AppCloseEvent,
 } from "./types";
+import { PendingApplication } from "./components/PendingApplication";
 import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel } from "@wavvon/ui";
 import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
@@ -1689,6 +1690,7 @@ function App() {
                   })}
                 </p>
                 <p className="muted">{t("app.approval.wait_hint")}</p>
+                <PendingApplication hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null} />
                 <button onClick={loadHubData} className="primary">
                   {t("app.approval.check_again")}
                 </button>

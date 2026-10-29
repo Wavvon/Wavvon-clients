@@ -2123,5 +2123,10 @@
   "hub.admin.survey.help_placeholder": "Texto de ayuda (opcional)",
   "hub.admin.survey.multiline": "Respuesta larga",
   "hub.admin.survey.max_len": "Caracteres máximos",
-  "hub.admin.survey.max_choices": "Como máximo"
+  "hub.admin.survey.max_choices": "Como máximo",
+  "application.title": "Solicita unirte",
+  "application.submitted": "Tu solicitud se ha enviado. Un moderador la leerá y decidirá.",
+  "application.rejected": "Tu solicitud no fue aceptada.",
+  "application.rejected_reason": "Tu solicitud no fue aceptada: {reason}",
+  "application.retry_on": "Podrás solicitarlo de nuevo a partir del {date}."
 }

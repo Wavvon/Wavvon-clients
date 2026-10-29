@@ -2123,5 +2123,10 @@
   "hub.admin.survey.help_placeholder": "Hilfetext (optional)",
   "hub.admin.survey.multiline": "Lange Antwort",
   "hub.admin.survey.max_len": "Max. Zeichen",
-  "hub.admin.survey.max_choices": "Höchstens"
+  "hub.admin.survey.max_choices": "Höchstens",
+  "application.title": "Bewirb dich um Beitritt",
+  "application.submitted": "Deine Bewerbung wurde gesendet. Eine Moderation liest sie und entscheidet.",
+  "application.rejected": "Deine Bewerbung wurde nicht angenommen.",
+  "application.rejected_reason": "Deine Bewerbung wurde nicht angenommen: {reason}",
+  "application.retry_on": "Du kannst dich ab dem {date} erneut bewerben."
 }

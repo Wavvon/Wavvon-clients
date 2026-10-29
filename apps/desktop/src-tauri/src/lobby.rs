@@ -370,6 +370,77 @@ pub(crate) async fn survey_submit(
         .map_err(|e| format!("Invalid response: {e}"))
 }
 
+/// The hub's join application (join-forms.md), for a joiner it holds pending.
+#[tauri::command]
+pub(crate) async fn application_form(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<Option<SurveyPublicTs>, String> {
+    application_get(&state, &hub_url, "application").await
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct ApplicationStatusTs {
+    pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_after: Option<i64>,
+}
+
+#[tauri::command]
+pub(crate) async fn application_status(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<ApplicationStatusTs, String> {
+    application_get(&state, &hub_url, "application/status").await
+}
+
+async fn application_get<T: serde::de::DeserializeOwned>(
+    state: &AppState,
+    hub_url: &str,
+    path: &str,
+) -> Result<T, String> {
+    let token = crate::state::session_for_url(state, hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/{path}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn application_submit(
+    hub_url: String,
+    survey_id: String,
+    answers: Vec<SurveyAnswer>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/application"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "survey_id": survey_id, "answers": answers }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
 /// Which join form an admin command edits: the onboarding survey when absent,
 /// the join application when asked. Anything else is a caller bug, said so.
 fn admin_form_path(form: Option<&str>) -> Result<&'static str, String> {

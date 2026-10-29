@@ -2123,5 +2123,10 @@
   "hub.admin.survey.help_placeholder": "Help text (optional)",
   "hub.admin.survey.multiline": "Long answer",
   "hub.admin.survey.max_len": "Max characters",
-  "hub.admin.survey.max_choices": "At most"
+  "hub.admin.survey.max_choices": "At most",
+  "application.title": "Apply to join",
+  "application.submitted": "Your application was sent. A moderator will read it and decide.",
+  "application.rejected": "Your application was not accepted.",
+  "application.rejected_reason": "Your application was not accepted: {reason}",
+  "application.retry_on": "You can apply again from {date}."
 }
