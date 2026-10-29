@@ -167,8 +167,6 @@ export class HubWebSocket {
       this.pendingChunkEnvelope = { stream_id: env.stream_id, is_init: env.is_init };
     } else if (
       type === "screen_share_started" || type === "screen_share_stopped" ||
-      type === "screen_share_offer_in" || type === "screen_share_answer_in" || type === "screen_share_ice_in" ||
-      type === "screen_share_viewer_joined" || type === "screen_share_viewer_left" ||
       type === "stream_subscribed" || type === "stream_subscription_ended" || type === "hub_streams"
     ) {
       this.handlers.onScreenShare?.(tagged);

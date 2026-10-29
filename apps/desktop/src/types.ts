@@ -56,14 +56,6 @@ export type {
   BadgePayload,
   HubBadge,
   PendingBadgeOffer,
-  WsScreenShareOfferOut,
-  WsScreenShareOfferIn,
-  WsScreenShareAnswerOut,
-  WsScreenShareAnswerIn,
-  WsScreenShareIceOut,
-  WsScreenShareIceIn,
-  WsScreenShareViewerJoined,
-  WsScreenShareViewerLeft,
 } from "@wavvon/core";
 
 export type { Channel } from "@wavvon/core";
