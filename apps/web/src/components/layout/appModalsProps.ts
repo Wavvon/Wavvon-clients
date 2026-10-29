@@ -37,6 +37,7 @@ export interface AppModalsProps {
   setShowHubAdmin: (v: boolean) => void;
   hubAdminState: HubAdmin;
   canManageSoundboard: boolean;
+  canManageHubAlliances: boolean;
 
   // Add a hub
   showAddHub: boolean;

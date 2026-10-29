@@ -55,6 +55,10 @@ interface Props {
   channels: Channel[];
   actions: AlliancesSectionActions;
   managerRoles?: AllianceManagerRoles;
+  /** `alliances.manage`: the hub-scoped acts (create, join, accept or
+   *  decline an invite, leave). Without it the tab still lists the alliances,
+   *  for someone who edits their grant lists or manages one of them. */
+  canManageHubAlliances: boolean;
 }
 
 function sharedChannelIcon(s: SharedChannel): string {
@@ -78,7 +82,8 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
   myChannels: Channel[];
   busy: boolean;
   activeHubUrl: string;
-  onLeave: () => void;
+  /** Absent without alliances.manage, which hides the button. */
+  onLeave?: () => void;
   onError: (m: string) => void;
   runGuard: (fn: () => Promise<void>) => void;
   actions: AlliancesSectionActions;
@@ -172,7 +177,7 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
         <button className="btn-ghost" onClick={() => setOpen((v) => !v)} style={{ fontWeight: 600 }}>
           {open ? "▾" : "▸"} {alliance.name}
         </button>
-        <button className="btn-small btn-secondary danger" disabled={busy} onClick={onLeave}>{t("alliances.detail.leave")}</button>
+        {onLeave && <button className="btn-small btn-secondary danger" disabled={busy} onClick={onLeave}>{t("alliances.detail.leave")}</button>}
       </div>
       {open && (
         <div style={{ paddingLeft: "var(--space-3)" }}>
@@ -357,7 +362,7 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
   );
 }
 
-export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles }: Props) {
+export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles, canManageHubAlliances }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<string | null>(null);
   const row = (id: string) => ({
@@ -375,7 +380,12 @@ export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles
   async function load() {
     setError(null);
     try {
-      const [a, i] = await Promise.all([actions.listAlliances(), actions.listPendingAllianceInvites()]);
+      const [a, i] = await Promise.all([
+        actions.listAlliances(),
+        // The hub refuses the invite list without alliances.manage, and that
+        // refusal must not blank the alliances this caller may still see.
+        canManageHubAlliances ? actions.listPendingAllianceInvites() : Promise.resolve([]),
+      ]);
       setAlliances(a);
       setInvites(i);
     } catch (e) {
@@ -431,6 +441,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles
       <p className="muted">{t("alliances.hint")}</p>
       {error && alliances !== null && <p className="error-text">{error}</p>}
 
+      {canManageHubAlliances && (<>
       <SettingRow
         title={t("alliances.create")}
         state={t("alliances.state.create")}
@@ -489,6 +500,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles
           ))}
         </SettingRow>
       )}
+      </>)}
 
       <SettingRow
         title={t("alliances.yours")}
@@ -512,7 +524,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles
               myChannels={channels}
               busy={busy}
               activeHubUrl={activeHubUrl}
-              onLeave={async () => {
+              onLeave={canManageHubAlliances ? async () => {
                 const ok = await confirm({
                   title: t("alliances.detail.leave_confirm", { name: a.name }),
                   body: t("alliances.detail.leave_body"),
@@ -520,7 +532,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles
                   danger: true,
                 });
                 if (ok) run(() => actions.leaveAlliance(a.id));
-              }}
+              } : undefined}
               onError={setError}
               runGuard={runGuard}
               actions={actions}

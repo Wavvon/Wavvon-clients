@@ -34,7 +34,7 @@ type PassthroughProps = Omit<
   | "webhookActions"
   | "auditLogActions" | "certActions" | "onboardingActions" | "surveyActions"
   | "activeHubUrl" | "myPubkey"
-  | "canManageRoles" | "myMaxPriority" | "canManageSoundboard"
+  | "canManageRoles" | "myMaxPriority" | "canManageSoundboard" | "canManageHubAlliances"
 >;
 
 interface HubAdminContainerProps extends PassthroughProps {
@@ -70,6 +70,7 @@ export function HubAdminContainer({
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
   const canManageSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.soundboard.manage"));
+  const canManageHubAlliances = isAdmin || myRoles.some((r) => r.permissions?.includes("alliances.manage"));
 
   return (
     <HubAdminPage
@@ -92,6 +93,7 @@ export function HubAdminContainer({
       canManageRoles={canManageRoles}
       myMaxPriority={myMaxPriority}
       canManageSoundboard={canManageSoundboard}
+      canManageHubAlliances={canManageHubAlliances}
       rolesActions={rolesActions}
       memberRoleActions={memberRoleActions}
       serverTagsActions={serverTagsActions}

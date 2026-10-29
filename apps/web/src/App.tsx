@@ -1207,6 +1207,7 @@ export default function App({ initialView }: AppProps = {}) {
   }, [voice.myVoicePerms, voice.voiceChannelId, can]);
 
   const canManageSoundboard = useMemo(() => can("voice.soundboard.manage"), [can]);
+  const canManageHubAlliances = useMemo(() => can("alliances.manage"), [can]);
 
   const myRoles = useMemo(() => meInfo?.roles ?? [], [meInfo]);
 
@@ -1671,6 +1672,7 @@ export default function App({ initialView }: AppProps = {}) {
         canEditChannelPermissions={canEditChannelPermissions}
         canManageRoles={canManageRoles}
         canManageSoundboard={canManageSoundboard}
+        canManageHubAlliances={canManageHubAlliances}
         canSendMessages={canSendMessages}
         channelBansTabActions={channelBansTabActions}
         channelCtxMenu={channelCtxMenu}
