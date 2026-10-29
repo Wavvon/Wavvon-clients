@@ -302,6 +302,8 @@ function App() {
     handleSaveHubBranding,
     refreshPending,
     handleApproveMember,
+    handleRejectMember,
+    loadApplication,
     refreshMembers,
     handleKickMember,
     handleBanMember,
@@ -1545,6 +1547,8 @@ function App() {
             onHubListedChange={onHubListedChange}
             pendingMembers={pendingMembers}
             onApproveMember={handleApproveMember}
+            loadApplication={loadApplication}
+            onRejectMember={handleRejectMember}
             members={adminMembers}
             onKickMember={handleKickMember}
             onBanMember={handleBanMember}

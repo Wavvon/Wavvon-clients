@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDateTime, formatPubkey, formatRelative, type Channel } from "@wavvon/core";
-import type { BanInfo, InviteInfo, MemberAdminInfo, MuteInfo, NameColorMode, PendingUser, RoleInfo } from "../../types";
+import { PendingApplicationDetails } from "./PendingApplicationDetails";
+import type { BanInfo, InviteInfo, MemberAdminInfo, MuteInfo, NameColorMode, PendingUser, RoleInfo, SurveyResponseAdmin } from "../../types";
 import { ImagePicker } from "../ImagePicker";
 import { AlliancesSection, type AlliancesSectionActions } from "./AlliancesSection";
 import { WebhooksSection, type WebhooksSectionActions } from "./WebhooksSection";
@@ -103,6 +104,10 @@ export interface HubAdminPageProps {
 
   pendingMembers: PendingUser[];
   onApproveMember: (publicKey: string) => void;
+  /** A joiner's application answers (join-forms.md); absent hides them. */
+  loadApplication?: (publicKey: string) => Promise<SurveyResponseAdmin | null>;
+  /** Reject a joiner's application with a reason they will read. */
+  onRejectMember?: (publicKey: string, reason: string) => Promise<void>;
   members: MemberAdminInfo[];
   // Member actions reject with the hub's message on failure and resolve
   // `false` when the user backed out of a prompt; the page reports either.
@@ -200,6 +205,7 @@ function hubToWavvonUrl(hubUrl: string): string {
 export function HubAdminPage(props: HubAdminPageProps) {
   const { t } = useTranslation();
   const [adminOpen, setAdminOpen] = useState<string | null>(null);
+  const [openApplication, setOpenApplication] = useState<string | null>(null);
   const adminRow = (id: string) => ({
     open: adminOpen === id,
     onToggle: () => setAdminOpen((cur) => (cur === id ? null : id)),
@@ -649,9 +655,33 @@ export function HubAdminPage(props: HubAdminPageProps) {
                         <td>{formatRelative(p.first_seen_at)}</td>
                         <td>
                           <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
+                          {p.has_application && props.loadApplication && (
+                            <button
+                              className="btn-small btn-secondary"
+                              aria-expanded={openApplication === p.public_key}
+                              onClick={() => setOpenApplication((cur) => (cur === p.public_key ? null : p.public_key))}
+                            >
+                              {t("hub.admin.members.pending.application")}
+                            </button>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                    )).flatMap((row, i) => {
+                      const p = props.pendingMembers[i];
+                      return openApplication === p.public_key && props.loadApplication
+                        ? [row, (
+                          <tr key={`${p.public_key}-application`}>
+                            <td colSpan={3}>
+                              <PendingApplicationDetails
+                                pubkey={p.public_key}
+                                loadApplication={props.loadApplication}
+                                onReject={props.onRejectMember}
+                              />
+                            </td>
+                          </tr>
+                        )]
+                        : [row];
+                    })}
                   </tbody>
                 </table>
               </div>

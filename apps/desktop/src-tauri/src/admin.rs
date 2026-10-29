@@ -608,6 +608,51 @@ pub(crate) async fn approve_member(
     Ok(())
 }
 
+/// A pending joiner's application answers (join-forms.md). Returned as the
+/// hub sent them: the view reads them, nothing here re-serialises them.
+#[tauri::command]
+pub(crate) async fn application_response(
+    target_public_key: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .get(format!(
+            "{hub_url}/admin/application/responses/{target_public_key}"
+        ))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+/// Reject a pending joiner's application, with a reason they will read.
+#[tauri::command]
+pub(crate) async fn reject_member(
+    target_public_key: String,
+    reason: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .post(format!("{hub_url}/hub/pending/{target_public_key}/reject"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "reason": reason }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) async fn list_hub_icons(state: State<'_, AppState>) -> Result<Vec<HubIcon>, String> {
     let (hub_url, token) = active_session(&state)?;

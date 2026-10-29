@@ -97,6 +97,8 @@ export interface PendingUser {
    *  hub with `admission.banevasion`. A hint for the moderator: a shared
    *  address (a family, a school, a mobile carrier) produces it too. */
   ban_evasion_match?: string | null;
+  /** They filled the hub's join application (`admission.application`). */
+  has_application?: boolean;
 }
 
 export interface Conversation {

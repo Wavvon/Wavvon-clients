@@ -1,7 +1,7 @@
 import { hubFetch } from "../http";
 import { activeHubCapabilities } from "../session";
 import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
-import type { ApplicationStatus, Survey, SurveyAnswer, SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView } from "@wavvon/ui";
+import type { ApplicationStatus, Survey, SurveyAnswer, SurveyResponseAdmin, SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView } from "@wavvon/ui";
 
 export type { SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView };
 
@@ -32,6 +32,18 @@ export async function submitApplication(surveyId: string, answers: SurveyAnswer[
   await hubFetch("/application", {
     method: "POST",
     body: JSON.stringify({ survey_id: surveyId, answers }),
+  });
+}
+
+// A joiner's answers, and the rejection, from the approval queue.
+export async function getApplicationResponse(pubkey: string): Promise<SurveyResponseAdmin | null> {
+  const r = await hubFetch(`/admin/application/responses/${pubkey}`);
+  return r.json() as Promise<SurveyResponseAdmin | null>;
+}
+export async function rejectApplication(pubkey: string, reason: string): Promise<void> {
+  await hubFetch(`/hub/pending/${pubkey}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || null }),
   });
 }
 

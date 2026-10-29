@@ -2128,5 +2128,8 @@
   "application.submitted": "Deine Bewerbung wurde gesendet. Eine Moderation liest sie und entscheidet.",
   "application.rejected": "Deine Bewerbung wurde nicht angenommen.",
   "application.rejected_reason": "Deine Bewerbung wurde nicht angenommen: {reason}",
-  "application.retry_on": "Du kannst dich ab dem {date} erneut bewerben."
+  "application.retry_on": "Du kannst dich ab dem {date} erneut bewerben.",
+  "hub.admin.members.pending.application": "Bewerbung",
+  "hub.admin.members.pending.reject": "Ablehnen",
+  "hub.admin.members.pending.reject_reason": "Begründung, die die Person lesen wird (optional)"
 }

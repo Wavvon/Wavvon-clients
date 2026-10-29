@@ -242,6 +242,9 @@ export function useHubAdmin({ activeHubId, onSaved, onMemberRemoved }: UseHubAdm
     hubAdminBans,
     hubAdminInvites,
     hubAdminPending,
+    // A decided joiner leaves the queue now rather than at the next open.
+    dropPending: (pubkey: string) =>
+      setHubAdminPending((prev) => prev.filter((p) => p.public_key !== pubkey)),
     maxChannelDepth,
     setMaxChannelDepth,
     hubListed,

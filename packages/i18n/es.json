@@ -2128,5 +2128,8 @@
   "application.submitted": "Tu solicitud se ha enviado. Un moderador la leerá y decidirá.",
   "application.rejected": "Tu solicitud no fue aceptada.",
   "application.rejected_reason": "Tu solicitud no fue aceptada: {reason}",
-  "application.retry_on": "Podrás solicitarlo de nuevo a partir del {date}."
+  "application.retry_on": "Podrás solicitarlo de nuevo a partir del {date}.",
+  "hub.admin.members.pending.application": "Solicitud",
+  "hub.admin.members.pending.reject": "Rechazar",
+  "hub.admin.members.pending.reject_reason": "Motivo que leerá quien lo solicita (opcional)"
 }
