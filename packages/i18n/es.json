@@ -1777,6 +1777,7 @@
   "shortcuts.col.action": "Acción",
   "shortcuts.col.binding": "Combinación",
   "shortcuts.title": "Atajos de teclado",
+  "join_form.consent_required": "«{prompt}» es necesario para unirse a este hub.",
   "survey.modal.submit": "Enviar",
   "survey.modal.submitting": "Enviando…",
   "survey.modal.title": "Unas preguntas antes de entrar",

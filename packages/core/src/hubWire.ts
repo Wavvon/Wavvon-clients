@@ -235,12 +235,21 @@ export interface SurveyChoice {
   display_order: number;
 }
 
+/** A question on either join form (join-forms.md). A required `consent` must
+ *  be checked: the hub refuses an unchecked one as
+ *  `consent_refused:<question id>`. `multi` and `consent` need a hub with
+ *  `admission.application`. */
 export interface SurveyQuestion {
   id: string;
   prompt: string;
-  kind: "choice" | "text";
+  kind: "choice" | "text" | "multi" | "consent";
   required: boolean;
   display_order: number;
+  help?: string;
+  multiline?: boolean;
+  max_len?: number;
+  min_choices?: number;
+  max_choices?: number;
   choices?: SurveyChoice[];
 }
 
@@ -252,7 +261,17 @@ export interface Survey {
 export interface SurveyAnswer {
   question_id: string;
   choice_id?: string;
+  choice_ids?: string[];
   text_answer?: string;
+  checked?: boolean;
+}
+
+/** `GET /application/status`. */
+export interface ApplicationStatus {
+  state: "none" | "submitted" | "rejected";
+  reason?: string;
+  /** Unix seconds from which a rejected applicant may apply again. */
+  retry_after?: number;
 }
 
 export interface SurveySubmitResult {
@@ -284,6 +303,7 @@ export interface SurveyResponseAdmin {
     prompt: string;
     choice_label: string | null;
     text_answer: string | null;
+    checked?: boolean;
   }>;
 }
 

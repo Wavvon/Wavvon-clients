@@ -1777,6 +1777,7 @@
   "shortcuts.col.action": "Azione",
   "shortcuts.col.binding": "Combinazione",
   "shortcuts.title": "Scorciatoie da tastiera",
+  "join_form.consent_required": "«{prompt}» è necessario per entrare in questo hub.",
   "survey.modal.submit": "Invia",
   "survey.modal.submitting": "Invio…",
   "survey.modal.title": "Qualche domanda prima di entrare",

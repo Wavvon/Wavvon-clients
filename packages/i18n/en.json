@@ -1777,6 +1777,7 @@
   "shortcuts.col.action": "Action",
   "shortcuts.col.binding": "Binding",
   "shortcuts.title": "Keyboard shortcuts",
+  "join_form.consent_required": "“{prompt}” is required to join this hub.",
   "survey.modal.submit": "Submit",
   "survey.modal.submitting": "Submitting…",
   "survey.modal.title": "A few questions before you join",

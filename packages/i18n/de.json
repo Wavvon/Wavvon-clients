@@ -1777,6 +1777,7 @@
   "shortcuts.col.action": "Aktion",
   "shortcuts.col.binding": "Tastenkombination",
   "shortcuts.title": "Tastaturkürzel",
+  "join_form.consent_required": "„{prompt}“ ist nötig, um diesem Hub beizutreten.",
   "survey.modal.submit": "Senden",
   "survey.modal.submitting": "Wird gesendet…",
   "survey.modal.title": "Ein paar Fragen vor dem Beitritt",
