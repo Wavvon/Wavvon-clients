@@ -630,6 +630,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
                         <td>
                           <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
                           <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
+                          {p.ban_evasion_match && (
+                            <div className="muted" style={{ fontSize: "var(--text-xs)" }} title={p.ban_evasion_match}>
+                              {t("hub.admin.members.pending.ban_evasion", { banned: formatPubkey(p.ban_evasion_match) })}
+                            </div>
+                          )}
                         </td>
                         <td>{formatRelative(p.first_seen_at)}</td>
                         <td>

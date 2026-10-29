@@ -652,6 +652,7 @@
   "hub.admin.members.pending.col.signed_up": "Registrato",
   "hub.admin.members.pending.col.user": "Utente",
   "hub.admin.members.pending.no_name": "(nessun nome)",
+  "hub.admin.members.pending.ban_evasion": "Stesso indirizzo di un membro bannato ({banned}). Potrebbe essere una connessione condivisa.",
   "hub.admin.members.pending.title": "In attesa di approvazione — {count}",
   "hub.admin.members.state": "{roles} · entrato {joined}",
   "hub.admin.members.state.no_roles": "nessun ruolo",
