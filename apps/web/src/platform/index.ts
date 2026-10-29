@@ -261,7 +261,7 @@ export {
 export type { PendingUser, ChallengeMode, ChallengeDifficulty } from "./commands/onboardingAdmin";
 export { listMyCertifications, grantUserBadge } from "./commands/certifications";
 export type { Certification } from "./commands/certifications";
-export { getSurveyAdmin, setSurveyAdmin, getSurveyResponses, getCurrentSurvey, submitSurvey, getApplicationAdmin, setApplicationAdmin } from "./commands/survey";
+export { getSurveyAdmin, setSurveyAdmin, getSurveyResponses, getCurrentSurvey, submitSurvey, getApplicationAdmin, setApplicationAdmin, getApplicationForm, getApplicationStatus, submitApplication } from "./commands/survey";
 export type { SurveyAdmin, SurveyQuestion, SurveyChoice, SurveyResponseView, SurveyAnswerInput } from "./commands/survey";
 
 export {

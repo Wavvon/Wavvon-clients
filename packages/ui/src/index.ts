@@ -77,6 +77,8 @@ export { HubRefusedPanel } from "./components/HubRefusedPanel";
 export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
 export { JoinForm } from "./components/JoinForm";
+export { ApplicationPanel } from "./components/ApplicationPanel";
+export type { ApplicationActions } from "./components/ApplicationPanel";
 export { AdmissionChallenge } from "./components/AdmissionChallenge";
 export type { AdmissionChallengeProps } from "./components/AdmissionChallenge";
 export { Lightbox } from "./components/Lightbox";
@@ -138,6 +140,9 @@ export type {
   SurveyQuestion,
   SurveyAdmin,
   SurveyResponseView,
+  Survey,
+  SurveyAnswer,
+  ApplicationStatus,
 } from "./types";
 export { AlliancesSection } from "./components/admin/AlliancesSection";
 export type { AlliancesSectionActions, AllianceManagerRoles } from "./components/admin/AlliancesSection";

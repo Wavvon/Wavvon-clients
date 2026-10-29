@@ -1,7 +1,7 @@
 import { hubFetch } from "../http";
 import { activeHubCapabilities } from "../session";
 import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
-import type { SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView } from "@wavvon/ui";
+import type { ApplicationStatus, Survey, SurveyAnswer, SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView } from "@wavvon/ui";
 
 export type { SurveyChoice, SurveyQuestion, SurveyAdmin, SurveyResponseView };
 
@@ -19,7 +19,23 @@ export async function getSurveyAdmin(): Promise<SurveyAdmin | null> {
 export async function setSurveyAdmin(survey: SurveyAdmin): Promise<void> {
   await hubFetch("/admin/survey", { method: "PUT", body: JSON.stringify(survey) });
 }
-// The join application (join-forms.md): same shape, its own route.
+// The join application, for a joiner held pending (join-forms.md).
+export async function getApplicationForm(): Promise<Survey | null> {
+  const r = await hubFetch("/application");
+  return r.json() as Promise<Survey | null>;
+}
+export async function getApplicationStatus(): Promise<ApplicationStatus> {
+  const r = await hubFetch("/application/status");
+  return r.json() as Promise<ApplicationStatus>;
+}
+export async function submitApplication(surveyId: string, answers: SurveyAnswer[]): Promise<void> {
+  await hubFetch("/application", {
+    method: "POST",
+    body: JSON.stringify({ survey_id: surveyId, answers }),
+  });
+}
+
+// The join application's editor: same shape as the survey, its own route.
 export async function getApplicationAdmin(): Promise<SurveyAdmin | null> {
   const r = await hubFetch("/admin/application");
   return r.json() as Promise<SurveyAdmin | null>;

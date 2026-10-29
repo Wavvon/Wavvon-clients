@@ -2123,5 +2123,10 @@
   "hub.admin.survey.help_placeholder": "Testo di aiuto (facoltativo)",
   "hub.admin.survey.multiline": "Risposta lunga",
   "hub.admin.survey.max_len": "Caratteri massimi",
-  "hub.admin.survey.max_choices": "Al massimo"
+  "hub.admin.survey.max_choices": "Al massimo",
+  "application.title": "Candidati per entrare",
+  "application.submitted": "La tua candidatura è stata inviata. Un moderatore la leggerà e deciderà.",
+  "application.rejected": "La tua candidatura non è stata accettata.",
+  "application.rejected_reason": "La tua candidatura non è stata accettata: {reason}",
+  "application.retry_on": "Potrai candidarti di nuovo dal {date}."
 }
