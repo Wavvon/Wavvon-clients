@@ -195,6 +195,8 @@ pub(crate) struct PendingUser {
     pub public_key: String,
     pub display_name: Option<String>,
     pub first_seen_at: i64,
+    #[serde(default)]
+    pub ban_evasion_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

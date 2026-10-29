@@ -652,6 +652,7 @@
   "hub.admin.members.pending.col.signed_up": "Signed up",
   "hub.admin.members.pending.col.user": "User",
   "hub.admin.members.pending.no_name": "(no name)",
+  "hub.admin.members.pending.ban_evasion": "Same address as a banned member ({banned}). Could be a shared connection.",
   "hub.admin.members.pending.title": "Pending approval — {count}",
   "hub.admin.members.state": "{roles} · joined {joined}",
   "hub.admin.members.state.no_roles": "no roles",

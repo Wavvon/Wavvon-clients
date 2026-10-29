@@ -93,6 +93,10 @@ export interface PendingUser {
   public_key: string;
   display_name: string | null;
   first_seen_at: number;
+  /** The banned identity whose last address this joiner arrived from, on a
+   *  hub with `admission.banevasion`. A hint for the moderator: a shared
+   *  address (a family, a school, a mobile carrier) produces it too. */
+  ban_evasion_match?: string | null;
 }
 
 export interface Conversation {

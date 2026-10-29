@@ -652,6 +652,7 @@
   "hub.admin.members.pending.col.signed_up": "Registriert",
   "hub.admin.members.pending.col.user": "Benutzer",
   "hub.admin.members.pending.no_name": "(kein Name)",
+  "hub.admin.members.pending.ban_evasion": "Gleiche Adresse wie ein gebanntes Mitglied ({banned}). Kann eine geteilte Verbindung sein.",
   "hub.admin.members.pending.title": "Warten auf Freigabe — {count}",
   "hub.admin.members.state": "{roles} · dabei seit {joined}",
   "hub.admin.members.state.no_roles": "keine Rollen",

@@ -6,7 +6,11 @@ import { channelButton, expectInHub, hubApi, newMemberPage, uniqueName } from ".
 // Before this, everything older than the newest 50 was unreachable from the
 // client (Wavvon-clients#202).
 //
-// The hub allows 30 messages a minute per sender, so the 60 come from three.
+// The hub allows 30 messages a minute per sender, so the 60 come from three
+// fresh members: the owner posting too would trip that limit on a retry within
+// the minute. The writes are paced because every browser here is one address
+// to the hub's per-IP write limiter (a burst of 30, then 10 a second), which
+// the specs running before this one share.
 
 test("scrolling to the top of a channel loads older messages", async ({ page, browser }) => {
   test.setTimeout(120000);
@@ -19,9 +23,9 @@ test("scrolling to the top of a channel loads older messages", async ({ page, br
     body: { name },
   });
 
-  const posters = [page];
+  const posters = [];
   const contexts = [];
-  for (const who of ["Scroller A", "Scroller B"]) {
+  for (const who of ["Scroller A", "Scroller B", "Scroller C"]) {
     const { context, page: member } = await newMemberPage(browser, uniqueName(who));
     contexts.push(context);
     posters.push(member);
@@ -35,6 +39,7 @@ test("scrolling to the top of a channel loads older messages", async ({ page, br
           method: "POST",
           body: { content: `scroll-${String(n).padStart(2, "0")}` },
         });
+        await poster.waitForTimeout(150);
       }
     }
 
