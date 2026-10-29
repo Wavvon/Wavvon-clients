@@ -2112,5 +2112,16 @@
   "voice.stage.raise_hand": "Hand heben",
   "voice.stage.lower_hand": "Hand senken",
   "voice.stage.grant": "Das Wort geben",
-  "voice.stage.dismiss": "Senken"
+  "voice.stage.dismiss": "Senken",
+  "hub.admin.tabs.application": "Bewerbung",
+  "hub.admin.application.title": "Beitrittsbewerbung",
+  "hub.admin.application.hint": "Wird vor dem Beitritt ausgefüllt. Eine Moderation liest die Antworten in der Freigabeliste und nimmt an oder lehnt ab. Solange sie aktiv ist, wartet jede neue Person auf Prüfung.",
+  "hub.admin.survey.kind.multi": "Mehrfachauswahl",
+  "hub.admin.survey.kind.consent": "Zustimmung",
+  "hub.admin.survey.add_multi_question": "+ Mehrfachauswahlfrage",
+  "hub.admin.survey.add_consent_question": "+ Zustimmungsfeld",
+  "hub.admin.survey.help_placeholder": "Hilfetext (optional)",
+  "hub.admin.survey.multiline": "Lange Antwort",
+  "hub.admin.survey.max_len": "Max. Zeichen",
+  "hub.admin.survey.max_choices": "Höchstens"
 }

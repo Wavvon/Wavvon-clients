@@ -254,6 +254,19 @@ export function makeSurveyActions(getHubUrl: () => string): SurveyAdminSectionAc
 }
 
 
+// The join application (join-forms.md): the survey commands against its own
+// route. Its answers are read in the approval queue, and it maps no roles.
+export function makeApplicationActions(getHubUrl: () => string): SurveyAdminSectionActions {
+  return {
+    getSurveyAdmin: () =>
+      invoke<SurveyAdmin | null>("survey_admin_get", { hubUrl: getHubUrl(), form: "application" }),
+    setSurveyAdmin: (survey) =>
+      invoke("survey_admin_put", { hubUrl: getHubUrl(), survey, form: "application" }),
+    getSurveyResponses: async () => [],
+    loadAssignableRoles: async () => [],
+  };
+}
+
 // Content reports: the queue of what members flagged. Unlike most of the
 // sections above these commands take no hub URL — `list_reports` /
 // `review_report` act on the active session, the way the rest of the

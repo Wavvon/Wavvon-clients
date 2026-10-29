@@ -7,7 +7,7 @@
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "check-parity": "node scripts/check-parity-props.mjs",
-    "lint": "eslint . --max-warnings 251"
+    "lint": "eslint . --max-warnings 245"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

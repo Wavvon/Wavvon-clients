@@ -38,6 +38,7 @@ export type HubAdminTab =
   | "hub-icons"
   | "onboarding"
   | "survey"
+  | "application"
   | "audit-log";
 
 export interface HubAdminPageProps {
@@ -164,6 +165,12 @@ export interface HubAdminPageProps {
   allianceActions: AlliancesSectionActions;
   hubIconActions: HubIconsSectionActions;
   surveyActions: SurveyAdminSectionActions;
+  /** The join application's editor (join-forms.md). The tab shows only with
+   *  these and a hub advertising `admission.application`. */
+  applicationActions?: SurveyAdminSectionActions;
+  /** The hub has `admission.application`: the application tab, and the
+   *  multi and consent kinds on both forms. */
+  joinFormsCapable?: boolean;
 
   /** These three subtrees stay platform-local render props rather than
    *  hoisted components: they have no counterpart to converge with on the
@@ -300,6 +307,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ...(admin ? [
       { id: "onboarding" as HubAdminTab, label: t("hub.admin.tabs.onboarding"), group: G_JOINING },
       { id: "survey" as HubAdminTab, label: t("hub.admin.tabs.survey"), group: G_JOINING },
+      ...(props.joinFormsCapable && props.applicationActions
+        ? [{ id: "application" as HubAdminTab, label: t("hub.admin.tabs.application"), group: G_JOINING }]
+        : []),
     ] : []),
     ...(admin && props.renderModerationTab ? [{ id: "moderation" as HubAdminTab, label: t("hub.admin.tabs.moderation"), group: G_MODERATION }] : []),
     { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MODERATION },
@@ -805,7 +815,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <OnboardingAdminSection actions={props.onboardingActions} />
         )}
         {props.tab === "survey" && props.isAdmin && (
-          <SurveyAdminSection actions={props.surveyActions} />
+          <SurveyAdminSection actions={props.surveyActions} extendedKinds={props.joinFormsCapable} />
+        )}
+        {props.tab === "application" && props.isAdmin && props.joinFormsCapable && props.applicationActions && (
+          <SurveyAdminSection key="application" actions={props.applicationActions} purpose="application" extendedKinds />
         )}
         {props.tab === "audit-log" && props.isAdmin && (
           <AuditLogSection actions={props.auditLogActions} members={props.members} channels={props.channels} />

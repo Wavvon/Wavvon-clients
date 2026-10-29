@@ -24,6 +24,7 @@ import {
   listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip,
   listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
   getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
+  getApplicationAdmin, setApplicationAdmin,
   listAlliances, createAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
@@ -167,6 +168,14 @@ export const allianceActions = {
 };
 
 export const hubIconActions = { listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon };
+
+// The application's answers live in the approval queue, and it maps no roles.
+export const applicationActions = {
+  getSurveyAdmin: getApplicationAdmin,
+  setSurveyAdmin: setApplicationAdmin,
+  getSurveyResponses: async () => [],
+  loadAssignableRoles: async () => [],
+};
 
 export const surveyActions = {
   getSurveyAdmin, setSurveyAdmin, getSurveyResponses,

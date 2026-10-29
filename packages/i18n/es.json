@@ -2112,5 +2112,16 @@
   "voice.stage.raise_hand": "Levantar la mano",
   "voice.stage.lower_hand": "Bajar la mano",
   "voice.stage.grant": "Dar la palabra",
-  "voice.stage.dismiss": "Bajar"
+  "voice.stage.dismiss": "Bajar",
+  "hub.admin.tabs.application": "Solicitud",
+  "hub.admin.application.title": "Solicitud de ingreso",
+  "hub.admin.application.hint": "Se responde antes de entrar. Un moderador lee las respuestas en la cola de aprobación y aprueba o rechaza. Mientras esté activa, cada recién llegado espera revisión.",
+  "hub.admin.survey.kind.multi": "opción múltiple",
+  "hub.admin.survey.kind.consent": "consentimiento",
+  "hub.admin.survey.add_multi_question": "+ Pregunta de opción múltiple",
+  "hub.admin.survey.add_consent_question": "+ Casilla de consentimiento",
+  "hub.admin.survey.help_placeholder": "Texto de ayuda (opcional)",
+  "hub.admin.survey.multiline": "Respuesta larga",
+  "hub.admin.survey.max_len": "Caracteres máximos",
+  "hub.admin.survey.max_choices": "Como máximo"
 }
