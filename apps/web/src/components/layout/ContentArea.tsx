@@ -268,6 +268,7 @@ export function ContentArea(props: Props) {
         searchQuery={channelMessages.searchQuery}
         dmMessages={dms.dmMessages}
         allianceMessages={alliances.allianceMessages}
+        allianceScrollback={alliances.allianceScrollback}
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}

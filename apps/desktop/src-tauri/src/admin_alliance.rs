@@ -303,14 +303,20 @@ pub(crate) async fn list_alliance_shared_channels(
 pub(crate) async fn get_alliance_channel_messages(
     alliance_id: String,
     channel_id: String,
+    cursor: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ProxiedMessage>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
+    let mut query = vec![("limit", "50".to_string())];
+    if let Some(cursor) = cursor {
+        query.push(("cursor", cursor));
+    }
     let resp = client
         .get(format!(
             "{hub_url}/alliances/{alliance_id}/channels/{channel_id}/messages"
         ))
+        .query(&query)
         .bearer_auth(&token)
         .send()
         .await
@@ -318,7 +324,12 @@ pub(crate) async fn get_alliance_channel_messages(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    // The hub pages newest first; the view, like get_messages', reads oldest
+    // first.
+    let mut messages: Vec<ProxiedMessage> =
+        resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    messages.reverse();
+    Ok(messages)
 }
 
 #[tauri::command]

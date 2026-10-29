@@ -1823,6 +1823,7 @@ function App() {
                   );
                 })()}
                 <ContentAreaContainer
+                  allianceScrollback={alliances.allianceScrollback}
                   view={view}
                   channels={channels}
                   users={users}

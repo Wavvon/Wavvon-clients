@@ -21,12 +21,18 @@ pub(crate) fn urlencoding_emoji(s: &str) -> String {
 #[tauri::command]
 pub(crate) async fn get_messages(
     channel_id: String,
+    cursor: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<MessageInfo>, AppError> {
     let (hub_url, token) = active_session(&state).map_err(AppError::Internal)?;
     let client = state.http_client.clone();
+    let mut query = vec![("limit", "50".to_string())];
+    if let Some(cursor) = cursor {
+        query.push(("cursor", cursor));
+    }
     let resp = client
         .get(format!("{hub_url}/channels/{channel_id}/messages"))
+        .query(&query)
         .bearer_auth(&token)
         .send()
         .await?;

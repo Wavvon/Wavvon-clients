@@ -37,6 +37,7 @@ import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 import { CalendarIcon } from "../Icons";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
+import type { AllianceScrollback } from "../../hooks/useAlliances";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -67,6 +68,7 @@ interface Props {
   searchQuery: string;
   dmMessages: Record<string, DmMessage[]>;
   allianceMessages: Message[];
+  allianceScrollback: AllianceScrollback;
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
@@ -178,7 +180,7 @@ export function ContentArea({
   view, activeHubId, hubs, channels, onBreadcrumbCategoryClick,
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
-  dmMessages, allianceMessages,
+  dmMessages, allianceMessages, allianceScrollback,
   users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, stickToBottom, newWhileScrolledUp,
@@ -680,6 +682,7 @@ export function ContentArea({
             connectionStatus={connectionStatus}
             selectedAllianceChannel={selectedAllianceChannel}
             allianceMessages={allianceMessages}
+            scrollback={allianceScrollback}
             inputText={inputText}
             knownDisplayNames={knownDisplayNames}
             myDisplayName={myDisplayName}

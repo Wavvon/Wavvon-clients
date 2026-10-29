@@ -5,7 +5,7 @@ import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
-import type { SelectedAllianceChannel } from "@wavvon/ui";
+import { useOlderPages, type SelectedAllianceChannel } from "@wavvon/ui";
 import { listenerScope } from "../utils/listenerScope";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
@@ -163,6 +163,9 @@ export function useChannelMessages({
     selectedChannelForTypingRef.current = selectedChannel;
   }, [selectedChannel]);
 
+  // Keyed on the newest message, not the count: an older page loaded by
+  // scrollback grows the list without anything new having arrived.
+  const newestMessageId = messages[messages.length - 1]?.id;
   useEffect(() => {
     if (stickToBottom) {
       (messagesEndChannelRef.current ?? messagesEndRef.current)?.scrollIntoView({ behavior: "smooth" });
@@ -171,7 +174,16 @@ export function useChannelMessages({
       setNewWhileScrolledUp((n) => n + 1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
+  }, [newestMessageId]);
+
+  const loadOlderMessages = useOlderPages({
+    containerRef: messagesContainerRef,
+    items: messages,
+    setItems: setMessages,
+    fetchOlder: (beforeId) =>
+      invoke<Message[]>("get_messages", { channelId: selectedChannel!.id, cursor: beforeId }),
+    resetKey: selectedChannel?.id ?? null,
+  });
 
   useEffect(() => {
     setStickToBottom(true);
@@ -573,6 +585,7 @@ export function useChannelMessages({
     if (atBottom && activeHubIdRef.current && selectedChannel) {
       clearFirstNotify(activeHubIdRef.current, selectedChannel.id);
     }
+    loadOlderMessages();
   }
 
   function jumpToBottom() {
