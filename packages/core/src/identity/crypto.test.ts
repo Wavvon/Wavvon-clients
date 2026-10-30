@@ -8,6 +8,7 @@ import {
   dhKeypairFromSeed,
   dhKeySigningBytes,
   dmEnvelopeSigningBytes,
+  drEnvelopeSigningBytes,
   publicKeyHex,
   encryptDm,
   encryptDmDr,
@@ -40,6 +41,26 @@ describe("dhKeypairFromSeed (ed25519 → x25519 derivation)", () => {
 describe("dhKeySigningBytes (DhKeyRecord)", () => {
   const v = vector("dh_key_record");
   const sb = () => dhKeySigningBytes(v.str("pubkey"), v.str("dh_pubkey"));
+
+  it("reproduces the canonical signing bytes", () => {
+    expect(bytesToHex(sb())).toBe(v.out("signing_bytes"));
+  });
+
+  it("reproduces the canonical master signature", () => {
+    expect(bytesToHex(ed25519.sign(sb(), v.str("signer_seed")))).toBe(v.out("signature"));
+  });
+});
+
+describe("drEnvelopeSigningBytes (dm-ciphertext/v2) wire vector", () => {
+  const v = vector("dr_envelope");
+  const sb = () =>
+    drEnvelopeSigningBytes(
+      v.str("conversation_id"),
+      v.num("message_index"),
+      v.num("prev_count"),
+      v.str("ciphertext"),
+      v.str("dh_pubkey"),
+    );
 
   it("reproduces the canonical signing bytes", () => {
     expect(bytesToHex(sb())).toBe(v.out("signing_bytes"));

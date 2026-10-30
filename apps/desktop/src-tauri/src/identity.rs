@@ -309,6 +309,27 @@ const ECIES_INFO: &[u8] = b"wavvon/ecies/v1";
 /// Returns a 184-char hex string encoding:
 ///   eph_x25519_pub[32] || aes_gcm_nonce[12] || aes_gcm_ciphertext_and_tag[48]
 pub fn wrap_blob_key(blob_key: &[u8; 32], recipient_ed25519_pubkey_hex: &str) -> Result<String> {
+    let mut eph_secret = [0u8; 32];
+    OsRng.fill_bytes(&mut eph_secret);
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    wrap_blob_key_with(
+        blob_key,
+        recipient_ed25519_pubkey_hex,
+        eph_secret,
+        nonce_bytes,
+    )
+}
+
+/// `wrap_blob_key` with the ephemeral X25519 secret and the nonce supplied by
+/// the caller, so the wire vector can pin its output. Reusing either value
+/// breaks the encryption: everything else calls `wrap_blob_key`.
+fn wrap_blob_key_with(
+    blob_key: &[u8; 32],
+    recipient_ed25519_pubkey_hex: &str,
+    eph_secret: [u8; 32],
+    nonce_bytes: [u8; 12],
+) -> Result<String> {
     let pubkey_bytes = hex::decode(recipient_ed25519_pubkey_hex)
         .map_err(|e| anyhow!("invalid pubkey hex: {e}"))?;
     let pubkey_bytes: [u8; 32] = pubkey_bytes
@@ -323,7 +344,7 @@ pub fn wrap_blob_key(blob_key: &[u8; 32], recipient_ed25519_pubkey_hex: &str) ->
     let montgomery = point.to_montgomery();
     let x25519_pub = x25519_dalek::PublicKey::from(montgomery.to_bytes());
 
-    let eph_priv = x25519_dalek::StaticSecret::random_from_rng(OsRng);
+    let eph_priv = x25519_dalek::StaticSecret::from(eph_secret);
     let eph_pub = x25519_dalek::PublicKey::from(&eph_priv);
 
     let shared = eph_priv.diffie_hellman(&x25519_pub);
@@ -333,8 +354,6 @@ pub fn wrap_blob_key(blob_key: &[u8; 32], recipient_ed25519_pubkey_hex: &str) ->
     hk.expand(ECIES_INFO, &mut enc_key)
         .map_err(|e| anyhow!("HKDF expand: {e}"))?;
 
-    let mut nonce_bytes = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce_bytes);
     let cipher = Aes256Gcm::new_from_slice(&enc_key).map_err(|e| anyhow!("AES key: {e}"))?;
     let ciphertext = cipher
         .encrypt(AesNonce::from_slice(&nonce_bytes), blob_key.as_ref())
@@ -1080,6 +1099,35 @@ mod wire_vector_tests {
     #[test]
     fn dh_key_record_signature_vector() {
         assert_signed("dh_key_record", "signature", &dh_key_record_sb());
+    }
+
+    #[test]
+    fn dr_envelope_vector() {
+        let v = vector("dr_envelope");
+        let sb = crate::dm::dr_envelope_signing_bytes(
+            &s(v, "conversation_id"),
+            n(v, "message_index") as u32,
+            n(v, "prev_count") as u32,
+            &s(v, "ciphertext"),
+            &s(v, "dh_pubkey"),
+        );
+        assert_signing_bytes("dr_envelope", &sb);
+        assert_signed("dr_envelope", "signature", &sb);
+    }
+
+    #[test]
+    fn ecies_wrap_vector() {
+        let v = vector("ecies_wrap");
+        let wrapped = wrap_blob_key_with(
+            &arr(&s(v, "blob_key")),
+            &s(v, "recipient_pubkey"),
+            arr(&s(v, "eph_secret")),
+            arr(&s(v, "nonce")),
+        )
+        .unwrap();
+        assert_eq!(wrapped, out(v, "wrapped"));
+        let unwrapped = unwrap_blob_key(&wrapped, &arr(&fixture("subkey_seed"))).unwrap();
+        assert_eq!(hex::encode(unwrapped), s(v, "blob_key"));
     }
 
     fn group_dm_envelope_sb() -> Vec<u8> {
