@@ -5,6 +5,7 @@ import { allianceActions } from "../hooks/hubAdminActions";
 import {
   AddHubModal,
   AdmissionChallenge,
+  ApplicationPreview,
   ChannelContextMenu,
   ChannelSettingsModal,
   EditDescriptionModal,
@@ -232,6 +233,18 @@ export function AppModals(p: AppModalsProps) {
             addHub.setAdmissionChallenge(null);
             addHub.setLoading(false);
           }}
+        />
+      )}
+
+      {addHub.applicationPreview && (
+        <ApplicationPreview
+          hubName={addHub.applicationPreview.hubName}
+          form={addHub.applicationPreview.form}
+          onJoin={() => {
+            addHub.setApplicationPreview(null);
+            addHub.handleAddHub(undefined, true);
+          }}
+          onCancel={() => addHub.setApplicationPreview(null)}
         />
       )}
 
