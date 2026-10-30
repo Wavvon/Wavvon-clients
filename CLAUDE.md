@@ -321,6 +321,24 @@ desktop Rust shell has `cargo test` under `apps/desktop/src-tauri`.
 July 2026 passed every suite and was caught only by driving the real apps. Use
 the `run-web` skill; say plainly when you could not verify something visually.
 
+**Every browser in the live suite is one address to the hub: 127.0.0.1.**
+Three things follow, and each has cost a red run:
+
+- The hub's per-IP write limiter (a burst of 30, then 10 a second) is shared
+  by every spec before yours, and its per-sender cap is 30 messages a minute.
+  A spec that writes in bulk posts from fresh members and paces itself (P71).
+- Anything keyed on the client's address sees one address for everyone. The
+  hub's ban-evasion flag ignores loopback for exactly that reason; before it
+  did, one spec's ban held every later spec's newcomer pending, and the suite
+  hung for an hour.
+- Hub-wide admission state outlives the spec that set it. A spec that enables
+  a join application, `require_approval` or a lobby switches it off again in
+  `finally` (P72, P73), or every later newcomer waits for review.
+
+A spec that can `test.skip` on a missing capability proves nothing if it
+skipped: compare the `skipped` count against the previous run before reading
+a green `live` as coverage.
+
 **And an e2e that asserts hub-pushed state proves admission, not delivery.**
 Every media spec here used to stop at a roster row, a video tile or a
 screen-share panel — all of which render from what the hub broadcasts over the
