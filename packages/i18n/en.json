@@ -1197,6 +1197,7 @@
   "message.report.placeholder": "Reason for report…",
   "message.report.reported": "Reported",
   "message.report.submit": "Submit",
+  "message.via": "via {name}",
   "mobile.back": "Go back",
   "mobile.nav": "Navigation",
   "mobile.panel.channel": "Channels",

@@ -1197,6 +1197,7 @@
   "message.report.placeholder": "Motivo de la denuncia…",
   "message.report.reported": "Denunciado",
   "message.report.submit": "Enviar",
+  "message.via": "vía {name}",
   "mobile.back": "Atrás",
   "mobile.nav": "Navegación",
   "mobile.panel.channel": "Canales",
