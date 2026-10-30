@@ -368,6 +368,7 @@ pub fn run() {
             lobby::survey_current,
             lobby::survey_submit,
             lobby::application_form,
+            lobby::application_preview,
             lobby::application_status,
             lobby::application_submit,
             lobby::survey_admin_get,

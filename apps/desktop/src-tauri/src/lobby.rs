@@ -379,6 +379,30 @@ pub(crate) async fn application_form(
     application_get(&state, &hub_url, "application").await
 }
 
+/// The join application read before joining (join-forms.md), from the public
+/// `GET /application`: there is no session yet. Any failure answers `None`,
+/// which only skips the preview, since the form comes back on the pending
+/// screen after the join.
+#[tauri::command]
+pub(crate) async fn application_preview(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<Option<SurveyPublicTs>, String> {
+    let base = hub_url.trim_end_matches('/');
+    let Ok(resp) = state
+        .http_client
+        .get(format!("{base}/application"))
+        .send()
+        .await
+    else {
+        return Ok(None);
+    };
+    if !resp.status().is_success() {
+        return Ok(None);
+    }
+    Ok(resp.json().await.unwrap_or(None))
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) struct ApplicationStatusTs {
     pub state: String,
