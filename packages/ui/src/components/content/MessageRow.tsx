@@ -175,11 +175,14 @@ export function MessageRow({
   const isEditing = editingMessageId === m.id;
   const senderUser = users.find((u) => u.public_key === m.sender);
   const senderLabel = senderUser?.display_name || m.sender_name || formatPubkey(m.sender);
-  // A masquerade shows another name, never another face: its avatar URL points
-  // at a third-party host, and loading it would hand that host every reader's
-  // address, so the avatar is drawn from the name. The real sender stays on
-  // the row as "via ...".
+  // A masquerade shows another name and, when the hub keeps its own copy, an
+  // avatar. Only a hub path is loaded: a third-party URL (a hub that predates
+  // hosting them) would hand that host every reader's address, so the avatar
+  // is then drawn from the name. The real sender stays on the row as "via ...".
   const shownName = m.masquerade?.name || senderLabel;
+  const masqueradeAvatar = m.masquerade?.avatar_url?.startsWith("/")
+    ? `${hubBaseUrl ?? hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}${m.masquerade.avatar_url}`
+    : undefined;
   // Server-resolved name color from the roster; falls back to the per-pubkey
   // deterministic color when the sender has none (or isn't in the roster —
   // e.g. an alliance-proxied message).
@@ -340,7 +343,7 @@ export function MessageRow({
           </div>
         )}
         <span className="message-avatar" onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
-          <Avatar src={m.masquerade ? undefined : senderUser?.avatar} name={shownName} pubkey={m.sender} size={36} />
+          <Avatar src={m.masquerade ? masqueradeAvatar : senderUser?.avatar} name={shownName} pubkey={m.sender} size={36} />
         </span>
         {/* Who and when sit on their own line above the message, so the body
             can be the largest type in the stream. A flat row put the name at
