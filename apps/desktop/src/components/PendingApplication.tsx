@@ -5,7 +5,7 @@ import type { ApplicationStatus, Survey } from "@wavvon/ui";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
 
 /** The join application on the pending screen, on hubs that take one. */
-export function PendingApplication({ hubUrl }: { hubUrl: string | null }) {
+export function PendingApplication({ hubUrl, refreshToken }: { hubUrl: string | null; refreshToken?: unknown }) {
   const capable = useHubCapabilities(hubUrl).includes("admission.application");
   const actions = useMemo<ApplicationActions | null>(() => hubUrl ? {
     getForm: () => invoke<Survey | null>("application_form", { hubUrl }),
@@ -13,5 +13,5 @@ export function PendingApplication({ hubUrl }: { hubUrl: string | null }) {
     submit: (surveyId, answers) => invoke("application_submit", { hubUrl, surveyId, answers }),
   } : null, [hubUrl]);
   if (!capable || !actions) return null;
-  return <ApplicationPanel actions={actions} />;
+  return <ApplicationPanel actions={actions} refreshToken={refreshToken} />;
 }

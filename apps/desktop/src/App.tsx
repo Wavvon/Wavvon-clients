@@ -91,6 +91,9 @@ import { DisplayNamePrompt } from "@wavvon/ui";
 function App() {
   const { t } = useTranslation();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
+  // Bumped by the pending screen's "check again", so the join application
+  // panel reads its status again too.
+  const [approvalChecks, setApprovalChecks] = useState(0);
   const [pendingSurveyHubId, setPendingSurveyHubId] = useState<string | null>(null);
   // Hubs whose answer to /me was a refusal (banned, invite required, ...),
   // shown as such rather than as an empty hub.
@@ -1694,8 +1697,11 @@ function App() {
                   })}
                 </p>
                 <p className="muted">{t("app.approval.wait_hint")}</p>
-                <PendingApplication hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null} />
-                <button onClick={loadHubData} className="primary">
+                <PendingApplication
+                  hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null}
+                  refreshToken={approvalChecks}
+                />
+                <button onClick={() => { setApprovalChecks((n) => n + 1); void loadHubData(); }} className="primary">
                   {t("app.approval.check_again")}
                 </button>
                 {hubs.length > 1 && (
