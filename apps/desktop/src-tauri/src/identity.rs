@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
+use zeroize::{Zeroize, Zeroizing};
 
 // ---------------------------------------------------------------------------
 // Identity (per-device keypair)
@@ -48,16 +49,17 @@ impl Identity {
     /// Raw 32-byte secret key, hex-encoded — the payload of an identity
     /// backup file (see `backup.rs`). Never sent anywhere except into that
     /// encrypted envelope.
-    pub fn secret_key_hex(&self) -> String {
-        hex::encode(self.signing_key.to_bytes())
+    pub fn secret_key_hex(&self) -> Zeroizing<String> {
+        let seed = Zeroizing::new(self.signing_key.to_bytes());
+        Zeroizing::new(hex::encode(seed.as_ref()))
     }
 
     /// Reconstruct an identity from the raw secret key hex produced by
     /// `secret_key_hex()` (backup restore path).
     pub fn from_secret_key_hex(hex_str: &str) -> Result<Self> {
-        let bytes = hex::decode(hex_str).context("Invalid secret key hex")?;
-        let secret_array: [u8; 32] = bytes
-            .try_into()
+        let bytes = Zeroizing::new(hex::decode(hex_str).context("Invalid secret key hex")?);
+        let secret_array = <[u8; 32]>::try_from(bytes.as_slice())
+            .map(Zeroizing::new)
             .map_err(|_| anyhow!("Secret key must be exactly 32 bytes"))?;
         Ok(Self {
             signing_key: SigningKey::from_bytes(&secret_array),
@@ -67,26 +69,32 @@ impl Identity {
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {
-        let data = SavedIdentity {
-            secret_key: hex::encode(self.signing_key.to_bytes()),
+        let mut data = SavedIdentity {
+            secret_key: self.secret_key_hex().to_string(),
             security_nonce: Some(self.security_nonce),
             security_level: Some(self.security_level),
         };
-        let json = serde_json::to_string_pretty(&data)?;
+        let json = serde_json::to_string_pretty(&data).map(Zeroizing::new);
+        data.secret_key.zeroize();
+        let json = json?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).context("Failed to create identity directory")?;
         }
-        fs::write(path, json).context("Failed to write identity file")?;
+        write_secret(path, json.as_bytes()).context("Failed to write identity file")?;
         Ok(())
     }
 
     pub fn load(path: &Path) -> Result<Self> {
-        let json = fs::read_to_string(path).context("Failed to read identity file")?;
-        let data: SavedIdentity =
+        restrict_secret(path);
+        let json =
+            Zeroizing::new(fs::read_to_string(path).context("Failed to read identity file")?);
+        let mut data: SavedIdentity =
             serde_json::from_str(&json).context("Failed to parse identity file")?;
-        let secret_bytes = hex::decode(&data.secret_key).context("Invalid hex in identity file")?;
-        let secret_array: [u8; 32] = secret_bytes
-            .try_into()
+        let secret_bytes = hex::decode(&data.secret_key).map(Zeroizing::new);
+        data.secret_key.zeroize();
+        let secret_bytes = secret_bytes.context("Invalid hex in identity file")?;
+        let secret_array = <[u8; 32]>::try_from(secret_bytes.as_slice())
+            .map(Zeroizing::new)
             .map_err(|_| anyhow!("Secret key must be exactly 32 bytes"))?;
         let signing_key = SigningKey::from_bytes(&secret_array);
         Ok(Self {
@@ -119,25 +127,25 @@ impl Identity {
 
     /// Derive the master keypair from this identity's secret bytes.
     pub fn master(&self) -> Result<MasterIdentity> {
-        let entropy = self.signing_key.to_bytes();
+        let entropy = Zeroizing::new(self.signing_key.to_bytes());
         MasterIdentity::derive_from_entropy(&entropy)
     }
 
     /// Generate a 24-word BIP39 recovery phrase from the secret key.
-    pub fn recovery_phrase(&self) -> String {
-        let secret_bytes = self.signing_key.to_bytes();
-        Mnemonic::from_entropy_in(Language::English, &secret_bytes)
-            .expect("32 bytes should always produce a valid mnemonic")
-            .to_string()
+    pub fn recovery_phrase(&self) -> Zeroizing<String> {
+        let secret_bytes = Zeroizing::new(self.signing_key.to_bytes());
+        let mnemonic = Mnemonic::from_entropy_in(Language::English, secret_bytes.as_ref())
+            .expect("32 bytes should always produce a valid mnemonic");
+        Zeroizing::new(mnemonic.to_string())
     }
 
     /// Restore an identity from a 24-word recovery phrase.
     pub fn from_recovery_phrase(phrase: &str) -> Result<Self> {
         let mnemonic =
             Mnemonic::parse_in(Language::English, phrase).context("Invalid recovery phrase")?;
-        let entropy = mnemonic.to_entropy();
-        let secret_array: [u8; 32] = entropy
-            .try_into()
+        let entropy = Zeroizing::new(mnemonic.to_entropy());
+        let secret_array = <[u8; 32]>::try_from(entropy.as_slice())
+            .map(Zeroizing::new)
             .map_err(|_| anyhow!("Recovery phrase must produce exactly 32 bytes"))?;
         let signing_key = SigningKey::from_bytes(&secret_array);
         Ok(Self {
@@ -151,14 +159,15 @@ impl Identity {
     /// Uses the standard ed25519 → x25519 conversion: SHA-512(seed)[0..32] → clamp.
     pub fn dh_keypair(&self) -> (x25519_dalek::StaticSecret, x25519_dalek::PublicKey) {
         use sha2::Sha512;
-        let seed = self.signing_key.to_bytes();
-        let hash = Sha512::digest(seed);
-        let mut scalar = [0u8; 32];
+        let seed = Zeroizing::new(self.signing_key.to_bytes());
+        let mut hash = Sha512::digest(seed.as_ref());
+        let mut scalar = Zeroizing::new([0u8; 32]);
         scalar.copy_from_slice(&hash[..32]);
+        hash.as_mut_slice().zeroize();
         scalar[0] &= 248;
         scalar[31] &= 127;
         scalar[31] |= 64;
-        let secret = x25519_dalek::StaticSecret::from(scalar);
+        let secret = x25519_dalek::StaticSecret::from(*scalar);
         let public = x25519_dalek::PublicKey::from(&secret);
         (secret, public)
     }
@@ -207,16 +216,16 @@ pub struct MasterIdentity {
 impl MasterIdentity {
     pub fn derive_from_entropy(entropy: &[u8; 32]) -> Result<Self> {
         let hk = Hkdf::<Sha256>::new(None, entropy);
-        let mut okm = [0u8; 32];
-        hk.expand(MASTER_HKDF_INFO, &mut okm)
+        let mut okm = Zeroizing::new([0u8; 32]);
+        hk.expand(MASTER_HKDF_INFO, okm.as_mut())
             .map_err(|e| anyhow!("HKDF expand failed: {e}"))?;
         Ok(Self {
             signing_key: SigningKey::from_bytes(&okm),
         })
     }
 
-    pub fn secret_seed(&self) -> [u8; 32] {
-        self.signing_key.to_bytes()
+    pub fn secret_seed(&self) -> Zeroizing<[u8; 32]> {
+        Zeroizing::new(self.signing_key.to_bytes())
     }
 
     pub fn public_key_hex(&self) -> String {
@@ -248,8 +257,8 @@ impl DeviceSubkey {
     }
 
     /// Raw 32-byte secret for persistence.
-    pub fn secret_bytes(&self) -> [u8; 32] {
-        self.signing_key.to_bytes()
+    pub fn secret_bytes(&self) -> Zeroizing<[u8; 32]> {
+        Zeroizing::new(self.signing_key.to_bytes())
     }
 
     pub fn from_secret_bytes(secret: &[u8; 32]) -> Self {
@@ -830,6 +839,34 @@ pub fn federated_plaintext_dm_signing_bytes(
 /// The server's wire-format vectors, read from `wire-vectors/wire-vectors.json`
 /// (see `crate::wire_vectors`). They pin our hand-written encoders to the exact
 /// bytes the hub produces; no expected output is spelled out here.
+/// Write a file only its owner can read: on Unix it is created 0o600 from the
+/// start, not chmod-ed after. Same rule as the hub's `write_secret`.
+fn write_secret(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        let mut file = options.mode(0o600).open(path)?;
+        file.set_permissions(fs::Permissions::from_mode(0o600))?;
+        file.write_all(contents)
+    }
+    #[cfg(not(unix))]
+    options.open(path)?.write_all(contents)
+}
+
+/// Narrow an identity file written by an older version to owner-only (Unix).
+fn restrict_secret(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
 #[cfg(test)]
 mod wire_vector_tests {
     use super::*;

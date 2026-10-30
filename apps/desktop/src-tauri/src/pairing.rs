@@ -358,7 +358,7 @@ pub async fn claim_pairing_offer(
 
     let subkey = DeviceSubkey::generate();
     let subkey_pubkey = subkey.public_key_hex();
-    let subkey_secret_hex = hex::encode(subkey.secret_bytes());
+    let subkey_secret_hex = hex::encode(subkey.secret_bytes().as_ref());
 
     let bytes = PairingClaim::signing_bytes(&offer.pairing_token, &subkey_pubkey, &device_label);
     let proof = hex::encode(subkey.sign(&bytes).to_bytes());

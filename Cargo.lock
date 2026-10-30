@@ -292,6 +292,7 @@ dependencies = [
  "bitcoin_hashes",
  "serde",
  "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]
@@ -5925,6 +5926,7 @@ dependencies = [
  "wavvon-voice",
  "x25519-dalek",
  "xcap",
+ "zeroize",
 ]
 
 [[package]]
