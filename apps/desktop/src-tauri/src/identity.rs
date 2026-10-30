@@ -906,6 +906,17 @@ mod wire_vector_tests {
         );
     }
 
+    /// The master a phrase leads to (HKDF of the entropy), which signs every
+    /// device cert: the one derivation the shell does itself that no other
+    /// vector here reached.
+    #[test]
+    fn master_from_entropy_vector() {
+        let v = vector("master_from_entropy");
+        assert_eq!(s(v, "hkdf_info"), "wavvon/master/v1");
+        let master = MasterIdentity::derive_from_entropy(&arr(&s(v, "entropy"))).unwrap();
+        assert_eq!(master.public_key_hex(), out(v, "public_key"));
+    }
+
     #[test]
     fn master_pubkey_vector() {
         let v = vector("master_pubkey");
