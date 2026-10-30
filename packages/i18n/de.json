@@ -1197,6 +1197,7 @@
   "message.report.placeholder": "Grund der Meldung…",
   "message.report.reported": "Gemeldet",
   "message.report.submit": "Senden",
+  "message.via": "über {name}",
   "mobile.back": "Zurück",
   "mobile.nav": "Navigation",
   "mobile.panel.channel": "Kanäle",

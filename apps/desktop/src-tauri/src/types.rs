@@ -352,6 +352,12 @@ pub(crate) struct MessageInfo {
     pub reactions: Vec<ReactionInfo>,
     #[serde(default)]
     pub reply_to: Option<ReplyContextInfo>,
+    /// Every other field the hub sends (embeds, components, game, reply_count,
+    /// masquerade, ...), passed to the UI untouched. Without it this struct
+    /// silently dropped each one the shell does not read itself, so a desktop
+    /// reader never saw an app's embeds or buttons, or a reply count.
+    #[serde(flatten)]
+    pub rest: serde_json::Map<String, serde_json::Value>,
 }
 
 // ---------------------------------------------------------------------------
@@ -737,3 +743,23 @@ pub(crate) enum WsServerMessage {
 // ---------------------------------------------------------------------------
 // Public profile
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod message_info_tests {
+    use super::MessageInfo;
+
+    #[test]
+    fn fields_the_shell_does_not_read_reach_the_ui() {
+        let hub = serde_json::json!({
+            "id": "m1", "channel_id": "c1", "sender": "pk", "sender_name": "Bridge",
+            "content": "hi", "created_at": 1, "reply_count": 2,
+            "embeds": [{ "title": "t" }],
+            "masquerade": { "name": "Ada" },
+        });
+        let info: MessageInfo = serde_json::from_value(hub).unwrap();
+        let ui = serde_json::to_value(&info).unwrap();
+        assert_eq!(ui["reply_count"], 2);
+        assert_eq!(ui["embeds"][0]["title"], "t");
+        assert_eq!(ui["masquerade"]["name"], "Ada");
+    }
+}

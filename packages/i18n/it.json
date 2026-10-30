@@ -1197,6 +1197,7 @@
   "message.report.placeholder": "Motivo della segnalazione…",
   "message.report.reported": "Segnalato",
   "message.report.submit": "Invia",
+  "message.via": "tramite {name}",
   "mobile.back": "Indietro",
   "mobile.nav": "Navigazione",
   "mobile.panel.channel": "Canali",

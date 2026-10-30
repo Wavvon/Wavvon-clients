@@ -175,6 +175,11 @@ export function MessageRow({
   const isEditing = editingMessageId === m.id;
   const senderUser = users.find((u) => u.public_key === m.sender);
   const senderLabel = senderUser?.display_name || m.sender_name || formatPubkey(m.sender);
+  // A masquerade shows another name, never another face: its avatar URL points
+  // at a third-party host, and loading it would hand that host every reader's
+  // address, so the avatar is drawn from the name. The real sender stays on
+  // the row as "via ...".
+  const shownName = m.masquerade?.name || senderLabel;
   // Server-resolved name color from the roster; falls back to the per-pubkey
   // deterministic color when the sender has none (or isn't in the roster —
   // e.g. an alliance-proxied message).
@@ -260,7 +265,7 @@ export function MessageRow({
     ? channelPolls.find((p) => p.question === pollQuestion)
     : null;
 
-  const msgAriaLabelParts = [`${senderLabel} at ${formatRelative(m.created_at)}: ${m.content}`];
+  const msgAriaLabelParts = [`${shownName} at ${formatRelative(m.created_at)}: ${m.content}`];
   if (m.reply_to) msgAriaLabelParts.push(`${t("message.action.reply")} ${m.reply_to.sender_name || formatPubkey(m.reply_to.sender)}.`);
   if (m.reactions && m.reactions.length > 0) {
     const total = m.reactions.reduce((n, r) => n + r.count, 0);
@@ -296,8 +301,9 @@ export function MessageRow({
             style={senderNameStyle}
             onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
           >
-            {senderLabel}
+            {shownName}
           </span>
+          {m.masquerade && <span className="app-badge">{t("message.via", { name: senderLabel })}</span>}
           {showBirthdayBadge && <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={13} /></span>}
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} hubEmojiMap={hubEmojiMap} hubBaseUrl={hubBaseUrl ?? activeHub?.hub_url} />
@@ -334,7 +340,7 @@ export function MessageRow({
           </div>
         )}
         <span className="message-avatar" onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
-          <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={36} />
+          <Avatar src={m.masquerade ? undefined : senderUser?.avatar} name={shownName} pubkey={m.sender} size={36} />
         </span>
         {/* Who and when sit on their own line above the message, so the body
             can be the largest type in the stream. A flat row put the name at
@@ -346,8 +352,9 @@ export function MessageRow({
             onClick={(e) => onAuthorClick(m.sender, e)}
             onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
           >
-            {senderLabel}
+            {shownName}
           </span>
+          {m.masquerade && <span className="app-badge">{t("message.via", { name: senderLabel })}</span>}
           {showBirthdayBadge && <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={13} /></span>}
           {senderUser?.is_webhook && (
             <span className="app-badge" aria-hidden="true">{t("app.badge")}</span>

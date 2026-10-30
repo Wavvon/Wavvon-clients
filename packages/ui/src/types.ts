@@ -82,6 +82,9 @@ export interface Message {
   reply_count?: number;
   /** "Play" launch card; needs `apps.register` to author. */
   game?: GameLaunchCard | null;
+  /** Shown instead of the sender's name (a bridge or webhook relaying
+   *  someone); `sender` stays the real author and is shown beside it. */
+  masquerade?: { name: string; avatar_url?: string } | null;
 }
 
 export interface Embed {
