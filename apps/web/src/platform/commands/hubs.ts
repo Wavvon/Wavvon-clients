@@ -25,6 +25,7 @@ import {
 import { loadIdentity, saveIdentity } from "../../identity/store";
 import { publicKeyHex, rotationAppliesTo, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
 import type { Hub } from "@shared/types";
+import type { Survey } from "@wavvon/ui";
 import { probeSessionScope } from "./lobby";
 import { acquireHubToken as authenticate, admitFarmToken } from "./hubAuth";
 import { ensureHomeHubDesignation, ensureSelfDeviceCert } from "./identity";
@@ -527,6 +528,21 @@ export async function previewHubInfo(hub_url: string): Promise<{
     welcome_invite_url: info.welcome_invite_url ?? null,
     lan_fingerprint: info.lan_fingerprint ?? null,
   };
+}
+
+/** A hub's join application, read before joining (join-forms.md), or null
+ *  when it takes none. A failure to read it is also null: skipping the
+ *  preview loses nothing, since the form is shown again on the pending
+ *  screen after joining. */
+export async function previewApplication(hub_url: string): Promise<Survey | null> {
+  const url = hub_url.replace(/\/$/, "");
+  try {
+    const info: InfoResponse = await rawFetch(`${url}/info`).then((r) => r.json() as Promise<InfoResponse>);
+    if (!info.capabilities?.includes("admission.application")) return null;
+    return await rawFetch(`${url}/application`).then((r) => r.json() as Promise<Survey | null>);
+  } catch {
+    return null;
+  }
 }
 
 export async function reorderHubs(hub_ids: string[]): Promise<void> {

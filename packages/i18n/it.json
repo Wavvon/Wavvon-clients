@@ -2131,5 +2131,8 @@
   "application.retry_on": "Potrai candidarti di nuovo dal {date}.",
   "hub.admin.members.pending.application": "Candidatura",
   "hub.admin.members.pending.reject": "Rifiuta",
-  "hub.admin.members.pending.reject_reason": "Motivo che leggerà chi si candida (facoltativo)"
+  "hub.admin.members.pending.reject_reason": "Motivo che leggerà chi si candida (facoltativo)",
+  "application.preview_title": "{hub} chiede ai nuovi membri di candidarsi",
+  "application.preview_body": "Queste sono le domande che ti verranno fatte. Rispondi dopo essere entrato, e un moderatore decide se farti entrare.",
+  "application.preview_join": "Entra e candidati"
 }

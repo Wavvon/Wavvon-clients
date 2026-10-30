@@ -2131,5 +2131,8 @@
   "application.retry_on": "Podrás solicitarlo de nuevo a partir del {date}.",
   "hub.admin.members.pending.application": "Solicitud",
   "hub.admin.members.pending.reject": "Rechazar",
-  "hub.admin.members.pending.reject_reason": "Motivo que leerá quien lo solicita (opcional)"
+  "hub.admin.members.pending.reject_reason": "Motivo que leerá quien lo solicita (opcional)",
+  "application.preview_title": "{hub} pide a los nuevos miembros que lo soliciten",
+  "application.preview_body": "Estas son las preguntas que te harán. Las respondes después de unirte, y un moderador decide si te deja entrar.",
+  "application.preview_join": "Unirse y solicitar"
 }
