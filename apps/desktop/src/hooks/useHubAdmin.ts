@@ -9,7 +9,7 @@ import type {
   InviteInfo,
   PendingUser,
 } from "../types";
-import type { HubAdminTab, NameColorMode } from "@wavvon/ui";
+import type { HubAdminTab, NameColorMode, SurveyResponseAdmin } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 
 interface UseHubAdminParams {
@@ -165,6 +165,14 @@ export function useHubAdmin({
       setError(String(e));
     }
   }
+
+  async function handleRejectMember(publicKey: string, reason: string) {
+    await invoke("reject_member", { targetPublicKey: publicKey, reason: reason || null });
+    await refreshPending();
+  }
+
+  const loadApplication = (publicKey: string) =>
+    invoke<SurveyResponseAdmin | null>("application_response", { targetPublicKey: publicKey });
 
   async function handleApproveMember(publicKey: string) {
     try {
@@ -362,6 +370,8 @@ export function useHubAdmin({
     handleSaveHubBranding,
     refreshPending,
     handleApproveMember,
+    handleRejectMember,
+    loadApplication,
     refreshMembers,
     handleKickMember,
     handleBanMember,

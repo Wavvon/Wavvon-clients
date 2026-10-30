@@ -1,4 +1,4 @@
-import { hubFetch, activeHubSupports } from "@platform";
+import { hubFetch, activeHubSupports, getApplicationResponse, rejectApplication } from "@platform";
 import {
   submitToDirectory,
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -88,7 +88,10 @@ export function HubAdminContainer({
         onHubListedChange={hubAdmin.onHubListedChange}
         submitToDirectory={submitToDirectory}
         pendingMembers={hubAdmin.hubAdminPending}
-        onApproveMember={(pk) => hubFetch(`/hub/pending/${pk}/approve`, { method: "POST" }).catch(() => {})}
+        onApproveMember={(pk) => hubFetch(`/hub/pending/${pk}/approve`, { method: "POST" })
+          .then(() => hubAdmin.dropPending(pk)).catch(() => {})}
+        loadApplication={getApplicationResponse}
+        onRejectMember={async (pk, reason) => { await rejectApplication(pk, reason); hubAdmin.dropPending(pk); }}
         members={hubAdmin.hubAdminMembers}
         onKickMember={hubAdmin.onKickMember}
         onBanMember={hubAdmin.onBanMember}

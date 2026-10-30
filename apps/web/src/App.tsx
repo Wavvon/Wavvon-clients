@@ -1601,7 +1601,7 @@ export default function App({ initialView }: AppProps = {}) {
             {t("app.approval.body")}
           </p>
           {activeHubSupports("admission.application") && (
-            <ApplicationPanel key={activeHubId} actions={applicationActions} />
+            <ApplicationPanel key={activeHubId} actions={applicationActions} refreshToken={meInfo} />
           )}
           <button className="btn-secondary" onClick={() => loadHubData()}>{t("app.approval.check_again")}</button>
         </main>

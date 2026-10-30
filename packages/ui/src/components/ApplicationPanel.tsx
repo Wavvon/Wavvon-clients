@@ -11,6 +11,9 @@ export interface ApplicationActions {
 
 interface Props {
   actions: ApplicationActions;
+  /** Read the status again whenever this changes: the caller's "check again"
+   *  is when a joiner expects to learn they were rejected, and why. */
+  refreshToken?: unknown;
 }
 
 function errorText(e: unknown): string {
@@ -22,7 +25,7 @@ function errorText(e: unknown): string {
  *  rejection shows the moderator's reason and when they may apply again.
  *  Renders nothing on a hub that takes no applications, leaving the caller's
  *  plain "waiting for approval" text alone. */
-export function ApplicationPanel({ actions }: Props) {
+export function ApplicationPanel({ actions, refreshToken }: Props) {
   const { t } = useTranslation();
   const [form, setForm] = useState<Survey | null>(null);
   const [status, setStatus] = useState<ApplicationStatus | null>(null);
@@ -39,7 +42,7 @@ export function ApplicationPanel({ actions }: Props) {
     }
   }, [actions]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load, refreshToken]);
 
   if (!form || !status) return error ? <p className="error-text">{error}</p> : null;
 

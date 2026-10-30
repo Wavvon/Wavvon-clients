@@ -252,6 +252,8 @@ pub fn run() {
             admin::get_hub_settings,
             admin::list_pending_members,
             admin::approve_member,
+            admin::application_response,
+            admin::reject_member,
             admin::list_hub_icons,
             admin::create_hub_icon,
             admin::rename_hub_icon,

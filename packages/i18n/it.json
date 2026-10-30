@@ -2128,5 +2128,8 @@
   "application.submitted": "La tua candidatura è stata inviata. Un moderatore la leggerà e deciderà.",
   "application.rejected": "La tua candidatura non è stata accettata.",
   "application.rejected_reason": "La tua candidatura non è stata accettata: {reason}",
-  "application.retry_on": "Potrai candidarti di nuovo dal {date}."
+  "application.retry_on": "Potrai candidarti di nuovo dal {date}.",
+  "hub.admin.members.pending.application": "Candidatura",
+  "hub.admin.members.pending.reject": "Rifiuta",
+  "hub.admin.members.pending.reject_reason": "Motivo che leggerà chi si candida (facoltativo)"
 }

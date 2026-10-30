@@ -143,6 +143,7 @@ export type {
   Survey,
   SurveyAnswer,
   ApplicationStatus,
+  SurveyResponseAdmin,
 } from "./types";
 export { AlliancesSection } from "./components/admin/AlliancesSection";
 export type { AlliancesSectionActions, AllianceManagerRoles } from "./components/admin/AlliancesSection";
