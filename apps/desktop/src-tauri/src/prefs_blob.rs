@@ -30,7 +30,7 @@ pub struct LocalPrefs {
 // ---- Blob key derivation ----
 
 pub fn derive_blob_key(master: &MasterIdentity) -> [u8; 32] {
-    let hk = Hkdf::<Sha256>::new(None, &master.secret_seed());
+    let hk = Hkdf::<Sha256>::new(None, master.secret_seed().as_ref());
     let mut key = [0u8; 32];
     hk.expand(b"wavvon/prefs-blob-key/v1", &mut key)
         .expect("HKDF expand");
