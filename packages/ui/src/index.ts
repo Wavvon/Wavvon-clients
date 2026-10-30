@@ -78,6 +78,7 @@ export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
 export { JoinForm } from "./components/JoinForm";
 export { ApplicationPanel } from "./components/ApplicationPanel";
+export { ApplicationPreview } from "./components/ApplicationPreview";
 export type { ApplicationActions } from "./components/ApplicationPanel";
 export { AdmissionChallenge } from "./components/AdmissionChallenge";
 export type { AdmissionChallengeProps } from "./components/AdmissionChallenge";

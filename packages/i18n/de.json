@@ -2131,5 +2131,8 @@
   "application.retry_on": "Du kannst dich ab dem {date} erneut bewerben.",
   "hub.admin.members.pending.application": "Bewerbung",
   "hub.admin.members.pending.reject": "Ablehnen",
-  "hub.admin.members.pending.reject_reason": "Begründung, die die Person lesen wird (optional)"
+  "hub.admin.members.pending.reject_reason": "Begründung, die die Person lesen wird (optional)",
+  "application.preview_title": "{hub} bittet neue Mitglieder um eine Bewerbung",
+  "application.preview_body": "Das sind die Fragen, die dir gestellt werden. Du beantwortest sie nach dem Beitritt, und eine Moderation entscheidet, ob du hinein darfst.",
+  "application.preview_join": "Beitreten und bewerben"
 }

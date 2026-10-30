@@ -91,9 +91,14 @@ export async function onboardWithSeed(
   const joinInput = inviteCode ? `${hubUrl}/join/${inviteCode}` : hubUrl;
   await page.getByPlaceholder(/hub\.example\.com/).fill(joinInput);
   await page.getByRole("button", { name: "Join hub" }).click();
-  await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({
-    timeout: 20000,
-  });
+  // A hub with a join application shows its questions before joining; going
+  // past them is the joiner's choice, made here. Polled rather than awaited,
+  // so the specs whose hub takes no application pay nothing for it.
+  const joinAndApply = page.getByRole("button", { name: "Join and apply" });
+  await expect(async () => {
+    if (await joinAndApply.isVisible()) await joinAndApply.click();
+    await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({ timeout: 1000 });
+  }).toPass({ timeout: 20000 });
 
   // First join with no display name on the hub triggers the prompt.
   const namePrompt = page.getByText("What should we call you?");

@@ -2131,5 +2131,8 @@
   "application.retry_on": "You can apply again from {date}.",
   "hub.admin.members.pending.application": "Application",
   "hub.admin.members.pending.reject": "Reject",
-  "hub.admin.members.pending.reject_reason": "Reason the applicant will read (optional)"
+  "hub.admin.members.pending.reject_reason": "Reason the applicant will read (optional)",
+  "application.preview_title": "{hub} asks new members to apply",
+  "application.preview_body": "These are the questions you will be asked. You answer them after joining, and a moderator decides whether to let you in.",
+  "application.preview_join": "Join and apply"
 }

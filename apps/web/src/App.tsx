@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel } from "@wavvon/ui";
+import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel, ApplicationPreview } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -942,6 +942,7 @@ export default function App({ initialView }: AppProps = {}) {
     fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
     admissionChallenge, setAdmissionChallenge,
+    applicationPreview, setApplicationPreview,
     handleHubUrlInput,
     handlePreviewHub,
     handleAddHub,
@@ -1771,6 +1772,17 @@ export default function App({ initialView }: AppProps = {}) {
             void handleAddHub(token);
           }}
           onCancel={() => setAdmissionChallenge(null)}
+        />
+      )}
+      {applicationPreview && (
+        <ApplicationPreview
+          hubName={applicationPreview.hubName}
+          form={applicationPreview.form}
+          onJoin={() => {
+            setApplicationPreview(null);
+            void handleAddHub(undefined, true);
+          }}
+          onCancel={() => setApplicationPreview(null)}
         />
       )}
     </div>
