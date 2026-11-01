@@ -4,7 +4,7 @@ import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "
 import { hubFetch, rawFetch, HubApiError } from "../http";
 import { activeSession } from "../session";
 import i18n from "@wavvon/i18n";
-import { holdsMasterSeed, loadIdentity } from "../../identity/store";
+import { holdsMasterSeed, loadIdentity, loadOwnDmAttachments, saveOwnDmAttachments } from "../../identity/store";
 import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
 
@@ -198,9 +198,17 @@ export async function getDmMessages(
   const results: DmMessageFull[] = [];
   for (const m of raw) {
     let content = m.content ?? "";
+    // An encrypted message's attachments come from its plaintext only:
+    // anything the hub lists beside an envelope is not covered by it.
+    let attachments = m.is_encrypted || m.group_encrypted_envelope ? undefined : m.attachments;
     const ownPlaintext = m.is_encrypted ? loadOwnPlaintext(m.id) : null;
     if (ownPlaintext !== null) {
       content = ownPlaintext;
+      try {
+        attachments = await loadOwnDmAttachments(m.id);
+      } catch (e) {
+        console.warn("[dm] could not read our own stashed attachments:", e);
+      }
     } else if (m.is_encrypted && m.encrypted_envelope) {
       const env = m.encrypted_envelope;
       // Cert-chained attribution (decisions.md "Paired-device DMs attribute
@@ -223,7 +231,7 @@ export async function getDmMessages(
         try {
           const senderDhPubHex = await fetchDhKey(m.sender) ?? "";
           const session = loadDrSession(m.conversation_id) ?? emptyDrSession();
-          const { plaintext, updatedSession } = decryptDmDr(
+          const { plaintext, attachments: files, updatedSession } = decryptDmDr(
             env as DrEnvelope,
             session,
             identitySeed,
@@ -232,6 +240,7 @@ export async function getDmMessages(
           );
           saveDrSession(m.conversation_id, updatedSession);
           content = plaintext;
+          attachments = files;
         } catch {
           content = unreadable(m.sender);
         }
@@ -252,7 +261,7 @@ export async function getDmMessages(
       sender_name: m.sender_name,
       content,
       created_at: m.created_at,
-      attachments: m.attachments,
+      attachments,
       is_encrypted: m.is_encrypted,
       delivery_failed: m.delivery_failed,
     });
@@ -349,7 +358,7 @@ export async function sendDm(
   }
   const { envelope: drEnvelope, updatedSession } = encryptDmDr(
     conversation_id,
-    content,
+    { content, attachments },
     drSession,
     signingSeedHex,
     senderPubkey,
@@ -359,13 +368,18 @@ export async function sendDm(
 
   const res = await dmFetch(`/conversations/${conversation_id}/messages`, {
     method: "POST",
-    body: JSON.stringify({ encrypted_envelope: drEnvelope, attachments: attachments ?? [] }),
+    // Attachments are inside the envelope; listing them here too would hand
+    // the hub the files in the clear.
+    body: JSON.stringify({ encrypted_envelope: drEnvelope }),
   });
   // Stash own plaintext for history rendering — a ratchet can't decrypt
   // its own outbound envelopes (see saveOwnPlaintext).
   try {
     const created = (await res.json()) as { id?: string };
-    if (created.id) saveOwnPlaintext(created.id, content);
+    if (created.id) {
+      saveOwnPlaintext(created.id, content);
+      if (attachments?.length) await saveOwnDmAttachments(created.id, attachments);
+    }
   } catch (e) {
     // The message is sent; only our own readable copy is missing, and the
     // symptom is this message reading "you sent this from another device"

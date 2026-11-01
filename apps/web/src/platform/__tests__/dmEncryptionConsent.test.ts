@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ed25519 } from "@noble/curves/ed25519";
-import { bytesToHex, federatedPlaintextDmSigningBytes, hexToBytes, publicKeyHex } from "@wavvon/core";
+import {
+  bytesToHex,
+  decryptDmDr,
+  dhKeypairFromSeed,
+  federatedPlaintextDmSigningBytes,
+  hexToBytes,
+  publicKeyHex,
+  type DrEnvelope,
+} from "@wavvon/core";
 
 // The one path where a wrong answer is not a bug but a disclosure: sendDm
 // deciding whether a DM may leave this device readable. It used to decide by
@@ -11,7 +19,8 @@ import { bytesToHex, federatedPlaintextDmSigningBytes, hexToBytes, publicKeyHex 
 
 const SENDER_SEED = bytesToHex(new Uint8Array(32).fill(1));
 const SENDER_PUB = publicKeyHex(SENDER_SEED);
-const RECIPIENT_PUB = publicKeyHex(bytesToHex(new Uint8Array(32).fill(2)));
+const RECIPIENT_SEED = bytesToHex(new Uint8Array(32).fill(2));
+const RECIPIENT_PUB = publicKeyHex(RECIPIENT_SEED);
 const CANONICAL_PUB = publicKeyHex(bytesToHex(new Uint8Array(32).fill(3)));
 const HUB = "https://hub.example";
 
@@ -28,9 +37,13 @@ vi.mock("../session", () => ({
   activeSession: () => ({ hub_url: HUB, token: "t", hub_id: "h" }),
 }));
 
+const saveOwnDmAttachments = vi.fn(async () => {});
+
 vi.mock("../../identity/store", () => ({
   loadIdentity: async () => identity,
   saveIdentity: async () => {},
+  saveOwnDmAttachments: (...a: unknown[]) => saveOwnDmAttachments(...(a as [])),
+  loadOwnDmAttachments: async () => undefined,
 }));
 
 vi.stubGlobal("localStorage", {
@@ -148,6 +161,38 @@ describe("sendDm and the recipient's encryption key", () => {
 
     expect(res).toBe("cancelled");
     expect(postedBodies()).toHaveLength(0);
+  });
+});
+
+describe("sendDm and attachments", () => {
+  it("puts an encrypted DM's attachments inside the envelope, not beside it", async () => {
+    const recipientDh = bytesToHex(dhKeypairFromSeed(RECIPIENT_SEED).dhPub);
+    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(200, recipientDh)));
+    const files = [{ name: "cat.png", mime: "image/png", data_b64: "iVBORw==" }];
+
+    await sendDm("c1", "look", files);
+
+    const [posted] = postedBodies();
+    expect(posted.encrypted_envelope).toBeDefined();
+    expect(posted).not.toHaveProperty("attachments");
+    expect(posted).not.toHaveProperty("content");
+    // The recipient gets the files back out of the ciphertext.
+    const empty = { rk: "", cks: null, ckr: null, ns: 0, nr: 0, pn: 0, dhsPriv: "", dhsPub: "", dhr: null, mkskipped: {} };
+    const senderDh = bytesToHex(dhKeypairFromSeed(SENDER_SEED).dhPub);
+    const out = decryptDmDr(posted.encrypted_envelope as DrEnvelope, empty, RECIPIENT_SEED, senderDh);
+    expect(out.plaintext).toBe("look");
+    expect(out.attachments).toEqual(files);
+    // And the sender keeps its own copy, since it cannot decrypt its own send.
+    expect(saveOwnDmAttachments).toHaveBeenCalledWith("m1", files);
+  });
+
+  it("still sends a consented plaintext DM's attachments as before", async () => {
+    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(404)));
+    const files = [{ name: "a.txt", mime: "text/plain", data_b64: "aGk=" }];
+
+    await sendDm("c1", "hi", files, { confirmUnencrypted: async () => true });
+
+    expect(postedBodies()[0].attachments).toEqual(files);
   });
 });
 
