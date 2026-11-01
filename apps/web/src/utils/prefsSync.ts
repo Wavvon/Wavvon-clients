@@ -9,7 +9,7 @@ import {
   type PrefsBlobContents,
   type SignedPrefsBlob,
 } from "@wavvon/core";
-import { loadIdentity, type IdentityRecord } from "../identity/store";
+import { holdsMasterSeed, loadIdentity, type IdentityRecord } from "../identity/store";
 import { getHomeHubDesignation, getPrefsBlobFrom, putPrefsBlobTo } from "../platform/commands/identity";
 import { allSessions, getActiveHubId, getSession } from "../platform/session";
 import { collectSyncedSettings, applySyncedSettings } from "./syncedSettings";
@@ -99,7 +99,7 @@ async function fetchBest(targets: Target[], masterPubkey: string, blobKey: Uint8
  *  docs/docs/client-parity.md). Such a device syncs nothing rather than
  *  silently writing a blob nobody else can read. */
 function canSync(identity: IdentityRecord): boolean {
-  return !identity.subkey_cert;
+  return holdsMasterSeed(identity);
 }
 
 export interface PrefsSyncHandle {
