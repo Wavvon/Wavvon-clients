@@ -152,7 +152,7 @@ export function StickerStorageSection({ actions, hubUrl }: Props) {
               origin: s.origin_hub_name ?? t("hub.admin.sticker_storage.own_pack"),
               count: s.message_count,
             })}
-            meta={s.state === "ok" ? undefined : t(`hub.admin.sticker_storage.state_${s.state}`)}
+            meta={s.state === "ok" ? undefined : t(s.state === "removed" ? "hub.admin.sticker_storage.state_removed" : "hub.admin.sticker_storage.state_evicted")}
             open={open === s.id}
             onToggle={() => setOpen((cur) => (cur === s.id ? null : s.id))}
           >
