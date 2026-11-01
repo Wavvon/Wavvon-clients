@@ -1,5 +1,4 @@
 use crate::state::{active_session, AppState};
-use crate::types::AttachmentInfo;
 use tauri::State;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -70,7 +69,7 @@ pub(crate) struct ProxiedMessage {
     pub created_at: i64,
     pub edited_at: Option<i64>,
     #[serde(default)]
-    pub attachments: Vec<AttachmentInfo>,
+    pub attachments: Vec<serde_json::Value>,
 }
 
 #[tauri::command]

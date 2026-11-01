@@ -1,5 +1,5 @@
 use crate::state::{active_session, AppState};
-use crate::types::{map_http_status, AppError, AttachmentInfo, MessageInfo};
+use crate::types::{map_http_status, AppError, MessageInfo};
 use tauri::State;
 
 pub(crate) fn urlencoding_emoji(s: &str) -> String {
@@ -166,7 +166,7 @@ pub(crate) async fn search_messages_global(
 pub(crate) async fn send_message(
     channel_id: String,
     content: String,
-    attachments: Option<Vec<AttachmentInfo>>,
+    attachment_ids: Option<Vec<String>>,
     reply_to: Option<String>,
     sticker_id: Option<String>,
     state: State<'_, AppState>,
@@ -174,7 +174,7 @@ pub(crate) async fn send_message(
     let (hub_url, token) = active_session(&state).map_err(AppError::Internal)?;
     let mut body = serde_json::json!({
         "content": content,
-        "attachments": attachments.unwrap_or_default(),
+        "attachment_ids": attachment_ids.unwrap_or_default(),
         "reply_to": reply_to,
     });
     if let Some(id) = sticker_id {
@@ -309,6 +309,7 @@ pub(crate) async fn forum_create_post(
     title: String,
     body: String,
     tag_ids: Option<Vec<String>>,
+    attachment_ids: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -316,7 +317,7 @@ pub(crate) async fn forum_create_post(
         .http_client
         .post(format!("{hub_url}/channels/{channel_id}/posts"))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "title": title, "body": body, "tag_ids": tag_ids }))
+        .json(&serde_json::json!({ "title": title, "body": body, "tag_ids": tag_ids, "attachment_ids": attachment_ids }))
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -332,6 +333,7 @@ pub(crate) async fn forum_create_reply(
     post_id: String,
     body: String,
     reply_to_id: Option<String>,
+    attachment_ids: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -341,7 +343,7 @@ pub(crate) async fn forum_create_reply(
             "{hub_url}/channels/{channel_id}/posts/{post_id}/replies"
         ))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "body": body, "reply_to_id": reply_to_id }))
+        .json(&serde_json::json!({ "body": body, "reply_to_id": reply_to_id, "attachment_ids": attachment_ids }))
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -854,9 +856,9 @@ pub(crate) async fn upload_file(
     let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
     Ok(UploadResult {
         url: json["url"].as_str().unwrap_or("").to_string(),
-        filename: json["filename"].as_str().unwrap_or(&filename).to_string(),
-        size_bytes: json["size_bytes"].as_u64().unwrap_or(size_bytes),
-        mime_type: json["mime_type"].as_str().unwrap_or(&mime_type).to_string(),
+        filename: json["name"].as_str().unwrap_or(&filename).to_string(),
+        size_bytes: json["size"].as_u64().unwrap_or(size_bytes),
+        mime_type: json["mime"].as_str().unwrap_or(&mime_type).to_string(),
         file_id: json["id"].as_str().unwrap_or("").to_string(),
     })
 }
@@ -901,9 +903,47 @@ pub(crate) async fn upload_file_bytes(
     let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
     Ok(UploadResult {
         url: json["url"].as_str().unwrap_or("").to_string(),
-        filename: json["filename"].as_str().unwrap_or(&filename).to_string(),
-        size_bytes: json["size_bytes"].as_u64().unwrap_or(size_bytes),
-        mime_type: json["mime_type"].as_str().unwrap_or(&mime_type).to_string(),
+        filename: json["name"].as_str().unwrap_or(&filename).to_string(),
+        size_bytes: json["size"].as_u64().unwrap_or(size_bytes),
+        mime_type: json["mime"].as_str().unwrap_or(&mime_type).to_string(),
         file_id: json["id"].as_str().unwrap_or("").to_string(),
     })
+}
+
+/// Uploads one message/post attachment to the active hub and returns the
+/// hub's `AttachmentRef` untouched; the ids then ride in `attachment_ids`.
+#[tauri::command]
+pub(crate) async fn upload_attachment(
+    channel_id: String,
+    filename: String,
+    mime_type: String,
+    bytes_b64: String,
+    as_file: bool,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let (hub_url, token) = active_session(&state)?;
+    let bytes = B64.decode(&bytes_b64).map_err(|e| e.to_string())?;
+    let part = reqwest::multipart::Part::bytes(bytes)
+        .file_name(filename)
+        .mime_str(&mime_type)
+        .map_err(|e| e.to_string())?;
+    let mut form = reqwest::multipart::Form::new().part("file", part);
+    if as_file {
+        form = form.text("as_file", "true");
+    }
+    let res = state
+        .http_client
+        .post(format!("{hub_url}/channels/{channel_id}/upload"))
+        .bearer_auth(&token)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        return Err(format!("Upload failed: HTTP {status} {body}"));
+    }
+    res.json().await.map_err(|e| e.to_string())
 }

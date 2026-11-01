@@ -5,7 +5,8 @@ import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
-import { useOlderPages, type SelectedAllianceChannel } from "@wavvon/ui";
+import { useOlderPages, usePendingFiles, type PendingFilesState, type SelectedAllianceChannel } from "@wavvon/ui";
+import { uploadAttachment } from "../utils/uploadAttachment";
 import { listenerScope } from "../utils/listenerScope";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
@@ -44,6 +45,7 @@ export interface ChannelMessagesReturn {
   setInputText: (v: string) => void;
   pendingAttachments: Attachment[];
   setPendingAttachments: React.Dispatch<React.SetStateAction<Attachment[]>>;
+  pendingFiles: PendingFilesState;
   replyTarget: Message | null;
   setReplyTarget: React.Dispatch<React.SetStateAction<Message | null>>;
   editingMessageId: string | null;
@@ -124,6 +126,7 @@ export function useChannelMessages({
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputTextState] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const pendingFiles = usePendingFiles();
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
@@ -435,21 +438,24 @@ export function useChannelMessages({
   async function handleSend() {
     if (!selectedChannel) return;
     const content = inputText;
-    const attachments = pendingAttachments;
+    const files = pendingFiles.files;
     const reply = replyTarget;
-    if (!content.trim() && attachments.length === 0) return;
+    if (!content.trim() && files.length === 0) return;
     setInputText("");
     const hubId = activeHubIdRef.current;
     if (hubId) clearDraft(`${hubId}/${selectedChannel.id}`);
-    setPendingAttachments([]);
     setReplyTarget(null);
     try {
+      const uploaded = await Promise.all(
+        files.map((f) => uploadAttachment(selectedChannel.id, f.file, f.asFile)),
+      );
       const msg = await invoke<Message>("send_message", {
         channelId: selectedChannel.id,
         content,
-        attachments,
+        attachmentIds: uploaded.length ? uploaded.map((a) => a.id) : null,
         replyTo: reply?.id ?? null,
       });
+      pendingFiles.clear();
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -457,7 +463,6 @@ export function useChannelMessages({
     } catch (e) {
       setError(String(e));
       setInputText(content);
-      setPendingAttachments(attachments);
       setReplyTarget(reply);
     }
   }
@@ -609,6 +614,7 @@ export function useChannelMessages({
     setInputText,
     pendingAttachments,
     setPendingAttachments,
+    pendingFiles,
     replyTarget,
     setReplyTarget,
     editingMessageId,

@@ -154,7 +154,7 @@ export {
 } from "./commands/forum";
 export type { AllianceForumWriteErrorCode } from "./commands/forum";
 
-export { uploadFile } from "./commands/uploads";
+export { uploadFile, getAttachmentSettings, saveAttachmentSettings } from "./commands/uploads";
 
 export { fetchLinkPreview } from "./commands/linkPreview";
 

@@ -16,6 +16,7 @@ interface SelectedAllianceChannel {
 
 interface Props {
   selectedAllianceChannel: SelectedAllianceChannel;
+  hubUrl?: string;
   allianceMessages: Message[];
   inputText: string;
   knownDisplayNames: Set<string>;
@@ -40,6 +41,7 @@ interface Props {
 
 export function AllianceView({
   selectedAllianceChannel,
+  hubUrl,
   allianceMessages,
   inputText,
   knownDisplayNames,
@@ -104,7 +106,7 @@ export function AllianceView({
                 <MessageContent content={m.content} knownNames={knownDisplayNames} myName={myDisplayName} />
               </span>
               {m.attachments && m.attachments.length > 0 && (
-                <MessageAttachments items={m.attachments} onImageClick={onOpenImage} />
+                <MessageAttachments items={m.attachments} hubUrl={hubUrl} onImageClick={onOpenImage} />
               )}
               <span className="message-time" title={formatFullTimestamp(m.created_at)}>
                 {formatRelative(m.created_at)}

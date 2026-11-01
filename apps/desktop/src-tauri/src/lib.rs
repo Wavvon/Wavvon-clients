@@ -172,6 +172,7 @@ pub fn run() {
             messages::mark_post_read,
             messages::upload_file,
             messages::upload_file_bytes,
+            messages::upload_attachment,
             messages::pin_message,
             messages::unpin_message,
             messages::get_pinned_messages,

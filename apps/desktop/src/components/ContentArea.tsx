@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useConnectionStats } from "../hooks/useConnectionStats";
+import { uploadAttachment } from "../utils/uploadAttachment";
 import type React from "react";
 import type {
   Channel,
@@ -41,7 +42,7 @@ import {
   type StickerActions,
   PinnedMessagesModal,
 } from "@wavvon/ui";
-import type { AllianceScrollback } from "@wavvon/ui";
+import type { AllianceScrollback, PendingFilesState } from "@wavvon/ui";
 
 function domainOf(url: string): string {
   try { return new URL(url).hostname; } catch { return url; }
@@ -77,10 +78,11 @@ const forumActions: ForumActions = {
   listPosts: async (channelId, cursor, tagId) =>
     forumPage(await invoke<PostSummary[]>("forum_list_posts", { channelId, cursor, tagId })),
   getPost: (channelId, postId, after) => invoke<PostDetail>("forum_get_post", { channelId, postId, after }),
-  createPost: (channelId, title, body, tagIds) =>
-    invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds }),
-  createReply: (channelId, postId, body, replyToId) =>
-    invoke<{ id: string }>("forum_create_reply", { channelId, postId, body, replyToId }),
+  createPost: (channelId, title, body, tagIds, attachmentIds) =>
+    invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds, attachmentIds }),
+  createReply: (channelId, postId, body, replyToId, attachmentIds) =>
+    invoke<{ id: string }>("forum_create_reply", { channelId, postId, body, replyToId, attachmentIds }),
+  uploadAttachment: (channelId, file) => uploadAttachment(channelId, file),
   // ponytail: these 8 don't have a #[tauri::command] on the Rust side yet --
   // wired against the hub's real channel/post-scoped routes so backend-engineer
   // can add forum_edit_post/forum_delete_post/forum_edit_reply/forum_delete_reply/
@@ -157,6 +159,7 @@ interface Props {
   editingDraft: string;
   replyTarget: Message | null;
   pendingAttachments: Attachment[];
+  channelFiles?: PendingFilesState;
   stickToBottom: boolean;
   newWhileScrolledUp: number;
   hubConnected: Record<string, boolean>;

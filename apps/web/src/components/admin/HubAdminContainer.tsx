@@ -1,4 +1,4 @@
-import { hubFetch, activeHubSupports, getApplicationResponse, rejectApplication } from "@platform";
+import { hubFetch, activeHubSupports, getApplicationResponse, rejectApplication, getAttachmentSettings, saveAttachmentSettings } from "@platform";
 import {
   submitToDirectory,
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -144,6 +144,9 @@ export function HubAdminContainer({
         certActions={certActions}
         soundboardActions={soundboardActions}
         stickersAdmin={stickersAdmin}
+        attachmentSettingsActions={activeHubSupports("attachments.stored") && canDo("hub.settings")
+          ? { getSettings: getAttachmentSettings, saveSettings: saveAttachmentSettings }
+          : undefined}
         onboardingActions={onboardingActions}
         allianceActions={allianceActions}
         hubIconActions={hubIconActions}

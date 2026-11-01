@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PostDetail, PostListResponse, ReplyView, ForumTagDef, ForumAttachment, User } from "../../types";
+import type { PostDetail, PostListResponse, ReplyView, ForumTagDef, AttachmentRef, User } from "../../types";
 import { ForumComposer } from "./ForumComposer";
 import { ForumPostDetail } from "./ForumPostDetail";
 import { ForumPostList } from "./ForumPostList";
@@ -35,7 +35,7 @@ export interface ForumActions {
     title: string,
     body: string,
     tagIds?: string[],
-    attachments?: ForumAttachment[],
+    attachmentIds?: string[],
   ) => Promise<{ id: string }>;
   createAlliancePost?: (allianceId: string, channelId: string, title: string, body: string) => Promise<{ id: string }>;
   createReply: (
@@ -43,13 +43,13 @@ export interface ForumActions {
     postId: string,
     body: string,
     replyToId?: string,
-    attachments?: ForumAttachment[],
+    attachmentIds?: string[],
   ) => Promise<{ id: string }>;
   /** Uploads a single file to the channel's attachment storage before post
    * creation; unset on platforms/contexts with no upload endpoint wired
    * (desktop, and the alliance write-proxy) -- ForumComposer hides the
    * attach UI entirely when this is absent. */
-  uploadAttachment?: (channelId: string, file: File) => Promise<ForumAttachment>;
+  uploadAttachment?: (channelId: string, file: File) => Promise<AttachmentRef>;
   createAllianceReply?: (
     allianceId: string,
     channelId: string,
@@ -104,9 +104,13 @@ interface Props {
    * post authors live on another hub and won't be found here -- falls back
    * to the formatted pubkey, same as an unknown local user would. */
   users: User[];
+  /** The hub holding the posts; stored attachment URLs are relative to it. */
+  hubUrl?: string;
+  /** The hub advertises `attachments.stored`: show the attach controls. */
+  canAttach?: boolean;
 }
 
-export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, allianceContext, forumRequireTag, users }: Props) {
+export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, allianceContext, forumRequireTag, users, hubUrl, canAttach }: Props) {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   // `alliance` gates moderation/edit/delete, which never have a write-proxy.
@@ -133,6 +137,7 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, alli
           allianceId={allianceContext?.allianceId}
           forumRequireTag={forumRequireTag}
           showNoTagsHint={isAdmin}
+          canAttach={canAttach}
           actions={actions}
           onCreated={(postId) => { setComposing(false); setSelectedPostId(postId); }}
           onCancel={() => setComposing(false)}
@@ -150,6 +155,8 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, alli
           forumRequireTag={forumRequireTag}
           actions={actions}
           users={users}
+          hubUrl={hubUrl}
+          canAttach={canAttach}
           onBack={() => setSelectedPostId(null)}
         />
       ) : (

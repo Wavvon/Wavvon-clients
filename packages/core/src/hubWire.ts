@@ -47,6 +47,19 @@ export interface Attachment {
   data_b64: string;
 }
 
+/** A file stored on the hub (capability `attachments.stored`); `url` is relative to the hub holding the message. */
+export interface AttachmentRef {
+  id: string;
+  url: string;
+  name: string;
+  mime: string;
+  kind: "image" | "file";
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  state: "ok" | "removed" | "expired";
+}
+
 // Own presence state. "invisible" = connected but shown offline to others.
 export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
 

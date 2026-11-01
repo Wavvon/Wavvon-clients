@@ -347,7 +347,7 @@ pub(crate) struct MessageInfo {
     #[serde(default)]
     pub edited_at: Option<i64>,
     #[serde(default)]
-    pub attachments: Vec<AttachmentInfo>,
+    pub attachments: Vec<serde_json::Value>,
     #[serde(default)]
     pub reactions: Vec<ReactionInfo>,
     #[serde(default)]

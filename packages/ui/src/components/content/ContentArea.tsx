@@ -20,6 +20,7 @@ import { UserListGrouped } from "../users/UserListGrouped";
 import { UserProfileCard, type UserProfileCardActions } from "../users/UserProfileCard";
 import { ScreenShareViewer, type ScreenShareViewerRef } from "../ScreenShareViewer";
 import { AllianceView } from "./AllianceView";
+import type { PendingFilesState } from "../../hooks/usePendingFiles";
 import type { AlliancePeopleActions } from "./AlliancePeoplePanel";
 import { ReconnectBanner } from "./ReconnectBanner";
 import { ForumView, type ForumActions } from "../forum/ForumView";
@@ -82,6 +83,8 @@ interface Props {
   editingDraft: string;
   replyTarget: Message | null;
   pendingAttachments: Attachment[];
+  /** Channel (not DM) attachments, uploaded when the message is sent. Absent without `attachments.stored`. */
+  channelFiles?: PendingFilesState;
   stickToBottom: boolean;
   newWhileScrolledUp: number;
   hubConnected: Record<string, boolean>;
@@ -187,7 +190,7 @@ export function ContentArea({
   dmMessages, allianceMessages, allianceScrollback,
   users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
-  pendingAttachments, stickToBottom, newWhileScrolledUp,
+  pendingAttachments, channelFiles, stickToBottom, newWhileScrolledUp,
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus, voiceStage,
   selfInvisible,
   hideBirthdays,
@@ -524,6 +527,8 @@ export function ContentArea({
             actions={forumActions}
             forumRequireTag={selectedChannel.forum_require_tag ?? false}
             users={users}
+            hubUrl={activeHub?.hub_url}
+            canAttach={!!channelFiles}
           />
         ) : selectedChannel ? (
           <div className="chat-column">
@@ -645,7 +650,7 @@ export function ContentArea({
               activeHubUrl={activeHub?.hub_url}
               inputText={inputText}
               replyTarget={replyTarget}
-              pendingAttachments={pendingAttachments}
+              files={channelFiles}
               users={users}
               slashSuggestions={slashSuggestions}
               slashSelectedIdx={slashSelectedIdx}
@@ -659,8 +664,6 @@ export function ContentArea({
               onKeyDown={handleSlashKeyDown}
               onSend={onSend}
               onPingTyping={onPingTyping}
-              onAttachFiles={onAttachFiles}
-              onSetPendingAttachments={onSetPendingAttachments}
               onSetReplyTarget={onSetReplyTarget}
               onFillMention={fillMention}
               onFillSlashCommand={fillSlashCommand}
@@ -676,6 +679,7 @@ export function ContentArea({
             isAdmin={isAdmin}
             actions={forumActions}
             users={users}
+            hubUrl={activeHub?.hub_url}
             allianceContext={{
               allianceId: selectedAllianceChannel.alliance_id,
               allianceName: selectedAllianceChannel.alliance_name,
@@ -685,6 +689,7 @@ export function ContentArea({
           />
         ) : selectedAllianceChannel ? (
           <AllianceView
+            hubUrl={activeHub?.hub_url}
             connectionStatus={connectionStatus}
             selectedAllianceChannel={selectedAllianceChannel}
             allianceMessages={allianceMessages}

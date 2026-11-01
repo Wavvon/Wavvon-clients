@@ -1,6 +1,6 @@
 import { hubFetch } from "../http";
 import { activeSession, allSessions, getSession } from "../session";
-import type { Message, Attachment } from "@shared/types";
+import type { Message } from "@shared/types";
 
 export async function getMessages(
   channel_id: string,
@@ -17,13 +17,13 @@ export async function getMessages(
 export async function sendMessage(
   channel_id: string,
   content: string,
-  attachments?: Attachment[],
+  attachment_ids?: string[],
   reply_to?: string,
   sticker_id?: string,
 ): Promise<Message | null> {
   const res = await hubFetch(`/channels/${channel_id}/messages`, {
     method: "POST",
-    body: JSON.stringify({ content, attachments, reply_to, sticker_id }),
+    body: JSON.stringify({ content, attachment_ids, reply_to, sticker_id }),
   });
   // 201 carries the stored message, so the caller can render it without
   // waiting for the socket to echo it back. A 200 is the slash-command

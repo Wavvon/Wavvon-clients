@@ -18,6 +18,7 @@ import { SoundboardAdminSection, type SoundboardAdminSectionActions } from "./So
 import { StickerPacksSection, type StickerPacksActions } from "./StickerPacksSection";
 import { StickerStorageSection, type StickerStorageActions } from "./StickerStorageSection";
 import { StickerSettingsSection, type StickerSettingsActions } from "./StickerSettingsSection";
+import { AttachmentSettingsSection, type AttachmentSettingsActions } from "./AttachmentSettingsSection";
 import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./OnboardingAdminSection";
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
@@ -41,6 +42,7 @@ export type HubAdminTab =
   | "stickers"
   | "sticker-storage"
   | "sticker-settings"
+  | "attachments"
   | "alliances"
   | "hub-icons"
   | "onboarding"
@@ -182,6 +184,8 @@ export interface HubAdminPageProps {
     storage?: StickerStorageActions;
     settings?: StickerSettingsActions;
   };
+  /** Present only on a hub advertising `attachments.stored`, for a viewer holding `hub.settings`. */
+  attachmentSettingsActions?: AttachmentSettingsActions;
   onboardingActions: OnboardingAdminSectionActions;
   allianceActions: AlliancesSectionActions;
   hubIconActions: HubIconsSectionActions;
@@ -343,6 +347,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
     ...(props.stickersAdmin?.packs ? [{ id: "stickers" as HubAdminTab, label: t("hub.admin.tabs.stickers"), group: G_CUSTOM }] : []),
     ...(props.stickersAdmin?.storage ? [{ id: "sticker-storage" as HubAdminTab, label: t("hub.admin.tabs.sticker_storage"), group: G_CUSTOM }] : []),
+    ...(props.attachmentSettingsActions ? [{ id: "attachments" as HubAdminTab, label: t("hub.admin.tabs.attachments"), group: G_CUSTOM }] : []),
     ...(props.stickersAdmin?.settings ? [{ id: "sticker-settings" as HubAdminTab, label: t("hub.admin.tabs.sticker_settings"), group: G_CUSTOM }] : []),
   ];
 
@@ -856,6 +861,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
             rolesActions={props.rolesActions}
             canManageRoles={props.canManageRoles}
           />
+        )}
+
+        {props.tab === "attachments" && props.attachmentSettingsActions && (
+          <AttachmentSettingsSection actions={props.attachmentSettingsActions} />
         )}
 
         {props.tab === "moderation" && props.isAdmin && props.renderModerationTab?.()}

@@ -5,7 +5,6 @@ import type {
   Message,
   User,
   RoleInfo,
-  ForumAttachment,
 } from "@shared/types";
 import type { useChannelMessages } from "../../hooks/useChannelMessages";
 import type { useDms } from "../../hooks/useDms";
@@ -70,15 +69,10 @@ const forumActions: ForumActions = {
   listAlliancePosts: getAllianceChannelPosts,
   getPost: (channelId, postId, after) => forumGetPost(channelId, postId, after),
   getAlliancePost: getAllianceChannelPost,
-  createPost: (channelId, title, body, tagIds, attachments) =>
-    forumCreatePost(channelId, title, body, tagIds, attachments),
+  createPost: forumCreatePost,
   createAlliancePost: createAllianceChannelPost,
-  uploadAttachment: async (channelId, file): Promise<ForumAttachment> => {
-    const uploaded = await uploadFile(channelId, file);
-    return { url: uploaded.url, name: uploaded.filename, mime: uploaded.mime_type, size: uploaded.size_bytes };
-  },
-  createReply: (channelId, postId, body, replyToId, attachments) =>
-    forumCreateReply(channelId, postId, body, replyToId, attachments),
+  uploadAttachment: (channelId, file) => uploadFile(channelId, file),
+  createReply: forumCreateReply,
   createAllianceReply: createAllianceChannelReply,
   editPost: (channelId, postId, title, body, tagIds) => forumEditPost(channelId, postId, title, body, tagIds),
   deletePost: (channelId, postId) => forumDeletePost(channelId, postId),
@@ -331,6 +325,7 @@ export function ContentArea(props: Props) {
         onSendAllianceMessage={() => void channelMessages.handleSendAllianceMessage()}
         onPingTyping={typing.pingTyping}
         onPingDmTyping={typing.pingDmTyping}
+        channelFiles={activeHubSupports("attachments.stored") ? channelMessages.pendingFiles : undefined}
         onSetPendingAttachments={channelMessages.setPendingAttachments}
         onAttachFiles={() => {}}
         onOpenEditDescription={(ch) => { channelCrud.setEditDescChannel(ch); channelCrud.setEditDescValue(ch.description ?? ""); }}
