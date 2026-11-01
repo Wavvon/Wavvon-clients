@@ -13,6 +13,7 @@ import {
   encryptDm,
   encryptDmDr,
   decryptDmDr,
+  encodeDmPlaintext,
   initDrSession,
   verifyDmEnvelopeSigner,
   verifySubkeyCert,
@@ -264,5 +265,58 @@ describe("DR two-way conversation", () => {
     const aliceStaticDhPub = "761d88ec830413919dfe9d4d1d56f17e653c8c994082df5b137b90a0ae6edf74";
     const { plaintext } = decryptDmDr(envelope, bob, bobSeed, aliceStaticDhPub);
     expect(plaintext).toBe("rust to ts vector");
+  });
+
+  // Same direction, with an attachment inside the ciphertext: made by the
+  // desktop's encode_dm_plaintext + initiator chain (seeds 0x07/0x08, conv
+  // "conv-attach-rvector"). dm.rs decrypts_ts_envelope_with_attachment pins
+  // the opposite direction.
+  it("the TS responder reads attachments from a Rust-initiator envelope", () => {
+    const bob = {
+      rk: "", cks: null, ckr: null,
+      ns: 0, nr: 0, pn: 0,
+      dhsPriv: "", dhsPub: "", dhr: null,
+      mkskipped: {},
+    };
+    const envelope = {
+      sender_pubkey: "",
+      conv_id: "conv-attach-rvector",
+      ciphertext_hex: "752303acc8b73da4506611a515dba179e88142ae7a8670fb13e2e6d9c9f8cad83d0c58cced0de5a10cd062af0e9845c4c5600ef77625d3c47f089ed33e24dd8a02b84ed53db1d009b21068b2e76972c8ba178a460a309cf28409e38fdf07f7aec332b9ca33d995c64a4f956abe3b4a6b2d735b2a99b6975a108e0a",
+      nonce_hex: "",
+      dh_pubkey_hex: "bcd719a990a3d1dd439f836f8e7e127eec772948a8458f80efd4abf6fb963207",
+      signature_hex: "",
+      v: 2 as const,
+      message_index: 0,
+      prev_count: 0,
+    };
+    const aliceStaticDhPub = "761d88ec830413919dfe9d4d1d56f17e653c8c994082df5b137b90a0ae6edf74";
+    const { plaintext, attachments } = decryptDmDr(envelope, bob, "08".repeat(32), aliceStaticDhPub);
+    expect(plaintext).toBe("rust attachment vector");
+    expect(attachments).toEqual([{ name: "a.txt", mime: "text/plain", data_b64: "aGk=" }]);
+  });
+});
+
+describe("DM plaintext carries attachments", () => {
+  it("round-trips attachments through the ratchet", () => {
+    const aliceSeed = "07".repeat(32);
+    const bobSeed = "08".repeat(32);
+    const bobDhPub = bytesToHex(dhKeypairFromSeed(bobSeed).dhPub);
+    const aliceDhPub = bytesToHex(dhKeypairFromSeed(aliceSeed).dhPub);
+    const files = [{ name: "b.png", mime: "image/png", data_b64: "iVBORw==" }];
+    const alice = initDrSession("conv-att", aliceSeed, bobDhPub);
+    const { envelope } = encryptDmDr("conv-att", { content: "pic", attachments: files }, alice, aliceSeed);
+    const bob = {
+      rk: "", cks: null, ckr: null, ns: 0, nr: 0, pn: 0,
+      dhsPriv: "", dhsPub: "", dhr: null, mkskipped: {},
+    };
+    const out = decryptDmDr(envelope, bob, bobSeed, aliceDhPub);
+    expect(out.plaintext).toBe("pic");
+    expect(out.attachments).toEqual(files);
+  });
+
+  it("omits an empty attachment list, so text-only bytes are unchanged", () => {
+    const dec = new TextDecoder();
+    expect(dec.decode(encodeDmPlaintext({ content: "hi" }))).toBe('{"content":"hi"}');
+    expect(dec.decode(encodeDmPlaintext({ content: "hi", attachments: [] }))).toBe('{"content":"hi"}');
   });
 });

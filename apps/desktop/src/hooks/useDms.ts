@@ -173,7 +173,9 @@ export function useDms({
           groupEncryptedEnvelope,
           // Stashed Rust-side per message id so history reloads can render
           // our own encrypted sends (a ratchet can't decrypt its own
-          // envelopes). Never sent to the hub.
+          // envelopes). Never sent to the hub. With an envelope, send_dm
+          // stashes `attachments` too and leaves them out of the body: they
+          // are already inside the ciphertext.
           plaintext: (encryptedEnvelope || groupEncryptedEnvelope) ? content : undefined,
         });
         setDmMessages((prev) => {
@@ -203,6 +205,7 @@ export function useDms({
         const groupEnv = await invoke<object>("encrypt_group_dm", {
           convId: conv.id,
           content,
+          attachments,
         });
         await doSend(undefined, groupEnv);
       } catch (e) {
@@ -212,6 +215,7 @@ export function useDms({
             const groupEnv = await invoke<object>("encrypt_group_dm", {
               convId: conv.id,
               content,
+              attachments,
             });
             await doSend(undefined, groupEnv);
           } catch {
@@ -264,6 +268,7 @@ export function useDms({
       const envelope = await invoke<object>("encrypt_dm_dr", {
         convId: conv.id,
         content,
+        attachments,
       });
       await doSend(envelope);
     } catch {

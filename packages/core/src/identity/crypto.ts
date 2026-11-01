@@ -5,6 +5,29 @@ import { gcm } from "@noble/ciphers/aes";
 import { ed25519, x25519 } from "@noble/curves/ed25519";
 import { hexToBytes, bytesToHex } from "../hex";
 import { subkeyCertSigningBytes, type SubkeyCert } from "./wire";
+import type { Attachment } from "../hubWire";
+
+// What a DM ciphertext decrypts to (e2e-encryption.md "Attachment
+// encryption"): attachments ride inside the ciphertext, never beside the
+// envelope. The field is omitted when empty so a text-only message encrypts
+// the same bytes it always did.
+export interface DmPlaintext {
+  content: string;
+  attachments?: Attachment[];
+}
+
+export function encodeDmPlaintext(p: DmPlaintext): Uint8Array {
+  const body: DmPlaintext = { content: p.content };
+  if (p.attachments?.length) body.attachments = p.attachments;
+  return new TextEncoder().encode(JSON.stringify(body));
+}
+
+export function decodeDmPlaintext(bytes: Uint8Array): DmPlaintext {
+  const json = JSON.parse(new TextDecoder().decode(bytes)) as Partial<DmPlaintext>;
+  const out: DmPlaintext = { content: json.content ?? "" };
+  if (Array.isArray(json.attachments) && json.attachments.length) out.attachments = json.attachments;
+  return out;
+}
 
 export interface DmEnvelope {
   sender_pubkey: string;
@@ -122,9 +145,7 @@ export function encryptDm(
   );
 
   const nonce = crypto.getRandomValues(new Uint8Array(12));
-  const plaintextBytes = new TextEncoder().encode(
-    JSON.stringify({ content: plaintext }),
-  );
+  const plaintextBytes = encodeDmPlaintext({ content: plaintext });
   const ciphertext = gcm(keyBytes, nonce).encrypt(plaintextBytes);
 
   const ciphertextHex = bytesToHex(ciphertext);
@@ -168,9 +189,7 @@ export function decryptDm(
   );
   const nonce = hexToBytes(envelope.nonce_hex);
   const ct = hexToBytes(envelope.ciphertext_hex);
-  const plaintextBytes = gcm(keyBytes, nonce).decrypt(ct);
-  const json = JSON.parse(new TextDecoder().decode(plaintextBytes));
-  return (json as { content?: string }).content ?? "";
+  return decodeDmPlaintext(gcm(keyBytes, nonce).decrypt(ct)).content;
 }
 
 // --- Double Ratchet v2 ---
@@ -283,7 +302,7 @@ export function initDrSession(
 // See `encryptDm` for `canonicalPubkey`/`signerCert` semantics.
 export function encryptDmDr(
   convId: string,
-  plaintext: string,
+  plaintext: string | DmPlaintext,
   session: DRSession,
   mySigningSeedHex: string,
   canonicalPubkey?: string,
@@ -295,7 +314,9 @@ export function encryptDmDr(
   const [mk, newCks] = kdfCk(ck);
   const nonce = deriveNonce(mk);
 
-  const plaintextBytes = new TextEncoder().encode(JSON.stringify({ content: plaintext }));
+  const plaintextBytes = encodeDmPlaintext(
+    typeof plaintext === "string" ? { content: plaintext } : plaintext,
+  );
   const ciphertext = gcm(mk, nonce).encrypt(plaintextBytes);
   const ciphertextHex = bytesToHex(ciphertext);
   const dhPubkeyHex = session.dhsPub;
@@ -338,7 +359,7 @@ export function decryptDmDr(
   myStaticSeedHex: string,
   theirStaticDhPubHex: string,
   myStaticDhPrivOverride?: Uint8Array,
-): { plaintext: string; updatedSession: DRSession } {
+): { plaintext: string; attachments?: Attachment[]; updatedSession: DRSession } {
   const state = { ...session, mkskipped: { ...session.mkskipped } };
   const { dh_pubkey_hex: incomingDhr, message_index: n, prev_count: pn } = envelope;
 
@@ -347,9 +368,8 @@ export function decryptDmDr(
     const mk = hexToBytes(state.mkskipped[skippedKey]);
     delete state.mkskipped[skippedKey];
     const nonce = deriveNonce(mk);
-    const pt = gcm(mk, nonce).decrypt(hexToBytes(envelope.ciphertext_hex));
-    const json = JSON.parse(new TextDecoder().decode(pt));
-    return { plaintext: (json as { content?: string }).content ?? "", updatedSession: state };
+    const pt = decodeDmPlaintext(gcm(mk, nonce).decrypt(hexToBytes(envelope.ciphertext_hex)));
+    return { plaintext: pt.content, attachments: pt.attachments, updatedSession: state };
   }
 
   // Responder init: only for a truly EMPTY session (first inbound message of
@@ -408,9 +428,8 @@ export function decryptDmDr(
   state.nr += 1;
 
   const nonce = deriveNonce(mk);
-  const pt = gcm(mk, nonce).decrypt(hexToBytes(envelope.ciphertext_hex));
-  const json = JSON.parse(new TextDecoder().decode(pt));
-  return { plaintext: (json as { content?: string }).content ?? "", updatedSession: state };
+  const pt = decodeDmPlaintext(gcm(mk, nonce).decrypt(hexToBytes(envelope.ciphertext_hex)));
+  return { plaintext: pt.content, attachments: pt.attachments, updatedSession: state };
 }
 
 function skipMessageKeys(state: DRSession, until: number): void {
