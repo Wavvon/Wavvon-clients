@@ -8293,11 +8293,6 @@ details.audit-entry > .audit-entry:last-child {
     color: var(--text);
     line-height: 1;
   }
-  .mobile-shell-title {
-    font-weight: 600;
-    font-size: var(--text-sm);
-    flex: 1;
-  }
   .mobile-shell-breadcrumb {
     display: flex;
     gap: 4px;
