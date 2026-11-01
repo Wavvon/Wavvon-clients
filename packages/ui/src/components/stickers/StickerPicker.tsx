@@ -190,7 +190,7 @@ function SavedGrid({ saved, editable, status, canUseExternal, hubUrl, sending, o
               <img
                 src={stickerSrc(s.origin_hub_url, s.sha256)}
                 alt={s.name}
-                className={blocked ? "sticker-cell-img sticker-cell-img-off" : "sticker-cell-img"}
+                className={`sticker-cell-img${blocked ? " sticker-cell-img-off" : ""}`}
                 loading="lazy"
               />
             </button>
