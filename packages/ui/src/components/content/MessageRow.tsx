@@ -409,7 +409,7 @@ export function MessageRow({
               />
             )}
             {m.attachments && m.attachments.length > 0 && (
-              <MessageAttachments items={m.attachments} onImageClick={onOpenImage} />
+              <MessageAttachments items={m.attachments} hubUrl={hubBaseUrl ?? activeHub?.hub_url} onImageClick={onOpenImage} />
             )}
             {m.sticker && (hubBaseUrl ?? activeHub?.hub_url) && (
               <StickerMessage

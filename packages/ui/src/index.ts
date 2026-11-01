@@ -1,5 +1,6 @@
 export type {
   Attachment,
+  AttachmentRef,
   Reaction,
   Message,
   AllianceSharedChannel,
@@ -41,6 +42,10 @@ export { Avatar } from "./components/Avatar";
 export { AvatarPicker } from "./components/AvatarPicker";
 export { generateAvatarDataUrl, randomAvatarSeed } from "./utils/avatarGenerator";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
+export { PendingFiles } from "./components/PendingFiles";
+export { usePendingFiles } from "./hooks/usePendingFiles";
+export type { PendingFile, PendingFilesState } from "./hooks/usePendingFiles";
+export { StoredAttachment } from "./components/StoredAttachment";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
 export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
@@ -406,6 +411,8 @@ export { StickerPacksSection } from "./components/admin/StickerPacksSection";
 export type { StickerPacksActions } from "./components/admin/StickerPacksSection";
 export { StickerStorageSection } from "./components/admin/StickerStorageSection";
 export type { StickerStorageActions } from "./components/admin/StickerStorageSection";
+export { AttachmentSettingsSection } from "./components/admin/AttachmentSettingsSection";
+export type { AttachmentSettingsActions } from "./components/admin/AttachmentSettingsSection";
 export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
 export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
 export { StickerPicker } from "./components/stickers/StickerPicker";
@@ -435,6 +442,7 @@ export type {
   StickerBudget,
   StickerBlockEntry,
   StickerSettings,
+  AttachmentSettings,
   AuditLogEntry,
   AuditLogPage,
   CertIssuance,

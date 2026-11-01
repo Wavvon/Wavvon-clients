@@ -125,6 +125,7 @@ export function ContentAreaContainer({
         editingDraft={channelMessages.editingDraft}
         replyTarget={channelMessages.replyTarget}
         pendingAttachments={channelMessages.pendingAttachments}
+        channelFiles={caps.includes("attachments.stored") ? channelMessages.pendingFiles : undefined}
         stickToBottom={channelMessages.stickToBottom}
         newWhileScrolledUp={channelMessages.newWhileScrolledUp}
         hubConnected={hubConnections.hubConnected}

@@ -239,6 +239,7 @@ export default function App({ initialView }: AppProps = {}) {
     selectAllianceChannel,
     sendAllianceMessage,
     onMessageSent: handleOwnMessageSent,
+    onError: showHubError,
   });
   const {
     selectedChannel, setSelectedChannel, selectedChannelRef, selectedChannelIdRef,

@@ -2,7 +2,7 @@ import type { GameLaunchCard } from "@wavvon/core";
 
 // Referenced by the declarations further down, which is a separate thing from
 // re-exporting them for consumers.
-import type { Attachment, Reaction, FavoriteHub, RoleInfo } from "@wavvon/core";
+import type { Attachment, AttachmentRef, Reaction, FavoriteHub, RoleInfo } from "@wavvon/core";
 // The hub's wire shapes live in @wavvon/core so there is one copy rather than
 // three (Wavvon-clients#60). Re-exported here because every call site in this
 // app already imports from this module.
@@ -11,6 +11,7 @@ export type {
   RoleCategory,
   FavoriteHub,
   Attachment,
+  AttachmentRef,
   PresenceStatus,
   Reaction,
   MemberAdminInfo,
@@ -147,6 +148,15 @@ export interface StickerBlockEntry {
   blocked_by: string;
   reason: string | null;
   created_at: number;
+}
+
+/** The attachment hub settings, as GET /hub/settings returns them. */
+export interface AttachmentSettings {
+  max_attachments_per_message: number;
+  attachments_cap_bytes: number;
+  attachments_warn_percent: number;
+  attachments_retention_days: number;
+  attachments_usage: { used_bytes: number; cap_bytes: number; warning: boolean; evictions: number };
 }
 
 /** The `stickers_*` hub settings, as GET /hub/settings returns them. */
@@ -408,6 +418,7 @@ export interface ReactionCount {
   me: boolean;
 }
 
+/** Pre-`attachments.stored` hubs: a client-asserted URL stored verbatim. */
 export interface ForumAttachment {
   url: string;
   name: string;
@@ -450,7 +461,7 @@ export interface PostSummary {
   is_deleted: boolean;
   unread_reply_count?: number | null;
   reactions?: ReactionCount[];
-  attachments?: ForumAttachment[];
+  attachments?: (AttachmentRef | ForumAttachment)[];
   /** Origin hub public key hex when authored through the alliance forum
    * write-proxy (forum federation phase 2); absent for locally-authored posts. */
   author_hub?: string | null;
@@ -468,7 +479,7 @@ export interface ReplyView {
   reply_to_id: string | null;
   is_deleted: boolean;
   reactions?: ReactionCount[];
-  attachments?: ForumAttachment[];
+  attachments?: (AttachmentRef | ForumAttachment)[];
   author_hub?: string | null;
 }
 

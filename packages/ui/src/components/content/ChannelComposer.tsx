@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Message, Attachment, User, HubEmoji } from "../../types";
+import type { Message, User, HubEmoji } from "../../types";
+import type { PendingFilesState } from "../../hooks/usePendingFiles";
 import { formatPubkey } from "@wavvon/core";
 import { EmojiPicker } from "./EmojiPicker";
-import { PendingAttachments } from "../Attachments";
+import { PendingFiles } from "../PendingFiles";
 import { CloseIcon } from "../Icons";
 import { StickerPicker } from "../stickers/StickerPicker";
 import type { StickerActions } from "../stickers/stickerActions";
@@ -19,7 +20,8 @@ interface Props {
   activeHubUrl: string | undefined;
   inputText: string;
   replyTarget: Message | null;
-  pendingAttachments: Attachment[];
+  /** Absent when the hub cannot store attachments (`attachments.stored`): no attach control then. */
+  files?: PendingFilesState;
   users: User[];
   slashSuggestions: SlashCommandEntry[];
   slashSelectedIdx: number;
@@ -35,8 +37,6 @@ interface Props {
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onSend: () => void;
   onPingTyping: () => void;
-  onAttachFiles: (files: FileList | null) => void;
-  onSetPendingAttachments: (items: Attachment[]) => void;
   onSetReplyTarget: (msg: Message | null) => void;
   onFillMention: (displayName: string) => void;
   onFillSlashCommand: (command: string) => void;
@@ -50,7 +50,7 @@ export function ChannelComposer({
   activeHubUrl,
   inputText,
   replyTarget,
-  pendingAttachments,
+  files,
   users,
   slashSuggestions,
   slashSelectedIdx,
@@ -64,8 +64,6 @@ export function ChannelComposer({
   onKeyDown,
   onSend,
   onPingTyping,
-  onAttachFiles,
-  onSetPendingAttachments,
   onSetReplyTarget,
   onFillMention,
   onFillSlashCommand,
@@ -75,7 +73,7 @@ export function ChannelComposer({
   const { t } = useTranslation();
   const [moreOpen, setMoreOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canSend = inputText.trim().length > 0 || pendingAttachments.length > 0;
+  const canSend = inputText.trim().length > 0 || (files?.files.length ?? 0) > 0;
 
   function closeMore() {
     setMoreOpen(false);
@@ -126,28 +124,25 @@ export function ChannelComposer({
           </button>
         </div>
       )}
-      {pendingAttachments.length > 0 && (
-        <PendingAttachments
-          items={pendingAttachments}
-          onRemove={(i) => onSetPendingAttachments(pendingAttachments.filter((_, idx) => idx !== i))}
-        />
-      )}
+      {files && files.files.length > 0 && <PendingFiles state={files} />}
       <form
         aria-label={t("composer.form.aria")}
         className="input-area"
         onSubmit={(e) => { e.preventDefault(); onSend(); }}
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
-        onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length > 0) onAttachFiles(e.dataTransfer.files); }}
+        onDrop={(e) => { e.preventDefault(); if (files) files.add(e.dataTransfer.files); }}
         onKeyDown={handleShellKeyDown}
         onClick={handleContainerClick}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => { onAttachFiles(e.target.files); (e.target as HTMLInputElement).value = ""; }}
-        />
+        {files && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => { files.add(e.target.files); (e.target as HTMLInputElement).value = ""; }}
+          />
+        )}
         <div className="composer-shell">
           <div style={{ position: "relative", flex: 1 }}>
             {mentionSuggestions.length > 0 && mentionQuery !== null && (
@@ -223,7 +218,7 @@ export function ChannelComposer({
                     aria-hidden="true"
                   />
                   <div className="composer-more-menu" role="menu">
-                    <button
+                    {files && <button
                       type="button"
                       className="composer-more-item"
                       role="menuitem"
@@ -233,7 +228,7 @@ export function ChannelComposer({
                         <path d="M16 10l-5 5a4 4 0 0 1-5.66-5.66l6-6a2.5 2.5 0 0 1 3.54 3.54l-6.01 6a1 1 0 0 1-1.41-1.41L13 5.5" />
                       </svg>
                       {t("composer.attach")}
-                    </button>
+                    </button>}
                     <button
                       type="button"
                       className="composer-more-item"

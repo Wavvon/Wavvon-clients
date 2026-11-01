@@ -25,6 +25,7 @@ interface Props {
   /** Admin-only discoverability hint: the tag picker renders nothing when the
    * forum has no tag definitions, which reads as "tagging doesn't exist". */
   showNoTagsHint?: boolean;
+  canAttach?: boolean;
 }
 
 interface PendingFile {
@@ -32,7 +33,7 @@ interface PendingFile {
   objectUrl: string;
 }
 
-export function ForumComposer({ channelId, actions, onCreated, onCancel, allianceId, forumRequireTag, showNoTagsHint }: Props) {
+export function ForumComposer({ channelId, actions, onCreated, onCancel, allianceId, forumRequireTag, showNoTagsHint, canAttach }: Props) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -78,12 +79,12 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
     try {
       // Upload every pending file before creating the post -- a partial
       // upload failure must not leave a post with some attachments missing.
-      const attachments = actions.uploadAttachment && pendingFiles.length > 0
-        ? await Promise.all(pendingFiles.map((f) => actions.uploadAttachment!(channelId, f.file)))
+      const attachmentIds = actions.uploadAttachment && canAttach && pendingFiles.length > 0
+        ? (await Promise.all(pendingFiles.map((f) => actions.uploadAttachment!(channelId, f.file)))).map((a) => a.id)
         : undefined;
       const result = allianceId
         ? await actions.createAlliancePost!(allianceId, channelId, title.trim(), body.trim())
-        : await actions.createPost(channelId, title.trim(), body.trim(), selectedTagIds, attachments);
+        : await actions.createPost(channelId, title.trim(), body.trim(), selectedTagIds, attachmentIds);
       pendingFiles.forEach((f) => URL.revokeObjectURL(f.objectUrl));
       onCreated(result.id);
     } catch (e) {
@@ -134,7 +135,7 @@ export function ForumComposer({ channelId, actions, onCreated, onCancel, allianc
           <p className="muted">{t("forum.no_tags_hint")}</p>
         </div>
       )}
-      {actions.uploadAttachment && !allianceId && (
+      {actions.uploadAttachment && canAttach && !allianceId && (
         <div className="settings-section">
           <label className="settings-label">{t("forum.composer.attachments")}</label>
           <input

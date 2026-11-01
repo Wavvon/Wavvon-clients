@@ -27,6 +27,7 @@ import {
   makeSurveyActions,
 } from "../hooks/hubAdminActions";
 import { stickerPacksActions, stickerStorageActions, stickerSettingsActions } from "../hooks/stickerActions";
+import { attachmentSettingsActions } from "../hooks/attachmentActions";
 
 type PassthroughProps = Omit<
   HubAdminPageProps,
@@ -108,6 +109,7 @@ export function HubAdminContainer({
       myMaxPriority={myMaxPriority}
       canManageSoundboard={canManageSoundboard}
       stickersAdmin={stickersAdmin}
+      attachmentSettingsActions={hubCaps.includes("attachments.stored") && can("hub.settings") ? attachmentSettingsActions : undefined}
       canManageHubAlliances={canManageHubAlliances}
       rolesActions={rolesActions}
       memberRoleActions={memberRoleActions}

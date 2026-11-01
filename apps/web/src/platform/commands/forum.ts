@@ -1,6 +1,6 @@
 import { forumPage, FORUM_PAGE_SIZE } from "@wavvon/ui";
 import { hubFetch } from "../http";
-import type { PostListResponse, PostSummary, PostDetail, ReplyView, ForumTagDef, ForumAttachment } from "../../types";
+import type { PostListResponse, PostSummary, PostDetail, ReplyView, ForumTagDef } from "../../types";
 
 export async function forumListPosts(channelId: string, cursor?: string, tagId?: string): Promise<PostListResponse> {
   const params = new URLSearchParams({ limit: String(FORUM_PAGE_SIZE) });
@@ -20,11 +20,11 @@ export async function forumCreatePost(
   title: string,
   body: string,
   tagIds?: string[],
-  attachments?: ForumAttachment[],
+  attachmentIds?: string[],
 ): Promise<{ id: string }> {
   const r = await hubFetch(`/channels/${channelId}/posts`, {
     method: "POST",
-    body: JSON.stringify({ title, body, tag_ids: tagIds, attachments }),
+    body: JSON.stringify({ title, body, tag_ids: tagIds, attachment_ids: attachmentIds }),
   });
   return r.json() as Promise<{ id: string }>;
 }
@@ -88,11 +88,11 @@ export async function forumCreateReply(
   postId: string,
   body: string,
   replyToId?: string,
-  attachments?: ForumAttachment[],
+  attachmentIds?: string[],
 ): Promise<{ id: string }> {
   const r = await hubFetch(`/channels/${channelId}/posts/${postId}/replies`, {
     method: "POST",
-    body: JSON.stringify({ body, reply_to_id: replyToId, attachments }),
+    body: JSON.stringify({ body, reply_to_id: replyToId, attachment_ids: attachmentIds }),
   });
   return r.json() as Promise<{ id: string }>;
 }
