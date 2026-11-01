@@ -66,57 +66,8 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
 
   return (
     <>
-      {/* On desktop (>= 768px) render the normal layout via CSS */}
-      <style>{`
-        .mobile-shell-desktop { display: contents; }
-        .mobile-shell-mobile { display: none; }
-        @media (max-width: 767px) {
-          .mobile-shell-desktop { display: none !important; }
-          .mobile-shell-mobile { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow: hidden; }
-          .mobile-shell-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-          .mobile-shell-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 0 12px;
-            height: 44px;
-            border-bottom: 1px solid var(--border);
-            background: var(--surface);
-            flex-shrink: 0;
-          }
-          .mobile-shell-back {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px 8px;
-            font-size: 20px;
-            color: var(--text);
-            line-height: 1;
-          }
-          .mobile-shell-title {
-            font-weight: 600;
-            font-size: var(--text-sm);
-            flex: 1;
-          }
-          .mobile-shell-breadcrumb {
-            display: flex;
-            gap: 4px;
-            align-items: center;
-          }
-          .mobile-shell-crumb {
-            font-size: var(--text-xs);
-            color: var(--text-muted);
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 2px 4px;
-          }
-          .mobile-shell-crumb.active {
-            color: var(--text);
-            font-weight: 600;
-          }
-        }
-      `}</style>
+      {/* Layout rules live in styles.css: the hub serves this client under a CSP that forbids inline <style> */}
+
 
       {/* Desktop: pass through normally */}
       <div className="mobile-shell-desktop">
