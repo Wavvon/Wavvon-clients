@@ -6962,6 +6962,33 @@ a.embed-title:hover {
 
 /* ---- EmojiPicker server section ---- */
 .emoji-picker-server-section { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 6px; }
+.sticker-picker-popup { width: 340px; }
+.sticker-picker-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.sticker-picker-note { font-size: var(--text-sm); padding: 8px 2px; }
+.sticker-grid { grid-template-columns: repeat(4, 1fr); max-height: 240px; overflow-y: auto; }
+.sticker-cell { position: relative; display: inline-flex; }
+.sticker-cell-btn { padding: 4px; }
+.sticker-cell-img { width: 64px; height: 64px; object-fit: contain; display: block; }
+.sticker-cell-img-off { opacity: 0.35; filter: grayscale(1); }
+.sticker-cell-remove {
+  position: absolute; top: 0; right: 0; width: 18px; height: 18px; line-height: 16px; padding: 0;
+  border-radius: 50%; border: none; background: var(--bg-elevated, var(--bg)); color: var(--text-muted);
+  cursor: pointer; opacity: 0;
+}
+.sticker-cell:hover .sticker-cell-remove, .sticker-cell-remove:focus-visible { opacity: 1; }
+.sticker-message { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 4px; }
+.sticker-message-img { display: block; max-width: 160px; max-height: 160px; object-fit: contain; }
+.sticker-tombstone { font-style: italic; font-size: var(--text-sm); }
+.sticker-origin { font-size: var(--text-xs); }
+.sticker-origin a { color: inherit; text-decoration: underline; }
+.sticker-origin a:hover { color: var(--accent); }
+.sticker-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sticker-admin-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.sticker-admin-cell { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; max-width: 96px; }
+.sticker-admin-name { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; max-width: 96px; }
+.sticker-admin-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0; }
+.sticker-admin-facts dt { color: var(--text-muted); }
+.sticker-admin-facts dd { margin: 0; }
 .emoji-picker-section-label { font-size: 10px; color: var(--text-muted); padding: 4px 2px 2px; }
 
 .role-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: var(--text-xs); }

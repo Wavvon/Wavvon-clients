@@ -21,6 +21,8 @@ import { IgnoredMessagePlaceholder } from "./MessageHelpers";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { Avatar } from "../Avatar";
 import { MessageAttachments } from "../Attachments";
+import { StickerMessage } from "../stickers/StickerMessage";
+import type { StickerActions } from "../stickers/stickerActions";
 import { MessageContent } from "../MessageContent";
 import { GameCard } from "../GameCard";
 import { PollCard } from "../polls/PollCard";
@@ -82,6 +84,7 @@ interface Props {
   displayedMessages: Message[];
   messageRowRef: (el: HTMLLIElement | null) => void;
   actions: MessageRowActions;
+  stickerActions?: StickerActions;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onSetReplyTarget: (message: Message | null) => void;
   onSaveEdit: () => void;
@@ -135,6 +138,7 @@ export function MessageRow({
   displayedMessages,
   messageRowRef,
   actions,
+  stickerActions,
   onToggleReaction,
   onSetReplyTarget,
   onSaveEdit,
@@ -406,6 +410,14 @@ export function MessageRow({
             )}
             {m.attachments && m.attachments.length > 0 && (
               <MessageAttachments items={m.attachments} onImageClick={onOpenImage} />
+            )}
+            {m.sticker && (hubBaseUrl ?? activeHub?.hub_url) && (
+              <StickerMessage
+                sticker={m.sticker}
+                hubUrl={(hubBaseUrl ?? activeHub?.hub_url) as string}
+                actions={stickerActions}
+                onError={onError}
+              />
             )}
             {m.edited_at && (
               <span

@@ -168,14 +168,18 @@ pub(crate) async fn send_message(
     content: String,
     attachments: Option<Vec<AttachmentInfo>>,
     reply_to: Option<String>,
+    sticker_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<MessageInfo, AppError> {
     let (hub_url, token) = active_session(&state).map_err(AppError::Internal)?;
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "content": content,
         "attachments": attachments.unwrap_or_default(),
         "reply_to": reply_to,
     });
+    if let Some(id) = sticker_id {
+        body["sticker_id"] = serde_json::Value::String(id);
+    }
     let resp = state
         .http_client
         .post(format!("{hub_url}/channels/{channel_id}/messages"))

@@ -201,6 +201,15 @@ export function useChannelMessages({
     }
   }
 
+  // Throws so the sticker picker can say why: it owns the error wording.
+  async function handleSendSticker(channelId: string, stickerId: string) {
+    const sent = await sendMessage(channelId, "", undefined, undefined, stickerId);
+    if (sent && sent.channel_id === selectedChannelIdRef.current) {
+      setMessages((prev) => prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]);
+    }
+    onMessageSent?.();
+  }
+
   async function handleSaveEdit() {
     if (!editingMessageId || !editingDraft.trim() || !selectedChannel) return;
     try {
@@ -286,6 +295,7 @@ export function useChannelMessages({
     handleSelectAllianceChannel,
     handleSendAllianceMessage,
     handleSend,
+    handleSendSticker,
     handleSaveEdit,
     handleCancelEdit,
     handleStartEdit,

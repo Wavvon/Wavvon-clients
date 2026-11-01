@@ -12,6 +12,7 @@ import {
   webhookActions, auditLogActions,
   certActions, soundboardActions, onboardingActions, allianceActions,
   hubIconActions, surveyActions, applicationActions,
+  stickerPacksActions, stickerStorageActions, stickerSettingsActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
 import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../platform/commands/recoveryPeople";
@@ -28,6 +29,7 @@ export interface HubAdminContainerProps {
   activeHubId: string;
   publicKey: string | null;
   isAdmin: boolean;
+  canDo: (permission: string) => boolean;
   canManageRoles: boolean;
   canManageSoundboard: boolean;
   canManageHubAlliances: boolean;
@@ -42,9 +44,17 @@ export interface HubAdminContainerProps {
 // explicitly allowed to live outside packages/ui (decisions.md 2026-07-18/20).
 export function HubAdminContainer({
   hubAdmin, channels, hubs, activeHubId, publicKey,
-  isAdmin, canManageRoles, canManageSoundboard, canManageHubAlliances, myMaxPriority, onClose,
+  isAdmin, canDo, canManageRoles, canManageSoundboard, canManageHubAlliances, myMaxPriority, onClose,
 }: HubAdminContainerProps) {
   const activeHubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
+  const stickersAdmin = activeHubSupports("stickers")
+    ? {
+        hubUrl: activeHubUrl,
+        packs: canDo("stickers.packs.manage") ? stickerPacksActions : undefined,
+        storage: canDo("stickers.moderate") ? stickerStorageActions : undefined,
+        settings: canDo("hub.settings") ? stickerSettingsActions : undefined,
+      }
+    : undefined;
 
   return (
     <div className="modal-overlay" style={{ display: "flex", alignItems: "stretch", justifyContent: "stretch" }}>
@@ -133,6 +143,7 @@ export function HubAdminContainer({
         auditLogActions={auditLogActions}
         certActions={certActions}
         soundboardActions={soundboardActions}
+        stickersAdmin={stickersAdmin}
         onboardingActions={onboardingActions}
         allianceActions={allianceActions}
         hubIconActions={hubIconActions}

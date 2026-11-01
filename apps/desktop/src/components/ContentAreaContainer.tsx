@@ -2,6 +2,7 @@ import type { AllianceScrollback } from "@wavvon/ui";
 import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
+import { useStickers } from "../hooks/useStickers";
 import { saveDraft } from "../utils/drafts";
 import type { Channel, User, RoleInfo } from "../types";
 import type { useVoice } from "../hooks/useVoice";
@@ -71,6 +72,14 @@ export function ContentAreaContainer({
   const { activeHubId } = hubLifecycle;
   const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
   const { selectedChannel } = channelMessages;
+  const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const stickerActions = useStickers({
+    hub: hubLifecycle.hubs.find((h) => h.hub_id === activeHubId),
+    supported: caps.includes("stickers"),
+    canManagePacks: hasPerm("stickers.packs.manage"),
+    canUseExternal: hasPerm("stickers.external"),
+    sendSticker: channelMessages.handleSendSticker,
+  });
 
   return (
     <>
@@ -176,6 +185,7 @@ export function ContentAreaContainer({
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}
         onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
+        stickerActions={stickerActions}
       />
       {showHubStreams && (
         <HubStreamsPanel

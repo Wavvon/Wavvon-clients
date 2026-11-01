@@ -34,7 +34,13 @@ import {
   listAllianceManagers, grantAllianceManager, revokeAllianceManager,
   getAllianceMembers, listHubs, getActiveHubId, rawFetch,
 } from "@platform";
-import { knownIssuerHubs, type IssuerHub } from "@wavvon/ui";
+import { knownIssuerHubs, type IssuerHub, type StickerPacksActions, type StickerStorageActions, type StickerSettingsActions } from "@wavvon/ui";
+import {
+  listStickerPacks, createStickerPack, renameStickerPack, deleteStickerPack,
+  uploadStickerToPack, removeStickerFromPack,
+  listStoredStickers, getStickerUsage, deleteStoredSticker, listStickerBlocklist, unblockSticker,
+  getStickerSettings, saveStickerSettings,
+} from "./commands/stickers";
 import { fetchSoundboardAudioBytes } from "@platform";
 import {
   adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
@@ -143,6 +149,28 @@ export const certActions = {
 export const soundboardActions = {
   listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip, fetchSoundboardAudioBytes,
 } as SoundboardAdminSectionActions;
+
+export const stickerPacksActions: StickerPacksActions = {
+  listPacks: listStickerPacks,
+  createPack: createStickerPack,
+  renamePack: renameStickerPack,
+  deletePack: deleteStickerPack,
+  uploadSticker: uploadStickerToPack,
+  removeSticker: removeStickerFromPack,
+};
+
+export const stickerStorageActions: StickerStorageActions = {
+  listStored: listStoredStickers,
+  getUsage: getStickerUsage,
+  deleteSticker: deleteStoredSticker,
+  listBlocklist: listStickerBlocklist,
+  unblock: unblockSticker,
+};
+
+export const stickerSettingsActions: StickerSettingsActions = {
+  getSettings: getStickerSettings,
+  saveSettings: saveStickerSettings,
+};
 
 export const onboardingActions = {
   listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,

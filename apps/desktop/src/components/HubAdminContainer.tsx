@@ -26,6 +26,7 @@ import {
   makeOnboardingActions,
   makeSurveyActions,
 } from "../hooks/hubAdminActions";
+import { stickerPacksActions, stickerStorageActions, stickerSettingsActions } from "../hooks/stickerActions";
 
 type PassthroughProps = Omit<
   HubAdminPageProps,
@@ -68,7 +69,17 @@ export function HubAdminContainer({
   const onboardingActions = useMemo(() => makeOnboardingActions(getActiveHubUrl), [activeHubUrl]);
   const surveyActions = useMemo(() => makeSurveyActions(getActiveHubUrl), [activeHubUrl]);
   const applicationActions = useMemo(() => makeApplicationActions(() => activeHubUrl), [activeHubUrl]);
-  const joinFormsCapable = useHubCapabilities(activeHubUrl || null).includes("admission.application");
+  const hubCaps = useHubCapabilities(activeHubUrl || null);
+  const joinFormsCapable = hubCaps.includes("admission.application");
+  const can = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const stickersAdmin = hubCaps.includes("stickers")
+    ? {
+        hubUrl: activeHubUrl,
+        packs: can("stickers.packs.manage") ? stickerPacksActions : undefined,
+        storage: can("stickers.moderate") ? stickerStorageActions : undefined,
+        settings: can("hub.settings") ? stickerSettingsActions : undefined,
+      }
+    : undefined;
 
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
@@ -96,6 +107,7 @@ export function HubAdminContainer({
       canManageRoles={canManageRoles}
       myMaxPriority={myMaxPriority}
       canManageSoundboard={canManageSoundboard}
+      stickersAdmin={stickersAdmin}
       canManageHubAlliances={canManageHubAlliances}
       rolesActions={rolesActions}
       memberRoleActions={memberRoleActions}

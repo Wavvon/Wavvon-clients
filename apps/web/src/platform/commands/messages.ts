@@ -19,10 +19,11 @@ export async function sendMessage(
   content: string,
   attachments?: Attachment[],
   reply_to?: string,
+  sticker_id?: string,
 ): Promise<Message | null> {
   const res = await hubFetch(`/channels/${channel_id}/messages`, {
     method: "POST",
-    body: JSON.stringify({ content, attachments, reply_to }),
+    body: JSON.stringify({ content, attachments, reply_to, sticker_id }),
   });
   // 201 carries the stored message, so the caller can render it without
   // waiting for the socket to echo it back. A 200 is the slash-command

@@ -78,6 +78,9 @@ export const ALL_PERMISSIONS: string[] = [
   "audit.read",
   "surveys.manage",
   "surveys.responses.read",
+  "stickers.packs.manage",
+  "stickers.external",
+  "stickers.moderate",
 ];
 
 

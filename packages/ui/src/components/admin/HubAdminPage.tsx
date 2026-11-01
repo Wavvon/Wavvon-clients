@@ -15,6 +15,9 @@ import { InviteManager, type InviteManagerActions } from "./InviteManager";
 import { AuditLogSection, type AuditLogSectionActions } from "./AuditLogSection";
 import { CertificationsSection, type CertificationsSectionActions } from "./CertificationsSection";
 import { SoundboardAdminSection, type SoundboardAdminSectionActions } from "./SoundboardAdminSection";
+import { StickerPacksSection, type StickerPacksActions } from "./StickerPacksSection";
+import { StickerStorageSection, type StickerStorageActions } from "./StickerStorageSection";
+import { StickerSettingsSection, type StickerSettingsActions } from "./StickerSettingsSection";
 import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./OnboardingAdminSection";
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
@@ -35,6 +38,9 @@ export type HubAdminTab =
   | "recovery"
   | "moderation"
   | "soundboard"
+  | "stickers"
+  | "sticker-storage"
+  | "sticker-settings"
   | "alliances"
   | "hub-icons"
   | "onboarding"
@@ -166,6 +172,16 @@ export interface HubAdminPageProps {
   /** Soundboard hub routes (upload/list/delete/fetch-audio) — omitted where
    *  the platform has no Tauri commands for them yet; the tab disappears. */
   soundboardActions?: SoundboardAdminSectionActions;
+  /** Present only on a hub advertising `stickers`. Each part is present only
+   *  when the viewer holds the permission it needs (packs:
+   *  `stickers.packs.manage`, storage: `stickers.moderate`, settings:
+   *  `hub.settings`), and a tab appears for each part that is. */
+  stickersAdmin?: {
+    hubUrl: string;
+    packs?: StickerPacksActions;
+    storage?: StickerStorageActions;
+    settings?: StickerSettingsActions;
+  };
   onboardingActions: OnboardingAdminSectionActions;
   allianceActions: AlliancesSectionActions;
   hubIconActions: HubIconsSectionActions;
@@ -325,6 +341,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
+    ...(props.stickersAdmin?.packs ? [{ id: "stickers" as HubAdminTab, label: t("hub.admin.tabs.stickers"), group: G_CUSTOM }] : []),
+    ...(props.stickersAdmin?.storage ? [{ id: "sticker-storage" as HubAdminTab, label: t("hub.admin.tabs.sticker_storage"), group: G_CUSTOM }] : []),
+    ...(props.stickersAdmin?.settings ? [{ id: "sticker-settings" as HubAdminTab, label: t("hub.admin.tabs.sticker_settings"), group: G_CUSTOM }] : []),
   ];
 
   return (
@@ -821,6 +840,22 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {props.tab === "soundboard" && props.canManageSoundboard && props.soundboardActions && (
           <SoundboardAdminSection actions={props.soundboardActions} />
+        )}
+
+        {props.tab === "stickers" && props.stickersAdmin?.packs && (
+          <StickerPacksSection actions={props.stickersAdmin.packs} hubUrl={props.stickersAdmin.hubUrl} />
+        )}
+
+        {props.tab === "sticker-storage" && props.stickersAdmin?.storage && (
+          <StickerStorageSection actions={props.stickersAdmin.storage} hubUrl={props.stickersAdmin.hubUrl} />
+        )}
+
+        {props.tab === "sticker-settings" && props.stickersAdmin?.settings && (
+          <StickerSettingsSection
+            actions={props.stickersAdmin.settings}
+            rolesActions={props.rolesActions}
+            canManageRoles={props.canManageRoles}
+          />
         )}
 
         {props.tab === "moderation" && props.isAdmin && props.renderModerationTab?.()}
