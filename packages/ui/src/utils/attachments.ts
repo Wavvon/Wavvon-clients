@@ -2,7 +2,7 @@ import type { Attachment, AttachmentRef } from "../types";
 
 const WARNED_EXTENSIONS = new Set(
   ("exe msi msix appx bat cmd com scr pif cpl ps1 psm1 vbs vbe js jse wsf wsh hta lnk reg jar sh command app " +
-    "dmg pkg deb rpm appimage apk iso img docm xlsm pptm svg").split(" "),
+    "dmg pkg deb rpm appimage apk iso img docm xlsm pptm svg html htm xhtml mht mhtml chm url msp").split(" "),
 );
 
 export function needsDownloadWarning(name: string): boolean {

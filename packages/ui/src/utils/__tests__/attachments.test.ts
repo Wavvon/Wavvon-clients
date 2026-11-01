@@ -6,6 +6,7 @@ describe("needsDownloadWarning", () => {
     expect(needsDownloadWarning("setup.EXE")).toBe(true);
     expect(needsDownloadWarning("logo.svg")).toBe(true);
     expect(needsDownloadWarning("archive.tar.sh")).toBe(true);
+    expect(needsDownloadWarning("invoice.html")).toBe(true);
   });
 
   it("leaves ordinary files alone", () => {
