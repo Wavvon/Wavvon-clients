@@ -5,6 +5,8 @@ import { formatPubkey } from "@wavvon/core";
 import { EmojiPicker } from "./EmojiPicker";
 import { PendingAttachments } from "../Attachments";
 import { CloseIcon } from "../Icons";
+import { StickerPicker } from "../stickers/StickerPicker";
+import type { StickerActions } from "../stickers/stickerActions";
 
 interface SlashCommandEntry {
   command: string;
@@ -39,6 +41,8 @@ interface Props {
   onFillMention: (displayName: string) => void;
   onFillSlashCommand: (command: string) => void;
   onShowPollComposer: () => void;
+  /** Present on a hub advertising `stickers`. */
+  stickers?: { channelId: string; actions: StickerActions; onError: (msg: string) => void };
 }
 
 export function ChannelComposer({
@@ -66,6 +70,7 @@ export function ChannelComposer({
   onFillMention,
   onFillSlashCommand,
   onShowPollComposer,
+  stickers,
 }: Props) {
   const { t } = useTranslation();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -246,6 +251,7 @@ export function ChannelComposer({
                 </>
               )}
             </div>
+            {stickers && <StickerPicker {...stickers} />}
             <EmojiPicker
               hubUrl={activeHubUrl}
               buttonClassName="composer-btn"

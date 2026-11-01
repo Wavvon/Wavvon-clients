@@ -38,6 +38,7 @@ import {
   type EventMoveAssignment,
   type EventRsvp,
   type PinnedMessageEntry,
+  type StickerActions,
   PinnedMessagesModal,
 } from "@wavvon/ui";
 import type { AllianceScrollback } from "@wavvon/ui";
@@ -208,6 +209,7 @@ interface Props {
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
   onStartConversation?: (pubkey: string) => void;
+  stickerActions?: StickerActions;
 }
 
 export function ContentArea(props: Props) {
@@ -360,6 +362,7 @@ export function ContentArea(props: Props) {
         onBreadcrumbCategoryClick={() => {}}
         forumActions={forumActions}
         messageRowActions={messageRowActions}
+        stickerActions={props.stickerActions}
         profileCardActions={profileCardActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={loadChannelPolls}

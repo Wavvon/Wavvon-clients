@@ -402,6 +402,18 @@ export { HelpTab } from "./components/settings/HelpTab";
 export { AboutTab } from "./components/settings/AboutTab";
 export { SettingsAccountPicker } from "./components/settings/SettingsAccountPicker";
 export { ActiveAccountOnlyNotice } from "./components/settings/ActiveAccountOnlyNotice";
+export { StickerPacksSection } from "./components/admin/StickerPacksSection";
+export type { StickerPacksActions } from "./components/admin/StickerPacksSection";
+export { StickerStorageSection } from "./components/admin/StickerStorageSection";
+export type { StickerStorageActions } from "./components/admin/StickerStorageSection";
+export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
+export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
+export { StickerPicker } from "./components/stickers/StickerPicker";
+export { StickerMessage } from "./components/stickers/StickerMessage";
+export type { StickerActions, StickerCollectionState } from "./components/stickers/stickerActions";
+export {
+  stickerErrorKey, parseHubError, savedEntryFor, withSaved, withoutSaved, isSaved, needsExternal, stickerSrc,
+} from "./utils/stickers";
 export { SoundboardAdminSection } from "./components/admin/SoundboardAdminSection";
 export type { SoundboardAdminSectionActions } from "./components/admin/SoundboardAdminSection";
 export { OnboardingAdminSection } from "./components/admin/OnboardingAdminSection";
@@ -416,6 +428,13 @@ export type {
   HubBadge,
   PendingBadgeOffer,
   SoundboardClip,
+  Sticker,
+  StickerPack,
+  AdminSticker,
+  StickerUsage,
+  StickerBudget,
+  StickerBlockEntry,
+  StickerSettings,
   AuditLogEntry,
   AuditLogPage,
   CertIssuance,

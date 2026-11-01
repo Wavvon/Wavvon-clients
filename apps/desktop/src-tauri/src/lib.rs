@@ -31,6 +31,7 @@ mod recovery;
 mod screen_share;
 mod soundboard;
 mod state;
+mod stickers;
 mod types;
 mod updater;
 mod voice_cmd;
@@ -202,6 +203,10 @@ pub fn run() {
             soundboard::soundboard_upload_clip,
             soundboard::soundboard_delete_clip,
             soundboard::soundboard_play_clip,
+            stickers::sticker_api,
+            stickers::sticker_upload,
+            prefs_blob::sticker_collection_get,
+            prefs_blob::sticker_collection_update,
             // Local store
             local_store::load_appearance,
             local_store::save_appearance,

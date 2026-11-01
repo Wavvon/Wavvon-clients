@@ -50,6 +50,7 @@ export function AppModals(p: AppModalsProps) {
     addHubError,
     addingHub,
     canManageRoles,
+    canDo,
     canEditChannelPermissions,
     canManageSoundboard,
     canManageHubAlliances,
@@ -140,6 +141,7 @@ export function AppModals(p: AppModalsProps) {
           publicKey={publicKey}
           isAdmin={isAdmin}
           canManageRoles={canManageRoles}
+          canDo={canDo}
           canManageSoundboard={canManageSoundboard}
           canManageHubAlliances={canManageHubAlliances}
           myMaxPriority={myMaxPriority}
@@ -155,7 +157,7 @@ export function AppModals(p: AppModalsProps) {
           loading={addingHub}
           error={addHubError}
           fingerprintMatch={fingerprintMatch}
-          onAdd={handleAddHub}
+          onAdd={() => void handleAddHub()}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
           passkeySupported={passkeysUsableWith(hubUrl)}
           onClose={() => {

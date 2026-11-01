@@ -32,6 +32,7 @@ import { ChannelComposer } from "./ChannelComposer";
 import { ChannelMessageList } from "./ChannelMessageList";
 import { VoiceStage, type VoiceStageInfo } from "./VoiceStage";
 import type { MessageRowActions } from "./MessageRow";
+import type { StickerActions } from "../stickers/stickerActions";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 import { CalendarIcon } from "../Icons";
@@ -150,6 +151,9 @@ interface Props {
   // precedent -- packages/ui never imports @platform or Tauri's invoke directly).
   forumActions: ForumActions;
   messageRowActions: MessageRowActions;
+  /** Stickers (picker, save, add to a pack). Omitted on a hub that does not
+   *  advertise `stickers`, which hides every sticker control. */
+  stickerActions?: StickerActions;
   loadHubEmojis: () => Promise<HubEmoji[]>;
   loadChannelPolls: (channelId: string) => Promise<Poll[]>;
   loadThreadReplies: (channelId: string, messageId: string) => Promise<Message[]>;
@@ -209,7 +213,7 @@ export function ContentArea({
   alliancePeopleActions,
   onShowPinned,
   profileCardActions,
-  forumActions, messageRowActions,
+  forumActions, messageRowActions, stickerActions,
   loadHubEmojis, loadChannelPolls, loadThreadReplies,
   loadExpandedThreads, saveExpandedThreads,
   onComponentInteract, onCreatePoll,
@@ -604,6 +608,7 @@ export function ContentArea({
               hubEmojiMap={hubEmojiMap}
               hubBaseUrl={activeHub?.hub_url}
               actions={messageRowActions}
+              stickerActions={stickerActions}
               stickToBottom={stickToBottom}
               newWhileScrolledUp={newWhileScrolledUp}
               firstNotifyingMessageId={firstNotifyingMessageId}
@@ -660,6 +665,7 @@ export function ContentArea({
               onFillMention={fillMention}
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
+              stickers={stickerActions ? { channelId: selectedChannel.id, actions: stickerActions, onError } : undefined}
             /></>}
           </div>
         ) : selectedAllianceChannel && selectedAllianceChannel.channel.channel_type === "forum" ? (

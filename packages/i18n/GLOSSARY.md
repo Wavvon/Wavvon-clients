@@ -16,6 +16,7 @@ personal blocks) make people think they are two things.
 | Ban, unban | Verbs follow the language: it *bannare*, es *banear*, de *bannen*. Never the word for a personal block. |
 | Push-to-talk | de writes *Push-to-Talk*. |
 | Emoji | |
+| Sticker | Stays *sticker*, de *Sticker*. |
 | Passkey | |
 | App, Bio, Chat | |
 

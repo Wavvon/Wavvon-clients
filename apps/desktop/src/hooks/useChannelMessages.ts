@@ -70,6 +70,7 @@ export interface ChannelMessagesReturn {
   setSelectedAllianceChannel: React.Dispatch<React.SetStateAction<SelectedAllianceChannel | null>>;
   setAllianceMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   handleSend: () => Promise<void>;
+  handleSendSticker: (channelId: string, stickerId: string) => Promise<void>;
   handleSendAllianceMessage: () => Promise<void>;
   startEditingMessage: (m: Message) => void;
   cancelEditingMessage: () => void;
@@ -425,6 +426,12 @@ export function useChannelMessages({
     await selectSharedAllianceChannel(alliance, ch);
   }
 
+  // Throws so the sticker picker can say why: it owns the error wording.
+  async function handleSendSticker(channelId: string, stickerId: string) {
+    const msg = await invoke<Message>("send_message", { channelId, content: "", stickerId });
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+  }
+
   async function handleSend() {
     if (!selectedChannel) return;
     const content = inputText;
@@ -628,6 +635,7 @@ export function useChannelMessages({
     clearSelectedChannel,
     selectAllianceChannel,
     handleSend,
+    handleSendSticker,
     handleSendAllianceMessage,
     startEditingMessage,
     cancelEditingMessage,

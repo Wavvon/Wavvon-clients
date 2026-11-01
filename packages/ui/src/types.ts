@@ -85,6 +85,80 @@ export interface Message {
   /** Shown instead of the sender's name (a bridge or webhook relaying
    *  someone); `sender` stays the real author and is shown beside it. */
   masquerade?: { name: string; avatar_url?: string } | null;
+  /** The sticker sent with this message, held by this hub. */
+  sticker?: Sticker | null;
+}
+
+export type StickerState = "ok" | "removed" | "evicted";
+
+export interface Sticker {
+  id: string;
+  name: string;
+  /** Relative to the hub that holds the message: `/stickers/{sha256}`. */
+  url: string;
+  sha256: string;
+  width: number;
+  height: number;
+  origin_hub_url: string | null;
+  origin_hub_name: string | null;
+  state: StickerState;
+}
+
+export interface StickerPack {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: number;
+  stickers: Sticker[];
+}
+
+export interface AdminSticker {
+  id: string;
+  sha256: string;
+  name: string;
+  size_bytes: number;
+  width: number;
+  height: number;
+  pack_id: string | null;
+  uploader: string;
+  origin_hub_url: string | null;
+  origin_hub_name: string | null;
+  created_at: number;
+  last_used_at: number;
+  state: StickerState;
+  message_count: number;
+}
+
+export interface StickerBudget {
+  count: number;
+  bytes: number;
+  cap_bytes: number;
+}
+
+export interface StickerUsage {
+  packs: StickerBudget;
+  packs_warning: boolean;
+  copies: StickerBudget;
+  evictions: number;
+}
+
+export interface StickerBlockEntry {
+  sha256: string;
+  blocked_by: string;
+  reason: string | null;
+  created_at: number;
+}
+
+/** The `stickers_*` hub settings, as GET /hub/settings returns them. */
+export interface StickerSettings {
+  stickers_max_file_bytes: number;
+  stickers_packs_cap_bytes: number;
+  stickers_packs_warn_percent: number;
+  stickers_copies_cap_bytes: number;
+  stickers_per_pack: number;
+  sticker_packs_per_hub: number;
+  stickers_orphan_gc_days: number;
+  stickers_export: boolean;
 }
 
 export interface Embed {

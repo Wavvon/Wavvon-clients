@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
 import { MessageRow, type MessageRowActions } from "./MessageRow";
+import type { StickerActions } from "../stickers/stickerActions";
 import { TypingIndicator } from "../TypingIndicator";
 import { WaveIcon } from "../Icons";
 
@@ -36,6 +37,7 @@ interface Props {
   hubEmojiMap: Map<string, HubEmojiEntry>;
   hubBaseUrl?: string;
   actions: MessageRowActions;
+  stickerActions?: StickerActions;
   stickToBottom: boolean;
   newWhileScrolledUp: number;
   firstNotifyingMessageId: string | null;
@@ -95,6 +97,7 @@ export function ChannelMessageList({
   hubEmojiMap,
   hubBaseUrl,
   actions,
+  stickerActions,
   stickToBottom,
   newWhileScrolledUp,
   firstNotifyingMessageId,
@@ -184,6 +187,7 @@ export function ChannelMessageList({
             hubEmojiMap={hubEmojiMap}
             hubBaseUrl={hubBaseUrl}
             actions={actions}
+            stickerActions={stickerActions}
             displayedMessages={displayedMessages}
             channelPolls={channelPolls}
             messageRowRef={(el) => { messageRowRefs.current[i] = el; }}

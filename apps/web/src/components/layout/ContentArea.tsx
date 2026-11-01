@@ -45,6 +45,7 @@ import {
   getAllianceMembers, listAlliancePeople, activeHubSupports,
 } from "@platform";
 import { activeSession } from "../../platform/session";
+import { useStickers } from "../../hooks/useStickers";
 
 import { getScoped, setScoped } from "@shared/utils/accountScope";
 import { profileCardActions } from "../../platform/adminActions";
@@ -205,6 +206,15 @@ export function ContentArea(props: Props) {
   } = props;
   const { selectedChannel } = channelMessages;
 
+  const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const stickerActions = useStickers({
+    hub: hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId),
+    supported: activeHubSupports("stickers"),
+    canManagePacks: hasPerm("stickers.packs.manage"),
+    canUseExternal: hasPerm("stickers.external"),
+    sendSticker: channelMessages.handleSendSticker,
+  });
+
   // Both sources keep their own rolling counters; this only samples them.
   const conn = useConnectionStats(
     () => {
@@ -350,6 +360,7 @@ export function ContentArea(props: Props) {
         profileCardActions={profileCardActions}
         forumActions={forumActions}
         messageRowActions={messageRowActions}
+        stickerActions={stickerActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}
         loadThreadReplies={loadThreadReplies}

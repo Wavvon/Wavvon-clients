@@ -1684,6 +1684,7 @@ export default function App({ initialView }: AppProps = {}) {
         addingHub={addingHub}
         canEditChannelPermissions={canEditChannelPermissions}
         canManageRoles={canManageRoles}
+        canDo={can}
         canManageSoundboard={canManageSoundboard}
         canManageHubAlliances={canManageHubAlliances}
         canSendMessages={canSendMessages}
