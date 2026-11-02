@@ -1,3 +1,4 @@
+import { channelTypeFor } from "../HubSetupWizard";
 import { describe, it, expect } from "vitest";
 import { HUB_TEMPLATES, orderPlanSteps, firstTextChannelKey } from "../hubTemplates";
 
@@ -49,5 +50,15 @@ describe("hub setup templates", () => {
       { key: "cat", kind: "category" },
     ] as never);
     expect(ordered.map((c) => c.key)).toEqual(["cat", "orphan"]);
+  });
+});
+
+describe("channelTypeFor", () => {
+  it("makes voice rooms voice channels where the hub has the type", () => {
+    expect(channelTypeFor("voice", true)).toBe("voice");
+  });
+
+  it("falls back to text on a hub older than channels.voice", () => {
+    expect(channelTypeFor("voice", false)).toBe("text");
   });
 });

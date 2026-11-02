@@ -7,7 +7,7 @@ export interface HubSetupWizardCreateChannelFields {
   name: string;
   isCategory: boolean;
   /** Omitted for categories — the server ignores channel_type on those. */
-  channelType?: "text" | "forum";
+  channelType?: "text" | "forum" | "voice";
   parentId: string | null;
 }
 
@@ -17,6 +17,8 @@ export interface HubSetupWizardActions {
 
 interface Props {
   actions: HubSetupWizardActions;
+  /** The hub has `channels.voice`: only a `voice` channel can be joined. */
+  voiceChannels: boolean;
   /** "Start blank" or the overlay/Escape dismiss — caller persists the
    *  per-hub "don't nag again" flag and closes the modal. */
   onDismiss: () => void;
@@ -33,16 +35,19 @@ interface RunState {
   createdIds: Record<string, string>;
 }
 
-function channelTypeFor(kind: HubTemplateChannelSpec["kind"]): "text" | "forum" | undefined {
+export function channelTypeFor(
+  kind: HubTemplateChannelSpec["kind"],
+  voiceChannels: boolean,
+): HubSetupWizardCreateChannelFields["channelType"] {
   if (kind === "category") return undefined;
   if (kind === "forum") return "forum";
-  // "voice" channels are a plain text-type channel in a "Voice" category —
-  // the hub has no separate voice channel_type, every leaf channel can host
-  // a voice call alongside its text pane.
+  // A hub older than `channels.voice` has no voice type: any text channel
+  // hosts a call there.
+  if (kind === "voice" && voiceChannels) return "voice";
   return "text";
 }
 
-export function HubSetupWizard({ actions, onDismiss, onComplete }: Props) {
+export function HubSetupWizard({ actions, voiceChannels, onDismiss, onComplete }: Props) {
   const { t } = useTranslation();
   const [run, setRun] = useState<RunState | null>(null);
   const [creating, setCreating] = useState(false);
@@ -67,7 +72,7 @@ export function HubSetupWizard({ actions, onDismiss, onComplete }: Props) {
         const created = await actions.onCreateChannel({
           name: t(`hub_setup.channel_name.${step.key}`),
           isCategory: step.kind === "category",
-          channelType: channelTypeFor(step.kind),
+          channelType: channelTypeFor(step.kind, voiceChannels),
           parentId: step.parentKey ? ids[step.parentKey] ?? null : null,
         });
         ids[step.key] = created.id;

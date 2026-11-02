@@ -241,6 +241,7 @@ export function AppModals(p: AppModalsProps) {
       {showHubSetupWizard && activeHubId && (
         <HubSetupWizard
           actions={{ onCreateChannel: createChannelForWizard }}
+          voiceChannels={activeHubSupports("channels.voice")}
           onDismiss={() => closeHubSetupWizard(activeHubId)}
           onComplete={handleHubSetupWizardComplete}
         />
