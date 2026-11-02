@@ -24,7 +24,7 @@ pub(crate) fn open_mini_app(
         "window.__WAVVON_HUB__ = {:?}; \
          window.__WAVVON_TOKEN__ = {:?}; \
          window.__WAVVON_CHANNEL__ = {:?}; \
-         window.__WAVVON_BOT_ID__ = {:?}; \
+         window.__WAVVON_APP_ID__ = {:?}; \
          window.__WAVVON_REQUIRES_CAMERA__ = {};",
         hub_url, token, channel_id, app_id, requires_camera
     );
