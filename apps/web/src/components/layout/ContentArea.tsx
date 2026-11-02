@@ -327,7 +327,7 @@ export function ContentArea(props: Props) {
         onPingDmTyping={typing.pingDmTyping}
         channelFiles={activeHubSupports("attachments.stored") ? channelMessages.pendingFiles : undefined}
         onSetPendingAttachments={channelMessages.setPendingAttachments}
-        onAttachFiles={() => {}}
+        onAttachFiles={(files) => void dms.attachFiles(files)}
         onOpenEditDescription={(ch) => { channelCrud.setEditDescChannel(ch); channelCrud.setEditDescValue(ch.description ?? ""); }}
         firstNotifyingMessageId={channelMessages.firstNotifyingMessageId}
         onClearFirstNotify={() => channelMessages.setFirstNotifyingMessageId(null)}

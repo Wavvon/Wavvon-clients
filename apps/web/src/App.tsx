@@ -294,6 +294,8 @@ export default function App({ initialView }: AppProps = {}) {
   const dms = useDms({
     inputText,
     setInputText,
+    pendingAttachments,
+    setPendingAttachments,
     setUnreadDms,
     onConversationSelected: () => { setSelectedChannel(null); setView("dms"); },
     showHubError,
