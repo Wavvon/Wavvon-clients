@@ -1,5 +1,5 @@
 import { hubFetch, rawFetch } from "../http";
-import { activeHubCapabilities } from "../session";
+import { activeHubCapabilities, activeSession } from "../session";
 import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import type { MemberAdminInfo } from "@wavvon/ui";
 import type {
@@ -18,14 +18,15 @@ import { loadIdentity } from "../../identity/store";
 // ---- Discovery / self-tags ----
 
 export async function getDiscoveryTags(): Promise<HubSelfTagSettings> {
-  const r = await hubFetch("/admin/discovery/tags");
-  return r.json() as Promise<HubSelfTagSettings>;
+  const r = await hubFetch("/admin/settings/tags");
+  const body = (await r.json()) as { tags: string[]; nsfw: boolean };
+  return { self_tags: body.tags, nsfw: body.nsfw };
 }
 
 export async function setDiscoveryTags(tags: string[], nsfw: boolean): Promise<void> {
-  await hubFetch("/admin/discovery", {
+  await hubFetch("/admin/settings/tags", {
     method: "PATCH",
-    body: JSON.stringify({ self_tags: tags, nsfw }),
+    body: JSON.stringify({ tags, nsfw }),
   });
 }
 
@@ -36,42 +37,48 @@ export async function submitToDirectory(
   bio: string,
   inviteCode: string | null,
 ): Promise<void> {
-  const body: Record<string, unknown> = { tags, language, bio };
-  if (inviteCode) body["invite_code"] = inviteCode;
-  await rawFetch(`${directoryUrl}/api/hubs/submit`, {
+  // The directory takes only a listing the hub itself signed, so the hub
+  // signs first (`/admin/directory-sign`), as on desktop.
+  const { hub_url } = activeSession();
+  const listing = { hub_url, tags, language, bio, invite_code: inviteCode };
+  const signed = (await (await hubFetch("/admin/directory-sign", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(listing),
+  })).json()) as { canonical_payload: unknown; hub_pubkey: string; signature: string };
+  await rawFetch(`${directoryUrl.replace(/\/+$/, "")}/api/hubs`, {
+    method: "POST",
+    body: JSON.stringify({ ...listing, ...signed }),
   });
 }
 
 // ---- Badges ----
 
 export async function listBadges(): Promise<HubBadge[]> {
-  const r = await hubFetch("/admin/badges");
+  const r = await hubFetch("/badges");
   return r.json() as Promise<HubBadge[]>;
 }
 
 export async function listPendingBadges(): Promise<PendingBadgeOffer[]> {
-  const r = await hubFetch("/admin/badges/pending");
+  const r = await hubFetch("/badges/pending");
   return r.json() as Promise<PendingBadgeOffer[]>;
 }
 
 export async function acceptBadge(id: string): Promise<void> {
-  await hubFetch(`/admin/badges/pending/${id}/accept`, { method: "POST", body: JSON.stringify({}) });
+  await hubFetch(`/badges/pending/${id}/accept`, { method: "POST", body: JSON.stringify({}) });
 }
 
 export async function declineBadge(id: string): Promise<void> {
-  await hubFetch(`/admin/badges/pending/${id}/decline`, { method: "POST", body: JSON.stringify({}) });
+  await hubFetch(`/badges/pending/${id}/decline`, { method: "POST", body: JSON.stringify({}) });
 }
 
 export async function removeBadge(id: string): Promise<void> {
-  await hubFetch(`/admin/badges/${id}`, { method: "DELETE" });
+  await hubFetch(`/badges/${id}`, { method: "DELETE" });
 }
 
 export async function grantBadge(targetHubUrl: string, label: string): Promise<void> {
-  await hubFetch("/admin/badges/grant", {
+  await hubFetch("/admin/badges/issued", {
     method: "POST",
-    body: JSON.stringify({ target_hub_url: targetHubUrl, label }),
+    body: JSON.stringify({ recipient_hub_url: targetHubUrl, label }),
   });
 }
 

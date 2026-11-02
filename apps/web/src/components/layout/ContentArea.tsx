@@ -100,7 +100,9 @@ async function moderateAuthor(kind: "mute" | "kick" | "ban", pubkey: string) {
 
 const messageRowActions: MessageRowActions = {
   pinMessage, unpinMessage, votePoll, deletePoll, sendAppJoin, reportMessage,
-  fetchLinkPreview: (hubUrl, url, token) => fetchLinkPreview(hubUrl, url, token ?? ""),
+  // The shared message list is given no token on web, and an empty bearer
+  // got every preview a 401. Previews come from the active hub (clients#233).
+  fetchLinkPreview: (hubUrl, url, token) => fetchLinkPreview(hubUrl, url, token || activeSession().token),
   muteUser: (pubkey) => moderateAuthor("mute", pubkey),
   kickUser: (pubkey) => moderateAuthor("kick", pubkey),
   banUser: (pubkey) => moderateAuthor("ban", pubkey),
