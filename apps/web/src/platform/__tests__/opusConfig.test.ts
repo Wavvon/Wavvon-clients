@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import OpusScript from 'opusscript';
 import { resolveOpusConfig } from '../opusConfig';
 
 describe('resolveOpusConfig', () => {
@@ -19,13 +18,11 @@ describe('resolveOpusConfig', () => {
   });
 
   it('still selects the music codec mode, which is the part that works', () => {
-    expect(resolveOpusConfig({ profile: 'music' }).app).toBe(OpusScript.Application.AUDIO);
+    expect(resolveOpusConfig({ profile: 'music' }).app).toBe('audio');
   });
 
   it('maps the custom application, defaulting to voip', () => {
-    expect(resolveOpusConfig({ profile: 'custom' }).app).toBe(OpusScript.Application.VOIP);
-    expect(resolveOpusConfig({ profile: 'custom', customApp: 'lowdelay' }).app).toBe(
-      OpusScript.Application.RESTRICTED_LOWDELAY,
-    );
+    expect(resolveOpusConfig({ profile: 'custom' }).app).toBe('voip');
+    expect(resolveOpusConfig({ profile: 'custom', customApp: 'lowdelay' }).app).toBe('lowdelay');
   });
 });

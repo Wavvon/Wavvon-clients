@@ -34,18 +34,6 @@ vi.stubGlobal("navigator", {
   },
 });
 
-const mockOpusInstance = {
-  encode: vi.fn(() => new Uint8Array(10)),
-  decode: vi.fn(() => new Uint8Array(1920)),
-  delete: vi.fn(),
-};
-
-vi.mock("opusscript", () => ({
-  default: Object.assign(vi.fn(() => mockOpusInstance), {
-    Application: { VOIP: 2048, AUDIO: 2049, RESTRICTED_LOWDELAY: 2051 },
-  }),
-}));
-
 const localStorageData: Record<string, string> = {};
 vi.stubGlobal("localStorage", {
   getItem: (k: string) => localStorageData[k] ?? null,
