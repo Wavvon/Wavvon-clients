@@ -111,7 +111,6 @@ export interface WsHubStreams {
 export type { ActiveStream } from "@wavvon/ui";
 
 export interface ScreenShareOpts {
-  sourceId?: string;
   includeAudio: boolean;
   includeWebcam: boolean;
   webcamDeviceId: string;

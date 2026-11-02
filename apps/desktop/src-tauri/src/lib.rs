@@ -403,7 +403,6 @@ pub fn run() {
             events_polls::get_event_rsvps,
             events_polls::create_event_squad_rooms,
             // Screen capture / PiP
-            screen_share::list_capture_sources,
             screen_share::open_pip_window,
             screen_share::close_pip_window,
             // Mini-app windows
