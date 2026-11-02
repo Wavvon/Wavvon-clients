@@ -9,11 +9,19 @@ declare function registerProcessor(name: string, ctor: new () => AudioWorkletPro
 class CaptureProcessor extends AudioWorkletProcessor {
   private acc = new FrameAccumulator();
   private out: MessagePort | null = null;
+  private stopped = false;
 
   constructor() {
     super();
-    this.port.onmessage = (e: MessageEvent<{ pcmPort: MessagePort }>) => {
-      this.out = e.data.pcmPort;
+    this.port.onmessage = (e: MessageEvent<{ pcmPort?: MessagePort; stop?: true }>) => {
+      if (e.data.stop) {
+        this.stopped = true;
+        this.out?.close();
+        this.out = null;
+        this.port.close();
+        return;
+      }
+      if (e.data.pcmPort) this.out = e.data.pcmPort;
     };
   }
 
@@ -23,7 +31,9 @@ class CaptureProcessor extends AudioWorkletProcessor {
     if (channel && out) {
       this.acc.push(channel, currentFrame, Date.now(), (frame) => out.postMessage(frame, [frame.samples.buffer]));
     }
-    return true;
+    // Returning false is what lets Blink release the node: an active
+    // processor keeps it, and its whole AudioContext, alive (clients#236).
+    return !this.stopped;
   }
 }
 
