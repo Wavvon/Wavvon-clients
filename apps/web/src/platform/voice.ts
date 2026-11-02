@@ -1,4 +1,3 @@
-import OpusScript from 'opusscript';
 import { hexToBytes, voicePacketOpen } from '@wavvon/core';
 import { getScoped, setScoped } from '../utils/accountScope';
 import { VoiceKeyManager, type VoiceKeyBundle } from './voiceKeys';
@@ -94,11 +93,6 @@ export interface AudioProfileConfig {
   customComplexity?: number;
 }
 
-interface OpusCodec {
-  decode(buffer: Uint8Array): Uint8Array;
-  delete(): void;
-}
-
 const GAINS_STORAGE_KEY = 'wavvon.voice_gains';
 
 export class VoiceWtSession {
@@ -110,7 +104,8 @@ export class VoiceWtSession {
    *  on the main thread sits in the send path; inbound datagrams are handed
    *  back here for the (unchanged) receive side. */
   private encodeWorker: Worker | null = null;
-  private decoder: OpusCodec | null = null;
+  /** One Opus decoder per sender: decoder state is per stream. */
+  private decoders = new Map<number, AudioDecoder>();
   private captureStats: CaptureStats = INITIAL_CAPTURE_STATS;
   private muted = false;
   private deafened = false;
@@ -158,8 +153,6 @@ export class VoiceWtSession {
   async start(): Promise<void> {
     const opus = resolveOpusConfig(this.audioConfig);
 
-    this.decoder = new OpusScript(48000, opus.channels, OpusScript.Application.VOIP, { wasm: false }) as unknown as OpusCodec;
-
     // Honors the user's chosen input device (Settings → Voice), if any, and
     // states the processing constraints rather than inheriting whatever this
     // browser defaults to — see micCapture.ts.
@@ -197,7 +190,7 @@ export class VoiceWtSession {
   }
 
   private onDatagram(data: Uint8Array): void {
-    if (this.deafened || !this.decoder) return;
+    if (this.deafened || !this.audioCtx) return;
 
     const frame = parseDownlinkDatagram(data);
     if (!frame) return;
@@ -215,19 +208,43 @@ export class VoiceWtSession {
       return;
     }
 
-    let pcm: Uint8Array;
-    try {
-      pcm = this.decoder.decode(opened.opus);
-    } catch {
-      return;
-    }
-
     this.lossBySender.set(
       frame.senderId,
       trackPacket(this.lossBySender.get(frame.senderId), opened.ctr),
     );
 
-    this.playPcm(new Int16Array(pcm.buffer, pcm.byteOffset, pcm.byteLength / 2), frame.senderId);
+    try {
+      this.decoderFor(frame.senderId).decode(new EncodedAudioChunk({
+        type: 'key',
+        timestamp: Math.round((opened.ts * 1_000_000) / 48000),
+        data: opened.opus as Uint8Array<ArrayBuffer>,
+      }));
+    } catch { /* closed by an error; the next packet gets a fresh one */ }
+  }
+
+  private decoderFor(senderId: number): AudioDecoder {
+    const existing = this.decoders.get(senderId);
+    if (existing && existing.state !== 'closed') return existing;
+    const decoder = new AudioDecoder({
+      output: (data) => {
+        const pcm = new Float32Array(data.numberOfFrames);
+        data.copyTo(pcm, { planeIndex: 0, format: 'f32-planar' });
+        data.close();
+        this.playPcm(pcm, senderId);
+      },
+      // A corrupt packet closes the decoder; dropping it here lets the next
+      // packet from this sender start over.
+      error: () => { this.decoders.delete(senderId); },
+    });
+    decoder.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: 1 });
+    this.decoders.set(senderId, decoder);
+    return decoder;
+  }
+
+  private closeDecoder(senderId: number): void {
+    const decoder = this.decoders.get(senderId);
+    if (decoder && decoder.state !== 'closed') decoder.close();
+    this.decoders.delete(senderId);
   }
 
   /** Wraps our current own key for each target and sends it as one
@@ -374,13 +391,10 @@ export class VoiceWtSession {
     return worst;
   }
 
-  private playPcm(pcm: Int16Array, senderId: number): void {
+  private playPcm(pcm: Float32Array<ArrayBuffer>, senderId: number): void {
     if (!this.audioCtx) return;
     const buffer = this.audioCtx.createBuffer(1, pcm.length, 48000);
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < pcm.length; i++) {
-      channel[i] = pcm[i] / 32767;
-    }
+    buffer.copyToChannel(pcm, 0);
     const src = this.audioCtx.createBufferSource();
     src.buffer = buffer;
     const gainNode = this.getOrCreateGainNode(senderId);
@@ -407,6 +421,7 @@ export class VoiceWtSession {
         }
         this.senderIdToPubkey.delete(sid);
         this.playoutEnd.delete(sid);
+        this.closeDecoder(sid);
       }
     }
 
@@ -546,7 +561,6 @@ export class VoiceWtSession {
     this.gainNodes.clear();
     this.audioCtx?.close().catch(() => {});
     this.audioCtx = null;
-    this.decoder?.delete();
-    this.decoder = null;
+    for (const sid of [...this.decoders.keys()]) this.closeDecoder(sid);
   }
 }

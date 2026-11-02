@@ -52,6 +52,9 @@ export default defineConfig({
             // Let getDisplayMedia() resolve to a fake source without a picker.
             "--auto-select-desktop-capture-source=Entire screen",
             "--autoplay-policy=no-user-gesture-required",
+            // Voice specs play the fake microphone's beep back, and this
+            // suite runs on developer machines too.
+            "--mute-audio",
           ],
         },
       },
