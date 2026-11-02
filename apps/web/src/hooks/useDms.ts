@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { getDmMessages, sendDm, createConversation, getConversation, HubApiError } from "@platform";
-import type { EncryptionWarning } from "@wavvon/ui";
+import { readFileAsB64, type EncryptionWarning } from "@wavvon/ui";
+import i18n from "@wavvon/i18n";
 import { loadDmPeerNames, rememberDmPeerName } from "../utils/dmPeerNames";
-import type { Conversation, DmMessage } from "@shared/types";
+import type { Attachment, Conversation, DmMessage } from "@shared/types";
+
+// The hub's default inline cap. A DM's files travel base64 inside the
+// message, so the hub has the final say; this only stops the client from
+// reading something it will refuse anyway.
+const DM_ATTACHMENTS_CAP_B64 = 3 * 1024 * 1024;
 
 interface UseDmsParams {
   inputText: string;
   setInputText: (v: string) => void;
+  /** Files waiting to go out with the next DM, inline and inside the envelope. */
+  pendingAttachments: Attachment[];
+  setPendingAttachments: (items: Attachment[]) => void;
   setUnreadDms: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   /** App-side navigation on entering a conversation (deselect channel, switch view). */
   onConversationSelected: () => void;
@@ -32,6 +41,8 @@ function toDmMessages(msgs: Awaited<ReturnType<typeof getDmMessages>>): DmMessag
 export function useDms({
   inputText,
   setInputText,
+  pendingAttachments,
+  setPendingAttachments,
   setUnreadDms,
   onConversationSelected,
   showHubError,
@@ -90,20 +101,42 @@ export function useDms({
     });
   }
 
+  async function attachFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const next = [...pendingAttachments];
+    let total = next.reduce((n, a) => n + a.data_b64.length, 0);
+    for (const f of Array.from(files)) {
+      try {
+        const b64 = await readFileAsB64(f);
+        if (total + b64.length > DM_ATTACHMENTS_CAP_B64) {
+          showHubError(i18n.t("errors.attachments_cap", { size: (total / 1_000_000).toFixed(1) }));
+          break;
+        }
+        total += b64.length;
+        next.push({ name: f.name, mime: f.type || "application/octet-stream", data_b64: b64 });
+      } catch (e) {
+        showHubError(String(e));
+      }
+    }
+    setPendingAttachments(next);
+  }
+
   async function handleSendDm() {
-    if (!selectedConversation || !inputText.trim()) return;
+    if (!selectedConversation || (!inputText.trim() && pendingAttachments.length === 0)) return;
     const text = inputText.trim();
     const convId = selectedConversation.id;
+    const attachments = pendingAttachments.length > 0 ? pendingAttachments : undefined;
     try {
       // Clearing the composer is now the last step, not the first: a send
       // that is refused — or declined at the encryption prompt — leaves what
       // was typed where the user left it.
-      if ((await sendDm(convId, text, undefined, { confirmUnencrypted })) === "cancelled") return;
+      if ((await sendDm(convId, text, attachments, { confirmUnencrypted })) === "cancelled") return;
     } catch (e) {
       showHubError(e instanceof HubApiError ? e.message : String(e));
       return;
     }
     setInputText("");
+    setPendingAttachments([]);
     // The hub never echoes a DM back to its sender (anti-echo), so reload
     // the log to show the sent message — same source-of-truth reload the
     // onDm arm does for inbound messages. Send already succeeded: a reload
@@ -158,6 +191,7 @@ export function useDms({
     handleStartConversation,
     peerNames,
     handleSendDm,
+    attachFiles,
     onDm,
     onDmMemberChanged,
   };

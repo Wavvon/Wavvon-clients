@@ -50,6 +50,7 @@ export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
 export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
+export { readFileAsB64 } from "./utils/attachments";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
 export { FullArchiveSection } from "./components/FullArchiveSection";
 export type { FullArchiveSectionActions, FullArchiveRestoreResult } from "./components/FullArchiveSection";
