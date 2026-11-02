@@ -1274,7 +1274,7 @@ export default function App({ initialView }: AppProps = {}) {
 
   useAppKeybinds({
     hubs, channels, selectedChannel, messageInputRef, unreadByChannel, activeHubIdRef,
-    setActiveHubIdState, handleSelectChannel,
+    switchHub: handleSwitchHub, handleSelectChannel,
     showKeyboardShortcuts, setShowKeyboardShortcuts,
     showSettings, setShowSettings,
     showHubAdmin, setShowHubAdmin,

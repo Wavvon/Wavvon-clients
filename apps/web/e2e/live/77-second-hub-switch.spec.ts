@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { createChannel, dismissHubSetupWizard, expectInHub, HUB_URL, uniqueName } from "./helpers/live";
 
-// P76 — joining a second hub must not leave the first hub's channel or
+// P77 — joining a second hub must not leave the first hub's channel or
 // messages on screen (issue #230).
 //
 // The second hub is a real one the harness starts on WAVVON_E2E_SECOND_HUB_URL
