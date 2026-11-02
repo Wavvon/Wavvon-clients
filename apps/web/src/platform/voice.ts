@@ -549,6 +549,11 @@ export class VoiceWtSession {
 
   stop(): void {
     this.closed = true;
+    // The worklet stops processing (see captureWorklet.ts) before the
+    // context closes; a node whose processor is still active kept itself and
+    // its AudioContext alive after leaving, one per join (clients#236).
+    this.captureNode?.port.postMessage({ stop: true });
+    this.captureNode?.port.close();
     this.captureNode?.disconnect();
     this.captureNode = null;
     this.postToWorker({ type: 'stop' });
@@ -559,7 +564,10 @@ export class VoiceWtSession {
       gainNode.disconnect();
     }
     this.gainNodes.clear();
-    this.audioCtx?.close().catch(() => {});
+    // One render quantum is ~3 ms; give the worklet a few to see `stop`
+    // and return false before rendering halts for good.
+    const ctx = this.audioCtx;
+    setTimeout(() => { ctx?.close().catch(() => {}); }, 50);
     this.audioCtx = null;
     for (const sid of [...this.decoders.keys()]) this.closeDecoder(sid);
   }
