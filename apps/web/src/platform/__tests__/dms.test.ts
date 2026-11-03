@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { publicKeyHex, dhKeypairFromSeed, bytesToHex } from "@wavvon/core";
-import { resolveDmSendAttribution, canPublishDhKey, unreadableDmKey } from "../commands/dms";
+import { publicKeyHex, dhKeypairFromSeed, bytesToHex, hexToBytes, masterPublicKeyHex, dhKeySigningBytes } from "@wavvon/core";
+import { ed25519 } from "@noble/curves/ed25519";
+import { resolveDmSendAttribution, canPublishDhKey, unreadableDmKey, dhKeyRecordFor } from "../commands/dms";
+
+const verifyBytes = (msg: Uint8Array, sigHex: string, pubHex: string) =>
+  ed25519.verify(hexToBytes(sigHex), msg, hexToBytes(pubHex));
 
 // Cert-chained DM attribution / DH scalar selection (decisions.md
 // "Paired-device DMs attribute to canonical via cert-chained envelopes; DH
@@ -130,5 +134,33 @@ describe("unreadableDmKey", () => {
       canonical_dh_priv_hex: undefined,
     });
     expect(unreadableDmKey(PRIMARY_PUB, paired.senderPubkey)).toBe("dm.own_message_other_device");
+  });
+});
+
+describe("dhKeyRecordFor: the record follows the key each hub seated us as", () => {
+  const master = masterPublicKeyHex(PRIMARY_SEED_HEX);
+  const selfCert = { ...SAMPLE_CERT, master_pubkey: master, subkey_pubkey: PRIMARY_PUB };
+  // The phrase-holding device after self-certifying: seated under its own key
+  // on a hub that knew it before certificates, under the master elsewhere.
+  const primary = { seed_hex: PRIMARY_SEED_HEX, canonical_pubkey: master, subkey_cert: selfCert };
+
+  it("seated under the device key: signs as the device key", () => {
+    const rec = dhKeyRecordFor(primary, PRIMARY_PUB)!;
+    expect(rec.path).toBe(`/identity/${PRIMARY_PUB}/dh-key`);
+    const body = JSON.parse(rec.body) as { dh_pubkey_hex: string; signature_hex: string };
+    expect(verifyBytes(dhKeySigningBytes(PRIMARY_PUB, body.dh_pubkey_hex), body.signature_hex, PRIMARY_PUB)).toBe(true);
+  });
+
+  it("seated under the master: signs with the master, which is what the hub verifies", () => {
+    const rec = dhKeyRecordFor(primary, master)!;
+    expect(rec.path).toBe(`/identity/${master}/dh-key`);
+    const body = JSON.parse(rec.body) as { dh_pubkey_hex: string; signature_hex: string };
+    expect(verifyBytes(dhKeySigningBytes(master, body.dh_pubkey_hex), body.signature_hex, master)).toBe(true);
+  });
+
+  it("a paired device cannot sign for the master and publishes nothing", () => {
+    const paired = { seed_hex: SUBKEY_SEED_HEX, canonical_pubkey: PRIMARY_PUB, subkey_cert: SAMPLE_CERT };
+    expect(dhKeyRecordFor(paired, master)).toBeNull();
+    expect(dhKeyRecordFor(paired, PRIMARY_PUB)).toBeNull();
   });
 });

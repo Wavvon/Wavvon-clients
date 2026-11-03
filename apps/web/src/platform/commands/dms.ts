@@ -2,7 +2,8 @@ import { hexToBytes, bytesToHex, masterPublicKeyHex, masterSeedHex } from "@wavv
 import { dmFetch, dmSession } from "../dmHub";
 import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import { hubFetch, rawFetch, HubApiError } from "../http";
-import { activeSession } from "../session";
+import { activeSession, allSessions } from "../session";
+import { seatOf } from "../seat";
 import i18n from "@wavvon/i18n";
 import { holdsMasterSeed, loadIdentity, loadOwnDmAttachments, saveOwnDmAttachments } from "../../identity/store";
 import type { IdentityRecord } from "../../identity/store";
@@ -469,42 +470,66 @@ export function canPublishDhKey(
 async function dhKeyRecord(seatedAs?: string): Promise<{ path: string; body: string } | null> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
+  return dhKeyRecordFor(identity, seatedAs);
+}
 
+/** `dhKeyRecord` without the storage read, for a given identity. */
+export function dhKeyRecordFor(
+  identity: Pick<IdentityRecord, "seed_hex" | "canonical_pubkey" | "subkey_cert">,
+  seatedAs?: string,
+): { path: string; body: string } | null {
   const seedHex = identity.seed_hex;
   const { dhPub } = dhKeypairFromSeed(seedHex);
   const dhPubkeyHex = bytesToHex(dhPub);
-  // A hub meeting this identity for the first time seats the master its
-  // self-signed cert names, and a record must be signed by the key the hub
-  // knows us by. Only a device holding the master's entropy can do that.
-  if (seatedAs && seatedAs !== publicKeyHex(seedHex)) {
-    if (!holdsMasterSeed(identity) || seatedAs !== masterPublicKeyHex(seedHex)) return null;
+  const myPubkeyHex = publicKeyHex(seedHex);
+  // A record must be signed by the key the hub knows us by. With no hub to
+  // ask, fall back to the account-wide guess.
+  const seat = seatedAs ?? (canPublishDhKey(identity) ? myPubkeyHex : null);
+  if (!seat) return null;
+  if (seat === myPubkeyHex) {
     return {
-      path: `/identity/${seatedAs}/dh-key`,
+      path: `/identity/${myPubkeyHex}/dh-key`,
       body: JSON.stringify({
         dh_pubkey_hex: dhPubkeyHex,
-        signature_hex: signBytes(dhKeySigningBytes(seatedAs, dhPubkeyHex), masterSeedHex(seedHex)),
+        signature_hex: signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex),
       }),
     };
   }
-  if (!canPublishDhKey(identity)) return null;
-
-  const myPubkeyHex = publicKeyHex(seedHex);
-  const signatureHex = signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex);
-
+  // Seated under the master (a hub that met us with a cert, or any farm).
+  // Only the device holding the master's entropy can sign for it.
+  if (!holdsMasterSeed(identity) || seat !== masterPublicKeyHex(seedHex)) return null;
   return {
-    path: `/identity/${myPubkeyHex}/dh-key`,
-    body: JSON.stringify({ dh_pubkey_hex: dhPubkeyHex, signature_hex: signatureHex }),
+    path: `/identity/${seat}/dh-key`,
+    body: JSON.stringify({
+      dh_pubkey_hex: dhPubkeyHex,
+      signature_hex: signBytes(dhKeySigningBytes(seat, dhPubkeyHex), masterSeedHex(seedHex)),
+    }),
   };
 }
 
+/**
+ * Publish our DH key on every hub we hold a session with, each under the
+ * pubkey that hub seated us as (as desktop's `publish_dh_key` does). A sender
+ * looks the key up on their own hub, so it has to exist on every hub we use,
+ * not only the active one or the DM hub. Without it voice key distribution
+ * skips us and DMs to us cannot be encrypted.
+ */
 export async function publishDhKey(): Promise<void> {
-  const record = await dhKeyRecord();
-  if (!record) return;
-  // The active hub, deliberately, not the DM hub: a sender looks this key up
-  // on *their own* hub, so it has to exist on every hub we actually use.
-  // Publishing it only where our DMs are read would leave someone on a shared
-  // community hub unable to encrypt to us.
-  await hubFetch(record.path, { method: "PUT", body: record.body });
+  const sessions = allSessions().filter((s) => s.token && !s.refusal && s.scope !== "lobby");
+  await Promise.all(sessions.map(async (s) => {
+    try {
+      const record = await dhKeyRecord(await seatOf(s));
+      if (!record) return;
+      await rawFetch(`${s.hub_url}${record.path}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${s.token}` },
+        body: record.body,
+      });
+    } catch {
+      // One unreachable hub must not stop the others; the next session
+      // (re)start publishes again.
+    }
+  }));
 }
 
 /**

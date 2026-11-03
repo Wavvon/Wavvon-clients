@@ -176,6 +176,7 @@ export async function addHub(
   // onReauthNeeded, which re-authenticates through the full identity flow
   // and does learn the real scope.
   let scope: "member" | "lobby" = "member";
+  let canonical: string | undefined;
   if (opts?.sessionToken) {
     token = opts.sessionToken;
     scope = await probeSessionScope(url, token);
@@ -208,6 +209,7 @@ export async function addHub(
     });
     token = res.token;
     scope = res.scope;
+    canonical = res.canonicalPubkey || undefined;
     if (authBase !== url) await admitFarmToken(url, token, opts?.invite_code);
 
     // Paired device: persist the canonical identity the hub attributes our
@@ -243,6 +245,7 @@ export async function addHub(
     scope,
     capabilities: info.capabilities ?? [],
     hub_version: info.version,
+    canonical_pubkey: canonical,
   };
   setSession(info.public_key, session);
 
@@ -439,7 +442,7 @@ export async function upgradeActiveHubIdentity(): Promise<void> {
     identity.subkey_cert,
   );
   saveToken(hub_id, res.token, true);
-  setSession(hub_id, { ...s, token: res.token });
+  setSession(hub_id, { ...s, token: res.token, canonical_pubkey: res.canonicalPubkey || s.canonical_pubkey });
   if (
     res.canonicalPubkey &&
     res.canonicalPubkey !== publicKeyHex(identity.seed_hex) &&
@@ -465,7 +468,7 @@ export async function reauthorizeHub(
 
   const seedHex = identity.seed_hex;
   const pubkeyHex = publicKeyHex(seedHex);
-  const { token, scope } = await authenticate(
+  const { token, scope, canonicalPubkey } = await authenticate(
     authBaseUrl(info, s.hub_url, identity.subkey_cert),
     pubkeyHex,
     seedHex,
@@ -481,7 +484,7 @@ export async function reauthorizeHub(
   // min_security_level was raised after the original join) must not reopen
   // the WS — that's exactly the reconnect storm this scope check prevents.
   const ws = scope === "lobby" ? null : new HubWebSocket(s.hub_url, token, hub_id, handlers);
-  setSession(hub_id, { ...s, token, ws, scope });
+  setSession(hub_id, { ...s, token, ws, scope, canonical_pubkey: canonicalPubkey || s.canonical_pubkey });
 }
 
 // Opens the hub's WebSocket for a session that was deliberately left
@@ -610,6 +613,7 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
       // every restore — a stale "member" assumption for a cached lobby
       // token would open a WS the hub immediately rejects.
       let scope: "member" | "lobby" = "member";
+      let canonical: string | undefined;
       if (!token) {
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
@@ -628,6 +632,7 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         );
         token = authRes.token;
         scope = authRes.scope;
+        canonical = authRes.canonicalPubkey || undefined;
         if (
           identity.subkey_cert &&
           authRes.canonicalPubkey &&
@@ -659,6 +664,7 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         // rather than caching an empty list as fact.
         capabilities: hub.capabilities,
         hub_version: hub.hub_version,
+        canonical_pubkey: canonical,
       });
 
       result.push({
