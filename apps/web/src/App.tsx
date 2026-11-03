@@ -849,6 +849,10 @@ export default function App({ initialView }: AppProps = {}) {
       if (me.status === "fulfilled") {
         const meVal = me.value;
         setMeInfo(meVal);
+        // Self-identify as this hub knows us: the seat differs between hubs
+        // (device key on a pre-certificate hub, master on a newer one), so an
+        // account-wide key would find nobody in this hub's member list.
+        if (meVal.public_key) setPublicKey(meVal.public_key);
         const hubId = getActiveHubId();
         if (meVal.approval_status === "pending" && hubId) {
           setPendingApprovalHubs((prev) => new Set([...prev, hubId]));
