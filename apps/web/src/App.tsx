@@ -53,7 +53,7 @@ import {
   forumListTags, forumCreateTag, forumEditTag, forumDeleteTag,
 } from "@platform";
 import type { UserContextMenuActions, WhisperTarget, WhisperReplyBind } from "@wavvon/ui";
-import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers } from "@platform";
+import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers, setActiveHub } from "@platform";
 import { getApplicationForm, getApplicationStatus, submitApplication, activeHubSupports } from "@platform";
 
 // Module-level so the panel's load effect sees one object for the app's life;
@@ -936,6 +936,18 @@ export default function App({ initialView }: AppProps = {}) {
     if (target.kind === "message") setPendingScrollMessageId(target.messageId);
   }
 
+  // addHub only points the session's active hub at the new one when there was
+  // none, so for a second hub the React state said "new hub" while every
+  // hubFetch kept answering from the old one (the new header over the old
+  // hub's channels and messages). The selection reset is the same as a switch:
+  // loadHubData only auto-selects a channel when nothing is selected.
+  function activateJoinedHub(hubId: string) {
+    setActiveHub(hubId);
+    setActiveHubIdState(hubId);
+    resetChannelSelectionState(true);
+    goToChannelsView();
+  }
+
   const {
     hubUrl, setHubUrl,
     inviteCode, setInviteCode,
@@ -951,7 +963,7 @@ export default function App({ initialView }: AppProps = {}) {
     handleAddHub,
     handleAddHubWithPasskey,
   } = useAddHubFlow({
-    publicKey, stableHandlers, hubsRef, setHubs, setActiveHubIdState, loadHubData,
+    publicKey, stableHandlers, hubsRef, setHubs, activateJoinedHub, loadHubData,
     applyDeepLinkTarget, t,
   });
 
@@ -1262,7 +1274,7 @@ export default function App({ initialView }: AppProps = {}) {
 
   useAppKeybinds({
     hubs, channels, selectedChannel, messageInputRef, unreadByChannel, activeHubIdRef,
-    setActiveHubIdState, handleSelectChannel,
+    switchHub: handleSwitchHub, handleSelectChannel,
     showKeyboardShortcuts, setShowKeyboardShortcuts,
     showSettings, setShowSettings,
     showHubAdmin, setShowHubAdmin,

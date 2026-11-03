@@ -9,7 +9,8 @@ export interface UseAppKeybindsParams {
   messageInputRef: RefObject<HTMLInputElement | null>;
   unreadByChannel: Record<string, Record<string, boolean>>;
   activeHubIdRef: RefObject<string | null>;
-  setActiveHubIdState: Dispatch<SetStateAction<string | null>>;
+  /** A full switch (session, selection, data), as the hub rail does. */
+  switchHub: (hubId: string) => void | Promise<void>;
   handleSelectChannel: (ch: Channel) => void | Promise<void>;
   showKeyboardShortcuts: boolean;
   setShowKeyboardShortcuts: Dispatch<SetStateAction<boolean>>;
@@ -33,7 +34,7 @@ export interface UseAppKeybindsParams {
 // topmost.
 export function useAppKeybinds({
   hubs, channels, selectedChannel, messageInputRef, unreadByChannel, activeHubIdRef,
-  setActiveHubIdState, handleSelectChannel,
+  switchHub, handleSelectChannel,
   showKeyboardShortcuts, setShowKeyboardShortcuts,
   showSettings, setShowSettings,
   showHubAdmin, setShowHubAdmin,
@@ -70,20 +71,16 @@ export function useAppKeybinds({
       }
       if (mod && e.key === "ArrowDown") {
         e.preventDefault();
-        setActiveHubIdState((prev) => {
-          const idx = hubs.findIndex((h) => h.hub_id === prev);
-          const next = hubs[idx + 1];
-          return next ? next.hub_id : prev;
-        });
+        const idx = hubs.findIndex((h) => h.hub_id === activeHubIdRef.current);
+        const next = hubs[idx + 1];
+        if (next) void switchHub(next.hub_id);
         return;
       }
       if (mod && e.key === "ArrowUp") {
         e.preventDefault();
-        setActiveHubIdState((prev) => {
-          const idx = hubs.findIndex((h) => h.hub_id === prev);
-          const next = hubs[idx - 1];
-          return next ? next.hub_id : prev;
-        });
+        const idx = hubs.findIndex((h) => h.hub_id === activeHubIdRef.current);
+        const next = hubs[idx - 1];
+        if (next) void switchHub(next.hub_id);
         return;
       }
       if (!inInput && e.key === "/") {

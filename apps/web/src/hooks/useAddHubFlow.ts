@@ -21,7 +21,7 @@ export interface UseAddHubFlowParams {
   stableHandlers: WsHandlers;
   hubsRef: RefObject<Hub[]>;
   setHubs: (hubs: Hub[]) => void;
-  setActiveHubIdState: (id: string) => void;
+  activateJoinedHub: (id: string) => void;
   loadHubData: () => Promise<void>;
   applyDeepLinkTarget: (hubId: string, target: NonNullable<HubInputResult["target"]>) => Promise<void>;
   t: (key: string) => string;
@@ -32,7 +32,7 @@ export interface UseAddHubFlowParams {
 // (session token, passkey). Shared by AddHubModal's "join" field and the
 // create-hub self-host panel's "paste your owner invite" field.
 export function useAddHubFlow({
-  publicKey, stableHandlers, hubsRef, setHubs, setActiveHubIdState, loadHubData,
+  publicKey, stableHandlers, hubsRef, setHubs, activateJoinedHub, loadHubData,
   applyDeepLinkTarget, t,
 }: UseAddHubFlowParams) {
   const [hubUrl, setHubUrl] = useState("");
@@ -129,7 +129,7 @@ export function useAddHubFlow({
         challenge_token: challengeToken,
       });
       setHubs(listHubs());
-      setActiveHubIdState(hub.hub_id);
+      activateJoinedHub(hub.hub_id);
       setShowAddHub(false);
       setHubUrl("");
       setInviteCode("");
@@ -165,7 +165,7 @@ export function useAddHubFlow({
         sessionToken: token,
       });
       setHubs(listHubs());
-      setActiveHubIdState(hub.hub_id);
+      activateJoinedHub(hub.hub_id);
       setShowAddHub(false);
       setHubUrl("");
       setInviteCode("");
