@@ -178,7 +178,7 @@ Used by the desktop shell. Chain: cpal (capture/playback) -> nnnoiseless
 (RNNoise denoise) -> soundboard clip mixing (`soundboard.rs`: Ogg-Opus demux +
 decode, summed post-denoise so RNNoise can't eat the clip) -> audiopus (Opus
 encode/decode) -> ringbuf (bridges the real-time audio thread and tokio async)
--> UDP transport -> hub relay.
+-> per-packet AEAD seal -> WebTransport datagrams (`wtransport`, QUIC) -> hub relay.
 
 ---
 

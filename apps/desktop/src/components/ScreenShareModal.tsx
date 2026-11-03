@@ -1,15 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { invoke } from "@tauri-apps/api/core";
 import type { ScreenShareOpts } from "../types";
 import { FocusTrap } from "@wavvon/ui";
-
-interface CaptureSource {
-  id: string;
-  name: string;
-  kind: "screen" | "window";
-  thumbnail_b64: string;
-}
 
 interface Props {
   onStart: (opts: ScreenShareOpts) => void;
@@ -18,25 +10,10 @@ interface Props {
 
 export function ScreenShareModal({ onStart, onCancel }: Props) {
   const { t } = useTranslation();
-  const [sources, setSources] = useState<CaptureSource[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"screen" | "window">("screen");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [includeAudio, setIncludeAudio] = useState(false);
   const [includeWebcam, setIncludeWebcam] = useState(false);
   const [webcamDeviceId, setWebcamDeviceId] = useState("");
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
-
-  useEffect(() => {
-    invoke<CaptureSource[]>("list_capture_sources")
-      .then((srcs) => {
-        setSources(srcs);
-        const firstScreen = srcs.find((s) => s.kind === "screen");
-        if (firstScreen) setSelectedId(firstScreen.id);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   useEffect(() => {
     if (!includeWebcam) return;
@@ -53,11 +30,10 @@ export function ScreenShareModal({ onStart, onCancel }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onCancel]);
 
-  const visibleSources = sources.filter((s) => s.kind === tab);
-
+  // The screen or window itself is chosen in the system picker that
+  // getDisplayMedia opens: WebView2 offers no way to preselect one.
   function handleShare() {
-    if (!selectedId) return;
-    onStart({ sourceId: selectedId, includeAudio, includeWebcam, webcamDeviceId });
+    onStart({ includeAudio, includeWebcam, webcamDeviceId });
   }
 
   return (
@@ -65,51 +41,6 @@ export function ScreenShareModal({ onStart, onCancel }: Props) {
       <FocusTrap>
         <div className="screen-share-picker" role="dialog" aria-modal="true" aria-labelledby="screen-share-title">
           <h2 id="screen-share-title">{t("voice.screen_share.picker.title")}</h2>
-
-          <div className="channel-type-row">
-            <button
-              type="button"
-              className={`channel-type-btn ${tab === "screen" ? "selected" : ""}`}
-              onClick={() => setTab("screen")}
-            >
-              {t("voice.screen_share.picker.tab_screens")}
-            </button>
-            <button
-              type="button"
-              className={`channel-type-btn ${tab === "window" ? "selected" : ""}`}
-              onClick={() => setTab("window")}
-            >
-              {t("voice.screen_share.picker.tab_windows")}
-            </button>
-          </div>
-
-          <div className="screen-share-source-grid">
-            {loading && <p className="muted">{t("voice.screen_share.picker.loading")}</p>}
-            {!loading && visibleSources.length === 0 && (
-              <p className="muted">
-                {tab === "screen"
-                  ? t("voice.screen_share.picker.empty_screens")
-                  : t("voice.screen_share.picker.empty_windows")}
-              </p>
-            )}
-            {visibleSources.map((src) => (
-              <button
-                key={src.id}
-                type="button"
-                className={`screen-share-source-thumb ${selectedId === src.id ? "selected" : ""}`}
-                onClick={() => setSelectedId(src.id)}
-              >
-                <img
-                  src={`data:image/png;base64,${src.thumbnail_b64}`}
-                  alt={src.name}
-                  draggable={false}
-                />
-                <span className="screen-share-source-name">
-                  {src.name || t("voice.screen_share.picker.unnamed")}
-                </span>
-              </button>
-            ))}
-          </div>
 
           <div className="settings-section">
             <label className="settings-row">
@@ -156,11 +87,7 @@ export function ScreenShareModal({ onStart, onCancel }: Props) {
             <button className="btn-secondary" onClick={onCancel}>
               {t("modal.cancel")}
             </button>
-            <button
-              className="primary"
-              disabled={!selectedId}
-              onClick={handleShare}
-            >
+            <button className="primary" onClick={handleShare}>
               {t("voice.screen_share.picker.share_button")}
             </button>
           </div>
