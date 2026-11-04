@@ -2270,5 +2270,9 @@
   "voice.screen_share.picker.hub_limit": "Limite dell’hub",
   "voice.screen_share.picker.summary": "{resolution} · {fps} fps · circa {mbps} Mbps in upload",
   "voice.screen_share.picker.with_audio": "con audio",
-  "voice.screen_share.picker.without_audio": "senza audio"
+  "voice.screen_share.picker.without_audio": "senza audio",
+  "forum.list.layout": "Vista",
+  "forum.list.layout_list": "Elenco",
+  "forum.list.layout_grid": "Griglia",
+  "forum.list.replies": "{count, plural, one {# risposta} other {# risposte}}"
 }
