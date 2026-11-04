@@ -125,15 +125,27 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     }));
     scope.add(listen("voice-talk-granted", () => { if (!cancelled) setMaySpeak(true); }));
 
-    scope.add(listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
-      if (cancelled) return;
-      const { public_key, speaking } = e.payload;
+    const setSpeaking = (publicKey: string, speaking: boolean) => {
       setSpeakingPubkeys(prev => {
+        if (speaking === prev.has(publicKey)) return prev;
         const next = new Set(prev);
-        if (speaking) next.add(public_key);
-        else next.delete(public_key);
+        if (speaking) next.add(publicKey);
+        else next.delete(publicKey);
         return next;
       });
+    };
+    scope.add(listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
+      if (cancelled) return;
+      setSpeaking(e.payload.public_key, e.payload.speaking);
+    }));
+    // Our own ring follows the local detector: waiting for the hub's echo made
+    // it light up a round trip late, which reads as a microphone problem.
+    // Keyed as this hub knows us, so it matches our row in the roster.
+    let me: string | null = null;
+    invoke<string>("get_my_public_key").then((k) => { me = k; }).catch(() => {});
+    scope.add(listen<{ speaking: boolean }>("voice-self-speaking", (e) => {
+      if (cancelled || !me) return;
+      setSpeaking(me, e.payload.speaking);
     }));
 
     return () => {
