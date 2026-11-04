@@ -32,7 +32,6 @@ test("start a screen share; a second client sees it, then stop", async ({ page, 
     await page.getByRole("button", { name: "Share screen" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
 
-    await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
     await expect(page.locator(".screen-share-self-preview")).toBeVisible({ timeout: 20000 });
 
     // The viewer receives the stream and renders the screen-share panel.
