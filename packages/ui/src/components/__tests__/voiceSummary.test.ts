@@ -16,3 +16,21 @@ describe("voiceSummary", () => {
     expect(voiceSummary([p("a"), p("b"), p("c"), p("d")], "me", t)).toBe("a, b +2");
   });
 });
+
+import { camerasToOpen } from "../content/VoiceStage";
+
+describe("camerasToOpen", () => {
+  const streams = [
+    { stream_id: "c1", sharer_pubkey: "a", kind: "webcam" },
+    { stream_id: "s1", sharer_pubkey: "a", kind: "screen" },
+    { stream_id: "c2", sharer_pubkey: "b", kind: "webcam" },
+  ];
+
+  it("opens every camera in a small room, never a screen", () => {
+    expect(camerasToOpen(streams, [], 5)).toEqual(["c1", "c2"]);
+  });
+
+  it("opens only pinned people's cameras in a big room", () => {
+    expect(camerasToOpen(streams, ["b"], 40)).toEqual(["c2"]);
+  });
+});

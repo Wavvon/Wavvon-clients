@@ -52,6 +52,19 @@ function loadPins(): string[] {
 }
 
 const MIN_STAGE = 120;
+/** Up to this many people, every camera opens by itself. */
+export const SMALL_ROOM = 12;
+
+/** Cameras to open without asking: a pinned person's, or anyone's in a small room. */
+export function camerasToOpen(
+  streams: { stream_id: string; sharer_pubkey: string; kind?: string }[],
+  pins: string[],
+  roomSize: number,
+): string[] {
+  return streams
+    .filter((s) => s.kind === "webcam" && (pins.includes(s.sharer_pubkey) || roomSize <= SMALL_ROOM))
+    .map((s) => s.stream_id);
+}
 
 function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: MediaStream; onStop: () => void; label: string; stopLabel: string; sent: string }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -86,6 +99,17 @@ export function VoiceStage({
   const roomRef = useRef<HTMLElement>(null);
 
   const barRef = useCallback((el: HTMLDivElement | null) => setVoiceBarSlot(el), []);
+
+  // Each camera is opened for you at most once: closing it is a choice that sticks.
+  const autoOpened = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!live || !inThisRoom) return;
+    for (const id of camerasToOpen(live.streams, pins, participants.length)) {
+      if (autoOpened.current.has(id) || live.opened.has(id)) continue;
+      autoOpened.current.add(id);
+      live.onOpen(id);
+    }
+  }, [live, pins, participants.length, inThisRoom]);
 
   function togglePin(pk: string) {
     const next = pins.includes(pk) ? pins.filter((p) => p !== pk) : [...pins, pk];
