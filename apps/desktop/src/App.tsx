@@ -7,7 +7,7 @@
 // - Event handlers use camelCase: onClick, onChange, onSubmit
 
 import type { SettingsTab } from "./components/SettingsPage";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { DISCOVERY_URL } from "./constants";
 import { invoke } from "@tauri-apps/api/core";
@@ -79,7 +79,8 @@ import { useSlashCommands } from "./hooks/useSlashCommands";
 import { SettingsPageContainer } from "./components/SettingsPageContainer";
 import { HubAdminContainer } from "./components/HubAdminContainer";
 import { AppModals } from "./components/AppModals";
-import { HubSidebar } from "@wavvon/ui";
+import { HubTopBar, useHubLayout } from "@wavvon/ui";
+import { useUserMenu } from "./hooks/useUserMenu";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
 import { fetchWithTimeout } from "./utils/fetchWithTimeout";
@@ -89,7 +90,7 @@ import { setSwitchGuard } from "./accounts/store";
 import { loadDefaultProfileAsync } from "./utils/profileEditorActions";
 import { DisplayNamePrompt } from "@wavvon/ui";
 
-function App() {
+function App({ accountId }: { accountId: string | null }) {
   const { t } = useTranslation();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   // Bumped by the pending screen's "check again", so the join application
@@ -103,6 +104,7 @@ function App() {
   const {
     unreadByChannel,
     unreadByHub,
+    noticeByHub,
     unreadDms,
     setUnreadDms,
     bumpUnread,
@@ -250,7 +252,6 @@ function App() {
     setActiveHubTimezone,
     hubScope, setHubScope, lobbyHubIds,
     pingByHub,
-    handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
   } = hubLifecycle;
@@ -430,6 +431,13 @@ function App() {
   // Ctrl+K quick-switcher palette.
   const [paletteOpen, setPaletteOpen] = useState(false);
   const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
+  // Per account: App is remounted on a switch, and every account has its own hubs.
+  const layoutKey = `wavvon.hubLayout:${accountId ?? ""}`;
+  const [hubLayout, setHubLayout] = useHubLayout(
+    () => localStorage.getItem(layoutKey),
+    useCallback((raw: string) => localStorage.setItem(layoutKey, raw), [layoutKey]),
+    hubs.map((h) => h.hub_id),
+  );
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Above useChannelMessages: the alliance state it wires to the composer now
@@ -1503,6 +1511,16 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [hubs, activeHubId, channelMessages.selectedChannel, channels, view, voice, unreadByChannel, contextMenu, paletteOpen, channelMessages.replyTarget]);
 
+  const userMenu = useUserMenu({
+    users,
+    publicKey,
+    presence: myPresence,
+    onSetStatus: handleSetStatus,
+    onSetCustomStatus: handleSetCustomStatus,
+    onOpenSettings: (tab) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); void openSettings(); },
+    onOpenShortcuts: () => setShowKeyboardShortcuts(true),
+  });
+
   return (
     <div className="app">
       <div
@@ -1635,24 +1653,27 @@ function App() {
           />
         ) : (
           <div className="main-layout">
-            <HubSidebar
+            <HubTopBar
               hubs={hubs}
               activeHubId={activeHubId}
               view={view}
-              showDiscover={showDiscover}
-              unreadDms={unreadDms}
+              multiHub
+              layout={hubLayout}
+              onLayoutChange={setHubLayout}
               unreadByHub={unreadByHub}
+              noticeByHub={noticeByHub}
+              unreadDmCount={view === "dms" ? 0 : Object.keys(unreadDms).length}
               pingByHub={pingByHub}
               hubNotifyMode={hubNotifyMode}
               lobbyHubIds={lobbyHubIds}
-              hasActiveHub={hasActiveHub}
-              onSwitchToDms={() => { setView("dms"); if (hasActiveHub) loadConversations(); }}
+              onSwitchToDms={() => { if (!hasActiveHub) return; setView("dms"); loadConversations(); }}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
               onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
               onSetHubNotifyMode={setHubMode}
-              onHubReorder={handleHubReorder}
+              onOpenSearch={() => setShowSearchBar(true)}
               onAddHub={() => setShowAddHub(true)}
-              onDiscover={() => setShowDiscover((v) => !v)}
+              onDiscover={DISCOVERY_URL ? () => setShowDiscover((v) => !v) : undefined}
+              userMenu={userMenu}
             />
             {showDiscover && DISCOVERY_URL ? (
               <DiscoverPage
@@ -1780,14 +1801,8 @@ function App() {
                   leaveVoiceChannel={leaveVoiceChannel}
                   canMoveMembers={canMoveMembers}
                   openFriends={openFriends}
-                  openSettings={(tab?: string) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); void openSettings(); }}
-                  onOpenShortcuts={() => setShowKeyboardShortcuts(true)}
                   openVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); void openSettings(); }}
                   onDragEnd={handleDragEnd}
-                  setShowSearchBar={setShowSearchBar}
-                  myPresence={myPresence}
-                  onSetStatus={handleSetStatus}
-                  onSetCustomStatus={handleSetCustomStatus}
                   showWhisperPanel={showWhisperPanel}
                   setShowWhisperPanel={setShowWhisperPanel}
                   voice={voice}

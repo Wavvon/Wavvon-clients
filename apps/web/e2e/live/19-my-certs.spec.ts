@@ -9,7 +9,7 @@ test("my certifications section renders", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
 
-  await page.locator(".user-menu-trigger").first().click();
+  await page.locator(".user-menu-trigger:visible").click();
 
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();

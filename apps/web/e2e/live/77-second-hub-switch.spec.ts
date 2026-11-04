@@ -11,19 +11,25 @@ import { createChannel, dismissHubSetupWizard, expectInHub, HUB_URL, uniqueName 
 
 const SECOND = process.env.WAVVON_E2E_SECOND_HUB_URL;
 
+// The hub you are in always has a tab in the top bar.
 function railIcon(page: Page, url: string) {
-  return page.locator(`.hub-icon[title*="${new URL(url).host}"]`).first();
+  return page.locator(`.hub-tab[title*="${new URL(url).host}"]`).first();
 }
 
 // The hub list is synced through the home hub, so a second hub joined by an
 // earlier run is restored into this browser too and must be dropped first.
 async function removeFromRail(page: Page, url: string) {
-  const icon = railIcon(page, url);
-  if (!(await icon.isVisible().catch(() => false))) return;
-  await icon.click({ button: "right" });
+  await page.locator(".top-bar-hubs:visible").click();
+  const row = page.locator(`.hub-drawer-open[title*="${new URL(url).host}"]`).first();
+  if (!(await row.isVisible().catch(() => false))) {
+    await page.keyboard.press("Escape");
+    return;
+  }
+  await row.click({ button: "right" });
   await page.getByText("Remove from this device").first().click();
   await page.locator(".modal-actions .btn-primary.danger").click();
-  await expect(icon).toBeHidden({ timeout: 10000 });
+  await expect(railIcon(page, url)).toBeHidden({ timeout: 10000 });
+  await page.keyboard.press("Escape");
 }
 
 test("a just-joined hub does not show the previous hub's messages", async ({ page }) => {
@@ -45,7 +51,8 @@ test("a just-joined hub does not show the previous hub's messages", async ({ pag
     await composer.press("Enter");
     await expect(page.getByText(message)).toBeVisible({ timeout: 10000 });
 
-    await page.getByTitle("Join a hub").first().click();
+    await page.locator(".top-bar-hubs:visible").click();
+    await page.getByRole("dialog", { name: "Your hubs" }).getByRole("button", { name: "Join a hub" }).click();
     await page.getByRole("dialog").getByRole("textbox").fill(SECOND!);
     await page.getByRole("dialog").getByRole("textbox").press("Enter");
 

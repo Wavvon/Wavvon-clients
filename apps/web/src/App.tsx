@@ -39,7 +39,8 @@ import type {
   Conversation,
 } from "@shared/types";
 import type { AppLaunchEvent, AppOpenEvent } from "./types";
-import { HubSidebar } from "@wavvon/ui";
+import { HubTopBar, useHubLayout } from "@wavvon/ui";
+import { useUserMenu } from "./hooks/useUserMenu";
 import { useSoundboardChips } from "@wavvon/ui";
 import { WhisperInbox } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
@@ -180,7 +181,6 @@ export default function App({ initialView }: AppProps = {}) {
     lobbyHubs, setLobbyHubs,
     pendingApprovalHubs, setPendingApprovalHubs,
     refusedHubs, setRefusedHubs,
-    handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
   } = hubLifecycle;
@@ -188,6 +188,11 @@ export default function App({ initialView }: AppProps = {}) {
   // receiving this user's DMs — so the sidebar asks first rather than acting
   // (decisions.md, "Leave hub does not leave").
   const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
+  const [hubLayout, setHubLayout] = useHubLayout(
+    () => getScoped("wavvon.hubLayout"),
+    useCallback((raw: string) => setScoped("wavvon.hubLayout", raw), []),
+    hubs.map((h) => h.hub_id),
+  );
   const hubConnection = useHubConnection();
   const { hubConnected, reconnectingHubs, handleStatusChange } = hubConnection;
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
@@ -221,7 +226,7 @@ export default function App({ initialView }: AppProps = {}) {
   // === Unread / notifications ===
   const unreadCounts = useUnreadCounts();
   const {
-    unreadByChannel, unreadByHub, unreadDms, setUnreadDms,
+    unreadByChannel, unreadByHub, noticeByHub, unreadDms, setUnreadDms,
     bumpUnread, clearUnread, seedUnreadFromServer,
   } = unreadCounts;
 
@@ -458,6 +463,14 @@ export default function App({ initialView }: AppProps = {}) {
     },
   });
   const { myPresence, myPresenceRef, handleSetStatus } = presence;
+  const userMenu = useUserMenu({
+    users,
+    publicKey,
+    presence,
+    onOpenSettings: (tab) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); setShowSettings(true); },
+    onOpenShortcuts: () => setShowKeyboardShortcuts(true),
+    settingsNeedsAttention: backupNeeded,
+  });
 
   // === Voice / video / whisper / voice-move UX ===
   // The hubFetch("/channels") -> setChannels resync used when a spawner join
@@ -925,7 +938,7 @@ export default function App({ initialView }: AppProps = {}) {
   }
 
   // === Hub management ===
-  // handleSwitchHub/handleRemoveHub/handleHubReorder now live in
+  // handleSwitchHub/handleRemoveHub now live in
   // useHubLifecycle; applyDeepLinkTarget stays here since it also drives
   // handleSelectChannel/setPendingScrollMessageId (from useChannelMessages).
 
@@ -1319,6 +1332,7 @@ export default function App({ initialView }: AppProps = {}) {
   const hasNoHubs = hubs.length === 0;
   const sidebarView = hasNoHubs ? "dms" : view;
 
+
   return (
     <div className="main-layout">
       <div
@@ -1511,26 +1525,29 @@ export default function App({ initialView }: AppProps = {}) {
         showContent
         onBack={() => {}}
       >
-      <HubSidebar
+      <HubTopBar
         hubs={hubs}
         activeHubId={activeHubId}
         view={sidebarView as "channels" | "dms"}
-        showDiscover={true}
-        unreadDms={unreadDms}
+        multiHub={MULTI_HUB}
+        layout={hubLayout}
+        onLayoutChange={setHubLayout}
         unreadByHub={unreadByHub}
+        noticeByHub={noticeByHub}
+        unreadDmCount={view === "dms" ? 0 : Object.keys(unreadDms).length}
         pingByHub={pingByHub}
         hubNotifyMode={hubNotifyMode}
         lobbyHubIds={lobbyHubs}
-        hasActiveHub={!!activeHubId}
-        onSwitchToDms={() => setView("dms")}
+        onSwitchToDms={() => { if (activeHubId) setView("dms"); }}
         onSwitchHub={handleSwitchHub}
         onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
         onSetHubNotifyMode={(hubId, mode) =>
           setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
         }
-        onHubReorder={handleHubReorder}
+        onOpenSearch={() => setShowSearchBar(true)}
         onAddHub={MULTI_HUB ? () => setShowAddHub(true) : undefined}
         onDiscover={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
+        userMenu={userMenu}
       />
 
       <ChannelSidebarContainer
@@ -1544,7 +1561,6 @@ export default function App({ initialView }: AppProps = {}) {
         unreadCounts={unreadCounts}
         dms={dms}
         alliances={alliances}
-        presence={presence}
         screenShare={screenShare}
         channelCrud={channelCrud}
         channelMessages={channelMessages}
@@ -1569,11 +1585,7 @@ export default function App({ initialView }: AppProps = {}) {
         onOpenQuickInvite={() => setShowQuickInvite(true)}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
-        onOpenSettings={(tab) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); setShowSettings(true); }}
-        onOpenShortcuts={() => setShowKeyboardShortcuts(true)}
         onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}
-        settingsNeedsAttention={backupNeeded}
-        onOpenSearch={() => setShowSearchBar(true)}
         onDragEnd={handleChannelDragEnd}
       />
 

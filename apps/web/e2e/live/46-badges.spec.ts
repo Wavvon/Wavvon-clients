@@ -57,7 +57,7 @@ test("a granted badge shows in the member's portfolio and can be hidden", async 
       body: { label: "Top Contributor", icon: "⭐" },
     });
 
-    await member.locator(".user-menu-trigger").first().click();
+    await member.locator(".user-menu-trigger:visible").click();
 
 
     await member.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();

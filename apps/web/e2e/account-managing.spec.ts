@@ -86,7 +86,7 @@ test("selecting a non-active account in the Managing dropdown re-scopes sections
   );
 
   await page.goto("/");
-  await page.locator(".user-menu-trigger").first().click({ timeout: 10000 });
+  await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await openSettingsTab(page, "Privacy");

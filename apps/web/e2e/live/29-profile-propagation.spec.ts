@@ -29,7 +29,7 @@ test("a member's rename propagates live to other clients", async ({ page, browse
     // local-only (P24) — editing the hub's own context is what actually
     // PATCHes /me and propagates live to the owner. Index 0 is the default
     // profile; index 1 is the (only) joined hub.
-    await member.locator(".user-menu-trigger").first().click();
+    await member.locator(".user-menu-trigger:visible").click();
 
     await member.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await member.getByRole("button", { name: "Profile", exact: true }).first().click();

@@ -548,14 +548,6 @@ export async function previewApplication(hub_url: string): Promise<Survey | null
   }
 }
 
-export async function reorderHubs(hub_ids: string[]): Promise<void> {
-  const { loadSavedHubs, saveSavedHubs } = await import("../storage");
-  const saved = loadSavedHubs();
-  const ordered = hub_ids
-    .map((id) => saved.find((h) => h.hub_id === id))
-    .filter(Boolean) as typeof saved;
-  saveSavedHubs(ordered);
-}
 
 // Reconnect to persisted hubs from localStorage on app load.
 // A 429 or a 5xx says "not now"; every other failure says something about

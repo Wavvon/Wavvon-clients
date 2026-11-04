@@ -169,7 +169,6 @@ export { HubSetupWizard } from "./components/hubs/HubSetupWizard";
 export type { HubSetupWizardActions, HubSetupWizardCreateChannelFields } from "./components/hubs/HubSetupWizard";
 export { Lobby } from "./components/layout/Lobby";
 export type { LobbyActions } from "./components/layout/Lobby";
-export { HubSidebar } from "./components/layout/HubSidebar";
 export type { LobbyStatusInfo, LobbyWelcomeInfo, SubmitPowResultInfo } from "./types";
 export { resolveSessionScope } from "./utils/lobbyDecision";
 export type {
@@ -501,6 +500,7 @@ export type { TypingDeps, TypingMap } from "./hooks/useTypingIndicators";
 export type { WhisperDeps, WhisperParams } from "./hooks/useWhisper";
 export type { UnreadCounts, UnreadCountsDeps } from "./hooks/useUnreadCounts";
 export { usePresenceStatus } from "./hooks/usePresenceStatus";
+export type { PresenceStatus } from "./hooks/usePresenceStatus";
 export { useHubSetupWizardGate } from "./hooks/useHubSetupWizardGate";
 export { useSoundboardChips, parseSoundboardPlayedEvent } from "./hooks/useSoundboardChips";
 export type { SoundboardPlayedEvent } from "./hooks/useSoundboardChips";
@@ -514,7 +514,13 @@ export type { ChannelContextMenuProps } from "./components/channels/ChannelConte
 
 export { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./utils/backgroundProcessor";
 export type { BackgroundMode } from "./utils/backgroundProcessor";
+export { HubTopBar } from "./components/layout/HubTopBar";
+export type { HubTopBarProps } from "./components/layout/HubTopBar";
+export { parseLayout, pruneLayout, EMPTY_LAYOUT } from "./utils/hubLayout";
+export type { HubLayout, HubFolder } from "./utils/hubLayout";
+export type { HubNotice } from "./hooks/useUnreadCounts";
 export { UserMenu } from "./components/layout/UserMenu";
 export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";
+export { useHubLayout } from "./hooks/useHubLayout";
 export { memberActivity } from "./utils/memberActivity";
 export type { MemberActivity } from "./utils/memberActivity";
