@@ -573,9 +573,9 @@ export default function App({ initialView }: AppProps = {}) {
   const screenShare = useScreenShare({ activeHubIdRef, showHubError });
   const {
     screenShareViewerRef, activeScreenShares, sharing, shareKbps, shareLocalStream,
-    hubStreams, showHubStreams, setShowHubStreams, subscribedStreamIds,
+    hubStreams, showHubStreams, setShowHubStreams, openedIds,
     handleStartShare, handleStopShare, handleOpenHubStreams, handleWatchStream,
-    handleStopWatchStream, onScreenShare, onScreenShareChunk,
+    handleStopWatchStream, onScreenShare, onScreenShareChunk, resubscribeStreams,
   } = screenShare;
 
   const hubsRef = useRef<Hub[]>([]);
@@ -664,7 +664,7 @@ export default function App({ initialView }: AppProps = {}) {
     setUsers, setChannels, setHubs, setActiveHubTimezone,
     setVoicePartByChannel: voice.setVoicePartByChannel,
     onDm, onDmMemberChanged, receiveTyping,
-    onScreenShare, onScreenShareChunk, receiveSoundboardPlayed,
+    onScreenShare, onScreenShareChunk, resubscribeStreams, receiveSoundboardPlayed,
     handleStatusChange, setAssertiveAnnouncement, showHubError,
     loadHubDataRef,
     voiceOnVoiceState: voice.onVoiceState,
@@ -1236,12 +1236,17 @@ export default function App({ initialView }: AppProps = {}) {
   // own "+" attach menu is implicitly gated (anyone who can post here).
   const canSendMessages = useMemo(() => can("messages.send"), [can]);
 
-  const canUseSoundboard = useMemo(() => {
+  const canInVoice = useCallback((perm: string) => {
     if (voice.myVoicePerms && voice.myVoicePerms.channel_id === voice.voiceChannelId) {
-      return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes("voice.soundboard.use");
+      return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes(perm);
     }
-    return can("voice.soundboard.use");
+    return can(perm);
   }, [voice.myVoicePerms, voice.voiceChannelId, can]);
+  const canUseSoundboard = useMemo(() => canInVoice("voice.soundboard.use"), [canInVoice]);
+  // Separate grants only where the hub says so; elsewhere voice.join covers both.
+  const mediaPerms = activeHubSupports("voice.media.permissions");
+  const canScreenShare = !mediaPerms || canInVoice("voice.screen_share");
+  const canUseCamera = !mediaPerms || canInVoice("voice.camera");
 
   const canManageSoundboard = useMemo(() => can("voice.soundboard.manage"), [can]);
   const canManageHubAlliances = useMemo(() => can("alliances.manage"), [can]);
@@ -1431,7 +1436,7 @@ export default function App({ initialView }: AppProps = {}) {
       {showHubStreams && (
         <HubStreamsPanel
           streams={hubStreams}
-          subscribedIds={subscribedStreamIds.current}
+          subscribedIds={openedIds}
           currentChannelId={selectedChannel?.id ?? null}
           channels={channels}
           nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
@@ -1546,6 +1551,8 @@ export default function App({ initialView }: AppProps = {}) {
         canManageRoles={canManageRoles}
         canMoveMembers={canMoveMembers}
         canUseSoundboard={canUseSoundboard}
+        canScreenShare={canScreenShare}
+        canUseCamera={canUseCamera}
         silencedChannelIds={silencedChannelIds}
         soundboardChipsByChannel={soundboardChipsByChannel}
         whisperReplyBind={whisperReplyBind}

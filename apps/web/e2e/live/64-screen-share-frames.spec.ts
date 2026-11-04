@@ -54,6 +54,12 @@ test("a screen share arrives as decoded frames, not just a panel", async ({ page
 
     await page.getByRole("button", { name: "Share screen" }).click();
     await expect(page.locator(".screen-share-self-preview")).toBeVisible({ timeout: 20000 });
+    // A live never opens by itself (#259): the viewer sees it in the tray
+    // and opens it.
+    const chip = viewer.locator(".live-chip").first();
+    await expect(chip).toBeVisible({ timeout: 20000 });
+    await expect(viewer.locator(".screen-share-panel")).toBeHidden();
+    await chip.click();
     await expect(viewer.locator(".screen-share-panel")).toBeVisible({ timeout: 20000 });
 
     // The sharer's own preview is a local MediaStream and proves nothing about

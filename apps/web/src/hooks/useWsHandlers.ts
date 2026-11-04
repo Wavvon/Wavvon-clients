@@ -34,6 +34,7 @@ export interface UseWsHandlersParams {
   receiveTyping: (raw: Record<string, unknown>) => void;
   onScreenShare: (raw: unknown) => void;
   onScreenShareChunk: (streamId: string, isInit: boolean, data: ArrayBuffer) => void;
+  resubscribeStreams: () => void;
   receiveSoundboardPlayed: (raw: unknown) => void;
   handleStatusChange: (hubId: string, hubName: string, connected: boolean, setAssertive: (msg: string) => void) => void;
   setAssertiveAnnouncement: (msg: string) => void;
@@ -71,7 +72,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     myPresenceRef, effectiveNotifyModeRef, mentionPingEnabledRef, whisperOptoutRef,
     setMessages, setStickToBottom, setNewWhileScrolledUp, bumpUnread,
     setUsers, setChannels, setHubs, setActiveHubTimezone, setVoicePartByChannel,
-    onDm, onDmMemberChanged, receiveTyping, onScreenShare, onScreenShareChunk,
+    onDm, onDmMemberChanged, receiveTyping, onScreenShare, onScreenShareChunk, resubscribeStreams,
     receiveSoundboardPlayed, handleStatusChange, setAssertiveAnnouncement, showHubError,
     loadHubDataRef, voiceOnVoiceState, voiceOnVoiceZoneState, voiceOnVoiceZoneCreated,
     voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoiceKeyReceived,
@@ -194,6 +195,8 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       if (connected && hubId === activeHubIdRef.current) {
         fetchAllUsers().then(setUsers).catch(() => {});
         try { activeSession().ws?.requestStreamList(); } catch {}
+        // A new socket holds none of the lives we had open.
+        resubscribeStreams();
       }
     },
     onError: (raw) => {

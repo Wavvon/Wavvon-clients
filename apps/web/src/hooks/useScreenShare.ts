@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
 import { activeSession } from "@platform";
 import { WebScreenShareSession } from "../platform/screenShare";
@@ -9,20 +9,23 @@ interface UseScreenShareParams {
   showHubError: (msg: string) => void;
 }
 
-// Outbound screen share (chunk transport) + the cross-channel hub-streams
-// discovery list. One hook because both feed the same viewer state:
-// `stream_subscribed` (hub streams) pushes into `activeScreenShares` so the
-// shared ScreenShareViewer renders subscribed cross-channel streams too.
+// Outbound screen share (chunk transport), the lives announced to us, and
+// which of them we opened. Nothing opens by itself (#259): opening sends
+// `stream_subscribe`, closing `stream_unsubscribe`, and the viewer only
+// renders opened streams, so on a hub without `screenshare.onrequest` the
+// chunks of a closed live are dropped here instead of at the hub.
 export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareParams) {
   const screenShareViewerRef = useRef<ScreenShareViewerRef | null>(null);
-  const [activeScreenShares, setActiveScreenShares] = useState<ActiveStream[]>([]);
+  const [liveStreams, setLiveStreams] = useState<(ActiveStream & { channel_id: string })[]>([]);
+  const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
+  // Opened, by stream id, with the channel the subscribe names.
+  const requested = useRef<Map<string, string>>(new Map());
   const screenShareSessionRef = useRef<WebScreenShareSession | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareKbps, setShareKbps] = useState(0);
   const [shareLocalStream, setShareLocalStream] = useState<MediaStream | null>(null);
   const [hubStreams, setHubStreams] = useState<HubStreamInfo[]>([]);
   const [showHubStreams, setShowHubStreams] = useState(false);
-  const subscribedStreamIds = useRef<Set<string>>(new Set());
 
   // Per-instance teardown on unmount (key-remounted account switch etc.);
   // module-level WS sessions are reset separately by AccountRoot.
@@ -67,18 +70,54 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
   }
 
   function handleOpenHubStreams() {
-    try { activeSession().ws?.requestStreamList(); } catch {}
+    try { activeSession().ws?.requestStreamList(); } catch { /* ws not ready */ }
     setShowHubStreams(true);
   }
   function handleWatchStream(channelId: string, streamId: string) {
-    try { activeSession().ws?.subscribeStream(channelId, streamId); } catch {}
+    requested.current.set(streamId, channelId);
+    setOpenedIds((prev) => new Set(prev).add(streamId));
   }
-  function handleStopWatchStream(channelId: string, streamId: string) {
-    try { activeSession().ws?.unsubscribeStream(channelId, streamId); } catch {}
-    subscribedStreamIds.current.delete(streamId);
-    setActiveScreenShares((prev) => prev.filter((s) => s.stream_id !== streamId));
+  function handleStopWatchStream(_channelId: string, streamId: string) {
+    const channelId = requested.current.get(streamId);
+    requested.current.delete(streamId);
+    if (channelId) {
+      try { activeSession().ws?.unsubscribeStream(channelId, streamId); } catch { /* ws not ready */ }
+    }
+    setOpenedIds((prev) => { const next = new Set(prev); next.delete(streamId); return next; });
     screenShareViewerRef.current?.stopStream(streamId);
   }
+
+  // Subscribe after the commit that rendered the opened stream, so the viewer
+  // already holds a MediaSource when the replayed init segment arrives.
+  const sent = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const id of openedIds) {
+      if (sent.current.has(id)) continue;
+      const channelId = requested.current.get(id);
+      if (!channelId) continue;
+      sent.current.add(id);
+      try { activeSession().ws?.subscribeStream(channelId, id); } catch { /* ws not ready */ }
+    }
+    for (const id of sent.current) if (!openedIds.has(id)) sent.current.delete(id);
+  }, [openedIds]);
+
+  function resubscribeStreams() {
+    for (const [id, channelId] of requested.current) {
+      try { activeSession().ws?.subscribeStream(channelId, id); } catch { /* ws not ready */ }
+    }
+  }
+
+  function forget(streamId: string) {
+    requested.current.delete(streamId);
+    setOpenedIds((prev) => { if (!prev.has(streamId)) return prev; const next = new Set(prev); next.delete(streamId); return next; });
+    setLiveStreams((prev) => prev.filter((s) => s.stream_id !== streamId));
+    screenShareViewerRef.current?.stopStream(streamId);
+  }
+
+  const activeScreenShares = useMemo(
+    () => liveStreams.filter((s) => openedIds.has(s.stream_id)),
+    [liveStreams, openedIds],
+  );
 
   // WS arm — plugged into App's handler registry.
   function onScreenShare(raw: unknown) {
@@ -86,9 +125,9 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
     if (m._hub_id !== activeHubIdRef.current) return;
     if (m.type === "screen_share_started") {
       const ev = m as unknown as ActiveStream & { channel_id: string; _hub_id: string };
-      setActiveScreenShares((prev) => {
+      setLiveStreams((prev) => {
         if (prev.some((s) => s.stream_id === ev.stream_id)) return prev;
-        return [...prev, { stream_id: ev.stream_id, sharer_pubkey: ev.sharer_pubkey, kind: ev.kind, mime: ev.mime, has_audio: ev.has_audio }];
+        return [...prev, { channel_id: ev.channel_id, stream_id: ev.stream_id, sharer_pubkey: ev.sharer_pubkey, kind: ev.kind, mime: ev.mime, has_audio: ev.has_audio }];
       });
       // Keep the cross-channel discovery list live.
       setHubStreams((prev) => prev.some((s) => s.stream_id === ev.stream_id) ? prev : [...prev, {
@@ -96,17 +135,15 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
       }]);
     } else if (m.type === "screen_share_stopped") {
       const streamId = m.stream_id as string;
-      setActiveScreenShares((prev) => prev.filter((s) => s.stream_id !== streamId));
+      forget(streamId);
       setHubStreams((prev) => prev.filter((s) => s.stream_id !== streamId));
-      screenShareViewerRef.current?.stopStream(streamId);
     } else if (m.type === "hub_streams") {
       setHubStreams((m.streams as HubStreamInfo[]) ?? []);
     } else if (m.type === "stream_subscribed") {
-      // A cross-channel stream we asked to watch — register it so the
-      // viewer builds a MediaSource for its incoming chunks.
+      // A cross-channel stream may not have been announced to us.
       const streamId = m.stream_id as string;
-      subscribedStreamIds.current.add(streamId);
-      setActiveScreenShares((prev) => prev.some((s) => s.stream_id === streamId) ? prev : [...prev, {
+      setLiveStreams((prev) => prev.some((s) => s.stream_id === streamId) ? prev : [...prev, {
+        channel_id: m.source_channel_id as string,
         stream_id: streamId,
         sharer_pubkey: m.sharer_pubkey as string,
         kind: (m.kind as "screen" | "webcam") ?? "screen",
@@ -114,10 +151,7 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
         has_audio: !!m.has_audio,
       }]);
     } else if (m.type === "stream_subscription_ended") {
-      const streamId = m.stream_id as string;
-      subscribedStreamIds.current.delete(streamId);
-      setActiveScreenShares((prev) => prev.filter((s) => s.stream_id !== streamId));
-      screenShareViewerRef.current?.stopStream(streamId);
+      forget(m.stream_id as string);
     }
   }
 
@@ -128,13 +162,14 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
   return {
     screenShareViewerRef,
     activeScreenShares,
+    liveStreams,
+    openedIds,
     sharing,
     shareKbps,
     shareLocalStream,
     hubStreams,
     showHubStreams,
     setShowHubStreams,
-    subscribedStreamIds,
     handleStartShare,
     handleStopShare,
     handleOpenHubStreams,
@@ -142,5 +177,6 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
     handleStopWatchStream,
     onScreenShare,
     onScreenShareChunk,
+    resubscribeStreams,
   };
 }

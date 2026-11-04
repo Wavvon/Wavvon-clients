@@ -123,6 +123,11 @@ export function ChannelSidebarContainer({
   const caps = useHubCapabilities(activeHubUrl);
   const allianceVoice = caps.includes("voice.alliance");
   const voiceChannelsOnly = caps.includes("channels.voice");
+  // Separate grants only where the hub says so; elsewhere voice.join covers both.
+  const mediaPerms = caps.includes("voice.media.permissions");
+  const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const canScreenShare = !mediaPerms || hasPerm("voice.screen_share");
+  const canUseCamera = !mediaPerms || hasPerm("voice.camera");
 
   return (
     <>
@@ -203,7 +208,7 @@ export function ChannelSidebarContainer({
       onDragEnd={onDragEnd}
       onToggleHideSilenced={() => setHideSilenced((v) => !v)}
       sharing={voice.sharing}
-      onScreenShare={voice.handleScreenShare}
+      onScreenShare={canScreenShare || voice.sharing ? voice.handleScreenShare : undefined}
       onOpenSearch={() => setShowSearchBar(true)}
       myStatus={myPresence.status === "online" ? null : myPresence.status}
       onSetStatus={onSetStatus}
@@ -229,7 +234,7 @@ export function ChannelSidebarContainer({
       whisperOptout={whisper.whisperOptout}
       onSetWhisperOptout={whisper.setWhisperOptout}
       videoEnabled={video.videoEnabled}
-      onToggleVideo={(deviceId) => (video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId))}
+      onToggleVideo={!canUseCamera && !video.videoEnabled ? undefined : (deviceId) => (video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId))}
       canUseSoundboard={canUseSoundboard}
       onListSoundboardClips={soundboard.listClips}
       onTriggerSoundboardClip={soundboard.triggerClip}

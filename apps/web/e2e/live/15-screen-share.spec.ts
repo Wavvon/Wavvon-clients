@@ -33,6 +33,12 @@ test("start a screen share; a second client sees it, then stop", async ({ page, 
     await expect(page.locator(".screen-share-self-preview")).toBeVisible({ timeout: 20000 });
 
     // The viewer receives the stream and renders the screen-share panel.
+    // A live never opens by itself (#259): the viewer sees it in the tray
+    // and opens it.
+    const chip = viewer.locator(".live-chip").first();
+    await expect(chip).toBeVisible({ timeout: 20000 });
+    await expect(viewer.locator(".screen-share-panel")).toBeHidden();
+    await chip.click();
     await expect(viewer.locator(".screen-share-panel")).toBeVisible({ timeout: 20000 });
 
     // Owner stops → their preview disappears and the viewer's panel goes away.

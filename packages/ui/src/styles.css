@@ -2486,6 +2486,64 @@ tr.account-drop-target td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.live-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+  background: var(--danger);
+  color: #fff;
+}
+.live-tray {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.live-tray-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.live-tray-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* Fixed width: past what fits, it scrolls instead of pushing the room down. */
+.live-tray-chips {
+  display: flex;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.live-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.live-chip.open {
+  border-color: var(--accent);
+}
+.live-tray-list ul {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
 
 .channel-participant .avatar {
   transition: box-shadow 120ms ease-out;

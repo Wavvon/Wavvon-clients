@@ -2256,5 +2256,12 @@
   "hub.admin.sticker_settings.save": "Guardar límites",
   "hub.admin.roles.perm.stickers.packs.manage": "Gestionar paquetes de stickers",
   "hub.admin.roles.perm.stickers.external": "Usar stickers de otros hubs",
-  "hub.admin.roles.perm.stickers.moderate": "Moderar los stickers almacenados"
+  "hub.admin.roles.perm.stickers.moderate": "Moderar los stickers almacenados",
+  "voice.live.label": "En directo en esta sala",
+  "voice.live.title": "Live · {count}",
+  "voice.live.open": "Abrir directo",
+  "voice.live.close": "Cerrar directo",
+  "voice.live.all": "Todos",
+  "voice.live.search": "Buscar directos",
+  "voice.live.camera": "{name} · cámara"
 }
