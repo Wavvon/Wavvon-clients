@@ -454,6 +454,8 @@ export interface PostSummary {
   channel_id: string;
   author_pubkey: string;
   title: string | null;
+  /** Start of the body; absent on older hubs and deleted posts. */
+  excerpt?: string;
   created_at: number;
   edited_at: number | null;
   is_pinned: boolean;

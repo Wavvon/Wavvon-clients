@@ -4,6 +4,15 @@ import type { PostSummary, ForumTagDef, User } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
 import type { ForumActions } from "./ForumView";
 import { PinIcon, LockIcon } from "../Icons";
+import { Avatar } from "../Avatar";
+
+type ForumLayout = "list" | "grid";
+// A member's choice for every forum, kept on this device.
+const LAYOUT_KEY = "wavvon:forum-layout";
+
+function readLayout(): ForumLayout {
+  try { return localStorage.getItem(LAYOUT_KEY) === "grid" ? "grid" : "list"; } catch { return "list"; }
+}
 
 interface Props {
   channelId: string;
@@ -27,6 +36,11 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
   const [error, setError] = useState<string | null>(null);
   const [tags, setTags] = useState<ForumTagDef[]>([]);
   const [activeTagId, setActiveTagId] = useState<string | undefined>(undefined);
+  const [layout, setLayout] = useState<ForumLayout>(readLayout);
+  const chooseLayout = (l: ForumLayout) => {
+    setLayout(l);
+    try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* not remembered */ }
+  };
 
   const load = useCallback(async (replace: boolean, cur?: string, tagId?: string) => {
     setLoading(true);
@@ -63,9 +77,18 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
     <div className="forum-list">
       <div className="forum-list-header">
         <h2 className="forum-list-title">{t("forum.list.title")}</h2>
-        {canCreatePost && (
-          <button className="btn-primary" onClick={onNewPost}>{t("forum.list.new_post")}</button>
-        )}
+        <div className="forum-list-actions">
+          <div className="forum-layout-toggle" role="group" aria-label={t("forum.list.layout")}>
+            {(["list", "grid"] as const).map((l) => (
+              <button key={l} type="button" aria-pressed={layout === l} onClick={() => chooseLayout(l)}>
+                {t(l === "list" ? "forum.list.layout_list" : "forum.list.layout_grid")}
+              </button>
+            ))}
+          </div>
+          {canCreatePost && (
+            <button className="btn-primary" onClick={onNewPost}>{t("forum.list.new_post")}</button>
+          )}
+        </div>
       </div>
       {tags.length > 0 && (
         <div className="forum-tag-row">
@@ -95,15 +118,15 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
       {pinned.length > 0 && (
         <div className="forum-pinned-band">
           <span className="forum-section-label muted">{t("forum.list.pinned")}</span>
-          {pinned.map((p) => <ForumPostRow key={p.id} post={p} users={users} onClick={() => onOpenPost(p)} />)}
+          {pinned.map((p) => <ForumPostRow key={p.id} post={p} users={users} layout={layout} onClick={() => onOpenPost(p)} />)}
         </div>
       )}
-      <div className="forum-post-rows">
-        {rest.map((p) => <ForumPostRow key={p.id} post={p} users={users} onClick={() => onOpenPost(p)} />)}
+      <div className={`forum-post-rows ${layout}`}>
+        {rest.map((p) => <ForumPostRow key={p.id} post={p} users={users} layout={layout} onClick={() => onOpenPost(p)} />)}
       </div>
       {deleted.length > 0 && (
-        <div className="forum-post-rows">
-          {deleted.map((p) => <ForumPostRow key={p.id} post={p} users={users} onClick={() => onOpenPost(p)} />)}
+        <div className={`forum-post-rows ${layout}`}>
+          {deleted.map((p) => <ForumPostRow key={p.id} post={p} users={users} layout={layout} onClick={() => onOpenPost(p)} />)}
         </div>
       )}
       {posts.length === 0 && !loading && !error && (
@@ -117,18 +140,21 @@ export function ForumPostList({ channelId, canCreatePost, actions, onOpenPost, o
   );
 }
 
-function ForumPostRow({ post, users, onClick }: { post: PostSummary; users: User[]; onClick: () => void }) {
+function ForumPostRow({ post, users, layout, onClick }: { post: PostSummary; users: User[]; layout: ForumLayout; onClick: () => void }) {
   const { t } = useTranslation();
-  const author = users.find((u) => u.public_key === post.author_pubkey)?.display_name
-    || formatPubkey(post.author_pubkey);
+  const user = users.find((u) => u.public_key === post.author_pubkey);
+  const author = user?.display_name || formatPubkey(post.author_pubkey);
   return (
     <div
-      className={`forum-post-row ${post.is_deleted ? "deleted" : ""}`}
+      className={`forum-post-row ${layout}${post.is_deleted ? " deleted" : ""}${post.is_pinned ? " pinned" : ""}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
     >
+      {layout === "list" && !post.is_deleted && (
+        <Avatar src={user?.avatar} name={author} pubkey={post.author_pubkey} size={32} />
+      )}
       <div className="forum-post-row-main">
         <span className="forum-post-title">
           {post.is_deleted ? t("forum.detail.deleted_title") : (post.title || t("forum.detail.no_title"))}
@@ -148,9 +174,10 @@ function ForumPostRow({ post, users, onClick }: { post: PostSummary; users: User
             </span>
           )}
         </span>
+        {!post.is_deleted && post.excerpt && <span className="forum-post-excerpt">{post.excerpt}</span>}
         <span className="forum-post-meta muted">
           {!post.is_deleted && <span className="forum-post-author">{author} · </span>}
-          {formatRelative(post.last_activity_at)} · {post.reply_count} {post.reply_count === 1 ? "reply" : "replies"}
+          {formatRelative(post.last_activity_at)} · {t("forum.list.replies", { count: post.reply_count })}
           {post.author_hub && <span title={post.author_hub}> · via {formatPubkey(post.author_hub)}</span>}
           {post.unread_reply_count != null && post.unread_reply_count > 0 && (
             <span className="unread-badge">{post.unread_reply_count} new</span>
