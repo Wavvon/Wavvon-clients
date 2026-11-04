@@ -1,3 +1,4 @@
+import type { MemberActivity } from "../../utils/memberActivity";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { Channel } from "@wavvon/core";
@@ -181,6 +182,8 @@ interface Props {
   /** The room a selected voice channel opens to (decisions.md, "Voice lives
    *  in voice channels"), drawn above its chat. */
   voiceStage?: VoiceStageInfo;
+  /** Who is in voice or live where, for the member list's status line. */
+  memberActivity?: Map<string, MemberActivity>;
 }
 
 export function ContentArea({
@@ -191,7 +194,7 @@ export function ContentArea({
   users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, channelFiles, stickToBottom, newWhileScrolledUp,
-  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus, voiceStage,
+  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus, voiceStage, memberActivity,
   selfInvisible,
   hideBirthdays,
   inputText, typingByKey, dmTypingByKey,
@@ -711,11 +714,13 @@ export function ContentArea({
         )}
       </main>
 
-      {view === "channels" && !memberSidebarHidden && (
+      {/* In a voice room the audience is the member list. */}
+      {view === "channels" && !memberSidebarHidden && selectedChannel?.channel_type !== "voice" && (
         <aside className="user-list-sidebar" aria-label={t("member.list.title")}>
           <UserListGrouped
             users={users}
             speaking={voiceActiveUsers}
+            activity={memberActivity}
             myPubkey={publicKey}
             selfInvisible={selfInvisible}
             hideBirthdays={hideBirthdays}

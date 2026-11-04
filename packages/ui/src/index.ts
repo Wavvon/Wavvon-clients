@@ -522,3 +522,5 @@ export type { HubNotice } from "./hooks/useUnreadCounts";
 export { UserMenu } from "./components/layout/UserMenu";
 export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";
 export { useHubLayout } from "./hooks/useHubLayout";
+export { memberActivity } from "./utils/memberActivity";
+export type { MemberActivity } from "./utils/memberActivity";
