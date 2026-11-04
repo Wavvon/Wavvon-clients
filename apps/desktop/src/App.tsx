@@ -35,7 +35,7 @@ import type {
   AppCloseEvent,
 } from "./types";
 import { PendingApplication } from "./components/PendingApplication";
-import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel } from "@wavvon/ui";
+import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
 import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
 import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
@@ -1560,7 +1560,8 @@ function App({ accountId }: { accountId: string | null }) {
         />
       )}
       <>
-        {showHubAdmin ? (
+        {showHubAdmin && (
+          <SettingsModal onClose={() => setShowHubAdmin(false)}>
           <HubAdminContainer
             tab={hubAdminTab}
             onTab={setHubAdminTab}
@@ -1626,7 +1627,10 @@ function App({ accountId }: { accountId: string | null }) {
             onRevokeInvite={handleRevokeInvite}
             channels={channels}
           />
-        ) : showSettings ? (
+          </SettingsModal>
+        )}
+        {showSettings && (
+          <SettingsModal onClose={closeSettings}>
           <SettingsPageContainer
             onClose={closeSettings}
             onHubProfileSaved={(hubId) => {
@@ -1651,7 +1655,8 @@ function App({ accountId }: { accountId: string | null }) {
             channelMessages={channelMessages}
             settingsProfile={settingsProfile}
           />
-        ) : (
+          </SettingsModal>
+        )}
           <div className="main-layout">
             <HubTopBar
               hubs={hubs}
@@ -1919,7 +1924,6 @@ function App({ accountId }: { accountId: string | null }) {
               </>
             )}
           </div>
-        )}
 
         {showDisplayNamePrompt && (
           <DisplayNamePrompt
