@@ -3545,6 +3545,35 @@ select:focus-visible {
   background: var(--surface);
 }
 
+.hub-drawer-row.dragging {
+  position: relative;
+  z-index: 10;
+  opacity: 0.85;
+  cursor: grabbing;
+}
+
+.hub-drawer-loose {
+  min-height: 8px;
+}
+
+.hub-drawer-loose,
+.hub-drawer-folder-group {
+  border-radius: var(--r-sm);
+  outline: 1px dashed transparent;
+}
+
+.hub-drawer-loose.drop-over,
+.hub-drawer-folder-group.drop-over {
+  outline-color: var(--accent);
+  background: var(--surface);
+}
+
+.hub-drawer-drop-hint {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+}
+
 .hub-drawer-open {
   display: flex;
   align-items: center;

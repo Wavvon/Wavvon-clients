@@ -2306,6 +2306,8 @@
   "hubs.drawer.create": "Crea",
   "hubs.drawer.folder_of": "Cartella di {name}",
   "hubs.drawer.no_folder": "Nessuna cartella",
+
+  "hubs.drawer.drop_here": "Trascina qui un hub",
   "hubs.drawer.delete_folder": "Elimina la cartella {name}",
   "hub.card.members": "{count, plural, one {# membro} other {# membri}}",
   "hub.card.online": "{count} online",

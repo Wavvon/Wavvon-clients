@@ -2306,6 +2306,8 @@
   "hubs.drawer.create": "Erstellen",
   "hubs.drawer.folder_of": "Ordner von {name}",
   "hubs.drawer.no_folder": "Kein Ordner",
+
+  "hubs.drawer.drop_here": "Hub hierher ziehen",
   "hubs.drawer.delete_folder": "Ordner {name} löschen",
   "hub.card.members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
   "hub.card.online": "{count} online",
