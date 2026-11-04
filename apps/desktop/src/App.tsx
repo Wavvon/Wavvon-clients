@@ -40,7 +40,7 @@ import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboard
 import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
 import type { WhisperReplyBind, WhisperTarget } from "@wavvon/ui";
 import { loadWhisperReplyBind, saveWhisperReplyBind } from "./utils/whisperReply";
-import type { GlobalSearchResult } from "@wavvon/ui";
+import type { GlobalSearchResult, ProfileDraftFields } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
 import { useSoundboard } from "./hooks/useSoundboard";
 import { useVideo } from "./hooks/useVideo";
@@ -1074,19 +1074,50 @@ function App() {
   // back on every launch. Keyed by account, since each one is asked once.
   const nameSkipKey = `wavvon.displayNamePromptSkipped.${publicKey}`;
   useEffect(() => {
-    if (hubs.length !== 1 || !me || me.display_name) return;
-    if (localStorage.getItem(nameSkipKey) === "1") return;
+    // Every hub where we have no name yet, not only the first one joined
+    // (#250): the default profile is "how I appear when I join a hub".
+    if (!me || me.display_name) return;
+    const skipped = localStorage.getItem(nameSkipKey) === "1";
     // A default profile means the user already said who they want to be —
-    // apply it instead of asking again, the same way web does.
+    // apply all of it instead of asking again, the same way web does.
     void loadDefaultProfileAsync()
       .then((def) => {
-        if (def?.display_name?.trim()) return saveDisplayName(def.display_name.trim());
-        setShowDisplayNamePrompt(true);
+        if (def?.display_name?.trim()) return applyDefaultProfile(def);
+        if (!skipped) setShowDisplayNamePrompt(true);
       })
-      .catch(() => setShowDisplayNamePrompt(true));
-    // Only when the answer changes, not on every roster update.
+      .catch(() => { if (!skipped) setShowDisplayNamePrompt(true); });
+    // Only when the hub or the answer changes, not on every roster update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.display_name, hubs.length]);
+  }, [activeHubId, me?.public_key, me?.display_name]);
+
+  async function applyDefaultProfile(def: ProfileDraftFields) {
+    const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+    if (!hubUrl) return;
+    try {
+      await invoke("update_my_profile_on_hub", {
+        hubUrl,
+        profile: {
+          display_name: def.display_name.trim(),
+          avatar: def.avatar ?? "",
+          bio: def.bio ?? "",
+          pronouns: def.pronouns ?? "",
+          status_message: def.status_message ?? "",
+          activities: def.activities ?? "",
+          accent_color: def.accent_color ?? "",
+          name_color: def.name_color ?? "",
+          cover: def.cover ?? "",
+          favorite_hubs: def.favorite_hubs,
+          show_hubs: def.show_hubs,
+          birthday: def.birthday ?? "",
+        },
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.public_key === publicKey ? { ...u, display_name: def.display_name.trim(), avatar: def.avatar ?? u.avatar } : u)),
+      );
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   async function saveDisplayName(name: string) {
     setShowDisplayNamePrompt(false);

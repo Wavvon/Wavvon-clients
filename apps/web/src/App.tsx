@@ -611,20 +611,28 @@ export default function App({ initialView }: AppProps = {}) {
   }, [meInfo]);
 
   useEffect(() => {
-    if (hubs.length === 1 && meInfo !== null && !meInfo.display_name) {
+    // Every hub where we have no name yet, not only the first one joined
+    // (#250): the default profile is "how I appear when I join a hub".
+    // meInfo is replaced on each /me load of the active hub, so this targets
+    // that hub; after a successful apply it reloads with a name and stops.
+    if (meInfo !== null && !meInfo.display_name) {
       // A default profile means the user already told us who they want to
       // be — apply it silently instead of asking again. Read at fire time so
       // edits made in Settings since mount are honored.
       const def = loadDefaultProfile();
+      const hubId = getActiveHubId();
       if (def) {
         void handleUpdateHubProfile(def);
-      } else {
+      } else if (hubId && !namePromptedHubsRef.current.has(hubId)) {
+        // Once per hub per session: "Skip for now" must not come back on
+        // every /me reload.
+        namePromptedHubsRef.current.add(hubId);
         setShowDisplayNamePrompt(true);
       }
     }
-  // Only fire once when meInfo first loads on the first hub
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meInfo?.display_name, hubs.length]);
+  }, [meInfo]);
+  const namePromptedHubsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     selectedConvIdRef.current = selectedConversation?.id;
