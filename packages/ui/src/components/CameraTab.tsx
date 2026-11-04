@@ -41,8 +41,13 @@ export function CameraTab() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const rawRef = useRef<MediaStream | null>(null);
   const procRef = useRef<BackgroundProcessor | null>(null);
+  // Bumped by every stop: a getUserMedia that resolves after a newer start or
+  // after unmount (React's dev double-mount does both) must release its
+  // camera instead of leaving it on with nothing showing it.
+  const genRef = useRef(0);
 
   function stopPreview() {
+    genRef.current++;
     procRef.current?.stop();
     procRef.current = null;
     rawRef.current?.getTracks().forEach((t) => t.stop());
@@ -90,16 +95,26 @@ export function CameraTab() {
   async function startPreview(devId: string, m: BackgroundMode, src: string | null) {
     setError(null);
     stopPreview();
+    const gen = genRef.current;
     try {
       const raw = await navigator.mediaDevices.getUserMedia({
         video: devId ? { deviceId: { exact: devId } } : true,
         audio: false,
       });
+      if (gen !== genRef.current) {
+        raw.getTracks().forEach((t) => t.stop());
+        return;
+      }
       rawRef.current = raw;
       let out = raw;
       if (m !== "none") {
         const proc = new BackgroundProcessor(raw);
         out = await proc.start(m, src);
+        if (gen !== genRef.current) {
+          proc.stop();
+          raw.getTracks().forEach((t) => t.stop());
+          return;
+        }
         procRef.current = proc;
         // The processor falls back to raw video when segmentation can't
         // load — tell the user instead of pretending the effect is on.
