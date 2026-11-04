@@ -67,6 +67,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   // The id voice events from an allied hub's socket carry while we are in a
   // room there (alliance_voice_join); null on our own hubs.
   const voiceVisitIdRef = useRef<string | null>(null);
+  // The channel a join is under way for: a repeated click must not send a
+  // second `voice_join`, which makes the hub drop the first join's token.
+  const joiningVoiceRef = useRef<string | null>(null);
 
   const [voiceGains, setVoiceGainsState] = useState<Record<string, number>>(() => {
     try {
@@ -357,6 +360,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   async function handleVoiceJoin(channel?: Channel | string) {
     const target = typeof channel === "string" ? { id: channel, is_category: false } : (channel ?? selectedChannel);
     if (!target || target.is_category) return;
+    if (voiceChannelId === target.id || joiningVoiceRef.current === target.id) return;
+    joiningVoiceRef.current = target.id;
     try {
       if (voiceChannelId && voiceChannelId !== target.id) {
         await invoke("voice_leave");
@@ -368,6 +373,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       void loadVoiceSettings();
     } catch (e) {
       setError(String(e));
+    } finally {
+      if (joiningVoiceRef.current === target.id) joiningVoiceRef.current = null;
     }
   }
 
