@@ -514,3 +514,8 @@ export type { ChannelContextMenuProps } from "./components/channels/ChannelConte
 
 export { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./utils/backgroundProcessor";
 export type { BackgroundMode } from "./utils/backgroundProcessor";
+export { HubTopBar } from "./components/layout/HubTopBar";
+export type { HubTopBarProps } from "./components/layout/HubTopBar";
+export { parseLayout, pruneLayout, EMPTY_LAYOUT } from "./utils/hubLayout";
+export type { HubLayout, HubFolder } from "./utils/hubLayout";
+export type { HubNotice } from "./hooks/useUnreadCounts";

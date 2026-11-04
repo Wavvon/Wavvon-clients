@@ -19,7 +19,7 @@ export interface ChannelMessagesParams {
   selectedChannelIdRef: RefObject<string | null>;
   myPresenceRef: RefObject<{ status: PresenceStatus }>;
   effectiveNotifyMode: (hubId: string, channelId: string) => NotifyMode;
-  bumpUnread: (hubId: string, channelId: string) => void;
+  bumpUnread: (hubId: string, channelId: string, mention?: boolean) => void;
   clearUnread: (hubId: string, channelId: string) => void;
   setFirstNotify: (hubId: string, channelId: string, messageId: string) => void;
   clearFirstNotify: (hubId: string, channelId: string) => void;
@@ -284,7 +284,7 @@ export function useChannelMessages({
                 return [...prev, message];
               });
             } else if (allowBump) {
-              bumpUnread(hub_id, channel_id);
+              bumpUnread(hub_id, channel_id, isMention);
               setFirstNotify(hub_id, channel_id, message.id);
             }
             // Read-time gate: "dnd" presence (global) suppresses the ping
