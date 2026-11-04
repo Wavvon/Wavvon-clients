@@ -2289,5 +2289,15 @@
   "user_menu.this_device": "Este dispositivo",
   "user_menu.accounts": "Cuentas en este dispositivo",
   "user_menu.add_account": "Añadir una cuenta",
-  "user_menu.shortcuts": "Atajos"
+  "user_menu.shortcuts": "Atajos",
+  "onboarding.frame.invited": "Te han invitado a",
+  "onboarding.frame.members": "{count, plural, one {# miembro} other {# miembros}}",
+  "onboarding.frame.online": "{count} conectados",
+  "onboarding.frame.identity_title": "Tu identidad es una clave",
+  "onboarding.frame.identity_text": "Sin correo ni contraseña: una clave creada en este dispositivo, respaldada con 24 palabras. Ningún hub puede quitártela ni entregarla.",
+  "onboarding.frame.hubs_title": "Los hubs los llevan personas",
+  "onboarding.frame.hubs_text": "Cada comunidad tiene su propio servidor. Una identidad sirve en todos.",
+  "onboarding.frame.alliances_title": "Los hubs se alían",
+  "onboarding.frame.alliances_text": "Los hubs aliados comparten canales y voz: un amigo en otro hub está a un clic.",
+  "onboarding.frame.step": "Paso {step} de {total}"
 }

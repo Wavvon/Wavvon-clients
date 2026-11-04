@@ -2289,5 +2289,15 @@
   "user_menu.this_device": "Questo dispositivo",
   "user_menu.accounts": "Account su questo dispositivo",
   "user_menu.add_account": "Aggiungi un account",
-  "user_menu.shortcuts": "Scorciatoie"
+  "user_menu.shortcuts": "Scorciatoie",
+  "onboarding.frame.invited": "Sei stato invitato in",
+  "onboarding.frame.members": "{count, plural, one {# membro} other {# membri}}",
+  "onboarding.frame.online": "{count} online",
+  "onboarding.frame.identity_title": "La tua identità è una chiave",
+  "onboarding.frame.identity_text": "Niente email né password: una chiave creata su questo dispositivo, salvata con 24 parole. Nessun hub può prenderla o consegnarla.",
+  "onboarding.frame.hubs_title": "Gli hub li gestiscono le persone",
+  "onboarding.frame.hubs_text": "Ogni comunità gestisce il proprio server. Una sola identità vale su tutti.",
+  "onboarding.frame.alliances_title": "Gli hub si alleano",
+  "onboarding.frame.alliances_text": "Gli hub alleati condividono canali e voce: un amico su un altro hub è a un clic.",
+  "onboarding.frame.step": "Passo {step} di {total}"
 }

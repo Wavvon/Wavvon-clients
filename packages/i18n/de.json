@@ -2289,5 +2289,15 @@
   "user_menu.this_device": "Dieses Gerät",
   "user_menu.accounts": "Konten auf diesem Gerät",
   "user_menu.add_account": "Konto hinzufügen",
-  "user_menu.shortcuts": "Tastenkürzel"
+  "user_menu.shortcuts": "Tastenkürzel",
+  "onboarding.frame.invited": "Du wurdest eingeladen zu",
+  "onboarding.frame.members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+  "onboarding.frame.online": "{count} online",
+  "onboarding.frame.identity_title": "Deine Identität ist ein Schlüssel",
+  "onboarding.frame.identity_text": "Keine E-Mail, kein Passwort: ein Schlüssel von diesem Gerät, gesichert mit 24 Wörtern. Kein Hub kann ihn nehmen oder herausgeben.",
+  "onboarding.frame.hubs_title": "Hubs betreiben Menschen",
+  "onboarding.frame.hubs_text": "Jede Community betreibt ihren eigenen Server. Eine Identität gilt für alle.",
+  "onboarding.frame.alliances_title": "Hubs verbünden sich",
+  "onboarding.frame.alliances_text": "Verbündete Hubs teilen Kanäle und Sprache: ein Freund auf einem anderen Hub ist einen Klick entfernt.",
+  "onboarding.frame.step": "Schritt {step} von {total}"
 }

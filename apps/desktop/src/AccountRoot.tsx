@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import App from "./App";
+import { OnboardingFrame } from "@wavvon/ui";
 import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSummary } from "./accounts/store";
 
 // Account switching is a key-remount, not a reload -- the desktop analogue
@@ -61,7 +62,8 @@ export default function AccountRoot() {
 
   if (accounts.length === 0) {
     return (
-      <div className="account-gate" style={{ maxWidth: 480, margin: "10vh auto", padding: "0 16px" }}>
+      <OnboardingFrame>
+      <div className="account-gate">
         <h1>{t("account_gate.title")}</h1>
         <p className="muted">{t("account_gate.hint")}</p>
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
@@ -84,6 +86,7 @@ export default function AccountRoot() {
           </button>
         </div>
       </div>
+      </OnboardingFrame>
     );
   }
 

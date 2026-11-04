@@ -28,6 +28,7 @@ export {
   upgradeActiveHubIdentity,
   refreshHubInfo,
   previewHubInfo,
+  previewInvite,
   previewApplication,
   verifyLanFingerprint,
   reorderHubs,

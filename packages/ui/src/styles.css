@@ -7785,6 +7785,65 @@ a.embed-title:hover {
   max-width: 520px;
 }
 
+.onboarding--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  place-items: stretch;
+  padding: 0;
+}
+.onboarding--split > .onboarding-card {
+  align-self: center;
+  justify-self: center;
+  padding: var(--space-6);
+}
+.onboarding-side {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  background: var(--bg-sunken) center / cover no-repeat;
+  border-right: 1px solid var(--border);
+}
+.onboarding-side-scrim {
+  width: 100%;
+  padding: var(--space-6);
+}
+/* Readable whatever the hub chose as its image. */
+.onboarding-side.hub .onboarding-side-scrim {
+  background: linear-gradient(to top, color-mix(in srgb, var(--bg) 92%, transparent), transparent);
+}
+.onboarding-side-title {
+  margin-bottom: var(--space-2);
+}
+.onboarding-side-text,
+.onboarding-side-counts {
+  color: var(--text-muted);
+}
+.onboarding-explainer dt {
+  font-weight: var(--weight-semi);
+  margin-top: var(--space-4);
+}
+.onboarding-explainer dd {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+}
+.onboarding-step {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  margin-bottom: var(--space-3);
+}
+@media (max-width: 767px) {
+  .onboarding--split {
+    grid-template-columns: 1fr;
+  }
+  .onboarding-side {
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
 .onboarding-mark {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
