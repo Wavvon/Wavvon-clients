@@ -265,6 +265,13 @@ export function ContentArea(props: Props) {
           floor: voice.floor && voice.voiceChannelId === selectedChannel.id && activeHubSupports("voice.hands")
             ? { ...voice.floor, canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
             : undefined,
+          live: {
+            streams: screenShare.liveStreams.filter((s) => s.channel_id === selectedChannel.id),
+            opened: screenShare.openedIds,
+            nameFor: (pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8),
+            onOpen: (id) => screenShare.handleWatchStream(selectedChannel.id, id),
+            onClose: (id) => screenShare.handleStopWatchStream(selectedChannel.id, id),
+          },
         } : undefined}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={alliances.selectedAllianceChannel}

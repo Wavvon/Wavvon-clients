@@ -3,11 +3,11 @@ import { listen } from "@tauri-apps/api/event";
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "../types";
 import { useScreenShare } from "./useScreenShare";
-import { useScreenShareViewer } from "./useScreenShareViewer";
 import { useHubStreams } from "./useHubStreams";
 import { listenerScope } from "../utils/listenerScope";
 import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
+import type { ScreenShareViewerRef } from "@wavvon/ui";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -94,15 +94,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   }
 
   const { sharing, startShare, stopShare, kbps: shareKbps, error: shareError } = useScreenShare(activeHubId, voiceChannelId);
-  const { streams: activeScreenShares, viewerRef: screenShareViewerRef } =
-    useScreenShareViewer(activeHubId, voiceChannelId);
-  const {
-    hubStreams,
-    crossChannelStreams,
-    subscribeToStream,
-    unsubscribeFromStream,
-    subscribedStreamIds,
-  } = useHubStreams(activeHubId, screenShareViewerRef);
+  const screenShareViewerRef = useRef<ScreenShareViewerRef | null>(null);
+  const { hubStreams, openedStreams, openedIds, openStream, closeStream } =
+    useHubStreams(activeHubId, screenShareViewerRef);
 
   useEffect(() => {
     if (!activeHubId) {
@@ -560,13 +554,12 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     stopShare,
     shareKbps,
     shareError,
-    activeScreenShares,
-    crossChannelStreams,
     screenShareViewerRef,
     hubStreams,
-    subscribeToStream,
-    unsubscribeFromStream,
-    subscribedStreamIds,
+    openedStreams,
+    openedIds,
+    openStream,
+    closeStream,
     audioProfile,
     setAudioProfile,
     customBitrate,

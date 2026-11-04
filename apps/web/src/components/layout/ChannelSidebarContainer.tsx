@@ -67,6 +67,8 @@ export interface ChannelSidebarContainerProps {
   canEditChannelPermissions: boolean;
   canMoveMembers: boolean;
   canUseSoundboard: boolean;
+  canScreenShare: boolean;
+  canUseCamera: boolean;
   silencedChannelIds: Set<string>;
   soundboardChipsByChannel: Record<string, SoundboardChip[]>;
   whisperReplyBind: WhisperReplyBind;
@@ -90,7 +92,7 @@ export function ChannelSidebarContainer({
   voice, video, whisper, voiceMoveUx, notifyPrefs, hubLifecycle, unreadCounts, onRequestRemoveHub,
   dms, alliances, presence, screenShare, channelCrud, channelMessages, hubAdmin,
   view, channels, channelTree, users, publicKey, isAdmin, canCreateInvites,
-  canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, silencedChannelIds,
+  canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, canScreenShare, canUseCamera, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
   onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenSettings, onOpenVoiceSettings, settingsNeedsAttention,
   onOpenSearch, onDragEnd,
@@ -222,12 +224,12 @@ export function ChannelSidebarContainer({
       soundboardPlayingClipId={voice.soundboardPlayingClipId}
       soundboardChips={voice.voiceChannelId ? soundboardChipsByChannel[voice.voiceChannelId] ?? [] : []}
       sharing={screenShare.sharing}
-      onScreenShare={() => {
+      onScreenShare={canScreenShare || screenShare.sharing ? () => {
         if (screenShare.sharing) screenShare.handleStopShare();
         else if (selectedChannel) void screenShare.handleStartShare(selectedChannel.id);
-      }}
+      } : undefined}
       videoEnabled={video.videoEnabled}
-      onToggleVideo={video.handleToggleVideo}
+      onToggleVideo={canUseCamera || video.videoEnabled ? video.handleToggleVideo : undefined}
       isWhispering={whisper.isWhispering}
       whisperTargets={whisper.whisperTargets}
       whisperLists={whisper.whisperLists}

@@ -2256,5 +2256,11 @@
   "hub.admin.sticker_settings.save": "Save limits",
   "hub.admin.roles.perm.stickers.packs.manage": "Manage sticker packs",
   "hub.admin.roles.perm.stickers.external": "Use stickers from other hubs",
-  "hub.admin.roles.perm.stickers.moderate": "Moderate stored stickers"
+  "hub.admin.roles.perm.stickers.moderate": "Moderate stored stickers",
+  "voice.live.label": "Live in this room",
+  "voice.live.title": "Live · {count}",
+  "voice.live.open": "Open live",
+  "voice.live.close": "Close live",
+  "voice.live.all": "All",
+  "voice.live.search": "Search lives"
 }

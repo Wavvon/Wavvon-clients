@@ -1,5 +1,6 @@
 import type { VoiceKeyBundle } from "./voiceKeys";
 import { pushSample, rttStats, type RttStats } from "./connectionStats";
+import { hubSupports } from "./session";
 
 /** How often to probe. Two seconds keeps the readout feeling live without
  *  making the measurement itself part of the traffic it measures. */
@@ -88,7 +89,10 @@ export class HubWebSocket {
     const base = this.hub_url
       .replace(/^http:\/\//, "ws://")
       .replace(/^https:\/\//, "wss://");
-    return `${base}/ws?token=${encodeURIComponent(this.token)}`;
+    // A live reaches us only once opened (#259); read at every connect, so a
+    // reconnect after capabilities arrive picks it up.
+    const onRequest = hubSupports(this.hub_id, "screenshare.onrequest") ? "&streams=on_request" : "";
+    return `${base}/ws?token=${encodeURIComponent(this.token)}${onRequest}`;
   }
 
   private connect(): void {

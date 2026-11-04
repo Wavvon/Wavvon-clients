@@ -103,6 +103,13 @@ export function ContentAreaContainer({
                 canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")),
               }
             : undefined,
+          live: {
+            streams: voice.hubStreams.filter((s) => s.channel_id === selectedChannel.id),
+            opened: voice.openedIds,
+            nameFor: (pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8),
+            onOpen: (id) => voice.openStream(selectedChannel.id, id),
+            onClose: (id) => voice.closeStream(selectedChannel.id, id),
+          },
         } : undefined}
         selectedConversation={dms.selectedConversation}
         selectedAllianceChannel={channelMessages.selectedAllianceChannel}
@@ -191,12 +198,12 @@ export function ContentAreaContainer({
       {showHubStreams && (
         <HubStreamsPanel
           streams={voice.hubStreams}
-          subscribedIds={voice.subscribedStreamIds.current}
+          subscribedIds={voice.openedIds}
           currentChannelId={selectedChannel?.id ?? null}
           channels={channels}
           nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
-          onWatch={voice.subscribeToStream}
-          onStopWatch={voice.unsubscribeFromStream}
+          onWatch={voice.openStream}
+          onStopWatch={voice.closeStream}
           onClose={() => setShowHubStreams(false)}
         />
       )}

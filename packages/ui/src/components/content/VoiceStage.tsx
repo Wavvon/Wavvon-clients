@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
+import { LiveTray, type VoiceLive } from "./LiveTray";
 
 /** The floor in a room with a talk-power threshold (the hub's `voice.hands`). */
 export interface VoiceFloor {
@@ -29,16 +30,20 @@ export interface VoiceStageInfo {
   publicKey?: string | null;
   /** Absent on a hub without `voice.hands`, and when you are not in the room. */
   floor?: VoiceFloor;
+  /** The room's screen shares and cameras; absent when nobody shares. */
+  live?: VoiceLive;
 }
 
 // A voice channel opens to its room: who is in it, who is talking, and the
 // way in, above the channel's own chat. Opening it does not join; a double
 // click in the sidebar or the button here does.
-export function VoiceStage({ participants, speaking, avatars, inThisRoom, onJoin, publicKey, floor }: VoiceStageInfo) {
+export function VoiceStage({ participants, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live }: VoiceStageInfo) {
   const { t } = useTranslation();
   const myHandUp = !!floor && !!publicKey && floor.hands.includes(publicKey);
+  const sharing = new Set(live?.streams.map((s) => s.sharer_pubkey));
   return (
     <section className="voice-stage" aria-label={t("voice.stage.label")}>
+      {live && <LiveTray {...live} />}
       {participants.length === 0 ? (
         <p className="muted">{t("voice.stage.empty")}</p>
       ) : (
@@ -50,6 +55,7 @@ export function VoiceStage({ participants, speaking, avatars, inThisRoom, onJoin
               <li key={p.public_key} className={`voice-stage-tile${speaking.has(p.public_key) ? " speaking" : ""}`} title={p.public_key}>
                 <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={64} />
                 <span className="voice-stage-name">
+                  {sharing.has(p.public_key) && <span className="live-badge">LIVE</span>}{" "}
                   {handUp && <span className="voice-stage-hand" role="img" aria-label={t("voice.stage.hand_raised")}>✋ </span>}
                   {name}
                 </span>

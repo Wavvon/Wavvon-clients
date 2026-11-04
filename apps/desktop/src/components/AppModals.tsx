@@ -481,7 +481,7 @@ export function AppModals(p: AppModalsProps) {
 
       <ScreenShareOverlay
         ref={voice.screenShareViewerRef}
-        streams={[...voice.activeScreenShares, ...voice.crossChannelStreams]}
+        streams={voice.openedStreams}
         mediaOutputDeviceId={voice.mediaOutputDeviceId || undefined}
       />
 
