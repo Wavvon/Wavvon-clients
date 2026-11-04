@@ -19,7 +19,7 @@ function railIcon(page: Page, url: string) {
 // The hub list is synced through the home hub, so a second hub joined by an
 // earlier run is restored into this browser too and must be dropped first.
 async function removeFromRail(page: Page, url: string) {
-  await page.locator(".top-bar-hubs").click();
+  await page.locator(".top-bar-hubs:visible").click();
   const row = page.locator(`.hub-drawer-open[title*="${new URL(url).host}"]`).first();
   if (!(await row.isVisible().catch(() => false))) {
     await page.keyboard.press("Escape");
@@ -51,7 +51,7 @@ test("a just-joined hub does not show the previous hub's messages", async ({ pag
     await composer.press("Enter");
     await expect(page.getByText(message)).toBeVisible({ timeout: 10000 });
 
-    await page.locator(".top-bar-hubs").click();
+    await page.locator(".top-bar-hubs:visible").click();
     await page.getByRole("dialog", { name: "Your hubs" }).getByRole("button", { name: "Join a hub" }).click();
     await page.getByRole("dialog").getByRole("textbox").fill(SECOND!);
     await page.getByRole("dialog").getByRole("textbox").press("Enter");

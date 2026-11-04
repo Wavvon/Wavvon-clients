@@ -7,7 +7,7 @@ import { expectInHub, hubApi, uniqueName } from "./helpers/live";
 // (GET/PATCH /me); the default profile is local per-account storage.
 
 async function openProfileEditor(page: import("@playwright/test").Page) {
-  await page.locator(".user-menu-trigger").first().click();
+  await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.getByRole("button", { name: "Profile", exact: true }).click();

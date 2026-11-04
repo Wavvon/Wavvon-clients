@@ -324,7 +324,6 @@ pub(crate) async fn preview_hub_info(url: String) -> Result<InfoResponse, String
     resp.json().await.map_err(|e| format!("Invalid /info: {e}"))
 }
 
-
 #[tauri::command]
 pub(crate) async fn get_hub_ws_info(
     hub_id: String,

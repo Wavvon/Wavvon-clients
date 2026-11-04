@@ -40,7 +40,7 @@ test.describe("desktop → web pairing", () => {
 
     // Desktop: Settings → Devices → pair a new device, against the hub it just
     // joined, and read the code it shows.
-    await desktop.page.locator(".user-menu-trigger").first().click();
+    await desktop.page.locator(".user-menu-trigger:visible").click();
 
     await desktop.page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await desktop.page.getByRole("button", { name: "Devices", exact: true }).click();
