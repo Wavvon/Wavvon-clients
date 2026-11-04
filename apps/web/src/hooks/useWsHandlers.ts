@@ -16,14 +16,14 @@ export interface UseWsHandlersParams {
   selectedChannelRef: RefObject<Channel | null>;
   meInfoRef: RefObject<MeInfo | null>;
   publicKeyRef: RefObject<string | null>;
-  myPresenceRef: RefObject<{ status: PresenceStatus }>;
+  myPresenceRef: RefObject<{ status: PresenceStatus; custom: string | null }>;
   effectiveNotifyModeRef: RefObject<(hubId: string, channelId: string) => NotifyMode>;
   mentionPingEnabledRef: RefObject<boolean>;
   whisperOptoutRef: RefObject<boolean>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setStickToBottom: React.Dispatch<React.SetStateAction<boolean>>;
   setNewWhileScrolledUp: React.Dispatch<React.SetStateAction<number>>;
-  bumpUnread: (hubId: string, channelId: string) => void;
+  bumpUnread: (hubId: string, channelId: string, mention?: boolean) => void;
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   setChannels: React.Dispatch<React.SetStateAction<Channel[]>>;
   setHubs: React.Dispatch<React.SetStateAction<Hub[]>>;
@@ -34,6 +34,7 @@ export interface UseWsHandlersParams {
   receiveTyping: (raw: Record<string, unknown>) => void;
   onScreenShare: (raw: unknown) => void;
   onScreenShareChunk: (streamId: string, isInit: boolean, data: ArrayBuffer) => void;
+  resubscribeStreams: () => void;
   receiveSoundboardPlayed: (raw: unknown) => void;
   handleStatusChange: (hubId: string, hubName: string, connected: boolean, setAssertive: (msg: string) => void) => void;
   setAssertiveAnnouncement: (msg: string) => void;
@@ -71,7 +72,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     myPresenceRef, effectiveNotifyModeRef, mentionPingEnabledRef, whisperOptoutRef,
     setMessages, setStickToBottom, setNewWhileScrolledUp, bumpUnread,
     setUsers, setChannels, setHubs, setActiveHubTimezone, setVoicePartByChannel,
-    onDm, onDmMemberChanged, receiveTyping, onScreenShare, onScreenShareChunk,
+    onDm, onDmMemberChanged, receiveTyping, onScreenShare, onScreenShareChunk, resubscribeStreams,
     receiveSoundboardPlayed, handleStatusChange, setAssertiveAnnouncement, showHubError,
     loadHubDataRef, voiceOnVoiceState, voiceOnVoiceZoneState, voiceOnVoiceZoneCreated,
     voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoiceKeyReceived,
@@ -97,13 +98,14 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         if (isActiveChannel) {
           setMessages((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
           setStickToBottom((stick) => { if (stick) setNewWhileScrolledUp(0); else setNewWhileScrolledUp((n) => n + 1); return stick; });
-        } else if (msgHubId && m.channel_id) {
-          bumpUnread(msgHubId, m.channel_id as string);
         }
         const myName = meInfoRef.current?.display_name ?? null;
         const myPk = publicKeyRef.current;
         const isMention = (myName && mentionsName(msg.content, myName)) ||
           (myPk && msg.content.includes(myPk));
+        if (!isActiveChannel && msgHubId && m.channel_id) {
+          bumpUnread(msgHubId, m.channel_id as string, !!isMention && msg.sender !== myPk);
+        }
         // Read-time notification gate, two independent quiets: "dnd"
         // presence (global) and a "silent" notify mode on this hub or
         // channel (hub mute). Either way unreads still accumulate.
@@ -184,8 +186,8 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         // just (re)connected, but only if the user ever picked one here —
         // a fresh device must not stomp a status set elsewhere.
         const p = myPresenceRef.current;
-        if (p.status !== "online") {
-          try { sendSetStatusTo(hubId, p.status, null); } catch { /* ws not ready */ }
+        if (p.status !== "online" || p.custom) {
+          try { sendSetStatusTo(hubId, p.status, p.custom); } catch { /* ws not ready */ }
         }
         // Hub-side whisper opt-out is ephemeral — re-push it on every
         // (re)connect, same reasoning as the presence push above.
@@ -194,6 +196,8 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       if (connected && hubId === activeHubIdRef.current) {
         fetchAllUsers().then(setUsers).catch(() => {});
         try { activeSession().ws?.requestStreamList(); } catch {}
+        // A new socket holds none of the lives we had open.
+        resubscribeStreams();
       }
     },
     onError: (raw) => {

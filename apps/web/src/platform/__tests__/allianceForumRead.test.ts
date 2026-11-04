@@ -31,8 +31,8 @@ describe("getAllianceChannelPosts", () => {
   it("hits the alliance-scoped posts route with an optional cursor", async () => {
     const body: PostListResponse = { posts: [], cursor: undefined };
     const fetchMock = vi.fn(async (url: string) => {
-      expect(url).toBe(`${HUB_URL}/alliances/all-1/channels/chan-1/posts?`);
-      return new Response(JSON.stringify(body), { status: 200 });
+      expect(url).toBe(`${HUB_URL}/alliances/all-1/channels/chan-1/posts?limit=50`);
+      return new Response(JSON.stringify([]), { status: 200 });
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -43,8 +43,8 @@ describe("getAllianceChannelPosts", () => {
 
   it("forwards a pagination cursor as a query param", async () => {
     const fetchMock = vi.fn(async (url: string) => {
-      expect(url).toBe(`${HUB_URL}/alliances/all-1/channels/chan-1/posts?cursor=abc`);
-      return new Response(JSON.stringify({ posts: [] }), { status: 200 });
+      expect(url).toBe(`${HUB_URL}/alliances/all-1/channels/chan-1/posts?limit=50&cursor=abc`);
+      return new Response(JSON.stringify([]), { status: 200 });
     });
     vi.stubGlobal("fetch", fetchMock);
 

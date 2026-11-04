@@ -1,6 +1,6 @@
 import { hubFetch } from "../http";
 import { activeSession, allSessions, getSession } from "../session";
-import type { Message, Attachment } from "@shared/types";
+import type { Message } from "@shared/types";
 
 export async function getMessages(
   channel_id: string,
@@ -8,7 +8,7 @@ export async function getMessages(
   limit = 50,
 ): Promise<Message[]> {
   const params = new URLSearchParams({ limit: String(limit) });
-  if (before) params.set("before", before);
+  if (before) params.set("cursor", before);
   const res = await hubFetch(`/channels/${channel_id}/messages?${params}`);
   const msgs = await res.json() as Message[];
   return [...msgs].reverse();
@@ -17,12 +17,13 @@ export async function getMessages(
 export async function sendMessage(
   channel_id: string,
   content: string,
-  attachments?: Attachment[],
+  attachment_ids?: string[],
   reply_to?: string,
+  sticker_id?: string,
 ): Promise<Message | null> {
   const res = await hubFetch(`/channels/${channel_id}/messages`, {
     method: "POST",
-    body: JSON.stringify({ content, attachments, reply_to }),
+    body: JSON.stringify({ content, attachment_ids, reply_to, sticker_id }),
   });
   // 201 carries the stored message, so the caller can render it without
   // waiting for the socket to echo it back. A 200 is the slash-command
@@ -119,8 +120,8 @@ export function sendDmTypingEvent(conversation_id: string, typing: boolean): voi
 
 /** Set own presence status on every connected hub — presence is global,
  * not per-hub. "online" clears; "away"/"dnd"/"invisible" set it ("invisible"
- * shows offline to others). `custom` is a legacy optional status text kept
- * for wire compatibility; the web client no longer sets it. Each hub
+ * shows offline to others). `custom` is the free-text status shown under
+ * the name while online. Each hub
  * persists presence across reconnects; sendSetStatusTo covers hubs that
  * (re)connect later. */
 type PresenceWire = "online" | "away" | "dnd" | "invisible";
@@ -138,8 +139,11 @@ export function sendSetStatusTo(hubId: string, status: PresenceWire, custom?: st
 export async function getAllianceChannelMessages(
   allianceId: string,
   channelId: string,
+  before?: string,
 ): Promise<Message[]> {
-  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages`);
+  const params = new URLSearchParams({ limit: "50" });
+  if (before) params.set("cursor", before);
+  const r = await hubFetch(`/alliances/${allianceId}/channels/${channelId}/messages?${params}`);
   const msgs = await r.json() as Message[];
   return [...msgs].reverse();
 }

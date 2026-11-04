@@ -91,9 +91,14 @@ export async function onboardWithSeed(
   const joinInput = inviteCode ? `${hubUrl}/join/${inviteCode}` : hubUrl;
   await page.getByPlaceholder(/hub\.example\.com/).fill(joinInput);
   await page.getByRole("button", { name: "Join hub" }).click();
-  await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({
-    timeout: 20000,
-  });
+  // A hub with a join application shows its questions before joining; going
+  // past them is the joiner's choice, made here. Polled rather than awaited,
+  // so the specs whose hub takes no application pay nothing for it.
+  const joinAndApply = page.getByRole("button", { name: "Join and apply" });
+  await expect(async () => {
+    if (await joinAndApply.isVisible()) await joinAndApply.click();
+    await expect(page.getByRole("button", { name: "Join hub" })).toBeHidden({ timeout: 1000 });
+  }).toPass({ timeout: 20000 });
 
   // First join with no display name on the hub triggers the prompt.
   const namePrompt = page.getByText("What should we call you?");
@@ -363,4 +368,15 @@ export async function openSettingRow(page: Page, title: string | RegExp) {
     await expect(row).toHaveClass(/\bopen\b/, { timeout: 10000 });
   }
   return row;
+}
+
+// Without a camera permission the preview area holds the button that asks
+// for it; with one, the preview starts by itself.
+export async function startCameraPreview(page: Page) {
+  const allow = page.getByRole("button", { name: "Allow camera" });
+  const video = page.locator(".camera-preview video");
+  await expect(allow.or(video)).toBeVisible({ timeout: 10000 });
+  if (await allow.isVisible()) await allow.click();
+  await expect(video).toBeVisible({ timeout: 15000 });
+  return video;
 }

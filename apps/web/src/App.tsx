@@ -1,6 +1,7 @@
+import type { SettingsTab } from "@components/settings/SettingsPage";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge } from "@wavvon/ui";
+import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel, ApplicationPreview } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -38,13 +39,14 @@ import type {
   Conversation,
 } from "@shared/types";
 import type { AppLaunchEvent, AppOpenEvent } from "./types";
-import { HubSidebar } from "@wavvon/ui";
+import { HubTopBar, useHubLayout } from "@wavvon/ui";
+import { useUserMenu } from "./hooks/useUserMenu";
 import { useSoundboardChips } from "@wavvon/ui";
 import { WhisperInbox } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
 import { ChannelSidebarContainer } from "@components/layout/ChannelSidebarContainer";
 import { AppModals } from "@components/layout/AppModals";
-import { isIdentityBackedUp, wasBackupPrompted, markBackupPrompted } from "./utils/identityBackup";
+import { identityNeedsBackup, wasBackupPrompted, markBackupPrompted } from "./utils/identityBackup";
 import { loadDefaultProfile, saveDefaultProfile, type DefaultProfile } from "./utils/profiles";
 import { startPrefsSync } from "./utils/prefsSync";
 import { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
@@ -53,11 +55,20 @@ import {
   forumListTags, forumCreateTag, forumEditTag, forumDeleteTag,
 } from "@platform";
 import type { UserContextMenuActions, WhisperTarget, WhisperReplyBind } from "@wavvon/ui";
-import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers } from "@platform";
+import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers, setActiveHub } from "@platform";
+import { getApplicationForm, getApplicationStatus, submitApplication, activeHubSupports } from "@platform";
+
+// Module-level so the panel's load effect sees one object for the app's life;
+// each call goes to whichever hub is active, and the panel is keyed by hub.
+const applicationActions = {
+  getForm: getApplicationForm,
+  getStatus: getApplicationStatus,
+  submit: submitApplication,
+};
 import { fetchAdmissionChallenge, submitAdmissionChallenge } from "@platform";
 import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
-import { HubStreamsPanel } from "@wavvon/ui";
+import { HubStreamsPanel, ShareDialog } from "@wavvon/ui";
 import { AddHubModal } from "@wavvon/ui";
 import { passkeysUsableWith } from "@platform";
 import { QuickInviteModal } from "@wavvon/ui";
@@ -80,7 +91,6 @@ import { listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriend
 import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
-import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
 import { listAppCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, sendAppJoin, listConversations } from "@platform";
 import { sendSetStatus } from "@platform";
 import {
@@ -132,15 +142,18 @@ export default function App({ initialView }: AppProps = {}) {
   // message — see utils/identityBackup.ts. Recomputed rather than watched:
   // the two places that can change it are the settings panel and this prompt,
   // and both close.
-  const [identityNeedsBackup, setIdentityNeedsBackup] = useState(false);
+  const [backupNeeded, setBackupNeeded] = useState(false);
   const [showBackupPrompt, setShowBackupPrompt] = useState(false);
   function refreshIdentityBackupState() {
-    setIdentityNeedsBackup(!isIdentityBackedUp());
+    loadIdentity().then((rec) => setBackupNeeded(identityNeedsBackup(rec)));
   }
   function handleOwnMessageSent() {
-    if (isIdentityBackedUp() || wasBackupPrompted()) return;
-    markBackupPrompted();
-    setShowBackupPrompt(true);
+    if (wasBackupPrompted()) return;
+    loadIdentity().then((rec) => {
+      if (!identityNeedsBackup(rec) || wasBackupPrompted()) return;
+      markBackupPrompted();
+      setShowBackupPrompt(true);
+    });
   }
 
   // Captured wholesale (not just destructured) so it can be passed straight
@@ -167,7 +180,6 @@ export default function App({ initialView }: AppProps = {}) {
     lobbyHubs, setLobbyHubs,
     pendingApprovalHubs, setPendingApprovalHubs,
     refusedHubs, setRefusedHubs,
-    handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
   } = hubLifecycle;
@@ -175,6 +187,11 @@ export default function App({ initialView }: AppProps = {}) {
   // receiving this user's DMs — so the sidebar asks first rather than acting
   // (decisions.md, "Leave hub does not leave").
   const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
+  const [hubLayout, setHubLayout] = useHubLayout(
+    () => getScoped("wavvon.hubLayout"),
+    useCallback((raw: string) => setScoped("wavvon.hubLayout", raw), []),
+    hubs.map((h) => h.hub_id),
+  );
   const hubConnection = useHubConnection();
   const { hubConnected, reconnectingHubs, handleStatusChange } = hubConnection;
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
@@ -208,7 +225,7 @@ export default function App({ initialView }: AppProps = {}) {
   // === Unread / notifications ===
   const unreadCounts = useUnreadCounts();
   const {
-    unreadByChannel, unreadByHub, unreadDms, setUnreadDms,
+    unreadByChannel, unreadByHub, noticeByHub, unreadDms, setUnreadDms,
     bumpUnread, clearUnread, seedUnreadFromServer,
   } = unreadCounts;
 
@@ -227,6 +244,7 @@ export default function App({ initialView }: AppProps = {}) {
     selectAllianceChannel,
     sendAllianceMessage,
     onMessageSent: handleOwnMessageSent,
+    onError: showHubError,
   });
   const {
     selectedChannel, setSelectedChannel, selectedChannelRef, selectedChannelIdRef,
@@ -281,6 +299,8 @@ export default function App({ initialView }: AppProps = {}) {
   const dms = useDms({
     inputText,
     setInputText,
+    pendingAttachments,
+    setPendingAttachments,
     setUnreadDms,
     onConversationSelected: () => { setSelectedChannel(null); setView("dms"); },
     showHubError,
@@ -353,6 +373,7 @@ export default function App({ initialView }: AppProps = {}) {
         if (info) setHubs(listHubs());
       }).catch(() => {});
     },
+    onMemberRemoved: dropMember,
   });
   const {
     showHubAdmin, setShowHubAdmin,
@@ -428,19 +449,27 @@ export default function App({ initialView }: AppProps = {}) {
   const presence = usePresenceStatus({
     loadRaw: () => getScoped("wavvon.presence"),
     persist: (p) => { try { setScoped("wavvon.presence", JSON.stringify(p)); } catch { /* storage unavailable */ } },
-    broadcast: (s) => { try { sendSetStatus(s, null); } catch { /* ws not ready */ } },
+    broadcast: (s, custom) => { try { sendSetStatus(s, custom); } catch { /* ws not ready */ } },
     // Optimistic: the hubs' member_status broadcasts will confirm. Invisible
     // shows the user offline (to everyone, incl. their own roster view); the
     // footer picker still reflects "invisible".
-    applyToRoster: (s) => {
+    applyToRoster: (s, custom) => {
       setUsers((prev) => prev.map((u) =>
         u.public_key === publicKey
-          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: null }
+          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: s === "invisible" ? null : custom }
           : u,
       ));
     },
   });
   const { myPresence, myPresenceRef, handleSetStatus } = presence;
+  const userMenu = useUserMenu({
+    users,
+    publicKey,
+    presence,
+    onOpenSettings: (tab) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); setShowSettings(true); },
+    onOpenShortcuts: () => setShowKeyboardShortcuts(true),
+    settingsNeedsAttention: backupNeeded,
+  });
 
   // === Voice / video / whisper / voice-move UX ===
   // The hubFetch("/channels") -> setChannels resync used when a spawner join
@@ -556,10 +585,10 @@ export default function App({ initialView }: AppProps = {}) {
   // Outbound screen share + cross-channel hub-streams discovery.
   const screenShare = useScreenShare({ activeHubIdRef, showHubError });
   const {
-    screenShareViewerRef, activeScreenShares, sharing, shareKbps, shareLocalStream,
-    hubStreams, showHubStreams, setShowHubStreams, subscribedStreamIds,
-    handleStartShare, handleStopShare, handleOpenHubStreams, handleWatchStream,
-    handleStopWatchStream, onScreenShare, onScreenShareChunk,
+    screenShareViewerRef, activeScreenShares,
+    hubStreams, showHubStreams, setShowHubStreams, openedIds,
+    handleStartShare, handleOpenHubStreams, handleWatchStream,
+    handleStopWatchStream, onScreenShare, onScreenShareChunk, resubscribeStreams,
   } = screenShare;
 
   const hubsRef = useRef<Hub[]>([]);
@@ -595,20 +624,28 @@ export default function App({ initialView }: AppProps = {}) {
   }, [meInfo]);
 
   useEffect(() => {
-    if (hubs.length === 1 && meInfo !== null && !meInfo.display_name) {
+    // Every hub where we have no name yet, not only the first one joined
+    // (#250): the default profile is "how I appear when I join a hub".
+    // meInfo is replaced on each /me load of the active hub, so this targets
+    // that hub; after a successful apply it reloads with a name and stops.
+    if (meInfo !== null && !meInfo.display_name) {
       // A default profile means the user already told us who they want to
       // be — apply it silently instead of asking again. Read at fire time so
       // edits made in Settings since mount are honored.
       const def = loadDefaultProfile();
+      const hubId = getActiveHubId();
       if (def) {
         void handleUpdateHubProfile(def);
-      } else {
+      } else if (hubId && !namePromptedHubsRef.current.has(hubId)) {
+        // Once per hub per session: "Skip for now" must not come back on
+        // every /me reload.
+        namePromptedHubsRef.current.add(hubId);
         setShowDisplayNamePrompt(true);
       }
     }
-  // Only fire once when meInfo first loads on the first hub
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meInfo?.display_name, hubs.length]);
+  }, [meInfo]);
+  const namePromptedHubsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     selectedConvIdRef.current = selectedConversation?.id;
@@ -623,6 +660,13 @@ export default function App({ initialView }: AppProps = {}) {
     hubErrorTimerRef.current = setTimeout(() => setHubErrorToast(null), 5000);
   }
 
+  // A kicked or banned member's row goes at once: the hub only broadcasts
+  // MemberOffline, which would leave them listed as merely offline.
+  function dropMember(pubkey: string) {
+    setUsers((prev) => prev.filter((u) => u.public_key !== pubkey));
+    fetchAllUsers().then(setUsers).catch(() => {});
+  }
+
   const loadHubDataRef = useRef<() => Promise<void>>(async () => {});
   loadHubDataRef.current = loadHubData;
 
@@ -633,7 +677,7 @@ export default function App({ initialView }: AppProps = {}) {
     setUsers, setChannels, setHubs, setActiveHubTimezone,
     setVoicePartByChannel: voice.setVoicePartByChannel,
     onDm, onDmMemberChanged, receiveTyping,
-    onScreenShare, onScreenShareChunk, receiveSoundboardPlayed,
+    onScreenShare, onScreenShareChunk, resubscribeStreams, receiveSoundboardPlayed,
     handleStatusChange, setAssertiveAnnouncement, showHubError,
     loadHubDataRef,
     voiceOnVoiceState: voice.onVoiceState,
@@ -826,6 +870,10 @@ export default function App({ initialView }: AppProps = {}) {
       if (me.status === "fulfilled") {
         const meVal = me.value;
         setMeInfo(meVal);
+        // Self-identify as this hub knows us: the seat differs between hubs
+        // (device key on a pre-certificate hub, master on a newer one), so an
+        // account-wide key would find nobody in this hub's member list.
+        if (meVal.public_key) setPublicKey(meVal.public_key);
         const hubId = getActiveHubId();
         if (meVal.approval_status === "pending" && hubId) {
           setPendingApprovalHubs((prev) => new Set([...prev, hubId]));
@@ -889,7 +937,7 @@ export default function App({ initialView }: AppProps = {}) {
   }
 
   // === Hub management ===
-  // handleSwitchHub/handleRemoveHub/handleHubReorder now live in
+  // handleSwitchHub/handleRemoveHub now live in
   // useHubLifecycle; applyDeepLinkTarget stays here since it also drives
   // handleSelectChannel/setPendingScrollMessageId (from useChannelMessages).
 
@@ -913,6 +961,18 @@ export default function App({ initialView }: AppProps = {}) {
     if (target.kind === "message") setPendingScrollMessageId(target.messageId);
   }
 
+  // addHub only points the session's active hub at the new one when there was
+  // none, so for a second hub the React state said "new hub" while every
+  // hubFetch kept answering from the old one (the new header over the old
+  // hub's channels and messages). The selection reset is the same as a switch:
+  // loadHubData only auto-selects a channel when nothing is selected.
+  function activateJoinedHub(hubId: string) {
+    setActiveHub(hubId);
+    setActiveHubIdState(hubId);
+    resetChannelSelectionState(true);
+    goToChannelsView();
+  }
+
   const {
     hubUrl, setHubUrl,
     inviteCode, setInviteCode,
@@ -922,12 +982,13 @@ export default function App({ initialView }: AppProps = {}) {
     fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
     admissionChallenge, setAdmissionChallenge,
+    applicationPreview, setApplicationPreview,
     handleHubUrlInput,
     handlePreviewHub,
     handleAddHub,
     handleAddHubWithPasskey,
   } = useAddHubFlow({
-    publicKey, stableHandlers, hubsRef, setHubs, setActiveHubIdState, loadHubData,
+    publicKey, stableHandlers, hubsRef, setHubs, activateJoinedHub, loadHubData,
     applyDeepLinkTarget, t,
   });
 
@@ -1188,14 +1249,20 @@ export default function App({ initialView }: AppProps = {}) {
   // own "+" attach menu is implicitly gated (anyone who can post here).
   const canSendMessages = useMemo(() => can("messages.send"), [can]);
 
-  const canUseSoundboard = useMemo(() => {
+  const canInVoice = useCallback((perm: string) => {
     if (voice.myVoicePerms && voice.myVoicePerms.channel_id === voice.voiceChannelId) {
-      return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes("voice.soundboard.use");
+      return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes(perm);
     }
-    return can("voice.soundboard.use");
+    return can(perm);
   }, [voice.myVoicePerms, voice.voiceChannelId, can]);
+  const canUseSoundboard = useMemo(() => canInVoice("voice.soundboard.use"), [canInVoice]);
+  // Separate grants only where the hub says so; elsewhere voice.join covers both.
+  const mediaPerms = activeHubSupports("voice.media.permissions");
+  const canScreenShare = !mediaPerms || canInVoice("voice.screen_share");
+  const canUseCamera = !mediaPerms || canInVoice("voice.camera");
 
   const canManageSoundboard = useMemo(() => can("voice.soundboard.manage"), [can]);
+  const canManageHubAlliances = useMemo(() => can("alliances.manage"), [can]);
 
   const myRoles = useMemo(() => meInfo?.roles ?? [], [meInfo]);
 
@@ -1212,8 +1279,8 @@ export default function App({ initialView }: AppProps = {}) {
     assignRole: assignRoleToUser,
     removeRole: removeRoleFromUser,
     muteUser: (pubkey) => hubFetch("/moderation/mutes", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
-    kickUser: (pubkey) => hubFetch("/moderation/kick", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
-    banUser: (pubkey) => hubFetch("/moderation/bans", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => {}),
+    kickUser: (pubkey) => hubFetch("/moderation/kick", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => dropMember(pubkey)),
+    banUser: (pubkey) => hubFetch("/moderation/bans", { method: "POST", body: JSON.stringify({ target_public_key: pubkey }) }).then(() => dropMember(pubkey)),
     dm: (user) => handleStartConversation(user.public_key),
     addFriend: (user) => {
       void sendFriendRequest(user.public_key)
@@ -1237,7 +1304,7 @@ export default function App({ initialView }: AppProps = {}) {
 
   useAppKeybinds({
     hubs, channels, selectedChannel, messageInputRef, unreadByChannel, activeHubIdRef,
-    setActiveHubIdState, handleSelectChannel,
+    switchHub: handleSwitchHub, handleSelectChannel,
     showKeyboardShortcuts, setShowKeyboardShortcuts,
     showSettings, setShowSettings,
     showHubAdmin, setShowHubAdmin,
@@ -1263,6 +1330,7 @@ export default function App({ initialView }: AppProps = {}) {
   // hub header.
   const hasNoHubs = hubs.length === 0;
   const sidebarView = hasNoHubs ? "dms" : view;
+
 
   return (
     <div className="main-layout">
@@ -1331,14 +1399,6 @@ export default function App({ initialView }: AppProps = {}) {
         />
       )}
 
-      {sharing && (
-        <ScreenShareSelfPreview
-          stream={shareLocalStream}
-          kbps={shareKbps}
-          onStop={handleStopShare}
-        />
-      )}
-
       {showKeyboardShortcuts && (
         <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />
       )}
@@ -1379,10 +1439,18 @@ export default function App({ initialView }: AppProps = {}) {
         />
       )}
 
+      {screenShare.shareDialogFor && (
+        <ShareDialog
+          loadLimits={screenShare.loadStreamLimits}
+          onStart={(q) => void screenShare.handleShareChosen(q)}
+          onCancel={() => screenShare.setShareDialogFor(null)}
+        />
+      )}
+
       {showHubStreams && (
         <HubStreamsPanel
           streams={hubStreams}
-          subscribedIds={subscribedStreamIds.current}
+          subscribedIds={openedIds}
           currentChannelId={selectedChannel?.id ?? null}
           channels={channels}
           nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
@@ -1448,26 +1516,29 @@ export default function App({ initialView }: AppProps = {}) {
         showContent
         onBack={() => {}}
       >
-      <HubSidebar
+      <HubTopBar
         hubs={hubs}
         activeHubId={activeHubId}
         view={sidebarView as "channels" | "dms"}
-        showDiscover={true}
-        unreadDms={unreadDms}
+        multiHub={MULTI_HUB}
+        layout={hubLayout}
+        onLayoutChange={setHubLayout}
         unreadByHub={unreadByHub}
+        noticeByHub={noticeByHub}
+        unreadDmCount={view === "dms" ? 0 : Object.keys(unreadDms).length}
         pingByHub={pingByHub}
         hubNotifyMode={hubNotifyMode}
         lobbyHubIds={lobbyHubs}
-        hasActiveHub={!!activeHubId}
-        onSwitchToDms={() => setView("dms")}
+        onSwitchToDms={() => { if (activeHubId) setView("dms"); }}
         onSwitchHub={handleSwitchHub}
         onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
         onSetHubNotifyMode={(hubId, mode) =>
           setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
         }
-        onHubReorder={handleHubReorder}
+        onOpenSearch={() => setShowSearchBar(true)}
         onAddHub={MULTI_HUB ? () => setShowAddHub(true) : undefined}
         onDiscover={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
+        userMenu={userMenu}
       />
 
       <ChannelSidebarContainer
@@ -1481,7 +1552,6 @@ export default function App({ initialView }: AppProps = {}) {
         unreadCounts={unreadCounts}
         dms={dms}
         alliances={alliances}
-        presence={presence}
         screenShare={screenShare}
         channelCrud={channelCrud}
         channelMessages={channelMessages}
@@ -1497,6 +1567,8 @@ export default function App({ initialView }: AppProps = {}) {
         canManageRoles={canManageRoles}
         canMoveMembers={canMoveMembers}
         canUseSoundboard={canUseSoundboard}
+        canScreenShare={canScreenShare}
+        canUseCamera={canUseCamera}
         silencedChannelIds={silencedChannelIds}
         soundboardChipsByChannel={soundboardChipsByChannel}
         whisperReplyBind={whisperReplyBind}
@@ -1504,10 +1576,7 @@ export default function App({ initialView }: AppProps = {}) {
         onOpenQuickInvite={() => setShowQuickInvite(true)}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
-        onOpenSettings={() => setShowSettings(true)}
         onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}
-        settingsNeedsAttention={identityNeedsBackup}
-        onOpenSearch={() => setShowSearchBar(true)}
         onDragEnd={handleChannelDragEnd}
       />
 
@@ -1579,6 +1648,9 @@ export default function App({ initialView }: AppProps = {}) {
           <p className="muted" style={{ margin: 0, textAlign: "center", maxWidth: 320 }}>
             {t("app.approval.body")}
           </p>
+          {activeHubSupports("admission.application") && (
+            <ApplicationPanel key={activeHubId} actions={applicationActions} refreshToken={meInfo} />
+          )}
           <button className="btn-secondary" onClick={() => loadHubData()}>{t("app.approval.check_again")}</button>
         </main>
       ) : <>
@@ -1659,7 +1731,9 @@ export default function App({ initialView }: AppProps = {}) {
         addingHub={addingHub}
         canEditChannelPermissions={canEditChannelPermissions}
         canManageRoles={canManageRoles}
+        canDo={can}
         canManageSoundboard={canManageSoundboard}
+        canManageHubAlliances={canManageHubAlliances}
         canSendMessages={canSendMessages}
         channelBansTabActions={channelBansTabActions}
         channelCtxMenu={channelCtxMenu}
@@ -1746,6 +1820,17 @@ export default function App({ initialView }: AppProps = {}) {
             void handleAddHub(token);
           }}
           onCancel={() => setAdmissionChallenge(null)}
+        />
+      )}
+      {applicationPreview && (
+        <ApplicationPreview
+          hubName={applicationPreview.hubName}
+          form={applicationPreview.form}
+          onJoin={() => {
+            setApplicationPreview(null);
+            void handleAddHub(undefined, true);
+          }}
+          onCancel={() => setApplicationPreview(null)}
         />
       )}
     </div>

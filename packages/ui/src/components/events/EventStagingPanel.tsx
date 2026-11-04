@@ -7,10 +7,10 @@ import {
   buildStagingGroups,
   claimantVoiceStatus,
   clampSquadRoomCount,
-  moveChannelOptions,
   orderDestinationsForEvent,
   unassignedGoingPubkeys,
 } from "../../utils/eventStaging";
+import { moveChannelOptions } from "../../utils/voiceMove";
 
 interface Props {
   eventId: string;

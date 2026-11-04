@@ -1,5 +1,4 @@
 use crate::state::{active_session, AppState};
-use crate::types::AttachmentInfo;
 use tauri::State;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -70,7 +69,7 @@ pub(crate) struct ProxiedMessage {
     pub created_at: i64,
     pub edited_at: Option<i64>,
     #[serde(default)]
-    pub attachments: Vec<AttachmentInfo>,
+    pub attachments: Vec<serde_json::Value>,
 }
 
 #[tauri::command]
@@ -89,6 +88,27 @@ pub(crate) async fn list_alliances(
         return Err(resp.text().await.unwrap_or_default());
     }
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+/// The hubs in one alliance, for offering them as certification issuers.
+#[tauri::command]
+pub(crate) async fn get_alliance_members(
+    alliance_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<AllianceMemberInfo>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .get(format!("{hub_url}/alliances/{alliance_id}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let detail: AllianceDetail = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    Ok(detail.members)
 }
 
 #[tauri::command]
@@ -282,14 +302,20 @@ pub(crate) async fn list_alliance_shared_channels(
 pub(crate) async fn get_alliance_channel_messages(
     alliance_id: String,
     channel_id: String,
+    cursor: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ProxiedMessage>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
+    let mut query = vec![("limit", "50".to_string())];
+    if let Some(cursor) = cursor {
+        query.push(("cursor", cursor));
+    }
     let resp = client
         .get(format!(
             "{hub_url}/alliances/{alliance_id}/channels/{channel_id}/messages"
         ))
+        .query(&query)
         .bearer_auth(&token)
         .send()
         .await
@@ -297,7 +323,12 @@ pub(crate) async fn get_alliance_channel_messages(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    // The hub pages newest first; the view, like get_messages', reads oldest
+    // first.
+    let mut messages: Vec<ProxiedMessage> =
+        resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+    messages.reverse();
+    Ok(messages)
 }
 
 #[tauri::command]
@@ -369,4 +400,42 @@ pub(crate) async fn unshare_channel_from_alliance(
         return Err(resp.text().await.unwrap_or_default());
     }
     Ok(())
+}
+
+/// The roles delegated to manage one alliance: `list` them (None on a hub
+/// that predates delegation and answers 404), `grant` or `revoke` one.
+#[tauri::command]
+pub(crate) async fn alliance_managers(
+    alliance_id: String,
+    action: String,
+    role_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Option<Vec<serde_json::Value>>, String> {
+    let (hub_url, token) = crate::state::active_session(&state)?;
+    let base = format!("{hub_url}/alliances/{alliance_id}/managers");
+    let role = || role_id.clone().ok_or("role_id required".to_string());
+    let req = match action.as_str() {
+        "list" => state.http_client.get(&base),
+        "grant" => state.http_client.put(format!("{base}/{}", role()?)),
+        "revoke" => state.http_client.delete(format!("{base}/{}", role()?)),
+        other => return Err(format!("unknown action: {other}")),
+    };
+    let resp = req
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if action == "list" && resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    if action != "list" {
+        return Ok(None);
+    }
+    resp.json()
+        .await
+        .map(Some)
+        .map_err(|e| format!("Invalid: {e}"))
 }

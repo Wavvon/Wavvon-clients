@@ -11,8 +11,8 @@ export interface PendingUser {
 }
 
 export async function setLobbySettings(lobbyEnabled: boolean, welcomeMd?: string): Promise<void> {
-  await hubFetch("/hub/settings/lobby", {
-    method: "PUT",
+  await hubFetch("/admin/settings/lobby", {
+    method: "PATCH",
     body: JSON.stringify({ lobby_enabled: lobbyEnabled, welcome_md: welcomeMd }),
   });
 }
@@ -46,8 +46,8 @@ export async function setChallengeSettings(
   mode: ChallengeMode,
   difficulty: ChallengeDifficulty,
 ): Promise<void> {
-  await hubFetch("/hub/settings/challenge", {
-    method: "PUT",
+  await hubFetch("/admin/settings/challenge", {
+    method: "PATCH",
     body: JSON.stringify({ challenge_mode: mode, challenge_difficulty: difficulty }),
   });
 }

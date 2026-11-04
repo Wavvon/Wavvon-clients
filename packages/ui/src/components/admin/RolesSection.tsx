@@ -43,6 +43,8 @@ export const ALL_PERMISSIONS: string[] = [
   "channels.appearance",
   "channels.permissions",
   "voice.join",
+  "voice.screen_share",
+  "voice.camera",
   "voice.soundboard.use",
   "voice.soundboard.manage",
   "voice.move_members",
@@ -71,7 +73,6 @@ export const ALL_PERMISSIONS: string[] = [
   "certs.settings",
   "badges.manage",
   "alliances.manage",
-  "alliances.peers",
   "directory.publish",
   "webhooks.incoming.manage",
   "webhooks.outgoing.manage",
@@ -79,6 +80,9 @@ export const ALL_PERMISSIONS: string[] = [
   "audit.read",
   "surveys.manage",
   "surveys.responses.read",
+  "stickers.packs.manage",
+  "stickers.external",
+  "stickers.moderate",
 ];
 
 

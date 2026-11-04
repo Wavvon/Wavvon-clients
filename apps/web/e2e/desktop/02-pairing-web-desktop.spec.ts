@@ -43,7 +43,9 @@ test.describe("web → desktop pairing", () => {
     await joinHub(desktop.page, desktopName, inviteLink(HUB_URL, invite.code));
 
     // Web: Settings → Devices → Start pairing, and read the code it shows.
-    await page.locator(".btn-icon-gear").click();
+    await page.locator(".user-menu-trigger:visible").click();
+
+    await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await page.getByRole("button", { name: "Devices", exact: true }).click();
     const devices = page.locator(".settings-section", { has: page.getByText("Devices") }).first();
     await expect(devices).toBeVisible({ timeout: 15_000 });
@@ -67,7 +69,9 @@ test.describe("web → desktop pairing", () => {
     expect(offer.home_hubs.length).toBeGreaterThan(0);
 
     // Desktop: Settings → the pairing section → paste it.
-    await desktop.page.locator(".btn-icon-gear").first().click();
+    await desktop.page.locator(".user-menu-trigger:visible").click();
+
+    await desktop.page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await desktop.page.getByRole("button", { name: "Devices", exact: true }).click();
     await desktop.page.getByRole("button", { name: "Pair this device with another…" }).click();
     await desktop.page.getByPlaceholder("Paste pairing code here…").fill(code);

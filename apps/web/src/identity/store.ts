@@ -1,6 +1,13 @@
 import { openDB, type IDBPDatabase } from "idb";
 import { ed25519 } from "@noble/curves/ed25519";
-import { bytesToHex, hexToBytes, publicKeyHex, masterPublicKeyHex, type SubkeyCert } from "@wavvon/core";
+import {
+  bytesToHex,
+  hexToBytes,
+  publicKeyHex,
+  masterPublicKeyHex,
+  type Attachment,
+  type SubkeyCert,
+} from "@wavvon/core";
 import { sortAccountsByOrder, renumberAccountOrder, nextAccountOrder } from "./accountOrder";
 
 // Accounts are device-local: this file is the only place that reads/writes
@@ -69,9 +76,15 @@ function notifyAccountsChanged(): void {
 
 let _db: IDBPDatabase | null = null;
 
+// The attachments of our own encrypted DMs, which the ratchet cannot decrypt
+// back (see saveOwnPlaintext in platform/commands/dms.ts). Kept here rather
+// than beside that text in localStorage, whose ~5 MB quota a few files fill.
+// Keyed "<accountId>:<messageId>".
+const OWN_DM_ATTACHMENTS = "dm_own_attachments";
+
 async function getDb(): Promise<IDBPDatabase> {
   if (!_db) {
-    _db = await openDB("wavvon", 2, {
+    _db = await openDB("wavvon", 3, {
       upgrade(db, oldVersion) {
         // v1 kept a single row hardcoded to id "main". That id has no
         // relationship to an account's actual pubkey, so it can't be
@@ -83,6 +96,9 @@ async function getDb(): Promise<IDBPDatabase> {
         }
         if (!db.objectStoreNames.contains("identity")) {
           db.createObjectStore("identity", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(OWN_DM_ATTACHMENTS)) {
+          db.createObjectStore(OWN_DM_ATTACHMENTS);
         }
       },
     });
@@ -215,9 +231,27 @@ export async function resolveOrCreateAccount(
   return { account, isNew: true };
 }
 
+export async function saveOwnDmAttachments(messageId: string, attachments: Attachment[]): Promise<void> {
+  const acct = getActiveAccountId();
+  if (!acct || attachments.length === 0) return;
+  await (await getDb()).put(OWN_DM_ATTACHMENTS, attachments, `${acct}:${messageId}`);
+}
+
+export async function loadOwnDmAttachments(messageId: string): Promise<Attachment[] | undefined> {
+  const acct = getActiveAccountId();
+  if (!acct) return undefined;
+  return (await (await getDb()).get(OWN_DM_ATTACHMENTS, `${acct}:${messageId}`)) as Attachment[] | undefined;
+}
+
 export async function removeAccount(id: string): Promise<void> {
   const db = await getDb();
   await db.delete("identity", id);
+  // ";" sorts right after ":", so this range is exactly this account's keys.
+  try {
+    await db.delete(OWN_DM_ATTACHMENTS, IDBKeyRange.bound(`${id}:`, `${id};`, false, true));
+  } catch {
+    // storage unavailable
+  }
   // Purge the account's namespaced localStorage (prefix must match
   // utils/accountScope.ts accountKey) — leaving it behind would keep live
   // session tokens and DM ratchet state for an identity the user just

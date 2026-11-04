@@ -25,6 +25,8 @@ export default defineConfig({
         "--use-fake-ui-for-media-stream",
         "--use-fake-device-for-media-stream",
         "--autoplay-policy=no-user-gesture-required",
+        // Four fake microphones in one room would beep through the speakers.
+        "--mute-audio",
       ],
     },
   },

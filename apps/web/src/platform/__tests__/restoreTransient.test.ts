@@ -78,7 +78,7 @@ function fetchFailingChallenge(failures: number, status: number) {
     }
     if (url === `${HUB_URL}/auth/challenge`) {
       if (seen++ < failures) return new Response("Rate limit exceeded", { status });
-      return new Response(JSON.stringify({ challenge: "00".repeat(32) }), { status: 200 });
+      return new Response(JSON.stringify({ challenge: "00".repeat(32), scheme: "tagged-v1" }), { status: 200 });
     }
     if (url === `${HUB_URL}/auth/verify`) {
       return new Response(JSON.stringify({ token: "fresh-token" }), { status: 200 });

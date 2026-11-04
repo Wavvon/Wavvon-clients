@@ -3,21 +3,19 @@ import { useTranslation } from "react-i18next";
 import { SettingRow } from "@wavvon/ui";
 import { DeviceListSection } from "../DeviceListSection";
 import { PairingSection } from "../PairingSection";
-import { PasskeySection } from "../PasskeySection";
-import { TrustedDevicesSection } from "../TrustedDevicesSection";
 import type { Hub } from "../../types";
 
 interface Props {
   hubs: Hub[];
-  activeHubId: string | null;
 }
 
 // What can act as this device's active account: paired devices (subkey
-// certs) and pairing, then hub-scoped passkeys/trusted-device tokens.
+// certs), then pairing.
+// Passkeys live with recovery on Manage accounts.
 // Unlike web, there's no cross-account "managing" selector here yet — every
 // section below is scoped to whichever account/hub is currently active,
 // matching the Tauri commands backing them (settings-ia.md piece 3 gap).
-export function DevicesTab({ hubs, activeHubId }: Props) {
+export function DevicesTab({ hubs }: Props) {
   const { t } = useTranslation();
   const [pairingOpen, setPairingOpen] = useState(false);
 
@@ -34,8 +32,6 @@ export function DevicesTab({ hubs, activeHubId }: Props) {
         <p className="muted">{t("settings.devices.pairing.hint")}</p>
         <PairingSection hubs={hubs} />
       </SettingRow>
-      {activeHubId && <PasskeySection hubId={activeHubId} />}
-      {activeHubId && <TrustedDevicesSection hubId={activeHubId} />}
     </section>
   );
 }

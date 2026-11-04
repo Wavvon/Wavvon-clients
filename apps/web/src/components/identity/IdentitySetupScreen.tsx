@@ -1,6 +1,7 @@
+import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { postPairingClaim, getPairingStatus, previewHubInfo } from "@platform";
+import { postPairingClaim, getPairingStatus, previewHubInfo, previewInvite } from "@platform";
 import {
   generateSubkeySeed,
   publicKeyHex,
@@ -23,7 +24,7 @@ import { inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
 import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
 import { markIdentityBackedUp } from "../../utils/identityBackup";
-import { passphraseStrength } from "@wavvon/ui";
+import { passphraseStrength, OnboardingFrame, type InvitingHub } from "@wavvon/ui";
 
 export interface IdentitySetupCompletion {
   accountId: string;
@@ -77,6 +78,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [backupError, setBackupError] = useState<string | null>(null);
   const [backupDone, setBackupDone] = useState(false);
   const [invitedToHub, setInvitedToHub] = useState<string | null>(null);
+  const [invitingHub, setInvitingHub] = useState<InvitingHub | null>(null);
 
   // Someone arriving on an invite link is here because of a place, not
   // because of Wavvon. Name the place. Only the hub build can: it is served by
@@ -89,6 +91,22 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     previewHubInfo(window.location.origin)
       .then((info) => { if (!cancelled && info.name) setInvitedToHub(info.name); })
       .catch(() => { /* unreachable or too old to say — keep the plain title */ });
+    // The invite preview says how the hub looks and how busy it is
+    // (hub.landing); an older hub answers with less and the panel shows less.
+    const code = inviteCodeFromPath(window.location.pathname)!;
+    previewInvite(window.location.origin, code)
+      .then((p) => {
+        if (cancelled || !p?.hub_name) return;
+        setInvitingHub({
+          name: p.hub_name,
+          description: p.description,
+          memberCount: p.member_count,
+          onlineCount: p.online_count,
+          imageUrl: p.landing?.image ? `${window.location.origin}${p.landing.image}` : null,
+          colors: p.landing?.colors ?? null,
+        });
+      })
+      .catch(() => { /* no preview: the panel explains Wavvon instead */ });
     return () => { cancelled = true; };
   }, [variant]);
 
@@ -98,6 +116,15 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   useEffect(() => {
     listAccounts().then((accts) => setExistingAccountCount(accts.length));
   }, []);
+
+  // Invite path: choose, phrase, profile, join. Without one: choose, phrase, profile.
+  const totalSteps = invitingHub || invitedToHub ? 4 : 3;
+  const stepOf = { choose: 1, generated: 2, recover: 2, pair: 2, label: 2, profile: 3 } as const;
+  const frame = (children: React.ReactNode) => (
+    <OnboardingFrame hub={invitingHub} step={variant === "add" ? undefined : stepOf[step]} total={totalSteps}>
+      {children}
+    </OnboardingFrame>
+  );
 
   function suggestedLabel(): string {
     return t("identity_setup.label.suggestion", { n: existingAccountCount + 1 });
@@ -345,8 +372,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   }
 
   if (step === "generated") {
-    return (
-      <div className="onboarding"><div className="onboarding-card">
+    return frame(
+      <>
         <h2>{t("identity_setup.generated.title")}</h2>
         <p className="onboarding-lede">{t("identity_setup.generated.hint")}</p>
         <div className="recovery-phrase">
@@ -438,13 +465,13 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         >
           {t("identity_setup.generated.continue")}
         </button>
-      </div></div>
+      </>
     );
   }
 
   if (step === "label" && pendingAccount) {
-    return (
-      <div className="onboarding"><div className="onboarding-card">
+    return frame(
+      <>
         <h2>{t("identity_setup.label.title")}</h2>
         <p className="onboarding-lede">{t("identity_setup.label.hint")}</p>
         <label className="onboarding-field-label">{t("identity_setup.label.field_label")}</label>
@@ -462,22 +489,24 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         <button className="btn-primary" onClick={() => void finalizeNewAccountLabel()} disabled={!labelDraft.trim()}>
           {t("identity_setup.label.continue")}
         </button>
-      </div></div>
+      </>
     );
   }
 
   if (step === "profile") {
     return (
-      <ProfileSetupStep
-        onSave={(display_name, avatar) => onComplete({ accountId: generatedAccountId, profile: { display_name, avatar } })}
-        onSkip={() => onComplete({ accountId: generatedAccountId })}
-      />
+      frame(
+        <ProfileSetupStep
+          onSave={(display_name, avatar) => onComplete({ accountId: generatedAccountId, profile: { display_name, avatar } })}
+          onSkip={() => onComplete({ accountId: generatedAccountId })}
+        />,
+      )
     );
   }
 
   if (step === "recover") {
-    return (
-      <div className="onboarding"><div className="onboarding-card">
+    return frame(
+      <>
         <h2>{t("identity_setup.recover.title")}</h2>
         <label className="onboarding-field-label">{t("identity_setup.recover.phrase_label")}</label>
         <textarea rows={3} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder={t("identity_setup.recover.phrase_placeholder")} style={{ width: "100%", marginBottom: 8 }} />
@@ -488,13 +517,13 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
         <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>{t("modal.back")}</button>
-      </div></div>
+      </>
     );
   }
 
   if (step === "pair") {
-    return (
-      <div className="onboarding"><div className="onboarding-card">
+    return frame(
+      <>
         <h2>{t("identity_setup.pair.title")}</h2>
         <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
           {t("identity_setup.pair.hint")}
@@ -528,15 +557,12 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
         <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>{t("modal.back")}</button>
-      </div></div>
+      </>
     );
   }
 
-  return (
-    <div className="onboarding"><div className="onboarding-card">
-      {variant !== "add" && !invitedToHub && (
-        <p className="onboarding-mark">{t("app.title")}</p>
-      )}
+  return frame(
+    <>
       <h1>
         {variant === "add"
           ? t("identity_setup.add.title")
@@ -590,6 +616,6 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           {t("identity_setup.add.cancel")}
         </button>
       )}
-    </div></div>
+    </>
   );
 }

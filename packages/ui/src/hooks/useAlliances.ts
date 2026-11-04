@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useOlderPages } from "./useOlderPages";
 import type { AllianceInfo, AllianceSharedChannel, Message } from "../types";
 import { sendToAllianceChannel, errorText } from "../utils/allianceSend";
 
@@ -27,7 +28,9 @@ export interface SelectedAllianceChannel {
 export interface AllianceDeps {
   listAlliances: () => Promise<AllianceInfo[]>;
   listSharedChannels: (allianceId: string) => Promise<AllianceSharedChannel[]>;
-  getChannelMessages: (allianceId: string, channelId: string) => Promise<Message[]>;
+  /** Oldest first. `before` is the id of the oldest message held, for
+   *  scrollback; absent for the newest page. */
+  getChannelMessages: (allianceId: string, channelId: string, before?: string) => Promise<Message[]>;
   sendChannelMessage: (allianceId: string, channelId: string, content: string) => Promise<void>;
   /** Shown to the user. Both clients pass their own error surface. */
   onError: (message: string) => void;
@@ -49,6 +52,14 @@ export interface AlliancesReturn {
    *  here is what keeps a failed send's text in it — desktop did that and web
    *  cleared the box first, losing the message on any error. */
   sendAllianceMessage: (content: string) => Promise<boolean>;
+  /** The message list's element and scroll handler, so nearing its top loads
+   *  the page before. */
+  allianceScrollback: AllianceScrollback;
+}
+
+export interface AllianceScrollback {
+  ref: React.RefObject<HTMLDivElement | null>;
+  onScroll: () => void;
 }
 
 export function useAlliances(deps: AllianceDeps): AlliancesReturn {
@@ -56,6 +67,21 @@ export function useAlliances(deps: AllianceDeps): AlliancesReturn {
   const [allianceChannels, setAllianceChannels] = useState<Record<string, AllianceSharedChannel[]>>({});
   const [selectedAllianceChannel, setSelectedAllianceChannel] = useState<SelectedAllianceChannel | null>(null);
   const [allianceMessages, setAllianceMessages] = useState<Message[]>([]);
+  const allianceListRef = useRef<HTMLDivElement | null>(null);
+  const loadOlder = useOlderPages({
+    containerRef: allianceListRef,
+    items: allianceMessages,
+    setItems: setAllianceMessages,
+    fetchOlder: (beforeId) =>
+      deps.getChannelMessages(
+        selectedAllianceChannel!.alliance_id,
+        selectedAllianceChannel!.channel.channel_id,
+        beforeId,
+      ),
+    resetKey: selectedAllianceChannel
+      ? `${selectedAllianceChannel.alliance_id}/${selectedAllianceChannel.channel.channel_id}`
+      : null,
+  });
 
   async function loadAlliances() {
     let list: AllianceInfo[];
@@ -134,6 +160,7 @@ export function useAlliances(deps: AllianceDeps): AlliancesReturn {
     selectAllianceChannel,
     clearSelectedAllianceChannel,
     sendAllianceMessage,
+    allianceScrollback: { ref: allianceListRef, onScroll: loadOlder },
   };
 }
 

@@ -1,9 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
+import { knownIssuerHubs, normalizeAuditPage, type IssuerHub } from "@wavvon/ui";
 import type {
   RoleInfo,
   RoleCategory,
   InviteInfo,
   PendingUser,
+  Hub,
 } from "../types";
 import type {
   PermissionCatalogueEntry,
@@ -13,6 +15,8 @@ import type {
   InviteManagerActions,
   AuditLogSectionActions,
   CertificationsSectionActions,
+  AllianceMember,
+  AllianceManager,
   OnboardingAdminSectionActions,
   WebhooksSectionActions,
   AlliancesSectionActions,
@@ -28,7 +32,6 @@ import type {
   PendingBadgeOffer,
   CertIssuance,
   CertAdmissionSettings,
-  AuditLogPage,
   Alliance,
   AllianceInvite,
   PendingAllianceInvite,
@@ -136,6 +139,12 @@ export const allianceActions: AlliancesSectionActions = {
   createAllianceInvite: (allianceId) => invoke<AllianceInvite>("create_alliance_invite", { allianceId }),
   sendAlliancePushInvite: (allianceId, targetHubUrl, ownHubUrl, message) =>
     invoke("send_alliance_push_invite", { allianceId, targetHubUrl, ownHubUrl, message }),
+  listAllianceManagers: (allianceId) =>
+    invoke<AllianceManager[] | null>("alliance_managers", { allianceId, action: "list" }),
+  grantAllianceManager: (allianceId, roleId) =>
+    invoke("alliance_managers", { allianceId, action: "grant", roleId }).then(() => {}),
+  revokeAllianceManager: (allianceId, roleId) =>
+    invoke("alliance_managers", { allianceId, action: "revoke", roleId }).then(() => {}),
   joinAllianceByCode: (inviterHubUrl, allianceId, inviteToken, ownHubUrl) =>
     invoke("join_alliance", {
       inviterHubUrl, allianceId, inviteToken, ownHubPublicUrl: ownHubUrl,
@@ -174,9 +183,25 @@ export function makeWebhookActions(getHubUrl: () => string): WebhooksSectionActi
 
 export function makeAuditLogActions(getHubUrl: () => string): AuditLogSectionActions {
   return {
-    getAuditLog: (opts) =>
-      invoke<AuditLogPage>("get_audit_log", { hubUrl: getHubUrl(), cursor: opts.cursor ?? null, limit: opts.limit ?? null }),
+    getAuditLog: async (opts) =>
+      normalizeAuditPage(
+        await invoke<unknown>("get_audit_log", {
+          hubUrl: getHubUrl(),
+          cursor: opts.cursor ?? null,
+          limit: opts.limit,
+          eventType: opts.eventType ?? null,
+          actor: opts.actor ?? null,
+        }),
+        opts.limit,
+      ),
   };
+}
+
+/** A hub's `/info`, as an issuer the user can trust by address. */
+export async function lookupIssuerHub(url: string): Promise<IssuerHub> {
+  const base = url.trim().replace(/\/$/, "");
+  const info = await invoke<{ name: string; icon?: string | null; public_key: string }>("preview_hub_info", { url: base });
+  return { pubkey: info.public_key, name: info.name, url: base, icon: info.icon ?? null };
 }
 
 export function makeCertActions(getHubUrl: () => string): CertificationsSectionActions {
@@ -188,6 +213,17 @@ export function makeCertActions(getHubUrl: () => string): CertificationsSectionA
     revokeCert: (subjectPubkey) => invoke("revoke_cert", { hubUrl: getHubUrl(), subjectPubkey }),
     grantUserBadge: (subjectPubkey, label) =>
       invoke("grant_user_badge", { hubUrl: getHubUrl(), subjectPubkey, label }),
+    listKnownHubs: async () => {
+      const hubs = await invoke<Hub[]>("list_hubs");
+      const alliances = await invoke<Alliance[]>("list_alliances").catch(() => [] as Alliance[]);
+      const partners = (
+        await Promise.all(
+          alliances.map((a) => invoke<AllianceMember[]>("get_alliance_members", { allianceId: a.id }).catch(() => [] as AllianceMember[])),
+        )
+      ).flat();
+      return knownIssuerHubs(hubs, partners, getHubUrl());
+    },
+    lookupHub: lookupIssuerHub,
   };
 }
 
@@ -217,6 +253,19 @@ export function makeSurveyActions(getHubUrl: () => string): SurveyAdminSectionAc
   };
 }
 
+
+// The join application (join-forms.md): the survey commands against its own
+// route. Its answers are read in the approval queue, and it maps no roles.
+export function makeApplicationActions(getHubUrl: () => string): SurveyAdminSectionActions {
+  return {
+    getSurveyAdmin: () =>
+      invoke<SurveyAdmin | null>("survey_admin_get", { hubUrl: getHubUrl(), form: "application" }),
+    setSurveyAdmin: (survey) =>
+      invoke("survey_admin_put", { hubUrl: getHubUrl(), survey, form: "application" }),
+    getSurveyResponses: async () => [],
+    loadAssignableRoles: async () => [],
+  };
+}
 
 // Content reports: the queue of what members flagged. Unlike most of the
 // sections above these commands take no hub URL — `list_reports` /
@@ -291,7 +340,7 @@ export const outgoingWebhookActions: OutgoingWebhookActions = {
     invoke<OutgoingWebhookDelivery[]>("admin_list_outgoing_webhook_deliveries", {
       id,
       limit: params.limit ?? null,
-      offset: params.offset ?? null,
+      cursor: params.cursor ?? null,
       eventType: params.eventType ?? null,
       success: params.success ?? null,
     }),

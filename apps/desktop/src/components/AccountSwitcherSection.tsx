@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SettingRow, useConfirm } from "@wavvon/ui";
+import { identityNeedsBackup } from "../utils/identityBackup";
 import { useTranslation } from "react-i18next";
 import {
   listAccounts,
@@ -78,10 +79,14 @@ export function AccountSwitcherSection() {
   }
 
   async function handleRemove(account: AccountSummary) {
+    const unsaved = identityNeedsBackup(account);
+    const body = unsaved
+      ? `${t("settings.account.accounts.remove_unsaved_warning")} ${t("settings.account.accounts.remove_unsaved_save_first")}`
+      : `${t("settings.account.accounts.remove_body")} ${t(account.kind === "paired" ? "settings.account.accounts.remove_paired_hint" : "settings.account.accounts.remove_backed_up_hint")}`;
     const confirmed = await confirm({
       title: t("settings.account.accounts.remove_title", { label: account.label ?? account.id.slice(0, 12) }),
-      body: t("settings.account.accounts.remove_body"),
-      confirmLabel: t("settings.account.accounts.remove"),
+      body,
+      confirmLabel: t(unsaved ? "settings.account.accounts.remove_anyway" : "settings.account.accounts.remove"),
       danger: true,
     });
     if (!confirmed) return;

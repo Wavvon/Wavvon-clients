@@ -1,12 +1,7 @@
-import { Buffer } from 'buffer';
-import OpusScript from 'opusscript';
-
-// opusscript's pure-JS build needs Node's Buffer; main.tsx installs the same shim.
-(globalThis as { Buffer?: unknown }).Buffer ??= Buffer;
-
 import { voicePacketSeal, INITIAL_SUB_GATE_STATE, nextSubGateState, type SubGateState } from '@wavvon/core';
 import { FRAME_SAMPLES, FrameTracker, type CaptureFrame, type CaptureStats } from './captureFraming';
 import { mixClipIntoFrame, type ActiveClip } from './soundboardMix';
+import type { OpusApplication } from './opusConfig';
 import {
   DEFAULT_SPEAKING,
   INITIAL_SPEAKING_STATE,
@@ -25,7 +20,7 @@ export interface WorkerKey {
 export type ToWorker =
   | {
       type: 'init';
-      opusApp: number;
+      opusApp: OpusApplication;
       channels: number;
       vad: EffectiveVad;
       muted: boolean;
@@ -48,11 +43,6 @@ export type FromWorker =
   | { type: 'clipDone' }
   | { type: 'stats'; stats: CaptureStats };
 
-interface OpusCodec {
-  encode(buffer: Uint8Array, frameSize: number): Uint8Array;
-  delete(): void;
-}
-
 const scope = self as unknown as {
   onmessage: ((e: MessageEvent<ToWorker>) => void) | null;
   postMessage(m: FromWorker): void;
@@ -61,7 +51,11 @@ const scope = self as unknown as {
 
 const STATS_INTERVAL_MS = 1000;
 
-let encoder: OpusCodec | null = null;
+let encoder: AudioEncoder | null = null;
+// One entry per frame handed to the encoder, consumed in order by its output
+// callback: WebCodecs encodes asynchronously, so the gate decision and the
+// media clock of a frame have to travel beside it.
+const pending: { gated: boolean; ts: number }[] = [];
 let transport: WebTransport | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 let key: WorkerKey | null = null;
@@ -73,7 +67,6 @@ let speakingState: SpeakingState = INITIAL_SPEAKING_STATE;
 let subGate: SubGateState = INITIAL_SUB_GATE_STATE;
 let activeClip: ActiveClip | null = null;
 const tracker = new FrameTracker();
-const pcm = new Int16Array(FRAME_SAMPLES);
 let statsTimer: ReturnType<typeof setInterval> | null = null;
 
 function setSubGate(next: SubGateState): void {
@@ -141,24 +134,24 @@ function onFrame(frame: CaptureFrame): void {
   // rebuilds its lead after one (voicePlayout.ts).
   const silenceGated = !speakingState.speaking && !activeClip;
 
-  for (let i = 0; i < FRAME_SAMPLES; i++) {
-    pcm[i] = Math.max(-32768, Math.min(32767, output[i] * 32767));
-  }
-
-  let opusBytes: Uint8Array;
-  try {
-    opusBytes = encoder.encode(new Uint8Array(pcm.buffer), FRAME_SAMPLES);
-  } catch {
-    return;
-  }
-
-  // The encoder ran either way: it carries state between frames, and
+  // The encoder runs either way: it carries state between frames, and
   // starving it through a silence would make the first frame after one
-  // pop. Only the send is skipped.
-  if (!silenceGated) {
-    const sealed = voicePacketSeal(key.key, key.salt, key.keyId, ctr, timestamp, opusBytes);
-    ctr += 1n;
-    writer.write(sealed).catch(() => {});
+  // pop. Only the send is skipped (`onEncoded`).
+  const data = new AudioData({
+    format: 'f32',
+    sampleRate: 48000,
+    numberOfFrames: FRAME_SAMPLES,
+    numberOfChannels: 1,
+    timestamp: Math.round((timestamp * 1_000_000) / 48000),
+    data: output as Float32Array<ArrayBuffer>,
+  });
+  pending.push({ gated: silenceGated, ts: timestamp });
+  try {
+    encoder.encode(data);
+  } catch {
+    pending.pop();
+  } finally {
+    data.close();
   }
   // Advanced whether or not the frame went out: `timestamp` is a media
   // clock, and the desktop pipeline advances it through suppressed
@@ -168,6 +161,16 @@ function onFrame(frame: CaptureFrame): void {
   timestamp += FRAME_SAMPLES;
 }
 
+function onEncoded(chunk: EncodedAudioChunk): void {
+  const frame = pending.shift();
+  if (!frame || frame.gated || !writer || !key) return;
+  const opus = new Uint8Array(chunk.byteLength);
+  chunk.copyTo(opus);
+  const sealed = voicePacketSeal(key.key, key.salt, key.keyId, ctr, frame.ts, opus);
+  ctr += 1n;
+  writer.write(sealed).catch(() => {});
+}
+
 function teardown(): void {
   if (statsTimer) clearInterval(statsTimer);
   statsTimer = null;
@@ -175,8 +178,9 @@ function teardown(): void {
   writer = null;
   try { transport?.close(); } catch { /* already closed */ }
   transport = null;
-  encoder?.delete();
+  if (encoder && encoder.state !== 'closed') encoder.close();
   encoder = null;
+  pending.length = 0;
 }
 
 async function openTransport(url: string, certHash: Uint8Array | null): Promise<void> {
@@ -209,7 +213,23 @@ scope.onmessage = (e) => {
   const msg = e.data;
   switch (msg.type) {
     case 'init':
-      encoder = new OpusScript(48000, msg.channels, msg.opusApp, { wasm: false }) as unknown as OpusCodec;
+      encoder = new AudioEncoder({
+        output: onEncoded,
+        // A failed encoder sends nothing, so end the session rather than
+        // leave a connected room that is silently mute.
+        error: () => {
+          encoder = null;
+          transport?.close();
+        },
+      });
+      encoder.configure({
+        codec: 'opus',
+        sampleRate: 48000,
+        numberOfChannels: msg.channels,
+        // `application` is in the WebCodecs Opus registry but not yet in
+        // TypeScript's DOM types.
+        opus: { frameDuration: 20_000, application: msg.opusApp } as OpusEncoderConfig,
+      });
       vad = msg.vad;
       muted = msg.muted;
       setKey(msg.key);

@@ -6,7 +6,9 @@ import { expectInHub, HUB_URL } from "./helpers/live";
 // envelope was accepted and stored). Previously web could only read it.
 
 async function openHomeHubs(page: import("@playwright/test").Page) {
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger:visible").click();
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.getByRole("button", { name: "Manage accounts", exact: true }).click();
   // Not exact: the section label gains an account-label suffix ("Home hubs
   // — <label>") now that naming an account is mandatory (identity_setup.label).

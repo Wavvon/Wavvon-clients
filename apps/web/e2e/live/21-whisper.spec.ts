@@ -14,7 +14,7 @@ import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqu
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
   await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
-  await expect(page.getByTitle("Whisper")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTitle("Whisper", { exact: true })).toBeVisible({ timeout: 15000 });
 }
 
 test("owner whispers to a member; the member sees the indicator", async ({ page, browser }) => {
@@ -23,7 +23,7 @@ test("owner whispers to a member; the member sees the indicator", async ({ page,
   await expectInHub(page);
 
   const channel = uniqueName("whisper");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("WhisperMate"));
@@ -33,7 +33,7 @@ test("owner whispers to a member; the member sees the indicator", async ({ page,
 
     // Owner opens the whisper panel, selects the one participant (Users tab
     // is the default), and starts whispering.
-    await page.getByTitle("Whisper").click();
+    await page.getByTitle("Whisper", { exact: true }).click();
     const panel = page.locator(".whisper-panel");
     await expect(panel).toBeVisible({ timeout: 15000 });
     await panel.locator('input[type="checkbox"]').first().check();
@@ -48,7 +48,7 @@ test("owner whispers to a member; the member sees the indicator", async ({ page,
     await expect(member.locator(".participant-whisper-badge").first()).toBeVisible({ timeout: 15000 });
 
     // Re-open the panel: it shows the active-whisper banner.
-    await page.getByTitle("Whisper").click();
+    await page.getByTitle("Whisper", { exact: true }).click();
     await expect(page.locator(".whisper-active-banner")).toBeVisible();
 
     // Owner stops → the member's indicator clears.
@@ -62,7 +62,7 @@ test("owner whispers to a member; the member sees the indicator", async ({ page,
 // Owner starts + stops a user-target whisper aimed at the first (only)
 // participant in the panel's Users tab. Shared by the round-2 tests below.
 async function startWhisperAtFirstUser(page: Page) {
-  await page.getByTitle("Whisper").click();
+  await page.getByTitle("Whisper", { exact: true }).click();
   const panel = page.locator(".whisper-panel");
   await expect(panel).toBeVisible({ timeout: 15000 });
   await panel.locator(".whisper-target-item input").first().check();
@@ -71,7 +71,7 @@ async function startWhisperAtFirstUser(page: Page) {
 }
 
 async function stopWhisper(page: Page) {
-  await page.getByTitle("Whisper").click();
+  await page.getByTitle("Whisper", { exact: true }).click();
   await page.locator(".whisper-active-banner").getByRole("button", { name: "Stop" }).click();
   await page.locator(".whisper-panel .whisper-panel-close").click();
 }
@@ -82,7 +82,7 @@ test("whisper inbox: entry persists after the whisper ends, until dismissed", as
   await expectInHub(page);
 
   const channel = uniqueName("wbox");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("InboxMate"));
@@ -115,7 +115,7 @@ test("receive opt-out blocks a whisper; opting back in mid-session restores it",
   await expectInHub(page);
 
   const channel = uniqueName("wopt");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("OptoutMate"));
@@ -124,7 +124,7 @@ test("receive opt-out blocks a whisper; opting back in mid-session restores it",
     await expect(channelButton(page, channel)).toHaveAccessibleName(/2 (people|persons) in voice/, { timeout: 15000 });
 
     // Member opts out of receiving whispers.
-    await member.getByTitle("Whisper").click();
+    await member.getByTitle("Whisper", { exact: true }).click();
     const memberPanel = member.locator(".whisper-panel");
     await expect(memberPanel).toBeVisible({ timeout: 15000 });
     await memberPanel.locator(".whisper-optout-row input").check();
@@ -139,7 +139,7 @@ test("receive opt-out blocks a whisper; opting back in mid-session restores it",
 
     // Member opts back in WHILE the whisper is still running: re-resolution
     // must push voice_whisper_started to them (the 2026-07-26 diffing fix).
-    await member.getByTitle("Whisper").click();
+    await member.getByTitle("Whisper", { exact: true }).click();
     await memberPanel.locator(".whisper-optout-row input").uncheck();
     await memberPanel.locator(".whisper-panel-close").click();
     await expect(member.locator(".participant-whisper-badge").first()).toBeVisible({ timeout: 15000 });
@@ -157,7 +157,7 @@ test("role-target whisper via the Roles tab reaches a role member in voice", asy
   await expectInHub(page);
 
   const channel = uniqueName("wrole");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const memberName = uniqueName("RoleMate");
@@ -179,7 +179,7 @@ test("role-target whisper via the Roles tab reaches a role member in voice", asy
     await hubApi(page, `/users/${memberPk}/roles/${role.id}`, { method: "PUT" });
 
     // Owner whispers to the role from the panel's Roles tab.
-    await page.getByTitle("Whisper").click();
+    await page.getByTitle("Whisper", { exact: true }).click();
     const panel = page.locator(".whisper-panel");
     await expect(panel).toBeVisible({ timeout: 15000 });
     await panel.getByRole("button", { name: "Roles" }).click();
@@ -202,7 +202,7 @@ test("reply key (hold mode): whispers back at the last whisperer", async ({ page
   await expectInHub(page);
 
   const channel = uniqueName("wreply");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("ReplyMate"));
@@ -211,7 +211,7 @@ test("reply key (hold mode): whispers back at the last whisperer", async ({ page
     await expect(channelButton(page, channel)).toHaveAccessibleName(/2 (people|persons) in voice/, { timeout: 15000 });
 
     // Member binds F10 as their reply key (hold is the default mode).
-    await member.getByTitle("Whisper").click();
+    await member.getByTitle("Whisper", { exact: true }).click();
     const memberPanel = member.locator(".whisper-panel");
     await expect(memberPanel).toBeVisible({ timeout: 15000 });
     await memberPanel.locator(".whisper-reply-row").getByRole("button", { name: "Bind key" }).click();
@@ -242,7 +242,7 @@ test("per-list keybind (hold mode): whispers while the key is held", async ({ pa
   await expectInHub(page);
 
   const channel = uniqueName("wkey");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("KeybindMate"));
@@ -254,7 +254,7 @@ test("per-list keybind (hold mode): whispers while the key is held", async ({ pa
     await expect(channelButton(page, channel)).toHaveAccessibleName(/2 (people|persons) in voice/, { timeout: 15000 });
 
     // Owner saves the member as a whisper list and binds F9 (hold is the default mode).
-    await page.getByTitle("Whisper").click();
+    await page.getByTitle("Whisper", { exact: true }).click();
     const panel = page.locator(".whisper-panel");
     await expect(panel).toBeVisible({ timeout: 15000 });
     await panel.locator(".whisper-target-item input").first().check();

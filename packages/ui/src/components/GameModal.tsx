@@ -34,6 +34,15 @@ export function GameModal({
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
+    // The context carries a session token. It goes to the app's own origin
+    // only: a frame that has navigated elsewhere since (a redirect, a link)
+    // gets nothing on its next `load`.
+    let appOrigin: string;
+    try {
+      appOrigin = new URL(miniAppUrl, window.location.href).origin;
+    } catch {
+      return;
+    }
     const onLoad = () => {
       iframe.contentWindow?.postMessage(
         {
@@ -43,7 +52,7 @@ export function GameModal({
           channel_id: channelId,
           app_id: appId,
         },
-        "*",
+        appOrigin,
       );
     };
     iframe.addEventListener("load", onLoad);

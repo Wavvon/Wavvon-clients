@@ -15,6 +15,7 @@
     "@scure/bip39": "^1.4.0"
   },
   "devDependencies": {
+    "fast-check": "4.3.0",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {

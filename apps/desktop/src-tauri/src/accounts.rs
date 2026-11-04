@@ -709,7 +709,7 @@ mod tests {
     fn create_account_rejects_duplicate_phrase_import() {
         let base = TempBase::new("dup-phrase");
         let identity = Identity::generate();
-        let phrase = identity.recovery_phrase();
+        let phrase = identity.recovery_phrase().to_string();
 
         create_account_in(&base.0, None, Some(phrase.clone())).expect("first import");
         let err = create_account_in(&base.0, None, Some(phrase)).unwrap_err();

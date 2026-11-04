@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { injectTwoAccountSession, mockJson, HUB_URL, HUB_ID, ACCOUNT1, ACCOUNT2 } from "./helpers/mockApi";
 
-// "Manage any account without switching" (the "Managing" selector owned by
-// SettingsPage, see ManagingAccountSelector.tsx / AccountBlockIgnoreSection.tsx /
+// "Manage any account without switching" (the account picker in the settings
+// shell, owned by SettingsPage; see SettingsAccountPicker.tsx / AccountBlockIgnoreSection.tsx /
 // platform/hubFetchAs.ts): selecting a non-active on-device account in the
 // dropdown re-scopes the per-account sections to it — without switching,
 // without touching the active account pointer, and (for session-bound
@@ -70,7 +70,6 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
     void route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
   await mockJson(page, `${HUB_URL}/me/credentials`, []);
-  await mockJson(page, `${HUB_URL}/me/devices`, []);
 }
 
 async function openSettingsTab(page: import("@playwright/test").Page, name: string) {
@@ -87,7 +86,9 @@ test("selecting a non-active account in the Managing dropdown re-scopes sections
   );
 
   await page.goto("/");
-  await page.locator(".btn-icon-gear").first().click({ timeout: 10000 });
+  await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await openSettingsTab(page, "Privacy");
 
   const managingSelect = page.locator("#managing-account-select");
@@ -95,9 +96,6 @@ test("selecting a non-active account in the Managing dropdown re-scopes sections
   await expect(managingSelect).toHaveValue(ACCOUNT1.pubkey);
 
   await managingSelect.selectOption(ACCOUNT2.pubkey);
-
-  // Section labels now read the secondary account, not the active one.
-  await expect(page.locator(".settings-label", { hasText: "Blocked users" })).toContainText(ACCOUNT2.label);
 
   // hubFetchAs (platform/hubFetchAs.ts) presented account 2's own
   // pre-cached token for the session-bound dm-blocks read, not account 1's.
@@ -109,11 +107,12 @@ test("selecting a non-active account in the Managing dropdown re-scopes sections
   // those tabs' sections to it too.
   await openSettingsTab(page, "Devices");
   await expect(page.locator("#managing-account-select")).toHaveValue(ACCOUNT2.pubkey);
-  await expect(page.locator(".settings-label", { hasText: "Devices" }).first()).toContainText(ACCOUNT2.label);
 
   await openSettingsTab(page, "Manage accounts");
   await expect(page.locator("#managing-account-select")).toHaveValue(ACCOUNT2.pubkey);
-  await expect(page.locator(".settings-label", { hasText: "Home hubs" })).toContainText(ACCOUNT2.label);
+  // The phrase and backup can only act on the active account, and say so
+  // rather than showing account 1's under account 2's name.
+  await expect(page.getByRole("button", { name: `Switch to ${ACCOUNT2.label}` })).toBeVisible();
 
   // The active account pointer never moved — this was management, not a
   // switch (see AccountRoot.tsx / identity/store.ts switchAccount).

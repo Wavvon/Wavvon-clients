@@ -7,7 +7,7 @@ import { channelButton, createChannel, expectInHub, uniqueName } from "./helpers
 
 async function openSoundboard(page: import("@playwright/test").Page) {
   const ch = uniqueName("sb");
-  await createChannel(page, ch);
+  await createChannel(page, ch, "Voice channel");
   // The soundboard lives in the voice-session footer — a channel row is
   // joined by double-click (see the "Double-click to join voice" row
   // tooltip in SortableItems.tsx), not a header button.

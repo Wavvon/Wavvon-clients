@@ -1,6 +1,6 @@
 import { hubFetch } from "../http";
 import { activeHubCapabilities } from "../session";
-import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
+import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import type { MemberHistoryEntry } from "@wavvon/ui";
 import type {
   Report,
@@ -9,6 +9,7 @@ import type {
   BanlistSource,
   FederatedBanEntry,
   BanlistOverride,
+  MuteInfo,
 } from "../../types";
 
 export async function reportMessage(messageId: string, reason: string): Promise<void> {
@@ -85,10 +86,23 @@ export async function updateBanlistSourcePolicy(
   });
 }
 
+/** Ban list entries, walked to exhaustion: the hub used to stop at 1000 silently. */
 export async function getBanlistEntries(source?: string): Promise<FederatedBanEntry[]> {
-  const params = source ? `?source=${encodeURIComponent(source)}` : "";
-  const r = await hubFetch(`/admin/banlist/entries${params}`);
-  return r.json() as Promise<FederatedBanEntry[]>;
+  return fetchAllPages<FederatedBanEntry>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_ADMIN_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    // An entry is keyed by the pair, so the cursor is too.
+    cursorOf: (e) => `${e.source_hub_pubkey}:${e.target_master_pubkey}`,
+    fetchPage: async (params) => {
+      const query = params ?? new URLSearchParams();
+      if (source) query.set("source", source);
+      const qs = query.toString();
+      return (await (await hubFetch(`/admin/banlist/entries${qs ? `?${qs}` : ""}`)).json()) as FederatedBanEntry[];
+    },
+    label: "getBanlistEntries",
+  });
 }
 
 export async function getBanlistOverrides(): Promise<BanlistOverride[]> {
@@ -137,6 +151,26 @@ export async function timeoutMember(
   await hubFetch("/moderation/timeout", {
     method: "POST",
     body: JSON.stringify({ target_public_key: targetPublicKey, duration_seconds: durationSeconds, reason }),
+  });
+}
+
+export async function unmuteMember(targetPublicKey: string): Promise<void> {
+  await hubFetch(`/moderation/mutes/${targetPublicKey}`, { method: "DELETE" });
+}
+
+/** Every mute and timeout on this hub, walked to exhaustion. */
+export async function listMutes(): Promise<MuteInfo[]> {
+  return fetchAllPages<MuteInfo>({
+    capabilities: activeHubCapabilities(),
+    capability: LIST_CURSOR_CAP,
+    pageSize: LIST_PAGE_SIZE,
+    maxPages: LIST_MAX_PAGES,
+    cursorOf: (m) => m.target_public_key,
+    fetchPage: async (params) =>
+      (await (
+        await hubFetch(params ? `/moderation/mutes?${params}` : "/moderation/mutes")
+      ).json()) as MuteInfo[],
+    label: "listMutes",
   });
 }
 

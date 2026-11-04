@@ -9,7 +9,9 @@ import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } 
 // so a rename should update both — provided `users` is refreshed.
 
 async function openProfileSettings(page: import("@playwright/test").Page) {
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger:visible").click();
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Profile", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
 }

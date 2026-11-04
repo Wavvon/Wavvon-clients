@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import i18n from "@wavvon/i18n";
-import { switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
+import { listAccounts, switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
+import { markIdentityBackedUp } from "../utils/identityBackup";
 import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
 
@@ -62,6 +63,9 @@ export function useSettingsProfile({ setError, setToast }: UseSettingsProfilePar
     try {
       const phrase = await invoke<string>("get_recovery_phrase");
       setRecoveryPhrase(phrase);
+      // Reading the words is when they can be written down.
+      const active = (await listAccounts()).find((a) => a.is_active);
+      markIdentityBackedUp(active?.id);
     } catch (e) {
       // Declining the native confirmation is a choice, not an error.
       if (String(e) !== "Cancelled") setError(String(e));

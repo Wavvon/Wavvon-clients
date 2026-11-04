@@ -26,7 +26,7 @@ import {
   listHubIcons,
   listRoles,
 } from "@platform";
-import { passkeysUsableWith } from "@platform";
+import { passkeysUsableWith, activeHubSupports } from "@platform";
 import { allianceActions } from "../../platform/adminActions";
 import { DISCOVERY_URL, MULTI_HUB } from "../../constants";
 import { HubAdminContainer } from "../admin/HubAdminContainer";
@@ -50,8 +50,10 @@ export function AppModals(p: AppModalsProps) {
     addHubError,
     addingHub,
     canManageRoles,
+    canDo,
     canEditChannelPermissions,
     canManageSoundboard,
+    canManageHubAlliances,
     canSendMessages,
     channelBansTabActions,
     channelCtxMenu,
@@ -139,7 +141,9 @@ export function AppModals(p: AppModalsProps) {
           publicKey={publicKey}
           isAdmin={isAdmin}
           canManageRoles={canManageRoles}
+          canDo={canDo}
           canManageSoundboard={canManageSoundboard}
+          canManageHubAlliances={canManageHubAlliances}
           myMaxPriority={myMaxPriority}
           onClose={() => setShowHubAdmin(false)}
         />
@@ -153,7 +157,7 @@ export function AppModals(p: AppModalsProps) {
           loading={addingHub}
           error={addHubError}
           fingerprintMatch={fingerprintMatch}
-          onAdd={handleAddHub}
+          onAdd={() => void handleAddHub()}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
           passkeySupported={passkeysUsableWith(hubUrl)}
           onClose={() => {
@@ -206,6 +210,7 @@ export function AppModals(p: AppModalsProps) {
       {(createChannelCtx || channelSettingsCtx) && (
         <ChannelSettingsModal
           channel={channelSettingsCtx}
+          voiceChannels={activeHubSupports("channels.voice")}
           createParentId={createChannelCtx?.parentId ?? null}
           createParentName={createChannelCtx?.parentId ? (channels.find((c) => c.id === createChannelCtx.parentId)?.name ?? null) : null}
           createInitialIsCategory={createChannelCtx?.isCategory}
@@ -236,6 +241,7 @@ export function AppModals(p: AppModalsProps) {
       {showHubSetupWizard && activeHubId && (
         <HubSetupWizard
           actions={{ onCreateChannel: createChannelForWizard }}
+          voiceChannels={activeHubSupports("channels.voice")}
           onDismiss={() => closeHubSetupWizard(activeHubId)}
           onComplete={handleHubSetupWizardComplete}
         />

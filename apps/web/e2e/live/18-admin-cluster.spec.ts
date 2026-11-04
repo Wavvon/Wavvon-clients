@@ -11,14 +11,16 @@ async function openAdminTab(page: Page, tab: string) {
   await page.getByRole("button", { name: tab, exact: true }).click();
 }
 
-test("audit log lists administrative events", async ({ page }) => {
+test("audit log opens on the newest event, written as a sentence", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
+  // The suite has generated plenty of audit activity by now, so a log that
+  // opened on its oldest page (Wavvon-server#189) would not show this one.
+  const channel = uniqueName("audited");
+  await createChannel(page, channel);
   await openAdminTab(page, "Audit log");
   await expect(page.getByRole("heading", { name: "Audit log" })).toBeVisible();
-  // The suite has generated plenty of audit activity by now. The log is a
-  // list of entries grouped by day, not a table.
-  await expect(page.locator(".audit-entry").first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator(".audit-entry-what").first()).toContainText(`created #${channel}`, { timeout: 10000 });
 });
 
 test("create and delete a hub SVG icon", async ({ page }) => {
@@ -142,7 +144,7 @@ test("channel bans: ban and unban a real member", async ({ page, browser }) => {
 test("the moderation tab shows the content report queue", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openAdminTab(page, "Moderation");
+  await openAdminTab(page, "Reports");
 
   // Each of the three sections is one settings row, and a row's own line is
   // computed from what the hub answered — so reading the line is what says
@@ -170,4 +172,28 @@ test("the moderation tab shows the content report queue", async ({ page }) => {
   await expect(banlist.locator(".setting-row-state")).toContainText("our list is", {
     timeout: 10000,
   });
+});
+
+// Overview has no Save button any more (Wavvon-clients#163): a select saves
+// as soon as it changes. Read back from the hub, not from the page, so a save
+// that never left the client cannot pass.
+test("overview saves a change by itself", async ({ page }) => {
+  await page.goto("/");
+  await expectInHub(page);
+  await openAdminTab(page, "Overview");
+
+  const select = page.getByLabel("Member name colors", { exact: true });
+  const before = await select.inputValue();
+  const next = before === "none" ? "role_over_user" : "none";
+  await select.selectOption(next);
+  await expect(page.getByText("All changes saved.")).toBeVisible({ timeout: 10000 });
+  await expect
+    .poll(async () => (await hubApi<{ name_color_mode: string }>(page, "/hub/settings")).name_color_mode)
+    .toBe(next);
+
+  // Put it back for the specs that follow.
+  await select.selectOption(before);
+  await expect
+    .poll(async () => (await hubApi<{ name_color_mode: string }>(page, "/hub/settings")).name_color_mode)
+    .toBe(before);
 });

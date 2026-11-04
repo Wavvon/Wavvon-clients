@@ -2,7 +2,7 @@ import type { GameLaunchCard } from "@wavvon/core";
 
 // Referenced by the declarations further down, which is a separate thing from
 // re-exporting them for consumers.
-import type { Attachment, Reaction, FavoriteHub, RoleInfo } from "@wavvon/core";
+import type { Attachment, AttachmentRef, Reaction, FavoriteHub, RoleInfo } from "@wavvon/core";
 // The hub's wire shapes live in @wavvon/core so there is one copy rather than
 // three (Wavvon-clients#60). Re-exported here because every call site in this
 // app already imports from this module.
@@ -11,11 +11,13 @@ export type {
   RoleCategory,
   FavoriteHub,
   Attachment,
+  AttachmentRef,
   PresenceStatus,
   Reaction,
   MemberAdminInfo,
   BanInfo,
   VoiceMuteInfo,
+  MuteInfo,
   PendingUser,
   Conversation,
   DmMessage,
@@ -36,6 +38,7 @@ export type {
   SurveyQuestion,
   Survey,
   SurveyAnswer,
+  ApplicationStatus,
   SurveySubmitResult,
   SurveyChoiceAdmin,
   SurveyQuestionAdmin,
@@ -80,6 +83,92 @@ export interface Message {
   reply_count?: number;
   /** "Play" launch card; needs `apps.register` to author. */
   game?: GameLaunchCard | null;
+  /** Shown instead of the sender's name (a bridge or webhook relaying
+   *  someone); `sender` stays the real author and is shown beside it. */
+  masquerade?: { name: string; avatar_url?: string } | null;
+  /** The sticker sent with this message, held by this hub. */
+  sticker?: Sticker | null;
+}
+
+export type StickerState = "ok" | "removed" | "evicted";
+
+export interface Sticker {
+  id: string;
+  name: string;
+  /** Relative to the hub that holds the message: `/stickers/{sha256}`. */
+  url: string;
+  sha256: string;
+  width: number;
+  height: number;
+  origin_hub_url: string | null;
+  origin_hub_name: string | null;
+  state: StickerState;
+}
+
+export interface StickerPack {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: number;
+  stickers: Sticker[];
+}
+
+export interface AdminSticker {
+  id: string;
+  sha256: string;
+  name: string;
+  size_bytes: number;
+  width: number;
+  height: number;
+  pack_id: string | null;
+  uploader: string;
+  origin_hub_url: string | null;
+  origin_hub_name: string | null;
+  created_at: number;
+  last_used_at: number;
+  state: StickerState;
+  message_count: number;
+}
+
+export interface StickerBudget {
+  count: number;
+  bytes: number;
+  cap_bytes: number;
+}
+
+export interface StickerUsage {
+  packs: StickerBudget;
+  packs_warning: boolean;
+  copies: StickerBudget;
+  evictions: number;
+}
+
+export interface StickerBlockEntry {
+  sha256: string;
+  blocked_by: string;
+  reason: string | null;
+  created_at: number;
+}
+
+/** The attachment hub settings, as GET /hub/settings returns them. */
+export interface AttachmentSettings {
+  max_attachments_per_message: number;
+  attachments_cap_bytes: number;
+  attachments_warn_percent: number;
+  attachments_retention_days: number;
+  attachments_usage: { used_bytes: number; cap_bytes: number; warning: boolean; evictions: number };
+}
+
+/** The `stickers_*` hub settings, as GET /hub/settings returns them. */
+export interface StickerSettings {
+  stickers_max_file_bytes: number;
+  stickers_packs_cap_bytes: number;
+  stickers_packs_warn_percent: number;
+  stickers_copies_cap_bytes: number;
+  stickers_per_pack: number;
+  sticker_packs_per_hub: number;
+  stickers_orphan_gc_days: number;
+  stickers_export: boolean;
 }
 
 export interface Embed {
@@ -137,6 +226,8 @@ export interface User {
   /** Optional short custom status text (only present while online). */
   status_custom?: string | null;
   group_role: string | null;
+  /** Priority of `group_role`, to order the member list; absent on older hubs. */
+  group_role_priority?: number | null;
   is_webhook?: boolean;
   /** MM-DD (never a year) — null/absent when unset or the hub has birthdays
    *  disabled (the server omits it entirely in that case). */
@@ -329,6 +420,7 @@ export interface ReactionCount {
   me: boolean;
 }
 
+/** Pre-`attachments.stored` hubs: a client-asserted URL stored verbatim. */
 export interface ForumAttachment {
   url: string;
   name: string;
@@ -362,6 +454,8 @@ export interface PostSummary {
   channel_id: string;
   author_pubkey: string;
   title: string | null;
+  /** Start of the body; absent on older hubs and deleted posts. */
+  excerpt?: string;
   created_at: number;
   edited_at: number | null;
   is_pinned: boolean;
@@ -371,7 +465,7 @@ export interface PostSummary {
   is_deleted: boolean;
   unread_reply_count?: number | null;
   reactions?: ReactionCount[];
-  attachments?: ForumAttachment[];
+  attachments?: (AttachmentRef | ForumAttachment)[];
   /** Origin hub public key hex when authored through the alliance forum
    * write-proxy (forum federation phase 2); absent for locally-authored posts. */
   author_hub?: string | null;
@@ -389,7 +483,7 @@ export interface ReplyView {
   reply_to_id: string | null;
   is_deleted: boolean;
   reactions?: ReactionCount[];
-  attachments?: ForumAttachment[];
+  attachments?: (AttachmentRef | ForumAttachment)[];
   author_hub?: string | null;
 }
 
@@ -405,6 +499,14 @@ export interface PostListResponse {
 }
 
 // ---- Hub admin: alliances, external bots, webhooks, hub icons, survey ----
+
+/** A local role delegated to manage one alliance (`alliance.permissions`). */
+export interface AllianceManager {
+  role_id: string;
+  role_name: string;
+  granted_by: string;
+  granted_at: number;
+}
 
 export interface Alliance {
   id: string;
@@ -432,7 +534,7 @@ export interface SharedChannel {
   channel_name: string;
   hub_public_key: string;
   hub_name: string;
-  channel_type: "text" | "forum" | "banner" | "spawner";
+  channel_type: "text" | "voice" | "forum" | "banner" | "spawner";
   parent_id: string | null;
   is_category: boolean;
   forum_remote_write?: "none" | "replies_only" | "posts_and_replies";
@@ -733,14 +835,19 @@ export interface AuditLogEntry {
   at: number;
   actor_pubkey: string | null;
   target_pubkey: string | null;
+  channel_id?: string | null;
+  payload?: unknown;
 }
 
 export interface AuditLogPage {
   entries: AuditLogEntry[];
   next_cursor: number | null;
+  /** False for a hub without `audit.newest`: oldest first, no filters. */
+  newestFirst: boolean;
 }
 
 export interface CertIssuance {
+  id: string;
   subject_pubkey: string;
   issued_at: number;
   expires_at: number;
@@ -769,6 +876,25 @@ export interface RecoveryContactItem {
   pubkey: string;
   added_at: number;
   display_name?: string | null;
+}
+
+/** `GET /recovery/requests/to-attest`: an open request naming you as a contact. */
+export interface RecoveryRequestToAttest {
+  id: string;
+  old_pubkey: string;
+  new_pubkey: string;
+  reason: string | null;
+  created_at: number;
+  attestation_count: number;
+  threshold: number;
+}
+
+/** Someone who can be picked as a recovery contact, or as the account you
+ *  were: this hub's members and your friends. */
+export interface RecoveryPerson {
+  pubkey: string;
+  display_name: string | null;
+  avatar?: string | null;
 }
 
 export interface RecoveryAdminRequest {

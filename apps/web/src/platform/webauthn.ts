@@ -22,14 +22,6 @@ export interface CredentialInfo {
   last_used_at: number | null;
 }
 
-export interface DeviceInfo {
-  id: string;
-  device_name: string | null;
-  created_at: number;
-  expires_at: number;
-  last_used_at: number | null;
-}
-
 export function isPasskeySupported(): boolean {
   return typeof window !== "undefined" && !!window.PublicKeyCredential;
 }
@@ -234,17 +226,5 @@ export async function renamePasskey(credentialId: string, name: string, account?
   await fetcherFor(account)(`/me/credentials/${encodeURIComponent(credentialId)}`, {
     method: "PATCH",
     body: JSON.stringify({ friendly_name: name }),
-  });
-}
-
-// --- Trusted device management ---
-
-export async function listTrustedDevices(account?: IdentityRecord): Promise<DeviceInfo[]> {
-  return fetcherFor(account)("/me/devices").then((r) => r.json() as Promise<DeviceInfo[]>);
-}
-
-export async function revokeTrustedDevice(deviceId: string, account?: IdentityRecord): Promise<void> {
-  await fetcherFor(account)(`/me/devices/${encodeURIComponent(deviceId)}`, {
-    method: "DELETE",
   });
 }

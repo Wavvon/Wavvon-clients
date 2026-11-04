@@ -83,7 +83,7 @@ test("a soundboard clip crosses the room that silence never left", async ({ page
 
   await shutTheMicGate(page);
   const channel = uniqueName("clip");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: listener } = await newMemberPage(browser, uniqueName("Listener"));

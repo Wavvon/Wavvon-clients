@@ -47,7 +47,7 @@ test("a remote camera decodes frames, not just a tile", async ({ page, browser }
   await expectInHub(page);
 
   const channel = uniqueName("camframes");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoiceAndEnableCamera(page, channel);
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("CamMate"));

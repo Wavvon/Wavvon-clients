@@ -1,3 +1,4 @@
+import type { MemberActivity } from "../../utils/memberActivity";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { Channel } from "@wavvon/core";
@@ -20,6 +21,7 @@ import { UserListGrouped } from "../users/UserListGrouped";
 import { UserProfileCard, type UserProfileCardActions } from "../users/UserProfileCard";
 import { ScreenShareViewer, type ScreenShareViewerRef } from "../ScreenShareViewer";
 import { AllianceView } from "./AllianceView";
+import type { PendingFilesState } from "../../hooks/usePendingFiles";
 import type { AlliancePeopleActions } from "./AlliancePeoplePanel";
 import { ReconnectBanner } from "./ReconnectBanner";
 import { ForumView, type ForumActions } from "../forum/ForumView";
@@ -30,12 +32,15 @@ import type { EventStagingCapability } from "../events/EventCard";
 import { ChannelHeader } from "./ChannelHeader";
 import { ChannelComposer } from "./ChannelComposer";
 import { ChannelMessageList } from "./ChannelMessageList";
+import { VoiceStage, type VoiceStageInfo } from "./VoiceStage";
 import type { MessageRowActions } from "./MessageRow";
+import type { StickerActions } from "../stickers/stickerActions";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
 import { CalendarIcon } from "../Icons";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
+import type { AllianceScrollback } from "../../hooks/useAlliances";
 
 interface SelectedAllianceChannel {
   alliance_id: string;
@@ -66,6 +71,7 @@ interface Props {
   searchQuery: string;
   dmMessages: Record<string, DmMessage[]>;
   allianceMessages: Message[];
+  allianceScrollback: AllianceScrollback;
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
@@ -78,6 +84,8 @@ interface Props {
   editingDraft: string;
   replyTarget: Message | null;
   pendingAttachments: Attachment[];
+  /** Channel (not DM) attachments, uploaded when the message is sent. Absent without `attachments.stored`. */
+  channelFiles?: PendingFilesState;
   stickToBottom: boolean;
   newWhileScrolledUp: number;
   hubConnected: Record<string, boolean>;
@@ -147,6 +155,9 @@ interface Props {
   // precedent -- packages/ui never imports @platform or Tauri's invoke directly).
   forumActions: ForumActions;
   messageRowActions: MessageRowActions;
+  /** Stickers (picker, save, add to a pack). Omitted on a hub that does not
+   *  advertise `stickers`, which hides every sticker control. */
+  stickerActions?: StickerActions;
   loadHubEmojis: () => Promise<HubEmoji[]>;
   loadChannelPolls: (channelId: string) => Promise<Poll[]>;
   loadThreadReplies: (channelId: string, messageId: string) => Promise<Message[]>;
@@ -168,17 +179,22 @@ interface Props {
   rsvpEvent: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
   createEvent: (payload: CreateEventPayload) => Promise<HubEvent>;
   eventStaging?: EventStagingCapability;
+  /** The room a selected voice channel opens to (decisions.md, "Voice lives
+   *  in voice channels"), drawn above its chat. */
+  voiceStage?: VoiceStageInfo;
+  /** Who is in voice or live where, for the member list's status line. */
+  memberActivity?: Map<string, MemberActivity>;
 }
 
 export function ContentArea({
   view, activeHubId, hubs, channels, onBreadcrumbCategoryClick,
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
-  dmMessages, allianceMessages,
+  dmMessages, allianceMessages, allianceScrollback,
   users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
-  pendingAttachments, stickToBottom, newWhileScrolledUp,
-  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus,
+  pendingAttachments, channelFiles, stickToBottom, newWhileScrolledUp,
+  hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus, voiceStage, memberActivity,
   selfInvisible,
   hideBirthdays,
   inputText, typingByKey, dmTypingByKey,
@@ -203,7 +219,7 @@ export function ContentArea({
   alliancePeopleActions,
   onShowPinned,
   profileCardActions,
-  forumActions, messageRowActions,
+  forumActions, messageRowActions, stickerActions,
   loadHubEmojis, loadChannelPolls, loadThreadReplies,
   loadExpandedThreads, saveExpandedThreads,
   onComponentInteract, onCreatePoll,
@@ -514,6 +530,8 @@ export function ContentArea({
             actions={forumActions}
             forumRequireTag={selectedChannel.forum_require_tag ?? false}
             users={users}
+            hubUrl={activeHub?.hub_url}
+            canAttach={!!channelFiles}
           />
         ) : selectedChannel ? (
           <div className="chat-column">
@@ -535,6 +553,27 @@ export function ContentArea({
               onOpenHubStreams={onOpenHubStreams}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
+            {selectedChannel.channel_type === "voice" && voiceStage ? (
+              // A voice room is people and media only: no messages or composer. Its
+              // events (raids anchor their squad rooms here) open in a dialog.
+              <>
+              <div className="voice-room-events">
+                <button
+                  onClick={() => setShowEventsModal(true)}
+                  className="btn-icon-header"
+                  title={t("events.open_panel")}
+                  aria-label={t("events.open_panel")}
+                >
+                  <CalendarIcon size={14} />
+                </button>
+              </div>
+              <VoiceStage {...voiceStage}>
+                {activeScreenShares.length > 0 && screenShareViewerRef && (
+                  <ScreenShareViewer ref={screenShareViewerRef} streams={activeScreenShares} onStopWatch={voiceStage.live?.onClose} />
+                )}
+              </VoiceStage>
+              </>
+            ) : (<>
             {activeScreenShares.length > 0 && screenShareViewerRef && (
               <ScreenShareViewer
                 ref={screenShareViewerRef}
@@ -597,6 +636,7 @@ export function ContentArea({
               hubEmojiMap={hubEmojiMap}
               hubBaseUrl={activeHub?.hub_url}
               actions={messageRowActions}
+              stickerActions={stickerActions}
               stickToBottom={stickToBottom}
               newWhileScrolledUp={newWhileScrolledUp}
               firstNotifyingMessageId={firstNotifyingMessageId}
@@ -633,7 +673,7 @@ export function ContentArea({
               activeHubUrl={activeHub?.hub_url}
               inputText={inputText}
               replyTarget={replyTarget}
-              pendingAttachments={pendingAttachments}
+              files={channelFiles}
               users={users}
               slashSuggestions={slashSuggestions}
               slashSelectedIdx={slashSelectedIdx}
@@ -647,13 +687,13 @@ export function ContentArea({
               onKeyDown={handleSlashKeyDown}
               onSend={onSend}
               onPingTyping={onPingTyping}
-              onAttachFiles={onAttachFiles}
-              onSetPendingAttachments={onSetPendingAttachments}
               onSetReplyTarget={onSetReplyTarget}
               onFillMention={fillMention}
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
+              stickers={stickerActions ? { channelId: selectedChannel.id, actions: stickerActions, onError } : undefined}
             /></>}
+            </>)}
           </div>
         ) : selectedAllianceChannel && selectedAllianceChannel.channel.channel_type === "forum" ? (
           <ForumView
@@ -663,6 +703,7 @@ export function ContentArea({
             isAdmin={isAdmin}
             actions={forumActions}
             users={users}
+            hubUrl={activeHub?.hub_url}
             allianceContext={{
               allianceId: selectedAllianceChannel.alliance_id,
               allianceName: selectedAllianceChannel.alliance_name,
@@ -672,9 +713,11 @@ export function ContentArea({
           />
         ) : selectedAllianceChannel ? (
           <AllianceView
+            hubUrl={activeHub?.hub_url}
             connectionStatus={connectionStatus}
             selectedAllianceChannel={selectedAllianceChannel}
             allianceMessages={allianceMessages}
+            scrollback={allianceScrollback}
             inputText={inputText}
             knownDisplayNames={knownDisplayNames}
             myDisplayName={myDisplayName}
@@ -692,11 +735,13 @@ export function ContentArea({
         )}
       </main>
 
-      {view === "channels" && !memberSidebarHidden && (
+      {/* In a voice room the audience is the member list. */}
+      {view === "channels" && !memberSidebarHidden && selectedChannel?.channel_type !== "voice" && (
         <aside className="user-list-sidebar" aria-label={t("member.list.title")}>
           <UserListGrouped
             users={users}
             speaking={voiceActiveUsers}
+            activity={memberActivity}
             myPubkey={publicKey}
             selfInvisible={selfInvisible}
             hideBirthdays={hideBirthdays}
@@ -735,7 +780,7 @@ export function ContentArea({
         />
       )}
 
-      {eventsPresentation === "modal" && showEventsModal && (
+      {(eventsPresentation === "modal" || (selectedChannel?.channel_type === "voice" && !!voiceStage)) && showEventsModal && (
         <div
           className="modal-overlay"
           onClick={() => setShowEventsModal(false)}

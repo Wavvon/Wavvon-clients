@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { buildChannelTree, flattenTree, type Channel } from "@wavvon/core";
 import { ErrorRetry } from "../ErrorRetry";
-import type { Alliance, AllianceInvite, PendingAllianceInvite, SharedChannel } from "../../types";
+import type { Alliance, AllianceInvite, AllianceManager, PendingAllianceInvite, RoleInfo, SharedChannel } from "../../types";
 import { useConfirm } from "../ConfirmDialog";
 import { SettingRow } from "../SettingRow";
 
@@ -35,12 +35,30 @@ export interface AlliancesSectionActions {
   /** Joins an alliance from a pasted share code: the inviter's hub URL, the
    *  alliance id, and the signed token it encodes. */
   joinAllianceByCode?: (inviterHubUrl: string, allianceId: string, inviteToken: string, ownHubUrl: string) => Promise<void>;
+  /** The roles delegated to manage one alliance. Resolves null on a hub
+   *  without `alliance.permissions`, which hides the list. */
+  listAllianceManagers?: (allianceId: string) => Promise<AllianceManager[] | null>;
+  grantAllianceManager?: (allianceId: string, roleId: string) => Promise<void>;
+  revokeAllianceManager?: (allianceId: string, roleId: string) => Promise<void>;
+}
+
+/** What the managers list needs from the roles tab: delegating is
+ *  `roles.manage`, and only to a role below your own, as the hub enforces. */
+export interface AllianceManagerRoles {
+  listRoles: () => Promise<RoleInfo[]>;
+  canManageRoles: boolean;
+  myMaxPriority: number;
 }
 
 interface Props {
   activeHubUrl: string;
   channels: Channel[];
   actions: AlliancesSectionActions;
+  managerRoles?: AllianceManagerRoles;
+  /** `alliances.manage`: the hub-scoped acts (create, join, accept or
+   *  decline an invite, leave). Without it the tab still lists the alliances,
+   *  for someone who edits their grant lists or manages one of them. */
+  canManageHubAlliances: boolean;
 }
 
 function sharedChannelIcon(s: SharedChannel): string {
@@ -58,12 +76,14 @@ function errorMessage(e: unknown): string {
 }
 
 // Per-alliance shared-channel manager (expanded on demand).
-function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onError, runGuard, actions }: {
+function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onError, runGuard, actions, managerRoles }: {
+  managerRoles?: AllianceManagerRoles;
   alliance: Alliance;
   myChannels: Channel[];
   busy: boolean;
   activeHubUrl: string;
-  onLeave: () => void;
+  /** Absent without alliances.manage, which hides the button. */
+  onLeave?: () => void;
   onError: (m: string) => void;
   runGuard: (fn: () => Promise<void>) => void;
   actions: AlliancesSectionActions;
@@ -105,6 +125,23 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, alliance.id]);
 
+  const [managers, setManagers] = useState<AllianceManager[] | null>(null);
+  const [roles, setRoles] = useState<RoleInfo[]>([]);
+  const [toDelegate, setToDelegate] = useState("");
+  async function loadManagers() {
+    if (!actions.listAllianceManagers) return;
+    // A 403 means we cannot see the list; that is the same as no list here.
+    setManagers(await actions.listAllianceManagers(alliance.id).catch(() => null));
+  }
+  useEffect(() => {
+    if (!open) return;
+    void loadManagers();
+    if (managerRoles?.canManageRoles) managerRoles.listRoles().then(setRoles).catch(() => setRoles([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, alliance.id]);
+  const delegable = roles.filter((r) =>
+    r.priority < (managerRoles?.myMaxPriority ?? 0) && !managers?.some((m) => m.role_id === r.id));
+
   async function handleSendPushInvite() {
     if (!actions.sendAlliancePushInvite || !pushTargetUrl.trim()) return;
     setPushSending(true);
@@ -140,7 +177,7 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
         <button className="btn-ghost" onClick={() => setOpen((v) => !v)} style={{ fontWeight: 600 }}>
           {open ? "▾" : "▸"} {alliance.name}
         </button>
-        <button className="btn-small btn-secondary danger" disabled={busy} onClick={onLeave}>{t("alliances.detail.leave")}</button>
+        {onLeave && <button className="btn-small btn-secondary danger" disabled={busy} onClick={onLeave}>{t("alliances.detail.leave")}</button>}
       </div>
       {open && (
         <div style={{ paddingLeft: "var(--space-3)" }}>
@@ -231,6 +268,47 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
             </div>
           )}
 
+          {managers !== null && (
+            <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
+              <label className="settings-label" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.managers.label")}</label>
+              <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.managers.hint")}</p>
+              {managers.length === 0 ? (
+                <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("alliances.managers.empty")}</p>
+              ) : managers.map((m) => (
+                <div key={m.role_id} className="settings-row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "var(--text-sm)" }}>{m.role_name}</span>
+                  {managerRoles?.canManageRoles && actions.revokeAllianceManager && (
+                    <button
+                      className="btn-small btn-secondary"
+                      disabled={busy}
+                      onClick={() => runGuard(async () => { await actions.revokeAllianceManager!(alliance.id, m.role_id); await loadManagers(); })}
+                    >
+                      {t("alliances.managers.remove")}
+                    </button>
+                  )}
+                </div>
+              ))}
+              {managerRoles?.canManageRoles && actions.grantAllianceManager && delegable.length > 0 && (
+                <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+                  <select value={toDelegate} onChange={(e) => setToDelegate(e.target.value)} aria-label={t("alliances.managers.select_placeholder")}>
+                    <option value="">{t("alliances.managers.select_placeholder")}</option>
+                    {delegable.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  <button
+                    disabled={busy || !toDelegate}
+                    onClick={() => runGuard(async () => {
+                      await actions.grantAllianceManager!(alliance.id, toDelegate);
+                      setToDelegate("");
+                      await loadManagers();
+                    })}
+                  >
+                    {t("alliances.managers.add")}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {actions.sendAlliancePushInvite && (
             <div className="settings-section" style={{ marginTop: "var(--space-2)" }}>
               <label className="settings-label" style={{ fontSize: "var(--text-xs)" }}>{t("alliances.invite.push.label")}</label>
@@ -284,7 +362,7 @@ function AllianceRow({ alliance, myChannels, busy, activeHubUrl, onLeave, onErro
   );
 }
 
-export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
+export function AlliancesSection({ activeHubUrl, channels, actions, managerRoles, canManageHubAlliances }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<string | null>(null);
   const row = (id: string) => ({
@@ -302,7 +380,12 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
   async function load() {
     setError(null);
     try {
-      const [a, i] = await Promise.all([actions.listAlliances(), actions.listPendingAllianceInvites()]);
+      const [a, i] = await Promise.all([
+        actions.listAlliances(),
+        // The hub refuses the invite list without alliances.manage, and that
+        // refusal must not blank the alliances this caller may still see.
+        canManageHubAlliances ? actions.listPendingAllianceInvites() : Promise.resolve([]),
+      ]);
       setAlliances(a);
       setInvites(i);
     } catch (e) {
@@ -358,6 +441,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
       <p className="muted">{t("alliances.hint")}</p>
       {error && alliances !== null && <p className="error-text">{error}</p>}
 
+      {canManageHubAlliances && (<>
       <SettingRow
         title={t("alliances.create")}
         state={t("alliances.state.create")}
@@ -416,6 +500,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
           ))}
         </SettingRow>
       )}
+      </>)}
 
       <SettingRow
         title={t("alliances.yours")}
@@ -439,7 +524,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
               myChannels={channels}
               busy={busy}
               activeHubUrl={activeHubUrl}
-              onLeave={async () => {
+              onLeave={canManageHubAlliances ? async () => {
                 const ok = await confirm({
                   title: t("alliances.detail.leave_confirm", { name: a.name }),
                   body: t("alliances.detail.leave_body"),
@@ -447,7 +532,7 @@ export function AlliancesSection({ activeHubUrl, channels, actions }: Props) {
                   danger: true,
                 });
                 if (ok) run(() => actions.leaveAlliance(a.id));
-              }}
+              } : undefined}
               onError={setError}
               runGuard={runGuard}
               actions={actions}

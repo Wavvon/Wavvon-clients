@@ -15,6 +15,8 @@ interface Props extends PerAccountProps<ProfileAccountRef> {
    *  synced to keep them. */
   trustRoots?: TrustRoot[];
   onTrustIssuer?: (issuerPubkey: string, label?: string) => void;
+  showBirthdays?: boolean;
+  onShowBirthdaysChange?: (show: boolean) => void;
 }
 
 // Who the selected account is: one profile editor over every context (the
@@ -31,9 +33,8 @@ export function ProfileTab(props: Props) {
         {t("settings.profile.subtitle")}
       </p>
       {/* Editor card and the badges/certifications panel side by side on wide
-          screens; the panel stacks under the card on narrow ones. The account
-          picker lives inline in the editor's scope line, not as a separate
-          "Managing" box — you're choosing whose profile to edit, right there. */}
+          screens; the panel stacks under the card on narrow ones. Whose
+          profile this is comes from the account picker in the settings shell. */}
       <div className="profile-two-col">
         {props.managing && (
           <ProfileEditorSection
@@ -41,11 +42,10 @@ export function ProfileTab(props: Props) {
             account={props.managing}
             isActive={managingIsActive}
             publicKey={props.publicKey}
-            accounts={props.accounts}
-            activeId={props.activeId}
-            onManagingChange={props.onManagingChange}
             onHubProfileSaved={props.onHubProfileSaved}
             actions={props.actions}
+            showBirthdays={props.showBirthdays}
+            onShowBirthdaysChange={props.onShowBirthdaysChange}
           />
         )}
         {managingIsActive && (

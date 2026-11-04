@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPubkey, formatRelative, type Channel } from "@wavvon/core";
-import type { BanInfo, InviteInfo, MemberAdminInfo, NameColorMode, PendingUser, RoleInfo } from "../../types";
+import { formatDateTime, formatPubkey, formatRelative, type Channel } from "@wavvon/core";
+import { PendingApplicationDetails } from "./PendingApplicationDetails";
+import type { BanInfo, InviteInfo, MemberAdminInfo, MuteInfo, NameColorMode, PendingUser, RoleInfo, SurveyResponseAdmin } from "../../types";
 import { ImagePicker } from "../ImagePicker";
 import { AlliancesSection, type AlliancesSectionActions } from "./AlliancesSection";
 import { WebhooksSection, type WebhooksSectionActions } from "./WebhooksSection";
@@ -14,10 +15,16 @@ import { InviteManager, type InviteManagerActions } from "./InviteManager";
 import { AuditLogSection, type AuditLogSectionActions } from "./AuditLogSection";
 import { CertificationsSection, type CertificationsSectionActions } from "./CertificationsSection";
 import { SoundboardAdminSection, type SoundboardAdminSectionActions } from "./SoundboardAdminSection";
+import { StickerPacksSection, type StickerPacksActions } from "./StickerPacksSection";
+import { StickerStorageSection, type StickerStorageActions } from "./StickerStorageSection";
+import { StickerSettingsSection, type StickerSettingsActions } from "./StickerSettingsSection";
+import { AttachmentSettingsSection, type AttachmentSettingsActions } from "./AttachmentSettingsSection";
 import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./OnboardingAdminSection";
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
 import { CloseIcon } from "../Icons";
+
+export type MemberAction = Promise<boolean | void>;
 
 export type HubAdminTab =
   | "overview"
@@ -32,10 +39,15 @@ export type HubAdminTab =
   | "recovery"
   | "moderation"
   | "soundboard"
+  | "stickers"
+  | "sticker-storage"
+  | "sticker-settings"
+  | "attachments"
   | "alliances"
   | "hub-icons"
   | "onboarding"
   | "survey"
+  | "application"
   | "audit-log";
 
 export interface HubAdminPageProps {
@@ -84,7 +96,8 @@ export interface HubAdminPageProps {
   afkTimeoutSecs: number;
   onAfkTimeoutSecsChange: (v: number) => void;
   saveError: string | null;
-  onSave: () => void;
+  /** Called after each overview edit settles; there is no Save button. */
+  onSave: () => void | Promise<void>;
 
   /** Whether this hub is currently listed in `/federation/listing`. */
   hubListed: boolean;
@@ -99,14 +112,23 @@ export interface HubAdminPageProps {
 
   pendingMembers: PendingUser[];
   onApproveMember: (publicKey: string) => void;
+  /** A joiner's application answers (join-forms.md); absent hides them. */
+  loadApplication?: (publicKey: string) => Promise<SurveyResponseAdmin | null>;
+  /** Reject a joiner's application with a reason they will read. */
+  onRejectMember?: (publicKey: string, reason: string) => Promise<void>;
   members: MemberAdminInfo[];
-  onKickMember: (publicKey: string) => void;
-  onBanMember: (publicKey: string) => void;
-  onMuteMember: (publicKey: string) => void;
-  onTimeoutMember: (publicKey: string) => void;
-  onVoiceMuteMember: (publicKey: string) => void;
-  onVoiceUnmuteMember: (publicKey: string) => void;
+  // Member actions reject with the hub's message on failure and resolve
+  // `false` when the user backed out of a prompt; the page reports either.
+  onKickMember: (publicKey: string) => MemberAction;
+  onBanMember: (publicKey: string) => MemberAction;
+  onMuteMember: (publicKey: string) => MemberAction;
+  onUnmuteMember: (publicKey: string) => MemberAction;
+  onTimeoutMember: (publicKey: string) => MemberAction;
+  onVoiceMuteMember: (publicKey: string) => MemberAction;
+  onVoiceUnmuteMember: (publicKey: string) => MemberAction;
   voiceMutedKeys: Set<string>;
+  /** Mutes and timeouts, as `GET /moderation/mutes` lists them. */
+  mutes: MuteInfo[];
   /** Whether the viewer can assign/remove roles (admin or manage_roles). Gates the inline role manager. */
   canManageRoles: boolean;
   /** Highest priority among the viewer's own roles; only lower-priority roles are assignable (matches the hub guard). */
@@ -138,6 +160,8 @@ export interface HubAdminPageProps {
    *  a hardcoded discovery.wavvon.io, a host that does not resolve. */
   discoveryUrl?: string;
   canManageSoundboard: boolean;
+  /** `alliances.manage`. */
+  canManageHubAlliances: boolean;
   channels: Channel[];
 
   rolesActions: RolesSectionActions;
@@ -150,10 +174,28 @@ export interface HubAdminPageProps {
   /** Soundboard hub routes (upload/list/delete/fetch-audio) — omitted where
    *  the platform has no Tauri commands for them yet; the tab disappears. */
   soundboardActions?: SoundboardAdminSectionActions;
+  /** Present only on a hub advertising `stickers`. Each part is present only
+   *  when the viewer holds the permission it needs (packs:
+   *  `stickers.packs.manage`, storage: `stickers.moderate`, settings:
+   *  `hub.settings`), and a tab appears for each part that is. */
+  stickersAdmin?: {
+    hubUrl: string;
+    packs?: StickerPacksActions;
+    storage?: StickerStorageActions;
+    settings?: StickerSettingsActions;
+  };
+  /** Present only on a hub advertising `attachments.stored`, for a viewer holding `hub.settings`. */
+  attachmentSettingsActions?: AttachmentSettingsActions;
   onboardingActions: OnboardingAdminSectionActions;
   allianceActions: AlliancesSectionActions;
   hubIconActions: HubIconsSectionActions;
   surveyActions: SurveyAdminSectionActions;
+  /** The join application's editor (join-forms.md). The tab shows only with
+   *  these and a hub advertising `admission.application`. */
+  applicationActions?: SurveyAdminSectionActions;
+  /** The hub has `admission.application`: the application tab, and the
+   *  multi and consent kinds on both forms. */
+  joinFormsCapable?: boolean;
 
   /** These three subtrees stay platform-local render props rather than
    *  hoisted components: they have no counterpart to converge with on the
@@ -183,11 +225,55 @@ function hubToWavvonUrl(hubUrl: string): string {
 export function HubAdminPage(props: HubAdminPageProps) {
   const { t } = useTranslation();
   const [adminOpen, setAdminOpen] = useState<string | null>(null);
+  const [openApplication, setOpenApplication] = useState<string | null>(null);
   const adminRow = (id: string) => ({
     open: adminOpen === id,
     onToggle: () => setAdminOpen((cur) => (cur === id ? null : id)),
   });
   const [copiedShare, setCopiedShare] = useState(false);
+  // Overview saves itself. `edit` wraps a change handler: the value lands in
+  // the app's state as before, and a save follows `delay` ms after the last
+  // edit, 0 for a toggle or a select and a pause for typing.
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [pendingSave, setPendingSave] = useState<{ delay: number } | null>(null);
+  const saveRef = useRef(props.onSave);
+  saveRef.current = props.onSave;
+  function edit<T>(fn: (value: T) => void, delay = 700) {
+    return (value: T) => {
+      fn(value);
+      setPendingSave({ delay });
+    };
+  }
+  useEffect(() => {
+    if (!pendingSave) return;
+    const id = setTimeout(async () => {
+      setSaveStatus("saving");
+      await saveRef.current();
+      setSaveStatus("saved");
+    }, pendingSave.delay);
+    return () => clearTimeout(id);
+  }, [pendingSave]);
+  // One member action at a time: the row's buttons stay disabled until the
+  // hub answers, so a click that seems to do nothing cannot be sent eleven
+  // times, and the outcome is said out loud above the list.
+  const [memberBusy, setMemberBusy] = useState<string | null>(null);
+  const [memberNotice, setMemberNotice] = useState<{ text: string; error: boolean } | null>(null);
+  async function memberAction(m: MemberAdminInfo, run: (publicKey: string) => MemberAction, doneKey: string) {
+    setMemberBusy(m.public_key);
+    setMemberNotice(null);
+    try {
+      if ((await run(m.public_key)) === false) return;
+      setMemberNotice({ text: t(doneKey, { name: m.display_name || formatPubkey(m.public_key) }), error: false });
+    } catch (e) {
+      setMemberNotice({ text: t("hub.admin.members.action_failed", { error: e instanceof Error ? e.message : String(e) }), error: true });
+    } finally {
+      setMemberBusy(null);
+    }
+  }
+  const nowSecs = Date.now() / 1000;
+  const activeMutes = new Map(
+    props.mutes.filter((x) => x.expires_at === null || x.expires_at > nowSecs).map((x) => [x.target_public_key, x]),
+  );
   const [dirTags, setDirTags] = useState("");
   const [dirLanguage, setDirLanguage] = useState("en");
   const [dirBio, setDirBio] = useState("");
@@ -224,38 +310,45 @@ export function HubAdminPage(props: HubAdminPageProps) {
     }
   }
 
-  // Grouped into contiguous sections so the long admin nav reads clearly.
+  // Grouped by the job an admin is doing, most frequent first: members and
+  // moderation before connections and cosmetics, and no group of one.
   const G_GENERAL = t("hub.admin.group.general");
   const G_MEMBERS = t("hub.admin.group.members");
-  const G_FEDERATION = t("hub.admin.group.federation");
-  const G_INTEGRATIONS = t("hub.admin.group.integrations");
+  const G_JOINING = t("hub.admin.group.joining");
+  const G_MODERATION = t("hub.admin.group.moderation");
+  const G_CONNECTIONS = t("hub.admin.group.connections");
   const G_CUSTOM = t("hub.admin.group.customization");
-  const G_ADVANCED = t("hub.admin.group.advanced");
   const admin = props.isAdmin;
+  // The tab holds the hub-scoped acts (alliances.manage) and the per-alliance
+  // grant lists (roles.manage edits them); either is reason to reach it.
+  const showAlliances = props.canManageHubAlliances || props.canManageRoles;
   const TABS: { id: HubAdminTab; label: string; group: string }[] = [
     { id: "overview", label: t("hub.admin.tabs.overview"), group: G_GENERAL },
     ...(props.discoveryUrl ? [{ id: "discovery" as HubAdminTab, label: t("hub.admin.tabs.discovery"), group: G_GENERAL }] : []),
     { id: "tags", label: t("hub.admin.tabs.tags"), group: G_GENERAL },
-    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
     { id: "members", label: t("hub.admin.tabs.members"), group: G_MEMBERS },
-    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MEMBERS },
+    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
     { id: "invites", label: t("hub.admin.tabs.invites"), group: G_MEMBERS },
-    ...(admin && props.renderModerationTab ? [{ id: "moderation" as HubAdminTab, label: t("hub.admin.tabs.moderation"), group: G_MEMBERS }] : []),
-    ...(admin ? [
-      { id: "onboarding" as HubAdminTab, label: t("hub.admin.tabs.onboarding"), group: G_MEMBERS },
-      { id: "survey" as HubAdminTab, label: t("hub.admin.tabs.survey"), group: G_MEMBERS },
-    ] : []),
     { id: "certifications", label: t("hub.admin.tabs.certifications"), group: G_MEMBERS },
-    ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MEMBERS }] : []),
-    // Alliances is cross-hub channel sharing, not an app/webhook integration —
-    // grouped with other cross-hub features instead. The federated ban list
-    // lives inside the Moderation tab, not its own nav entry, so it doesn't
-    // move here.
-    ...(admin ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_FEDERATION }] : []),
-    { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_INTEGRATIONS },
+    ...(admin ? [
+      { id: "onboarding" as HubAdminTab, label: t("hub.admin.tabs.onboarding"), group: G_JOINING },
+      { id: "survey" as HubAdminTab, label: t("hub.admin.tabs.survey"), group: G_JOINING },
+      ...(props.joinFormsCapable && props.applicationActions
+        ? [{ id: "application" as HubAdminTab, label: t("hub.admin.tabs.application"), group: G_JOINING }]
+        : []),
+    ] : []),
+    ...(admin && props.renderModerationTab ? [{ id: "moderation" as HubAdminTab, label: t("hub.admin.tabs.moderation"), group: G_MODERATION }] : []),
+    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MODERATION },
+    ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MODERATION }] : []),
+    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_MODERATION }] : []),
+    ...(showAlliances ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_CONNECTIONS }] : []),
+    { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
-    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_ADVANCED }] : []),
+    ...(props.stickersAdmin?.packs ? [{ id: "stickers" as HubAdminTab, label: t("hub.admin.tabs.stickers"), group: G_CUSTOM }] : []),
+    ...(props.stickersAdmin?.storage ? [{ id: "sticker-storage" as HubAdminTab, label: t("hub.admin.tabs.sticker_storage"), group: G_CUSTOM }] : []),
+    ...(props.attachmentSettingsActions ? [{ id: "attachments" as HubAdminTab, label: t("hub.admin.tabs.attachments"), group: G_CUSTOM }] : []),
+    ...(props.stickersAdmin?.settings ? [{ id: "sticker-settings" as HubAdminTab, label: t("hub.admin.tabs.sticker_settings"), group: G_CUSTOM }] : []),
   ];
 
   return (
@@ -285,6 +378,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
         {props.tab === "overview" && (
           <section>
             <h1>{t("hub.admin.overview.title")}</h1>
+            {/* Every change saves itself: a toggle or a select at once, typing
+                after a short pause. The status sits where the Save button was. */}
+            <p className={props.saveError ? "error-text" : "muted"} role="status" style={{ fontSize: "var(--text-sm)", minHeight: "1.4em" }}>
+              {props.saveError ?? (saveStatus === "saving" ? t("hub.admin.overview.saving") : saveStatus === "saved" ? t("hub.admin.overview.saved") : "")}
+            </p>
             <SettingRow
               title={t("hub.admin.overview.identity")}
               state={props.hubName.trim() || t("hub.admin.overview.state.unnamed")}
@@ -292,11 +390,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
             >
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
-                  <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => props.onHubNameChange(e.target.value)} />
+                  <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => edit(props.onHubNameChange)(e.target.value)} />
                 </div>
                 <div className="settings-section">
                   <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
-                  <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => props.onHubDescriptionChange(e.target.value)} />
+                  <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => edit(props.onHubDescriptionChange)(e.target.value)} />
                 </div>
                 <div className="settings-section">
                   <label className="settings-label">{t("hub.admin.overview.icon")}</label>
@@ -307,8 +405,8 @@ export function HubAdminPage(props: HubAdminPageProps) {
                       <div className="hub-icon-preview placeholder">{t("hub.admin.overview.icon_none")}</div>
                     )}
                     <ImagePicker
-                      onPick={props.onHubIconChange}
-                      onClear={() => props.onHubIconChange("")}
+                      onPick={edit(props.onHubIconChange, 0)}
+                      onClear={() => edit(props.onHubIconChange, 0)("")}
                       hasValue={!!props.hubIcon}
                       buttonLabel={t("hub.admin.overview.icon_pick")}
                     />
@@ -317,167 +415,115 @@ export function HubAdminPage(props: HubAdminPageProps) {
             </SettingRow>
 
             <SettingRow
-              title={t("hub.admin.overview.access")}
-              state={props.requireApproval
-                ? t("hub.admin.overview.state.approval_on")
-                : t("hub.admin.overview.state.approval_off")}
-              {...adminRow("access")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label">{t("hub.admin.overview.membership")}</label>
-                  <label className="checkbox-label">
-                    <input type="checkbox" checked={props.requireApproval} onChange={(e) => props.onRequireApprovalChange(e.target.checked)} />
-                    {t("hub.admin.overview.require_approval")}
-                  </label>
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-antispam">{t("hub.admin.overview.antispam")}</label>
-                  <input id="admin-antispam" type="number" min={0} max={9999} value={props.minSecurityLevel} onChange={(e) => props.onMinSecurityLevelChange(Number(e.target.value))} />
-                </div>
-            </SettingRow>
+              title={t("hub.admin.overview.require_approval")}
+              control={<input type="checkbox" aria-label={t("hub.admin.overview.require_approval")} checked={props.requireApproval} onChange={(e) => edit(props.onRequireApprovalChange, 0)(e.target.checked)} />}
+            />
+            <SettingRow
+              title={t("hub.admin.overview.antispam")}
+              control={<input type="number" aria-label={t("hub.admin.overview.antispam")} min={0} max={9999} style={{ width: 90 }} value={props.minSecurityLevel} onChange={(e) => edit(props.onMinSecurityLevelChange)(Number(e.target.value))} />}
+            />
 
             <SettingRow
-              title={t("hub.admin.overview.locale")}
-              state={props.timezone || t("hub.admin.overview.timezone_unset")}
-              {...adminRow("locale")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-hub-timezone">{t("hub.admin.overview.timezone")}</label>
-                  <p className="muted">{t("hub.admin.overview.timezone_hint")}</p>
-                  {typeof supportedTimeZones === "function" ? (
-                    <select
-                      id="admin-hub-timezone"
-                      value={props.timezone}
-                      onChange={(e) => props.onTimezoneChange(e.target.value)}
-                    >
-                      <option value="">{t("hub.admin.overview.timezone_unset")}</option>
-                      {supportedTimeZones("timeZone").map((tz) => (
-                        <option key={tz} value={tz}>{tz}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="muted">{t("hub.admin.overview.timezone_unsupported")}</p>
-                  )}
-                  <label className="checkbox-label" style={{ marginTop: "var(--space-2)" }}>
-                    <input
-                      type="checkbox"
-                      checked={props.birthdaysEnabled}
-                      onChange={(e) => props.onBirthdaysEnabledChange(e.target.checked)}
-                    />
-                    {t("hub.admin.overview.birthdays")}
-                  </label>
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-name-color-mode">{t("hub.admin.overview.name_colors")}</label>
-                  <p className="muted">{t("hub.admin.overview.name_colors_hint")}</p>
+              title={t("hub.admin.overview.timezone")}
+              state={t("hub.admin.overview.timezone_hint")}
+              control={typeof supportedTimeZones === "function" ? (
+                <select
+                  aria-label={t("hub.admin.overview.timezone")}
+                  value={props.timezone}
+                  onChange={(e) => edit(props.onTimezoneChange, 0)(e.target.value)}
+                  style={{ maxWidth: 220 }}
+                >
+                  <option value="">{t("hub.admin.overview.timezone_unset")}</option>
+                  {supportedTimeZones("timeZone").map((tz) => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="muted">{t("hub.admin.overview.timezone_unsupported")}</span>
+              )}
+            />
+            <SettingRow
+              title={t("hub.admin.overview.birthdays")}
+              control={<input type="checkbox" aria-label={t("hub.admin.overview.birthdays")} checked={props.birthdaysEnabled} onChange={(e) => edit(props.onBirthdaysEnabledChange, 0)(e.target.checked)} />}
+            />
+            <SettingRow
+              title={t("hub.admin.overview.name_colors")}
+              state={t("hub.admin.overview.name_colors_hint")}
+              control={
+                <select
+                  aria-label={t("hub.admin.overview.name_colors")}
+                  value={props.nameColorMode}
+                  onChange={(e) => edit(props.onNameColorModeChange, 0)(e.target.value as typeof props.nameColorMode)}
+                >
+                  {/* Short labels: the sentence-length ones overflowed the
+                      select in a narrow card, and the line above already
+                      carries the explanation. */}
+                  <option value="role_over_user">{t("hub.admin.overview.name_colors.role_over_user")}</option>
+                  <option value="user_over_role">{t("hub.admin.overview.name_colors.user_over_role")}</option>
+                  <option value="role_only">{t("hub.admin.overview.name_colors.role_only")}</option>
+                  <option value="user_only">{t("hub.admin.overview.name_colors.user_only")}</option>
+                  <option value="none">{t("hub.admin.overview.name_colors.none")}</option>
+                </select>
+              }
+            />
+
+            {/* Channel and timeout are one decision, so they share a row; the
+                timeout only appears once a channel is picked. */}
+            <SettingRow
+              title={t("hub.admin.overview.afk_channel")}
+              state={t("hub.admin.overview.afk_channel_hint")}
+              control={
+                <span className="settings-row" style={{ gap: "var(--space-2)" }}>
                   <select
-                    id="admin-name-color-mode"
-                    value={props.nameColorMode}
-                    onChange={(e) => props.onNameColorModeChange(e.target.value as typeof props.nameColorMode)}
+                    aria-label={t("hub.admin.overview.afk_channel")}
+                    value={props.afkChannelId}
+                    onChange={(e) => edit(props.onAfkChannelIdChange, 0)(e.target.value)}
                   >
-                    {/* Short labels: the sentence-length ones overflowed the
-                        select in a narrow card, and the paragraph above
-                        already carries the explanation. */}
-                    <option value="role_over_user">{t("hub.admin.overview.name_colors.role_over_user")}</option>
-                    <option value="user_over_role">{t("hub.admin.overview.name_colors.user_over_role")}</option>
-                    <option value="role_only">{t("hub.admin.overview.name_colors.role_only")}</option>
-                    <option value="user_only">{t("hub.admin.overview.name_colors.user_only")}</option>
-                    <option value="none">{t("hub.admin.overview.name_colors.none")}</option>
+                    <option value="">{t("hub.admin.overview.afk_channel_none")}</option>
+                    {moveChannelOptions(props.channels).map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
                   </select>
-                </div>
-            </SettingRow>
-
+                  {props.afkChannelId && (
+                    <select
+                      aria-label={t("hub.admin.overview.afk_timeout")}
+                      value={props.afkTimeoutSecs}
+                      onChange={(e) => edit(props.onAfkTimeoutSecsChange, 0)(Number(e.target.value))}
+                    >
+                      <option value={60}>{t("hub.admin.overview.afk_timeout.1m")}</option>
+                      <option value={300}>{t("hub.admin.overview.afk_timeout.5m")}</option>
+                      <option value={900}>{t("hub.admin.overview.afk_timeout.15m")}</option>
+                      <option value={1800}>{t("hub.admin.overview.afk_timeout.30m")}</option>
+                      <option value={3600}>{t("hub.admin.overview.afk_timeout.1h")}</option>
+                    </select>
+                  )}
+                </span>
+              }
+            />
             <SettingRow
-              title={t("hub.admin.overview.channels_voice")}
-              state={props.channels.find((c) => c.id === props.afkChannelId)?.name
-                || t("hub.admin.overview.afk_channel_none")}
-              {...adminRow("channels-voice")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-afk-channel">{t("hub.admin.overview.afk_channel")}</label>
-                  <p className="muted">{t("hub.admin.overview.afk_channel_hint")}</p>
-                  {/* Channel and timeout are one decision, so they share a row —
-                      the timeout only appears once a channel is picked. */}
-                  <div className="settings-card-row">
-                    <div>
-                      <select
-                        id="admin-afk-channel"
-                        value={props.afkChannelId}
-                        onChange={(e) => props.onAfkChannelIdChange(e.target.value)}
-                      >
-                        <option value="">{t("hub.admin.overview.afk_channel_none")}</option>
-                        {moveChannelOptions(props.channels).map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {props.afkChannelId && (
-                      <div>
-                        <label className="settings-label" htmlFor="admin-afk-timeout">{t("hub.admin.overview.afk_timeout")}</label>
-                        <select
-                          id="admin-afk-timeout"
-                          value={props.afkTimeoutSecs}
-                          onChange={(e) => props.onAfkTimeoutSecsChange(Number(e.target.value))}
-                        >
-                          <option value={60}>{t("hub.admin.overview.afk_timeout.1m")}</option>
-                          <option value={300}>{t("hub.admin.overview.afk_timeout.5m")}</option>
-                          <option value={900}>{t("hub.admin.overview.afk_timeout.15m")}</option>
-                          <option value={1800}>{t("hub.admin.overview.afk_timeout.30m")}</option>
-                          <option value={3600}>{t("hub.admin.overview.afk_timeout.1h")}</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-max-depth">{t("hub.admin.overview.max_depth")}</label>
-                  <p className="muted">{t("hub.admin.overview.max_depth_hint")}</p>
-                  <input id="admin-max-depth" type="number" min={0} max={20} value={props.maxChannelDepth} onChange={(e) => props.onMaxChannelDepthChange(Number(e.target.value))} />
-                </div>
-            </SettingRow>
-
+              title={t("hub.admin.overview.max_depth")}
+              state={t("hub.admin.overview.max_depth_hint")}
+              control={<input type="number" aria-label={t("hub.admin.overview.max_depth")} min={0} max={20} style={{ width: 70 }} value={props.maxChannelDepth} onChange={(e) => edit(props.onMaxChannelDepthChange)(Number(e.target.value))} />}
+            />
             <SettingRow
-              title={t("hub.admin.overview.limits")}
-              state={t("hub.admin.overview.state.attachment_cap", {
-                mb: Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024)),
-              })}
-              {...adminRow("limits")}
-            >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-attachment-cap">
-                    {t("hub.admin.overview.attachment_cap")}
-                  </label>
-                  <p className="muted">{t("hub.admin.overview.attachment_cap_hint")}</p>
-                  <div className="settings-row">
-                    <input
-                      id="admin-attachment-cap"
-                      type="number"
-                      min={1}
-                      max={8}
-                      step={1}
-                      value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
-                      onChange={(e) =>
-                        props.onMaxAttachmentBytesChange(Number(e.target.value) * 1024 * 1024)
-                      }
-                    />
-                    <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
-                  </div>
-                </div>
-                {/* Deliberately not editable here: these come from the
-                    environment and need a restart, so an input would imply
-                    something this page cannot deliver. Named so an operator
-                    knows what to go and change. */}
-                <div className="settings-section">
-                  <label className="settings-label">{t("hub.admin.overview.startup_only")}</label>
-                  {/* The env var names stay outside the catalog: a translator
-                      must not be able to rename an operator's variable. */}
-                  <p className="muted">
-                    {t("hub.admin.overview.startup_only.db")} — <code>WAVVON_DB_MAX_CONNECTIONS</code>.{" "}
-                    {t("hub.admin.overview.startup_only.udp")} — <code>WAVVON_VOICE_UDP_PORT</code>.{" "}
-                    {t("hub.admin.overview.startup_only.rest")}
-                  </p>
-                </div>
-            </SettingRow>
+              title={t("hub.admin.overview.attachment_cap")}
+              state={t("hub.admin.overview.attachment_cap_hint")}
+              control={
+                <span className="settings-row" style={{ gap: "var(--space-1)" }}>
+                  <input
+                    type="number"
+                    aria-label={t("hub.admin.overview.attachment_cap")}
+                    min={1}
+                    max={8}
+                    step={1}
+                    style={{ width: 60 }}
+                    value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
+                    onChange={(e) => edit(props.onMaxAttachmentBytesChange)(Number(e.target.value) * 1024 * 1024)}
+                  />
+                  <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
+                </span>
+              }
+            />
 
             <SettingRow
               title={t("hub.admin.overview.welcome")}
@@ -495,7 +541,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
                         maxLength={100}
                         value={props.welcomeLabel}
                         placeholder={t("hub.admin.overview.welcome_label_placeholder")}
-                        onChange={(e) => props.onWelcomeLabelChange(e.target.value)}
+                        onChange={(e) => edit(props.onWelcomeLabelChange)(e.target.value)}
                       />
                     </div>
                     <div>
@@ -505,7 +551,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
                         type="text"
                         value={props.welcomeInviteUrl}
                         placeholder={t("hub.admin.overview.welcome_invite_url_placeholder")}
-                        onChange={(e) => props.onWelcomeInviteUrlChange(e.target.value)}
+                        onChange={(e) => edit(props.onWelcomeInviteUrlChange)(e.target.value)}
                       />
                     </div>
                   </div>
@@ -517,7 +563,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
                       maxLength={280}
                       value={props.farewellLabel}
                       placeholder={t("hub.admin.overview.farewell_label_placeholder")}
-                      onChange={(e) => props.onFarewellLabelChange(e.target.value)}
+                      onChange={(e) => edit(props.onFarewellLabelChange)(e.target.value)}
                     />
                     <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
                       {t("hub.admin.overview.farewell_label_hint")}
@@ -531,10 +577,18 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   )}
                 </div>
             </SettingRow>
-            {props.saveError && <p className="error-text">{props.saveError}</p>}
-            <div className="settings-save-bar">
-              <button className="btn-primary" onClick={props.onSave}>{t("hub.admin.overview.save")}</button>
-            </div>
+
+            {/* Deliberately not editable here: these come from the environment
+                and need a restart, so a control would imply something this page
+                cannot deliver. Named so an operator knows what to go and change.
+                The env var names stay outside the catalog: a translator must
+                not be able to rename an operator's variable. */}
+            <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-4)" }}>
+              <strong>{t("hub.admin.overview.startup_only")}</strong>{" "}
+              {t("hub.admin.overview.startup_only.db")} — <code>WAVVON_DB_MAX_CONNECTIONS</code>.{" "}
+              {t("hub.admin.overview.startup_only.udp")} — <code>WAVVON_VOICE_UDP_PORT</code>.{" "}
+              {t("hub.admin.overview.startup_only.rest")}
+            </p>
           </section>
         )}
 
@@ -616,26 +670,73 @@ export function HubAdminPage(props: HubAdminPageProps) {
                         <td>
                           <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
                           <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
+                          {p.ban_evasion_match && (
+                            <div className="muted" style={{ fontSize: "var(--text-xs)" }} title={p.ban_evasion_match}>
+                              {t("hub.admin.members.pending.ban_evasion", { banned: formatPubkey(p.ban_evasion_match) })}
+                            </div>
+                          )}
                         </td>
                         <td>{formatRelative(p.first_seen_at)}</td>
                         <td>
                           <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
+                          {p.has_application && props.loadApplication && (
+                            <button
+                              className="btn-small btn-secondary"
+                              aria-expanded={openApplication === p.public_key}
+                              onClick={() => setOpenApplication((cur) => (cur === p.public_key ? null : p.public_key))}
+                            >
+                              {t("hub.admin.members.pending.application")}
+                            </button>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                    )).flatMap((row, i) => {
+                      const p = props.pendingMembers[i];
+                      return openApplication === p.public_key && props.loadApplication
+                        ? [row, (
+                          <tr key={`${p.public_key}-application`}>
+                            <td colSpan={3}>
+                              <PendingApplicationDetails
+                                pubkey={p.public_key}
+                                loadApplication={props.loadApplication}
+                                onReject={props.onRejectMember}
+                              />
+                            </td>
+                          </tr>
+                        )]
+                        : [row];
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
             <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
-            {props.members.map((m) => (
+            {memberNotice && (
+              <p role="status" className={memberNotice.error ? "error-text" : "muted"} style={{ marginBottom: "var(--space-3)" }}>
+                {memberNotice.text}
+              </p>
+            )}
+            {props.members.map((m) => {
+              const mute = activeMutes.get(m.public_key);
+              const busy = memberBusy === m.public_key;
+              const state = [
+                t("hub.admin.members.state", {
+                  roles: m.roles.map((r) => r.name).join(", ") || t("hub.admin.members.state.no_roles"),
+                  joined: formatRelative(m.first_seen_at),
+                }),
+                mute &&
+                  (mute.expires_at === null
+                    ? t("hub.admin.members.muted")
+                    : t("hub.admin.members.timed_out_until", { time: formatDateTime(mute.expires_at) })),
+                props.voiceMutedKeys.has(m.public_key) && t("hub.admin.members.voice_muted"),
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
               <SettingRow
                 key={m.public_key}
                 title={m.display_name || t("hub.admin.members.pending.no_name")}
-                state={t("hub.admin.members.state", {
-                  roles: m.roles.map((r) => r.name).join(", ") || t("hub.admin.members.state.no_roles"),
-                  joined: formatRelative(m.first_seen_at),
-                })}
+                state={state}
                 {...adminRow(m.public_key)}
               >
                 <p className="member-pk" title={m.public_key} style={{ marginBottom: "var(--space-3)" }}>
@@ -656,22 +757,31 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
                 <span className="settings-label">{t("hub.admin.members.group.limit")}</span>
                 <div className="settings-row" style={{ marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
-                  <button className="btn-small" onClick={() => props.onMuteMember(m.public_key)}>{t("hub.admin.members.mute")}</button>
-                  <button className="btn-small" onClick={() => props.onTimeoutMember(m.public_key)}>{t("hub.admin.members.timeout")}</button>
-                  {props.voiceMutedKeys.has(m.public_key) ? (
-                    <button className="btn-small" onClick={() => props.onVoiceUnmuteMember(m.public_key)}>{t("hub.admin.members.voice_unmute")}</button>
+                  {mute ? (
+                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onUnmuteMember, "hub.admin.members.done.unmuted")}>
+                      {t(mute.expires_at === null ? "hub.admin.members.unmute" : "hub.admin.members.end_timeout")}
+                    </button>
                   ) : (
-                    <button className="btn-small" onClick={() => props.onVoiceMuteMember(m.public_key)}>{t("hub.admin.members.voice_mute")}</button>
+                    <>
+                      <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onMuteMember, "hub.admin.members.done.muted")}>{t("hub.admin.members.mute")}</button>
+                      <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onTimeoutMember, "hub.admin.members.done.timed_out")}>{t("hub.admin.members.timeout")}</button>
+                    </>
+                  )}
+                  {props.voiceMutedKeys.has(m.public_key) ? (
+                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceUnmuteMember, "hub.admin.members.done.voice_unmuted")}>{t("hub.admin.members.voice_unmute")}</button>
+                  ) : (
+                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceMuteMember, "hub.admin.members.done.voice_muted")}>{t("hub.admin.members.voice_mute")}</button>
                   )}
                 </div>
 
                 <span className="settings-label">{t("hub.admin.members.group.remove")}</span>
                 <div className="settings-row" style={{ flexWrap: "wrap" }}>
-                  <button className="btn-small danger" onClick={() => props.onKickMember(m.public_key)}>{t("hub.admin.members.kick")}</button>
-                  <button className="btn-small danger" onClick={() => props.onBanMember(m.public_key)}>{t("hub.admin.members.ban")}</button>
+                  <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onKickMember, "hub.admin.members.done.kicked")}>{t("hub.admin.members.kick")}</button>
+                  <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onBanMember, "hub.admin.members.done.banned")}>{t("hub.admin.members.ban")}</button>
                 </div>
               </SettingRow>
-            ))}
+              );
+            })}
             {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
           </section>
         )}
@@ -737,13 +847,39 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <SoundboardAdminSection actions={props.soundboardActions} />
         )}
 
+        {props.tab === "stickers" && props.stickersAdmin?.packs && (
+          <StickerPacksSection actions={props.stickersAdmin.packs} hubUrl={props.stickersAdmin.hubUrl} />
+        )}
+
+        {props.tab === "sticker-storage" && props.stickersAdmin?.storage && (
+          <StickerStorageSection actions={props.stickersAdmin.storage} hubUrl={props.stickersAdmin.hubUrl} />
+        )}
+
+        {props.tab === "sticker-settings" && props.stickersAdmin?.settings && (
+          <StickerSettingsSection
+            actions={props.stickersAdmin.settings}
+            rolesActions={props.rolesActions}
+            canManageRoles={props.canManageRoles}
+          />
+        )}
+
+        {props.tab === "attachments" && props.attachmentSettingsActions && (
+          <AttachmentSettingsSection actions={props.attachmentSettingsActions} />
+        )}
+
         {props.tab === "moderation" && props.isAdmin && props.renderModerationTab?.()}
 
-        {props.tab === "alliances" && props.isAdmin && (
+        {props.tab === "alliances" && showAlliances && (
           <AlliancesSection
             activeHubUrl={props.activeHubUrl}
             channels={props.channels}
             actions={props.allianceActions}
+            managerRoles={{
+              listRoles: props.rolesActions.listRoles,
+              canManageRoles: props.canManageRoles,
+              myMaxPriority: props.myMaxPriority,
+            }}
+            canManageHubAlliances={props.canManageHubAlliances}
           />
         )}
         {props.tab === "hub-icons" && props.isAdmin && (
@@ -753,10 +889,13 @@ export function HubAdminPage(props: HubAdminPageProps) {
           <OnboardingAdminSection actions={props.onboardingActions} />
         )}
         {props.tab === "survey" && props.isAdmin && (
-          <SurveyAdminSection actions={props.surveyActions} />
+          <SurveyAdminSection actions={props.surveyActions} extendedKinds={props.joinFormsCapable} />
+        )}
+        {props.tab === "application" && props.isAdmin && props.joinFormsCapable && props.applicationActions && (
+          <SurveyAdminSection key="application" actions={props.applicationActions} purpose="application" extendedKinds />
         )}
         {props.tab === "audit-log" && props.isAdmin && (
-          <AuditLogSection actions={props.auditLogActions} />
+          <AuditLogSection actions={props.auditLogActions} members={props.members} channels={props.channels} />
         )}
       </main>
     </div>

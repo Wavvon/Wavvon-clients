@@ -1,5 +1,6 @@
 import type { VoiceKeyBundle } from "./voiceKeys";
 import { pushSample, rttStats, type RttStats } from "./connectionStats";
+import { hubSupports } from "./session";
 
 /** How often to probe. Two seconds keeps the readout feeling live without
  *  making the measurement itself part of the traffic it measures. */
@@ -88,7 +89,10 @@ export class HubWebSocket {
     const base = this.hub_url
       .replace(/^http:\/\//, "ws://")
       .replace(/^https:\/\//, "wss://");
-    return `${base}/ws?token=${encodeURIComponent(this.token)}`;
+    // A live reaches us only once opened (#259); read at every connect, so a
+    // reconnect after capabilities arrive picks it up.
+    const onRequest = hubSupports(this.hub_id, "screenshare.onrequest") ? "&streams=on_request" : "";
+    return `${base}/ws?token=${encodeURIComponent(this.token)}${onRequest}`;
   }
 
   private connect(): void {
@@ -158,7 +162,8 @@ export class HubWebSocket {
       this.handlers.onVideo?.(tagged);
     } else if (
       type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" ||
-      type === "voice_participant_speaking" || type === "voice_roster_update"
+      type === "voice_participant_speaking" || type === "voice_roster_update" ||
+      type === "voice_hands" || type === "voice_talk_granted"
     ) {
       this.handlers.onVoiceState?.(tagged);
     } else if (type === "screen_share_chunk") {
@@ -166,8 +171,6 @@ export class HubWebSocket {
       this.pendingChunkEnvelope = { stream_id: env.stream_id, is_init: env.is_init };
     } else if (
       type === "screen_share_started" || type === "screen_share_stopped" ||
-      type === "screen_share_offer_in" || type === "screen_share_answer_in" || type === "screen_share_ice_in" ||
-      type === "screen_share_viewer_joined" || type === "screen_share_viewer_left" ||
       type === "stream_subscribed" || type === "stream_subscription_ended" || type === "hub_streams"
     ) {
       this.handlers.onScreenShare?.(tagged);

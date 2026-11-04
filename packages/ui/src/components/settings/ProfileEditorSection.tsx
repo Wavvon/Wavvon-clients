@@ -26,15 +26,13 @@ interface Props {
   // Active account's pubkey — hub profiles (incl. badges) are read via the
   // public profile endpoint, which is keyed by it.
   publicKey: string | null;
-  // All on-device accounts + the active one, so the scope line can offer
-  // "[profile] for [account]" when there's more than one. The account choice
-  // flows back through onManagingChange (owned by the settings shell).
-  accounts: ProfileAccountRef[] | null;
-  activeId: string | null;
-  onManagingChange: (id: string) => void;
   // Lets the caller refresh meInfo/users when a saved hub is the active one.
   onHubProfileSaved?: (hubId: string) => void;
   actions: ProfileEditorActions;
+  /** The viewer's own preference about other members' birthdays, kept next
+   *  to their own birthday. Omit to hide the toggle. */
+  showBirthdays?: boolean;
+  onShowBirthdaysChange?: (show: boolean) => void;
 }
 
 const DEFAULT_CONTEXT = "__default__";
@@ -126,7 +124,7 @@ const trimToNull = (s: string) => {
 // Edits are kept as per-context drafts (dirty contexts get a • in the
 // dropdown) and a single "Save changes" persists all of them: default →
 // local scoped storage, each hub → its own session (PATCH /me).
-export function ProfileEditorSection({ hubs, account, isActive, publicKey, accounts, activeId, onManagingChange, onHubProfileSaved, actions }: Props) {
+export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHubProfileSaved, actions, showBirthdays, onShowBirthdaysChange }: Props) {
   const { t } = useTranslation();
   const [context, setContext] = useState<string>(DEFAULT_CONTEXT);
   const [tab, setTab] = useState<CardTab>("bio");
@@ -438,28 +436,6 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
               </option>
             ))}
         </select>
-        {accounts && accounts.length > 1 && (
-          <>
-            <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
-              {t("settings.profile.scope.for")}
-            </span>
-            <select
-              id="profile-account-select"
-              value={account.id}
-              onChange={(e) => onManagingChange(e.target.value)}
-              style={{ maxWidth: 220 }}
-            >
-              {accounts.map((a) => {
-                const label = a.account_label || formatPubkey(a.id);
-                return (
-                  <option key={a.id} value={a.id}>
-                    {a.id === activeId ? t("settings.account.managing.active_option", { label }) : label}
-                  </option>
-                );
-              })}
-            </select>
-          </>
-        )}
         {/* Fixed home next to the dropdowns — never hidden, disabled when it
             can't apply (default context, already following, or no default). */}
         <button
@@ -608,6 +584,19 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, accou
                     </button>
                   )}
                 </div>
+                <p className="muted" style={{ fontSize: "var(--text-xs)", margin: "4px 0 0" }}>
+                  {t("settings.profile.fields.birthday_hint")}
+                </p>
+                {onShowBirthdaysChange && (
+                  <label className="settings-row" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+                    <input
+                      type="checkbox"
+                      checked={showBirthdays ?? true}
+                      onChange={(e) => onShowBirthdaysChange?.(e.target.checked)}
+                    />
+                    {t("settings.profile.fields.show_birthdays")}
+                  </label>
+                )}
               </div>
               <div className="profile-card-idline">
                 {account.id.slice(0, 16)}…{account.id.slice(-8)}

@@ -222,7 +222,8 @@ pub async fn complete_pairing(
         .unwrap_or_default();
     if !home_hubs.is_empty() {
         let client = http_client()?;
-        let _ = crate::prefs_blob::push_prefs_blob(&master, &blob_key, &home_hubs, &client).await;
+        let _ =
+            crate::prefs_blob::push_prefs_blob(&master, &blob_key, &home_hubs, &client, None).await;
     }
 
     // multi-device.md "Mechanism A": wrap this device's canonical DM DH
@@ -358,7 +359,7 @@ pub async fn claim_pairing_offer(
 
     let subkey = DeviceSubkey::generate();
     let subkey_pubkey = subkey.public_key_hex();
-    let subkey_secret_hex = hex::encode(subkey.secret_bytes());
+    let subkey_secret_hex = hex::encode(subkey.secret_bytes().as_ref());
 
     let bytes = PairingClaim::signing_bytes(&offer.pairing_token, &subkey_pubkey, &device_label);
     let proof = hex::encode(subkey.sign(&bytes).to_bytes());

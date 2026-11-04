@@ -47,6 +47,19 @@ export interface Attachment {
   data_b64: string;
 }
 
+/** A file stored on the hub (capability `attachments.stored`); `url` is relative to the hub holding the message. */
+export interface AttachmentRef {
+  id: string;
+  url: string;
+  name: string;
+  mime: string;
+  kind: "image" | "file";
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  state: "ok" | "removed" | "expired";
+}
+
 // Own presence state. "invisible" = connected but shown offline to others.
 export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
 
@@ -79,10 +92,26 @@ export interface VoiceMuteInfo {
   created_at: number;
 }
 
+/** A row of `GET /moderation/mutes`: a mute when `expires_at` is null, a
+ *  timeout otherwise (both share one table on the hub). */
+export interface MuteInfo {
+  target_public_key: string;
+  muted_by: string;
+  reason: string | null;
+  expires_at: number | null;
+  created_at: number;
+}
+
 export interface PendingUser {
   public_key: string;
   display_name: string | null;
   first_seen_at: number;
+  /** The banned identity whose last address this joiner arrived from, on a
+   *  hub with `admission.banevasion`. A hint for the moderator: a shared
+   *  address (a family, a school, a mobile carrier) produces it too. */
+  ban_evasion_match?: string | null;
+  /** They filled the hub's join application (`admission.application`). */
+  has_application?: boolean;
 }
 
 export interface Conversation {
@@ -221,12 +250,21 @@ export interface SurveyChoice {
   display_order: number;
 }
 
+/** A question on either join form (join-forms.md). A required `consent` must
+ *  be checked: the hub refuses an unchecked one as
+ *  `consent_refused:<question id>`. `multi` and `consent` need a hub with
+ *  `admission.application`. */
 export interface SurveyQuestion {
   id: string;
   prompt: string;
-  kind: "choice" | "text";
+  kind: "choice" | "text" | "multi" | "consent";
   required: boolean;
   display_order: number;
+  help?: string;
+  multiline?: boolean;
+  max_len?: number;
+  min_choices?: number;
+  max_choices?: number;
   choices?: SurveyChoice[];
 }
 
@@ -238,7 +276,17 @@ export interface Survey {
 export interface SurveyAnswer {
   question_id: string;
   choice_id?: string;
+  choice_ids?: string[];
   text_answer?: string;
+  checked?: boolean;
+}
+
+/** `GET /application/status`. */
+export interface ApplicationStatus {
+  state: "none" | "submitted" | "rejected";
+  reason?: string;
+  /** Unix seconds from which a rejected applicant may apply again. */
+  retry_after?: number;
 }
 
 export interface SurveySubmitResult {
@@ -270,6 +318,7 @@ export interface SurveyResponseAdmin {
     prompt: string;
     choice_label: string | null;
     text_answer: string | null;
+    checked?: boolean;
   }>;
 }
 
@@ -364,7 +413,7 @@ export interface AllianceSharedChannel {
   channel_name: string;
   hub_public_key: string;
   hub_name: string;
-  channel_type: "text" | "forum" | "banner" | "spawner";
+  channel_type: "text" | "voice" | "forum" | "banner" | "spawner";
   parent_id: string | null;
   is_category: boolean;
   /** Policy governing writes proxied from other alliance-member hubs into
@@ -419,88 +468,3 @@ export interface PendingBadgeOffer {
   created_at: number;
 }
 
-// --- Screen share signalling: the same four names meant two things ----------
-//
-// `WsScreenShareOffer` was `screen_share_offer_in` on web and
-// `screen_share_offer` on desktop. Those are not a drift and not a rename:
-// the hub serves **both**, one in each direction (`routes/chat_models.rs`),
-// and the two apps had each declared the half they happened to need under the
-// shared name. Direction is in the name now, and both halves exist once.
-//
-// Reconciling them turned up three more mismatches: every inbound message
-// carries `to_pubkey`, which the web copies dropped; `screen_share_viewer_joined`
-// identifies the viewer as `from_pubkey`, which desktop called `viewer_pubkey`;
-// and the outbound messages carry no `from_pubkey` at all, because the hub
-// takes the sender from the session rather than the body.
-
-/** Client → hub. No `from_pubkey`: the hub uses the session's identity. */
-export interface WsScreenShareOfferOut {
-  type: "screen_share_offer";
-  channel_id: string;
-  to_pubkey: string;
-  stream_id: string;
-  /** Opaque SDP text — the hub does not parse it. */
-  sdp: string;
-}
-
-/** Hub → client, forwarded to the target viewer. `from_pubkey` is the sharer. */
-export interface WsScreenShareOfferIn {
-  type: "screen_share_offer_in";
-  channel_id: string;
-  to_pubkey: string;
-  stream_id: string;
-  sdp: string;
-  from_pubkey: string;
-}
-
-export interface WsScreenShareAnswerOut {
-  type: "screen_share_answer";
-  channel_id: string;
-  to_pubkey: string;
-  stream_id: string;
-  sdp: string;
-}
-
-/** Hub → client, forwarded to the sharer. `from_pubkey` is the viewer. */
-export interface WsScreenShareAnswerIn {
-  type: "screen_share_answer_in";
-  channel_id: string;
-  to_pubkey: string;
-  stream_id: string;
-  sdp: string;
-  from_pubkey: string;
-}
-
-export interface WsScreenShareIceOut {
-  type: "screen_share_ice";
-  channel_id: string;
-  to_pubkey: string;
-  stream_id: string;
-  /** JSON string: `{ candidate, sdpMid, sdpMLineIndex }` — opaque to the hub. */
-  candidate: string;
-}
-
-export interface WsScreenShareIceIn {
-  type: "screen_share_ice_in";
-  channel_id: string;
-  to_pubkey: string;
-  stream_id: string;
-  candidate: string;
-  from_pubkey: string;
-}
-
-/** Hub → sharer: a viewer wants to negotiate. The viewer is `from_pubkey`. */
-export interface WsScreenShareViewerJoined {
-  type: "screen_share_viewer_joined";
-  channel_id: string;
-  stream_id: string;
-  from_pubkey: string;
-}
-
-/** Hub → sharer: a viewer left. Same shape as the join. */
-export interface WsScreenShareViewerLeft {
-  type: "screen_share_viewer_left";
-  channel_id: string;
-  stream_id: string;
-  from_pubkey: string;
-}

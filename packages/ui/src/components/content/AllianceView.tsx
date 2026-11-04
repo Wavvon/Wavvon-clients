@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Message, AllianceSharedChannel, AlliancePerson } from "../../types";
+import type { AllianceScrollback } from "../../hooks/useAlliances";
 import { formatPubkey, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 import { MessageContent } from "../MessageContent";
@@ -15,6 +16,7 @@ interface SelectedAllianceChannel {
 
 interface Props {
   selectedAllianceChannel: SelectedAllianceChannel;
+  hubUrl?: string;
   allianceMessages: Message[];
   inputText: string;
   knownDisplayNames: Set<string>;
@@ -28,6 +30,7 @@ interface Props {
    *  else's hub lives, so the inbound-loss row is the only thing in the app
    *  that says whether that room's audio is arriving at all. */
   connectionStatus?: React.ReactNode;
+  scrollback: AllianceScrollback;
   /** Absent when the hub lacks `alliance.people`: no People control then. */
   people?: {
     actions: AlliancePeopleActions;
@@ -38,6 +41,7 @@ interface Props {
 
 export function AllianceView({
   selectedAllianceChannel,
+  hubUrl,
   allianceMessages,
   inputText,
   knownDisplayNames,
@@ -47,6 +51,7 @@ export function AllianceView({
   onOpenImage,
   connectionStatus,
   people,
+  scrollback,
 }: Props) {
   const { t } = useTranslation();
   const [showPeople, setShowPeople] = useState(false);
@@ -88,7 +93,7 @@ export function AllianceView({
           onMessage={people.onMessage}
         />
       ) : (<>
-      <div className="messages">
+      <div className="messages" ref={scrollback.ref} onScroll={scrollback.onScroll}>
         {allianceMessages.map((m) => {
           const senderLabel = m.sender_name || formatPubkey(m.sender);
           return (
@@ -101,7 +106,7 @@ export function AllianceView({
                 <MessageContent content={m.content} knownNames={knownDisplayNames} myName={myDisplayName} />
               </span>
               {m.attachments && m.attachments.length > 0 && (
-                <MessageAttachments items={m.attachments} onImageClick={onOpenImage} />
+                <MessageAttachments items={m.attachments} hubUrl={hubUrl} onImageClick={onOpenImage} />
               )}
               <span className="message-time" title={formatFullTimestamp(m.created_at)}>
                 {formatRelative(m.created_at)}

@@ -10,6 +10,8 @@
 //
 // Keyed by the account id from the Rust registry, since desktop is
 // multi-account and the answer differs per identity.
+import type { AccountSummary } from "../accounts/store";
+
 const KEY = "wavvon.identity_backed_up";
 
 function read(): Record<string, boolean> {
@@ -23,6 +25,12 @@ function read(): Record<string, boolean> {
 export function isIdentityBackedUp(accountId: string | null | undefined): boolean {
   if (!accountId) return true; // nothing to nag about yet
   return read()[accountId] === true;
+}
+
+// The one condition behind every backup marker (settings tab, banner). A
+// paired account has no phrase of its own to save, so it never needs one.
+export function identityNeedsBackup(account: AccountSummary | null | undefined): boolean {
+  return !!account && account.kind === "owned" && !isIdentityBackedUp(account.id);
 }
 
 export function markIdentityBackedUp(accountId: string | null | undefined): void {

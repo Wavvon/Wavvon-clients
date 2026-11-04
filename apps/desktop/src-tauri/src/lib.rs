@@ -31,6 +31,7 @@ mod recovery;
 mod screen_share;
 mod soundboard;
 mod state;
+mod stickers;
 mod types;
 mod updater;
 mod voice_cmd;
@@ -118,7 +119,6 @@ pub fn run() {
             hub_session::leave_hub,
             hub_session::auto_connect_saved,
             hub_session::reconnect_hub,
-            hub_session::reorder_hubs,
             hub_session::preview_hub_info,
             hub_session::get_hub_ws_info,
             // Channels
@@ -131,6 +131,7 @@ pub fn run() {
             channels::update_channel_appearance,
             channels::set_forum_require_tag,
             channels::set_channel_nsfw,
+            channels::set_channel_type,
             channels::delete_channel,
             channels::reorder_channels,
             channels::subscribe_channel,
@@ -170,12 +171,13 @@ pub fn run() {
             messages::mark_post_read,
             messages::upload_file,
             messages::upload_file_bytes,
+            messages::upload_attachment,
             messages::pin_message,
             messages::unpin_message,
             messages::get_pinned_messages,
             // Voice
-            voice_cmd::voice_active_users,
             voice_cmd::voice_channel_participants,
+            voice_cmd::voice_floor,
             voice_cmd::voice_join,
             voice_cmd::mint_alliance_voice_grant,
             voice_cmd::alliance_voice_join,
@@ -201,6 +203,10 @@ pub fn run() {
             soundboard::soundboard_upload_clip,
             soundboard::soundboard_delete_clip,
             soundboard::soundboard_play_clip,
+            stickers::sticker_api,
+            stickers::sticker_upload,
+            prefs_blob::sticker_collection_get,
+            prefs_blob::sticker_collection_update,
             // Local store
             local_store::load_appearance,
             local_store::save_appearance,
@@ -251,6 +257,8 @@ pub fn run() {
             admin::get_hub_settings,
             admin::list_pending_members,
             admin::approve_member,
+            admin::application_response,
+            admin::reject_member,
             admin::list_hub_icons,
             admin::create_hub_icon,
             admin::rename_hub_icon,
@@ -263,6 +271,8 @@ pub fn run() {
             admin::timeout_user_cmd,
             admin::voice_mute_user_cmd,
             admin::voice_unmute_user_cmd,
+            admin::unmute_user_cmd,
+            admin::list_mutes,
             admin::list_voice_mutes,
             admin::channel_ban_user,
             admin::channel_unban_user,
@@ -282,6 +292,7 @@ pub fn run() {
             admin::update_my_profile_on_hub,
             // Alliance / federation
             admin_alliance::list_alliances,
+            admin_alliance::get_alliance_members,
             admin_alliance::create_alliance,
             admin_alliance::create_alliance_invite,
             admin_alliance::join_alliance,
@@ -294,6 +305,7 @@ pub fn run() {
             admin_alliance::send_alliance_channel_message,
             admin_alliance::share_channel_with_alliance,
             admin_alliance::unshare_channel_from_alliance,
+            admin_alliance::alliance_managers,
             // Accounts (multi-account switcher)
             accounts::list_accounts,
             accounts::create_account,
@@ -360,11 +372,16 @@ pub fn run() {
             lobby::set_challenge_settings,
             lobby::survey_current,
             lobby::survey_submit,
+            lobby::application_form,
+            lobby::application_preview,
+            lobby::application_status,
+            lobby::application_submit,
             lobby::survey_admin_get,
             lobby::survey_admin_put,
             lobby::survey_admin_responses,
             // Identity recovery + key rotation
             recovery::get_recovery_contacts,
+            recovery::list_recovery_requests_to_attest,
             recovery::set_recovery_contacts,
             recovery::remove_recovery_contact,
             recovery::submit_rotation_request,
@@ -385,7 +402,6 @@ pub fn run() {
             events_polls::get_event_rsvps,
             events_polls::create_event_squad_rooms,
             // Screen capture / PiP
-            screen_share::list_capture_sources,
             screen_share::open_pip_window,
             screen_share::close_pip_window,
             // Mini-app windows
@@ -433,8 +449,6 @@ pub fn run() {
             passkey_cmd::passkey_list,
             passkey_cmd::passkey_delete,
             passkey_cmd::passkey_rename,
-            passkey_cmd::trusted_device_list,
-            passkey_cmd::trusted_device_revoke,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

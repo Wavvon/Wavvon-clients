@@ -45,7 +45,7 @@ test("a screen share arrives as decoded frames, not just a panel", async ({ page
   await expectInHub(page);
 
   const channel = uniqueName("frames");
-  await createChannel(page, channel);
+  await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: viewer } = await newMemberPage(browser, uniqueName("Viewer"));
@@ -53,14 +53,23 @@ test("a screen share arrives as decoded frames, not just a panel", async ({ page
     await joinVoice(viewer, channel);
 
     await page.getByRole("button", { name: "Share screen" }).click();
-    await expect(page.locator(".screen-share-self-preview")).toBeVisible({ timeout: 20000 });
+    await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
+
+
+    await expect(page.locator(".voice-self-share")).toBeVisible({ timeout: 20000 });
+    // A live never opens by itself (#259): the viewer sees it in the tray
+    // and opens it.
+    const chip = viewer.locator(".live-chip").first();
+    await expect(chip).toBeVisible({ timeout: 20000 });
+    await expect(viewer.locator(".screen-share-panel")).toBeHidden();
+    await chip.click();
     await expect(viewer.locator(".screen-share-panel")).toBeVisible({ timeout: 20000 });
 
     // The sharer's own preview is a local MediaStream and proves nothing about
     // the relay — but it does separate "capture failed" from "delivery
     // failed", which is worth a line when this goes red.
     const selfDecoded = await page.evaluate(() => {
-      const el = document.querySelector<HTMLVideoElement>(".screen-share-self-preview video");
+      const el = document.querySelector<HTMLVideoElement>(".voice-self-share video");
       return el ? { videoWidth: el.videoWidth, currentTime: el.currentTime } : null;
     });
     expect(selfDecoded, "the sharer must be capturing something").not.toBeNull();

@@ -90,7 +90,7 @@ describe("hubFetchAs", () => {
         return new Response(JSON.stringify({ public_key: HUB_ID }), { status: 200 });
       }
       if (url === `${HUB_URL}/auth/challenge`) {
-        return new Response(JSON.stringify({ challenge: "00".repeat(32) }), { status: 200 });
+        return new Response(JSON.stringify({ challenge: "00".repeat(32), scheme: "tagged-v1" }), { status: 200 });
       }
       if (url === `${HUB_URL}/auth/verify`) {
         return new Response(JSON.stringify({ token: "token-for-other" }), { status: 200 });

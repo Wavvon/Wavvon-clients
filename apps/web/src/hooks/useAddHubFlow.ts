@@ -3,11 +3,12 @@ import type { RefObject } from "react";
 import { parseHubInput } from "@wavvon/core";
 import type { HubInputResult } from "@wavvon/core";
 import {
-  addHub, listHubs, previewHubInfo, verifyLanFingerprint, authenticateWithPasskey,
+  addHub, listHubs, previewHubInfo, previewApplication, verifyLanFingerprint, authenticateWithPasskey,
   publishDhKey, HubApiError, ChallengeRequiredError,
 } from "@platform";
 import type { WsHandlers } from "@platform";
 import type { Hub } from "@shared/types";
+import type { Survey } from "@wavvon/ui";
 
 export type HubPreview =
   | { state: "idle" }
@@ -20,7 +21,7 @@ export interface UseAddHubFlowParams {
   stableHandlers: WsHandlers;
   hubsRef: RefObject<Hub[]>;
   setHubs: (hubs: Hub[]) => void;
-  setActiveHubIdState: (id: string) => void;
+  activateJoinedHub: (id: string) => void;
   loadHubData: () => Promise<void>;
   applyDeepLinkTarget: (hubId: string, target: NonNullable<HubInputResult["target"]>) => Promise<void>;
   t: (key: string) => string;
@@ -31,7 +32,7 @@ export interface UseAddHubFlowParams {
 // (session token, passkey). Shared by AddHubModal's "join" field and the
 // create-hub self-host panel's "paste your owner invite" field.
 export function useAddHubFlow({
-  publicKey, stableHandlers, hubsRef, setHubs, setActiveHubIdState, loadHubData,
+  publicKey, stableHandlers, hubsRef, setHubs, activateJoinedHub, loadHubData,
   applyDeepLinkTarget, t,
 }: UseAddHubFlowParams) {
   const [hubUrl, setHubUrl] = useState("");
@@ -47,6 +48,9 @@ export function useAddHubFlow({
   const [showAddHub, setShowAddHub] = useState(false);
   // Set while the hub's admission challenge is open; solving it re-runs the join.
   const [admissionChallenge, setAdmissionChallenge] = useState<{ hubUrl: string; pubkey: string } | null>(null);
+  // Set while the hub's join application is shown before joining; going on
+  // re-runs the join past it.
+  const [applicationPreview, setApplicationPreview] = useState<{ hubName: string; form: Survey } | null>(null);
   const pendingDeepLinkTargetRef = useRef<NonNullable<HubInputResult["target"]> | null>(null);
 
   // Matches a wavvon:// deep-link host against an already-joined hub
@@ -100,7 +104,7 @@ export function useAddHubFlow({
   // Also the join path a redeemed owner invite takes from the "Create a
   // hub" self-host handoff (docs/docs/hub-creation-wizard.md §4) — no
   // separate join mechanism for that flow.
-  async function handleAddHub(challengeToken?: string) {
+  async function handleAddHub(challengeToken?: string, applicationSeen = false) {
     setAddingHub(true);
     setAddHubError(null);
     try {
@@ -109,12 +113,23 @@ export function useAddHubFlow({
         return;
       }
       if (expectedFingerprint) setFingerprintMatch(true);
+      // A hub that asks joiners to apply shows its questions first, so this
+      // is the moment to turn back, before any seat exists (join-forms.md).
+      // A challenge token means the joiner already went past it.
+      if (!challengeToken && !applicationSeen) {
+        const form = await previewApplication(hubUrl);
+        if (form && form.questions.length > 0) {
+          const info = await previewHubInfo(hubUrl).catch(() => null);
+          setApplicationPreview({ hubName: info?.name ?? hubUrl, form });
+          return;
+        }
+      }
       const hub = await addHub(hubUrl, stableHandlers, {
         invite_code: inviteCode || undefined,
         challenge_token: challengeToken,
       });
       setHubs(listHubs());
-      setActiveHubIdState(hub.hub_id);
+      activateJoinedHub(hub.hub_id);
       setShowAddHub(false);
       setHubUrl("");
       setInviteCode("");
@@ -150,7 +165,7 @@ export function useAddHubFlow({
         sessionToken: token,
       });
       setHubs(listHubs());
-      setActiveHubIdState(hub.hub_id);
+      activateJoinedHub(hub.hub_id);
       setShowAddHub(false);
       setHubUrl("");
       setInviteCode("");
@@ -179,6 +194,7 @@ export function useAddHubFlow({
     fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
     admissionChallenge, setAdmissionChallenge,
+    applicationPreview, setApplicationPreview,
     pendingDeepLinkTargetRef,
     handleHubUrlInput,
     handlePreviewHub,

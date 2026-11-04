@@ -113,7 +113,7 @@ describe("openAllianceVoiceVisit", () => {
         );
       }
       if (url === `${OWNER_URL}/auth/challenge`) {
-        return new Response(JSON.stringify({ challenge: "aa".repeat(32) }), { status: 200 });
+        return new Response(JSON.stringify({ challenge: "aa".repeat(32), scheme: "tagged-v1" }), { status: 200 });
       }
       if (url === `${OWNER_URL}/auth/verify`) {
         verifyBodies.push(JSON.parse(init!.body as string) as Record<string, unknown>);
@@ -195,7 +195,7 @@ describe("openAllianceVoiceVisit", () => {
         return new Response(JSON.stringify({ public_key: "owner-pub-key", capabilities: ["voice.alliance"] }), { status: 200 });
       }
       if (url === `${OWNER_URL}/auth/challenge`) {
-        return new Response(JSON.stringify({ challenge: "aa".repeat(32) }), { status: 200 });
+        return new Response(JSON.stringify({ challenge: "aa".repeat(32), scheme: "tagged-v1" }), { status: 200 });
       }
       if (url === `${OWNER_URL}/auth/verify`) {
         return new Response(
@@ -239,7 +239,7 @@ describe("openAllianceVoiceVisit", () => {
         );
       }
       if (url === `${OWNER_URL}/auth/challenge`) {
-        return new Response(JSON.stringify({ challenge: "aa".repeat(32) }), { status: 200 });
+        return new Response(JSON.stringify({ challenge: "aa".repeat(32), scheme: "tagged-v1" }), { status: 200 });
       }
       return new Response(JSON.stringify({ token: "visit-token" }), { status: 200 });
     }));

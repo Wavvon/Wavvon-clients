@@ -6,7 +6,9 @@ import { expectInHub, openSettingRow, settingRow } from "./helpers/live";
 // the setting toggles, binds a key, and persists across a reload.
 
 async function openVoiceSettings(page: import("@playwright/test").Page) {
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger:visible").click();
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Voice", exact: true }).click();
 }
 

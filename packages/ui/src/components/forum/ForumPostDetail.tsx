@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import type { PostDetail, ReplyView, ReactionCount, ForumAttachment, ForumTagDef, User } from "../../types";
+import { StoredAttachment } from "../StoredAttachment";
+import { isAttachmentRef } from "../../utils/attachments";
+import type { PostDetail, ReplyView, ReactionCount, ForumAttachment, AttachmentRef, ForumTagDef, User } from "../../types";
 import { formatRelative, formatPubkey } from "@wavvon/core";
 import { describeForumWriteError } from "./forumErrors";
 import { ForumTagPicker } from "./ForumTagPicker";
@@ -41,6 +43,8 @@ interface Props {
    * context (forum_remote_write !== "none"). Ignored when `allianceId` is
    * unset -- local channels are always writable per the caller's roles. */
   canWrite?: boolean;
+  hubUrl?: string;
+  canAttach?: boolean;
   /** Channel setting (forum.md §10.1) -- block a retag-to-zero edit. */
   forumRequireTag?: boolean;
   /** Local hub roster, used to resolve `author_pubkey` to a display name
@@ -118,12 +122,14 @@ interface PendingFile {
   objectUrl: string;
 }
 
-function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
+function AttachmentList({ attachments, hubUrl = "" }: { attachments: (AttachmentRef | ForumAttachment)[]; hubUrl?: string }) {
   const { t } = useTranslation();
   if (!attachments.length) return null;
   return (
     <div className="forum-attachments">
-      {attachments.map((a) => (
+      {attachments.map((a) => isAttachmentRef(a) ? (
+        <StoredAttachment key={a.id} a={a} hubUrl={hubUrl} />
+      ) : (
         <a
           key={a.url}
           href={a.url}
@@ -143,7 +149,7 @@ function AttachmentList({ attachments }: { attachments: ForumAttachment[] }) {
 
 export function ForumPostDetail({
   postId, channelId, publicKey, isAdmin, canManagePosts, actions, onBack, allianceId, readOnly, canWrite = true,
-  forumRequireTag, users,
+  forumRequireTag, users, hubUrl, canAttach,
 }: Props) {
   const { t } = useTranslation();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -240,10 +246,10 @@ export function ForumPostDetail({
       } else {
         // Upload every pending file before creating the reply -- a partial
         // upload failure must not leave a reply with some attachments missing.
-        const attachments = actions.uploadAttachment && pendingFiles.length > 0
-          ? await Promise.all(pendingFiles.map((f) => actions.uploadAttachment!(channelId, f.file)))
+        const attachmentIds = actions.uploadAttachment && canAttach && pendingFiles.length > 0
+          ? (await Promise.all(pendingFiles.map((f) => actions.uploadAttachment!(channelId, f.file)))).map((a) => a.id)
           : undefined;
-        await actions.createReply(channelId, post.id, replyBody.trim(), replyTo, attachments);
+        await actions.createReply(channelId, post.id, replyBody.trim(), replyTo, attachmentIds);
       }
       pendingFiles.forEach((f) => URL.revokeObjectURL(f.objectUrl));
       setPendingFiles([]);
@@ -456,7 +462,7 @@ export function ForumPostDetail({
 
       {!post.is_deleted && (
         <>
-          <AttachmentList attachments={post.attachments ?? []} />
+          <AttachmentList attachments={post.attachments ?? []} hubUrl={hubUrl} />
           <ReactionBar
             reactions={post.reactions ?? []}
             onToggle={(emoji, me) => void handlePostReaction(emoji, me)}
@@ -470,6 +476,7 @@ export function ForumPostDetail({
         {post.replies.map((reply) => (
           <ForumReplyRow
             key={reply.id}
+            hubUrl={hubUrl}
             reply={reply}
             replies={post.replies}
             publicKey={publicKey}
@@ -522,7 +529,7 @@ export function ForumPostDetail({
           <div className="settings-row" style={{ marginTop: 4 }}>
             <EmojiPicker buttonClassName="composer-btn" onPick={(emoji) => setReplyBody((prev) => prev + emoji)} />
           </div>
-          {!allianceId && actions.uploadAttachment && (
+          {!allianceId && canAttach && actions.uploadAttachment && (
             <>
               <input
                 ref={fileInputRef}
@@ -571,6 +578,7 @@ export function ForumPostDetail({
 }
 
 interface ReplyRowProps {
+  hubUrl?: string;
   reply: ReplyView;
   replies: ReplyView[];
   publicKey: string | null;
@@ -594,7 +602,7 @@ function ForumReplyRow({
   reply, replies, publicKey, canModerate,
   editingId, editingBody, replyingTo,
   onEditStart, onEditSave, onEditCancel, onEditBodyChange, onDelete, onReplyTo, onReaction,
-  readOnly, canWrite = true, users,
+  readOnly, canWrite = true, users, hubUrl,
 }: ReplyRowProps) {
   const { t } = useTranslation();
   const quotedReply = reply.reply_to_id ? replies.find((r) => r.id === reply.reply_to_id) : null;
@@ -637,7 +645,7 @@ function ForumReplyRow({
       )}
       {!reply.is_deleted && !isEditing && (
         <>
-          <AttachmentList attachments={reply.attachments ?? []} />
+          <AttachmentList attachments={reply.attachments ?? []} hubUrl={hubUrl} />
           <ReactionBar
             reactions={reply.reactions ?? []}
             onToggle={onReaction}

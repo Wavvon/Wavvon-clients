@@ -1,4 +1,5 @@
 import { getScoped, setScoped } from "./accountScope";
+import { holdsMasterSeed, type IdentityRecord } from "../identity/store";
 
 // Whether this identity's key has been taken off this browser — the phrase
 // revealed, or an encrypted .wavvon-backup exported. A newcomer who joins
@@ -20,6 +21,12 @@ const PROMPTED_KEY = "wavvon.identity_backup_prompted";
 
 export function isIdentityBackedUp(accountId?: string | null): boolean {
   return getScoped(BACKED_UP_KEY, accountId) === "1";
+}
+
+// The one condition behind every backup marker (gear, settings tab, banner).
+// A paired device has no phrase of its own to save, so it never needs one.
+export function identityNeedsBackup(rec: Pick<IdentityRecord, "id" | "seed_hex" | "subkey_cert"> | null | undefined): boolean {
+  return !!rec && holdsMasterSeed(rec) && !isIdentityBackedUp(rec.id);
 }
 
 export function markIdentityBackedUp(accountId?: string | null): void {

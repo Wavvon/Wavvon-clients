@@ -1,13 +1,13 @@
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import type React from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { ChannelSidebar, useConfirm } from "@wavvon/ui";
 import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind, UnreadCounts } from "@wavvon/ui";
 import { formatPubkey, type TreeNode } from "@wavvon/core";
 import { hasDraft } from "../utils/drafts";
-import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import type {
   Channel,
   User,
@@ -58,12 +58,8 @@ interface Props {
   leaveVoiceChannel: () => void;
   canMoveMembers: boolean;
   openFriends: () => void;
-  openSettings: () => void;
   openVoiceSettings: () => void;
   onDragEnd: (event: DragEndEvent) => void;
-  setShowSearchBar: (v: boolean) => void;
-  myPresence: { status: "online" | "away" | "dnd" | "invisible" };
-  onSetStatus: (status: "online" | "away" | "dnd" | "invisible", ttlMinutes: number | null) => void;
   showWhisperPanel: boolean;
   setShowWhisperPanel: Dispatch<SetStateAction<boolean>>;
   soundboardChipsByChannel: Record<string, SoundboardChip[]>;
@@ -99,8 +95,7 @@ export function ChannelSidebarContainer({
   openHubAdmin, openHubAdminInvites, setShowQuickInvite,
   openCreateChannelUnder, onChannelContextMenu,
   setShowCreateChannel, setChannelSettingsModal,
-  leaveVoiceChannel, canMoveMembers, openFriends, openSettings, openVoiceSettings, onDragEnd,
-  setShowSearchBar, myPresence, onSetStatus,
+  leaveVoiceChannel, canMoveMembers, openFriends, openVoiceSettings, onDragEnd,
   showWhisperPanel, setShowWhisperPanel, soundboardChipsByChannel,
   whisperReplyBind, onSetWhisperReplyBind,
   onRequestRemoveHub,
@@ -120,17 +115,14 @@ export function ChannelSidebarContainer({
   // Offered only where our own hub can mint the grant; the owning hub's half
   // is checked at join time, by name.
   const activeHubUrl = hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId)?.hub_url ?? null;
-  const [allianceVoice, setAllianceVoice] = useState(false);
-  useEffect(() => {
-    setAllianceVoice(false);
-    if (!activeHubUrl) return;
-    let cancelled = false;
-    void fetchWithTimeout(`${activeHubUrl.replace(/\/+$/, "")}/info`)
-      .then((r) => r.json() as Promise<{ capabilities?: string[] }>)
-      .then((info) => { if (!cancelled) setAllianceVoice(info.capabilities?.includes("voice.alliance") === true); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [activeHubUrl]);
+  const caps = useHubCapabilities(activeHubUrl);
+  const allianceVoice = caps.includes("voice.alliance");
+  const voiceChannelsOnly = caps.includes("channels.voice");
+  // Separate grants only where the hub says so; elsewhere voice.join covers both.
+  const mediaPerms = caps.includes("voice.media.permissions");
+  const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const canScreenShare = !mediaPerms || hasPerm("voice.screen_share");
+  const canUseCamera = !mediaPerms || hasPerm("voice.camera");
 
   return (
     <>
@@ -153,6 +145,7 @@ export function ChannelSidebarContainer({
       users={users}
       publicKey={publicKey}
       pingByHub={hubLifecycle.pingByHub}
+      hubBannerUrl={activeHubUrl && caps.includes("hub.landing") ? `${activeHubUrl.replace(/\/+$/, "")}/hub/landing-image` : undefined}
       isAdmin={isAdmin}
       canOpenChannelSettings={canOpenChannelSettings}
       canCreateInvites={canCreateInvites}
@@ -183,6 +176,7 @@ export function ChannelSidebarContainer({
       onChannelContextMenu={onChannelContextMenu}
       onOpenChannelSettings={(ch) => { setShowCreateChannel(false); setChannelSettingsModal(ch); }}
       onVoiceJoin={voice.handleVoiceJoin}
+      voiceChannelsOnly={voiceChannelsOnly}
       onVoiceLeave={leaveVoiceChannel}
       onParticipantContextMenu={canMoveMembers ? (e, p, channelId) => {
         e.preventDefault();
@@ -206,17 +200,14 @@ export function ChannelSidebarContainer({
       onOpenFriends={openFriends}
       onToggleSelfMute={voice.toggleSelfMute}
       onToggleSelfDeafen={voice.toggleSelfDeafen}
-      onOpenSettings={openSettings}
       onDragEnd={onDragEnd}
       onToggleHideSilenced={() => setHideSilenced((v) => !v)}
       sharing={voice.sharing}
-      onScreenShare={voice.handleScreenShare}
-      onOpenSearch={() => setShowSearchBar(true)}
-      myStatus={myPresence.status === "online" ? null : myPresence.status}
-      onSetStatus={onSetStatus}
+      onScreenShare={canScreenShare || voice.sharing ? voice.handleScreenShare : undefined}
       voiceGains={voice.voiceGains}
       onSetVoiceGain={voice.setVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
+      speaking={voice.speakingPubkeys}
       isWhispering={whisper.isWhispering}
       whisperTargets={whisper.whisperTargets}
       whisperLists={whisper.whisperLists}
@@ -235,7 +226,7 @@ export function ChannelSidebarContainer({
       whisperOptout={whisper.whisperOptout}
       onSetWhisperOptout={whisper.setWhisperOptout}
       videoEnabled={video.videoEnabled}
-      onToggleVideo={(deviceId) => (video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId))}
+      onToggleVideo={!canUseCamera && !video.videoEnabled ? undefined : (deviceId) => (video.videoEnabled ? video.disableVideo() : video.enableVideo(deviceId))}
       canUseSoundboard={canUseSoundboard}
       onListSoundboardClips={soundboard.listClips}
       onTriggerSoundboardClip={soundboard.triggerClip}

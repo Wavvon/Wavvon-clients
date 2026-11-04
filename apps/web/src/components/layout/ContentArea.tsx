@@ -1,3 +1,4 @@
+import { memberActivity } from "@wavvon/ui";
 import { useMemo, useState } from "react";
 import { useConnectionStats } from "../../hooks/useConnectionStats";
 import type {
@@ -5,7 +6,6 @@ import type {
   Message,
   User,
   RoleInfo,
-  ForumAttachment,
 } from "@shared/types";
 import type { useChannelMessages } from "../../hooks/useChannelMessages";
 import type { useDms } from "../../hooks/useDms";
@@ -45,6 +45,7 @@ import {
   getAllianceMembers, listAlliancePeople, activeHubSupports,
 } from "@platform";
 import { activeSession } from "../../platform/session";
+import { useStickers } from "../../hooks/useStickers";
 
 import { getScoped, setScoped } from "@shared/utils/accountScope";
 import { profileCardActions } from "../../platform/adminActions";
@@ -69,15 +70,10 @@ const forumActions: ForumActions = {
   listAlliancePosts: getAllianceChannelPosts,
   getPost: (channelId, postId, after) => forumGetPost(channelId, postId, after),
   getAlliancePost: getAllianceChannelPost,
-  createPost: (channelId, title, body, tagIds, attachments) =>
-    forumCreatePost(channelId, title, body, tagIds, attachments),
+  createPost: forumCreatePost,
   createAlliancePost: createAllianceChannelPost,
-  uploadAttachment: async (channelId, file): Promise<ForumAttachment> => {
-    const uploaded = await uploadFile(channelId, file);
-    return { url: uploaded.url, name: uploaded.filename, mime: uploaded.mime_type, size: uploaded.size_bytes };
-  },
-  createReply: (channelId, postId, body, replyToId, attachments) =>
-    forumCreateReply(channelId, postId, body, replyToId, attachments),
+  uploadAttachment: (channelId, file) => uploadFile(channelId, file),
+  createReply: forumCreateReply,
   createAllianceReply: createAllianceChannelReply,
   editPost: (channelId, postId, title, body, tagIds) => forumEditPost(channelId, postId, title, body, tagIds),
   deletePost: (channelId, postId) => forumDeletePost(channelId, postId),
@@ -105,7 +101,9 @@ async function moderateAuthor(kind: "mute" | "kick" | "ban", pubkey: string) {
 
 const messageRowActions: MessageRowActions = {
   pinMessage, unpinMessage, votePoll, deletePoll, sendAppJoin, reportMessage,
-  fetchLinkPreview: (hubUrl, url, token) => fetchLinkPreview(hubUrl, url, token ?? ""),
+  // The shared message list is given no token on web, and an empty bearer
+  // got every preview a 401. Previews come from the active hub (clients#233).
+  fetchLinkPreview: (hubUrl, url, token) => fetchLinkPreview(hubUrl, url, token || activeSession().token),
   muteUser: (pubkey) => moderateAuthor("mute", pubkey),
   kickUser: (pubkey) => moderateAuthor("kick", pubkey),
   banUser: (pubkey) => moderateAuthor("ban", pubkey),
@@ -205,6 +203,15 @@ export function ContentArea(props: Props) {
   } = props;
   const { selectedChannel } = channelMessages;
 
+  const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const stickerActions = useStickers({
+    hub: hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId),
+    supported: activeHubSupports("stickers"),
+    canManagePacks: hasPerm("stickers.packs.manage"),
+    canUseExternal: hasPerm("stickers.external"),
+    sendSticker: channelMessages.handleSendSticker,
+  });
+
   // Both sources keep their own rolling counters; this only samples them.
   const conn = useConnectionStats(
     () => {
@@ -249,6 +256,27 @@ export function ContentArea(props: Props) {
         channels={channels}
         onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
         selectedChannel={selectedChannel}
+        voiceStage={selectedChannel ? {
+          participants: voice.voicePartByChannel[selectedChannel.id] ?? [],
+          speaking: voice.voiceActiveUsers,
+          avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
+          inThisRoom: voice.voiceChannelId === selectedChannel.id,
+          onJoin: () => void voice.handleVoiceJoin(selectedChannel.id),
+          publicKey,
+          floor: voice.floor && voice.voiceChannelId === selectedChannel.id && activeHubSupports("voice.hands")
+            ? { ...voice.floor, canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
+            : undefined,
+          live: {
+            streams: screenShare.liveStreams.filter((s) => s.channel_id === selectedChannel.id),
+            opened: screenShare.openedIds,
+            nameFor: (pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8),
+            onOpen: (id) => screenShare.handleWatchStream(selectedChannel.id, id),
+            onClose: (id) => screenShare.handleStopWatchStream(selectedChannel.id, id),
+          },
+          selfShare: screenShare.sharing && screenShare.shareLocalStream && voice.voiceChannelId === selectedChannel.id
+            ? { stream: screenShare.shareLocalStream, kbps: screenShare.shareKbps, onStop: screenShare.handleStopShare }
+            : undefined,
+        } : undefined}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={alliances.selectedAllianceChannel}
         messages={channelMessages.messages}
@@ -257,6 +285,7 @@ export function ContentArea(props: Props) {
         searchQuery={channelMessages.searchQuery}
         dmMessages={dms.dmMessages}
         allianceMessages={alliances.allianceMessages}
+        allianceScrollback={alliances.allianceScrollback}
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}
@@ -275,6 +304,7 @@ export function ContentArea(props: Props) {
         reconnectingHubs={hubConnection.reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voice.voiceActiveUsers}
+        memberActivity={memberActivity(voice.voicePartByChannel, screenShare.liveStreams, (id) => channels.find((c) => c.id === id)?.name)}
         connectionStatus={
           <ConnectionStatus
             rttMs={conn.rttMs}
@@ -309,8 +339,9 @@ export function ContentArea(props: Props) {
         onSendAllianceMessage={() => void channelMessages.handleSendAllianceMessage()}
         onPingTyping={typing.pingTyping}
         onPingDmTyping={typing.pingDmTyping}
+        channelFiles={activeHubSupports("attachments.stored") ? channelMessages.pendingFiles : undefined}
         onSetPendingAttachments={channelMessages.setPendingAttachments}
-        onAttachFiles={() => {}}
+        onAttachFiles={(files) => void dms.attachFiles(files)}
         onOpenEditDescription={(ch) => { channelCrud.setEditDescChannel(ch); channelCrud.setEditDescValue(ch.description ?? ""); }}
         firstNotifyingMessageId={channelMessages.firstNotifyingMessageId}
         onClearFirstNotify={() => channelMessages.setFirstNotifyingMessageId(null)}
@@ -338,6 +369,7 @@ export function ContentArea(props: Props) {
         profileCardActions={profileCardActions}
         forumActions={forumActions}
         messageRowActions={messageRowActions}
+        stickerActions={stickerActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}
         loadThreadReplies={loadThreadReplies}

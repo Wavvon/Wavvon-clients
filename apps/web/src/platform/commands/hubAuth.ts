@@ -53,12 +53,12 @@ export async function acquireHubToken(
   if (challengeBytes.length !== 32) {
     throw new Error(`Refusing to sign a ${challengeBytes.length}-byte auth challenge`);
   }
-  // Tagged where the server says it takes that; the raw answer remains only
-  // for an older one, and the length check above guards it.
-  const signatureHex = signBytes(
-    challengeRes.scheme === AUTH_CHALLENGE_SCHEME ? authChallengeSigningBytes(challengeBytes) : challengeBytes,
-    seedHex,
-  );
+  // Only the tagged answer: a raw signature over hub-chosen bytes is the
+  // oracle the tag exists to close, and every hub since 0.7.0 names it.
+  if (challengeRes.scheme !== AUTH_CHALLENGE_SCHEME) {
+    throw new Error(`Refusing to answer an auth challenge with scheme ${String(challengeRes.scheme)}`);
+  }
+  const signatureHex = signBytes(authChallengeSigningBytes(challengeBytes), seedHex);
 
   const body: Record<string, unknown> = {
     public_key: pubkeyHex,

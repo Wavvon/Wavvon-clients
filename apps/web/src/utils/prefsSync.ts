@@ -7,9 +7,10 @@ import {
   masterSeedHex,
   masterPublicKeyHex,
   type PrefsBlobContents,
+  type SavedSticker,
   type SignedPrefsBlob,
 } from "@wavvon/core";
-import { loadIdentity, type IdentityRecord } from "../identity/store";
+import { holdsMasterSeed, loadIdentity, type IdentityRecord } from "../identity/store";
 import { getHomeHubDesignation, getPrefsBlobFrom, putPrefsBlobTo } from "../platform/commands/identity";
 import { allSessions, getActiveHubId, getSession } from "../platform/session";
 import { collectSyncedSettings, applySyncedSettings } from "./syncedSettings";
@@ -99,11 +100,39 @@ async function fetchBest(targets: Target[], masterPubkey: string, blobKey: Uint8
  *  docs/docs/client-parity.md). Such a device syncs nothing rather than
  *  silently writing a blob nobody else can read. */
 function canSync(identity: IdentityRecord): boolean {
-  return !identity.subkey_cert;
+  return holdsMasterSeed(identity);
+}
+
+export interface StickerCollectionApi {
+  get: () => SavedSticker[];
+  /** Applies `fn` to the newest list and pushes it. A refused push (another
+   *  device won the version race) re-reads the blob and applies `fn` once
+   *  more to what is there now, so a concurrent save is merged, not erased. */
+  mutate: (fn: (list: SavedSticker[]) => SavedSticker[]) => Promise<SavedSticker[]>;
 }
 
 export interface PrefsSyncHandle {
   stop: () => void;
+  stickers: StickerCollectionApi;
+}
+
+let activeCollection: StickerCollectionApi | null = null;
+const collectionListeners = new Set<() => void>();
+
+/** Null on a device that cannot sync: only the device holding the master seed
+ *  can write the blob (stickers.md, v1). */
+export function getStickerCollection(): StickerCollectionApi | null {
+  return activeCollection;
+}
+
+export function subscribeStickerCollection(fn: () => void): () => void {
+  collectionListeners.add(fn);
+  return () => { collectionListeners.delete(fn); };
+}
+
+function setCollection(api: StickerCollectionApi | null): void {
+  activeCollection = api;
+  collectionListeners.forEach((fn) => fn());
 }
 
 /** Pull once, apply, then keep pushing local changes. Resolves after the pull
@@ -141,10 +170,11 @@ export async function startPrefsSync(onPulledChange: () => void): Promise<PrefsS
   // --- Push ---
   let lastPushed = JSON.stringify(collectSyncedSettings());
 
-  async function push(): Promise<void> {
+  async function push(overrides: Partial<PrefsBlobContents> = {}): Promise<boolean> {
     const settings = collectSyncedSettings();
     const contents: PrefsBlobContents = {
       ...base,
+      ...overrides,
       settings,
       hide_birthdays: settings["wavvon.hideBirthdays"] === "true",
     };
@@ -164,7 +194,7 @@ export async function startPrefsSync(onPulledChange: () => void): Promise<PrefsS
     }
     if (accepted) {
       base = contents;
-      return;
+      return true;
     }
     // Every target refused: most likely a stale version counter (409). Re-read
     // the highest version so the next attempt lands above it.
@@ -173,7 +203,30 @@ export async function startPrefsSync(onPulledChange: () => void): Promise<PrefsS
       version = fresh.version;
       base = fresh.contents;
     }
+    return false;
   }
+
+  // Pushes share one version counter, so two in flight would refuse each other.
+  let chain: Promise<unknown> = Promise.resolve();
+  function serial<T>(job: () => Promise<T>): Promise<T> {
+    const run = chain.then(job);
+    chain = run.catch(() => undefined);
+    return run;
+  }
+
+  const stickers: StickerCollectionApi = {
+    get: () => base.stickers ?? [],
+    mutate: (fn) => serial(async () => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const next = fn(base.stickers ?? []);
+        if (await push({ stickers: next })) {
+          collectionListeners.forEach((l) => l());
+          return next;
+        }
+      }
+      throw new Error("sticker collection not saved");
+    }),
+  };
 
   let pushing = false;
   const timer = setInterval(() => {
@@ -181,12 +234,19 @@ export async function startPrefsSync(onPulledChange: () => void): Promise<PrefsS
     if (snapshot === lastPushed || pushing) return;
     lastPushed = snapshot;
     pushing = true;
-    void push().finally(() => { pushing = false; });
+    void serial(() => push()).finally(() => { pushing = false; });
   }, PUSH_POLL_MS);
 
   // Nothing published yet and we do have local settings: seed the blob now so
   // a second device has something to pull without waiting for an edit here.
-  if (!remote) void push();
+  if (!remote) void serial(() => push());
 
-  return { stop: () => clearInterval(timer) };
+  setCollection(stickers);
+  return {
+    stickers,
+    stop: () => {
+      clearInterval(timer);
+      if (activeCollection === stickers) setCollection(null);
+    },
+  };
 }

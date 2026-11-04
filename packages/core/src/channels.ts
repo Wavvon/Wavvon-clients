@@ -4,7 +4,7 @@ export interface Channel {
   created_by: string;
   parent_id: string | null;
   is_category: boolean;
-  channel_type?: "text" | "forum" | "banner" | "spawner";
+  channel_type?: "text" | "voice" | "forum" | "banner" | "spawner";
   banner_url?: string | null;
   banner_file_id?: string | null;
   display_order: number;

@@ -114,16 +114,18 @@ impl AuthCredentials {
                 challenge_bytes.len()
             ));
         }
-        // Tagged where the server says it takes that; the raw answer remains
-        // only for an older one, guarded by the length check above.
-        let signature_bytes =
-            if challenge_resp.scheme.as_deref() == Some(crate::identity::AUTH_CHALLENGE_SCHEME) {
-                self.sign(&crate::identity::auth_challenge_signing_bytes(
-                    &challenge_bytes,
-                ))
-            } else {
-                self.sign(&challenge_bytes)
-            };
+        // Only the tagged answer: a raw signature over hub-chosen bytes is
+        // the oracle the tag exists to close, and every hub since 0.7.0
+        // names it.
+        if challenge_resp.scheme.as_deref() != Some(crate::identity::AUTH_CHALLENGE_SCHEME) {
+            return Err(format!(
+                "refusing to answer an auth challenge with scheme {:?}",
+                challenge_resp.scheme
+            ));
+        }
+        let signature_bytes = self.sign(&crate::identity::auth_challenge_signing_bytes(
+            &challenge_bytes,
+        ));
 
         let mut body = serde_json::json!({
             "public_key": self.public_key_hex,

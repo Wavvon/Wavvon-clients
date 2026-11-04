@@ -25,12 +25,17 @@ pub struct LocalPrefs {
     /// client's synced settings on the next write from here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings: Option<serde_json::Value>,
+    /// The saved-sticker collection (packages/core PrefsBlobContents.stickers).
+    /// Kept as raw JSON so an entry written by a newer client survives. Every
+    /// push must carry it forward: dropping it erases the collection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stickers: Option<Vec<serde_json::Value>>,
 }
 
 // ---- Blob key derivation ----
 
 pub fn derive_blob_key(master: &MasterIdentity) -> [u8; 32] {
-    let hk = Hkdf::<Sha256>::new(None, &master.secret_seed());
+    let hk = Hkdf::<Sha256>::new(None, master.secret_seed().as_ref());
     let mut key = [0u8; 32];
     hk.expand(b"wavvon/prefs-blob-key/v1", &mut key)
         .expect("HKDF expand");
@@ -97,25 +102,40 @@ async fn fetch_current(
     (0, None)
 }
 
-/// Sign and PUT the prefs blob to every home hub in the list.
+/// What a push writes: this client's own fields, with everything it does not
+/// manage carried forward from the blob already on the hub.
+fn next_prefs(
+    current: Option<LocalPrefs>,
+    blocked_users: Vec<String>,
+    voice_settings: crate::local_store::StoredVoiceSettings,
+    stickers: Option<Vec<serde_json::Value>>,
+) -> LocalPrefs {
+    LocalPrefs {
+        blocked_users,
+        voice_settings,
+        hide_birthdays: current.as_ref().and_then(|p| p.hide_birthdays),
+        stickers: stickers.or_else(|| current.as_ref().and_then(|p| p.stickers.clone())),
+        settings: current.and_then(|p| p.settings),
+    }
+}
+
+/// Sign and PUT the prefs blob to every home hub in the list. `stickers`
+/// replaces the collection when given; None keeps the one on the hub. Returns
+/// how many hubs accepted it.
 pub async fn push_prefs_blob(
     master: &MasterIdentity,
     blob_key: &[u8; 32],
     home_hubs: &[String],
     client: &reqwest::Client,
-) -> Result<()> {
+    stickers: Option<Vec<serde_json::Value>>,
+) -> Result<usize> {
     let master_pubkey = master.public_key_hex();
     let (current_version, current) =
         fetch_current(&master_pubkey, home_hubs, blob_key, client).await;
 
     let blocked = crate::local_store::load_blocked_users().unwrap_or_default();
     let voice = crate::local_store::load_voice_settings();
-    let prefs = LocalPrefs {
-        blocked_users: blocked,
-        voice_settings: voice,
-        hide_birthdays: current.as_ref().and_then(|p| p.hide_birthdays),
-        settings: current.and_then(|p| p.settings),
-    };
+    let prefs = next_prefs(current, blocked, voice, stickers);
 
     let ciphertext = encrypt_prefs(blob_key, &prefs)?;
     let ciphertext_hex = hex::encode(&ciphertext);
@@ -132,15 +152,20 @@ pub async fn push_prefs_blob(
         signature,
     };
 
+    let mut accepted = 0;
     for hub_url in home_hubs {
         let endpoint = format!(
             "{}/identity/{}/prefs",
             hub_url.trim_end_matches('/'),
             master_pubkey
         );
-        let _ = client.put(&endpoint).json(&blob).send().await;
+        if let Ok(resp) = client.put(&endpoint).json(&blob).send().await {
+            if resp.status().is_success() {
+                accepted += 1;
+            }
+        }
     }
-    Ok(())
+    Ok(accepted)
 }
 
 /// Fetch the blob from the first reachable home hub, verify signature, decrypt.
@@ -171,4 +196,208 @@ pub async fn pull_prefs_blob(
         return decrypt_prefs(blob_key, &ciphertext);
     }
     Err(anyhow!("no reachable home hub with a prefs blob"))
+}
+
+// ---- Saved-sticker collection ----
+
+#[derive(serde::Serialize)]
+pub(crate) struct StickerCollection {
+    /// Only a device holding the master seed can write the blob (v1,
+    /// stickers.md section 2). A paired desktop gets an empty, read-only list.
+    editable: bool,
+    stickers: Vec<serde_json::Value>,
+}
+
+fn load_master() -> Result<MasterIdentity, String> {
+    let path = crate::identity::Identity::default_path().map_err(|e| e.to_string())?;
+    let identity = crate::identity::Identity::load(&path).map_err(|e| e.to_string())?;
+    identity.master().map_err(|e| e.to_string())
+}
+
+fn collection_hubs(state: &crate::state::AppState) -> Result<Vec<String>, String> {
+    let named = crate::home_hub::read_cached_designation()
+        .map(|d| d.hubs)
+        .unwrap_or_default();
+    if !named.is_empty() {
+        return Ok(named);
+    }
+    crate::state::active_session(state).map(|(url, _)| vec![url])
+}
+
+/// The collection on the first hub that answers. An unreachable hub is an
+/// error, never an empty list: a caller that read "empty" for "could not ask"
+/// would save over the real collection.
+async fn read_stickers(
+    master_pubkey: &str,
+    hubs: &[String],
+    blob_key: &[u8; 32],
+    client: &reqwest::Client,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mut reachable = false;
+    for url in hubs {
+        let endpoint = format!(
+            "{}/identity/{}/prefs",
+            url.trim_end_matches('/'),
+            master_pubkey
+        );
+        let Ok(resp) = client.get(&endpoint).send().await else {
+            continue;
+        };
+        if resp.status() == reqwest::StatusCode::NOT_FOUND {
+            reachable = true;
+            continue;
+        }
+        if !resp.status().is_success() {
+            continue;
+        }
+        let blob = resp
+            .json::<SignedPrefsBlob>()
+            .await
+            .map_err(|e| format!("invalid blob: {e}"))?;
+        blob.verify()
+            .map_err(|e| format!("blob signature invalid: {e}"))?;
+        let ciphertext = hex::decode(&blob.ciphertext_hex).map_err(|e| e.to_string())?;
+        let prefs: LocalPrefs = decrypt_prefs(blob_key, &ciphertext).map_err(|e| e.to_string())?;
+        return Ok(prefs.stickers.unwrap_or_default());
+    }
+    if reachable {
+        Ok(Vec::new())
+    } else {
+        Err("no home hub answered".to_string())
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn sticker_collection_get(
+    state: tauri::State<'_, crate::state::AppState>,
+) -> Result<StickerCollection, String> {
+    let Ok(master) = load_master() else {
+        return Ok(StickerCollection {
+            editable: false,
+            stickers: Vec::new(),
+        });
+    };
+    let hubs = collection_hubs(&state)?;
+    let key = derive_blob_key(&master);
+    let stickers = read_stickers(&master.public_key_hex(), &hubs, &key, &state.http_client).await?;
+    Ok(StickerCollection {
+        editable: true,
+        stickers,
+    })
+}
+
+/// One edit applied to the list as the hub holds it right now, so a save from
+/// another device in between is merged rather than overwritten.
+fn apply_collection_op(
+    mut list: Vec<serde_json::Value>,
+    add: Option<serde_json::Value>,
+    remove: Option<&str>,
+) -> Vec<serde_json::Value> {
+    let sha = |v: &serde_json::Value| v.get("sha256").and_then(|s| s.as_str()).map(str::to_owned);
+    if let Some(sha256) = remove {
+        list.retain(|v| sha(v).as_deref() != Some(sha256));
+    }
+    if let Some(entry) = add {
+        if !list.iter().any(|v| sha(v) == sha(&entry)) {
+            list.push(entry);
+        }
+    }
+    list
+}
+
+#[tauri::command]
+pub(crate) async fn sticker_collection_update(
+    add: Option<serde_json::Value>,
+    remove: Option<String>,
+    state: tauri::State<'_, crate::state::AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let master = load_master()?;
+    let hubs = collection_hubs(&state)?;
+    let key = derive_blob_key(&master);
+    let current = read_stickers(&master.public_key_hex(), &hubs, &key, &state.http_client).await?;
+    let next = apply_collection_op(current, add, remove.as_deref());
+    let accepted = push_prefs_blob(&master, &key, &hubs, &state.http_client, Some(next.clone()))
+        .await
+        .map_err(|e| e.to_string())?;
+    if accepted == 0 {
+        return Err("no home hub accepted the collection".to_string());
+    }
+    Ok(next)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn stickers() -> Vec<serde_json::Value> {
+        vec![serde_json::json!({
+            "sha256": "ab".repeat(32),
+            "name": "wave",
+            "origin_hub_url": "https://a.example",
+            "origin_hub_name": "A",
+            "saved_at": 1700000000,
+            "from_a_newer_client": true,
+        })]
+    }
+
+    fn prefs(stickers: Option<Vec<serde_json::Value>>) -> LocalPrefs {
+        LocalPrefs {
+            blocked_users: vec![],
+            voice_settings: Default::default(),
+            hide_birthdays: None,
+            settings: None,
+            stickers,
+        }
+    }
+
+    #[test]
+    fn collection_survives_an_encrypt_decrypt_round_trip() {
+        let key = [7u8; 32];
+        let ct = encrypt_prefs(&key, &prefs(Some(stickers()))).unwrap();
+        let back: LocalPrefs = decrypt_prefs(&key, &ct).unwrap();
+        assert_eq!(back.stickers, Some(stickers()));
+    }
+
+    #[test]
+    fn a_push_that_does_not_touch_stickers_carries_them_forward() {
+        let next = next_prefs(
+            Some(prefs(Some(stickers()))),
+            vec![],
+            Default::default(),
+            None,
+        );
+        assert_eq!(next.stickers, Some(stickers()));
+    }
+
+    #[test]
+    fn a_push_with_a_new_list_replaces_it() {
+        let next = next_prefs(
+            Some(prefs(Some(stickers()))),
+            vec![],
+            Default::default(),
+            Some(vec![]),
+        );
+        assert_eq!(next.stickers, Some(vec![]));
+    }
+
+    #[test]
+    fn an_edit_applies_to_the_list_as_it_is_now() {
+        let a = serde_json::json!({ "sha256": "aa", "name": "a" });
+        let b = serde_json::json!({ "sha256": "bb", "name": "b" });
+        let list = apply_collection_op(vec![a.clone()], Some(b.clone()), None);
+        assert_eq!(list, vec![a.clone(), b.clone()]);
+        assert_eq!(
+            apply_collection_op(list.clone(), Some(b.clone()), None),
+            list
+        );
+        assert_eq!(apply_collection_op(list, None, Some("aa")), vec![b]);
+    }
+
+    #[test]
+    fn a_blob_without_the_field_decodes_and_re_encodes_without_it() {
+        let json = r#"{"blocked_users":[],"voice_settings":{}}"#;
+        let p: LocalPrefs = serde_json::from_str(json).unwrap();
+        assert!(p.stickers.is_none());
+        assert!(!serde_json::to_string(&p).unwrap().contains("stickers"));
+    }
 }

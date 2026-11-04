@@ -14,8 +14,9 @@ test("admin nav shows section-group headers", async ({ page }) => {
   await expectInHub(page);
   await openHubSettings(page);
   await expect(page.locator(".settings-nav-group", { hasText: "General" }).first()).toBeVisible({ timeout: 10000 });
-  await expect(page.locator(".settings-nav-group", { hasText: "Members & safety" }).first()).toBeVisible();
-  await expect(page.locator(".settings-nav-group", { hasText: "Integrations" }).first()).toBeVisible();
+  for (const group of ["Members", "Joining", "Moderation", "Connections", "Customization"]) {
+    await expect(page.locator(".settings-nav-group", { hasText: group }).first()).toBeVisible();
+  }
 });
 
 test("tabs still navigate after grouping", async ({ page }) => {

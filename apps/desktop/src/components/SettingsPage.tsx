@@ -11,8 +11,11 @@ import {
   makeSeed,
   SkinsGallery,
   HelpTab,
+  AboutTab,
   ProfileTab,
   SettingsShell,
+  SettingsAccountPicker,
+  ActiveAccountOnlyNotice,
   SettingRow,
   resolveManagingAccount,
   type ThemeId,
@@ -22,9 +25,10 @@ import {
   type ProfileAccountRef,
 } from "@wavvon/ui";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
-import { listAccounts, type AccountSummary } from "../accounts/store";
+import { listAccounts, switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
+import { identityNeedsBackup } from "../utils/identityBackup";
 import { loadTrustRoots, saveTrustRoots } from "../utils/trustRoots";
 import { addTrustRoot, CameraTab, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
@@ -41,7 +45,8 @@ export type SettingsTab =
   | "appearance"
   | "voice"
   | "camera"
-  | "help";
+  | "help"
+  | "about";
 
 export interface SettingsPageProps {
   tab: SettingsTab;
@@ -134,6 +139,12 @@ export function SettingsPage(props: SettingsPageProps) {
     onToggle: () => setOpenRow((cur) => (cur === id ? null : id)),
   });
   const activeId = accounts?.find((a) => a.is_active)?.id ?? null;
+  // Bumped when a backup is exported, so the tab marker clears at once;
+  // revealing the phrase already re-renders through the recoveryPhrase prop.
+  const [, setBackupTick] = useState(0);
+  const accountsAttention = identityNeedsBackup(accounts?.find((a) => a.is_active))
+    ? t("settings.identity_backup.badge")
+    : undefined;
 
   useEffect(() => {
     listAccounts()
@@ -168,20 +179,44 @@ export function SettingsPage(props: SettingsPageProps) {
   const G_ACCOUNTS = t("settings.nav_groups.accounts");
   const G_APP = t("settings.nav_groups.app");
   const G_AV = t("settings.nav_groups.audio_video");
+  const G_INFO = t("settings.nav_groups.info");
   const TABS: SettingsTabDef<SettingsTab>[] = [
     { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
-    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS },
+    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
     { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
     { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
-    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP },
-    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP },
-    { id: "help", label: t("settings.tabs.help"), group: G_APP },
-    { id: "voice", label: t("settings.tabs.voice"), group: G_AV },
-    { id: "camera", label: t("settings.tabs.camera"), group: G_AV },
+    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP, deviceWide: true },
+    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP, deviceWide: true },
+    { id: "voice", label: t("settings.tabs.voice"), group: G_AV, deviceWide: true },
+    { id: "camera", label: t("settings.tabs.camera"), group: G_AV, deviceWide: true },
+    { id: "help", label: t("settings.tabs.help"), group: G_INFO, deviceWide: true },
+    { id: "about", label: t("settings.tabs.about"), group: G_INFO, deviceWide: true },
   ];
 
   return (
-    <SettingsShell title={t("settings.title")} tabs={TABS} activeTab={props.tab} onTab={props.onTab} onClose={props.onClose}>
+    <SettingsShell
+      title={t("settings.title")}
+      tabs={TABS}
+      activeTab={props.tab}
+      onTab={props.onTab}
+      onClose={props.onClose}
+      accountPicker={profileAccounts && profileAccounts.length > 1 && managing ? (
+        <SettingsAccountPicker accounts={profileAccounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
+      ) : undefined}
+    >
+        {/* Desktop's Manage accounts, Devices and Privacy act on the active
+            account only (their Tauri commands are scoped to it), so picking
+            another account says so instead of showing the active one's data. */}
+        {managing && managing.id !== activeId && (props.tab === "accounts" || props.tab === "devices" || props.tab === "privacy") && (
+          <ActiveAccountOnlyNotice
+            label={managing.account_label || managing.id.slice(0, 12)}
+            onSwitch={() => {
+              void switchAccountGuarded(managing.id).then((refused) => {
+                if (refused) alert(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
+              });
+            }}
+          />
+        )}
         {props.tab === "profile" && (
           <ProfileTab
             hubs={props.hubs}
@@ -190,6 +225,10 @@ export function SettingsPage(props: SettingsPageProps) {
             onHubProfileSaved={props.onHubProfileSaved}
             trustRoots={trustRoots}
             onTrustIssuer={(pubkey, label) => updateTrustRoots(addTrustRoot(trustRoots, pubkey, label))}
+            showBirthdays={!props.hideBirthdays}
+            onShowBirthdaysChange={(show) => {
+              if (show === props.hideBirthdays) props.onToggleHideBirthdays();
+            }}
             {...perAccount}
           />
         )}
@@ -204,11 +243,12 @@ export function SettingsPage(props: SettingsPageProps) {
             onShowRecovery={props.onShowRecovery}
             onRecoverIdentity={props.onRecoverIdentity}
             onClearLocalData={props.onClearLocalData}
+            onBackedUp={() => setBackupTick((n) => n + 1)}
           />
         )}
 
         {props.tab === "devices" && (
-          <DevicesTab hubs={props.hubs} activeHubId={props.activeHubId} />
+          <DevicesTab hubs={props.hubs} />
         )}
 
         {props.tab === "privacy" && (
@@ -218,10 +258,9 @@ export function SettingsPage(props: SettingsPageProps) {
             onUnblock={props.onUnblock}
             onUnignore={props.onUnignore}
             knownNames={props.knownNames}
-            hideBirthdays={props.hideBirthdays}
-            onToggleHideBirthdays={props.onToggleHideBirthdays}
             trustRoots={trustRoots}
             onTrustRootsChange={updateTrustRoots}
+            hubs={props.hubs}
           />
         )}
 
@@ -431,6 +470,9 @@ export function SettingsPage(props: SettingsPageProps) {
         )}
 
         {props.tab === "help" && <HelpTab />}
+        {props.tab === "about" && (
+          <AboutTab version={import.meta.env.VITE_APP_VERSION} extraCredits={["Tauri", "Opus", "RNNoise (nnnoiseless)", "cpal", "wtransport"]} />
+        )}
 
         {props.tab === "camera" && <CameraTab />}
     </SettingsShell>

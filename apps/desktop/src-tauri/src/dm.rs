@@ -5,6 +5,30 @@ use crate::types::{
 use std::collections::HashMap;
 use tauri::State;
 
+/// What a DM ciphertext decrypts to (e2e-encryption.md "Attachment
+/// encryption"): attachments ride inside the ciphertext, never beside the
+/// envelope. Empty attachments are omitted so a text-only message encrypts
+/// the same bytes it always did; packages/core encodeDmPlaintext mirrors it.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+pub(crate) struct DmPlaintext {
+    #[serde(default)]
+    pub content: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<AttachmentInfo>,
+}
+
+fn parse_dm_plaintext(bytes: &[u8]) -> Result<DmPlaintext, String> {
+    serde_json::from_slice(bytes).map_err(|e| e.to_string())
+}
+
+fn encode_dm_plaintext(content: String, attachments: Option<Vec<AttachmentInfo>>) -> String {
+    let p = DmPlaintext {
+        content,
+        attachments: attachments.unwrap_or_default(),
+    };
+    serde_json::to_string(&p).unwrap_or_default()
+}
+
 // ---------------------------------------------------------------------------
 // Friends
 // ---------------------------------------------------------------------------
@@ -192,7 +216,13 @@ pub(crate) async fn get_dm_messages(
         } else {
             None
         };
-        let content = if (msg.is_encrypted || msg.is_group_encrypted)
+        let text = |s: &str| DmPlaintext {
+            content: s.to_string(),
+            attachments: Vec::new(),
+        };
+        // An encrypted message's attachments come from its plaintext only:
+        // anything the hub lists beside an envelope is not covered by it.
+        let shown = if (msg.is_encrypted || msg.is_group_encrypted)
             && own_plaintexts.contains_key(&msg.id)
         {
             // Our own encrypted send — the ratchet can't decrypt its own
@@ -204,41 +234,44 @@ pub(crate) async fn get_dm_messages(
                 let is_v2 = env["v"].as_u64().unwrap_or(1) == 2;
                 if is_v2 {
                     decrypt_dm_dr_inner(&conversation_id, env, sender_dh_key.as_deref())
-                        .unwrap_or_else(|_| "[decryption failed]".to_string())
+                        .unwrap_or_else(|_| text("[decryption failed]"))
                 } else if let Some(ref id) = identity {
                     decrypt_dm_inner(&conversation_id, env, id)
-                        .unwrap_or_else(|_| "[decryption failed]".to_string())
+                        .unwrap_or_else(|_| text("[decryption failed]"))
                 } else {
-                    "[encrypted]".to_string()
+                    text("[encrypted]")
                 }
             } else if let Some(ref env) = msg.dr_envelope {
                 decrypt_dm_dr_inner(&conversation_id, env, sender_dh_key.as_deref())
-                    .unwrap_or_else(|_| "[decryption failed]".to_string())
+                    .unwrap_or_else(|_| text("[decryption failed]"))
             } else {
-                "[encrypted]".to_string()
+                text("[encrypted]")
             }
         } else if msg.is_group_encrypted {
             if let (Some(env), Some(ref id)) = (&msg.group_encrypted_envelope, &identity) {
                 if env["sender_pubkey"].as_str() == Some(&id.public_key_hex()) {
-                    "[sent]".to_string()
+                    text("[sent]")
                 } else {
                     decrypt_group_dm_inner(&conversation_id, env, id)
-                        .unwrap_or_else(|_| "[encrypted]".to_string())
+                        .unwrap_or_else(|_| text("[encrypted]"))
                 }
             } else {
-                "[encrypted]".to_string()
+                text("[encrypted]")
             }
         } else {
-            msg.content.unwrap_or_default()
+            DmPlaintext {
+                content: msg.content.unwrap_or_default(),
+                attachments: msg.attachments,
+            }
         };
         result.push(DmMessageInfo {
             id: msg.id,
             conversation_id: msg.conversation_id,
             sender: msg.sender,
             sender_name: msg.sender_name,
-            content,
+            content: shown.content,
             created_at: msg.created_at,
-            attachments: msg.attachments,
+            attachments: shown.attachments,
             is_encrypted: msg.is_encrypted,
             is_group_encrypted: msg.is_group_encrypted,
             delivery_failed: msg.delivery_failed,
@@ -251,7 +284,7 @@ fn decrypt_dm_inner(
     conv_id: &str,
     envelope: &serde_json::Value,
     identity: &crate::identity::Identity,
-) -> Result<String, String> {
+) -> Result<DmPlaintext, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
     use hkdf::Hkdf;
@@ -285,9 +318,7 @@ fn decrypt_dm_inner(
     let plaintext_bytes = cipher
         .decrypt(nonce, ct.as_slice())
         .map_err(|_| "decryption failed".to_string())?;
-    let plaintext: serde_json::Value =
-        serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
-    Ok(plaintext["content"].as_str().unwrap_or("").to_string())
+    parse_dm_plaintext(&plaintext_bytes)
 }
 
 /// Whether the hub takes `plaintext_signer_cert`. A failed lookup answers no:
@@ -308,24 +339,20 @@ pub(crate) async fn send_dm(
     attachments: Option<Vec<AttachmentInfo>>,
     encrypted_envelope: Option<serde_json::Value>,
     group_encrypted_envelope: Option<serde_json::Value>,
-    // Plaintext of an encrypted send, stashed locally per message id so
-    // history reloads can render our own messages (see load_own_plaintexts).
-    // Never sent to the hub.
+    // Plaintext of an encrypted send, stashed locally per message id with
+    // `attachments` so history reloads can render our own messages (see
+    // load_own_plaintexts). Never sent to the hub.
     plaintext: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
     let body = if let Some(env) = group_encrypted_envelope {
-        serde_json::json!({
-            "group_encrypted_envelope": env,
-            "attachments": attachments.unwrap_or_default(),
-        })
+        // Attachments travel inside the ciphertext; the copy passed here is
+        // only for our own stash below.
+        serde_json::json!({ "group_encrypted_envelope": env })
     } else if let Some(env) = encrypted_envelope {
-        serde_json::json!({
-            "encrypted_envelope": env,
-            "attachments": attachments.unwrap_or_default(),
-        })
+        serde_json::json!({ "encrypted_envelope": env })
     } else {
         let content = content.unwrap_or_default();
         // A recipient on another hub only takes a plaintext DM the sender
@@ -358,7 +385,7 @@ pub(crate) async fn send_dm(
         let can_sign = signer_cert.is_none() || hub_takes_signer_cert(&client, &hub_url).await;
         serde_json::json!({
             "content": content,
-            "attachments": attachments.unwrap_or_default(),
+            "attachments": attachments.clone().unwrap_or_default(),
             "plaintext_signature": can_sign.then(|| hex::encode(me.sign(&sb))),
             "plaintext_signer_cert": signer_cert.filter(|_| can_sign),
         })
@@ -378,7 +405,13 @@ pub(crate) async fn send_dm(
     if let Some(pt) = plaintext {
         if let Ok(created) = resp.json::<serde_json::Value>().await {
             if let Some(id) = created["id"].as_str() {
-                save_own_plaintext(id, &pt);
+                save_own_plaintext(
+                    id,
+                    DmPlaintext {
+                        content: pt,
+                        attachments: attachments.unwrap_or_default(),
+                    },
+                );
             }
         }
     }
@@ -1074,6 +1107,7 @@ pub(crate) async fn fetch_group_sender_keys(
 pub(crate) async fn encrypt_group_dm(
     conv_id: String,
     content: String,
+    attachments: Option<Vec<AttachmentInfo>>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     use aes_gcm::aead::{Aead, KeyInit};
@@ -1110,7 +1144,7 @@ pub(crate) async fn encrypt_group_dm(
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&msg_key));
-    let plaintext = serde_json::json!({ "content": content }).to_string();
+    let plaintext = encode_dm_plaintext(content, attachments);
     let ciphertext = cipher
         .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| e.to_string())?;
@@ -1217,22 +1251,41 @@ fn dr_sessions_path() -> Result<std::path::PathBuf, String> {
 // when rendering history. Mirrors web's scoped-localStorage stash.
 // ponytail: one flat JSON map, never pruned — split per conversation if a
 // heavy DM user ever notices.
-fn load_own_plaintexts() -> std::collections::HashMap<String, String> {
+fn load_own_plaintexts() -> std::collections::HashMap<String, DmPlaintext> {
+    // Entries written before attachments were stashed are bare strings.
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum Stashed {
+        Full(DmPlaintext),
+        Text(String),
+    }
     let Ok(path) = crate::accounts::active_own_dm_plaintexts_path() else {
         return std::collections::HashMap::new();
     };
-    std::fs::read_to_string(&path)
+    let map: std::collections::HashMap<String, Stashed> = std::fs::read_to_string(&path)
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    map.into_iter()
+        .map(|(id, s)| match s {
+            Stashed::Full(p) => (id, p),
+            Stashed::Text(content) => (
+                id,
+                DmPlaintext {
+                    content,
+                    attachments: Vec::new(),
+                },
+            ),
+        })
+        .collect()
 }
 
-fn save_own_plaintext(message_id: &str, plaintext: &str) {
+fn save_own_plaintext(message_id: &str, plaintext: DmPlaintext) {
     let Ok(path) = crate::accounts::active_own_dm_plaintexts_path() else {
         return;
     };
     let mut map = load_own_plaintexts();
-    map.insert(message_id.to_string(), plaintext.to_string());
+    map.insert(message_id.to_string(), plaintext);
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -1470,6 +1523,7 @@ pub(crate) async fn init_dr_session(
 pub(crate) async fn encrypt_dm_dr(
     conv_id: String,
     content: String,
+    attachments: Option<Vec<AttachmentInfo>>,
     state: State<'_, AppState>,
 ) -> Result<DrDmEnvelope, String> {
     use aes_gcm::aead::{Aead, KeyInit};
@@ -1499,7 +1553,7 @@ pub(crate) async fn encrypt_dm_dr(
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&mk));
     let nonce = Nonce::from_slice(&nonce_bytes);
-    let plaintext = serde_json::json!({ "content": content }).to_string();
+    let plaintext = encode_dm_plaintext(content, attachments);
     let ciphertext = cipher
         .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| e.to_string())?;
@@ -1543,7 +1597,7 @@ fn decrypt_dm_dr_inner(
     conv_id: &str,
     envelope: &serde_json::Value,
     sender_static_dh_pub_hex: Option<&str>,
-) -> Result<String, String> {
+) -> Result<DmPlaintext, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
 
@@ -1592,10 +1646,8 @@ fn decrypt_dm_dr_inner(
         let plaintext_bytes = cipher
             .decrypt(Nonce::from_slice(&nonce_bytes), ct.as_slice())
             .map_err(|_| "decryption failed".to_string())?;
-        let plaintext: serde_json::Value =
-            serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
         save_dr_sessions(&sessions)?;
-        return Ok(plaintext["content"].as_str().unwrap_or("").to_string());
+        return parse_dm_plaintext(&plaintext_bytes);
     }
 
     const MAX_SKIP: usize = 1000;
@@ -1689,16 +1741,14 @@ fn decrypt_dm_dr_inner(
 
     save_dr_sessions(&sessions)?;
 
-    let plaintext: serde_json::Value =
-        serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
-    Ok(plaintext["content"].as_str().unwrap_or("").to_string())
+    parse_dm_plaintext(&plaintext_bytes)
 }
 
 fn decrypt_group_dm_inner(
     conv_id: &str,
     envelope: &serde_json::Value,
     identity: &crate::identity::Identity,
-) -> Result<String, String> {
+) -> Result<DmPlaintext, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
     use hkdf::Hkdf;
@@ -1770,9 +1820,7 @@ fn decrypt_group_dm_inner(
     let plaintext_bytes = cipher
         .decrypt(nonce, ct.as_slice())
         .map_err(|_| "decryption failed".to_string())?;
-    let plaintext: serde_json::Value =
-        serde_json::from_slice(&plaintext_bytes).map_err(|e| e.to_string())?;
-    Ok(plaintext["content"].as_str().unwrap_or("").to_string())
+    parse_dm_plaintext(&plaintext_bytes)
 }
 
 #[cfg(test)]
@@ -1906,6 +1954,68 @@ mod tests {
             .expect("TS-initiator envelope must decrypt under the Rust responder chain");
         let v: serde_json::Value = serde_json::from_slice(&plaintext_bytes).unwrap();
         assert_eq!(v["content"], "cross-language vector");
+    }
+
+    /// Decrypt message 0 of a TS-initiated conversation with Bob (seed 0x08)
+    /// as the responder — the steps decrypt_dm_dr_inner takes after init.
+    fn responder_decrypt_first(conv: &str, envelope_dh_pub: &str, ciphertext_hex: &str) -> Vec<u8> {
+        use aes_gcm::aead::{Aead, KeyInit};
+        use aes_gcm::{Aes256Gcm, Key, Nonce};
+        let (_, alice_pub) = static_keypair(0x07);
+        let (bob_priv, _) = static_keypair(0x08);
+        let session = responder_init_session(conv, &bob_priv, &alice_pub, envelope_dh_pub).unwrap();
+        let ckr: [u8; 32] = hex::decode(session.ckr.unwrap())
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let (mk, _) = kdf_ck(&ckr);
+        let nonce_bytes = derive_nonce_dr(&mk);
+        Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&mk))
+            .decrypt(
+                Nonce::from_slice(&nonce_bytes),
+                hex::decode(ciphertext_hex).unwrap().as_slice(),
+            )
+            .unwrap()
+    }
+
+    /// Cross-language vector with an attachment inside the ciphertext, made
+    /// by packages/core encryptDmDr (seeds 0x07/0x08, conv
+    /// "conv-attach-vector"). crypto.test.ts pins the opposite direction.
+    #[test]
+    fn decrypts_ts_envelope_with_attachment() {
+        let pt = responder_decrypt_first(
+            "conv-attach-vector",
+            "ca6ef9a0cc4898a1d8c2949db97e496d4756d0be299d74db549671771af4dd0e",
+            "978ff2cf1764eeba6e972163314f6f64e9925c4146de87de1c4d395b024339eafa58206baec8a8545e4a711b2b7288ac96f0c4ecf2bfde04247c858455bf5179dd2d442b264b895c764557a3b6ba6d7d4b1396931109e98eb4e3e00ea67dbec71d285febbd4058be970f2e2ea4d03021fdb4eb2e30e09fc3907b2614",
+        );
+        let p = parse_dm_plaintext(&pt).unwrap();
+        assert_eq!(p.content, "ts attachment vector");
+        assert_eq!(p.attachments.len(), 1);
+        assert_eq!(p.attachments[0].name, "b.png");
+        assert_eq!(p.attachments[0].mime, "image/png");
+        assert_eq!(p.attachments[0].data_b64, "iVBORw==");
+    }
+
+    #[test]
+    fn dm_plaintext_round_trips_attachments_and_omits_none() {
+        let att = AttachmentInfo {
+            name: "a.txt".into(),
+            mime: "text/plain".into(),
+            data_b64: "aGk=".into(),
+        };
+        let with = encode_dm_plaintext("hi".into(), Some(vec![att]));
+        let back = parse_dm_plaintext(with.as_bytes()).unwrap();
+        assert_eq!(back.content, "hi");
+        assert_eq!(back.attachments[0].data_b64, "aGk=");
+        // Text-only stays byte-identical to the pre-attachment layout.
+        assert_eq!(
+            encode_dm_plaintext("hi".into(), None),
+            r#"{"content":"hi"}"#
+        );
+        assert_eq!(
+            encode_dm_plaintext("hi".into(), Some(vec![])),
+            r#"{"content":"hi"}"#
+        );
     }
 
     /// The hub's `EncryptedDmEnvelope` requires every field, `nonce_hex`

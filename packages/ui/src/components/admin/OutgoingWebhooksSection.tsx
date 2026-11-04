@@ -28,7 +28,7 @@ export interface OutgoingWebhookActions {
   enable: (id: string) => Promise<void>;
   listDeliveries: (
     id: string,
-    params: { limit?: number; offset?: number; eventType?: string; success?: boolean },
+    params: { limit?: number; cursor?: string; eventType?: string; success?: boolean },
   ) => Promise<OutgoingWebhookDelivery[]>;
 }
 
@@ -46,7 +46,6 @@ interface PanelState {
   deliveries: OutgoingWebhookDelivery[];
   deliveryEventFilter: string;
   deliverySuccessFilter: string;
-  deliveryOffset: number;
   loadingDeliveries: boolean;
 }
 
@@ -68,7 +67,6 @@ function emptyPanel(): PanelState {
     deliveries: [],
     deliveryEventFilter: "",
     deliverySuccessFilter: "",
-    deliveryOffset: 0,
     loadingDeliveries: false,
   };
 }
@@ -226,7 +224,7 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
       }
     }
     if (expanded && !panel.deliveriesLoaded) {
-      await loadDeliveries(id, { eventType: "", success: "", offset: 0, append: false });
+      await loadDeliveries(id, { eventType: "", success: "", append: false });
       updatePanel(id, { deliveriesLoaded: true });
     }
   }
@@ -251,13 +249,13 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
 
   async function loadDeliveries(
     id: string,
-    opts: { eventType: string; success: string; offset: number; append: boolean },
+    opts: { eventType: string; success: string; cursor?: string; append: boolean },
   ) {
     updatePanel(id, { loadingDeliveries: true });
     try {
       const rows = await actions.listDeliveries(id, {
         limit: 50,
-        offset: opts.offset,
+        cursor: opts.cursor,
         eventType: opts.eventType || undefined,
         success: opts.success === "" ? undefined : opts.success === "true",
       });
@@ -266,7 +264,6 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
         deliveries: opts.append ? [...panel.deliveries, ...rows] : rows,
         deliveryEventFilter: opts.eventType,
         deliverySuccessFilter: opts.success,
-        deliveryOffset: opts.offset,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -438,7 +435,6 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
                                   loadDeliveries(wh.id, {
                                     eventType: e.target.value,
                                     success: panel.deliverySuccessFilter,
-                                    offset: 0,
                                     append: false,
                                   })
                                 }
@@ -454,7 +450,6 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
                                   loadDeliveries(wh.id, {
                                     eventType: panel.deliveryEventFilter,
                                     success: e.target.value,
-                                    offset: 0,
                                     append: false,
                                   })
                                 }
@@ -506,7 +501,7 @@ export function OutgoingWebhooksSection({ channels, actions }: Props) {
                                   loadDeliveries(wh.id, {
                                     eventType: panel.deliveryEventFilter,
                                     success: panel.deliverySuccessFilter,
-                                    offset: panel.deliveryOffset + 50,
+                                    cursor: panel.deliveries[panel.deliveries.length - 1]?.id,
                                     append: true,
                                   })
                                 }

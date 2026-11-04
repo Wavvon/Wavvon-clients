@@ -3,9 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { mentionsName, playMentionPing } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
-import { readFileAsB64 } from "../utils/files";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
-import type { SelectedAllianceChannel } from "@wavvon/ui";
+import { readFileAsB64, useOlderPages, usePendingFiles, type PendingFilesState, type SelectedAllianceChannel } from "@wavvon/ui";
+import { uploadAttachment } from "../utils/uploadAttachment";
 import { listenerScope } from "../utils/listenerScope";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
@@ -19,7 +19,7 @@ export interface ChannelMessagesParams {
   selectedChannelIdRef: RefObject<string | null>;
   myPresenceRef: RefObject<{ status: PresenceStatus }>;
   effectiveNotifyMode: (hubId: string, channelId: string) => NotifyMode;
-  bumpUnread: (hubId: string, channelId: string) => void;
+  bumpUnread: (hubId: string, channelId: string, mention?: boolean) => void;
   clearUnread: (hubId: string, channelId: string) => void;
   setFirstNotify: (hubId: string, channelId: string, messageId: string) => void;
   clearFirstNotify: (hubId: string, channelId: string) => void;
@@ -44,6 +44,7 @@ export interface ChannelMessagesReturn {
   setInputText: (v: string) => void;
   pendingAttachments: Attachment[];
   setPendingAttachments: React.Dispatch<React.SetStateAction<Attachment[]>>;
+  pendingFiles: PendingFilesState;
   replyTarget: Message | null;
   setReplyTarget: React.Dispatch<React.SetStateAction<Message | null>>;
   editingMessageId: string | null;
@@ -70,6 +71,7 @@ export interface ChannelMessagesReturn {
   setSelectedAllianceChannel: React.Dispatch<React.SetStateAction<SelectedAllianceChannel | null>>;
   setAllianceMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   handleSend: () => Promise<void>;
+  handleSendSticker: (channelId: string, stickerId: string) => Promise<void>;
   handleSendAllianceMessage: () => Promise<void>;
   startEditingMessage: (m: Message) => void;
   cancelEditingMessage: () => void;
@@ -123,6 +125,7 @@ export function useChannelMessages({
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputTextState] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const pendingFiles = usePendingFiles();
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
@@ -163,6 +166,9 @@ export function useChannelMessages({
     selectedChannelForTypingRef.current = selectedChannel;
   }, [selectedChannel]);
 
+  // Keyed on the newest message, not the count: an older page loaded by
+  // scrollback grows the list without anything new having arrived.
+  const newestMessageId = messages[messages.length - 1]?.id;
   useEffect(() => {
     if (stickToBottom) {
       (messagesEndChannelRef.current ?? messagesEndRef.current)?.scrollIntoView({ behavior: "smooth" });
@@ -171,7 +177,16 @@ export function useChannelMessages({
       setNewWhileScrolledUp((n) => n + 1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
+  }, [newestMessageId]);
+
+  const loadOlderMessages = useOlderPages({
+    containerRef: messagesContainerRef,
+    items: messages,
+    setItems: setMessages,
+    fetchOlder: (beforeId) =>
+      invoke<Message[]>("get_messages", { channelId: selectedChannel!.id, cursor: beforeId }),
+    resetKey: selectedChannel?.id ?? null,
+  });
 
   useEffect(() => {
     setStickToBottom(true);
@@ -269,7 +284,7 @@ export function useChannelMessages({
                 return [...prev, message];
               });
             } else if (allowBump) {
-              bumpUnread(hub_id, channel_id);
+              bumpUnread(hub_id, channel_id, isMention);
               setFirstNotify(hub_id, channel_id, message.id);
             }
             // Read-time gate: "dnd" presence (global) suppresses the ping
@@ -413,24 +428,33 @@ export function useChannelMessages({
     await selectSharedAllianceChannel(alliance, ch);
   }
 
+  // Throws so the sticker picker can say why: it owns the error wording.
+  async function handleSendSticker(channelId: string, stickerId: string) {
+    const msg = await invoke<Message>("send_message", { channelId, content: "", stickerId });
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+  }
+
   async function handleSend() {
     if (!selectedChannel) return;
     const content = inputText;
-    const attachments = pendingAttachments;
+    const files = pendingFiles.files;
     const reply = replyTarget;
-    if (!content.trim() && attachments.length === 0) return;
+    if (!content.trim() && files.length === 0) return;
     setInputText("");
     const hubId = activeHubIdRef.current;
     if (hubId) clearDraft(`${hubId}/${selectedChannel.id}`);
-    setPendingAttachments([]);
     setReplyTarget(null);
     try {
+      const uploaded = await Promise.all(
+        files.map((f) => uploadAttachment(selectedChannel.id, f.file, f.asFile)),
+      );
       const msg = await invoke<Message>("send_message", {
         channelId: selectedChannel.id,
         content,
-        attachments,
+        attachmentIds: uploaded.length ? uploaded.map((a) => a.id) : null,
         replyTo: reply?.id ?? null,
       });
+      pendingFiles.clear();
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -438,7 +462,6 @@ export function useChannelMessages({
     } catch (e) {
       setError(String(e));
       setInputText(content);
-      setPendingAttachments(attachments);
       setReplyTarget(reply);
     }
   }
@@ -573,6 +596,7 @@ export function useChannelMessages({
     if (atBottom && activeHubIdRef.current && selectedChannel) {
       clearFirstNotify(activeHubIdRef.current, selectedChannel.id);
     }
+    loadOlderMessages();
   }
 
   function jumpToBottom() {
@@ -589,6 +613,7 @@ export function useChannelMessages({
     setInputText,
     pendingAttachments,
     setPendingAttachments,
+    pendingFiles,
     replyTarget,
     setReplyTarget,
     editingMessageId,
@@ -615,6 +640,7 @@ export function useChannelMessages({
     clearSelectedChannel,
     selectAllianceChannel,
     handleSend,
+    handleSendSticker,
     handleSendAllianceMessage,
     startEditingMessage,
     cancelEditingMessage,

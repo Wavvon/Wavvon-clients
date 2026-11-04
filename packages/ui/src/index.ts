@@ -1,5 +1,6 @@
 export type {
   Attachment,
+  AttachmentRef,
   Reaction,
   Message,
   AllianceSharedChannel,
@@ -41,10 +42,15 @@ export { Avatar } from "./components/Avatar";
 export { AvatarPicker } from "./components/AvatarPicker";
 export { generateAvatarDataUrl, randomAvatarSeed } from "./utils/avatarGenerator";
 export { MessageAttachments, PendingAttachments } from "./components/Attachments";
+export { PendingFiles } from "./components/PendingFiles";
+export { usePendingFiles } from "./hooks/usePendingFiles";
+export type { PendingFile, PendingFilesState } from "./hooks/usePendingFiles";
+export { StoredAttachment } from "./components/StoredAttachment";
 export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
 export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
+export { readFileAsB64 } from "./utils/attachments";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
 export { FullArchiveSection } from "./components/FullArchiveSection";
 export type { FullArchiveSectionActions, FullArchiveRestoreResult } from "./components/FullArchiveSection";
@@ -76,6 +82,10 @@ export { ErrorRetry } from "./components/ErrorRetry";
 export { HubRefusedPanel } from "./components/HubRefusedPanel";
 export { DisplayNamePrompt } from "./components/DisplayNamePrompt";
 export { FocusTrap } from "./components/FocusTrap";
+export { JoinForm } from "./components/JoinForm";
+export { ApplicationPanel } from "./components/ApplicationPanel";
+export { ApplicationPreview } from "./components/ApplicationPreview";
+export type { ApplicationActions } from "./components/ApplicationPanel";
 export { AdmissionChallenge } from "./components/AdmissionChallenge";
 export type { AdmissionChallengeProps } from "./components/AdmissionChallenge";
 export { Lightbox } from "./components/Lightbox";
@@ -109,6 +119,7 @@ export { ForumTagPicker } from "./components/forum/ForumTagPicker";
 export { ForumTagManager } from "./components/forum/ForumTagManager";
 export type { ForumTagManagerActions } from "./components/forum/ForumTagManager";
 export { toggleTagSelection } from "./utils/forumTags";
+export { forumPage, FORUM_PAGE_SIZE } from "./utils/forumPage";
 export { EventCard } from "./components/events/EventCard";
 export type { EventStagingCapability } from "./components/events/EventCard";
 export { EventComposer } from "./components/events/EventComposer";
@@ -123,6 +134,7 @@ export type {
   AllianceDetail,
   AllianceInvite,
   PendingAllianceInvite,
+  AllianceManager,
   SharedChannel,
   WebhookInfo,
   WebhookCreatedResult,
@@ -135,9 +147,13 @@ export type {
   SurveyQuestion,
   SurveyAdmin,
   SurveyResponseView,
+  Survey,
+  SurveyAnswer,
+  ApplicationStatus,
+  SurveyResponseAdmin,
 } from "./types";
 export { AlliancesSection } from "./components/admin/AlliancesSection";
-export type { AlliancesSectionActions } from "./components/admin/AlliancesSection";
+export type { AlliancesSectionActions, AllianceManagerRoles } from "./components/admin/AlliancesSection";
 export { WebhooksSection } from "./components/admin/WebhooksSection";
 export type { WebhooksSectionActions } from "./components/admin/WebhooksSection";
 export { HubIconsSection } from "./components/admin/HubIconsSection";
@@ -153,7 +169,6 @@ export { HubSetupWizard } from "./components/hubs/HubSetupWizard";
 export type { HubSetupWizardActions, HubSetupWizardCreateChannelFields } from "./components/hubs/HubSetupWizard";
 export { Lobby } from "./components/layout/Lobby";
 export type { LobbyActions } from "./components/layout/Lobby";
-export { HubSidebar } from "./components/layout/HubSidebar";
 export type { LobbyStatusInfo, LobbyWelcomeInfo, SubmitPowResultInfo } from "./types";
 export { resolveSessionScope } from "./utils/lobbyDecision";
 export type {
@@ -185,6 +200,8 @@ export { ChannelMessageList } from "./components/content/ChannelMessageList";
 export { DmView } from "./components/content/DmView";
 export { WelcomeInviteBanner } from "./components/content/WelcomeInviteBanner";
 export { ContentArea } from "./components/content/ContentArea";
+export type { VoiceStageInfo, VoiceFloor } from "./components/content/VoiceStage";
+export type { VoiceLive } from "./components/content/LiveTray";
 export { PinnedMessagesModal } from "./components/content/PinnedMessagesModal";
 export type { PinnedMessageEntry } from "./components/content/PinnedMessagesModal";
 export { ErrorBoundary } from "./components/ErrorBoundary";
@@ -232,6 +249,8 @@ export {
   MentionIcon,
 } from "./components/Icons";
 export { HubStreamsPanel } from "./components/HubStreamsPanel";
+export { ShareDialog, shareVideoConstraints, declaredQuality, estimateKbps } from "./components/voice/ShareDialog";
+export type { ShareQuality, StreamLimits } from "./components/voice/ShareDialog";
 export type { HubStreamInfo } from "./types";
 export { ScreenShareViewer } from "./components/ScreenShareViewer";
 export type { ScreenShareViewerRef } from "./components/ScreenShareViewer";
@@ -338,7 +357,7 @@ export type { VoiceMovePush, VoiceMoveDecision } from "./utils/voiceMove";
 // HubAdminPage (parity hoist, 2026-07-20)
 // ---------------------------------------------------------------------------
 export { HubAdminPage } from "./components/admin/HubAdminPage";
-export type { HubAdminTab, HubAdminPageProps } from "./components/admin/HubAdminPage";
+export type { HubAdminTab, HubAdminPageProps, MemberAction } from "./components/admin/HubAdminPage";
 export { RolesSection, ALL_PERMISSIONS } from "./components/admin/RolesSection";
 export type { RolesSectionActions, RoleUpdateInput } from "./components/admin/RolesSection";
 export { MemberRoleManager } from "./components/admin/MemberRoleManager";
@@ -350,8 +369,8 @@ export { ServerTagsSection } from "./components/admin/ServerTagsSection";
 export type { ServerTagsSectionActions } from "./components/admin/ServerTagsSection";
 export { InviteManager } from "./components/admin/InviteManager";
 export type { InviteManagerActions } from "./components/admin/InviteManager";
-export { AuditLogSection } from "./components/admin/AuditLogSection";
-export type { AuditLogSectionActions } from "./components/admin/AuditLogSection";
+export { AuditLogSection, normalizeAuditPage } from "./components/admin/AuditLogSection";
+export type { AuditLogSectionActions, AuditLogQuery } from "./components/admin/AuditLogSection";
 export { CertificationsSection } from "./components/admin/CertificationsSection";
 export type { CertificationsSectionActions } from "./components/admin/CertificationsSection";
 
@@ -363,6 +382,7 @@ export { ProfileTab } from "./components/settings/ProfileTab";
 export { ProfileEditorSection } from "./components/settings/ProfileEditorSection";
 export { MyCertificationsSection } from "./components/settings/MyCertificationsSection";
 export { TrustedIssuersSection } from "./components/settings/TrustedIssuersSection";
+export { IssuerHubPicker, knownIssuerHubs, type IssuerHub } from "./components/settings/IssuerHubPicker";
 export {
   parseTrustRoots,
   serializeTrustRoots,
@@ -387,6 +407,23 @@ export { loadHiddenBadgeSet, saveHiddenBadgeSet } from "./utils/hiddenBadges";
 export { SettingsShell } from "./components/settings/SettingsShell";
 export type { SettingsTabDef } from "./components/settings/SettingsShell";
 export { HelpTab } from "./components/settings/HelpTab";
+export { AboutTab } from "./components/settings/AboutTab";
+export { SettingsAccountPicker } from "./components/settings/SettingsAccountPicker";
+export { ActiveAccountOnlyNotice } from "./components/settings/ActiveAccountOnlyNotice";
+export { StickerPacksSection } from "./components/admin/StickerPacksSection";
+export type { StickerPacksActions } from "./components/admin/StickerPacksSection";
+export { StickerStorageSection } from "./components/admin/StickerStorageSection";
+export type { StickerStorageActions } from "./components/admin/StickerStorageSection";
+export { AttachmentSettingsSection } from "./components/admin/AttachmentSettingsSection";
+export type { AttachmentSettingsActions } from "./components/admin/AttachmentSettingsSection";
+export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
+export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
+export { StickerPicker } from "./components/stickers/StickerPicker";
+export { StickerMessage } from "./components/stickers/StickerMessage";
+export type { StickerActions, StickerCollectionState } from "./components/stickers/stickerActions";
+export {
+  stickerErrorKey, parseHubError, savedEntryFor, withSaved, withoutSaved, isSaved, needsExternal, stickerSrc,
+} from "./utils/stickers";
 export { SoundboardAdminSection } from "./components/admin/SoundboardAdminSection";
 export type { SoundboardAdminSectionActions } from "./components/admin/SoundboardAdminSection";
 export { OnboardingAdminSection } from "./components/admin/OnboardingAdminSection";
@@ -401,6 +438,14 @@ export type {
   HubBadge,
   PendingBadgeOffer,
   SoundboardClip,
+  Sticker,
+  StickerPack,
+  AdminSticker,
+  StickerUsage,
+  StickerBudget,
+  StickerBlockEntry,
+  StickerSettings,
+  AttachmentSettings,
   AuditLogEntry,
   AuditLogPage,
   CertIssuance,
@@ -410,6 +455,8 @@ export type {
   RecoveryContactItem,
   RecoveryAdminRequest,
   RecoveryRequestBundle,
+  RecoveryRequestToAttest,
+  RecoveryPerson,
 } from "./types";
 export { RecoveryContactsSection } from "./components/settings/RecoveryContactsSection";
 export type { RecoveryContactsSectionActions } from "./components/settings/RecoveryContactsSection";
@@ -438,6 +485,8 @@ export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry
 export type { StoredPresence } from "./utils/presenceExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useOlderPages, mergeOlderPage, MESSAGE_PAGE_SIZE } from "./hooks/useOlderPages";
+export type { AllianceScrollback } from "./hooks/useAlliances";
 export { useConfirm } from "./components/ConfirmDialog";
 export { SettingRow } from "./components/SettingRow";
 export type { SettingRowProps } from "./components/SettingRow";
@@ -451,6 +500,7 @@ export type { TypingDeps, TypingMap } from "./hooks/useTypingIndicators";
 export type { WhisperDeps, WhisperParams } from "./hooks/useWhisper";
 export type { UnreadCounts, UnreadCountsDeps } from "./hooks/useUnreadCounts";
 export { usePresenceStatus } from "./hooks/usePresenceStatus";
+export type { PresenceStatus } from "./hooks/usePresenceStatus";
 export { useHubSetupWizardGate } from "./hooks/useHubSetupWizardGate";
 export { useSoundboardChips, parseSoundboardPlayedEvent } from "./hooks/useSoundboardChips";
 export type { SoundboardPlayedEvent } from "./hooks/useSoundboardChips";
@@ -464,3 +514,16 @@ export type { ChannelContextMenuProps } from "./components/channels/ChannelConte
 
 export { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./utils/backgroundProcessor";
 export type { BackgroundMode } from "./utils/backgroundProcessor";
+export { HubTopBar } from "./components/layout/HubTopBar";
+export type { HubTopBarProps } from "./components/layout/HubTopBar";
+export { parseLayout, pruneLayout, EMPTY_LAYOUT } from "./utils/hubLayout";
+export type { HubLayout, HubFolder } from "./utils/hubLayout";
+export type { HubNotice } from "./hooks/useUnreadCounts";
+export { UserMenu } from "./components/layout/UserMenu";
+export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";
+export { useHubLayout } from "./hooks/useHubLayout";
+export { memberActivity } from "./utils/memberActivity";
+export type { MemberActivity } from "./utils/memberActivity";
+export { OnboardingFrame } from "./components/layout/OnboardingFrame";
+export type { InvitingHub } from "./components/layout/OnboardingFrame";
+export { SettingsModal } from "./components/settings/SettingsModal";

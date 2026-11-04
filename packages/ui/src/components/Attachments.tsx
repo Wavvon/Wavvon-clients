@@ -1,4 +1,6 @@
-import type { Attachment } from "../types";
+import type { Attachment, AttachmentRef } from "../types";
+import { isAttachmentRef } from "../utils/attachments";
+import { StoredAttachment } from "./StoredAttachment";
 import { useTranslation } from "react-i18next";
 import { CloseIcon } from "./Icons";
 
@@ -39,9 +41,11 @@ export function PendingAttachments({
 
 export function MessageAttachments({
   items,
+  hubUrl = "",
   onImageClick,
 }: {
-  items: Attachment[];
+  items: (Attachment | AttachmentRef)[];
+  hubUrl?: string;
   onImageClick?: (url: string, alt: string) => void;
 }) {
   const { t } = useTranslation();
@@ -49,6 +53,9 @@ export function MessageAttachments({
   return (
     <div className="message-attachments">
       {items.map((a) => {
+        if (isAttachmentRef(a)) {
+          return <StoredAttachment key={a.id} a={a} hubUrl={hubUrl} onImageClick={onImageClick} />;
+        }
         const url = `data:${a.mime};base64,${a.data_b64}`;
         if (a.mime.startsWith("image/")) {
           return (

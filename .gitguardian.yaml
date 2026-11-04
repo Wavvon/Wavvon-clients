@@ -7,6 +7,9 @@ secret:
     - "**/__tests__/**"
     - "**/*.test.ts"
     - "apps/web/e2e/**"
+    # Wire-format vectors vendored from Wavvon-server: every seed, key and
+    # nonce in them is published on purpose so implementations can match.
+    - "wire-vectors/wire-vectors.json"
 
   ignored_matches:
     # The hub's documented local-development default, quoted in the live-e2e

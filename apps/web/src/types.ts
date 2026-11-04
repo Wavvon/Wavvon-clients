@@ -11,11 +11,13 @@ export type {
   RoleCategory,
   FavoriteHub,
   Attachment,
+  AttachmentRef,
   PresenceStatus,
   Reaction,
   MemberAdminInfo,
   BanInfo,
   VoiceMuteInfo,
+  MuteInfo,
   PendingUser,
   Conversation,
   DmMessage,
@@ -53,14 +55,6 @@ export type {
   BadgePayload,
   HubBadge,
   PendingBadgeOffer,
-  WsScreenShareOfferOut,
-  WsScreenShareOfferIn,
-  WsScreenShareAnswerOut,
-  WsScreenShareAnswerIn,
-  WsScreenShareIceOut,
-  WsScreenShareIceIn,
-  WsScreenShareViewerJoined,
-  WsScreenShareViewerLeft,
 } from "@wavvon/core";
 
 export interface Channel {
@@ -69,7 +63,7 @@ export interface Channel {
   created_by: string;
   parent_id: string | null;
   is_category: boolean;
-  channel_type?: "text" | "forum" | "banner" | "spawner";
+  channel_type?: "text" | "voice" | "forum" | "banner" | "spawner";
   banner_url?: string | null;
   banner_file_id?: string | null;
   display_order: number;
@@ -88,15 +82,6 @@ export interface Channel {
   event_id?: string | null;
   /** Forum channels only (forum.md §10.1): require at least one tag on new posts. */
   forum_require_tag?: boolean;
-}
-
-export interface RemoteAttachment {
-  /** upload_files row id — referenced by e.g. a banner channel's banner_file_id. */
-  id: string;
-  url: string;
-  filename: string;
-  size_bytes: number;
-  mime_type: string;
 }
 
 export type { PinnedMessageEntry as PinnedMessage } from "@wavvon/ui";

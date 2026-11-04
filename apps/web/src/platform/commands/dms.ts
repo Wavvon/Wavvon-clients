@@ -2,9 +2,10 @@ import { hexToBytes, bytesToHex, masterPublicKeyHex, masterSeedHex } from "@wavv
 import { dmFetch, dmSession } from "../dmHub";
 import { fetchAllPages, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import { hubFetch, rawFetch, HubApiError } from "../http";
-import { activeSession } from "../session";
+import { activeSession, allSessions } from "../session";
+import { seatOf } from "../seat";
 import i18n from "@wavvon/i18n";
-import { holdsMasterSeed, loadIdentity } from "../../identity/store";
+import { holdsMasterSeed, loadIdentity, loadOwnDmAttachments, saveOwnDmAttachments } from "../../identity/store";
 import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
 
@@ -183,7 +184,7 @@ export async function getDmMessages(
   limit = 50,
 ): Promise<DmMessageFull[]> {
   const params = new URLSearchParams({ limit: String(limit) });
-  if (before) params.set("before", before);
+  if (before) params.set("cursor", before);
   const res = await dmFetch(`/conversations/${conversation_id}/messages?${params}`);
   const raw = (await res.json()) as RawDmMessage[];
 
@@ -198,9 +199,17 @@ export async function getDmMessages(
   const results: DmMessageFull[] = [];
   for (const m of raw) {
     let content = m.content ?? "";
+    // An encrypted message's attachments come from its plaintext only:
+    // anything the hub lists beside an envelope is not covered by it.
+    let attachments = m.is_encrypted || m.group_encrypted_envelope ? undefined : m.attachments;
     const ownPlaintext = m.is_encrypted ? loadOwnPlaintext(m.id) : null;
     if (ownPlaintext !== null) {
       content = ownPlaintext;
+      try {
+        attachments = await loadOwnDmAttachments(m.id);
+      } catch (e) {
+        console.warn("[dm] could not read our own stashed attachments:", e);
+      }
     } else if (m.is_encrypted && m.encrypted_envelope) {
       const env = m.encrypted_envelope;
       // Cert-chained attribution (decisions.md "Paired-device DMs attribute
@@ -223,7 +232,7 @@ export async function getDmMessages(
         try {
           const senderDhPubHex = await fetchDhKey(m.sender) ?? "";
           const session = loadDrSession(m.conversation_id) ?? emptyDrSession();
-          const { plaintext, updatedSession } = decryptDmDr(
+          const { plaintext, attachments: files, updatedSession } = decryptDmDr(
             env as DrEnvelope,
             session,
             identitySeed,
@@ -232,6 +241,7 @@ export async function getDmMessages(
           );
           saveDrSession(m.conversation_id, updatedSession);
           content = plaintext;
+          attachments = files;
         } catch {
           content = unreadable(m.sender);
         }
@@ -252,7 +262,7 @@ export async function getDmMessages(
       sender_name: m.sender_name,
       content,
       created_at: m.created_at,
-      attachments: m.attachments,
+      attachments,
       is_encrypted: m.is_encrypted,
       delivery_failed: m.delivery_failed,
     });
@@ -349,7 +359,7 @@ export async function sendDm(
   }
   const { envelope: drEnvelope, updatedSession } = encryptDmDr(
     conversation_id,
-    content,
+    { content, attachments },
     drSession,
     signingSeedHex,
     senderPubkey,
@@ -359,13 +369,18 @@ export async function sendDm(
 
   const res = await dmFetch(`/conversations/${conversation_id}/messages`, {
     method: "POST",
-    body: JSON.stringify({ encrypted_envelope: drEnvelope, attachments: attachments ?? [] }),
+    // Attachments are inside the envelope; listing them here too would hand
+    // the hub the files in the clear.
+    body: JSON.stringify({ encrypted_envelope: drEnvelope }),
   });
   // Stash own plaintext for history rendering — a ratchet can't decrypt
   // its own outbound envelopes (see saveOwnPlaintext).
   try {
     const created = (await res.json()) as { id?: string };
-    if (created.id) saveOwnPlaintext(created.id, content);
+    if (created.id) {
+      saveOwnPlaintext(created.id, content);
+      if (attachments?.length) await saveOwnDmAttachments(created.id, attachments);
+    }
   } catch (e) {
     // The message is sent; only our own readable copy is missing, and the
     // symptom is this message reading "you sent this from another device"
@@ -455,42 +470,66 @@ export function canPublishDhKey(
 async function dhKeyRecord(seatedAs?: string): Promise<{ path: string; body: string } | null> {
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
+  return dhKeyRecordFor(identity, seatedAs);
+}
 
+/** `dhKeyRecord` without the storage read, for a given identity. */
+export function dhKeyRecordFor(
+  identity: Pick<IdentityRecord, "seed_hex" | "canonical_pubkey" | "subkey_cert">,
+  seatedAs?: string,
+): { path: string; body: string } | null {
   const seedHex = identity.seed_hex;
   const { dhPub } = dhKeypairFromSeed(seedHex);
   const dhPubkeyHex = bytesToHex(dhPub);
-  // A hub meeting this identity for the first time seats the master its
-  // self-signed cert names, and a record must be signed by the key the hub
-  // knows us by. Only a device holding the master's entropy can do that.
-  if (seatedAs && seatedAs !== publicKeyHex(seedHex)) {
-    if (!holdsMasterSeed(identity) || seatedAs !== masterPublicKeyHex(seedHex)) return null;
+  const myPubkeyHex = publicKeyHex(seedHex);
+  // A record must be signed by the key the hub knows us by. With no hub to
+  // ask, fall back to the account-wide guess.
+  const seat = seatedAs ?? (canPublishDhKey(identity) ? myPubkeyHex : null);
+  if (!seat) return null;
+  if (seat === myPubkeyHex) {
     return {
-      path: `/identity/${seatedAs}/dh-key`,
+      path: `/identity/${myPubkeyHex}/dh-key`,
       body: JSON.stringify({
         dh_pubkey_hex: dhPubkeyHex,
-        signature_hex: signBytes(dhKeySigningBytes(seatedAs, dhPubkeyHex), masterSeedHex(seedHex)),
+        signature_hex: signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex),
       }),
     };
   }
-  if (!canPublishDhKey(identity)) return null;
-
-  const myPubkeyHex = publicKeyHex(seedHex);
-  const signatureHex = signBytes(dhKeySigningBytes(myPubkeyHex, dhPubkeyHex), seedHex);
-
+  // Seated under the master (a hub that met us with a cert, or any farm).
+  // Only the device holding the master's entropy can sign for it.
+  if (!holdsMasterSeed(identity) || seat !== masterPublicKeyHex(seedHex)) return null;
   return {
-    path: `/identity/${myPubkeyHex}/dh-key`,
-    body: JSON.stringify({ dh_pubkey_hex: dhPubkeyHex, signature_hex: signatureHex }),
+    path: `/identity/${seat}/dh-key`,
+    body: JSON.stringify({
+      dh_pubkey_hex: dhPubkeyHex,
+      signature_hex: signBytes(dhKeySigningBytes(seat, dhPubkeyHex), masterSeedHex(seedHex)),
+    }),
   };
 }
 
+/**
+ * Publish our DH key on every hub we hold a session with, each under the
+ * pubkey that hub seated us as (as desktop's `publish_dh_key` does). A sender
+ * looks the key up on their own hub, so it has to exist on every hub we use,
+ * not only the active one or the DM hub. Without it voice key distribution
+ * skips us and DMs to us cannot be encrypted.
+ */
 export async function publishDhKey(): Promise<void> {
-  const record = await dhKeyRecord();
-  if (!record) return;
-  // The active hub, deliberately, not the DM hub: a sender looks this key up
-  // on *their own* hub, so it has to exist on every hub we actually use.
-  // Publishing it only where our DMs are read would leave someone on a shared
-  // community hub unable to encrypt to us.
-  await hubFetch(record.path, { method: "PUT", body: record.body });
+  const sessions = allSessions().filter((s) => s.token && !s.refusal && s.scope !== "lobby");
+  await Promise.all(sessions.map(async (s) => {
+    try {
+      const record = await dhKeyRecord(await seatOf(s));
+      if (!record) return;
+      await rawFetch(`${s.hub_url}${record.path}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${s.token}` },
+        body: record.body,
+      });
+    } catch {
+      // One unreachable hub must not stop the others; the next session
+      // (re)start publishes again.
+    }
+  }));
 }
 
 /**

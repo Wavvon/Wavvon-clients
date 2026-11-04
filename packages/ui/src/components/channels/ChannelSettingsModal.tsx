@@ -24,7 +24,7 @@ export interface BannerSource {
   file?: File | null;
 }
 
-type ChannelKind = "text" | "forum" | "banner" | "spawner" | "category";
+type ChannelKind = "text" | "voice" | "forum" | "banner" | "spawner" | "category";
 
 export interface ChannelSettingsModalChannel {
   id: string;
@@ -55,6 +55,9 @@ export interface ChannelSettingsSaveFields {
   channelType?: string;
   isCategory?: boolean;
   spawnerNameTemplate?: string;
+  /** Edit mode: switch a text channel to voice or back (both keep their
+   *  chat). Absent when unchanged. */
+  switchType?: "text" | "voice";
 }
 
 interface Props {
@@ -88,6 +91,9 @@ interface Props {
   /** Hub base URL, used only to preview an already-uploaded banner file. */
   hubUrl?: string;
   onSave: (fields: ChannelSettingsSaveFields) => void;
+  /** The hub has `channels.voice`: voice lives in `voice` channels, which
+   *  can be created, and a text channel can switch to voice and back. */
+  voiceChannels?: boolean;
   onDelete: () => void;
   onClose: () => void;
   permissionsActions?: ChannelPermissionsTabActions;
@@ -118,7 +124,7 @@ export function ChannelSettingsModal({
   onSave, onDelete, onClose,
   permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, allianceActions, listHubIcons,
   bannerUploadSupported = true,
-  forumTagsActions, listForumTags,
+  forumTagsActions, listForumTags, voiceChannels = false,
 }: Props) {
   useCloseOnEscape(onClose);
   const { t } = useTranslation();
@@ -138,6 +144,9 @@ export function ChannelSettingsModal({
   const [forumTags, setForumTags] = useState<ForumTagDef[]>([]);
   const [kind, setKind] = useState<ChannelKind>(createInitialIsCategory ? "category" : "text");
   const [spawnerNameTemplate, setSpawnerNameTemplate] = useState("");
+  const [roomType, setRoomType] = useState(channel?.channel_type ?? "text");
+  const canSwitchType = !isCreate && voiceChannels && !channel.is_category
+    && (channel.channel_type === "text" || channel.channel_type === "voice");
 
   useEffect(() => {
     if (!listHubIcons) return;
@@ -248,6 +257,9 @@ export function ChannelSettingsModal({
           : { file: bannerFile }
         : undefined;
     }
+    if (canSwitchType && roomType !== channel?.channel_type) {
+      fields.switchType = roomType as "text" | "voice";
+    }
     if (isCreate) {
       fields.channelType = channelType;
       fields.isCategory = isCategory;
@@ -354,11 +366,27 @@ export function ChannelSettingsModal({
                     style={{ display: "block", width: "100%", marginTop: 4 }}
                   >
                     <option value="text">{t("channel.create.type_text")}</option>
+                    {voiceChannels && <option value="voice">{t("channel.create.type_voice")}</option>}
                     <option value="forum">{t("channel.create.type_forum")}</option>
                     <option value="banner">{t("channel.create.type_banner")}</option>
                     <option value="spawner">{t("channel.create.type_spawner")}</option>
                     <option value="category">{t("channel.create.type_category")}</option>
                   </select>
+                </label>
+              )}
+
+              {canSwitchType && (
+                <label style={{ display: "block", marginBottom: "var(--space-2)" }}>
+                  <span className="label-text">{t("channel.settings.type_label")}</span>
+                  <select
+                    value={roomType}
+                    onChange={(e) => setRoomType(e.target.value)}
+                    style={{ display: "block", width: "100%", marginTop: 4 }}
+                  >
+                    <option value="text">{t("channel.create.type_text")}</option>
+                    <option value="voice">{t("channel.create.type_voice")}</option>
+                  </select>
+                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("channel.settings.type_hint")}</span>
                 </label>
               )}
 

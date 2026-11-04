@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { BlockIgnoreSection, SettingRow, TrustedIssuersSection, type TrustRoot } from "@wavvon/ui";
-import type { BlockEntry, IgnoreEntry } from "../../types";
+import { BlockIgnoreSection, TrustedIssuersSection, knownIssuerHubs, type TrustRoot } from "@wavvon/ui";
+import { lookupIssuerHub } from "../../hooks/hubAdminActions";
+import type { BlockEntry, Hub, IgnoreEntry } from "../../types";
 
 interface Props {
   blocks: BlockEntry[];
@@ -8,14 +9,13 @@ interface Props {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
-  hideBirthdays: boolean;
-  onToggleHideBirthdays: () => void;
   trustRoots: TrustRoot[];
   onTrustRootsChange: (roots: TrustRoot[]) => void;
+  hubs: Hub[];
 }
 
 // Who the active account has blocked or ignored.
-export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames, hideBirthdays, onToggleHideBirthdays, trustRoots, onTrustRootsChange }: Props) {
+export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames, trustRoots, onTrustRootsChange, hubs }: Props) {
   const { t } = useTranslation();
   return (
     <section>
@@ -27,20 +27,11 @@ export function PrivacyTab({ blocks, ignores, onUnblock, onUnignore, knownNames,
         onUnignore={onUnignore}
         knownNames={knownNames}
       />
-      <TrustedIssuersSection roots={trustRoots} onChange={onTrustRootsChange} />
-      <SettingRow
-        title={t("settings.privacy.birthdays.label")}
-        state={hideBirthdays
-          ? t("settings.privacy.birthdays.state.hidden")
-          : t("settings.privacy.birthdays.state.shown")}
-        control={
-          <input
-            type="checkbox"
-            checked={hideBirthdays}
-            aria-label={t("settings.privacy.birthdays.hide")}
-            onChange={onToggleHideBirthdays}
-          />
-        }
+      <TrustedIssuersSection
+        roots={trustRoots}
+        onChange={onTrustRootsChange}
+        joinedHubs={knownIssuerHubs(hubs, [])}
+        lookupHub={lookupIssuerHub}
       />
     </section>
   );

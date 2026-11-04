@@ -48,6 +48,17 @@ export function masterSeedHex(entropyHex: string): string {
 //   AES-256-GCM, ciphertext = nonce[12] || ciphertext+tag
 const PREFS_BLOB_KEY_INFO = "wavvon/prefs-blob-key/v1";
 
+/** One saved sticker (stickers.md section 2): a reference, never bytes. The
+ *  origin is the hub whose pack the sticker belongs to, as verified by the hub
+ *  the member saw it on. */
+export interface SavedSticker {
+  sha256: string;
+  name: string;
+  origin_hub_url: string;
+  origin_hub_name: string;
+  saved_at: number;
+}
+
 export interface PrefsBlobContents {
   blocked_users: string[];
   voice_settings: Record<string, unknown>;
@@ -61,6 +72,9 @@ export interface PrefsBlobContents {
    *  needs no change to this wire shape. Optional so older blobs decode, and
    *  every client must round-trip it untouched rather than drop it. */
   settings?: Record<string, string>;
+  /** The saved-sticker collection. Optional so older blobs decode; every
+   *  client must carry it forward on a push or the next write erases it. */
+  stickers?: SavedSticker[];
 }
 
 /** Derive the 32-byte prefs-blob AES-256-GCM key from the master signing seed (hex). */

@@ -28,8 +28,9 @@ export {
   upgradeActiveHubIdentity,
   refreshHubInfo,
   previewHubInfo,
+  previewInvite,
+  previewApplication,
   verifyLanFingerprint,
-  reorderHubs,
   restorePersistedHubs,
   connectHubWebSocket,
   ChallengeRequiredError,
@@ -98,6 +99,7 @@ export {
   removeBadge,
   grantBadge,
   listCertIssuances,
+  listHubMembers,
   getCertSettings,
   saveCertSettings,
   issueCertManual,
@@ -152,7 +154,7 @@ export {
 } from "./commands/forum";
 export type { AllianceForumWriteErrorCode } from "./commands/forum";
 
-export { uploadFile } from "./commands/uploads";
+export { uploadFile, getAttachmentSettings, saveAttachmentSettings } from "./commands/uploads";
 
 export { fetchLinkPreview } from "./commands/linkPreview";
 
@@ -206,6 +208,8 @@ export {
   removeBanlistOverride,
   setBanlistPublish,
   muteMember,
+  unmuteMember,
+  listMutes,
   timeoutMember,
   voiceMuteMember,
   voiceUnmuteMember,
@@ -236,7 +240,7 @@ export {
 } from "./commands/friends";
 
 export { getAuditLog } from "./commands/audit";
-export type { AuditLogEntry, AuditLogPage } from "./commands/audit";
+export type { AuditLogEntry, AuditLogPage } from "@wavvon/ui";
 export { listChannelBans, banFromChannel, unbanFromChannel } from "./commands/channelBans";
 export type { ChannelBan } from "./commands/channelBans";
 export { getTalkPower, setTalkPower } from "./commands/talkPower";
@@ -249,6 +253,7 @@ export {
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
   getAllianceMembers, getAlliancePeopleVisible, setAlliancePeopleVisible, listAlliancePeople,
+  listAllianceManagers, grantAllianceManager, revokeAllianceManager,
 } from "./commands/alliances";
 export type { Alliance, AllianceDetail, AllianceMember, AllianceInvite, PendingAllianceInvite, SharedChannel } from "./commands/alliances";
 export {
@@ -257,7 +262,7 @@ export {
 export type { PendingUser, ChallengeMode, ChallengeDifficulty } from "./commands/onboardingAdmin";
 export { listMyCertifications, grantUserBadge } from "./commands/certifications";
 export type { Certification } from "./commands/certifications";
-export { getSurveyAdmin, setSurveyAdmin, getSurveyResponses, getCurrentSurvey, submitSurvey } from "./commands/survey";
+export { getSurveyAdmin, setSurveyAdmin, getSurveyResponses, getCurrentSurvey, submitSurvey, getApplicationAdmin, setApplicationAdmin, getApplicationForm, getApplicationStatus, submitApplication, getApplicationResponse, rejectApplication } from "./commands/survey";
 export type { SurveyAdmin, SurveyQuestion, SurveyChoice, SurveyResponseView, SurveyAnswerInput } from "./commands/survey";
 
 export {
@@ -276,7 +281,5 @@ export {
   listPasskeys,
   deletePasskey,
   renamePasskey,
-  listTrustedDevices,
-  revokeTrustedDevice,
 } from "./webauthn";
-export type { CredentialInfo, DeviceInfo } from "./webauthn";
+export type { CredentialInfo } from "./webauthn";

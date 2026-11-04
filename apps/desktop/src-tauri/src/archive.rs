@@ -300,7 +300,7 @@ pub(crate) async fn export_full_archive(
                 .map_err(|_| "No identity found on this device.".to_string())?;
             let master = owned.master().map_err(|e| e.to_string())?;
             let id = json!({
-                "seed_hex": owned.secret_key_hex(),
+                "seed_hex": *owned.secret_key_hex(),
                 "security_nonce": owned.security_nonce,
                 "security_level": owned.security_level,
             });

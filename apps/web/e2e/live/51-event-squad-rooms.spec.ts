@@ -26,7 +26,7 @@ test("staging panel spawns squad rooms; they're move destinations listed first",
   await expectInHub(page);
 
   const anchor = uniqueName("raidsq");
-  await createChannel(page, anchor);
+  await createChannel(page, anchor, "Voice channel");
 
   await openEventsTab(page, anchor);
   await page.getByRole("button", { name: "+ Create event" }).click();

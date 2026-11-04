@@ -1,10 +1,3 @@
-import { Buffer } from "buffer";
-// opusscript's pure-JS build (voice encode/decode) needs Node's Buffer,
-// which browsers don't provide.
-if (!(globalThis as { Buffer?: unknown }).Buffer) {
-  (globalThis as { Buffer?: unknown }).Buffer = Buffer;
-}
-
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";

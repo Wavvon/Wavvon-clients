@@ -6,7 +6,9 @@ import { expectInHub, scopedLocalStorageItem } from "./helpers/live";
 // persistence), which gates the tones App plays on join/leave.
 
 async function openNotifications(page: import("@playwright/test").Page) {
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger:visible").click();
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.getByRole("button", { name: "Notifications", exact: true }).click();
 }
 

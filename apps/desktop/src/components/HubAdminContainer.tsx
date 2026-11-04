@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import {
   HubAdminPage,
   OutgoingWebhooksSection,
@@ -22,9 +22,12 @@ import {
   makeWebhookActions,
   makeAuditLogActions,
   makeCertActions,
+  makeApplicationActions,
   makeOnboardingActions,
   makeSurveyActions,
 } from "../hooks/hubAdminActions";
+import { stickerPacksActions, stickerStorageActions, stickerSettingsActions } from "../hooks/stickerActions";
+import { attachmentSettingsActions } from "../hooks/attachmentActions";
 
 type PassthroughProps = Omit<
   HubAdminPageProps,
@@ -34,7 +37,7 @@ type PassthroughProps = Omit<
   | "webhookActions"
   | "auditLogActions" | "certActions" | "onboardingActions" | "surveyActions"
   | "activeHubUrl" | "myPubkey"
-  | "canManageRoles" | "myMaxPriority" | "canManageSoundboard"
+  | "canManageRoles" | "myMaxPriority" | "canManageSoundboard" | "canManageHubAlliances"
 >;
 
 interface HubAdminContainerProps extends PassthroughProps {
@@ -66,10 +69,23 @@ export function HubAdminContainer({
   const certActions = useMemo(() => makeCertActions(getActiveHubUrl), [activeHubUrl]);
   const onboardingActions = useMemo(() => makeOnboardingActions(getActiveHubUrl), [activeHubUrl]);
   const surveyActions = useMemo(() => makeSurveyActions(getActiveHubUrl), [activeHubUrl]);
+  const applicationActions = useMemo(() => makeApplicationActions(() => activeHubUrl), [activeHubUrl]);
+  const hubCaps = useHubCapabilities(activeHubUrl || null);
+  const joinFormsCapable = hubCaps.includes("admission.application");
+  const can = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const stickersAdmin = hubCaps.includes("stickers")
+    ? {
+        hubUrl: activeHubUrl,
+        packs: can("stickers.packs.manage") ? stickerPacksActions : undefined,
+        storage: can("stickers.moderate") ? stickerStorageActions : undefined,
+        settings: can("hub.settings") ? stickerSettingsActions : undefined,
+      }
+    : undefined;
 
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
   const canManageSoundboard = isAdmin || myRoles.some((r) => r.permissions?.includes("voice.soundboard.manage"));
+  const canManageHubAlliances = isAdmin || myRoles.some((r) => r.permissions?.includes("alliances.manage"));
 
   return (
     <HubAdminPage
@@ -92,6 +108,9 @@ export function HubAdminContainer({
       canManageRoles={canManageRoles}
       myMaxPriority={myMaxPriority}
       canManageSoundboard={canManageSoundboard}
+      stickersAdmin={stickersAdmin}
+      attachmentSettingsActions={hubCaps.includes("attachments.stored") && can("hub.settings") ? attachmentSettingsActions : undefined}
+      canManageHubAlliances={canManageHubAlliances}
       rolesActions={rolesActions}
       memberRoleActions={memberRoleActions}
       serverTagsActions={serverTagsActions}
@@ -104,6 +123,8 @@ export function HubAdminContainer({
       certActions={certActions}
       onboardingActions={onboardingActions}
       surveyActions={surveyActions}
+      applicationActions={applicationActions}
+      joinFormsCapable={joinFormsCapable}
     />
   );
 }

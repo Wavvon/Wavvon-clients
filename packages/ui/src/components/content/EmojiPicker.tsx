@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { loadRecentEmojis, pushRecentEmoji } from "@wavvon/core";
 import { EMOJI_CATALOG } from "../../emojiCatalog";
 import { FocusTrap } from "../FocusTrap";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import type { HubEmoji } from "../../types";
 
 const POPUP_HEIGHT = 320;
@@ -49,6 +50,10 @@ export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly, load
     if (!q) return hubEmojis;
     return hubEmojis.filter((e) => e.name.toLowerCase().includes(q));
   }, [query, hubEmojis]);
+
+  // Through the shared stack, so Escape closes the picker and not a settings
+  // dialog it sits in.
+  useCloseOnEscape(() => handleClose(), open);
 
   function handleClose() {
     setOpen(false);
@@ -123,8 +128,7 @@ export function EmojiPicker({ onPick, hubUrl, buttonClassName, unicodeOnly, load
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") handleClose();
-                  else if (e.key === "Enter") {
+                  if (e.key === "Enter") {
                     if (filteredHub.length > 0) handlePickHub(filteredHub[0]);
                     else if (filteredStandard.length > 0) handlePickUnicode(filteredStandard[0][0]);
                   }

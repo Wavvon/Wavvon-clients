@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
+use zeroize::{Zeroize, Zeroizing};
 
 // ---------------------------------------------------------------------------
 // Identity (per-device keypair)
@@ -48,16 +49,17 @@ impl Identity {
     /// Raw 32-byte secret key, hex-encoded — the payload of an identity
     /// backup file (see `backup.rs`). Never sent anywhere except into that
     /// encrypted envelope.
-    pub fn secret_key_hex(&self) -> String {
-        hex::encode(self.signing_key.to_bytes())
+    pub fn secret_key_hex(&self) -> Zeroizing<String> {
+        let seed = Zeroizing::new(self.signing_key.to_bytes());
+        Zeroizing::new(hex::encode(seed.as_ref()))
     }
 
     /// Reconstruct an identity from the raw secret key hex produced by
     /// `secret_key_hex()` (backup restore path).
     pub fn from_secret_key_hex(hex_str: &str) -> Result<Self> {
-        let bytes = hex::decode(hex_str).context("Invalid secret key hex")?;
-        let secret_array: [u8; 32] = bytes
-            .try_into()
+        let bytes = Zeroizing::new(hex::decode(hex_str).context("Invalid secret key hex")?);
+        let secret_array = <[u8; 32]>::try_from(bytes.as_slice())
+            .map(Zeroizing::new)
             .map_err(|_| anyhow!("Secret key must be exactly 32 bytes"))?;
         Ok(Self {
             signing_key: SigningKey::from_bytes(&secret_array),
@@ -67,26 +69,32 @@ impl Identity {
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {
-        let data = SavedIdentity {
-            secret_key: hex::encode(self.signing_key.to_bytes()),
+        let mut data = SavedIdentity {
+            secret_key: self.secret_key_hex().to_string(),
             security_nonce: Some(self.security_nonce),
             security_level: Some(self.security_level),
         };
-        let json = serde_json::to_string_pretty(&data)?;
+        let json = serde_json::to_string_pretty(&data).map(Zeroizing::new);
+        data.secret_key.zeroize();
+        let json = json?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).context("Failed to create identity directory")?;
         }
-        fs::write(path, json).context("Failed to write identity file")?;
+        write_secret(path, json.as_bytes()).context("Failed to write identity file")?;
         Ok(())
     }
 
     pub fn load(path: &Path) -> Result<Self> {
-        let json = fs::read_to_string(path).context("Failed to read identity file")?;
-        let data: SavedIdentity =
+        restrict_secret(path);
+        let json =
+            Zeroizing::new(fs::read_to_string(path).context("Failed to read identity file")?);
+        let mut data: SavedIdentity =
             serde_json::from_str(&json).context("Failed to parse identity file")?;
-        let secret_bytes = hex::decode(&data.secret_key).context("Invalid hex in identity file")?;
-        let secret_array: [u8; 32] = secret_bytes
-            .try_into()
+        let secret_bytes = hex::decode(&data.secret_key).map(Zeroizing::new);
+        data.secret_key.zeroize();
+        let secret_bytes = secret_bytes.context("Invalid hex in identity file")?;
+        let secret_array = <[u8; 32]>::try_from(secret_bytes.as_slice())
+            .map(Zeroizing::new)
             .map_err(|_| anyhow!("Secret key must be exactly 32 bytes"))?;
         let signing_key = SigningKey::from_bytes(&secret_array);
         Ok(Self {
@@ -119,25 +127,25 @@ impl Identity {
 
     /// Derive the master keypair from this identity's secret bytes.
     pub fn master(&self) -> Result<MasterIdentity> {
-        let entropy = self.signing_key.to_bytes();
+        let entropy = Zeroizing::new(self.signing_key.to_bytes());
         MasterIdentity::derive_from_entropy(&entropy)
     }
 
     /// Generate a 24-word BIP39 recovery phrase from the secret key.
-    pub fn recovery_phrase(&self) -> String {
-        let secret_bytes = self.signing_key.to_bytes();
-        Mnemonic::from_entropy_in(Language::English, &secret_bytes)
-            .expect("32 bytes should always produce a valid mnemonic")
-            .to_string()
+    pub fn recovery_phrase(&self) -> Zeroizing<String> {
+        let secret_bytes = Zeroizing::new(self.signing_key.to_bytes());
+        let mnemonic = Mnemonic::from_entropy_in(Language::English, secret_bytes.as_ref())
+            .expect("32 bytes should always produce a valid mnemonic");
+        Zeroizing::new(mnemonic.to_string())
     }
 
     /// Restore an identity from a 24-word recovery phrase.
     pub fn from_recovery_phrase(phrase: &str) -> Result<Self> {
         let mnemonic =
             Mnemonic::parse_in(Language::English, phrase).context("Invalid recovery phrase")?;
-        let entropy = mnemonic.to_entropy();
-        let secret_array: [u8; 32] = entropy
-            .try_into()
+        let entropy = Zeroizing::new(mnemonic.to_entropy());
+        let secret_array = <[u8; 32]>::try_from(entropy.as_slice())
+            .map(Zeroizing::new)
             .map_err(|_| anyhow!("Recovery phrase must produce exactly 32 bytes"))?;
         let signing_key = SigningKey::from_bytes(&secret_array);
         Ok(Self {
@@ -151,14 +159,15 @@ impl Identity {
     /// Uses the standard ed25519 → x25519 conversion: SHA-512(seed)[0..32] → clamp.
     pub fn dh_keypair(&self) -> (x25519_dalek::StaticSecret, x25519_dalek::PublicKey) {
         use sha2::Sha512;
-        let seed = self.signing_key.to_bytes();
-        let hash = Sha512::digest(seed);
-        let mut scalar = [0u8; 32];
+        let seed = Zeroizing::new(self.signing_key.to_bytes());
+        let mut hash = Sha512::digest(seed.as_ref());
+        let mut scalar = Zeroizing::new([0u8; 32]);
         scalar.copy_from_slice(&hash[..32]);
+        hash.as_mut_slice().zeroize();
         scalar[0] &= 248;
         scalar[31] &= 127;
         scalar[31] |= 64;
-        let secret = x25519_dalek::StaticSecret::from(scalar);
+        let secret = x25519_dalek::StaticSecret::from(*scalar);
         let public = x25519_dalek::PublicKey::from(&secret);
         (secret, public)
     }
@@ -207,16 +216,16 @@ pub struct MasterIdentity {
 impl MasterIdentity {
     pub fn derive_from_entropy(entropy: &[u8; 32]) -> Result<Self> {
         let hk = Hkdf::<Sha256>::new(None, entropy);
-        let mut okm = [0u8; 32];
-        hk.expand(MASTER_HKDF_INFO, &mut okm)
+        let mut okm = Zeroizing::new([0u8; 32]);
+        hk.expand(MASTER_HKDF_INFO, okm.as_mut())
             .map_err(|e| anyhow!("HKDF expand failed: {e}"))?;
         Ok(Self {
             signing_key: SigningKey::from_bytes(&okm),
         })
     }
 
-    pub fn secret_seed(&self) -> [u8; 32] {
-        self.signing_key.to_bytes()
+    pub fn secret_seed(&self) -> Zeroizing<[u8; 32]> {
+        Zeroizing::new(self.signing_key.to_bytes())
     }
 
     pub fn public_key_hex(&self) -> String {
@@ -248,8 +257,8 @@ impl DeviceSubkey {
     }
 
     /// Raw 32-byte secret for persistence.
-    pub fn secret_bytes(&self) -> [u8; 32] {
-        self.signing_key.to_bytes()
+    pub fn secret_bytes(&self) -> Zeroizing<[u8; 32]> {
+        Zeroizing::new(self.signing_key.to_bytes())
     }
 
     pub fn from_secret_bytes(secret: &[u8; 32]) -> Self {
@@ -309,6 +318,27 @@ const ECIES_INFO: &[u8] = b"wavvon/ecies/v1";
 /// Returns a 184-char hex string encoding:
 ///   eph_x25519_pub[32] || aes_gcm_nonce[12] || aes_gcm_ciphertext_and_tag[48]
 pub fn wrap_blob_key(blob_key: &[u8; 32], recipient_ed25519_pubkey_hex: &str) -> Result<String> {
+    let mut eph_secret = [0u8; 32];
+    OsRng.fill_bytes(&mut eph_secret);
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    wrap_blob_key_with(
+        blob_key,
+        recipient_ed25519_pubkey_hex,
+        eph_secret,
+        nonce_bytes,
+    )
+}
+
+/// `wrap_blob_key` with the ephemeral X25519 secret and the nonce supplied by
+/// the caller, so the wire vector can pin its output. Reusing either value
+/// breaks the encryption: everything else calls `wrap_blob_key`.
+fn wrap_blob_key_with(
+    blob_key: &[u8; 32],
+    recipient_ed25519_pubkey_hex: &str,
+    eph_secret: [u8; 32],
+    nonce_bytes: [u8; 12],
+) -> Result<String> {
     let pubkey_bytes = hex::decode(recipient_ed25519_pubkey_hex)
         .map_err(|e| anyhow!("invalid pubkey hex: {e}"))?;
     let pubkey_bytes: [u8; 32] = pubkey_bytes
@@ -323,7 +353,7 @@ pub fn wrap_blob_key(blob_key: &[u8; 32], recipient_ed25519_pubkey_hex: &str) ->
     let montgomery = point.to_montgomery();
     let x25519_pub = x25519_dalek::PublicKey::from(montgomery.to_bytes());
 
-    let eph_priv = x25519_dalek::StaticSecret::random_from_rng(OsRng);
+    let eph_priv = x25519_dalek::StaticSecret::from(eph_secret);
     let eph_pub = x25519_dalek::PublicKey::from(&eph_priv);
 
     let shared = eph_priv.diffie_hellman(&x25519_pub);
@@ -333,8 +363,6 @@ pub fn wrap_blob_key(blob_key: &[u8; 32], recipient_ed25519_pubkey_hex: &str) ->
     hk.expand(ECIES_INFO, &mut enc_key)
         .map_err(|e| anyhow!("HKDF expand: {e}"))?;
 
-    let mut nonce_bytes = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce_bytes);
     let cipher = Aes256Gcm::new_from_slice(&enc_key).map_err(|e| anyhow!("AES key: {e}"))?;
     let ciphertext = cipher
         .encrypt(AesNonce::from_slice(&nonce_bytes), blob_key.as_ref())
@@ -811,6 +839,34 @@ pub fn federated_plaintext_dm_signing_bytes(
 /// The server's wire-format vectors, read from `wire-vectors/wire-vectors.json`
 /// (see `crate::wire_vectors`). They pin our hand-written encoders to the exact
 /// bytes the hub produces; no expected output is spelled out here.
+/// Write a file only its owner can read: on Unix it is created 0o600 from the
+/// start, not chmod-ed after. Same rule as the hub's `write_secret`.
+fn write_secret(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        let mut file = options.mode(0o600).open(path)?;
+        file.set_permissions(fs::Permissions::from_mode(0o600))?;
+        file.write_all(contents)
+    }
+    #[cfg(not(unix))]
+    options.open(path)?.write_all(contents)
+}
+
+/// Narrow an identity file written by an older version to owner-only (Unix).
+fn restrict_secret(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
 #[cfg(test)]
 mod wire_vector_tests {
     use super::*;
@@ -848,6 +904,17 @@ mod wire_vector_tests {
             out(vector(name), "signing_bytes"),
             "{name}.signing_bytes"
         );
+    }
+
+    /// The master a phrase leads to (HKDF of the entropy), which signs every
+    /// device cert: the one derivation the shell does itself that no other
+    /// vector here reached.
+    #[test]
+    fn master_from_entropy_vector() {
+        let v = vector("master_from_entropy");
+        assert_eq!(s(v, "hkdf_info"), "wavvon/master/v1");
+        let master = MasterIdentity::derive_from_entropy(&arr(&s(v, "entropy"))).unwrap();
+        assert_eq!(master.public_key_hex(), out(v, "public_key"));
     }
 
     #[test]
@@ -1080,6 +1147,35 @@ mod wire_vector_tests {
     #[test]
     fn dh_key_record_signature_vector() {
         assert_signed("dh_key_record", "signature", &dh_key_record_sb());
+    }
+
+    #[test]
+    fn dr_envelope_vector() {
+        let v = vector("dr_envelope");
+        let sb = crate::dm::dr_envelope_signing_bytes(
+            &s(v, "conversation_id"),
+            n(v, "message_index") as u32,
+            n(v, "prev_count") as u32,
+            &s(v, "ciphertext"),
+            &s(v, "dh_pubkey"),
+        );
+        assert_signing_bytes("dr_envelope", &sb);
+        assert_signed("dr_envelope", "signature", &sb);
+    }
+
+    #[test]
+    fn ecies_wrap_vector() {
+        let v = vector("ecies_wrap");
+        let wrapped = wrap_blob_key_with(
+            &arr(&s(v, "blob_key")),
+            &s(v, "recipient_pubkey"),
+            arr(&s(v, "eph_secret")),
+            arr(&s(v, "nonce")),
+        )
+        .unwrap();
+        assert_eq!(wrapped, out(v, "wrapped"));
+        let unwrapped = unwrap_blob_key(&wrapped, &arr(&fixture("subkey_seed"))).unwrap();
+        assert_eq!(hex::encode(unwrapped), s(v, "blob_key"));
     }
 
     fn group_dm_envelope_sb() -> Vec<u8> {

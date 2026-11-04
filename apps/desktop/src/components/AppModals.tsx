@@ -1,9 +1,11 @@
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { allianceActions } from "../hooks/hubAdminActions";
 import {
   AddHubModal,
   AdmissionChallenge,
+  ApplicationPreview,
   ChannelContextMenu,
   ChannelSettingsModal,
   EditDescriptionModal,
@@ -196,6 +198,7 @@ export function AppModals(p: AppModalsProps) {
     setShowKeyboardShortcuts,
   } = p;
   const { t } = useTranslation();
+  const hubCaps = useHubCapabilities(hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
   const myMaxPriority = myRoles.reduce((m, r) => Math.max(m, r.priority), 0);
   const canManageRoles = isAdmin || myRoles.some((r) => r.permissions?.includes("roles.manage"));
   const canEditChannelPermissions =
@@ -230,6 +233,18 @@ export function AppModals(p: AppModalsProps) {
             addHub.setAdmissionChallenge(null);
             addHub.setLoading(false);
           }}
+        />
+      )}
+
+      {addHub.applicationPreview && (
+        <ApplicationPreview
+          hubName={addHub.applicationPreview.hubName}
+          form={addHub.applicationPreview.form}
+          onJoin={() => {
+            addHub.setApplicationPreview(null);
+            addHub.handleAddHub(undefined, true);
+          }}
+          onCancel={() => addHub.setApplicationPreview(null)}
         />
       )}
 
@@ -375,6 +390,7 @@ export function AppModals(p: AppModalsProps) {
           isAdmin={isAdmin}
           myMaxPriority={myMaxPriority}
           hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
+          voiceChannels={hubCaps.includes("channels.voice")}
           onSave={channelCrud.channelSettingsModal ? channelCrud.handleSaveChannelSettings : channelCrud.handleCreateChannel}
           onDelete={channelCrud.handleDeleteChannelSettings}
           onClose={() => {
@@ -408,6 +424,7 @@ export function AppModals(p: AppModalsProps) {
       {showHubSetupWizard && activeHubId && (
         <HubSetupWizard
           actions={{ onCreateChannel: channelCrud.createChannelForWizard }}
+          voiceChannels={hubCaps.includes("channels.voice")}
           onDismiss={() => closeHubSetupWizard(activeHubId)}
           onComplete={handleHubSetupWizardComplete}
         />
@@ -464,12 +481,13 @@ export function AppModals(p: AppModalsProps) {
 
       <ScreenShareOverlay
         ref={voice.screenShareViewerRef}
-        streams={[...voice.activeScreenShares, ...voice.crossChannelStreams]}
+        streams={voice.openedStreams}
         mediaOutputDeviceId={voice.mediaOutputDeviceId || undefined}
       />
 
       {voice.showSharePicker && (
         <ScreenShareModal
+          loadLimits={voice.loadStreamLimits}
           onStart={voice.handleShareStart}
           onCancel={() => voice.setShowSharePicker(false)}
         />

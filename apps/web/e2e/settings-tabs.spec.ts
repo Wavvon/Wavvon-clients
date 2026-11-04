@@ -32,7 +32,9 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
 test("user settings shows every tab in the nav", async ({ page }) => {
   await setupBaseRoutes(page);
   await page.goto("/");
-  await page.locator(".btn-icon-gear").first().click({ timeout: 10000 });
+  await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   const nav = page.locator(".settings-nav");
   for (const name of ["Profile", "Manage accounts", "Devices", "Privacy", "Notifications", "Appearance", "Voice", "Camera"]) {
     await expect(nav.getByRole("button", { name, exact: true })).toBeVisible();
@@ -42,7 +44,9 @@ test("user settings shows every tab in the nav", async ({ page }) => {
 test("camera tab renders the device picker", async ({ page }) => {
   await setupBaseRoutes(page);
   await page.goto("/");
-  await page.locator(".btn-icon-gear").first().click({ timeout: 10000 });
+  await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();
   await expect(page.getByLabel("Camera device").first()).toBeVisible();
 });

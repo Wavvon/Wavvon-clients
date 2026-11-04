@@ -56,9 +56,10 @@ test("Chromium accepts the hub's self-signed voice cert, and rejects a wrong has
 
   const messages: string[] = [];
   page.on("console", (m) => messages.push(m.text()));
-  // Any secure-context document on the hub's own origin will do; the hub in
-  // this suite serves no web client of its own.
-  await page.goto(`${HUB_URL}/info`);
+  // The app's own page, which runs under the policy a hub serves its client
+  // with. `/info` used to serve here, until the hub gave every non-client
+  // response `default-src 'none'; sandbox` and it could run no script at all.
+  await page.goto("/");
 
   const good = await probe(page, info.voice_wt_url!, info.voice_cert_hash!);
   expect(good.ready, "a real bind token would be needed to open a session").toBe(false);

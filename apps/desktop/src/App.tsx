@@ -6,7 +6,8 @@
 // - useRef(initial) persists a value across renders — like a field that doesn't trigger re-render
 // - Event handlers use camelCase: onClick, onChange, onSubmit
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import type { SettingsTab } from "./components/SettingsPage";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { DISCOVERY_URL } from "./constants";
 import { invoke } from "@tauri-apps/api/core";
@@ -33,13 +34,14 @@ import type {
   AppOpenEvent,
   AppCloseEvent,
 } from "./types";
-import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel } from "@wavvon/ui";
+import { PendingApplication } from "./components/PendingApplication";
+import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
 import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
 import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
 import type { WhisperReplyBind, WhisperTarget } from "@wavvon/ui";
 import { loadWhisperReplyBind, saveWhisperReplyBind } from "./utils/whisperReply";
-import type { GlobalSearchResult } from "@wavvon/ui";
+import type { GlobalSearchResult, ProfileDraftFields } from "@wavvon/ui";
 import { useVoice } from "./hooks/useVoice";
 import { useSoundboard } from "./hooks/useSoundboard";
 import { useVideo } from "./hooks/useVideo";
@@ -77,7 +79,8 @@ import { useSlashCommands } from "./hooks/useSlashCommands";
 import { SettingsPageContainer } from "./components/SettingsPageContainer";
 import { HubAdminContainer } from "./components/HubAdminContainer";
 import { AppModals } from "./components/AppModals";
-import { HubSidebar } from "@wavvon/ui";
+import { HubTopBar, useHubLayout } from "@wavvon/ui";
+import { useUserMenu } from "./hooks/useUserMenu";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
 import { fetchWithTimeout } from "./utils/fetchWithTimeout";
@@ -87,9 +90,12 @@ import { setSwitchGuard } from "./accounts/store";
 import { loadDefaultProfileAsync } from "./utils/profileEditorActions";
 import { DisplayNamePrompt } from "@wavvon/ui";
 
-function App() {
+function App({ accountId }: { accountId: string | null }) {
   const { t } = useTranslation();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
+  // Bumped by the pending screen's "check again", so the join application
+  // panel reads its status again too.
+  const [approvalChecks, setApprovalChecks] = useState(0);
   const [pendingSurveyHubId, setPendingSurveyHubId] = useState<string | null>(null);
   // Hubs whose answer to /me was a refusal (banned, invite required, ...),
   // shown as such rather than as an empty hub.
@@ -98,6 +104,7 @@ function App() {
   const {
     unreadByChannel,
     unreadByHub,
+    noticeByHub,
     unreadDms,
     setUnreadDms,
     bumpUnread,
@@ -145,23 +152,23 @@ function App() {
   // Own presence — global across hubs, not per-hub. The device is the
   // source of truth: the picker broadcasts to every session and each hub
   // gets it re-applied on (re)connect. Distinct from hub mute (notify modes).
-  // Four states + "clear after" TTL (decisions.md 2026-07-12) — free-text
-  // custom status was removed; the hub column stays dormant.
-  const { myPresence, myPresenceRef, handleSetStatus } = usePresenceStatus({
+  // Four states + "clear after" TTL, and a custom status line (the 2026-11
+  // layout decision brought it back from the 2026-07-12 removal).
+  const { myPresence, myPresenceRef, handleSetStatus, handleSetCustomStatus } = usePresenceStatus({
     loadRaw: () => localStorage.getItem("wavvon.presence"),
     persist: (p) => { localStorage.setItem("wavvon.presence", JSON.stringify(p)); },
-    broadcast: (s) => {
+    broadcast: (s, custom) => {
       invoke("send_all_hubs_ws_raw", {
-        payload: JSON.stringify({ type: "set_status", status: s, custom: null }),
+        payload: JSON.stringify({ type: "set_status", status: s, custom }),
       }).catch(() => { /* no hub connected */ });
     },
     // Optimistic: the hubs' member_status broadcasts will confirm. Invisible
     // shows the user offline (to everyone, incl. their own roster view); the
     // footer picker still reflects "invisible".
-    applyToRoster: (s) => {
+    applyToRoster: (s, custom) => {
       setUsers((prev) => prev.map((u) =>
         u.public_key === publicKey
-          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: null }
+          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: s === "invisible" ? null : custom }
           : u,
       ));
     },
@@ -245,7 +252,6 @@ function App() {
     setActiveHubTimezone,
     hubScope, setHubScope, lobbyHubIds,
     pingByHub,
-    handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
   } = hubLifecycle;
@@ -301,10 +307,14 @@ function App() {
     handleSaveHubBranding,
     refreshPending,
     handleApproveMember,
+    handleRejectMember,
+    loadApplication,
     refreshMembers,
     handleKickMember,
     handleBanMember,
     handleMuteMember,
+    handleUnmuteMember,
+    adminMutes,
     handleTimeoutMember,
     refreshBans,
     handleUnban,
@@ -318,6 +328,9 @@ function App() {
     setHubs: (updater) => setHubs(updater),
     setError,
     setToast,
+    // The hub only broadcasts MemberOffline on a kick or ban, which would
+    // leave the member listed as merely offline.
+    onMemberRemoved: (pk) => setUsers((prev) => prev.filter((u) => u.public_key !== pk)),
   });
 
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
@@ -418,6 +431,13 @@ function App() {
   // Ctrl+K quick-switcher palette.
   const [paletteOpen, setPaletteOpen] = useState(false);
   const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
+  // Per account: App is remounted on a switch, and every account has its own hubs.
+  const layoutKey = `wavvon.hubLayout:${accountId ?? ""}`;
+  const [hubLayout, setHubLayout] = useHubLayout(
+    () => localStorage.getItem(layoutKey),
+    useCallback((raw: string) => localStorage.setItem(layoutKey, raw), [layoutKey]),
+    hubs.map((h) => h.hub_id),
+  );
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Above useChannelMessages: the alliance state it wires to the composer now
@@ -1063,19 +1083,50 @@ function App() {
   // back on every launch. Keyed by account, since each one is asked once.
   const nameSkipKey = `wavvon.displayNamePromptSkipped.${publicKey}`;
   useEffect(() => {
-    if (hubs.length !== 1 || !me || me.display_name) return;
-    if (localStorage.getItem(nameSkipKey) === "1") return;
+    // Every hub where we have no name yet, not only the first one joined
+    // (#250): the default profile is "how I appear when I join a hub".
+    if (!me || me.display_name) return;
+    const skipped = localStorage.getItem(nameSkipKey) === "1";
     // A default profile means the user already said who they want to be —
-    // apply it instead of asking again, the same way web does.
+    // apply all of it instead of asking again, the same way web does.
     void loadDefaultProfileAsync()
       .then((def) => {
-        if (def?.display_name?.trim()) return saveDisplayName(def.display_name.trim());
-        setShowDisplayNamePrompt(true);
+        if (def?.display_name?.trim()) return applyDefaultProfile(def);
+        if (!skipped) setShowDisplayNamePrompt(true);
       })
-      .catch(() => setShowDisplayNamePrompt(true));
-    // Only when the answer changes, not on every roster update.
+      .catch(() => { if (!skipped) setShowDisplayNamePrompt(true); });
+    // Only when the hub or the answer changes, not on every roster update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.display_name, hubs.length]);
+  }, [activeHubId, me?.public_key, me?.display_name]);
+
+  async function applyDefaultProfile(def: ProfileDraftFields) {
+    const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+    if (!hubUrl) return;
+    try {
+      await invoke("update_my_profile_on_hub", {
+        hubUrl,
+        profile: {
+          display_name: def.display_name.trim(),
+          avatar: def.avatar ?? "",
+          bio: def.bio ?? "",
+          pronouns: def.pronouns ?? "",
+          status_message: def.status_message ?? "",
+          activities: def.activities ?? "",
+          accent_color: def.accent_color ?? "",
+          name_color: def.name_color ?? "",
+          cover: def.cover ?? "",
+          favorite_hubs: def.favorite_hubs,
+          show_hubs: def.show_hubs,
+          birthday: def.birthday ?? "",
+        },
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.public_key === publicKey ? { ...u, display_name: def.display_name.trim(), avatar: def.avatar ?? u.avatar } : u)),
+      );
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   async function saveDisplayName(name: string) {
     setShowDisplayNamePrompt(false);
@@ -1460,6 +1511,16 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [hubs, activeHubId, channelMessages.selectedChannel, channels, view, voice, unreadByChannel, contextMenu, paletteOpen, channelMessages.replyTarget]);
 
+  const userMenu = useUserMenu({
+    users,
+    publicKey,
+    presence: myPresence,
+    onSetStatus: handleSetStatus,
+    onSetCustomStatus: handleSetCustomStatus,
+    onOpenSettings: (tab) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); void openSettings(); },
+    onOpenShortcuts: () => setShowKeyboardShortcuts(true),
+  });
+
   return (
     <div className="app">
       <div
@@ -1499,7 +1560,8 @@ function App() {
         />
       )}
       <>
-        {showHubAdmin ? (
+        {showHubAdmin && (
+          <SettingsModal onClose={() => setShowHubAdmin(false)}>
           <HubAdminContainer
             tab={hubAdminTab}
             onTab={setHubAdminTab}
@@ -1539,10 +1601,14 @@ function App() {
             onHubListedChange={onHubListedChange}
             pendingMembers={pendingMembers}
             onApproveMember={handleApproveMember}
+            loadApplication={loadApplication}
+            onRejectMember={handleRejectMember}
             members={adminMembers}
             onKickMember={handleKickMember}
             onBanMember={handleBanMember}
             onMuteMember={handleMuteMember}
+            onUnmuteMember={handleUnmuteMember}
+            mutes={adminMutes}
             onTimeoutMember={handleTimeoutMember}
             onVoiceMuteMember={voice.handleVoiceMuteMember}
             onVoiceUnmuteMember={voice.handleVoiceUnmuteMember}
@@ -1561,7 +1627,10 @@ function App() {
             onRevokeInvite={handleRevokeInvite}
             channels={channels}
           />
-        ) : showSettings ? (
+          </SettingsModal>
+        )}
+        {showSettings && (
+          <SettingsModal onClose={closeSettings}>
           <SettingsPageContainer
             onClose={closeSettings}
             onHubProfileSaved={(hubId) => {
@@ -1586,26 +1655,30 @@ function App() {
             channelMessages={channelMessages}
             settingsProfile={settingsProfile}
           />
-        ) : (
+          </SettingsModal>
+        )}
           <div className="main-layout">
-            <HubSidebar
+            <HubTopBar
               hubs={hubs}
               activeHubId={activeHubId}
               view={view}
-              showDiscover={showDiscover}
-              unreadDms={unreadDms}
+              multiHub
+              layout={hubLayout}
+              onLayoutChange={setHubLayout}
               unreadByHub={unreadByHub}
+              noticeByHub={noticeByHub}
+              unreadDmCount={view === "dms" ? 0 : Object.keys(unreadDms).length}
               pingByHub={pingByHub}
               hubNotifyMode={hubNotifyMode}
               lobbyHubIds={lobbyHubIds}
-              hasActiveHub={hasActiveHub}
-              onSwitchToDms={() => { setView("dms"); if (hasActiveHub) loadConversations(); }}
+              onSwitchToDms={() => { if (!hasActiveHub) return; setView("dms"); loadConversations(); }}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
               onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
               onSetHubNotifyMode={setHubMode}
-              onHubReorder={handleHubReorder}
+              onOpenSearch={() => setShowSearchBar(true)}
               onAddHub={() => setShowAddHub(true)}
-              onDiscover={() => setShowDiscover((v) => !v)}
+              onDiscover={DISCOVERY_URL ? () => setShowDiscover((v) => !v) : undefined}
+              userMenu={userMenu}
             />
             {showDiscover && DISCOVERY_URL ? (
               <DiscoverPage
@@ -1682,7 +1755,11 @@ function App() {
                   })}
                 </p>
                 <p className="muted">{t("app.approval.wait_hint")}</p>
-                <button onClick={loadHubData} className="primary">
+                <PendingApplication
+                  hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null}
+                  refreshToken={approvalChecks}
+                />
+                <button onClick={() => { setApprovalChecks((n) => n + 1); void loadHubData(); }} className="primary">
                   {t("app.approval.check_again")}
                 </button>
                 {hubs.length > 1 && (
@@ -1729,12 +1806,8 @@ function App() {
                   leaveVoiceChannel={leaveVoiceChannel}
                   canMoveMembers={canMoveMembers}
                   openFriends={openFriends}
-                  openSettings={openSettings}
                   openVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); void openSettings(); }}
                   onDragEnd={handleDragEnd}
-                  setShowSearchBar={setShowSearchBar}
-                  myPresence={myPresence}
-                  onSetStatus={handleSetStatus}
                   showWhisperPanel={showWhisperPanel}
                   setShowWhisperPanel={setShowWhisperPanel}
                   voice={voice}
@@ -1816,6 +1889,7 @@ function App() {
                   );
                 })()}
                 <ContentAreaContainer
+                  allianceScrollback={alliances.allianceScrollback}
                   view={view}
                   channels={channels}
                   users={users}
@@ -1850,7 +1924,6 @@ function App() {
               </>
             )}
           </div>
-        )}
 
         {showDisplayNamePrompt && (
           <DisplayNamePrompt

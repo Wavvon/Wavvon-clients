@@ -1,5 +1,6 @@
 import { hubFetchWithToken } from "../http";
 import { getSession, hubSupports } from "../session";
+import { seatOf } from "../seat";
 import { getHomeHubDesignation } from "./identity";
 import { loadIdentity, masterPubkeyOf } from "../../identity/store";
 import type { FavoriteHub } from "@shared/types";
@@ -55,11 +56,14 @@ function sessionOf(hubId: string) {
   return s;
 }
 
-export async function getMyProfileOnHub(hubId: string, pubkey: string): Promise<MyHubProfile> {
+export async function getMyProfileOnHub(hubId: string, _accountPubkey: string): Promise<MyHubProfile> {
   const s = sessionOf(hubId);
-  // The public profile endpoint rather than /me: same member state, plus
-  // badges — exactly what other members' profile cards render.
-  const res = await hubFetchWithToken(s.hub_url, s.token, `/users/${pubkey}/profile`);
+  // Looked up under the key this hub seated us as, which can differ from the
+  // account's: a pre-certificate hub keeps the device key, a newer one the
+  // master. The public profile endpoint rather than /me: same member state,
+  // plus badges — exactly what other members' profile cards render.
+  const me = await seatOf(s);
+  const res = await hubFetchWithToken(s.hub_url, s.token, `/users/${me}/profile`);
   const p = (await res.json()) as {
     display_name?: string | null;
     avatar?: string | null;

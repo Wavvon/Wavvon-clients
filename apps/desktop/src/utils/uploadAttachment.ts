@@ -1,0 +1,12 @@
+import { invoke } from "@tauri-apps/api/core";
+import { readFileAsB64, type AttachmentRef } from "@wavvon/ui";
+
+export async function uploadAttachment(channelId: string, file: File, asFile = false): Promise<AttachmentRef> {
+  return invoke<AttachmentRef>("upload_attachment", {
+    channelId,
+    filename: file.name,
+    mimeType: file.type || "application/octet-stream",
+    bytesB64: await readFileAsB64(file),
+    asFile,
+  });
+}

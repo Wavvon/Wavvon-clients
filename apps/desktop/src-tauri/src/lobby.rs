@@ -106,7 +106,7 @@ pub(crate) async fn set_lobby_settings(
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .put(format!("{base}/hub/settings/lobby"))
+        .patch(format!("{base}/admin/settings/lobby"))
         .bearer_auth(&token)
         .json(&serde_json::json!({ "lobby_enabled": lobby_enabled, "welcome_md": welcome_md }))
         .send()
@@ -196,7 +196,7 @@ pub(crate) async fn set_challenge_settings(
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .put(format!("{base}/hub/settings/challenge"))
+        .patch(format!("{base}/admin/settings/challenge"))
         .bearer_auth(&token)
         .json(&serde_json::json!({
             "challenge_mode": challenge_mode,
@@ -229,6 +229,18 @@ pub(crate) struct SurveyQuestionTs {
     pub kind: String,
     pub required: bool,
     pub display_order: i64,
+    // Join-form fields (join-forms.md). Carried through rather than dropped,
+    // or an admin save from this client would erase them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiline: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_len: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_choices: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_choices: Option<i32>,
     pub choices: Option<Vec<SurveyChoiceTs>>,
 }
 
@@ -253,6 +265,18 @@ pub(crate) struct SurveyQuestionAdminTs {
     pub kind: String,
     pub required: bool,
     pub display_order: i64,
+    // Join-form fields (join-forms.md). Carried through rather than dropped,
+    // or an admin save from this client would erase them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiline: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_len: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_choices: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_choices: Option<i32>,
     pub choices: Option<Vec<SurveyChoiceAdminTs>>,
 }
 
@@ -267,7 +291,11 @@ pub(crate) struct SurveyAdminTs {
 pub(crate) struct SurveyAnswer {
     pub question_id: String,
     pub choice_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub choice_ids: Option<Vec<String>>,
     pub text_answer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -282,6 +310,8 @@ pub(crate) struct SurveyAnswerView {
     pub prompt: String,
     pub choice_label: Option<String>,
     pub text_answer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -340,16 +370,125 @@ pub(crate) async fn survey_submit(
         .map_err(|e| format!("Invalid response: {e}"))
 }
 
+/// The hub's join application (join-forms.md), for a joiner it holds pending.
+#[tauri::command]
+pub(crate) async fn application_form(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<Option<SurveyPublicTs>, String> {
+    application_get(&state, &hub_url, "application").await
+}
+
+/// The join application read before joining (join-forms.md), from the public
+/// `GET /application`: there is no session yet. Any failure answers `None`,
+/// which only skips the preview, since the form comes back on the pending
+/// screen after the join.
+#[tauri::command]
+pub(crate) async fn application_preview(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<Option<SurveyPublicTs>, String> {
+    let base = hub_url.trim_end_matches('/');
+    let Ok(resp) = state
+        .http_client
+        .get(format!("{base}/application"))
+        .send()
+        .await
+    else {
+        return Ok(None);
+    };
+    if !resp.status().is_success() {
+        return Ok(None);
+    }
+    Ok(resp.json().await.unwrap_or(None))
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct ApplicationStatusTs {
+    pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_after: Option<i64>,
+}
+
+#[tauri::command]
+pub(crate) async fn application_status(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<ApplicationStatusTs, String> {
+    application_get(&state, &hub_url, "application/status").await
+}
+
+async fn application_get<T: serde::de::DeserializeOwned>(
+    state: &AppState,
+    hub_url: &str,
+    path: &str,
+) -> Result<T, String> {
+    let token = crate::state::session_for_url(state, hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .get(format!("{base}/{path}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+#[tauri::command]
+pub(crate) async fn application_submit(
+    hub_url: String,
+    survey_id: String,
+    answers: Vec<SurveyAnswer>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let base = hub_url.trim_end_matches('/');
+    let resp = state
+        .http_client
+        .post(format!("{base}/application"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "survey_id": survey_id, "answers": answers }))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+/// Which join form an admin command edits: the onboarding survey when absent,
+/// the join application when asked. Anything else is a caller bug, said so.
+fn admin_form_path(form: Option<&str>) -> Result<&'static str, String> {
+    match form {
+        None | Some("survey") => Ok("survey"),
+        Some("application") => Ok("application"),
+        Some(other) => Err(format!("unknown join form '{other}'")),
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn survey_admin_get(
     hub_url: String,
+    form: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Option<SurveyAdminTs>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .get(format!("{base}/admin/survey"))
+        .get(format!(
+            "{base}/admin/{}",
+            admin_form_path(form.as_deref())?
+        ))
         .bearer_auth(&token)
         .send()
         .await
@@ -366,13 +505,17 @@ pub(crate) async fn survey_admin_get(
 pub(crate) async fn survey_admin_put(
     hub_url: String,
     survey: SurveyAdminTs,
+    form: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
     let resp = state
         .http_client
-        .put(format!("{base}/admin/survey"))
+        .put(format!(
+            "{base}/admin/{}",
+            admin_form_path(form.as_deref())?
+        ))
         .bearer_auth(&token)
         .json(&survey)
         .send()
@@ -392,18 +535,12 @@ pub(crate) async fn survey_admin_responses(
 ) -> Result<Vec<SurveyResponseAdminTs>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
-    let resp = state
-        .http_client
-        .get(format!("{base}/admin/survey/responses"))
-        .bearer_auth(&token)
-        .query(&[("status", &status)])
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json()
-        .await
-        .map_err(|e| format!("Invalid response: {e}"))
+    crate::admin::get_all_pages(
+        &state.http_client,
+        &format!("{base}/admin/survey/responses"),
+        &token,
+        &[("status", status)],
+        |r: &SurveyResponseAdminTs| r.response_id.clone(),
+    )
+    .await
 }

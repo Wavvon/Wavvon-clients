@@ -1,5 +1,9 @@
+import { memberActivity } from "@wavvon/ui";
+import type { AllianceScrollback } from "@wavvon/ui";
 import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
+import { useHubCapabilities } from "../hooks/useHubCapabilities";
+import { useStickers } from "../hooks/useStickers";
 import { saveDraft } from "../utils/drafts";
 import type { Channel, User, RoleInfo } from "../types";
 import type { useVoice } from "../hooks/useVoice";
@@ -17,6 +21,7 @@ interface SlashCommandEntry {
 }
 
 interface Props {
+  allianceScrollback: AllianceScrollback;
   view: "channels" | "dms";
   channels: Channel[];
   users: User[];
@@ -57,7 +62,7 @@ interface Props {
 // it and reads the same groups, so App no longer threads voice/channels/users
 // through a second call site for it.
 export function ContentAreaContainer({
-  view, channels, users, publicKey, blockedUsers, ignoredUsers,
+  allianceScrollback, view, channels, users, publicKey, blockedUsers, ignoredUsers,
   knownDisplayNames, myDisplayName, isAdmin, myRoles,
   memberSidebarHidden, setMemberSidebarHidden, hideBirthdays,
   openEditDescription, setUserContextMenu, slashCommands, openImage,
@@ -66,7 +71,16 @@ export function ContentAreaContainer({
   voice, hubLifecycle, hubConnections, typing, channelMessages, dms, firstNotify,
 }: Props) {
   const { activeHubId } = hubLifecycle;
+  const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
   const { selectedChannel } = channelMessages;
+  const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
+  const stickerActions = useStickers({
+    hub: hubLifecycle.hubs.find((h) => h.hub_id === activeHubId),
+    supported: caps.includes("stickers"),
+    canManagePacks: hasPerm("stickers.packs.manage"),
+    canUseExternal: hasPerm("stickers.external"),
+    sendSticker: channelMessages.handleSendSticker,
+  });
 
   return (
     <>
@@ -76,6 +90,31 @@ export function ContentAreaContainer({
         hubs={hubLifecycle.hubs}
         channels={channels}
         selectedChannel={selectedChannel}
+        voiceStage={selectedChannel ? {
+          participants: voice.voicePartByChannel[selectedChannel.id] ?? [],
+          speaking: voice.speakingPubkeys,
+          avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
+          inThisRoom: voice.voiceChannelId === selectedChannel.id,
+          onJoin: () => void voice.handleVoiceJoin(selectedChannel),
+          publicKey,
+          floor: voice.floor && voice.voiceChannelId === selectedChannel.id && caps.includes("voice.hands")
+            ? {
+                ...voice.floor,
+                onLower: () => { if (publicKey) voice.floor?.onDismiss(publicKey); },
+                canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")),
+              }
+            : undefined,
+          live: {
+            streams: voice.hubStreams.filter((s) => s.channel_id === selectedChannel.id),
+            opened: voice.openedIds,
+            nameFor: (pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8),
+            onOpen: (id) => voice.openStream(selectedChannel.id, id),
+            onClose: (id) => voice.closeStream(selectedChannel.id, id),
+          },
+          selfShare: voice.sharing && voice.shareLocalStream && voice.voiceChannelId === selectedChannel.id
+            ? { stream: voice.shareLocalStream, kbps: voice.shareKbps, onStop: voice.stopShare }
+            : undefined,
+        } : undefined}
         selectedConversation={dms.selectedConversation}
         selectedAllianceChannel={channelMessages.selectedAllianceChannel}
         messages={channelMessages.messages}
@@ -84,6 +123,7 @@ export function ContentAreaContainer({
         searchQuery={channelMessages.searchQuery}
         dmMessages={dms.dmMessages}
         allianceMessages={channelMessages.allianceMessages}
+        allianceScrollback={allianceScrollback}
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}
@@ -96,12 +136,14 @@ export function ContentAreaContainer({
         editingDraft={channelMessages.editingDraft}
         replyTarget={channelMessages.replyTarget}
         pendingAttachments={channelMessages.pendingAttachments}
+        channelFiles={caps.includes("attachments.stored") ? channelMessages.pendingFiles : undefined}
         stickToBottom={channelMessages.stickToBottom}
         newWhileScrolledUp={channelMessages.newWhileScrolledUp}
         hubConnected={hubConnections.hubConnected}
         reconnectingHubs={hubConnections.reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
-        voiceActiveUsers={voice.voiceActiveUsers}
+        voiceActiveUsers={voice.speakingPubkeys}
+        memberActivity={memberActivity(voice.voicePartByChannel, voice.hubStreams, (id) => channels.find((c) => c.id === id)?.name)}
         hideBirthdays={hideBirthdays}
         inputText={channelMessages.inputText}
         typingByKey={typingForScope(typing.typingByKey, selectedChannel?.id)}
@@ -156,16 +198,17 @@ export function ContentAreaContainer({
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}
         onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
+        stickerActions={stickerActions}
       />
       {showHubStreams && (
         <HubStreamsPanel
           streams={voice.hubStreams}
-          subscribedIds={voice.subscribedStreamIds.current}
+          subscribedIds={voice.openedIds}
           currentChannelId={selectedChannel?.id ?? null}
           channels={channels}
           nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
-          onWatch={voice.subscribeToStream}
-          onStopWatch={voice.unsubscribeFromStream}
+          onWatch={voice.openStream}
+          onStopWatch={voice.closeStream}
           onClose={() => setShowHubStreams(false)}
         />
       )}

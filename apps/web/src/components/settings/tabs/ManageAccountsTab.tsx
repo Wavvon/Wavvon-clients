@@ -1,7 +1,8 @@
+import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../../platform/commands/recoveryPeople";
 import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
 import type { BackupAccount } from "@wavvon/core";
-import { FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
+import { ActiveAccountOnlyNotice, FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
 import {
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -11,7 +12,7 @@ import { HomeHubsSection } from "../HomeHubsSection";
 import { MULTI_HUB } from "../../../constants";
 import { MoveToUserClientSection } from "../MoveToUserClientSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
-import { ManagingAccountSelector } from "../ManagingAccountSelector";
+import { PasskeySection } from "../PasskeySection";
 import {
   listAccounts,
   resolveOrCreateAccount,
@@ -21,7 +22,7 @@ import {
   type IdentityRecord,
 } from "@identity/index";
 import type { PerAccountProps } from "@wavvon/ui";
-import { isIdentityBackedUp, markIdentityBackedUp } from "../../../utils/identityBackup";
+import { identityNeedsBackup, markIdentityBackedUp } from "../../../utils/identityBackup";
 import { buildFullArchiveActions } from "../../../utils/fullArchiveActions";
 
 interface Props extends PerAccountProps<IdentityRecord> {
@@ -30,6 +31,7 @@ interface Props extends PerAccountProps<IdentityRecord> {
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
   inVoice: boolean;
+  onBackedUp: () => void;
 }
 
 function downloadBytes(bytes: Uint8Array, filename: string) {
@@ -115,6 +117,8 @@ export function ManageAccountsTab(props: Props) {
     getContacts: getRecoveryContacts,
     setContacts: setRecoveryContacts,
     removeContact: removeRecoveryContact,
+    listPeople: listRecoveryPeople,
+    listRequestsToAttest: listRecoveryRequestsToAttest,
     openRotationRequest: (oldPubkey, reason) => openRotationRequest(activeHubUrl ?? "", oldPubkey, reason),
     getRotationRequest: (id) => getRotationRequestBundle(activeHubUrl ?? "", id),
     attestRotationRequest: (bundle) => attestRotationRequest(activeHubUrl ?? "", bundle),
@@ -123,26 +127,28 @@ export function ManageAccountsTab(props: Props) {
   return (
     <section>
       <h1 style={{ marginBottom: 20 }}>{t("settings.tabs.accounts")}</h1>
-      <AccountsSwitcherSection inVoice={props.inVoice} />
+      <AccountsSwitcherSection inVoice={props.inVoice} onBackedUp={props.onBackedUp} />
+      {props.managing && props.managing.id !== props.activeId && (
+        <ActiveAccountOnlyNotice
+          label={props.managing.account_label || formatPubkey(props.managing.id)}
+          onSwitch={() => switchOrAlert(props.managing!.id)}
+        />
+      )}
       <IdentityBackupSection
         accounts={backupAccounts}
         recoveryPhrase={props.recoveryPhrase}
         onRevealPhrase={props.onShowRecovery}
         actions={backupActions}
-        needsBackup={!activeIsPaired && !isIdentityBackedUp(props.activeId)}
+        needsBackup={identityNeedsBackup(activeRecord)}
         phraseHeldElsewhere={activeIsPaired}
-        onSavedOffDevice={markIdentityBackedUp}
+        onSavedOffDevice={(id) => {
+          markIdentityBackedUp(id);
+          props.onBackedUp();
+        }}
       />
-      {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
       <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
-      {props.accounts && props.managing && (
-        <ManagingAccountSelector
-          accounts={props.accounts}
-          activeId={props.activeId}
-          selectedId={props.managing.id}
-          onChange={props.onManagingChange}
-        />
-      )}
+      {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
+      {props.managing && <PasskeySection publicKey={props.publicKey} account={props.managing} activeHubUrl={activeHubUrl} />}
       {MULTI_HUB && props.managing && <HomeHubsSection activeHubUrl={activeHubUrl} account={props.managing} />}
       {!MULTI_HUB && props.managing && <MoveToUserClientSection account={props.managing} activeHubUrl={activeHubUrl} />}
     </section>

@@ -23,7 +23,7 @@ pub(crate) async fn get_recovery_phrase(app: AppHandle) -> Result<String, String
     }
     let path = Identity::default_path().map_err(|e| e.to_string())?;
     let identity = Identity::load(&path).map_err(|e| e.to_string())?;
-    Ok(identity.recovery_phrase())
+    Ok(identity.recovery_phrase().to_string())
 }
 
 /// Recovering a phrase brings that identity onto this device as an account of

@@ -18,6 +18,7 @@ export type {
   MemberAdminInfo,
   BanInfo,
   VoiceMuteInfo,
+  MuteInfo,
   PendingUser,
   Conversation,
   DmMessage,
@@ -55,14 +56,6 @@ export type {
   BadgePayload,
   HubBadge,
   PendingBadgeOffer,
-  WsScreenShareOfferOut,
-  WsScreenShareOfferIn,
-  WsScreenShareAnswerOut,
-  WsScreenShareAnswerIn,
-  WsScreenShareIceOut,
-  WsScreenShareIceIn,
-  WsScreenShareViewerJoined,
-  WsScreenShareViewerLeft,
 } from "@wavvon/core";
 
 export type { Channel } from "@wavvon/core";
@@ -118,8 +111,7 @@ export interface WsHubStreams {
 export type { ActiveStream } from "@wavvon/ui";
 
 export interface ScreenShareOpts {
-  sourceId?: string;
-  includeAudio: boolean;
+  quality: import("@wavvon/ui").ShareQuality;
   includeWebcam: boolean;
   webcamDeviceId: string;
 }

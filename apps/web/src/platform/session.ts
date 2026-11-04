@@ -24,6 +24,13 @@ export interface HubSession {
   capabilities?: string[];
   /** This hub's version string. Display only; gate on `capabilities`. */
   hub_version?: string;
+  /**
+   * The pubkey this hub seated us as. Per hub, not per account: a hub that
+   * knew this device before certificates keeps its key, a newer hub (and any
+   * farm) uses the master. Unknown until an auth or a `/me` answers it; read
+   * it through `seatOf`.
+   */
+  canonical_pubkey?: string;
 }
 
 const sessions = new Map<string, HubSession>();

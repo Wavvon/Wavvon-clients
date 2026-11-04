@@ -177,7 +177,7 @@ pub(crate) async fn export_account_backup(
     let label = accounts::account_label_for(&id)?.unwrap_or_else(|| id.clone());
     let account = BackupAccount {
         label,
-        secret_key_hex: identity.secret_key_hex(),
+        secret_key_hex: identity.secret_key_hex().to_string(),
     };
     let json = encrypt_backup_random(&account, &passphrase)?;
     std::fs::write(&path, json).map_err(|e| format!("write backup: {e}"))

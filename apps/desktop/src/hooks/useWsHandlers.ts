@@ -13,7 +13,7 @@ export interface WsHandlersParams {
   selectedConversationIdRef: RefObject<string | null>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-  myPresenceRef: RefObject<{ status: PresenceStatus }>;
+  myPresenceRef: RefObject<{ status: PresenceStatus; custom: string | null }>;
   /// Current whisper receive opt-out, re-pushed on every (re)connect.
   whisperOptoutRef: RefObject<boolean>;
   onVoiceMove: (raw: unknown) => void;
@@ -34,7 +34,7 @@ export interface WsHandlersParams {
   onHubReconnected: (hubId: string) => void;
   scheduleReconnect: (hubId: string) => void;
   cancelAllReconnectTimers: () => void;
-  onVoiceJoined: (channelId: string, participants: VoiceParticipant[]) => void;
+  onVoiceJoined: (channelId: string, participants: VoiceParticipant[], maySpeak: boolean) => void;
   onParticipantJoined: (channelId: string, participant: VoiceParticipant) => void;
   onParticipantLeft: (channelId: string, pubkey: string) => void;
   onMicLevel: (level: number) => void;
@@ -138,10 +138,10 @@ export function useWsHandlers({
               // just (re)connected, but only if the user ever picked one here —
               // a fresh device must not stomp a status set elsewhere.
               const p = myPresenceRef.current;
-              if (p && p.status !== "online") {
+              if (p && (p.status !== "online" || p.custom)) {
                 invoke("send_hub_ws_raw_to", {
                   hubId: hub_id,
-                  payload: JSON.stringify({ type: "set_status", status: p.status, custom: null }),
+                  payload: JSON.stringify({ type: "set_status", status: p.status, custom: p.custom }),
                 }).catch(() => { /* session raced away */ });
               }
               // Whisper opt-out is held per-connection by the hub, so a
@@ -299,9 +299,10 @@ export function useWsHandlers({
           hub_id: string;
           channel_id: string;
           participants: VoiceParticipant[];
+          may_speak: boolean;
         }>("voice-joined", (event) => {
           if (!isVoiceHub(event.payload.hub_id)) return;
-          onVoiceJoined(event.payload.channel_id, event.payload.participants);
+          onVoiceJoined(event.payload.channel_id, event.payload.participants, event.payload.may_speak);
           const channelName = channelsRef.current.find((c) => c.id === event.payload.channel_id)?.name ?? event.payload.channel_id;
           const others = event.payload.participants.filter((p) => p.public_key !== publicKeyRef.current);
           if (others.length === 0) {

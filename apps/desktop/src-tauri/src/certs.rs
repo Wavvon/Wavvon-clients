@@ -30,12 +30,21 @@ pub(crate) async fn get_audit_log(
     hub_url: String,
     cursor: Option<i64>,
     limit: Option<i64>,
+    event_type: Option<String>,
+    actor: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let mut query = format!("limit={}", limit.unwrap_or(50));
     if let Some(c) = cursor {
         query.push_str(&format!("&cursor={c}"));
+    }
+    // Both are hex keys or dotted event names, so they need no escaping.
+    if let Some(e) = event_type {
+        query.push_str(&format!("&event_type={e}"));
+    }
+    if let Some(a) = actor {
+        query.push_str(&format!("&actor={a}"));
     }
     let res = state
         .http_client
@@ -61,17 +70,14 @@ pub(crate) async fn list_issued_certs(
     state: State<'_, AppState>,
 ) -> Result<Vec<serde_json::Value>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let res = state
-        .http_client
-        .get(format!("{}/admin/certs", hub_url.trim_end_matches('/')))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    if !res.status().is_success() {
-        return Err(format!("HTTP {}", res.status()));
-    }
-    let rows: Vec<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
+    let rows: Vec<serde_json::Value> = crate::admin::get_all_pages(
+        &state.http_client,
+        &format!("{}/admin/certs", hub_url.trim_end_matches('/')),
+        &token,
+        &[],
+        |r: &serde_json::Value| r["id"].as_str().unwrap_or_default().to_string(),
+    )
+    .await?;
     Ok(rows
         .into_iter()
         .map(|r| {
@@ -114,7 +120,7 @@ pub(crate) async fn save_cert_settings(
         body.insert("cert_auto_issue".into(), v.into());
     }
     if let Some(v) = cert_standing_days {
-        body.insert("cert_standing_days".into(), v.into());
+        body.insert("cert_min_age_days".into(), v.into());
     }
     if let Some(v) = cert_validity_days {
         body.insert("cert_validity_days".into(), v.into());
@@ -184,8 +190,8 @@ pub(crate) async fn revoke_cert(
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let res = state
         .http_client
-        .post(format!(
-            "{}/admin/certs/{}/revoke",
+        .delete(format!(
+            "{}/admin/certs/{}",
             hub_url.trim_end_matches('/'),
             subject_pubkey
         ))

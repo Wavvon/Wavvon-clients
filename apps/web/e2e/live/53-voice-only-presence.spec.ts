@@ -51,8 +51,8 @@ test("a member moved into a channel they can't read gets voice-only presence, ne
 
   const anchor = uniqueName("stagea");
   const hidden = uniqueName("stagehid");
-  await createChannel(page, anchor);
-  await createChannel(page, hidden);
+  await createChannel(page, anchor, "Voice channel");
+  await createChannel(page, hidden, "Voice channel");
 
   // Deny messages.read *and* voice.join for @everyone on the destination — the member must
   // never see it in their sidebar, before or after the move.

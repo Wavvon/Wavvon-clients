@@ -18,8 +18,8 @@ export function useAlliances(setError: (msg: string) => void) {
       listAlliances: () => invoke<AllianceInfo[]>("list_alliances"),
       listSharedChannels: (allianceId: string) =>
         invoke<AllianceSharedChannel[]>("list_alliance_shared_channels", { allianceId }),
-      getChannelMessages: (allianceId: string, channelId: string) =>
-        invoke<Message[]>("get_alliance_channel_messages", { allianceId, channelId }),
+      getChannelMessages: (allianceId: string, channelId: string, before?: string) =>
+        invoke<Message[]>("get_alliance_channel_messages", { allianceId, channelId, cursor: before }),
       sendChannelMessage: async (allianceId: string, channelId: string, content: string) => {
         await invoke("send_alliance_channel_message", { allianceId, channelId, content });
       },

@@ -9,7 +9,9 @@ import {
   searchMessages,
   markChannelRead,
   subscribeChannel,
+  uploadFile,
 } from "@platform";
+import { useOlderPages, usePendingFiles } from "@wavvon/ui";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import type { SelectedAllianceChannel } from "./useAlliances";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel } from "@shared/types";
@@ -29,6 +31,7 @@ export interface UseChannelMessagesParams {
   sendAllianceMessage: (content: string) => Promise<boolean>;
   /** A message of the user's own just reached the hub. */
   onMessageSent?: () => void;
+  onError: (msg: string) => void;
 }
 
 // Channel message state (composer, edit/reply/attachment drafts, search,
@@ -40,7 +43,7 @@ export interface UseChannelMessagesParams {
 export function useChannelMessages({
   activeHubId, setView, clearConversationSelection, clearUnread,
   selectedAllianceChannel, clearSelectedAllianceChannel, selectAllianceChannel, sendAllianceMessage,
-  onMessageSent,
+  onMessageSent, onError,
 }: UseChannelMessagesParams) {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const selectedChannelRef = useRef<Channel | null>(null);
@@ -56,6 +59,7 @@ export function useChannelMessages({
   const [editingDraft, setEditingDraft] = useState("");
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const pendingFiles = usePendingFiles();
   const [stickToBottom, setStickToBottom] = useState(true);
   const [newWhileScrolledUp, setNewWhileScrolledUp] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -68,6 +72,14 @@ export function useChannelMessages({
   const messagesEndChannelRef = useRef<HTMLLIElement | null>(null);
   const messagesContainerRef = useRef<HTMLOListElement | null>(null);
   const messageInputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadOlderMessages = useOlderPages({
+    containerRef: messagesContainerRef,
+    items: messages,
+    setItems: setMessages,
+    fetchOlder: (beforeId) => getMessages(selectedChannel!.id, beforeId),
+    resetKey: selectedChannel?.id ?? null,
+  });
 
   useEffect(() => {
     if (!selectedChannel) {
@@ -167,12 +179,15 @@ export function useChannelMessages({
   }
 
   async function handleSend() {
-    if (!selectedChannel || !inputText.trim()) return;
+    if (!selectedChannel || (!inputText.trim() && pendingFiles.files.length === 0)) return;
     const text = inputText.trim();
     setInputText("");
     if (activeHubId) clearDraft(`${activeHubId}/${selectedChannel.id}`);
     try {
-      const sent = await sendMessage(selectedChannel.id, text, pendingAttachments.length ? pendingAttachments : undefined, replyTarget?.id);
+      const uploaded = await Promise.all(
+        pendingFiles.files.map((f) => uploadFile(selectedChannel.id, f.file, f.asFile)),
+      );
+      const sent = await sendMessage(selectedChannel.id, text, uploaded.length ? uploaded.map((a) => a.id) : undefined, replyTarget?.id);
       // Render what the hub stored instead of waiting for the socket to echo
       // it: a message sent while the socket is down or still reconnecting was
       // accepted (201) and then vanished from its own author view until the
@@ -181,15 +196,25 @@ export function useChannelMessages({
       if (sent && sent.channel_id === selectedChannelIdRef.current) {
         setMessages((prev) => prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]);
       }
-      setPendingAttachments([]);
+      pendingFiles.clear();
       setReplyTarget(null);
       onMessageSent?.();
-    } catch {
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
       // Nothing here can raise a toast, so put the text back rather than
       // dropping it silently — a rejected send (rate limit, hub down) left
       // the composer empty and the words gone.
       setInputText((cur) => cur || text);
     }
+  }
+
+  // Throws so the sticker picker can say why: it owns the error wording.
+  async function handleSendSticker(channelId: string, stickerId: string) {
+    const sent = await sendMessage(channelId, "", undefined, undefined, stickerId);
+    if (sent && sent.channel_id === selectedChannelIdRef.current) {
+      setMessages((prev) => prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]);
+    }
+    onMessageSent?.();
   }
 
   async function handleSaveEdit() {
@@ -242,6 +267,7 @@ export function useChannelMessages({
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     setStickToBottom(atBottom);
     if (atBottom) setNewWhileScrolledUp(0);
+    loadOlderMessages();
   }
 
   function handleInputTextChange(v: string) {
@@ -262,7 +288,7 @@ export function useChannelMessages({
     editingMessageId, setEditingMessageId,
     editingDraft, setEditingDraft,
     replyTarget, setReplyTarget,
-    pendingAttachments, setPendingAttachments,
+    pendingAttachments, setPendingAttachments, pendingFiles,
     stickToBottom, setStickToBottom,
     newWhileScrolledUp, setNewWhileScrolledUp,
     searchOpen, setSearchOpen,
@@ -276,6 +302,7 @@ export function useChannelMessages({
     handleSelectAllianceChannel,
     handleSendAllianceMessage,
     handleSend,
+    handleSendSticker,
     handleSaveEdit,
     handleCancelEdit,
     handleStartEdit,

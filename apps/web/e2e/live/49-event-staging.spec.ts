@@ -30,9 +30,9 @@ test("staging panel: live move (auto-accept + rejoin toast) and queued assignmen
   const anchor = uniqueName("raidp");
   const destA = uniqueName("squadaa");
   const destB = uniqueName("squadbb");
-  await createChannel(page, anchor);
-  await createChannel(page, destA);
-  await createChannel(page, destB);
+  await createChannel(page, anchor, "Voice channel");
+  await createChannel(page, destA, "Voice channel");
+  await createChannel(page, destB, "Voice channel");
 
   await openEventsTab(page, anchor);
   await page.getByRole("button", { name: "+ Create event" }).click();

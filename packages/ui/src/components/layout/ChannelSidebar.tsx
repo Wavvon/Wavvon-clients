@@ -1,3 +1,5 @@
+import { useVoiceBarSlot } from "../../utils/voiceBarSlot";
+import { Avatar } from "../Avatar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -29,10 +31,9 @@ import type {
   WhisperList,
   WhisperReplyBind,
 } from "../../types";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, GearIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
+import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
 import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
-import { HoverSubmenu } from "../HoverSubmenu";
 import { HubMenuItems } from "./HubMenuItems";
 import { SoundboardPopover } from "../voice/SoundboardPopover";
 import { WhisperPanel } from "../voice/WhisperPanel";
@@ -43,7 +44,7 @@ import {
 } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../../utils/spawnerChannels";
 import { dmPeerLabel } from "../../utils/dmPeerLabel";
-import { SearchIcon, MembersIcon } from "../Icons";
+import { MembersIcon } from "../Icons";
 
 interface SidebarFlatNode extends FlatNode {
   indentDepth: number;
@@ -108,6 +109,8 @@ interface Props {
   dmPeerNames?: Record<string, string>;
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
+  /** The hub's landing image, shown behind its card; absent on older hubs. */
+  hubBannerUrl?: string;
   isAdmin: boolean;
   /** Gate for the "Invite people" entry. Wider than isAdmin: a manage_channels
    *  member can create invites too, just via the compact quick-invite modal
@@ -117,11 +120,6 @@ interface Props {
    * manage_roles member may open channel settings (Permissions tab).
    * Falls back to isAdmin when omitted. */
   canOpenChannelSettings?: boolean;
-  /** Own presence: null/undefined = online, "away", "dnd", "invisible". */
-  myStatus?: string | null;
-  /** Present = footer identity opens the status picker. `ttlMinutes` is an
-   *  optional "clear after" duration (reverts to online), null = no expiry. */
-  onSetStatus?: (status: "online" | "away" | "dnd" | "invisible", ttlMinutes: number | null) => void;
   hubNotifyMode: Record<string, NotifyMode>;
   hubDropdownOpen: boolean;
   /** Active hub's IANA timezone, for the ambient hub-local clock — absent/null
@@ -150,6 +148,9 @@ interface Props {
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenChannelSettings?: (channel: Channel) => void;
   onVoiceJoin: (channel?: Channel) => void;
+  /** The hub has `channels.voice`: only a `voice` channel can be joined, so
+   *  a double click on any other channel just opens it. */
+  voiceChannelsOnly?: boolean;
   onVoiceLeave: () => void;
   /** Right-click on a voice-roster participant — the mover's "Move to channel…" surface (events.md §7.1). */
   onParticipantContextMenu?: (e: React.MouseEvent, participant: VoiceParticipant, channelId: string) => void;
@@ -162,12 +163,6 @@ interface Props {
   onOpenFriends?: () => void;
   onToggleSelfMute: () => void;
   onToggleSelfDeafen: () => void;
-  onOpenSettings: () => void;
-  /** The active identity has no copy off this browser yet. Marks the gear
-   *  rather than raising anything of its own: the gear is always on screen and
-   *  never moves, so the reminder cannot be dismissed into nowhere, and it
-   *  goes away the moment the phrase is revealed or a backup exported. */
-  settingsNeedsAttention?: boolean;
   onDragEnd: (event: DragEndEvent) => void;
   onToggleHideSilenced?: () => void;
   sharing?: boolean;
@@ -180,10 +175,10 @@ interface Props {
   onSetVoiceGain?: (pk: string, gainPct: number) => void;
   /** Pubkeys currently whispering to the local user. */
   inboundWhispers?: Set<string>;
+  /** Pubkeys speaking right now, as the hub broadcasts it (yours included). */
+  speaking?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
-  /** Present = render the global-search trigger button above the channel list. */
-  onOpenSearch?: () => void;
   /** Whisper (events.md whisper follow-up): named target lists (save/load/delete)
    *  are folded in as optional props — present only where the caller has the
    *  backing commands wired. */
@@ -213,7 +208,7 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
-  users, dmPeerNames, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
+  users, dmPeerNames, publicKey, pingByHub, hubBannerUrl, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
@@ -222,13 +217,12 @@ export function ChannelSidebar({
   onHubDropdownOpenChange, onSetHubMode, onClearHubUnread, onRemoveHub,
   onOpenHubAdmin, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
-  onVoiceJoin, onVoiceLeave, onParticipantContextMenu,
+  onVoiceJoin, onVoiceLeave, onParticipantContextMenu, voiceChannelsOnly,
   onSelectAllianceChannel, onJoinAllianceVoice, onSelectConversation,
-  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings, settingsNeedsAttention,
+  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
-  voiceGains, onSetVoiceGain, inboundWhispers, hasDraft,
-  onOpenSearch,
+  voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
   isWhispering, whisperTargets, whisperLists, showWhisperPanel,
   onToggleWhisperPanel, onCloseWhisperPanel, onStartWhisper, onStopWhisper,
   onSaveWhisperList, onDeleteWhisperList, onListWhisperRoles,
@@ -238,21 +232,6 @@ export function ChannelSidebar({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [hubCtxMenu, setHubCtxMenu] = useState<{ x: number; y: number } | null>(null);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  // "Clear after" duration (minutes) for the next status pick; 0 = no expiry.
-  const [ttlDraft, setTtlDraft] = useState(0);
-  const statusMenuRef = useRef<HTMLDivElement>(null);
-  // Dismiss the status picker on any click outside it.
-  useEffect(() => {
-    if (!showStatusMenu) return;
-    const onDown = (e: MouseEvent) => {
-      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
-        setShowStatusMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [showStatusMenu]);
   const [sidebarWidth, setSidebarWidth] = useState<number>(loadSidebarWidth);
   const resizeDragRef = useRef<{ startX: number; origW: number } | null>(null);
 
@@ -280,7 +259,8 @@ export function ChannelSidebar({
   const [focusedSubtreeId, setFocusedSubtreeId] = useState<string | null>(null);
   const [drillAnnouncement, setDrillAnnouncement] = useState("");
   const whisperBtnRef = useRef<HTMLButtonElement>(null);
-  const [whisperPanelPos, setWhisperPanelPos] = useState<{ bottom: number; left: number } | null>(null);
+  const voiceBarSlot = useVoiceBarSlot();
+  const [whisperPanelPos, setWhisperPanelPos] = useState<{ top: number; left: number } | null>(null);
 
   // Drill-in focus is per-hub session state (not persisted): clear it when
   // the user switches hubs.
@@ -302,7 +282,8 @@ export function ChannelSidebar({
   useEffect(() => {
     if (!showWhisperPanel || !whisperBtnRef.current) return;
     const rect = whisperBtnRef.current.getBoundingClientRect();
-    setWhisperPanelPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left });
+    // The button sits in the voice view's bar at the top: the panel opens below it.
+    setWhisperPanelPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 340) });
   }, [showWhisperPanel]);
 
   const dndSensors = useSensors(
@@ -369,7 +350,7 @@ export function ChannelSidebar({
   }
 
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
-  const myDisplayName = users.find((u) => u.public_key === publicKey)?.display_name;
+  const avatarByKey = useMemo(() => new Map(users.map((u) => [u.public_key, u.avatar])), [users]);
   const activePing = activeHubId ? pingByHub[activeHubId] : undefined;
   const voiceChannelName = voiceChannelNameHint ?? channels.find((c) => c.id === voiceChannelId)?.name;
 
@@ -487,9 +468,12 @@ export function ChannelSidebar({
       {view === "channels" && (
         <div className="hub-header" ref={hubHeaderRef}>
           <button
-            className="hub-header-button"
+            className={`hub-header-button hub-card${hubBannerUrl ? " has-banner" : ""}`}
+            style={hubBannerUrl ? { ["--hub-banner" as string]: `url("${hubBannerUrl}")` } : undefined}
+            aria-expanded={hubDropdownOpen}
             onClick={() => onHubDropdownOpenChange(!hubDropdownOpen)}
           >
+            {activeHub && <Avatar src={activeHub.hub_icon} name={activeHub.hub_name} pubkey={activeHub.hub_id} size={36} />}
             {/* The address, not just the name. Self-hosted means whose machine
                 you are on is part of knowing where you are. */}
             <span className="hub-header-id">
@@ -497,6 +481,12 @@ export function ChannelSidebar({
               {activeHub?.hub_url && (
                 <span className="hub-header-address">{displayHubAddress(activeHub.hub_url)}</span>
               )}
+            </span>
+            <span className="hub-card-counts">
+              {t("hub.card.members", { count: users.length })}
+              {" · "}
+              <span className="status-dot online" aria-hidden="true" />
+              {t("hub.card.online", { count: users.filter((u) => u.online).length })}
             </span>
             <HubClock timezone={hubTimezone} />
             <span className="hub-header-chevron"><ChevronIcon size={12} dir={hubDropdownOpen ? "up" : "down"} /></span>
@@ -526,16 +516,6 @@ export function ChannelSidebar({
             </div>
           )}
         </div>
-      )}
-
-      {view === "channels" && onOpenSearch && (
-        <button
-          className="btn-ghost"
-          style={{ width: "100%", textAlign: "left", padding: "6px 12px" }}
-          onClick={onOpenSearch}
-        >
-          <SearchIcon size={13} /> {t("search.placeholder")}
-        </button>
       )}
 
       <div
@@ -625,6 +605,7 @@ export function ChannelSidebar({
                         // bar duplicating this is fine: it's the controls
                         // surface (gain sliders); the row is who-is-where.
                         participants={voicePartByChannel[n.node.id] ?? []}
+                        selfPubkey={publicKey}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         hubUrl={activeHub?.hub_url}
                         ownerDisplayName={resolveOwnerDisplayName(n.node.owner_pubkey, users)}
@@ -636,6 +617,8 @@ export function ChannelSidebar({
                         voiceGains={voiceGains}
                         onSetVoiceGain={onSetVoiceGain}
                         inboundWhispers={inboundWhispers}
+                        avatars={avatarByKey}
+                        speaking={speaking}
                         hasDraft={hasDraft}
                         onClick={() => {
                           setChannelFocusIndex(index);
@@ -645,7 +628,12 @@ export function ChannelSidebar({
                             onSelectChannel(n.node);
                           }
                         }}
-                        onDoubleClick={() => { if (!isSpawnerChannel(n.node) && voiceChannelId !== n.node.id) onVoiceJoin(n.node); }}
+                        joinable={!isSpawnerChannel(n.node) && (!voiceChannelsOnly || n.node.channel_type === "voice")}
+                        onDoubleClick={() => {
+                          if (isSpawnerChannel(n.node) || voiceChannelId === n.node.id) return;
+                          if (voiceChannelsOnly && n.node.channel_type !== "voice") return;
+                          onVoiceJoin(n.node);
+                        }}
                         onContextMenu={(e) => { e.stopPropagation(); onChannelContextMenu(e, n.node); }}
                         onKeyDown={(e) => handleChannelKeyDown(e, index)}
                         onSettings={(canOpenChannelSettings ?? isAdmin) && onOpenChannelSettings ? (_e) => onOpenChannelSettings!(n.node) : undefined}
@@ -816,14 +804,6 @@ export function ChannelSidebar({
             <div className="voice-status-bar">
               {activePing !== undefined && <PingIcon ping={activePing} />}
               <span className="voice-status-label">#{voiceChannelName}</span>
-              <button
-                onClick={onVoiceLeave}
-                className="btn-icon-gear voice-call-btn end"
-                title={t("voice.leave")}
-                aria-label={t("voice.leave")}
-              >
-                <PhoneOffIcon />
-              </button>
             </div>
             {micBelowGate && onOpenVoiceSettings && <MicBelowGateWarning onOpenSensitivity={onOpenVoiceSettings} />}
             <div className="user-actions">
@@ -846,70 +826,83 @@ export function ChannelSidebar({
                 >
                   <DeafenIcon muted={selfDeafened} />
                 </button>
-                {onScreenShare && (
-                  <button
-                    onClick={onScreenShare}
-                    className={`btn-icon-gear ${sharing ? "active" : ""}`}
-                    title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
-                  >
-                    <ScreenShareIcon />
-                  </button>
-                )}
-                {onToggleVideo && (
-                  <button
-                    onClick={handleToggleVideo}
-                    className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
-                    title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                    aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                  >
-                    {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
-                  </button>
-                )}
-                {onToggleWhisperPanel && (
-                  <button
-                    ref={whisperBtnRef}
-                    onClick={onToggleWhisperPanel}
-                    className={`btn-icon-gear ${isWhispering ? "active" : ""}`}
-                    title={t("voice.whisper", "Whisper")}
-                    aria-pressed={!!isWhispering}
-                  >
-                    <WhisperIcon size={15} />
-                  </button>
-                )}
-                {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
-                  <div style={{ position: "fixed", bottom: whisperPanelPos.bottom, left: whisperPanelPos.left, zIndex: 9999 }}>
-                    <WhisperPanel
-                      voiceParticipants={
-                        voiceChannelId
-                          ? (voicePartByChannel[voiceChannelId] ?? []).filter(
-                              (p) => p.public_key !== publicKey,
-                            )
-                          : []
-                      }
-                      voiceChannels={channels.filter(c => !c.is_category)}
-                      isWhispering={!!isWhispering}
-                      whisperTargets={whisperTargets ?? []}
-                      whisperLists={whisperLists ?? []}
-                      onStartWhisper={onStartWhisper ?? (() => {})}
-                      onStopWhisper={onStopWhisper ?? (() => {})}
-                      onSaveList={onSaveWhisperList ?? (() => {})}
-                      onDeleteList={onDeleteWhisperList ?? (() => {})}
-                      onClose={onCloseWhisperPanel}
-                      whisperOptout={whisperOptout}
-                      onSetWhisperOptout={onSetWhisperOptout}
-                      onListWhisperRoles={onListWhisperRoles}
-                      whisperReplyBind={whisperReplyBind}
-                      onSetWhisperReplyBind={onSetWhisperReplyBind}
-                    />
+                <button
+                  onClick={onVoiceLeave}
+                  className="btn-icon-gear voice-call-btn end"
+                  title={t("voice.leave")}
+                  aria-label={t("voice.leave")}
+                >
+                  <PhoneOffIcon />
+                </button>
+                {voiceBarSlot && createPortal(
+                  <div className="voice-media-bar" role="toolbar" aria-label={t("voice.bar.label")}>
+                    {onScreenShare && (
+                      <button
+                        onClick={onScreenShare}
+                        className={`btn-icon-gear ${sharing ? "active" : ""}`}
+                        title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
+                      >
+                        <ScreenShareIcon />
+                      </button>
+                    )}
+                    {onToggleVideo && (
+                      <button
+                        onClick={handleToggleVideo}
+                        className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
+                        title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                        aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                      >
+                        {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
+                      </button>
+                    )}
+                    {onToggleWhisperPanel && (
+                      <button
+                        ref={whisperBtnRef}
+                        onClick={onToggleWhisperPanel}
+                        className={`btn-icon-gear ${isWhispering ? "active" : ""}`}
+                        title={t("voice.whisper", "Whisper")}
+                        aria-pressed={!!isWhispering}
+                      >
+                        <WhisperIcon size={15} />
+                      </button>
+                    )}
+                    {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
+                      <div style={{ position: "fixed", top: whisperPanelPos.top, left: Math.max(8, whisperPanelPos.left), zIndex: 9999 }}>
+                        <WhisperPanel
+                          voiceParticipants={
+                            voiceChannelId
+                              ? (voicePartByChannel[voiceChannelId] ?? []).filter(
+                                  (p) => p.public_key !== publicKey,
+                                )
+                              : []
+                          }
+                          voiceChannels={channels.filter(c => !c.is_category)}
+                          isWhispering={!!isWhispering}
+                          whisperTargets={whisperTargets ?? []}
+                          whisperLists={whisperLists ?? []}
+                          onStartWhisper={onStartWhisper ?? (() => {})}
+                          onStopWhisper={onStopWhisper ?? (() => {})}
+                          onSaveList={onSaveWhisperList ?? (() => {})}
+                          onDeleteList={onDeleteWhisperList ?? (() => {})}
+                          onClose={onCloseWhisperPanel}
+                          whisperOptout={whisperOptout}
+                          onSetWhisperOptout={onSetWhisperOptout}
+                          onListWhisperRoles={onListWhisperRoles}
+                          whisperReplyBind={whisperReplyBind}
+                          onSetWhisperReplyBind={onSetWhisperReplyBind}
+                        />
+                      </div>,
+                      document.body
+                    )}
+                    {canUseSoundboard && onTriggerSoundboardClip && onListSoundboardClips && (
+                      <SoundboardPopover
+                        onListClips={onListSoundboardClips}
+                        onTrigger={onTriggerSoundboardClip}
+                        playingClipId={soundboardPlayingClipId ?? null}
+                      />
+                    )}
                   </div>,
-                  document.body
-                )}
-                {canUseSoundboard && onTriggerSoundboardClip && onListSoundboardClips && (
-                  <SoundboardPopover
-                    onListClips={onListSoundboardClips}
-                    onTrigger={onTriggerSoundboardClip}
-                    playingClipId={soundboardPlayingClipId ?? null}
-                  />
+                  voiceBarSlot,
                 )}
               </div>
             </div>
@@ -928,64 +921,6 @@ export function ChannelSidebar({
           </>
         )}
 
-        <div className="user-identity">
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <div className="user-identity-avatar" />
-            <span className={`user-status-dot status-${myStatus ?? "online"}`} />
-          </div>
-          <div
-            ref={statusMenuRef}
-            className="user-identity-details"
-            style={onSetStatus ? { cursor: "pointer" } : undefined}
-            onClick={onSetStatus ? () => setShowStatusMenu((v) => !v) : undefined}
-          >
-            <span className="user-identity-name" title={publicKey ?? undefined}>
-              {myDisplayName || publicKey?.slice(0, 12) || "You"}
-            </span>
-            {showStatusMenu && onSetStatus && (
-              <div className="status-menu" onClick={(e) => e.stopPropagation()}>
-                {(["online", "away", "dnd", "invisible"] as const).map((s) => (
-                  <button
-                    key={s}
-                    className={`status-menu-item ${(myStatus ?? "online") === s ? "active" : ""}`}
-                    onClick={() => {
-                      onSetStatus(s, s === "online" || ttlDraft === 0 ? null : ttlDraft);
-                      setShowStatusMenu(false);
-                    }}
-                  >
-                    <span className={`user-status-dot status-${s}`} style={{ marginRight: 6, position: "static" }} />
-                    {t(`presence.${s}`)}
-                  </button>
-                ))}
-                {/* "Clear after": auto-revert to Online. Not applicable to
-                    Online itself, so it only affects away/dnd/invisible picks. */}
-                <label className="status-menu-ttl">
-                  <span>{t("presence.clear_after")}</span>
-                  <select
-                    value={ttlDraft}
-                    onChange={(e) => setTtlDraft(Number(e.target.value))}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <option value={0}>{t("presence.ttl.off")}</option>
-                    <option value={30}>{t("presence.ttl.30m")}</option>
-                    <option value={60}>{t("presence.ttl.1h")}</option>
-                    <option value={180}>{t("presence.ttl.3h")}</option>
-                  </select>
-                </label>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={onOpenSettings}
-            className="btn-icon-gear"
-            title={settingsNeedsAttention ? t("settings.identity_backup.badge") : t("settings.title")}
-          >
-            <GearIcon size={15} />
-            {settingsNeedsAttention && (
-              <span className="gear-attention-dot" aria-label={t("settings.identity_backup.badge")} />
-            )}
-          </button>
-        </div>
       </div>
     </nav>
   );

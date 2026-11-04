@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { PairedDevice } from "../types";
 import { formatPubkey, formatRelative } from "@wavvon/core";
 
+// Paired devices: what can sign in as this account.
 export function DeviceListSection() {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<PairedDevice[]>([]);

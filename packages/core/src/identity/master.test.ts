@@ -51,6 +51,18 @@ describe("encryptPrefsBlob", () => {
     expect(decryptPrefsBlob(encryptPrefsBlob(prefs, key), key)).toEqual(prefs);
   });
 
+  it("round-trips the saved-sticker collection", () => {
+    const key = derivePrefsBlobKey(MASTER_SEED_HEX);
+    const prefs = {
+      blocked_users: [],
+      voice_settings: {},
+      stickers: [
+        { sha256: "ab".repeat(32), name: "wave", origin_hub_url: "https://a.example", origin_hub_name: "A", saved_at: 1700000000 },
+      ],
+    };
+    expect(decryptPrefsBlob(encryptPrefsBlob(prefs, key), key)).toEqual(prefs);
+  });
+
   it("uses a fresh nonce per call, so the same prefs never encrypt alike", () => {
     const key = derivePrefsBlobKey(MASTER_SEED_HEX);
     const prefs = { blocked_users: [], voice_settings: {} };

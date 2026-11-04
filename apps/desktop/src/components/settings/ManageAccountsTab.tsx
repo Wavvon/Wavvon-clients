@@ -1,3 +1,4 @@
+import { PasskeySection } from "../PasskeySection";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
@@ -16,7 +17,7 @@ import { suggestBackupFilename } from "@wavvon/core";
 import type { AccountSummary } from "../../accounts/store";
 import { buildRecoveryActions } from "../../utils/recoveryActions";
 import { buildFullArchiveActions } from "../../utils/fullArchiveActions";
-import { isIdentityBackedUp, markIdentityBackedUp } from "../../utils/identityBackup";
+import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
 import { RestoreIdentitySection } from "../RestoreIdentitySection";
@@ -31,6 +32,7 @@ interface Props {
   onShowRecovery: () => void;
   onRecoverIdentity: (phrase: string) => Promise<void>;
   onClearLocalData: () => void;
+  onBackedUp: () => void;
 }
 
 interface RecoveryContactsResponse {
@@ -48,10 +50,11 @@ interface ImportedAccount {
 // recovery phrase + identity backup and full archive (shared components, going
 // through Rust commands so the secret key never enters the renderer), recovery
 // contacts, and the home-hub list.
-export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData }: Props) {
+export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData, onBackedUp }: Props) {
   const { t } = useTranslation();
 
   const recoveryActions = buildRecoveryActions(activeHubUrl);
+  const activeHubId = hubs.find((h) => h.is_active)?.hub_id ?? null;
 
   const backupAccounts = accounts
     .filter((a) => a.kind === "owned")
@@ -92,11 +95,15 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
         recoveryPhrase={recoveryPhrase}
         onRevealPhrase={onShowRecovery}
         actions={backupActions}
-        needsBackup={!isIdentityBackedUp(accounts.find((a) => a.is_active)?.id)}
-        onSavedOffDevice={markIdentityBackedUp}
+        needsBackup={identityNeedsBackup(accounts.find((a) => a.is_active))}
+        onSavedOffDevice={(id) => {
+          markIdentityBackedUp(id);
+          onBackedUp();
+        }}
       />
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
+      {activeHubId && <PasskeySection hubId={activeHubId} />}
       <FullArchiveSection
         canExport={!!activeHubUrl}
         actions={buildFullArchiveActions(t("settings.account.full_archive.file_filter"), t("settings.account.accounts.switch_cooldown"))}

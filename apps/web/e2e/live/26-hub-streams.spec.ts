@@ -13,8 +13,8 @@ test("discover and watch a screen share from another channel", async ({ page, br
   // A control channel the member will sit in, and channel A for the share.
   const other = uniqueName("lobby");
   const shareChan = uniqueName("stage");
-  await createChannel(page, other);
-  await createChannel(page, shareChan);
+  await createChannel(page, other, "Voice channel");
+  await createChannel(page, shareChan, "Voice channel");
 
   // Owner joins voice in channel A and starts a screen share there. Share
   // screen lives in the voice-session footer — a channel row is joined by
@@ -23,7 +23,9 @@ test("discover and watch a screen share from another channel", async ({ page, br
   await channelButton(page, shareChan).dblclick();
   await expect(page.locator(".voice-status-label").first()).toHaveText(`#${shareChan}`, { timeout: 15000 });
   await page.getByRole("button", { name: "Share screen" }).click();
-  await expect(page.locator(".screen-share-self-preview")).toBeVisible({ timeout: 20000 });
+  await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
+
+  await expect(page.locator(".voice-self-share")).toBeVisible({ timeout: 20000 });
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("Watcher"));
   try {

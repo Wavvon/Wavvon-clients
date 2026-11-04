@@ -128,7 +128,7 @@ export function PasskeySection({ publicKey, account, activeHubUrl }: Props) {
         <p className="muted">{blocked}</p>
       ) : (
         <>
-          <p className="muted">{t("settings.account.passkeys.hint")}</p>
+          <p className="muted">{t("settings.account.passkeys.hint", { hub: activeHubUrl ? new URL(activeHubUrl).host : "" })}</p>
           {error && <p className="error-text">{error}</p>}
           {passkeys && passkeys.length > 0 && (
             <ul className="device-list">

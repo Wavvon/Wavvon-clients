@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import { addTrustRoot, normalizePubkey, removeTrustRoot, type TrustRoot } from "../../utils/trustRoots";
 import { SettingRow } from "../SettingRow";
+import { IssuerHubPicker, type IssuerHub } from "./IssuerHubPicker";
 
 // Whose signatures this viewer believes (server-tags.md Part 4).
 //
@@ -17,9 +18,13 @@ import { SettingRow } from "../SettingRow";
 interface Props {
   roots: TrustRoot[];
   onChange: (roots: TrustRoot[]) => void;
+  /** Hubs this account is a member of: their certifications already count
+   *  (isTrustedIssuer), so they are listed ticked and locked. */
+  joinedHubs?: IssuerHub[];
+  lookupHub?: (url: string) => Promise<IssuerHub>;
 }
 
-export function TrustedIssuersSection({ roots, onChange }: Props) {
+export function TrustedIssuersSection({ roots, onChange, joinedHubs = [], lookupHub }: Props) {
   const { t } = useTranslation();
   const [pubkeyInput, setPubkeyInput] = useState("");
   const [labelInput, setLabelInput] = useState("");
@@ -41,31 +46,22 @@ export function TrustedIssuersSection({ roots, onChange }: Props) {
     >
       <p className="muted">{t("settings.privacy.trusted_issuers.hint")}</p>
 
-      {roots.length === 0 ? (
-        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
-          {t("settings.privacy.trusted_issuers.empty")}
-        </p>
-      ) : (
-        roots.map((root) => (
-          <div
-            key={root.pubkey}
-            className="settings-row"
-            style={{ alignItems: "center", justifyContent: "space-between", gap: 6 }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {root.label && <strong>{root.label}</strong>}
-              <code className="pubkey-display" title={root.pubkey}>{formatPubkey(root.pubkey)}</code>
-            </span>
-            <button
-              className="btn-small"
-              onClick={() => onChange(removeTrustRoot(roots, root.pubkey))}
-            >
-              {t("settings.privacy.trusted_issuers.remove")}
-            </button>
-          </div>
-        ))
-      )}
+      <IssuerHubPicker
+        hubs={[
+          ...joinedHubs,
+          ...roots
+            .filter((r) => !joinedHubs.some((h) => h.pubkey === r.pubkey))
+            .map((r) => ({ pubkey: r.pubkey, name: r.label || formatPubkey(r.pubkey), url: r.url ?? "" })),
+        ]}
+        trusted={new Set(roots.map((r) => r.pubkey))}
+        implicit={new Set(joinedHubs.map((h) => h.pubkey))}
+        onToggle={(hub, on) => onChange(on ? addTrustRoot(roots, hub.pubkey, hub.name, hub.url) : removeTrustRoot(roots, hub.pubkey))}
+        lookupHub={lookupHub}
+      />
 
+      {/* By key, for an issuer with no reachable address. */}
+      <details style={{ marginTop: "var(--space-3)" }}>
+        <summary className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.privacy.trusted_issuers.advanced")}</summary>
       <div className="settings-row" style={{ gap: "var(--space-2)", marginTop: 8, flexWrap: "wrap" }}>
         <input
           type="text"
@@ -105,6 +101,7 @@ export function TrustedIssuersSection({ roots, onChange }: Props) {
           {t("settings.privacy.trusted_issuers.already")}
         </p>
       )}
+      </details>
     </SettingRow>
   );
 }

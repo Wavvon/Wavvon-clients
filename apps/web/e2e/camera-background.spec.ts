@@ -45,11 +45,13 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
 test("blur background engages segmentation and reports active", async ({ page }) => {
   await setupBaseRoutes(page);
   await page.goto("/");
-  await page.locator(".btn-icon-gear").first().click({ timeout: 10000 });
+  await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();
 
-  await page.getByLabel("Background effect").selectOption("blur");
-  await page.getByRole("button", { name: "Preview camera" }).click();
+  // The camera permission is granted here, so the preview starts with the tab.
+  await page.getByRole("radiogroup", { name: "Background effect" }).getByRole("radio", { name: "Blur" }).click();
 
   // WASM + model load takes a moment on first run; "active" only renders if
   // SelfieSegmentation constructed AND initialize() resolved.

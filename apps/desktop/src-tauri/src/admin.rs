@@ -15,6 +15,49 @@ const USERS_PAGE_SIZE: usize = 500;
 // here. The keyset uses a strict `>`, so it cannot legitimately repeat a row.
 const USERS_MAX_PAGES: usize = 40;
 
+/// Walk a paged hub list to exhaustion: `limit` plus a keyset `cursor` on
+/// the previous page's last row, the same walk as web's `fetchAllPages`.
+///
+/// A hub that predates the paging ignores both and answers with its whole
+/// list; the next request then ends on the cursor just sent, which the stall
+/// check reads as "not advancing" and stops on, so no row is counted twice.
+pub(crate) async fn get_all_pages<T: serde::de::DeserializeOwned>(
+    client: &reqwest::Client,
+    url: &str,
+    token: &str,
+    query: &[(&str, String)],
+    cursor_of: impl Fn(&T) -> String,
+) -> Result<Vec<T>, String> {
+    let mut all: Vec<T> = Vec::new();
+    let mut cursor: Option<String> = None;
+    for _ in 0..USERS_MAX_PAGES {
+        let mut req = client
+            .get(url)
+            .bearer_auth(token)
+            .query(query)
+            .query(&[("limit", USERS_PAGE_SIZE.to_string())]);
+        if let Some(c) = &cursor {
+            req = req.query(&[("cursor", c)]);
+        }
+        let resp = req.send().await.map_err(|e| format!("Failed: {e}"))?;
+        if !resp.status().is_success() {
+            return Err(resp.text().await.unwrap_or_default());
+        }
+        let page: Vec<T> = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
+        let next = page.last().map(&cursor_of);
+        if next.is_some() && next == cursor {
+            return Ok(all);
+        }
+        let short = page.len() < USERS_PAGE_SIZE;
+        all.extend(page);
+        if short {
+            return Ok(all);
+        }
+        cursor = next;
+    }
+    Ok(all)
+}
+
 async fn fetch_users_page(
     client: &reqwest::Client,
     hub_url: &str,
@@ -565,6 +608,51 @@ pub(crate) async fn approve_member(
     Ok(())
 }
 
+/// A pending joiner's application answers (join-forms.md). Returned as the
+/// hub sent them: the view reads them, nothing here re-serialises them.
+#[tauri::command]
+pub(crate) async fn application_response(
+    target_public_key: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .get(format!(
+            "{hub_url}/admin/application/responses/{target_public_key}"
+        ))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
+/// Reject a pending joiner's application, with a reason they will read.
+#[tauri::command]
+pub(crate) async fn reject_member(
+    target_public_key: String,
+    reason: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .post(format!("{hub_url}/hub/pending/{target_public_key}/reject"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "reason": reason }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) async fn list_hub_icons(state: State<'_, AppState>) -> Result<Vec<HubIcon>, String> {
     let (hub_url, token) = active_session(&state)?;
@@ -665,17 +753,14 @@ pub(crate) async fn list_hub_members(
     state: State<'_, AppState>,
 ) -> Result<Vec<MemberAdminInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
-    let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/hub/members"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    get_all_pages(
+        &state.http_client,
+        &format!("{hub_url}/hub/members"),
+        &token,
+        &[],
+        |m: &MemberAdminInfo| m.public_key.clone(),
+    )
+    .await
 }
 
 pub(crate) async fn post_moderation(
@@ -759,6 +844,50 @@ pub(crate) async fn mute_user_cmd(
             "target_public_key": target_public_key,
             "reason": reason,
         }),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn unmute_user_cmd(
+    target_public_key: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .delete(format!("{hub_url}/moderation/mutes/{target_public_key}"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
+}
+
+/// A mute when `expires_at` is null, a timeout otherwise: the hub keeps both
+/// in one table.
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub(crate) struct MuteInfo {
+    pub target_public_key: String,
+    pub muted_by: String,
+    pub reason: Option<String>,
+    pub expires_at: Option<i64>,
+    pub created_at: i64,
+}
+
+#[tauri::command]
+pub(crate) async fn list_mutes(state: State<'_, AppState>) -> Result<Vec<MuteInfo>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    crate::paging::fetch_all_pages_as(
+        &client,
+        &token,
+        &format!("{hub_url}/moderation/mutes"),
+        "target_public_key",
+        "list_mutes",
     )
     .await
 }
@@ -1234,11 +1363,7 @@ pub(crate) async fn get_user_profile(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let url = format!(
-        "{}/members/{}/profile",
-        hub_url.trim_end_matches('/'),
-        pubkey
-    );
+    let url = format!("{}/users/{}/profile", hub_url.trim_end_matches('/'), pubkey);
     let res = state
         .http_client
         .get(&url)
@@ -1511,11 +1636,21 @@ pub(crate) async fn get_banlist_entries(
     source: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<FederatedBanEntry>, String> {
-    let path = match source.as_deref().filter(|s| !s.is_empty()) {
-        Some(s) => format!("/admin/banlist/entries?source={}", percent_encode(s)),
-        None => "/admin/banlist/entries".to_string(),
-    };
-    banlist_request(&state, reqwest::Method::GET, &path, None).await
+    let (hub_url, token) = active_session(&state)?;
+    let query: Vec<(&str, String)> = source
+        .filter(|s| !s.is_empty())
+        .map(|s| ("source", s))
+        .into_iter()
+        .collect();
+    get_all_pages(
+        &state.http_client,
+        &format!("{}/admin/banlist/entries", hub_url.trim_end_matches('/')),
+        &token,
+        &query,
+        // An entry is keyed by the pair, so the cursor is too.
+        |e: &FederatedBanEntry| format!("{}:{}", e.source_hub_pubkey, e.target_master_pubkey),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1688,11 +1823,6 @@ pub(crate) struct EventSubscription {
     pub channels: Option<Vec<String>>,
 }
 
-#[derive(serde::Deserialize)]
-struct SubscriptionsBody {
-    subscriptions: Vec<EventSubscription>,
-}
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct SubscriptionCount {
     pub count: i64,
@@ -1823,11 +1953,9 @@ pub(crate) async fn admin_get_outgoing_webhook_subscriptions(
     if !resp.status().is_success() {
         return Err(resp.text().await.unwrap_or_default());
     }
-    let body: SubscriptionsBody = resp
-        .json()
+    resp.json()
         .await
-        .map_err(|e| format!("Invalid response: {e}"))?;
-    Ok(body.subscriptions)
+        .map_err(|e| format!("Invalid response: {e}"))
 }
 
 #[tauri::command]
@@ -1902,7 +2030,7 @@ pub(crate) async fn admin_enable_outgoing_webhook(
 pub(crate) async fn admin_list_outgoing_webhook_deliveries(
     id: String,
     limit: Option<u32>,
-    offset: Option<u32>,
+    cursor: Option<String>,
     event_type: Option<String>,
     success: Option<bool>,
     state: State<'_, AppState>,
@@ -1913,8 +2041,8 @@ pub(crate) async fn admin_list_outgoing_webhook_deliveries(
     if let Some(limit) = limit {
         query.push(("limit", limit.to_string()));
     }
-    if let Some(offset) = offset {
-        query.push(("offset", offset.to_string()));
+    if let Some(cursor) = cursor {
+        query.push(("cursor", cursor));
     }
     if let Some(event_type) = event_type.as_deref() {
         query.push(("event_type", event_type.to_string()));

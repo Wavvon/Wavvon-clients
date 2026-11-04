@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { parseHubInput } from "@wavvon/core";
-import type { Hub, LobbyStatus } from "../types";
+import type { Hub, LobbyStatus, Survey } from "../types";
 import i18n from "@wavvon/i18n";
 
 export type HubPreviewState =
@@ -53,6 +53,7 @@ export function useAddHubFlow({
     resolvedUrl: string;
   } | null>(null);
   const [hubPreview, setHubPreview] = useState<HubPreviewState>({ state: "idle" });
+  const [applicationPreview, setApplicationPreview] = useState<{ hubName: string; form: Survey } | null>(null);
 
   function handleHubUrlChange(v: string) {
     setHubUrl(v);
@@ -137,11 +138,23 @@ export function useAddHubFlow({
     };
   }, [hubUrl, showAddHub, showWelcome]);
 
-  async function handleAddHub(challengeToken?: string) {
+  async function handleAddHub(challengeToken?: string, applicationSeen = false) {
     setLoading(true);
     setError(null);
     try {
       const resolvedUrl = parseHubInput(hubUrl)?.hubUrl ?? hubUrl;
+
+      // A hub that asks joiners to apply shows its questions first, so this
+      // is the moment to turn back, before any seat exists (join-forms.md).
+      // A challenge token means the joiner already went past it.
+      if (!challengeToken && !applicationSeen) {
+        const form = await invoke<Survey | null>("application_preview", { hubUrl: resolvedUrl }).catch(() => null);
+        if (form && form.questions.length > 0) {
+          const name = hubPreview.state === "ok" ? hubPreview.name : resolvedUrl;
+          setApplicationPreview({ hubName: name, form });
+          return;
+        }
+      }
 
       const hub = await invoke<Hub>("add_hub", {
         hubUrl: resolvedUrl,
@@ -208,6 +221,8 @@ export function useAddHubFlow({
     admissionChallenge,
     setAdmissionChallenge,
     hubPreview,
+    applicationPreview,
+    setApplicationPreview,
     handleHubUrlChange,
     handleAddHub,
   };

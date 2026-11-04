@@ -24,7 +24,7 @@ function hubAnsweringVerify(verify: () => Response) {
       );
     }
     if (url.endsWith("/auth/challenge")) {
-      return new Response(JSON.stringify({ challenge: "ab".repeat(32) }), { status: 200 });
+      return new Response(JSON.stringify({ challenge: "ab".repeat(32), scheme: "tagged-v1" }), { status: 200 });
     }
     if (url.endsWith("/auth/verify")) return verify();
     throw new Error(`stop: ${url}`);
@@ -57,7 +57,7 @@ describe("joining a hub that runs an admission challenge", { timeout: 30_000 }, 
     let verifyBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/auth/challenge")) {
-        return new Response(JSON.stringify({ challenge: "ab".repeat(32) }), { status: 200 });
+        return new Response(JSON.stringify({ challenge: "ab".repeat(32), scheme: "tagged-v1" }), { status: 200 });
       }
       verifyBody = JSON.parse(String(init?.body));
       return new Response(JSON.stringify({ token: "t", scope: "member" }), { status: 200 });

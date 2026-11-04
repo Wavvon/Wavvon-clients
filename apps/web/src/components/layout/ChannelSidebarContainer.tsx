@@ -12,7 +12,7 @@ import { hasDraft } from "../../utils/drafts";
 import type { useVoice } from "../../hooks/useVoice";
 import type { useVideo } from "../../hooks/useVideo";
 import type { useWhisper } from "../../hooks/useWhisper";
-import type { useVoiceMoveUx, usePresenceStatus } from "@wavvon/ui";
+import type { useVoiceMoveUx } from "@wavvon/ui";
 import type { useNotificationPrefs } from "../../hooks/useNotificationPrefs";
 import type { useHubLifecycle } from "../../hooks/useHubLifecycle";
 import type { useDms } from "../../hooks/useDms";
@@ -33,7 +33,6 @@ type HubLifecycleState = ReturnType<typeof useHubLifecycle>;
 type UnreadCountsState = UnreadCounts;
 type DmsState = ReturnType<typeof useDms>;
 type AlliancesState = ReturnType<typeof useAlliances>;
-type PresenceState = ReturnType<typeof usePresenceStatus>;
 type ScreenShareState = ReturnType<typeof useScreenShare>;
 type ChannelCrudState = ReturnType<typeof useChannelCrud>;
 type ChannelMessagesState = ReturnType<typeof useChannelMessages>;
@@ -50,7 +49,6 @@ export interface ChannelSidebarContainerProps {
   unreadCounts: UnreadCountsState;
   dms: DmsState;
   alliances: AlliancesState;
-  presence: PresenceState;
   screenShare: ScreenShareState;
   channelCrud: ChannelCrudState;
   channelMessages: ChannelMessagesState;
@@ -67,6 +65,8 @@ export interface ChannelSidebarContainerProps {
   canEditChannelPermissions: boolean;
   canMoveMembers: boolean;
   canUseSoundboard: boolean;
+  canScreenShare: boolean;
+  canUseCamera: boolean;
   silencedChannelIds: Set<string>;
   soundboardChipsByChannel: Record<string, SoundboardChip[]>;
   whisperReplyBind: WhisperReplyBind;
@@ -74,10 +74,7 @@ export interface ChannelSidebarContainerProps {
   onOpenQuickInvite: () => void;
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenFriends: () => void;
-  onOpenSettings: () => void;
   onOpenVoiceSettings: () => void;
-  settingsNeedsAttention?: boolean;
-  onOpenSearch: () => void;
   onDragEnd: (event: DragEndEvent) => void;
 }
 
@@ -88,12 +85,12 @@ export interface ChannelSidebarContainerProps {
 // UI-local state (hub dropdown, whisper panel) that only this component reads.
 export function ChannelSidebarContainer({
   voice, video, whisper, voiceMoveUx, notifyPrefs, hubLifecycle, unreadCounts, onRequestRemoveHub,
-  dms, alliances, presence, screenShare, channelCrud, channelMessages, hubAdmin,
+  dms, alliances, screenShare, channelCrud, channelMessages, hubAdmin,
   view, channels, channelTree, users, publicKey, isAdmin, canCreateInvites,
-  canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, silencedChannelIds,
+  canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, canScreenShare, canUseCamera, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
-  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenSettings, onOpenVoiceSettings, settingsNeedsAttention,
-  onOpenSearch, onDragEnd,
+  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenVoiceSettings,
+  onDragEnd,
 }: ChannelSidebarContainerProps) {
   const { t } = useTranslation();
   const [hubDropdownOpen, setHubDropdownOpen] = useState(false);
@@ -103,6 +100,7 @@ export function ChannelSidebarContainer({
   // is redeemed — asking every allied hub for its /info on every load would be
   // a request storm for a button almost nobody presses.
   const allianceVoice = activeHubSupports("voice.alliance");
+  const activeHubUrl = hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId)?.hub_url ?? null;
 
   const { selectedChannel, handleSelectChannel, handleSelectAllianceChannel } = channelMessages;
   const { activeHubId, hubs, activeHubTimezone, pingByHub } = hubLifecycle;
@@ -131,6 +129,7 @@ export function ChannelSidebarContainer({
       dmPeerNames={dms.peerNames}
       publicKey={publicKey}
       pingByHub={pingByHub}
+      hubBannerUrl={activeHubUrl && activeHubSupports("hub.landing") ? `${activeHubUrl.replace(/\/+$/, "")}/hub/landing-image` : undefined}
       isAdmin={isAdmin}
       canCreateInvites={canCreateInvites}
       hubNotifyMode={notifyPrefs.hubNotifyMode}
@@ -171,14 +170,13 @@ export function ChannelSidebarContainer({
       onSelectChannel={handleSelectChannel}
       onChannelContextMenu={onChannelContextMenu}
       canOpenChannelSettings={isAdmin || canEditChannelPermissions}
-      myStatus={presence.myPresence.status === "online" ? null : presence.myPresence.status}
-      onSetStatus={presence.handleSetStatus}
       onOpenChannelSettings={(channel) => {
         channelCrud.setCreateChannelCtx(null);
         channelCrud.setChannelSettingsCtx(channel);
         channelCrud.setChannelSettingsError(null);
       }}
       onVoiceJoin={(ch) => ch && void voice.handleVoiceJoin(ch.id)}
+      voiceChannelsOnly={activeHubSupports("channels.voice")}
       onVoiceLeave={voice.handleVoiceLeave}
       onParticipantContextMenu={canMoveMembers ? (e, p, channelId) => {
         e.preventDefault();
@@ -206,26 +204,24 @@ export function ChannelSidebarContainer({
       onSelectConversation={dms.handleSelectConversation}
       onToggleSelfMute={voice.handleToggleMute}
       onToggleSelfDeafen={voice.handleToggleDeafen}
-      onOpenSettings={onOpenSettings}
-      settingsNeedsAttention={settingsNeedsAttention}
       onDragEnd={onDragEnd}
       voiceGains={voice.voiceGains}
       onSetVoiceGain={voice.handleSetVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
+      speaking={voice.voiceActiveUsers}
       hasDraft={hasDraft}
-      onOpenSearch={onOpenSearch}
       canUseSoundboard={canUseSoundboard}
       onListSoundboardClips={listSoundboardClips}
       onTriggerSoundboardClip={voice.handleTriggerSoundboardClip}
       soundboardPlayingClipId={voice.soundboardPlayingClipId}
       soundboardChips={voice.voiceChannelId ? soundboardChipsByChannel[voice.voiceChannelId] ?? [] : []}
       sharing={screenShare.sharing}
-      onScreenShare={() => {
+      onScreenShare={canScreenShare || screenShare.sharing ? () => {
         if (screenShare.sharing) screenShare.handleStopShare();
         else if (selectedChannel) void screenShare.handleStartShare(selectedChannel.id);
-      }}
+      } : undefined}
       videoEnabled={video.videoEnabled}
-      onToggleVideo={video.handleToggleVideo}
+      onToggleVideo={canUseCamera || video.videoEnabled ? video.handleToggleVideo : undefined}
       isWhispering={whisper.isWhispering}
       whisperTargets={whisper.whisperTargets}
       whisperLists={whisper.whisperLists}

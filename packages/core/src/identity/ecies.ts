@@ -37,15 +37,32 @@ function x25519PrivFromSeed(seed: Uint8Array): Uint8Array {
 
 /** Wrap a 32-byte blob key for a recipient's ed25519 pubkey (hex). */
 export function wrapBlobKey(blobKey: Uint8Array, recipientEd25519PubkeyHex: string): string {
+  return wrapBlobKeyWith(
+    blobKey,
+    recipientEd25519PubkeyHex,
+    crypto.getRandomValues(new Uint8Array(32)),
+    crypto.getRandomValues(new Uint8Array(12)),
+  );
+}
+
+/**
+ * `wrapBlobKey` with the ephemeral X25519 secret and the nonce supplied by the
+ * caller, so the wire vector can pin its output. Reusing either value breaks
+ * the encryption: everything else calls `wrapBlobKey`.
+ */
+export function wrapBlobKeyWith(
+  blobKey: Uint8Array,
+  recipientEd25519PubkeyHex: string,
+  ephPriv: Uint8Array,
+  nonce: Uint8Array,
+): string {
   if (blobKey.length !== 32) throw new Error("blob key must be 32 bytes");
   const x25519Pub = edwardsToMontgomeryPub(hexToBytes(recipientEd25519PubkeyHex));
 
-  const ephPriv = crypto.getRandomValues(new Uint8Array(32));
   const ephPub = x25519.scalarMultBase(ephPriv);
   const shared = x25519.getSharedSecret(ephPriv, x25519Pub);
 
   const encKey = hkdf(sha256, shared, ephPub, ECIES_INFO, 32);
-  const nonce = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = gcm(encKey, nonce).encrypt(blobKey); // 32 + 16 tag = 48
 
   return bytesToHex(concat(ephPub, nonce, ciphertext));

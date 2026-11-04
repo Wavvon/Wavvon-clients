@@ -1,11 +1,12 @@
-import OpusScript from 'opusscript';
-
 /** What an audio profile resolves to for the encoder. */
 export interface OpusConfig {
-  app: number;
+  app: OpusApplication;
   /** Always 1. See `resolveOpusConfig`. */
   channels: 1;
 }
+
+/** WebCodecs' `opus.application`, the libopus OPUS_APPLICATION_* modes. */
+export type OpusApplication = 'voip' | 'audio' | 'lowdelay';
 
 export interface OpusProfileInput {
   profile?: 'standard' | 'music' | 'custom';
@@ -30,15 +31,10 @@ export function resolveOpusConfig(cfg?: OpusProfileInput): OpusConfig {
   if (cfg?.profile === 'music') {
     // Still the music codec mode — wider band, less speech-shaping — which is
     // the part of the profile that works.
-    return { app: OpusScript.Application.AUDIO, channels: 1 };
+    return { app: 'audio', channels: 1 };
   }
   if (cfg?.profile === 'custom') {
-    const appMap = {
-      voip: OpusScript.Application.VOIP,
-      audio: OpusScript.Application.AUDIO,
-      lowdelay: OpusScript.Application.RESTRICTED_LOWDELAY,
-    };
-    return { app: appMap[cfg.customApp ?? 'voip'], channels: 1 };
+    return { app: cfg.customApp ?? 'voip', channels: 1 };
   }
-  return { app: OpusScript.Application.VOIP, channels: 1 };
+  return { app: 'voip', channels: 1 };
 }

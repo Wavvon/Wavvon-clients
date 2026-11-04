@@ -1,4 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useSyncExternalStore } from "react";
+
+const NARROW = "(max-width: 767px)";
+function subscribeNarrow(cb: () => void) {
+  const mq = window.matchMedia(NARROW);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
 import { useTranslation } from "react-i18next";
 
 type Panel = "hub" | "channel" | "content";
@@ -19,11 +26,14 @@ interface MobileShellProps {
  * switches to a single-panel slide model.
  *
  * The children order is expected to be:
- *   [0] HubSidebar, [1] ChannelSidebar, [2] ContentArea
+ *   [0] HubTopBar, [1] ChannelSidebar, [2] ContentArea
  */
 export function MobileShell({ children, onBack }: MobileShellProps) {
   const { t } = useTranslation();
   const [activePanel, setActivePanel] = useState<Panel>("hub");
+  // One copy of the app at a time: two mounted copies meant two of every
+  // control, the hidden one still holding state.
+  const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -66,64 +76,18 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
 
   return (
     <>
-      {/* On desktop (>= 768px) render the normal layout via CSS */}
-      <style>{`
-        .mobile-shell-desktop { display: contents; }
-        .mobile-shell-mobile { display: none; }
-        @media (max-width: 767px) {
-          .mobile-shell-desktop { display: none !important; }
-          .mobile-shell-mobile { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow: hidden; }
-          .mobile-shell-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-          .mobile-shell-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 0 12px;
-            height: 44px;
-            border-bottom: 1px solid var(--border);
-            background: var(--surface);
-            flex-shrink: 0;
-          }
-          .mobile-shell-back {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px 8px;
-            font-size: 20px;
-            color: var(--text);
-            line-height: 1;
-          }
-          .mobile-shell-title {
-            font-weight: 600;
-            font-size: var(--text-sm);
-            flex: 1;
-          }
-          .mobile-shell-breadcrumb {
-            display: flex;
-            gap: 4px;
-            align-items: center;
-          }
-          .mobile-shell-crumb {
-            font-size: var(--text-xs);
-            color: var(--text-muted);
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 2px 4px;
-          }
-          .mobile-shell-crumb.active {
-            color: var(--text);
-            font-weight: 600;
-          }
-        }
-      `}</style>
+      {/* Layout rules live in styles.css: the hub serves this client under a CSP that forbids inline <style> */}
+
 
       {/* Desktop: pass through normally */}
-      <div className="mobile-shell-desktop">
-        {children}
-      </div>
+      {!narrow && (
+        <div className="mobile-shell-desktop">
+          {children}
+        </div>
+      )}
 
       {/* Mobile: single-panel view */}
+      {narrow && (
       <div
         className="mobile-shell-mobile"
         onTouchStart={onTouchStart}
@@ -160,6 +124,7 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
           {activePanel === "content" && contentChild}
         </div>
       </div>
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useConnectionStats } from "../hooks/useConnectionStats";
+import { uploadAttachment } from "../utils/uploadAttachment";
 import type React from "react";
 import type {
   Channel,
@@ -16,14 +17,17 @@ import type {
   VoiceParticipant,
   LinkPreview,
   AppProfile,
-  PostListResponse,
+  PostSummary,
   PostDetail,
   ForumTagDef,
   UserProfile,
 } from "../types";
 import {
   ConnectionStatus,
+  forumPage,
   ContentArea as SharedContentArea,
+  type VoiceStageInfo,
+  type MemberActivity,
   type ForumActions,
   type MessageRowActions,
   type UserProfileCardActions,
@@ -36,8 +40,10 @@ import {
   type EventMoveAssignment,
   type EventRsvp,
   type PinnedMessageEntry,
+  type StickerActions,
   PinnedMessagesModal,
 } from "@wavvon/ui";
+import type { AllianceScrollback, PendingFilesState } from "@wavvon/ui";
 
 function domainOf(url: string): string {
   try { return new URL(url).hostname; } catch { return url; }
@@ -70,13 +76,14 @@ function dismissWelcome(hubId: string): void {
 // is dropped here -- the hub never registered a GET route for
 // /channels/:cid/posts/:pid/replies, so that command 404'd already.
 const forumActions: ForumActions = {
-  listPosts: (channelId, cursor, tagId) =>
-    invoke<PostListResponse>("forum_list_posts", { channelId, cursor, tagId }),
+  listPosts: async (channelId, cursor, tagId) =>
+    forumPage(await invoke<PostSummary[]>("forum_list_posts", { channelId, cursor, tagId })),
   getPost: (channelId, postId, after) => invoke<PostDetail>("forum_get_post", { channelId, postId, after }),
-  createPost: (channelId, title, body, tagIds) =>
-    invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds }),
-  createReply: (channelId, postId, body, replyToId) =>
-    invoke<{ id: string }>("forum_create_reply", { channelId, postId, body, replyToId }),
+  createPost: (channelId, title, body, tagIds, attachmentIds) =>
+    invoke<{ id: string }>("forum_create_post", { channelId, title, body, tagIds, attachmentIds }),
+  createReply: (channelId, postId, body, replyToId, attachmentIds) =>
+    invoke<{ id: string }>("forum_create_reply", { channelId, postId, body, replyToId, attachmentIds }),
+  uploadAttachment: (channelId, file) => uploadAttachment(channelId, file),
   // ponytail: these 8 don't have a #[tauri::command] on the Rust side yet --
   // wired against the hub's real channel/post-scoped routes so backend-engineer
   // can add forum_edit_post/forum_delete_post/forum_edit_reply/forum_delete_reply/
@@ -140,6 +147,7 @@ interface Props {
   searchQuery: string;
   dmMessages: Record<string, DmMessage[]>;
   allianceMessages: Message[];
+  allianceScrollback: AllianceScrollback;
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
@@ -152,12 +160,15 @@ interface Props {
   editingDraft: string;
   replyTarget: Message | null;
   pendingAttachments: Attachment[];
+  channelFiles?: PendingFilesState;
   stickToBottom: boolean;
   newWhileScrolledUp: number;
   hubConnected: Record<string, boolean>;
   reconnectingHubs: Record<string, boolean>;
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
+  voiceStage?: VoiceStageInfo;
+  memberActivity?: Map<string, MemberActivity>;
   hideBirthdays?: boolean;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;
@@ -203,6 +214,7 @@ interface Props {
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
   onStartConversation?: (pubkey: string) => void;
+  stickerActions?: StickerActions;
 }
 
 export function ContentArea(props: Props) {
@@ -355,6 +367,7 @@ export function ContentArea(props: Props) {
         onBreadcrumbCategoryClick={() => {}}
         forumActions={forumActions}
         messageRowActions={messageRowActions}
+        stickerActions={props.stickerActions}
         profileCardActions={profileCardActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={loadChannelPolls}

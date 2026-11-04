@@ -5,7 +5,6 @@ import {
   formatPubkey,
   meAction,
   mentionsName,
-  colorForKey,
   dayKey,
   formatDayLabel,
   formatFullTimestamp,
@@ -22,6 +21,8 @@ import { IgnoredMessagePlaceholder } from "./MessageHelpers";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { Avatar } from "../Avatar";
 import { MessageAttachments } from "../Attachments";
+import { StickerMessage } from "../stickers/StickerMessage";
+import type { StickerActions } from "../stickers/stickerActions";
 import { MessageContent } from "../MessageContent";
 import { GameCard } from "../GameCard";
 import { PollCard } from "../polls/PollCard";
@@ -83,6 +84,7 @@ interface Props {
   displayedMessages: Message[];
   messageRowRef: (el: HTMLLIElement | null) => void;
   actions: MessageRowActions;
+  stickerActions?: StickerActions;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onSetReplyTarget: (message: Message | null) => void;
   onSaveEdit: () => void;
@@ -136,6 +138,7 @@ export function MessageRow({
   displayedMessages,
   messageRowRef,
   actions,
+  stickerActions,
   onToggleReaction,
   onSetReplyTarget,
   onSaveEdit,
@@ -176,6 +179,14 @@ export function MessageRow({
   const isEditing = editingMessageId === m.id;
   const senderUser = users.find((u) => u.public_key === m.sender);
   const senderLabel = senderUser?.display_name || m.sender_name || formatPubkey(m.sender);
+  // A masquerade shows another name and, when the hub keeps its own copy, an
+  // avatar. Only a hub path is loaded: a third-party URL (a hub that predates
+  // hosting them) would hand that host every reader's address, so the avatar
+  // is then drawn from the name. The real sender stays on the row as "via ...".
+  const shownName = m.masquerade?.name || senderLabel;
+  const masqueradeAvatar = m.masquerade?.avatar_url?.startsWith("/")
+    ? `${hubBaseUrl ?? hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}${m.masquerade.avatar_url}`
+    : undefined;
   // Server-resolved name color from the roster; falls back to the per-pubkey
   // deterministic color when the sender has none (or isn't in the roster —
   // e.g. an alliance-proxied message).
@@ -261,7 +272,7 @@ export function MessageRow({
     ? channelPolls.find((p) => p.question === pollQuestion)
     : null;
 
-  const msgAriaLabelParts = [`${senderLabel} at ${formatRelative(m.created_at)}: ${m.content}`];
+  const msgAriaLabelParts = [`${shownName} at ${formatRelative(m.created_at)}: ${m.content}`];
   if (m.reply_to) msgAriaLabelParts.push(`${t("message.action.reply")} ${m.reply_to.sender_name || formatPubkey(m.reply_to.sender)}.`);
   if (m.reactions && m.reactions.length > 0) {
     const total = m.reactions.reduce((n, r) => n + r.count, 0);
@@ -297,8 +308,9 @@ export function MessageRow({
             style={senderNameStyle}
             onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
           >
-            {senderLabel}
+            {shownName}
           </span>
+          {m.masquerade && <span className="app-badge">{t("message.via", { name: senderLabel })}</span>}
           {showBirthdayBadge && <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={13} /></span>}
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} hubEmojiMap={hubEmojiMap} hubBaseUrl={hubBaseUrl ?? activeHub?.hub_url} />
@@ -335,7 +347,7 @@ export function MessageRow({
           </div>
         )}
         <span className="message-avatar" onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
-          <Avatar src={senderUser?.avatar} name={senderLabel} pubkey={m.sender} size={36} />
+          <Avatar src={m.masquerade ? masqueradeAvatar : senderUser?.avatar} name={shownName} pubkey={m.sender} size={36} />
         </span>
         {/* Who and when sit on their own line above the message, so the body
             can be the largest type in the stream. A flat row put the name at
@@ -347,8 +359,9 @@ export function MessageRow({
             onClick={(e) => onAuthorClick(m.sender, e)}
             onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}
           >
-            {senderLabel}
+            {shownName}
           </span>
+          {m.masquerade && <span className="app-badge">{t("message.via", { name: senderLabel })}</span>}
           {showBirthdayBadge && <span className="birthday-badge" title={t("message.birthday")} aria-label={t("message.birthday")}><CakeIcon size={13} /></span>}
           {senderUser?.is_webhook && (
             <span className="app-badge" aria-hidden="true">{t("app.badge")}</span>
@@ -396,7 +409,15 @@ export function MessageRow({
               />
             )}
             {m.attachments && m.attachments.length > 0 && (
-              <MessageAttachments items={m.attachments} onImageClick={onOpenImage} />
+              <MessageAttachments items={m.attachments} hubUrl={hubBaseUrl ?? activeHub?.hub_url} onImageClick={onOpenImage} />
+            )}
+            {m.sticker && (hubBaseUrl ?? activeHub?.hub_url) && (
+              <StickerMessage
+                sticker={m.sticker}
+                hubUrl={(hubBaseUrl ?? activeHub?.hub_url) as string}
+                actions={stickerActions}
+                onError={onError}
+              />
             )}
             {m.edited_at && (
               <span

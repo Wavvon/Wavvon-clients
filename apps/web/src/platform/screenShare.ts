@@ -1,4 +1,5 @@
 import type { HubWebSocket } from "./ws";
+import { shareVideoConstraints, declaredQuality, type ShareQuality } from "@wavvon/ui";
 
 // Outbound screen share over the hub's chunk-relay protocol — the same wire
 // messages the desktop client sends (useScreenShare.ts) and the existing web
@@ -6,15 +7,14 @@ import type { HubWebSocket } from "./ws";
 // MediaRecorder blob a `screen_share_chunk` JSON envelope immediately
 // followed by a raw binary frame, then `screen_share_stop`.
 
-const MIME_CANDIDATES = [
-  "video/webm;codecs=vp8,opus",
-  "video/webm;codecs=vp9,opus",
-  "video/webm;codecs=vp8",
-  "video/webm",
-];
-
-function pickMime(): string {
-  for (const m of MIME_CANDIDATES) {
+// The viewer opens its SourceBuffer with this exact type, and Chrome waits
+// forever for a track the codecs list names but the stream lacks: a
+// video-only share advertised as vp8,opus never decodes a frame.
+function pickMime(hasAudio: boolean): string {
+  const candidates = hasAudio
+    ? ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus"]
+    : ["video/webm;codecs=vp8", "video/webm;codecs=vp9"];
+  for (const m of candidates) {
     if (MediaRecorder.isTypeSupported(m)) return m;
   }
   return "video/webm";
@@ -56,14 +56,14 @@ export class WebScreenShareSession {
 
   // Prompts the browser's screen picker, then starts recording + relaying.
   // Throws if the user cancels the picker or capture fails (caller shows it).
-  async start(): Promise<void> {
+  async start(quality: ShareQuality): Promise<void> {
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 60 }, width: { max: 1920 }, height: { max: 1080 } },
-      audio: true,
+      video: shareVideoConstraints(quality),
+      audio: quality.audio,
     });
     this.stream = stream;
     const hasAudio = stream.getAudioTracks().length > 0;
-    const mime = pickMime();
+    const mime = pickMime(hasAudio);
 
     // The hub relays start-before-first-chunk; subscribe so we also receive
     // our own stream events, matching the desktop path.
@@ -76,12 +76,13 @@ export class WebScreenShareSession {
       mime,
       has_audio: hasAudio,
       transport: "chunks",
+      ...declaredQuality(quality, stream.getVideoTracks()[0]),
     });
 
     // If the user stops sharing via the browser's native control, end cleanly.
     stream.getVideoTracks()[0]?.addEventListener("ended", () => this.stop());
 
-    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
+    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: quality.kbps * 1000 });
     this.recorder = recorder;
     this.windowStart = performance.now();
     recorder.ondataavailable = async (e) => {

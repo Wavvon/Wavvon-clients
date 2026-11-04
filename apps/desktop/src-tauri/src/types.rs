@@ -195,6 +195,10 @@ pub(crate) struct PendingUser {
     pub public_key: String,
     pub display_name: Option<String>,
     pub first_seen_at: i64,
+    #[serde(default)]
+    pub ban_evasion_match: Option<String>,
+    #[serde(default)]
+    pub has_application: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -343,11 +347,17 @@ pub(crate) struct MessageInfo {
     #[serde(default)]
     pub edited_at: Option<i64>,
     #[serde(default)]
-    pub attachments: Vec<AttachmentInfo>,
+    pub attachments: Vec<serde_json::Value>,
     #[serde(default)]
     pub reactions: Vec<ReactionInfo>,
     #[serde(default)]
     pub reply_to: Option<ReplyContextInfo>,
+    /// Every other field the hub sends (embeds, components, game, reply_count,
+    /// masquerade, ...), passed to the UI untouched. Without it this struct
+    /// silently dropped each one the shell does not read itself, so a desktop
+    /// reader never saw an app's embeds or buttons, or a reply count.
+    #[serde(flatten)]
+    pub rest: serde_json::Map<String, serde_json::Value>,
 }
 
 // ---------------------------------------------------------------------------
@@ -539,6 +549,10 @@ pub(crate) enum WsServerMessage {
         /// hub is on the self-signed tier; `None` for a CA-issued cert.
         #[serde(default)]
         voice_cert_hash: Option<String>,
+        /// False when the room's talk-power threshold is above ours and nobody
+        /// has given us the floor. An older hub omits it, which is not "muted".
+        #[serde(default)]
+        may_speak: Option<bool>,
     },
     #[serde(rename = "voice_participant_joined")]
     VoiceParticipantJoined {
@@ -578,6 +592,16 @@ pub(crate) enum WsServerMessage {
         conversation_id: String,
         added: Vec<String>,
         removed: Vec<String>,
+    },
+    #[serde(rename = "voice_hands")]
+    VoiceHands {
+        channel_id: String,
+        public_keys: Vec<String>,
+    },
+    #[serde(rename = "voice_talk_granted")]
+    VoiceTalkGranted {
+        channel_id: String,
+        public_key: String,
     },
     #[serde(rename = "voice_roster_update")]
     VoiceRosterUpdate {
@@ -719,3 +743,23 @@ pub(crate) enum WsServerMessage {
 // ---------------------------------------------------------------------------
 // Public profile
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod message_info_tests {
+    use super::MessageInfo;
+
+    #[test]
+    fn fields_the_shell_does_not_read_reach_the_ui() {
+        let hub = serde_json::json!({
+            "id": "m1", "channel_id": "c1", "sender": "pk", "sender_name": "Bridge",
+            "content": "hi", "created_at": 1, "reply_count": 2,
+            "embeds": [{ "title": "t" }],
+            "masquerade": { "name": "Ada" },
+        });
+        let info: MessageInfo = serde_json::from_value(hub).unwrap();
+        let ui = serde_json::to_value(&info).unwrap();
+        assert_eq!(ui["reply_count"], 2);
+        assert_eq!(ui["embeds"][0]["title"], "t");
+        assert_eq!(ui["masquerade"]["name"], "Ada");
+    }
+}

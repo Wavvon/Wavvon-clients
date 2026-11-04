@@ -24,13 +24,23 @@ import {
   listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip,
   listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
   getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
+  getApplicationAdmin, setApplicationAdmin,
   listAlliances, createAlliance, leaveAlliance,
   listPendingAllianceInvites, acceptAllianceInvite, declineAllianceInvite,
   listAllianceSharedChannels, shareChannelWithAlliance, unshareChannelFromAlliance,
   setAllianceVoiceRemoteJoin,
   createAllianceInvite, sendAlliancePushInvite, joinAllianceByCode,
   getAlliancePeopleVisible, setAlliancePeopleVisible,
+  listAllianceManagers, grantAllianceManager, revokeAllianceManager,
+  getAllianceMembers, listHubs, getActiveHubId, rawFetch,
 } from "@platform";
+import { knownIssuerHubs, type IssuerHub, type StickerPacksActions, type StickerStorageActions, type StickerSettingsActions } from "@wavvon/ui";
+import {
+  listStickerPacks, createStickerPack, renameStickerPack, deleteStickerPack,
+  uploadStickerToPack, removeStickerFromPack,
+  listStoredStickers, getStickerUsage, deleteStoredSticker, listStickerBlocklist, unblockSticker,
+  getStickerSettings, saveStickerSettings,
+} from "./commands/stickers";
 import { fetchSoundboardAudioBytes } from "@platform";
 import {
   adminListWebhooks, adminCreateWebhook, adminRegenerateWebhook, adminDeleteWebhook,
@@ -117,13 +127,50 @@ export const webhookActions = {
 
 export const auditLogActions = { getAuditLog } as AuditLogSectionActions;
 
+/** A hub's `/info`, as an issuer the user can trust by address. */
+export async function lookupIssuerHub(url: string): Promise<IssuerHub> {
+  const base = url.trim().replace(/\/$/, "");
+  const info = (await (await rawFetch(`${base}/info`)).json()) as { name: string; icon?: string | null; public_key: string };
+  return { pubkey: info.public_key, name: info.name, url: base, icon: info.icon ?? null };
+}
+
+async function listKnownIssuerHubs(): Promise<IssuerHub[]> {
+  const alliances = await listAlliances().catch(() => []);
+  const partners = (await Promise.all(alliances.map((a) => getAllianceMembers(a.id).catch(() => [])))).flat();
+  return knownIssuerHubs(listHubs(), partners, listHubs().find((h) => h.hub_id === getActiveHubId())?.hub_url);
+}
+
 export const certActions = {
   listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+  listKnownHubs: listKnownIssuerHubs,
+  lookupHub: lookupIssuerHub,
 } as CertificationsSectionActions;
 
 export const soundboardActions = {
   listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip, fetchSoundboardAudioBytes,
 } as SoundboardAdminSectionActions;
+
+export const stickerPacksActions: StickerPacksActions = {
+  listPacks: listStickerPacks,
+  createPack: createStickerPack,
+  renamePack: renameStickerPack,
+  deletePack: deleteStickerPack,
+  uploadSticker: uploadStickerToPack,
+  removeSticker: removeStickerFromPack,
+};
+
+export const stickerStorageActions: StickerStorageActions = {
+  listStored: listStoredStickers,
+  getUsage: getStickerUsage,
+  deleteSticker: deleteStoredSticker,
+  listBlocklist: listStickerBlocklist,
+  unblock: unblockSticker,
+};
+
+export const stickerSettingsActions: StickerSettingsActions = {
+  getSettings: getStickerSettings,
+  saveSettings: saveStickerSettings,
+};
 
 export const onboardingActions = {
   listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
@@ -140,11 +187,23 @@ export const allianceActions = {
   getAlliancePeopleVisible: (allianceId: string) =>
     activeHubSupports("alliance.people") ? getAlliancePeopleVisible(allianceId) : Promise.resolve(null),
   setAlliancePeopleVisible,
+  listAllianceManagers: (allianceId: string) =>
+    activeHubSupports("alliance.permissions") ? listAllianceManagers(allianceId) : Promise.resolve(null),
+  grantAllianceManager,
+  revokeAllianceManager,
   joinAllianceByCode: (inviterHubUrl: string, allianceId: string, inviteToken: string, ownHubUrl: string) =>
     joinAllianceByCode(inviterHubUrl, allianceId, inviteToken, ownHubUrl).then(() => {}),
 };
 
 export const hubIconActions = { listHubIcons, createHubIcon, renameHubIcon, deleteHubIcon };
+
+// The application's answers live in the approval queue, and it maps no roles.
+export const applicationActions = {
+  getSurveyAdmin: getApplicationAdmin,
+  setSurveyAdmin: setApplicationAdmin,
+  getSurveyResponses: async () => [],
+  loadAssignableRoles: async () => [],
+};
 
 export const surveyActions = {
   getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
