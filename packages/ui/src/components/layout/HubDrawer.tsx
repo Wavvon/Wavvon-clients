@@ -6,10 +6,36 @@ import { Avatar } from "../Avatar";
 import { FocusTrap } from "../FocusTrap";
 import { PinIcon, PlusIcon, DiscoverIcon, TrashIcon } from "../Icons";
 import {
+  DndContext, type DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
+} from "@dnd-kit/core";
+import {
   type HubLayout, createFolder, deleteFolder, folderOf, isPinned, moveHubToFolder, togglePin,
 } from "../../utils/hubLayout";
 
 type Filter = "all" | "notified" | "pinned";
+
+/** Drop targets meaning "no folder": the loose list and the pinned list. */
+const NO_FOLDER = "";
+const PINNED_ZONE = "-pinned";
+
+function DraggableRow({ id, className, children }: { id: string; className: string; children: React.ReactNode }) {
+  const { setNodeRef, listeners, isDragging, transform } = useDraggable({ id });
+  return (
+    <li
+      ref={setNodeRef}
+      className={`${className}${isDragging ? " dragging" : ""}`}
+      style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
+      {...listeners}
+    >
+      {children}
+    </li>
+  );
+}
+
+function DropZone({ id, className, children }: { id: string; className: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `drop:${id}` });
+  return <section ref={setNodeRef} className={`${className}${isOver ? " drop-over" : ""}`}>{children}</section>;
+}
 
 /**
  * Every hub, opened from "Hubs · N": unpinned hubs with notifications first
@@ -37,6 +63,18 @@ export function HubDrawer({
   const [filter, setFilter] = useState<Filter>("all");
   const [naming, setNaming] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  // A short travel threshold keeps a plain click on a row opening the hub.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function onDragEnd(e: DragEndEvent) {
+    const over = e.over?.id;
+    if (typeof over !== "string" || !over.startsWith("drop:")) return;
+    const hubId = String(e.active.id);
+    const zone = over.slice("drop:".length);
+    const target = zone === PINNED_ZONE ? NO_FOLDER : zone;
+    if ((folderOf(layout, hubId)?.id ?? NO_FOLDER) === target) return;
+    onLayoutChange(moveHubToFolder(layout, hubId, target || null));
+  }
 
   useEffect(() => {
     searchRef.current?.focus();
@@ -71,7 +109,7 @@ export function HubDrawer({
     const count = unreadByHub[h.hub_id] ?? 0;
     const pinned = isPinned(layout, h.hub_id);
     return (
-      <li key={h.hub_id} className={`hub-drawer-row${h.hub_id === activeHubId ? " active" : ""}`}>
+      <DraggableRow key={h.hub_id} id={h.hub_id} className={`hub-drawer-row${h.hub_id === activeHubId ? " active" : ""}`}>
         <button
           type="button"
           className="hub-drawer-open"
@@ -106,7 +144,7 @@ export function HubDrawer({
         >
           <PinIcon size={14} />
         </button>
-      </li>
+      </DraggableRow>
     );
   }
 
@@ -136,12 +174,15 @@ export function HubDrawer({
             </div>
           </div>
 
-          <ul className="hub-drawer-list">
-            {[...groups.notified, ...groups.quiet].filter(keep).map(row)}
-          </ul>
+          <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+          <DropZone id={NO_FOLDER} className="hub-drawer-loose">
+            <ul className="hub-drawer-list">
+              {[...groups.notified, ...groups.quiet].filter(keep).map(row)}
+            </ul>
+          </DropZone>
 
           {folders.map(({ f, hubs: hs }) => (
-            <section key={f.id} className="hub-drawer-folder-group">
+            <DropZone key={f.id} id={f.id} className="hub-drawer-folder-group">
               <div className="hub-drawer-folder-head">
                 <span>{f.name}</span>
                 <button
@@ -164,15 +205,17 @@ export function HubDrawer({
                 </button>
               </div>
               <ul className="hub-drawer-list">{hs.map(row)}</ul>
-            </section>
+              {hs.length === 0 && <p className="muted hub-drawer-drop-hint">{t("hubs.drawer.drop_here")}</p>}
+            </DropZone>
           ))}
 
           {groups.pinned.filter(keep).length > 0 && (
-            <section className="hub-drawer-folder-group">
+            <DropZone id={PINNED_ZONE} className="hub-drawer-folder-group">
               <div className="hub-drawer-folder-head"><span>{t("hubs.drawer.pinned")}</span></div>
               <ul className="hub-drawer-list">{groups.pinned.filter(keep).map(row)}</ul>
-            </section>
+            </DropZone>
           )}
+          </DndContext>
 
           <div className="hub-drawer-actions">
             {naming === null ? (
