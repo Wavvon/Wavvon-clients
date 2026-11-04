@@ -2263,5 +2263,9 @@
   "voice.live.close": "Cerrar directo",
   "voice.live.all": "Todos",
   "voice.live.search": "Buscar directos",
-  "voice.live.camera": "{name} · cámara"
+  "voice.live.camera": "{name} · cámara",
+  "forum.list.layout": "Vista",
+  "forum.list.layout_list": "Lista",
+  "forum.list.layout_grid": "Cuadrícula",
+  "forum.list.replies": "{count, plural, one {# respuesta} other {# respuestas}}"
 }

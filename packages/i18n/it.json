@@ -2263,5 +2263,9 @@
   "voice.live.close": "Chiudi la live",
   "voice.live.all": "Tutte",
   "voice.live.search": "Cerca live",
-  "voice.live.camera": "{name} · videocamera"
+  "voice.live.camera": "{name} · videocamera",
+  "forum.list.layout": "Vista",
+  "forum.list.layout_list": "Elenco",
+  "forum.list.layout_grid": "Griglia",
+  "forum.list.replies": "{count, plural, one {# risposta} other {# risposte}}"
 }

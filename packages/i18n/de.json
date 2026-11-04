@@ -2263,5 +2263,9 @@
   "voice.live.close": "Live schließen",
   "voice.live.all": "Alle",
   "voice.live.search": "Lives suchen",
-  "voice.live.camera": "{name} · Kamera"
+  "voice.live.camera": "{name} · Kamera",
+  "forum.list.layout": "Ansicht",
+  "forum.list.layout_list": "Liste",
+  "forum.list.layout_grid": "Raster",
+  "forum.list.replies": "{count, plural, one {# Antwort} other {# Antworten}}"
 }
