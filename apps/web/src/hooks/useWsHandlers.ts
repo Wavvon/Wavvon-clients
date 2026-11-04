@@ -16,7 +16,7 @@ export interface UseWsHandlersParams {
   selectedChannelRef: RefObject<Channel | null>;
   meInfoRef: RefObject<MeInfo | null>;
   publicKeyRef: RefObject<string | null>;
-  myPresenceRef: RefObject<{ status: PresenceStatus }>;
+  myPresenceRef: RefObject<{ status: PresenceStatus; custom: string | null }>;
   effectiveNotifyModeRef: RefObject<(hubId: string, channelId: string) => NotifyMode>;
   mentionPingEnabledRef: RefObject<boolean>;
   whisperOptoutRef: RefObject<boolean>;
@@ -186,8 +186,8 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         // just (re)connected, but only if the user ever picked one here —
         // a fresh device must not stomp a status set elsewhere.
         const p = myPresenceRef.current;
-        if (p.status !== "online") {
-          try { sendSetStatusTo(hubId, p.status, null); } catch { /* ws not ready */ }
+        if (p.status !== "online" || p.custom) {
+          try { sendSetStatusTo(hubId, p.status, p.custom); } catch { /* ws not ready */ }
         }
         // Hub-side whisper opt-out is ephemeral — re-push it on every
         // (re)connect, same reasoning as the presence push above.

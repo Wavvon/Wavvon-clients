@@ -13,7 +13,7 @@ export interface WsHandlersParams {
   selectedConversationIdRef: RefObject<string | null>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-  myPresenceRef: RefObject<{ status: PresenceStatus }>;
+  myPresenceRef: RefObject<{ status: PresenceStatus; custom: string | null }>;
   /// Current whisper receive opt-out, re-pushed on every (re)connect.
   whisperOptoutRef: RefObject<boolean>;
   onVoiceMove: (raw: unknown) => void;
@@ -138,10 +138,10 @@ export function useWsHandlers({
               // just (re)connected, but only if the user ever picked one here —
               // a fresh device must not stomp a status set elsewhere.
               const p = myPresenceRef.current;
-              if (p && p.status !== "online") {
+              if (p && (p.status !== "online" || p.custom)) {
                 invoke("send_hub_ws_raw_to", {
                   hubId: hub_id,
-                  payload: JSON.stringify({ type: "set_status", status: p.status, custom: null }),
+                  payload: JSON.stringify({ type: "set_status", status: p.status, custom: p.custom }),
                 }).catch(() => { /* session raced away */ });
               }
               // Whisper opt-out is held per-connection by the hub, so a

@@ -8,7 +8,10 @@ test("switching language updates the UI and persists", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
 
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger").first().click();
+
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.getByRole("button", { name: "Appearance", exact: true }).click();
 
   await page.locator("#settings-language").first().selectOption("it");

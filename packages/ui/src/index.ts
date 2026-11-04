@@ -519,3 +519,5 @@ export type { HubTopBarProps } from "./components/layout/HubTopBar";
 export { parseLayout, pruneLayout, EMPTY_LAYOUT } from "./utils/hubLayout";
 export type { HubLayout, HubFolder } from "./utils/hubLayout";
 export type { HubNotice } from "./hooks/useUnreadCounts";
+export { UserMenu } from "./components/layout/UserMenu";
+export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";

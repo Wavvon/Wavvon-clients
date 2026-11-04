@@ -12,7 +12,9 @@ import { expectInHub, hubApi, newMemberPage, openSettingRow, uniqueName } from "
 // specs that follow.
 
 async function openManageAccounts(page: Page) {
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger").first().click();
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Manage accounts", exact: true }).click();
 }
 
