@@ -1,4 +1,5 @@
 import type { Hub } from "@shared/types";
+import { SettingsModal } from "@wavvon/ui";
 import { SettingsPage } from "./SettingsPage";
 import type { useSettingsProfile } from "../../hooks/useSettingsProfile";
 import type { useNotificationPrefs } from "../../hooks/useNotificationPrefs";
@@ -29,13 +30,14 @@ export function SettingsPageContainer({
   knownNames, inVoice, onHubProfileSaved, onUnblock, onUnignore,
 }: SettingsPageContainerProps) {
   if (!settingsProfile.showSettings) return null;
+  const close = () => settingsProfile.setShowSettings(false);
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "var(--bg)", overflow: "auto", display: "flex" }}>
+    <SettingsModal onClose={close}>
       <SettingsPage
         tab={settingsProfile.settingsTab}
         onTab={settingsProfile.setSettingsTab}
-        onClose={() => settingsProfile.setShowSettings(false)}
+        onClose={close}
         hubs={hubs}
         publicKey={publicKey}
         theme={settingsProfile.theme}
@@ -67,6 +69,6 @@ export function SettingsPageContainer({
         onToggleHideBirthdays={notifyPrefs.toggleHideBirthdays}
         inVoice={inVoice}
       />
-    </div>
+    </SettingsModal>
   );
 }

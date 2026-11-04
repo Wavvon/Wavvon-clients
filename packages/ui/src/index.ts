@@ -526,3 +526,4 @@ export { memberActivity } from "./utils/memberActivity";
 export type { MemberActivity } from "./utils/memberActivity";
 export { OnboardingFrame } from "./components/layout/OnboardingFrame";
 export type { InvitingHub } from "./components/layout/OnboardingFrame";
+export { SettingsModal } from "./components/settings/SettingsModal";

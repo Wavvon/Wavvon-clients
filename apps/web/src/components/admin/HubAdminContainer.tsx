@@ -5,7 +5,7 @@ import {
   listAdminRecoveryRequests, approveRecoveryRequest, denyRecoveryRequest,
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
-import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection } from "@wavvon/ui";
+import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection, SettingsModal } from "@wavvon/ui";
 import type { RecoveryContactsSectionActions } from "@wavvon/ui";
 import {
   rolesActions, memberRoleActions, serverTagsActions, inviteActions,
@@ -57,7 +57,7 @@ export function HubAdminContainer({
     : undefined;
 
   return (
-    <div className="modal-overlay" style={{ display: "flex", alignItems: "stretch", justifyContent: "stretch" }}>
+    <SettingsModal onClose={onClose}>
       <HubAdminPage
         tab={hubAdmin.hubAdminTab}
         onTab={hubAdmin.setHubAdminTab}
@@ -174,6 +174,6 @@ export function HubAdminContainer({
           return <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} showMemberCards={false} />;
         }}
       />
-    </div>
+    </SettingsModal>
   );
 }

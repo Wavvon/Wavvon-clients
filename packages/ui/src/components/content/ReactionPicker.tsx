@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { loadRecentEmojis, pushRecentEmoji } from "@wavvon/core";
 import { EMOJI_CATALOG } from "../../emojiCatalog";
 import { FocusTrap } from "../FocusTrap";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import { ReactionAddIcon } from "../Icons";
 
 const POPUP_HEIGHT = 300; // estimated max height in px
@@ -24,6 +25,10 @@ export function ReactionPicker({
     if (!q) return EMOJI_CATALOG;
     return EMOJI_CATALOG.filter(([_emoji, kw]) => kw.includes(q));
   }, [query]);
+
+  // Through the shared stack, so Escape closes the picker and not a settings
+  // dialog it sits in.
+  useCloseOnEscape(() => handleClose(), open);
 
   function handleClose() {
     setOpen(false);
@@ -91,8 +96,7 @@ export function ReactionPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") handleClose();
-                  else if (e.key === "Enter" && filtered.length > 0) {
+                  if (e.key === "Enter" && filtered.length > 0) {
                     handlePick(filtered[0][0]);
                   }
                 }}
