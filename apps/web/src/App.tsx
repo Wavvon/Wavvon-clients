@@ -66,7 +66,7 @@ const applicationActions = {
 import { fetchAdmissionChallenge, submitAdmissionChallenge } from "@platform";
 import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
-import { HubStreamsPanel } from "@wavvon/ui";
+import { HubStreamsPanel, ShareDialog } from "@wavvon/ui";
 import { AddHubModal } from "@wavvon/ui";
 import { passkeysUsableWith } from "@platform";
 import { QuickInviteModal } from "@wavvon/ui";
@@ -1430,6 +1430,14 @@ export default function App({ initialView }: AppProps = {}) {
           actions={{ listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriendRequest, removeFriend }}
           onClose={() => setShowFriends(false)}
           onToast={(msg) => showHubError(msg)}
+        />
+      )}
+
+      {screenShare.shareDialogFor && (
+        <ShareDialog
+          loadLimits={screenShare.loadStreamLimits}
+          onStart={(q) => void screenShare.handleShareChosen(q)}
+          onCancel={() => screenShare.setShareDialogFor(null)}
         />
       )}
 

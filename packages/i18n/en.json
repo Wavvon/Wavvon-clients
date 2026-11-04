@@ -2263,5 +2263,12 @@
   "voice.live.close": "Close live",
   "voice.live.all": "All",
   "voice.live.search": "Search lives",
-  "voice.live.camera": "{name} · camera"
+  "voice.live.camera": "{name} · camera",
+  "voice.screen_share.picker.resolution": "Resolution",
+  "voice.screen_share.picker.frame_rate": "Frame rate (fps)",
+  "voice.screen_share.picker.native": "Native",
+  "voice.screen_share.picker.hub_limit": "Hub limit",
+  "voice.screen_share.picker.summary": "{resolution} · {fps} fps · about {mbps} Mbps upload",
+  "voice.screen_share.picker.with_audio": "with audio",
+  "voice.screen_share.picker.without_audio": "no audio"
 }

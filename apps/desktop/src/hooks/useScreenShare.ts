@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { shareVideoConstraints, declaredQuality, type StreamLimits } from "@wavvon/ui";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { invoke } from "@tauri-apps/api/core";
 import type { ScreenShareOpts } from "../types";
 import i18n from "@wavvon/i18n";
@@ -39,6 +41,14 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
   const bytesInWindowRef = useRef(0);
   const kbpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Stable per hub, so the dialog fetches once per opening.
+  const loadStreamLimits = useCallback(async (): Promise<StreamLimits | undefined> => {
+    if (!hubId) return undefined;
+    const info = await invoke<WsInfo>("get_hub_ws_info", { hubId });
+    const res = await fetchWithTimeout(`${info.hub_url.replace(/\/+$/, "")}/info`);
+    return ((await res.json()) as { stream_limits?: StreamLimits }).stream_limits;
+  }, [hubId]);
+
   async function startShare(opts: ScreenShareOpts) {
     if (!hubId || !channelId) return;
     setError(null);
@@ -59,8 +69,8 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
     let displayStream: MediaStream;
     try {
       displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30, max: 60 }, width: { max: 1920 }, height: { max: 1080 } },
-        audio: opts.includeAudio,
+        video: shareVideoConstraints(opts.quality),
+        audio: opts.quality.audio,
       });
     } catch (e) {
       ws.close();
@@ -74,8 +84,8 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
     const screenStreamId = crypto.randomUUID();
     streamIdsRef.current = [screenStreamId];
     streamsRef.current = [displayStream];
-
-    ws.onopen = () => {
+    const declared = declaredQuality(opts.quality, displayStream.getVideoTracks()[0]);
+    const announce = () => {
       ws.send(JSON.stringify({ type: "subscribe", channel_id: channelId }));
       ws.send(JSON.stringify({
         type: "screen_share_start",
@@ -85,23 +95,13 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
         mime,
         has_audio: hasAudio,
         transport: "chunks",
+        ...declared,
       }));
     };
+    ws.onopen = announce;
+    if (ws.readyState === WebSocket.OPEN) announce();
 
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "subscribe", channel_id: channelId }));
-      ws.send(JSON.stringify({
-        type: "screen_share_start",
-        channel_id: channelId,
-        stream_id: screenStreamId,
-        kind: "screen",
-        mime,
-        has_audio: hasAudio,
-        transport: "chunks",
-      }));
-    }
-
-    startRecorder(ws, displayStream, channelId, screenStreamId, mime);
+    startRecorder(ws, displayStream, channelId, screenStreamId, mime, opts.quality.kbps * 1000);
 
     if (opts.includeWebcam) {
       try {
@@ -125,7 +125,7 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
           }));
         }
 
-        startRecorder(ws, webcamStream, channelId, webcamStreamId, pickMime(false));
+        startRecorder(ws, webcamStream, channelId, webcamStreamId, pickMime(false), 2_500_000);
       } catch {
         // webcam optional — screen share continues without it
       }
@@ -150,11 +150,12 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
     stream: MediaStream,
     cid: string,
     streamId: string,
-    mime: string
+    mime: string,
+    bitsPerSecond: number
   ) {
     const recorder = new MediaRecorder(stream, {
       mimeType: mime,
-      videoBitsPerSecond: 2_500_000,
+      videoBitsPerSecond: bitsPerSecond,
     });
 
     let seq = 0;
@@ -215,5 +216,5 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
     setKbps(0);
   }
 
-  return { sharing, startShare, stopShare, error, kbps };
+  return { sharing, startShare, stopShare, error, kbps, loadStreamLimits };
 }

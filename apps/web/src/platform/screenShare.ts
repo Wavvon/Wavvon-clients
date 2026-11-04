@@ -1,4 +1,5 @@
 import type { HubWebSocket } from "./ws";
+import { shareVideoConstraints, declaredQuality, type ShareQuality } from "@wavvon/ui";
 
 // Outbound screen share over the hub's chunk-relay protocol — the same wire
 // messages the desktop client sends (useScreenShare.ts) and the existing web
@@ -55,10 +56,10 @@ export class WebScreenShareSession {
 
   // Prompts the browser's screen picker, then starts recording + relaying.
   // Throws if the user cancels the picker or capture fails (caller shows it).
-  async start(): Promise<void> {
+  async start(quality: ShareQuality): Promise<void> {
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30, max: 60 }, width: { max: 1920 }, height: { max: 1080 } },
-      audio: true,
+      video: shareVideoConstraints(quality),
+      audio: quality.audio,
     });
     this.stream = stream;
     const hasAudio = stream.getAudioTracks().length > 0;
@@ -75,12 +76,13 @@ export class WebScreenShareSession {
       mime,
       has_audio: hasAudio,
       transport: "chunks",
+      ...declaredQuality(quality, stream.getVideoTracks()[0]),
     });
 
     // If the user stops sharing via the browser's native control, end cleanly.
     stream.getVideoTracks()[0]?.addEventListener("ended", () => this.stop());
 
-    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
+    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: quality.kbps * 1000 });
     this.recorder = recorder;
     this.windowStart = performance.now();
     recorder.ondataavailable = async (e) => {

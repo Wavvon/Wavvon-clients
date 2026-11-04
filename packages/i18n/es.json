@@ -2263,5 +2263,12 @@
   "voice.live.close": "Cerrar directo",
   "voice.live.all": "Todos",
   "voice.live.search": "Buscar directos",
-  "voice.live.camera": "{name} · cámara"
+  "voice.live.camera": "{name} · cámara",
+  "voice.screen_share.picker.resolution": "Resolución",
+  "voice.screen_share.picker.frame_rate": "Fotogramas por segundo (fps)",
+  "voice.screen_share.picker.native": "Nativa",
+  "voice.screen_share.picker.hub_limit": "Límite del hub",
+  "voice.screen_share.picker.summary": "{resolution} · {fps} fps · unos {mbps} Mbps de subida",
+  "voice.screen_share.picker.with_audio": "con audio",
+  "voice.screen_share.picker.without_audio": "sin audio"
 }
