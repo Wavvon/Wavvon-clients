@@ -88,7 +88,7 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
   await page.reload();
   await expectInHub(page);
   // "Join a hub" lives in the hubs drawer, opened from the top bar.
-  await page.locator(".top-bar-hubs").click();
+  await page.locator(".top-bar-hubs:visible").click();
   await page.getByRole("dialog", { name: "Your hubs" }).getByRole("button", { name: "Join a hub" }).click();
   const addHub = page.getByRole("dialog", { name: "Join a hub" });
   await expect(addHub).toBeVisible();

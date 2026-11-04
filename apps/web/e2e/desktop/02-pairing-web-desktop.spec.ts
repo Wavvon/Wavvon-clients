@@ -43,7 +43,7 @@ test.describe("web → desktop pairing", () => {
     await joinHub(desktop.page, desktopName, inviteLink(HUB_URL, invite.code));
 
     // Web: Settings → Devices → Start pairing, and read the code it shows.
-    await page.locator(".user-menu-trigger").first().click();
+    await page.locator(".user-menu-trigger:visible").click();
 
     await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await page.getByRole("button", { name: "Devices", exact: true }).click();
@@ -69,7 +69,7 @@ test.describe("web → desktop pairing", () => {
     expect(offer.home_hubs.length).toBeGreaterThan(0);
 
     // Desktop: Settings → the pairing section → paste it.
-    await desktop.page.locator(".user-menu-trigger").first().click();
+    await desktop.page.locator(".user-menu-trigger:visible").click();
 
     await desktop.page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await desktop.page.getByRole("button", { name: "Devices", exact: true }).click();

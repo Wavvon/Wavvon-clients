@@ -8,7 +8,7 @@ import { expectInHub, startCameraPreview } from "./helpers/live";
 // (self-hosted, no CDN).
 
 async function openCameraSettings(page: import("@playwright/test").Page) {
-  await page.locator(".user-menu-trigger").first().click();
+  await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();
