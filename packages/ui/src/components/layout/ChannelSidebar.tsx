@@ -1,3 +1,4 @@
+import { useVoiceBarSlot } from "../../utils/voiceBarSlot";
 import { Avatar } from "../Avatar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -258,7 +259,8 @@ export function ChannelSidebar({
   const [focusedSubtreeId, setFocusedSubtreeId] = useState<string | null>(null);
   const [drillAnnouncement, setDrillAnnouncement] = useState("");
   const whisperBtnRef = useRef<HTMLButtonElement>(null);
-  const [whisperPanelPos, setWhisperPanelPos] = useState<{ bottom: number; left: number } | null>(null);
+  const voiceBarSlot = useVoiceBarSlot();
+  const [whisperPanelPos, setWhisperPanelPos] = useState<{ top: number; left: number } | null>(null);
 
   // Drill-in focus is per-hub session state (not persisted): clear it when
   // the user switches hubs.
@@ -280,7 +282,8 @@ export function ChannelSidebar({
   useEffect(() => {
     if (!showWhisperPanel || !whisperBtnRef.current) return;
     const rect = whisperBtnRef.current.getBoundingClientRect();
-    setWhisperPanelPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left });
+    // The button sits in the voice view's bar at the top: the panel opens below it.
+    setWhisperPanelPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 340) });
   }, [showWhisperPanel]);
 
   const dndSensors = useSensors(
@@ -831,70 +834,75 @@ export function ChannelSidebar({
                 >
                   <PhoneOffIcon />
                 </button>
-                {onScreenShare && (
-                  <button
-                    onClick={onScreenShare}
-                    className={`btn-icon-gear ${sharing ? "active" : ""}`}
-                    title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
-                  >
-                    <ScreenShareIcon />
-                  </button>
-                )}
-                {onToggleVideo && (
-                  <button
-                    onClick={handleToggleVideo}
-                    className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
-                    title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                    aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                  >
-                    {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
-                  </button>
-                )}
-                {onToggleWhisperPanel && (
-                  <button
-                    ref={whisperBtnRef}
-                    onClick={onToggleWhisperPanel}
-                    className={`btn-icon-gear ${isWhispering ? "active" : ""}`}
-                    title={t("voice.whisper", "Whisper")}
-                    aria-pressed={!!isWhispering}
-                  >
-                    <WhisperIcon size={15} />
-                  </button>
-                )}
-                {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
-                  <div style={{ position: "fixed", bottom: whisperPanelPos.bottom, left: whisperPanelPos.left, zIndex: 9999 }}>
-                    <WhisperPanel
-                      voiceParticipants={
-                        voiceChannelId
-                          ? (voicePartByChannel[voiceChannelId] ?? []).filter(
-                              (p) => p.public_key !== publicKey,
-                            )
-                          : []
-                      }
-                      voiceChannels={channels.filter(c => !c.is_category)}
-                      isWhispering={!!isWhispering}
-                      whisperTargets={whisperTargets ?? []}
-                      whisperLists={whisperLists ?? []}
-                      onStartWhisper={onStartWhisper ?? (() => {})}
-                      onStopWhisper={onStopWhisper ?? (() => {})}
-                      onSaveList={onSaveWhisperList ?? (() => {})}
-                      onDeleteList={onDeleteWhisperList ?? (() => {})}
-                      onClose={onCloseWhisperPanel}
-                      whisperOptout={whisperOptout}
-                      onSetWhisperOptout={onSetWhisperOptout}
-                      onListWhisperRoles={onListWhisperRoles}
-                      whisperReplyBind={whisperReplyBind}
-                      onSetWhisperReplyBind={onSetWhisperReplyBind}
-                    />
+                {voiceBarSlot && createPortal(
+                  <div className="voice-media-bar" role="toolbar" aria-label={t("voice.bar.label")}>
+                    {onScreenShare && (
+                      <button
+                        onClick={onScreenShare}
+                        className={`btn-icon-gear ${sharing ? "active" : ""}`}
+                        title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
+                      >
+                        <ScreenShareIcon />
+                      </button>
+                    )}
+                    {onToggleVideo && (
+                      <button
+                        onClick={handleToggleVideo}
+                        className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
+                        title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                        aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                      >
+                        {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
+                      </button>
+                    )}
+                    {onToggleWhisperPanel && (
+                      <button
+                        ref={whisperBtnRef}
+                        onClick={onToggleWhisperPanel}
+                        className={`btn-icon-gear ${isWhispering ? "active" : ""}`}
+                        title={t("voice.whisper", "Whisper")}
+                        aria-pressed={!!isWhispering}
+                      >
+                        <WhisperIcon size={15} />
+                      </button>
+                    )}
+                    {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
+                      <div style={{ position: "fixed", top: whisperPanelPos.top, left: Math.max(8, whisperPanelPos.left), zIndex: 9999 }}>
+                        <WhisperPanel
+                          voiceParticipants={
+                            voiceChannelId
+                              ? (voicePartByChannel[voiceChannelId] ?? []).filter(
+                                  (p) => p.public_key !== publicKey,
+                                )
+                              : []
+                          }
+                          voiceChannels={channels.filter(c => !c.is_category)}
+                          isWhispering={!!isWhispering}
+                          whisperTargets={whisperTargets ?? []}
+                          whisperLists={whisperLists ?? []}
+                          onStartWhisper={onStartWhisper ?? (() => {})}
+                          onStopWhisper={onStopWhisper ?? (() => {})}
+                          onSaveList={onSaveWhisperList ?? (() => {})}
+                          onDeleteList={onDeleteWhisperList ?? (() => {})}
+                          onClose={onCloseWhisperPanel}
+                          whisperOptout={whisperOptout}
+                          onSetWhisperOptout={onSetWhisperOptout}
+                          onListWhisperRoles={onListWhisperRoles}
+                          whisperReplyBind={whisperReplyBind}
+                          onSetWhisperReplyBind={onSetWhisperReplyBind}
+                        />
+                      </div>,
+                      document.body
+                    )}
+                    {canUseSoundboard && onTriggerSoundboardClip && onListSoundboardClips && (
+                      <SoundboardPopover
+                        onListClips={onListSoundboardClips}
+                        onTrigger={onTriggerSoundboardClip}
+                        playingClipId={soundboardPlayingClipId ?? null}
+                      />
+                    )}
                   </div>,
-                  document.body
-                )}
-                {canUseSoundboard && onTriggerSoundboardClip && onListSoundboardClips && (
-                  <SoundboardPopover
-                    onListClips={onListSoundboardClips}
-                    onTrigger={onTriggerSoundboardClip}
-                    playingClipId={soundboardPlayingClipId ?? null}
-                  />
+                  voiceBarSlot,
                 )}
               </div>
             </div>

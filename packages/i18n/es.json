@@ -1866,8 +1866,6 @@
   "voice.screen_share.picker.share_webcam": "Compartir la cámara",
   "voice.screen_share.picker.title": "Comparte tu pantalla",
   "voice.screen_share.stop": "Dejar de compartir",
-  "voice.self_preview.collapse": "Contraer vista previa de la pantalla compartida",
-  "voice.self_preview.expand": "Expandir vista previa de la pantalla compartida",
   "voice.share.pip_enter": "Abrir en imagen sobre imagen",
   "voice.share.pip_exit": "Salir de imagen sobre imagen",
   "voice.share.volume": "Volumen",
@@ -2313,5 +2311,16 @@
   "hub.card.online": "{count} conectados",
   "channel.voice.count": "{count, plural, one {# persona en voz} other {# personas en voz}}",
   "channel.voice.you": "tú",
-  "channel.voice.summary": "{names} y {count, plural, one {# más} other {# más}}"
+  "channel.voice.summary": "{names} y {count, plural, one {# más} other {# más}}",
+  "voice.bar.label": "Medios",
+  "voice.stage.pin": "Fijar a {name}",
+  "voice.stage.unpin": "Desfijar a {name}",
+  "voice.stage.enlarge": "Ampliar a {name}",
+  "voice.stage.audience": "Público · {count}",
+  "voice.stage.search": "Buscar en el público",
+  "voice.stage.resize": "Cambiar el tamaño del escenario",
+  "voice.stage.you_share": "Tú",
+  "voice.stage.sending": "enviando {mbps} Mbps",
+  "voice.share.fullscreen": "Pantalla completa",
+  "voice.share.stop_watching": "Dejar de ver"
 }
