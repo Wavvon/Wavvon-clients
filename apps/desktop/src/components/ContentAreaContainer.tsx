@@ -1,3 +1,4 @@
+import { memberActivity } from "@wavvon/ui";
 import type { AllianceScrollback } from "@wavvon/ui";
 import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
@@ -139,6 +140,7 @@ export function ContentAreaContainer({
         reconnectingHubs={hubConnections.reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voice.speakingPubkeys}
+        memberActivity={memberActivity(voice.voicePartByChannel, voice.hubStreams, (id) => channels.find((c) => c.id === id)?.name)}
         hideBirthdays={hideBirthdays}
         inputText={channelMessages.inputText}
         typingByKey={typingForScope(typing.typingByKey, selectedChannel?.id)}

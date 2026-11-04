@@ -516,3 +516,5 @@ export { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./utils/b
 export type { BackgroundMode } from "./utils/backgroundProcessor";
 export { UserMenu } from "./components/layout/UserMenu";
 export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";
+export { memberActivity } from "./utils/memberActivity";
+export type { MemberActivity } from "./utils/memberActivity";

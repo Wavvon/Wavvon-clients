@@ -1,3 +1,4 @@
+import { memberActivity } from "@wavvon/ui";
 import { useMemo, useState } from "react";
 import { useConnectionStats } from "../../hooks/useConnectionStats";
 import type {
@@ -300,6 +301,7 @@ export function ContentArea(props: Props) {
         reconnectingHubs={hubConnection.reconnectingHubs}
         memberSidebarHidden={memberSidebarHidden}
         voiceActiveUsers={voice.voiceActiveUsers}
+        memberActivity={memberActivity(voice.voicePartByChannel, screenShare.liveStreams, (id) => channels.find((c) => c.id === id)?.name)}
         connectionStatus={
           <ConnectionStatus
             rttMs={conn.rttMs}
