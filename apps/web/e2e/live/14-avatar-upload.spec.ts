@@ -14,7 +14,10 @@ test("upload an avatar image; it saves as a data URL", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
 
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger").first().click();
+
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Profile", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
   // The default profile context is local-only (P24) — editing the hub's own

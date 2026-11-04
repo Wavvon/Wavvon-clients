@@ -2279,5 +2279,15 @@
   "member.list.offline": "Offline",
   "member.list.count": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
   "member.status.in_voice": "Im Sprachkanal · {channel}",
-  "member.status.live": "Live · {channel}"
+  "member.status.live": "Live · {channel}",
+  "user_menu.open": "Dein Menü, {name}",
+  "user_menu.label": "Dein Menü",
+  "user_menu.profile": "Profil",
+  "user_menu.status": "Status",
+  "user_menu.account_backup": "Konto und Sicherung",
+  "user_menu.voice_camera": "Sprache und Kamera",
+  "user_menu.this_device": "Dieses Gerät",
+  "user_menu.accounts": "Konten auf diesem Gerät",
+  "user_menu.add_account": "Konto hinzufügen",
+  "user_menu.shortcuts": "Tastenkürzel"
 }

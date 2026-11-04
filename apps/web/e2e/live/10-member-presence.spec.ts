@@ -54,11 +54,12 @@ test("status picker: member goes DND; others see the dot live", async ({ page, b
   const memberName = uniqueName("Dnd");
   const { context, page: member } = await newMemberPage(browser, memberName);
   try {
-    // Member opens the footer status picker and goes DND.
-    await member.locator(".user-identity-details").click();
-    const menu = member.locator(".status-menu");
+    // Member opens their menu, then the status submenu, and goes DND.
+    await member.locator(".user-menu-trigger").click();
+    const menu = member.getByRole("menu");
     await expect(menu).toBeVisible();
-    await menu.getByRole("button", { name: "Do Not Disturb" }).click();
+    await menu.getByRole("menuitem", { name: "Online", exact: true }).click();
+    await menu.getByRole("menuitemradio", { name: "Do Not Disturb" }).click();
     await expect(menu).not.toBeVisible();
 
     // Member's own footer reflects it (dot).
@@ -69,8 +70,9 @@ test("status picker: member goes DND; others see the dot live", async ({ page, b
     await expect(memberRow.locator(".status-dot.dnd")).toBeVisible({ timeout: 15000 });
 
     // Back to online, again live for the owner.
-    await member.locator(".user-identity-details").click();
-    await member.locator(".status-menu").getByRole("button", { name: "Online", exact: true }).click();
+    await member.locator(".user-menu-trigger").click();
+    await member.getByRole("menu").getByRole("menuitem", { name: "Do Not Disturb" }).click();
+    await member.getByRole("menu").getByRole("menuitemradio", { name: "Online", exact: true }).click();
     await expect(memberRow.locator(".status-dot.online")).toBeVisible({ timeout: 15000 });
   } finally {
     await context.close();

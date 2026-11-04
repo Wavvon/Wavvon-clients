@@ -10,7 +10,10 @@ test("full archive export downloads an encrypted file", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
 
-  await page.locator(".btn-icon-gear").click();
+  await page.locator(".user-menu-trigger").first().click();
+
+
+  await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Manage accounts", exact: true }).click();
   await page.getByRole("button", { name: "Export full archive…" }).click();
 

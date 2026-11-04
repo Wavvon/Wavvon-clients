@@ -1,3 +1,4 @@
+import { UserMenu, type UserMenuProps } from "./UserMenu";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -29,7 +30,7 @@ import type {
   WhisperList,
   WhisperReplyBind,
 } from "../../types";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, GearIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
+import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
 import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
 import { HubMenuItems } from "./HubMenuItems";
@@ -116,11 +117,6 @@ interface Props {
    * manage_roles member may open channel settings (Permissions tab).
    * Falls back to isAdmin when omitted. */
   canOpenChannelSettings?: boolean;
-  /** Own presence: null/undefined = online, "away", "dnd", "invisible". */
-  myStatus?: string | null;
-  /** Present = footer identity opens the status picker. `ttlMinutes` is an
-   *  optional "clear after" duration (reverts to online), null = no expiry. */
-  onSetStatus?: (status: "online" | "away" | "dnd" | "invisible", ttlMinutes: number | null) => void;
   hubNotifyMode: Record<string, NotifyMode>;
   hubDropdownOpen: boolean;
   /** Active hub's IANA timezone, for the ambient hub-local clock — absent/null
@@ -164,12 +160,8 @@ interface Props {
   onOpenFriends?: () => void;
   onToggleSelfMute: () => void;
   onToggleSelfDeafen: () => void;
-  onOpenSettings: () => void;
-  /** The active identity has no copy off this browser yet. Marks the gear
-   *  rather than raising anything of its own: the gear is always on screen and
-   *  never moves, so the reminder cannot be dismissed into nowhere, and it
-   *  goes away the moment the phrase is revealed or a backup exported. */
-  settingsNeedsAttention?: boolean;
+  /** The member's own menu (avatar, presence, settings, accounts). */
+  userMenu: UserMenuProps;
   onDragEnd: (event: DragEndEvent) => void;
   onToggleHideSilenced?: () => void;
   sharing?: boolean;
@@ -217,7 +209,7 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
-  users, dmPeerNames, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, myStatus, onSetStatus, hubNotifyMode, hubDropdownOpen,
+  users, dmPeerNames, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
@@ -228,7 +220,7 @@ export function ChannelSidebar({
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
   onVoiceJoin, onVoiceLeave, onParticipantContextMenu, voiceChannelsOnly,
   onSelectAllianceChannel, onJoinAllianceVoice, onSelectConversation,
-  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, onOpenSettings, settingsNeedsAttention,
+  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, userMenu,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
   voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
@@ -242,21 +234,6 @@ export function ChannelSidebar({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [hubCtxMenu, setHubCtxMenu] = useState<{ x: number; y: number } | null>(null);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  // "Clear after" duration (minutes) for the next status pick; 0 = no expiry.
-  const [ttlDraft, setTtlDraft] = useState(0);
-  const statusMenuRef = useRef<HTMLDivElement>(null);
-  // Dismiss the status picker on any click outside it.
-  useEffect(() => {
-    if (!showStatusMenu) return;
-    const onDown = (e: MouseEvent) => {
-      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
-        setShowStatusMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [showStatusMenu]);
   const [sidebarWidth, setSidebarWidth] = useState<number>(loadSidebarWidth);
   const resizeDragRef = useRef<{ startX: number; origW: number } | null>(null);
 
@@ -373,7 +350,6 @@ export function ChannelSidebar({
   }
 
   const activeHub = hubs.find((h) => h.hub_id === activeHubId);
-  const myDisplayName = users.find((u) => u.public_key === publicKey)?.display_name;
   const avatarByKey = useMemo(() => new Map(users.map((u) => [u.public_key, u.avatar])), [users]);
   const activePing = activeHubId ? pingByHub[activeHubId] : undefined;
   const voiceChannelName = voiceChannelNameHint ?? channels.find((c) => c.id === voiceChannelId)?.name;
@@ -941,62 +917,8 @@ export function ChannelSidebar({
         )}
 
         <div className="user-identity">
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <div className="user-identity-avatar" />
-            <span className={`user-status-dot status-${myStatus ?? "online"}`} />
-          </div>
-          <div
-            ref={statusMenuRef}
-            className="user-identity-details"
-            style={onSetStatus ? { cursor: "pointer" } : undefined}
-            onClick={onSetStatus ? () => setShowStatusMenu((v) => !v) : undefined}
-          >
-            <span className="user-identity-name" title={publicKey ?? undefined}>
-              {myDisplayName || publicKey?.slice(0, 12) || "You"}
-            </span>
-            {showStatusMenu && onSetStatus && (
-              <div className="status-menu" onClick={(e) => e.stopPropagation()}>
-                {(["online", "away", "dnd", "invisible"] as const).map((s) => (
-                  <button
-                    key={s}
-                    className={`status-menu-item ${(myStatus ?? "online") === s ? "active" : ""}`}
-                    onClick={() => {
-                      onSetStatus(s, s === "online" || ttlDraft === 0 ? null : ttlDraft);
-                      setShowStatusMenu(false);
-                    }}
-                  >
-                    <span className={`user-status-dot status-${s}`} style={{ marginRight: 6, position: "static" }} />
-                    {t(`presence.${s}`)}
-                  </button>
-                ))}
-                {/* "Clear after": auto-revert to Online. Not applicable to
-                    Online itself, so it only affects away/dnd/invisible picks. */}
-                <label className="status-menu-ttl">
-                  <span>{t("presence.clear_after")}</span>
-                  <select
-                    value={ttlDraft}
-                    onChange={(e) => setTtlDraft(Number(e.target.value))}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <option value={0}>{t("presence.ttl.off")}</option>
-                    <option value={30}>{t("presence.ttl.30m")}</option>
-                    <option value={60}>{t("presence.ttl.1h")}</option>
-                    <option value={180}>{t("presence.ttl.3h")}</option>
-                  </select>
-                </label>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={onOpenSettings}
-            className="btn-icon-gear"
-            title={settingsNeedsAttention ? t("settings.identity_backup.badge") : t("settings.title")}
-          >
-            <GearIcon size={15} />
-            {settingsNeedsAttention && (
-              <span className="gear-attention-dot" aria-label={t("settings.identity_backup.badge")} />
-            )}
-          </button>
+          <UserMenu {...userMenu} />
+          <span className="user-identity-name" title={publicKey ?? undefined}>{userMenu.name}</span>
         </div>
       </div>
     </nav>
