@@ -14,7 +14,8 @@ import path from "node:path";
 //     npx playwright test --config e2e/capture/playwright.capture.config.ts
 //
 // Screenshots land as screenshot-channel.png / screenshot-dev-talk.png /
-// screenshot-game-night.png (1600x1000 @2x = 3200x2000), plus
+// screenshot-game-night.png / screenshot-voice.png (1600x1000 @2x =
+// 3200x2000), plus
 // join-flow.webm to convert to GIF with ffmpeg.
 
 const HUB_URL = process.env.CAPTURE_HUB_URL ?? "http://localhost:3100";
@@ -124,6 +125,14 @@ test("capture README screenshots", async ({ browser }) => {
     await page.waitForTimeout(2500);
     await page.screenshot({ path: path.join(OUT_DIR, file) });
   }
+
+  // The voice room: one person pinned to the stage, the others in the audience.
+  await channelButton(page, "Lounge").click();
+  await expect(page.locator(".voice-room")).toBeVisible({ timeout: 15000 });
+  await page.getByRole("button", { name: "Pin Nova" }).click();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: path.join(OUT_DIR, "screenshot-voice.png") });
 
   await context.close();
   for (const c of voiceContexts) await c.close();
