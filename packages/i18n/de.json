@@ -2274,5 +2274,10 @@
   "forum.list.layout": "Ansicht",
   "forum.list.layout_list": "Liste",
   "forum.list.layout_grid": "Raster",
-  "forum.list.replies": "{count, plural, one {# Antwort} other {# Antworten}}"
+  "forum.list.replies": "{count, plural, one {# Antwort} other {# Antworten}}",
+  "member.list.members": "Mitglieder",
+  "member.list.offline": "Offline",
+  "member.list.count": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+  "member.status.in_voice": "Im Sprachkanal · {channel}",
+  "member.status.live": "Live · {channel}"
 }

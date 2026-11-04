@@ -27,6 +27,7 @@ import {
   forumPage,
   ContentArea as SharedContentArea,
   type VoiceStageInfo,
+  type MemberActivity,
   type ForumActions,
   type MessageRowActions,
   type UserProfileCardActions,
@@ -167,6 +168,7 @@ interface Props {
   memberSidebarHidden: boolean;
   voiceActiveUsers: Set<string>;
   voiceStage?: VoiceStageInfo;
+  memberActivity?: Map<string, MemberActivity>;
   hideBirthdays?: boolean;
   inputText: string;
   typingByKey: Record<string, TypingEntry>;

@@ -2274,5 +2274,10 @@
   "forum.list.layout": "Vista",
   "forum.list.layout_list": "Lista",
   "forum.list.layout_grid": "Cuadrícula",
-  "forum.list.replies": "{count, plural, one {# respuesta} other {# respuestas}}"
+  "forum.list.replies": "{count, plural, one {# respuesta} other {# respuestas}}",
+  "member.list.members": "Miembros",
+  "member.list.offline": "Desconectados",
+  "member.list.count": "{count, plural, one {# miembro} other {# miembros}}",
+  "member.status.in_voice": "En voz · {channel}",
+  "member.status.live": "En directo · {channel}"
 }
