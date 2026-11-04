@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ScreenShareViewerRef } from "@wavvon/ui";
-import { activeSession } from "@platform";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ScreenShareViewerRef, ShareQuality, StreamLimits } from "@wavvon/ui";
+import { activeSession, get_hub_ws_info } from "@platform";
 import { WebScreenShareSession } from "../platform/screenShare";
 import type { ActiveStream, HubStreamInfo } from "../types";
 
@@ -26,6 +26,8 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
   const [shareLocalStream, setShareLocalStream] = useState<MediaStream | null>(null);
   const [hubStreams, setHubStreams] = useState<HubStreamInfo[]>([]);
   const [showHubStreams, setShowHubStreams] = useState(false);
+  // The channel the share dialog is open for; the share starts once it closes.
+  const [shareDialogFor, setShareDialogFor] = useState<string | null>(null);
 
   // Per-instance teardown on unmount (key-remounted account switch etc.);
   // module-level WS sessions are reset separately by AccountRoot.
@@ -35,8 +37,20 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
     };
   }, []);
 
-  async function handleStartShare(channelId: string) {
-    if (sharing) return;
+  function handleStartShare(channelId: string) {
+    if (!sharing) setShareDialogFor(channelId);
+  }
+
+  // Stable, so the dialog fetches once per opening.
+  const loadStreamLimits = useCallback(async (): Promise<StreamLimits | undefined> => {
+    const res = await fetch(`${get_hub_ws_info().hub_url.replace(/\/+$/, "")}/info`);
+    return ((await res.json()) as { stream_limits?: StreamLimits }).stream_limits;
+  }, []);
+
+  async function handleShareChosen(quality: ShareQuality) {
+    const channelId = shareDialogFor;
+    setShareDialogFor(null);
+    if (sharing || !channelId) return;
     const ws = activeSession().ws;
     if (!ws) { showHubError("Not connected"); return; }
     const session = new WebScreenShareSession(ws, channelId, {
@@ -50,7 +64,7 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
       onError: (msg) => showHubError("Screen share: " + msg),
     });
     try {
-      await session.start();
+      await session.start(quality);
       screenShareSessionRef.current = session;
       setSharing(true);
       setShareLocalStream(session.getStream());
@@ -171,6 +185,10 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
     showHubStreams,
     setShowHubStreams,
     handleStartShare,
+    shareDialogFor,
+    setShareDialogFor,
+    loadStreamLimits,
+    handleShareChosen,
     handleStopShare,
     handleOpenHubStreams,
     handleWatchStream,

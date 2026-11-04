@@ -53,6 +53,10 @@ test("a screen share arrives as decoded frames, not just a panel", async ({ page
     await joinVoice(viewer, channel);
 
     await page.getByRole("button", { name: "Share screen" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
+
+
+    await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
     await expect(page.locator(".screen-share-self-preview")).toBeVisible({ timeout: 20000 });
     // A live never opens by itself (#259): the viewer sees it in the tray
     // and opens it.

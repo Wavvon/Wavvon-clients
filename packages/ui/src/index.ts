@@ -250,6 +250,8 @@ export {
   MentionIcon,
 } from "./components/Icons";
 export { HubStreamsPanel } from "./components/HubStreamsPanel";
+export { ShareDialog, shareVideoConstraints, declaredQuality, estimateKbps } from "./components/voice/ShareDialog";
+export type { ShareQuality, StreamLimits } from "./components/voice/ShareDialog";
 export type { HubStreamInfo } from "./types";
 export { ScreenShareViewer } from "./components/ScreenShareViewer";
 export type { ScreenShareViewerRef } from "./components/ScreenShareViewer";
