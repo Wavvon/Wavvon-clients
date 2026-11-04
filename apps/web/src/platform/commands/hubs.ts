@@ -513,6 +513,20 @@ export async function verifyLanFingerprint(
   return (info.lan_fingerprint ?? "").toLowerCase() === expectedFingerprint;
 }
 
+/** The public invite preview: how the hub looks and how busy it is. Null
+ *  when the hub does not answer; fields a hub is too old to send are absent. */
+export async function previewInvite(hub_url: string, code: string): Promise<{
+  hub_name: string;
+  description?: string | null;
+  member_count?: number;
+  online_count?: number;
+  landing?: { image?: string; colors?: [string, string] };
+} | null> {
+  const url = hub_url.replace(/\/$/, "");
+  const res = await rawFetch(`${url}/join/${encodeURIComponent(code)}`, { headers: { accept: "application/json" } });
+  return res.ok ? res.json() : null;
+}
+
 export async function previewHubInfo(hub_url: string): Promise<{
   name: string;
   public_key: string;

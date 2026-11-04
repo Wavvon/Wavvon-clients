@@ -524,3 +524,5 @@ export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";
 export { useHubLayout } from "./hooks/useHubLayout";
 export { memberActivity } from "./utils/memberActivity";
 export type { MemberActivity } from "./utils/memberActivity";
+export { OnboardingFrame } from "./components/layout/OnboardingFrame";
+export type { InvitingHub } from "./components/layout/OnboardingFrame";

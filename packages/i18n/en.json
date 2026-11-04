@@ -2322,5 +2322,15 @@
   "voice.stage.you_share": "You",
   "voice.stage.sending": "sending {mbps} Mbps",
   "voice.share.fullscreen": "Fullscreen",
-  "voice.share.stop_watching": "Stop watching"
+  "voice.share.stop_watching": "Stop watching",
+  "onboarding.frame.invited": "You have been invited to",
+  "onboarding.frame.members": "{count, plural, one {# member} other {# members}}",
+  "onboarding.frame.online": "{count} online",
+  "onboarding.frame.identity_title": "Your identity is a key",
+  "onboarding.frame.identity_text": "No email, no password: a key made on this device, backed up by 24 words. No hub can take it or hand it over.",
+  "onboarding.frame.hubs_title": "Hubs are run by people",
+  "onboarding.frame.hubs_text": "Each community runs its own server. One identity works on all of them.",
+  "onboarding.frame.alliances_title": "Hubs ally",
+  "onboarding.frame.alliances_text": "Allied hubs share channels and voice, so a friend on another hub is one click away.",
+  "onboarding.frame.step": "Step {step} of {total}"
 }

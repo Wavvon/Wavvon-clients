@@ -17,7 +17,7 @@ export function ProfileSetupStep({ onSave, onSkip }: Props) {
   const [avatar, setAvatar] = useState<string | null>(null);
 
   return (
-    <div style={{ maxWidth: 480, margin: "80px auto", padding: 32 }}>
+    <div>
       <h2>{t("onboarding.profile.title")}</h2>
       <p className="muted">{t("onboarding.profile.hint")}</p>
       <label className="settings-label">{t("onboarding.profile.name_label")}</label>
