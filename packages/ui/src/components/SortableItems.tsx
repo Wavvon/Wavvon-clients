@@ -122,6 +122,21 @@ function VoiceParticipantRow({
   );
 }
 
+const SUMMARY_AFTER = 3;
+
+/** "banana, you and 40 others": the first two names, self as "you", then a count. */
+export function voiceSummary(
+  participants: VoiceParticipant[],
+  selfPubkey: string | null | undefined,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  const self = participants.find((p) => p.public_key === selfPubkey);
+  const others = participants.filter((p) => p !== self);
+  const named = others.slice(0, self ? 1 : 2).map((p) => p.display_name || p.public_key.slice(0, 8));
+  const names = self ? [...named, t("channel.voice.you")] : named;
+  return t("channel.voice.summary", { names: names.join(", "), count: participants.length - names.length });
+}
+
 export function SortableChannelItem({
   channel,
   activeHubId,
@@ -152,6 +167,7 @@ export function SortableChannelItem({
   onKeyDown,
   onSettings,
   onParticipantContextMenu,
+  selfPubkey,
 }: {
   channel: Channel;
   activeHubId?: string | null;
@@ -194,8 +210,13 @@ export function SortableChannelItem({
   onSettings?: (e: React.MouseEvent) => void;
   /** Right-click on a roster participant — the mover's "Move to channel…" surface (events.md §7.1). */
   onParticipantContextMenu?: (e: React.MouseEvent, participant: VoiceParticipant) => void;
+  /** Self, named "you" in the summary of a busy room. */
+  selfPubkey?: string | null;
 }) {
   const { t } = useTranslation();
+  // A busy room is summed up in one line; the roster opens on demand.
+  const [rosterOpen, setRosterOpen] = useState(false);
+  const busy = participants.length > SUMMARY_AFTER;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
   const setRefs = (el: HTMLLIElement | null) => {
@@ -316,6 +337,11 @@ export function SortableChannelItem({
         {!isSpawner && unread && <span className="channel-unread-dot" aria-hidden="true" />}
         <ChannelIcon icon={channel.icon} customIconSvg={channel.custom_icon_svg} channelType={channel.channel_type} />
         <span className="channel-name">{channel.name}</span>
+        {!isSpawner && participants.length > 0 && (
+          <span className="channel-voice-count" title={t("channel.voice.count", { count: participants.length })}>
+            {participants.length}
+          </span>
+        )}
         {isTemporary && (
           <span className="channel-temp-badge">{t("channel.temp.badge")}</span>
         )}
@@ -341,7 +367,17 @@ export function SortableChannelItem({
           </button>
         )}
       </div>
-      {!isSpawner && participants.length > 0 && (
+      {!isSpawner && busy && (
+        <button
+          type="button"
+          className="channel-voice-summary"
+          aria-expanded={rosterOpen}
+          onClick={() => setRosterOpen((v) => !v)}
+        >
+          {voiceSummary(participants, selfPubkey, t)}
+        </button>
+      )}
+      {!isSpawner && participants.length > 0 && (!busy || rosterOpen) && (
         <ul className="channel-participants">
           {participants.map((p) => (
             <VoiceParticipantRow

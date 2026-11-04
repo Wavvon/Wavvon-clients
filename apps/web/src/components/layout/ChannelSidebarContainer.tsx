@@ -75,7 +75,6 @@ export interface ChannelSidebarContainerProps {
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenFriends: () => void;
   onOpenVoiceSettings: () => void;
-  onOpenSearch: () => void;
   onDragEnd: (event: DragEndEvent) => void;
 }
 
@@ -91,7 +90,7 @@ export function ChannelSidebarContainer({
   canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, canScreenShare, canUseCamera, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
   onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenVoiceSettings,
-  onOpenSearch, onDragEnd,
+  onDragEnd,
 }: ChannelSidebarContainerProps) {
   const { t } = useTranslation();
   const [hubDropdownOpen, setHubDropdownOpen] = useState(false);
@@ -101,6 +100,7 @@ export function ChannelSidebarContainer({
   // is redeemed — asking every allied hub for its /info on every load would be
   // a request storm for a button almost nobody presses.
   const allianceVoice = activeHubSupports("voice.alliance");
+  const activeHubUrl = hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId)?.hub_url ?? null;
 
   const { selectedChannel, handleSelectChannel, handleSelectAllianceChannel } = channelMessages;
   const { activeHubId, hubs, activeHubTimezone, pingByHub } = hubLifecycle;
@@ -129,6 +129,7 @@ export function ChannelSidebarContainer({
       dmPeerNames={dms.peerNames}
       publicKey={publicKey}
       pingByHub={pingByHub}
+      hubBannerUrl={activeHubUrl && activeHubSupports("hub.landing") ? `${activeHubUrl.replace(/\/+$/, "")}/hub/landing-image` : undefined}
       isAdmin={isAdmin}
       canCreateInvites={canCreateInvites}
       hubNotifyMode={notifyPrefs.hubNotifyMode}
@@ -209,7 +210,6 @@ export function ChannelSidebarContainer({
       inboundWhispers={whisper.inboundWhispers}
       speaking={voice.voiceActiveUsers}
       hasDraft={hasDraft}
-      onOpenSearch={onOpenSearch}
       canUseSoundboard={canUseSoundboard}
       onListSoundboardClips={listSoundboardClips}
       onTriggerSoundboardClip={voice.handleTriggerSoundboardClip}

@@ -1803,7 +1803,6 @@ function App({ accountId }: { accountId: string | null }) {
                   openFriends={openFriends}
                   openVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); void openSettings(); }}
                   onDragEnd={handleDragEnd}
-                  setShowSearchBar={setShowSearchBar}
                   showWhisperPanel={showWhisperPanel}
                   setShowWhisperPanel={setShowWhisperPanel}
                   voice={voice}

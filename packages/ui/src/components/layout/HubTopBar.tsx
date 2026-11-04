@@ -14,7 +14,7 @@ import { UserMenu, type UserMenuProps } from "./UserMenu";
 import { HubDrawer } from "./HubDrawer";
 import { HubContextMenu } from "./HubContextMenu";
 import {
-  type HubLayout, moveHubToFolder, movePinned, tabBadges,
+  type HubLayout, badgeHome, moveHubToFolder, movePinned, tabBadges,
 } from "../../utils/hubLayout";
 
 export interface HubTopBarProps {
@@ -66,6 +66,9 @@ export function HubTopBar(p: HubTopBarProps) {
   const hubById = new Map(p.hubs.map((h) => [h.hub_id, h]));
   const tabs = p.layout.pinned.filter((id) => hubById.has(id) || p.layout.folders.some((f) => f.id === id));
   const onChannels = p.view === "channels";
+  // The hub you are in always has a tab: a transient one when nothing pinned speaks for it.
+  const activeHub = p.activeHubId ? hubById.get(p.activeHubId) : undefined;
+  const transient = activeHub && !badgeHome(p.layout, activeHub.hub_id) ? activeHub : undefined;
 
   function onDragEnd(e: DragEndEvent) {
     const from = String(e.active.id);
@@ -95,7 +98,7 @@ export function HubTopBar(p: HubTopBarProps) {
           role="tab"
           aria-selected={active}
           className={`hub-tab${active ? " active" : ""}${offline ? " offline" : ""}`}
-          title={offline ? `${h.hub_name}${t("hub.offline_suffix")}` : h.hub_name}
+          title={`${h.hub_name} (${h.hub_url})${offline ? t("hub.offline_suffix") : ""}`}
           onClick={() => p.onSwitchHub(h.hub_id)}
           onContextMenu={(e) => openContext(e, h)}
         >
@@ -196,6 +199,7 @@ export function HubTopBar(p: HubTopBarProps) {
             <SortableContext items={tabs} strategy={horizontalListSortingStrategy}>
               <div className="hub-tabs" role="tablist" aria-label={t("hubs.tabs")}>
                 {tabs.map((id) => (hubById.has(id) ? hubTab(hubById.get(id)!) : folderTab(id)))}
+                {transient && hubTab(transient)}
               </div>
             </SortableContext>
           </DndContext>

@@ -1,3 +1,4 @@
+import { Avatar } from "../Avatar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -42,7 +43,7 @@ import {
 } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../../utils/spawnerChannels";
 import { dmPeerLabel } from "../../utils/dmPeerLabel";
-import { SearchIcon, MembersIcon } from "../Icons";
+import { MembersIcon } from "../Icons";
 
 interface SidebarFlatNode extends FlatNode {
   indentDepth: number;
@@ -107,6 +108,8 @@ interface Props {
   dmPeerNames?: Record<string, string>;
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
+  /** The hub's landing image, shown behind its card; absent on older hubs. */
+  hubBannerUrl?: string;
   isAdmin: boolean;
   /** Gate for the "Invite people" entry. Wider than isAdmin: a manage_channels
    *  member can create invites too, just via the compact quick-invite modal
@@ -175,8 +178,6 @@ interface Props {
   speaking?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
-  /** Present = render the global-search trigger button above the channel list. */
-  onOpenSearch?: () => void;
   /** Whisper (events.md whisper follow-up): named target lists (save/load/delete)
    *  are folded in as optional props — present only where the caller has the
    *  backing commands wired. */
@@ -206,7 +207,7 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
-  users, dmPeerNames, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
+  users, dmPeerNames, publicKey, pingByHub, hubBannerUrl, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
@@ -221,7 +222,6 @@ export function ChannelSidebar({
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
   voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
-  onOpenSearch,
   isWhispering, whisperTargets, whisperLists, showWhisperPanel,
   onToggleWhisperPanel, onCloseWhisperPanel, onStartWhisper, onStopWhisper,
   onSaveWhisperList, onDeleteWhisperList, onListWhisperRoles,
@@ -465,9 +465,12 @@ export function ChannelSidebar({
       {view === "channels" && (
         <div className="hub-header" ref={hubHeaderRef}>
           <button
-            className="hub-header-button"
+            className={`hub-header-button hub-card${hubBannerUrl ? " has-banner" : ""}`}
+            style={hubBannerUrl ? { ["--hub-banner" as string]: `url("${hubBannerUrl}")` } : undefined}
+            aria-expanded={hubDropdownOpen}
             onClick={() => onHubDropdownOpenChange(!hubDropdownOpen)}
           >
+            {activeHub && <Avatar src={activeHub.hub_icon} name={activeHub.hub_name} pubkey={activeHub.hub_id} size={36} />}
             {/* The address, not just the name. Self-hosted means whose machine
                 you are on is part of knowing where you are. */}
             <span className="hub-header-id">
@@ -475,6 +478,12 @@ export function ChannelSidebar({
               {activeHub?.hub_url && (
                 <span className="hub-header-address">{displayHubAddress(activeHub.hub_url)}</span>
               )}
+            </span>
+            <span className="hub-card-counts">
+              {t("hub.card.members", { count: users.length })}
+              {" · "}
+              <span className="status-dot online" aria-hidden="true" />
+              {t("hub.card.online", { count: users.filter((u) => u.online).length })}
             </span>
             <HubClock timezone={hubTimezone} />
             <span className="hub-header-chevron"><ChevronIcon size={12} dir={hubDropdownOpen ? "up" : "down"} /></span>
@@ -504,16 +513,6 @@ export function ChannelSidebar({
             </div>
           )}
         </div>
-      )}
-
-      {view === "channels" && onOpenSearch && (
-        <button
-          className="btn-ghost"
-          style={{ width: "100%", textAlign: "left", padding: "6px 12px" }}
-          onClick={onOpenSearch}
-        >
-          <SearchIcon size={13} /> {t("search.placeholder")}
-        </button>
       )}
 
       <div
@@ -603,6 +602,7 @@ export function ChannelSidebar({
                         // bar duplicating this is fine: it's the controls
                         // surface (gain sliders); the row is who-is-where.
                         participants={voicePartByChannel[n.node.id] ?? []}
+                        selfPubkey={publicKey}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         hubUrl={activeHub?.hub_url}
                         ownerDisplayName={resolveOwnerDisplayName(n.node.owner_pubkey, users)}
@@ -801,14 +801,6 @@ export function ChannelSidebar({
             <div className="voice-status-bar">
               {activePing !== undefined && <PingIcon ping={activePing} />}
               <span className="voice-status-label">#{voiceChannelName}</span>
-              <button
-                onClick={onVoiceLeave}
-                className="btn-icon-gear voice-call-btn end"
-                title={t("voice.leave")}
-                aria-label={t("voice.leave")}
-              >
-                <PhoneOffIcon />
-              </button>
             </div>
             {micBelowGate && onOpenVoiceSettings && <MicBelowGateWarning onOpenSensitivity={onOpenVoiceSettings} />}
             <div className="user-actions">
@@ -830,6 +822,14 @@ export function ChannelSidebar({
                   title={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}
                 >
                   <DeafenIcon muted={selfDeafened} />
+                </button>
+                <button
+                  onClick={onVoiceLeave}
+                  className="btn-icon-gear voice-call-btn end"
+                  title={t("voice.leave")}
+                  aria-label={t("voice.leave")}
+                >
+                  <PhoneOffIcon />
                 </button>
                 {onScreenShare && (
                   <button

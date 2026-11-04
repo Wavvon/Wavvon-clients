@@ -60,7 +60,6 @@ interface Props {
   openFriends: () => void;
   openVoiceSettings: () => void;
   onDragEnd: (event: DragEndEvent) => void;
-  setShowSearchBar: (v: boolean) => void;
   showWhisperPanel: boolean;
   setShowWhisperPanel: Dispatch<SetStateAction<boolean>>;
   soundboardChipsByChannel: Record<string, SoundboardChip[]>;
@@ -97,7 +96,6 @@ export function ChannelSidebarContainer({
   openCreateChannelUnder, onChannelContextMenu,
   setShowCreateChannel, setChannelSettingsModal,
   leaveVoiceChannel, canMoveMembers, openFriends, openVoiceSettings, onDragEnd,
-  setShowSearchBar,
   showWhisperPanel, setShowWhisperPanel, soundboardChipsByChannel,
   whisperReplyBind, onSetWhisperReplyBind,
   onRequestRemoveHub,
@@ -147,6 +145,7 @@ export function ChannelSidebarContainer({
       users={users}
       publicKey={publicKey}
       pingByHub={hubLifecycle.pingByHub}
+      hubBannerUrl={activeHubUrl && caps.includes("hub.landing") ? `${activeHubUrl.replace(/\/+$/, "")}/hub/landing-image` : undefined}
       isAdmin={isAdmin}
       canOpenChannelSettings={canOpenChannelSettings}
       canCreateInvites={canCreateInvites}
@@ -205,7 +204,6 @@ export function ChannelSidebarContainer({
       onToggleHideSilenced={() => setHideSilenced((v) => !v)}
       sharing={voice.sharing}
       onScreenShare={canScreenShare || voice.sharing ? voice.handleScreenShare : undefined}
-      onOpenSearch={() => setShowSearchBar(true)}
       voiceGains={voice.voiceGains}
       onSetVoiceGain={voice.setVoiceGain}
       inboundWhispers={whisper.inboundWhispers}

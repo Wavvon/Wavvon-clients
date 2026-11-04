@@ -75,6 +75,7 @@ export function HubDrawer({
         <button
           type="button"
           className="hub-drawer-open"
+          title={`${h.hub_name} (${h.hub_url})`}
           onClick={() => open(h.hub_id)}
           onContextMenu={(e) => { e.preventDefault(); onHubContextMenu(e, h); }}
         >

@@ -87,13 +87,9 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
 
   await page.reload();
   await expectInHub(page);
-  // The add button in the hub rail opens the Join-a-hub modal directly — there
-  // is no join/create menu in front of it since the create-hub wizard went. It
-  // draws a plus icon rather than a "+" glyph, so its title is its only name.
-  await page
-    .getByRole("navigation", { name: "Hubs" })
-    .getByRole("button", { name: "Join a hub" })
-    .click();
+  // "Join a hub" lives in the hubs drawer, opened from the top bar.
+  await page.locator(".top-bar-hubs").click();
+  await page.getByRole("dialog", { name: "Your hubs" }).getByRole("button", { name: "Join a hub" }).click();
   const addHub = page.getByRole("dialog", { name: "Join a hub" });
   await expect(addHub).toBeVisible();
   await addHub.getByRole("textbox").fill(link);

@@ -2303,5 +2303,10 @@
   "hubs.drawer.create": "Crear",
   "hubs.drawer.folder_of": "Carpeta de {name}",
   "hubs.drawer.no_folder": "Sin carpeta",
-  "hubs.drawer.delete_folder": "Eliminar la carpeta {name}"
+  "hubs.drawer.delete_folder": "Eliminar la carpeta {name}",
+  "hub.card.members": "{count, plural, one {# miembro} other {# miembros}}",
+  "hub.card.online": "{count} conectados",
+  "channel.voice.count": "{count, plural, one {# persona en voz} other {# personas en voz}}",
+  "channel.voice.you": "tú",
+  "channel.voice.summary": "{names} y {count, plural, one {# más} other {# más}}"
 }

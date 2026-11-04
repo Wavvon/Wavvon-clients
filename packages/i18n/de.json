@@ -2303,5 +2303,10 @@
   "hubs.drawer.create": "Erstellen",
   "hubs.drawer.folder_of": "Ordner von {name}",
   "hubs.drawer.no_folder": "Kein Ordner",
-  "hubs.drawer.delete_folder": "Ordner {name} löschen"
+  "hubs.drawer.delete_folder": "Ordner {name} löschen",
+  "hub.card.members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+  "hub.card.online": "{count} online",
+  "channel.voice.count": "{count, plural, one {# Person im Sprachkanal} other {# Personen im Sprachkanal}}",
+  "channel.voice.you": "du",
+  "channel.voice.summary": "{names} und {count, plural, one {# weitere Person} other {# weitere}}"
 }

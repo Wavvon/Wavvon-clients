@@ -1586,7 +1586,6 @@ export default function App({ initialView }: AppProps = {}) {
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
         onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}
-        onOpenSearch={() => setShowSearchBar(true)}
         onDragEnd={handleChannelDragEnd}
       />
 
