@@ -43,6 +43,8 @@ export const ALL_PERMISSIONS: string[] = [
   "channels.appearance",
   "channels.permissions",
   "voice.join",
+  "voice.screen_share",
+  "voice.camera",
   "voice.soundboard.use",
   "voice.soundboard.manage",
   "voice.move_members",
