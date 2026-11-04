@@ -1,3 +1,4 @@
+import type { SettingsTab } from "@components/settings/SettingsPage";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel, ApplicationPreview } from "@wavvon/ui";
@@ -444,14 +445,14 @@ export default function App({ initialView }: AppProps = {}) {
   const presence = usePresenceStatus({
     loadRaw: () => getScoped("wavvon.presence"),
     persist: (p) => { try { setScoped("wavvon.presence", JSON.stringify(p)); } catch { /* storage unavailable */ } },
-    broadcast: (s) => { try { sendSetStatus(s, null); } catch { /* ws not ready */ } },
+    broadcast: (s, custom) => { try { sendSetStatus(s, custom); } catch { /* ws not ready */ } },
     // Optimistic: the hubs' member_status broadcasts will confirm. Invisible
     // shows the user offline (to everyone, incl. their own roster view); the
     // footer picker still reflects "invisible".
-    applyToRoster: (s) => {
+    applyToRoster: (s, custom) => {
       setUsers((prev) => prev.map((u) =>
         u.public_key === publicKey
-          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: null }
+          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: s === "invisible" ? null : custom }
           : u,
       ));
     },
@@ -1568,7 +1569,8 @@ export default function App({ initialView }: AppProps = {}) {
         onOpenQuickInvite={() => setShowQuickInvite(true)}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={(tab) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); setShowSettings(true); }}
+        onOpenShortcuts={() => setShowKeyboardShortcuts(true)}
         onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}
         settingsNeedsAttention={backupNeeded}
         onOpenSearch={() => setShowSearchBar(true)}

@@ -7,6 +7,18 @@ export type PresenceStatus = "online" | "away" | "dnd" | "invisible";
 export interface StoredPresence {
   status: PresenceStatus;
   until?: number;
+  /** Free-text status shown under the name while online. Outlives "clear after". */
+  custom?: string;
+}
+
+/** The stored custom status, whatever the state of the presence beside it. */
+export function storedCustomStatus(raw: string | null): string | null {
+  try {
+    const c = raw ? (JSON.parse(raw) as { custom?: unknown }).custom : null;
+    return typeof c === "string" && c.trim() ? c.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 const AWAY_STATES: PresenceStatus[] = ["away", "dnd", "invisible"];

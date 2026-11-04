@@ -120,8 +120,8 @@ export function sendDmTypingEvent(conversation_id: string, typing: boolean): voi
 
 /** Set own presence status on every connected hub — presence is global,
  * not per-hub. "online" clears; "away"/"dnd"/"invisible" set it ("invisible"
- * shows offline to others). `custom` is a legacy optional status text kept
- * for wire compatibility; the web client no longer sets it. Each hub
+ * shows offline to others). `custom` is the free-text status shown under
+ * the name while online. Each hub
  * persists presence across reconnects; sendSetStatusTo covers hubs that
  * (re)connect later. */
 type PresenceWire = "online" | "away" | "dnd" | "invisible";

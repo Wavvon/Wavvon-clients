@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { resolveStoredPresence, storedPresenceFor, type PresenceStatus } from "../utils/presenceExpiry";
+import { resolveStoredPresence, storedPresenceFor, storedCustomStatus, type PresenceStatus } from "../utils/presenceExpiry";
 
 export type { PresenceStatus };
 
@@ -7,14 +7,14 @@ export interface PresenceStatusDeps {
   // Raw JSON string from wherever the app persists presence (scoped
   // localStorage on web, plain localStorage on desktop). May throw.
   loadRaw: () => string | null;
-  persist: (p: { status: PresenceStatus; until?: number }) => void;
+  persist: (p: { status: PresenceStatus; until?: number; custom?: string }) => void;
   // Push the status to every connected hub session (fire-and-forget; the
   // app owns the transport and its error handling).
-  broadcast: (status: PresenceStatus) => void;
+  broadcast: (status: PresenceStatus, custom: string | null) => void;
   // Optimistic self-row update in the member roster: the hubs' member_status
   // broadcasts will confirm. Invisible shows the user offline (to everyone,
   // incl. their own roster view); the footer picker still reflects it.
-  applyToRoster: (status: PresenceStatus) => void;
+  applyToRoster: (status: PresenceStatus, custom: string | null) => void;
 }
 
 // Own presence — shared across every hub this account is on, not per-hub;
@@ -28,13 +28,15 @@ export function usePresenceStatus({ loadRaw, persist, broadcast, applyToRoster }
   // away with the remainder still counting.
   const restored = (() => {
     try {
-      return resolveStoredPresence(loadRaw());
+      const raw = loadRaw();
+      return { ...resolveStoredPresence(raw), custom: storedCustomStatus(raw) };
     } catch {
-      return { status: "online" as PresenceStatus, revertAfterMs: null };
+      return { status: "online" as PresenceStatus, revertAfterMs: null, custom: null };
     }
   })();
-  const [myPresence, setMyPresence] = useState<{ status: PresenceStatus }>({
+  const [myPresence, setMyPresence] = useState<{ status: PresenceStatus; custom: string | null }>({
     status: restored.status,
+    custom: restored.custom,
   });
   // Mirrored for frozen WS handlers (reconnect re-push, notification gating).
   const myPresenceRef = useRef(myPresence);
@@ -46,12 +48,25 @@ export function usePresenceStatus({ loadRaw, persist, broadcast, applyToRoster }
       clearTimeout(presenceTtlRef.current);
       presenceTtlRef.current = null;
     }
-    const record = storedPresenceFor(status, ttlMinutes);
-    setMyPresence({ status });
+    const custom = myPresenceRef.current.custom;
+    const record = { ...storedPresenceFor(status, ttlMinutes), ...(custom ? { custom } : {}) };
+    setMyPresence({ status, custom });
     try { persist(record); } catch { /* storage unavailable */ }
-    broadcast(status);
-    applyToRoster(status);
+    broadcast(status, custom);
+    applyToRoster(status, custom);
     if (record.until) armRevert(record.until - Date.now());
+  }
+
+  /** Sets or clears (empty text) the custom status, keeping the presence. */
+  function handleSetCustomStatus(text: string) {
+    const custom = text.trim().slice(0, 128) || null;
+    const { status } = myPresenceRef.current;
+    setMyPresence({ status, custom });
+    let stored: { status: PresenceStatus; until?: number } = { status };
+    try { stored = JSON.parse(loadRaw() ?? "null") ?? stored; } catch { /* keep the status alone */ }
+    try { persist({ status: stored.status, ...(stored.until ? { until: stored.until } : {}), ...(custom ? { custom } : {}) }); } catch { /* storage unavailable */ }
+    broadcast(status, custom);
+    applyToRoster(status, custom);
   }
 
   /** The in-memory half of the deadline: it makes the revert happen *while*
@@ -61,10 +76,11 @@ export function usePresenceStatus({ loadRaw, persist, broadcast, applyToRoster }
     if (presenceTtlRef.current) clearTimeout(presenceTtlRef.current);
     presenceTtlRef.current = setTimeout(() => {
       presenceTtlRef.current = null;
-      setMyPresence({ status: "online" });
-      try { persist({ status: "online" }); } catch { /* storage unavailable */ }
-      broadcast("online");
-      applyToRoster("online");
+      const custom = myPresenceRef.current.custom;
+      setMyPresence({ status: "online", custom });
+      try { persist({ status: "online", ...(custom ? { custom } : {}) }); } catch { /* storage unavailable */ }
+      broadcast("online", custom);
+      applyToRoster("online", custom);
     }, afterMs);
   }
 
@@ -83,5 +99,5 @@ export function usePresenceStatus({ loadRaw, persist, broadcast, applyToRoster }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { myPresence, myPresenceRef, handleSetStatus };
+  return { myPresence, myPresenceRef, handleSetStatus, handleSetCustomStatus };
 }

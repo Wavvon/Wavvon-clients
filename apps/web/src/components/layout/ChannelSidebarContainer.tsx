@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type React from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { formatPubkey } from "@wavvon/core";
 import type { Channel, TreeNode } from "@wavvon/core";
-import { ChannelSidebar, useConfirm } from "@wavvon/ui";
+import { ChannelSidebar, useConfirm, type MenuAccount } from "@wavvon/ui";
+import { listAccountsOrdered, getActiveAccountId, switchAccount } from "@identity/index";
 import type { WhisperReplyBind } from "@wavvon/ui";
 import { listRoles, listSoundboardClips } from "@platform";
 import { activeHubSupports } from "../../platform/session";
@@ -76,7 +77,8 @@ export interface ChannelSidebarContainerProps {
   onOpenQuickInvite: () => void;
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenFriends: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (tab?: string) => void;
+  onOpenShortcuts: () => void;
   onOpenVoiceSettings: () => void;
   settingsNeedsAttention?: boolean;
   onOpenSearch: () => void;
@@ -94,10 +96,22 @@ export function ChannelSidebarContainer({
   view, channels, channelTree, users, publicKey, isAdmin, canCreateInvites,
   canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, canScreenShare, canUseCamera, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
-  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenSettings, onOpenVoiceSettings, settingsNeedsAttention,
+  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenSettings, onOpenShortcuts, onOpenVoiceSettings, settingsNeedsAttention,
   onOpenSearch, onDragEnd,
 }: ChannelSidebarContainerProps) {
   const { t } = useTranslation();
+  const [accounts, setAccounts] = useState<MenuAccount[]>([]);
+  useEffect(() => {
+    const active = getActiveAccountId();
+    listAccountsOrdered()
+      .then((rs) => setAccounts(rs.map((r) => ({
+        id: r.id,
+        name: r.account_label || formatPubkey(r.canonical_pubkey ?? r.id),
+        active: r.id === active,
+      }))))
+      .catch(() => { /* the menu shows no account list */ });
+  }, []);
+  const me = users.find((u) => u.public_key === publicKey);
   const [hubDropdownOpen, setHubDropdownOpen] = useState(false);
   const [showWhisperPanel, setShowWhisperPanel] = useState(false);
   // Our hub has to sign the grant, so its capability decides whether the
@@ -173,8 +187,6 @@ export function ChannelSidebarContainer({
       onSelectChannel={handleSelectChannel}
       onChannelContextMenu={onChannelContextMenu}
       canOpenChannelSettings={isAdmin || canEditChannelPermissions}
-      myStatus={presence.myPresence.status === "online" ? null : presence.myPresence.status}
-      onSetStatus={presence.handleSetStatus}
       onOpenChannelSettings={(channel) => {
         channelCrud.setCreateChannelCtx(null);
         channelCrud.setChannelSettingsCtx(channel);
@@ -209,8 +221,22 @@ export function ChannelSidebarContainer({
       onSelectConversation={dms.handleSelectConversation}
       onToggleSelfMute={voice.handleToggleMute}
       onToggleSelfDeafen={voice.handleToggleDeafen}
-      onOpenSettings={onOpenSettings}
-      settingsNeedsAttention={settingsNeedsAttention}
+      userMenu={{
+        name: me?.display_name || formatPubkey(publicKey ?? ""),
+        publicKey,
+        avatar: me?.avatar,
+        status: presence.myPresence.status,
+        customStatus: presence.myPresence.custom,
+        onSetStatus: presence.handleSetStatus,
+        onSetCustomStatus: presence.handleSetCustomStatus,
+        onOpenSettings,
+        settingsNeedsAttention,
+        accounts,
+        // A refusal (in voice, too soon) is explained on the accounts tab.
+        onSwitchAccount: (id) => { if (switchAccount(id, "settings-account")) onOpenSettings("accounts"); },
+        onAddAccount: () => onOpenSettings("accounts"),
+        onOpenShortcuts,
+      }}
       onDragEnd={onDragEnd}
       voiceGains={voice.voiceGains}
       onSetVoiceGain={voice.handleSetVoiceGain}

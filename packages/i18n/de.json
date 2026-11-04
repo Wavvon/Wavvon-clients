@@ -2270,5 +2270,15 @@
   "voice.screen_share.picker.hub_limit": "Hub-Limit",
   "voice.screen_share.picker.summary": "{resolution} · {fps} fps · etwa {mbps} Mbit/s Upload",
   "voice.screen_share.picker.with_audio": "mit Ton",
-  "voice.screen_share.picker.without_audio": "ohne Ton"
+  "voice.screen_share.picker.without_audio": "ohne Ton",
+  "user_menu.open": "Dein Menü, {name}",
+  "user_menu.label": "Dein Menü",
+  "user_menu.profile": "Profil",
+  "user_menu.status": "Status",
+  "user_menu.account_backup": "Konto und Sicherung",
+  "user_menu.voice_camera": "Sprache und Kamera",
+  "user_menu.this_device": "Dieses Gerät",
+  "user_menu.accounts": "Konten auf diesem Gerät",
+  "user_menu.add_account": "Konto hinzufügen",
+  "user_menu.shortcuts": "Tastenkürzel"
 }

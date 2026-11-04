@@ -6,6 +6,7 @@
 // - useRef(initial) persists a value across renders — like a field that doesn't trigger re-render
 // - Event handlers use camelCase: onClick, onChange, onSubmit
 
+import type { SettingsTab } from "./components/SettingsPage";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { DISCOVERY_URL } from "./constants";
@@ -149,23 +150,23 @@ function App() {
   // Own presence — global across hubs, not per-hub. The device is the
   // source of truth: the picker broadcasts to every session and each hub
   // gets it re-applied on (re)connect. Distinct from hub mute (notify modes).
-  // Four states + "clear after" TTL (decisions.md 2026-07-12) — free-text
-  // custom status was removed; the hub column stays dormant.
-  const { myPresence, myPresenceRef, handleSetStatus } = usePresenceStatus({
+  // Four states + "clear after" TTL, and a custom status line (the 2026-11
+  // layout decision brought it back from the 2026-07-12 removal).
+  const { myPresence, myPresenceRef, handleSetStatus, handleSetCustomStatus } = usePresenceStatus({
     loadRaw: () => localStorage.getItem("wavvon.presence"),
     persist: (p) => { localStorage.setItem("wavvon.presence", JSON.stringify(p)); },
-    broadcast: (s) => {
+    broadcast: (s, custom) => {
       invoke("send_all_hubs_ws_raw", {
-        payload: JSON.stringify({ type: "set_status", status: s, custom: null }),
+        payload: JSON.stringify({ type: "set_status", status: s, custom }),
       }).catch(() => { /* no hub connected */ });
     },
     // Optimistic: the hubs' member_status broadcasts will confirm. Invisible
     // shows the user offline (to everyone, incl. their own roster view); the
     // footer picker still reflects "invisible".
-    applyToRoster: (s) => {
+    applyToRoster: (s, custom) => {
       setUsers((prev) => prev.map((u) =>
         u.public_key === publicKey
-          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: null }
+          ? { ...u, online: s !== "invisible", status: s === "online" || s === "invisible" ? null : s, status_custom: s === "invisible" ? null : custom }
           : u,
       ));
     },
@@ -1779,12 +1780,14 @@ function App() {
                   leaveVoiceChannel={leaveVoiceChannel}
                   canMoveMembers={canMoveMembers}
                   openFriends={openFriends}
-                  openSettings={openSettings}
+                  openSettings={(tab?: string) => { if (tab) settingsProfile.setSettingsTab(tab as SettingsTab); void openSettings(); }}
+                  onOpenShortcuts={() => setShowKeyboardShortcuts(true)}
                   openVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); void openSettings(); }}
                   onDragEnd={handleDragEnd}
                   setShowSearchBar={setShowSearchBar}
                   myPresence={myPresence}
                   onSetStatus={handleSetStatus}
+                  onSetCustomStatus={handleSetCustomStatus}
                   showWhisperPanel={showWhisperPanel}
                   setShowWhisperPanel={setShowWhisperPanel}
                   voice={voice}

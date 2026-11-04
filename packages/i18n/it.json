@@ -2270,5 +2270,15 @@
   "voice.screen_share.picker.hub_limit": "Limite dell’hub",
   "voice.screen_share.picker.summary": "{resolution} · {fps} fps · circa {mbps} Mbps in upload",
   "voice.screen_share.picker.with_audio": "con audio",
-  "voice.screen_share.picker.without_audio": "senza audio"
+  "voice.screen_share.picker.without_audio": "senza audio",
+  "user_menu.open": "Il tuo menu, {name}",
+  "user_menu.label": "Il tuo menu",
+  "user_menu.profile": "Profilo",
+  "user_menu.status": "Stato",
+  "user_menu.account_backup": "Account e backup",
+  "user_menu.voice_camera": "Voce e videocamera",
+  "user_menu.this_device": "Questo dispositivo",
+  "user_menu.accounts": "Account su questo dispositivo",
+  "user_menu.add_account": "Aggiungi un account",
+  "user_menu.shortcuts": "Scorciatoie"
 }
