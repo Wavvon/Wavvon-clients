@@ -25,7 +25,7 @@ test("discover and watch a screen share from another channel", async ({ page, br
   await page.getByRole("button", { name: "Share screen" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
 
-  await expect(page.locator(".screen-share-self-preview")).toBeVisible({ timeout: 20000 });
+  await expect(page.locator(".voice-self-share")).toBeVisible({ timeout: 20000 });
 
   const { context, page: member } = await newMemberPage(browser, uniqueName("Watcher"));
   try {

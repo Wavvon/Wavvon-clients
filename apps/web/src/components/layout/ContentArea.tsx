@@ -273,6 +273,9 @@ export function ContentArea(props: Props) {
             onOpen: (id) => screenShare.handleWatchStream(selectedChannel.id, id),
             onClose: (id) => screenShare.handleStopWatchStream(selectedChannel.id, id),
           },
+          selfShare: screenShare.sharing && screenShare.shareLocalStream && voice.voiceChannelId === selectedChannel.id
+            ? { stream: screenShare.shareLocalStream, kbps: screenShare.shareKbps, onStop: screenShare.handleStopShare }
+            : undefined,
         } : undefined}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={alliances.selectedAllianceChannel}

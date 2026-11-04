@@ -1866,8 +1866,6 @@
   "voice.screen_share.picker.share_webcam": "Webcam teilen",
   "voice.screen_share.picker.title": "Bildschirm teilen",
   "voice.screen_share.stop": "Übertragung beenden",
-  "voice.self_preview.collapse": "Freigabevorschau ausblenden",
-  "voice.self_preview.expand": "Freigabevorschau einblenden",
   "voice.share.pip_enter": "Als Bild-im-Bild lösen",
   "voice.share.pip_exit": "Bild-im-Bild beenden",
   "voice.share.volume": "Lautstärke",
@@ -2313,5 +2311,16 @@
   "hub.card.online": "{count} online",
   "channel.voice.count": "{count, plural, one {# Person im Sprachkanal} other {# Personen im Sprachkanal}}",
   "channel.voice.you": "du",
-  "channel.voice.summary": "{names} und {count, plural, one {# weitere Person} other {# weitere}}"
+  "channel.voice.summary": "{names} und {count, plural, one {# weitere Person} other {# weitere}}",
+  "voice.bar.label": "Medien",
+  "voice.stage.pin": "{name} anheften",
+  "voice.stage.unpin": "{name} lösen",
+  "voice.stage.enlarge": "{name} vergrößern",
+  "voice.stage.audience": "Publikum · {count}",
+  "voice.stage.search": "Im Publikum suchen",
+  "voice.stage.resize": "Bühnengröße ändern",
+  "voice.stage.you_share": "Du",
+  "voice.stage.sending": "sendet {mbps} Mbit/s",
+  "voice.share.fullscreen": "Vollbild",
+  "voice.share.stop_watching": "Nicht mehr ansehen"
 }

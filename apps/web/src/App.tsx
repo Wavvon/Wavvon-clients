@@ -91,7 +91,6 @@ import { listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriend
 import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
-import { ScreenShareSelfPreview } from "@components/voice/ScreenShareSelfPreview";
 import { listAppCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, sendAppJoin, listConversations } from "@platform";
 import { sendSetStatus } from "@platform";
 import {
@@ -586,9 +585,9 @@ export default function App({ initialView }: AppProps = {}) {
   // Outbound screen share + cross-channel hub-streams discovery.
   const screenShare = useScreenShare({ activeHubIdRef, showHubError });
   const {
-    screenShareViewerRef, activeScreenShares, sharing, shareKbps, shareLocalStream,
+    screenShareViewerRef, activeScreenShares,
     hubStreams, showHubStreams, setShowHubStreams, openedIds,
-    handleStartShare, handleStopShare, handleOpenHubStreams, handleWatchStream,
+    handleStartShare, handleOpenHubStreams, handleWatchStream,
     handleStopWatchStream, onScreenShare, onScreenShareChunk, resubscribeStreams,
   } = screenShare;
 
@@ -1397,14 +1396,6 @@ export default function App({ initialView }: AppProps = {}) {
           channels={voiceMoveChannelOptions}
           onMove={(channelId) => { handleMoveMember(voiceMoveUx.voiceMoveMenu!.pubkey, channelId); voiceMoveUx.setVoiceMoveMenu(null); }}
           onClose={() => voiceMoveUx.setVoiceMoveMenu(null)}
-        />
-      )}
-
-      {sharing && (
-        <ScreenShareSelfPreview
-          stream={shareLocalStream}
-          kbps={shareKbps}
-          onStop={handleStopShare}
         />
       )}
 

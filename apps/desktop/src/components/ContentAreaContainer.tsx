@@ -111,6 +111,9 @@ export function ContentAreaContainer({
             onOpen: (id) => voice.openStream(selectedChannel.id, id),
             onClose: (id) => voice.closeStream(selectedChannel.id, id),
           },
+          selfShare: voice.sharing && voice.shareLocalStream && voice.voiceChannelId === selectedChannel.id
+            ? { stream: voice.shareLocalStream, kbps: voice.shareKbps, onStop: voice.stopShare }
+            : undefined,
         } : undefined}
         selectedConversation={dms.selectedConversation}
         selectedAllianceChannel={channelMessages.selectedAllianceChannel}

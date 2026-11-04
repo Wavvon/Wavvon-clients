@@ -33,6 +33,7 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kbps, setKbps] = useState(0);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const recordersRef = useRef<MediaRecorder[]>([]);
@@ -142,6 +143,7 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
       setKbps(Math.round((bytes * 8) / 1000));
     }, 1000);
 
+    setLocalStream(displayStream);
     setSharing(true);
   }
 
@@ -211,10 +213,11 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
     wsRef.current = null;
     recordersRef.current = [];
     streamsRef.current = [];
+    setLocalStream(null);
     streamIdsRef.current = [];
     setSharing(false);
     setKbps(0);
   }
 
-  return { sharing, startShare, stopShare, error, kbps, loadStreamLimits };
+  return { sharing, startShare, stopShare, error, kbps, loadStreamLimits, localStream };
 }

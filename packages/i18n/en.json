@@ -1866,8 +1866,6 @@
   "voice.screen_share.picker.share_webcam": "Share webcam",
   "voice.screen_share.picker.title": "Share your screen",
   "voice.screen_share.stop": "Stop sharing",
-  "voice.self_preview.collapse": "Collapse share preview",
-  "voice.self_preview.expand": "Expand share preview",
   "voice.share.pip_enter": "Pop out (picture-in-picture)",
   "voice.share.pip_exit": "Exit picture-in-picture",
   "voice.share.volume": "Volume",
@@ -2313,5 +2311,16 @@
   "hub.card.online": "{count} online",
   "channel.voice.count": "{count, plural, one {# person in voice} other {# people in voice}}",
   "channel.voice.you": "you",
-  "channel.voice.summary": "{names} and {count, plural, one {# other} other {# others}}"
+  "channel.voice.summary": "{names} and {count, plural, one {# other} other {# others}}",
+  "voice.bar.label": "Media",
+  "voice.stage.pin": "Pin {name}",
+  "voice.stage.unpin": "Unpin {name}",
+  "voice.stage.enlarge": "Enlarge {name}",
+  "voice.stage.audience": "Audience · {count}",
+  "voice.stage.search": "Search the audience",
+  "voice.stage.resize": "Resize the stage",
+  "voice.stage.you_share": "You",
+  "voice.stage.sending": "sending {mbps} Mbps",
+  "voice.share.fullscreen": "Fullscreen",
+  "voice.share.stop_watching": "Stop watching"
 }
