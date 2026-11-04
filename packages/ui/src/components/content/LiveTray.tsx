@@ -19,7 +19,7 @@ export function LiveTray({ streams, opened, nameFor, onOpen, onClose }: VoiceLiv
   if (streams.length === 0) return null;
 
   const toggle = (s: ActiveStream) => (opened.has(s.stream_id) ? onClose(s.stream_id) : onOpen(s.stream_id));
-  const label = (s: ActiveStream) => `${nameFor(s.sharer_pubkey)}${s.kind === "webcam" ? " · CAM" : ""}`;
+  const label = (s: ActiveStream) => s.kind === "webcam" ? t("voice.live.camera", { name: nameFor(s.sharer_pubkey) }) : nameFor(s.sharer_pubkey);
   const q = query.trim().toLowerCase();
   const listed = q ? streams.filter((s) => nameFor(s.sharer_pubkey).toLowerCase().includes(q)) : streams;
 

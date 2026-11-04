@@ -2262,5 +2262,6 @@
   "voice.live.open": "Apri la live",
   "voice.live.close": "Chiudi la live",
   "voice.live.all": "Tutte",
-  "voice.live.search": "Cerca live"
+  "voice.live.search": "Cerca live",
+  "voice.live.camera": "{name} · videocamera"
 }

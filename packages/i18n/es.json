@@ -2262,5 +2262,6 @@
   "voice.live.open": "Abrir directo",
   "voice.live.close": "Cerrar directo",
   "voice.live.all": "Todos",
-  "voice.live.search": "Buscar directos"
+  "voice.live.search": "Buscar directos",
+  "voice.live.camera": "{name} · cámara"
 }

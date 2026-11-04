@@ -2262,5 +2262,6 @@
   "voice.live.open": "Open live",
   "voice.live.close": "Close live",
   "voice.live.all": "All",
-  "voice.live.search": "Search lives"
+  "voice.live.search": "Search lives",
+  "voice.live.camera": "{name} · camera"
 }
