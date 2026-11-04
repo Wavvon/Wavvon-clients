@@ -54,6 +54,9 @@ export function HubTopBar(p: HubTopBarProps) {
   const { t } = useTranslation();
   const [drawer, setDrawer] = useState(false);
   const [folderOpen, setFolderOpen] = useState<string | null>(null);
+  // The tab strip scrolls horizontally, which clips anything absolutely
+  // positioned inside it, so the folder menu is placed with fixed coordinates.
+  const [folderAt, setFolderAt] = useState({ left: 0, top: 0 });
   const [ctx, setCtx] = useState<{ hub: Hub; x: number; y: number } | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -129,7 +132,11 @@ export function HubTopBar(p: HubTopBarProps) {
             aria-expanded={folderOpen === f.id}
             className={`hub-tab folder${current ? " active" : ""}`}
             title={f.name}
-            onClick={() => setFolderOpen((v) => (v === f.id ? null : f.id))}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setFolderAt({ left: r.left, top: r.bottom + 6 });
+              setFolderOpen((v) => (v === f.id ? null : f.id));
+            }}
           >
             <span className="hub-folder-mosaic" aria-hidden="true">
               {members.slice(0, 4).map((h) => <Avatar key={h.hub_id} src={h.hub_icon} name={h.hub_name} pubkey={h.hub_id} size={11} />)}
@@ -139,7 +146,7 @@ export function HubTopBar(p: HubTopBarProps) {
           </button>
           {folderOpen === f.id && <div className="hub-folder-backdrop" onClick={() => setFolderOpen(null)} />}
           {folderOpen === f.id && (
-            <div className="hub-folder-menu" role="menu" aria-label={f.name}>
+            <div className="hub-folder-menu" role="menu" aria-label={f.name} style={folderAt}>
               {[...members].sort((a, b2) => recent(b2) - recent(a)).map((h) => {
                 const n = p.noticeByHub[h.hub_id];
                 const count = p.unreadByHub[h.hub_id] ?? 0;
