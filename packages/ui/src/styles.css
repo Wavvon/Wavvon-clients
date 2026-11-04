@@ -2271,6 +2271,27 @@ tr.account-drop-target td {
   outline: none;
 }
 
+/* Plain icon button: a transparent square around one SVG. */
+.btn-icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
 .btn-icon-gear {
   flex: 0 0 auto;
   width: 28px;
@@ -3401,9 +3422,7 @@ select:focus-visible {
 }
 
 .hub-folder-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed;
   z-index: 300;
   width: 280px;
   padding: var(--space-2);
