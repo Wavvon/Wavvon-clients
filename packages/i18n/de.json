@@ -894,6 +894,8 @@
   "hub.admin.roles.perm.surveys.manage": "Aufnahmeumfrage verwalten",
   "hub.admin.roles.perm.surveys.responses.read": "Umfrageantworten lesen",
   "hub.admin.roles.perm.voice.join": "Sprachkanal betreten",
+  "hub.admin.roles.perm.voice.screen_share": "Bildschirm teilen",
+  "hub.admin.roles.perm.voice.camera": "Kamera einschalten",
   "hub.admin.roles.perm.voice.move_members": "Mitglieder zwischen Sprachkanälen verschieben",
   "hub.admin.roles.perm.voice.soundboard.manage": "Soundboard-Clips verwalten",
   "hub.admin.roles.perm.voice.soundboard.use": "Soundboard verwenden",

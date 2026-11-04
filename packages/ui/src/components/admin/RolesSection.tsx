@@ -43,6 +43,8 @@ export const ALL_PERMISSIONS: string[] = [
   "channels.appearance",
   "channels.permissions",
   "voice.join",
+  "voice.screen_share",
+  "voice.camera",
   "voice.soundboard.use",
   "voice.soundboard.manage",
   "voice.move_members",
@@ -148,7 +150,7 @@ export function RolesSection({ actions }: Props) {
   const [permissionIds, setPermissionIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
-  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
+  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newPriority, setNewPriority] = useState(1);
   const [newPerms, setNewPerms] = useState<Set<string>>(new Set());
@@ -230,7 +232,7 @@ export function RolesSection({ actions }: Props) {
       setNewName("");
       setNewPriority(1);
       setNewPerms(new Set());
-      setNewHoist(false);
+      setNewHoist(false);
     } catch (e) {
       setError(String(e));
     } finally {

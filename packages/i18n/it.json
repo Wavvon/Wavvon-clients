@@ -894,6 +894,8 @@
   "hub.admin.roles.perm.surveys.manage": "Gestire il sondaggio d'ingresso",
   "hub.admin.roles.perm.surveys.responses.read": "Leggere le risposte al sondaggio",
   "hub.admin.roles.perm.voice.join": "Entrare in voce",
+  "hub.admin.roles.perm.voice.screen_share": "Condividere lo schermo",
+  "hub.admin.roles.perm.voice.camera": "Accendere la webcam",
   "hub.admin.roles.perm.voice.move_members": "Spostare membri fra canali vocali",
   "hub.admin.roles.perm.voice.soundboard.manage": "Gestire le clip della soundboard",
   "hub.admin.roles.perm.voice.soundboard.use": "Usare la soundboard",
