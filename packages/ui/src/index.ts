@@ -514,3 +514,5 @@ export type { ChannelContextMenuProps } from "./components/channels/ChannelConte
 
 export { BackgroundProcessor, loadBgMode, loadBgSource, saveBg } from "./utils/backgroundProcessor";
 export type { BackgroundMode } from "./utils/backgroundProcessor";
+export { memberActivity } from "./utils/memberActivity";
+export type { MemberActivity } from "./utils/memberActivity";

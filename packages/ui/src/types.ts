@@ -226,6 +226,8 @@ export interface User {
   /** Optional short custom status text (only present while online). */
   status_custom?: string | null;
   group_role: string | null;
+  /** Priority of `group_role`, to order the member list; absent on older hubs. */
+  group_role_priority?: number | null;
   is_webhook?: boolean;
   /** MM-DD (never a year) — null/absent when unset or the hub has birthdays
    *  disabled (the server omits it entirely in that case). */

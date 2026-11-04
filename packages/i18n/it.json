@@ -2270,5 +2270,10 @@
   "voice.screen_share.picker.hub_limit": "Limite dell’hub",
   "voice.screen_share.picker.summary": "{resolution} · {fps} fps · circa {mbps} Mbps in upload",
   "voice.screen_share.picker.with_audio": "con audio",
-  "voice.screen_share.picker.without_audio": "senza audio"
+  "voice.screen_share.picker.without_audio": "senza audio",
+  "member.list.members": "Membri",
+  "member.list.offline": "Offline",
+  "member.list.count": "{count, plural, one {# membro} other {# membri}}",
+  "member.status.in_voice": "In voce · {channel}",
+  "member.status.live": "Live · {channel}"
 }
