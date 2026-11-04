@@ -79,7 +79,9 @@ test("propagate_to_children fans the event card out to a descendant channel", as
   try {
     await openMessagesTab(member, anchor);
     await expect(member.getByText(title)).toBeVisible({ timeout: 15000 });
-    await openMessagesTab(member, child);
+    // The squad room is a voice room: no chat, so its propagated events
+    // show in its Events dialog.
+    await openEventsTab(member, child);
     await expect(member.getByText(title)).toBeVisible({ timeout: 15000 });
   } finally {
     await context.close();
