@@ -19,7 +19,7 @@ interface MobileShellProps {
  * switches to a single-panel slide model.
  *
  * The children order is expected to be:
- *   [0] HubSidebar, [1] ChannelSidebar, [2] ContentArea
+ *   [0] HubTopBar, [1] ChannelSidebar, [2] ContentArea
  */
 export function MobileShell({ children, onBack }: MobileShellProps) {
   const { t } = useTranslation();

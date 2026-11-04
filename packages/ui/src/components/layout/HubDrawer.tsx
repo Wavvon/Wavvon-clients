@@ -129,7 +129,7 @@ export function HubDrawer({
             <div className="hub-drawer-filters" role="group" aria-label={t("hubs.drawer.filter")}>
               {(["all", "notified", "pinned"] as Filter[]).map((f) => (
                 <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-                  {t(`hubs.drawer.filter_${f}`)}
+                  {t(f === "all" ? "hubs.drawer.filter_all" : f === "notified" ? "hubs.drawer.filter_notified" : "hubs.drawer.filter_pinned")}
                 </button>
               ))}
             </div>

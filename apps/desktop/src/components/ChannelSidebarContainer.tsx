@@ -4,9 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { ChannelSidebar, useConfirm, type MenuAccount } from "@wavvon/ui";
-import { useEffect, useState } from "react";
-import { listAccounts, switchAccountGuarded } from "../accounts/store";
+import { ChannelSidebar, useConfirm } from "@wavvon/ui";
 import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind, UnreadCounts } from "@wavvon/ui";
 import { formatPubkey, type TreeNode } from "@wavvon/core";
 import { hasDraft } from "../utils/drafts";
@@ -60,14 +58,9 @@ interface Props {
   leaveVoiceChannel: () => void;
   canMoveMembers: boolean;
   openFriends: () => void;
-  openSettings: (tab?: string) => void;
-  onOpenShortcuts: () => void;
   openVoiceSettings: () => void;
   onDragEnd: (event: DragEndEvent) => void;
   setShowSearchBar: (v: boolean) => void;
-  myPresence: { status: "online" | "away" | "dnd" | "invisible"; custom: string | null };
-  onSetStatus: (status: "online" | "away" | "dnd" | "invisible", ttlMinutes: number | null) => void;
-  onSetCustomStatus: (text: string) => void;
   showWhisperPanel: boolean;
   setShowWhisperPanel: Dispatch<SetStateAction<boolean>>;
   soundboardChipsByChannel: Record<string, SoundboardChip[]>;
@@ -103,21 +96,14 @@ export function ChannelSidebarContainer({
   openHubAdmin, openHubAdminInvites, setShowQuickInvite,
   openCreateChannelUnder, onChannelContextMenu,
   setShowCreateChannel, setChannelSettingsModal,
-  leaveVoiceChannel, canMoveMembers, openFriends, openSettings, onOpenShortcuts, openVoiceSettings, onDragEnd,
-  setShowSearchBar, myPresence, onSetStatus, onSetCustomStatus,
+  leaveVoiceChannel, canMoveMembers, openFriends, openVoiceSettings, onDragEnd,
+  setShowSearchBar,
   showWhisperPanel, setShowWhisperPanel, soundboardChipsByChannel,
   whisperReplyBind, onSetWhisperReplyBind,
   onRequestRemoveHub,
   voice, video, whisper, soundboard, notifyPrefs, hubLifecycle, channelMessages,
   unreadCounts, dms,
 }: Props) {
-  const [accounts, setAccounts] = useState<MenuAccount[]>([]);
-  useEffect(() => {
-    listAccounts()
-      .then((rs) => setAccounts(rs.map((r) => ({ id: r.id, name: r.label || formatPubkey(r.id), active: r.is_active }))))
-      .catch(() => { /* the menu shows no account list */ });
-  }, []);
-  const me = users.find((u) => u.public_key === publicKey);
   const canOpenChannelSettings =
     isAdmin ||
     myRoles.some(
@@ -215,21 +201,6 @@ export function ChannelSidebarContainer({
       onOpenFriends={openFriends}
       onToggleSelfMute={voice.toggleSelfMute}
       onToggleSelfDeafen={voice.toggleSelfDeafen}
-      userMenu={{
-        name: me?.display_name || formatPubkey(publicKey ?? ""),
-        publicKey,
-        avatar: me?.avatar,
-        status: myPresence.status,
-        customStatus: myPresence.custom,
-        onSetStatus,
-        onSetCustomStatus,
-        onOpenSettings: openSettings,
-        accounts,
-        // A refusal (in voice, too soon) is explained on the accounts tab.
-        onSwitchAccount: (id) => { void switchAccountGuarded(id).then((refused) => { if (refused) openSettings("accounts"); }); },
-        onAddAccount: () => openSettings("accounts"),
-        onOpenShortcuts,
-      }}
       onDragEnd={onDragEnd}
       onToggleHideSilenced={() => setHideSilenced((v) => !v)}
       sharing={voice.sharing}

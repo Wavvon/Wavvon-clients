@@ -1,8 +1,6 @@
 import type { HubRefusal } from "@wavvon/core";
 import { useEffect, useState } from "react";
-import type { DragEndEvent } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
-import { removeHub, setActiveHub, listHubs, reorderHubs } from "@platform";
+import { removeHub, setActiveHub, listHubs } from "@platform";
 import type { Hub } from "@shared/types";
 import { useHubPing } from "@wavvon/ui";
 
@@ -45,19 +43,6 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
   const [pendingApprovalHubs, setPendingApprovalHubs] = useState<Set<string>>(new Set());
   const [refusedHubs, setRefusedHubs] = useState<Map<string, HubRefusal>>(new Map());
 
-  function handleHubReorder(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setHubs((prev) => {
-      const next = arrayMove(
-        prev,
-        prev.findIndex((h) => h.hub_id === active.id),
-        prev.findIndex((h) => h.hub_id === over.id),
-      );
-      reorderHubs(next.map((h) => h.hub_id)).catch(() => {});
-      return next;
-    });
-  }
 
   async function handleSwitchHub(hubId: string) {
     setActiveHub(hubId);
@@ -87,7 +72,6 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
     lobbyHubs, setLobbyHubs,
     pendingApprovalHubs, setPendingApprovalHubs,
     refusedHubs, setRefusedHubs,
-    handleHubReorder,
     handleSwitchHub,
     handleRemoveHub,
   };

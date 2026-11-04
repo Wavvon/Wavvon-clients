@@ -63,7 +63,7 @@ test("status picker: member goes DND; others see the dot live", async ({ page, b
     await expect(menu).not.toBeVisible();
 
     // Member's own footer reflects it (dot).
-    await expect(member.locator(".user-identity .user-status-dot.status-dnd")).toBeVisible();
+    await expect(member.locator(".user-menu-trigger .user-status-dot.status-dnd")).toBeVisible();
 
     // The owner's member list shows the DND dot live.
     const memberRow = page.locator("li.user-list-item", { hasText: memberName });

@@ -1,4 +1,3 @@
-import { UserMenu, type UserMenuProps } from "./UserMenu";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -160,8 +159,6 @@ interface Props {
   onOpenFriends?: () => void;
   onToggleSelfMute: () => void;
   onToggleSelfDeafen: () => void;
-  /** The member's own menu (avatar, presence, settings, accounts). */
-  userMenu: UserMenuProps;
   onDragEnd: (event: DragEndEvent) => void;
   onToggleHideSilenced?: () => void;
   sharing?: boolean;
@@ -220,7 +217,7 @@ export function ChannelSidebar({
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
   onVoiceJoin, onVoiceLeave, onParticipantContextMenu, voiceChannelsOnly,
   onSelectAllianceChannel, onJoinAllianceVoice, onSelectConversation,
-  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, userMenu,
+  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
   voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
@@ -916,10 +913,6 @@ export function ChannelSidebar({
           </>
         )}
 
-        <div className="user-identity">
-          <UserMenu {...userMenu} />
-          <span className="user-identity-name" title={publicKey ?? undefined}>{userMenu.name}</span>
-        </div>
       </div>
     </nav>
   );

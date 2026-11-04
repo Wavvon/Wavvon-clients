@@ -100,12 +100,10 @@ export interface Badge {
 }
 
 /** Each notification counted in exactly one place: a pinned tab or the rest. */
-export function tabBadges(
-  layout: HubLayout,
-  hubIds: string[],
-  unreadByHub: Record<string, number>,
-  mentionByHub: Record<string, boolean>,
-): { tabs: Record<string, Badge>; rest: Badge } {
+type Counts = Record<string, number>;
+type Flags = Record<string, boolean>;
+
+export function tabBadges(layout: HubLayout, hubIds: string[], unreadByHub: Counts, mentionByHub: Flags): { tabs: Record<string, Badge>; rest: Badge } {
   const tabs: Record<string, Badge> = {};
   const rest: Badge = { count: 0, mention: false };
   for (const h of hubIds) {

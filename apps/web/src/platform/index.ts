@@ -30,7 +30,6 @@ export {
   previewHubInfo,
   previewApplication,
   verifyLanFingerprint,
-  reorderHubs,
   restorePersistedHubs,
   connectHubWebSocket,
   ChallengeRequiredError,
