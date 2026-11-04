@@ -104,6 +104,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // (resolved from onVoiceState below — see the CRITICAL note on
   // handleVoiceJoin for why this can't be a plain local variable).
   const pendingVoiceJoinRef = useRef<{ resolve: (m: VoiceJoinedMsg) => void; reject: (e: Error) => void } | null>(null);
+  // The channel a join is under way for. Each `voice_join` makes the hub mint
+  // a new single-use token and drop the previous one, so a second click while
+  // the first join is still waiting cancels it: thirteen clicks after a slow
+  // join meant thirteen refused sessions and no voice at all (#257).
+  const joiningVoiceRef = useRef<string | null>(null);
   const [voiceGains, setVoiceGains] = useState<Record<string, number>>(() => {
     try { return JSON.parse(getScoped("wavvon.voice_gains") || "{}") as Record<string, number>; }
     catch { return {}; }
@@ -370,6 +375,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // module-level functions. Never read non-ref state/props here.
   async function handleVoiceJoin(targetChannelId: string) {
     if (voiceChannelIdRef.current === targetChannelId) return;
+    if (joiningVoiceRef.current === targetChannelId) return;
+    joiningVoiceRef.current = targetChannelId;
     teardownCurrentVoice();
     try {
       // voice-transport-v2.md "Join flow": voice_join travels over the main
@@ -381,6 +388,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       });
     } catch (e) {
       showHubError("Voice: " + String(e));
+    } finally {
+      if (joiningVoiceRef.current === targetChannelId) joiningVoiceRef.current = null;
     }
   }
 
