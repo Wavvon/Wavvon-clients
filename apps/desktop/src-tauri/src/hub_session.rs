@@ -325,30 +325,6 @@ pub(crate) async fn preview_hub_info(url: String) -> Result<InfoResponse, String
 }
 
 #[tauri::command]
-pub(crate) fn reorder_hubs(hub_ids: Vec<String>) -> Result<(), String> {
-    let saved = load_saved_hubs();
-    let by_id: std::collections::HashMap<String, SavedHub> = saved
-        .iter()
-        .map(|h| (h.hub_id.clone(), h.clone()))
-        .collect();
-
-    let mut next: Vec<SavedHub> = Vec::with_capacity(saved.len());
-    let mut seen = std::collections::HashSet::new();
-    for id in &hub_ids {
-        if let Some(h) = by_id.get(id) {
-            next.push(h.clone());
-            seen.insert(id.clone());
-        }
-    }
-    for h in &saved {
-        if !seen.contains(&h.hub_id) {
-            next.push(h.clone());
-        }
-    }
-    save_hubs_list(&next)
-}
-
-#[tauri::command]
 pub(crate) async fn get_hub_ws_info(
     hub_id: String,
     state: State<'_, AppState>,

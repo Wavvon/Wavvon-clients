@@ -553,7 +553,27 @@ export function ContentArea({
               onOpenHubStreams={onOpenHubStreams}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
-            {selectedChannel.channel_type === "voice" && voiceStage && <VoiceStage {...voiceStage} />}
+            {selectedChannel.channel_type === "voice" && voiceStage ? (
+              // A voice room is people and media only: no messages or composer. Its
+              // events (raids anchor their squad rooms here) open in a dialog.
+              <>
+              <div className="voice-room-events">
+                <button
+                  onClick={() => setShowEventsModal(true)}
+                  className="btn-icon-header"
+                  title={t("events.open_panel")}
+                  aria-label={t("events.open_panel")}
+                >
+                  <CalendarIcon size={14} />
+                </button>
+              </div>
+              <VoiceStage {...voiceStage}>
+                {activeScreenShares.length > 0 && screenShareViewerRef && (
+                  <ScreenShareViewer ref={screenShareViewerRef} streams={activeScreenShares} onStopWatch={voiceStage.live?.onClose} />
+                )}
+              </VoiceStage>
+              </>
+            ) : (<>
             {activeScreenShares.length > 0 && screenShareViewerRef && (
               <ScreenShareViewer
                 ref={screenShareViewerRef}
@@ -673,6 +693,7 @@ export function ContentArea({
               onShowPollComposer={() => setShowPollComposer(true)}
               stickers={stickerActions ? { channelId: selectedChannel.id, actions: stickerActions, onError } : undefined}
             /></>}
+            </>)}
           </div>
         ) : selectedAllianceChannel && selectedAllianceChannel.channel.channel_type === "forum" ? (
           <ForumView
@@ -759,7 +780,7 @@ export function ContentArea({
         />
       )}
 
-      {eventsPresentation === "modal" && showEventsModal && (
+      {(eventsPresentation === "modal" || (selectedChannel?.channel_type === "voice" && !!voiceStage)) && showEventsModal && (
         <div
           className="modal-overlay"
           onClick={() => setShowEventsModal(false)}

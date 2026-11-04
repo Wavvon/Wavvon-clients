@@ -1,4 +1,5 @@
-import { UserMenu, type UserMenuProps } from "./UserMenu";
+import { useVoiceBarSlot } from "../../utils/voiceBarSlot";
+import { Avatar } from "../Avatar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -43,7 +44,7 @@ import {
 } from "./channelSidebarLayout";
 import { isSpawnerChannel, resolveOwnerDisplayName } from "../../utils/spawnerChannels";
 import { dmPeerLabel } from "../../utils/dmPeerLabel";
-import { SearchIcon, MembersIcon } from "../Icons";
+import { MembersIcon } from "../Icons";
 
 interface SidebarFlatNode extends FlatNode {
   indentDepth: number;
@@ -108,6 +109,8 @@ interface Props {
   dmPeerNames?: Record<string, string>;
   publicKey: string | null;
   pingByHub: Record<string, number | null>;
+  /** The hub's landing image, shown behind its card; absent on older hubs. */
+  hubBannerUrl?: string;
   isAdmin: boolean;
   /** Gate for the "Invite people" entry. Wider than isAdmin: a manage_channels
    *  member can create invites too, just via the compact quick-invite modal
@@ -160,8 +163,6 @@ interface Props {
   onOpenFriends?: () => void;
   onToggleSelfMute: () => void;
   onToggleSelfDeafen: () => void;
-  /** The member's own menu (avatar, presence, settings, accounts). */
-  userMenu: UserMenuProps;
   onDragEnd: (event: DragEndEvent) => void;
   onToggleHideSilenced?: () => void;
   sharing?: boolean;
@@ -178,8 +179,6 @@ interface Props {
   speaking?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
-  /** Present = render the global-search trigger button above the channel list. */
-  onOpenSearch?: () => void;
   /** Whisper (events.md whisper follow-up): named target lists (save/load/delete)
    *  are folded in as optional props — present only where the caller has the
    *  backing commands wired. */
@@ -209,7 +208,7 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
-  users, dmPeerNames, publicKey, pingByHub, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
+  users, dmPeerNames, publicKey, pingByHub, hubBannerUrl, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
@@ -220,11 +219,10 @@ export function ChannelSidebar({
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
   onVoiceJoin, onVoiceLeave, onParticipantContextMenu, voiceChannelsOnly,
   onSelectAllianceChannel, onJoinAllianceVoice, onSelectConversation,
-  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen, userMenu,
+  onOpenFriends, onToggleSelfMute, onToggleSelfDeafen,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
   voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
-  onOpenSearch,
   isWhispering, whisperTargets, whisperLists, showWhisperPanel,
   onToggleWhisperPanel, onCloseWhisperPanel, onStartWhisper, onStopWhisper,
   onSaveWhisperList, onDeleteWhisperList, onListWhisperRoles,
@@ -261,7 +259,8 @@ export function ChannelSidebar({
   const [focusedSubtreeId, setFocusedSubtreeId] = useState<string | null>(null);
   const [drillAnnouncement, setDrillAnnouncement] = useState("");
   const whisperBtnRef = useRef<HTMLButtonElement>(null);
-  const [whisperPanelPos, setWhisperPanelPos] = useState<{ bottom: number; left: number } | null>(null);
+  const voiceBarSlot = useVoiceBarSlot();
+  const [whisperPanelPos, setWhisperPanelPos] = useState<{ top: number; left: number } | null>(null);
 
   // Drill-in focus is per-hub session state (not persisted): clear it when
   // the user switches hubs.
@@ -283,7 +282,8 @@ export function ChannelSidebar({
   useEffect(() => {
     if (!showWhisperPanel || !whisperBtnRef.current) return;
     const rect = whisperBtnRef.current.getBoundingClientRect();
-    setWhisperPanelPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left });
+    // The button sits in the voice view's bar at the top: the panel opens below it.
+    setWhisperPanelPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 340) });
   }, [showWhisperPanel]);
 
   const dndSensors = useSensors(
@@ -468,9 +468,12 @@ export function ChannelSidebar({
       {view === "channels" && (
         <div className="hub-header" ref={hubHeaderRef}>
           <button
-            className="hub-header-button"
+            className={`hub-header-button hub-card${hubBannerUrl ? " has-banner" : ""}`}
+            style={hubBannerUrl ? { ["--hub-banner" as string]: `url("${hubBannerUrl}")` } : undefined}
+            aria-expanded={hubDropdownOpen}
             onClick={() => onHubDropdownOpenChange(!hubDropdownOpen)}
           >
+            {activeHub && <Avatar src={activeHub.hub_icon} name={activeHub.hub_name} pubkey={activeHub.hub_id} size={36} />}
             {/* The address, not just the name. Self-hosted means whose machine
                 you are on is part of knowing where you are. */}
             <span className="hub-header-id">
@@ -478,6 +481,12 @@ export function ChannelSidebar({
               {activeHub?.hub_url && (
                 <span className="hub-header-address">{displayHubAddress(activeHub.hub_url)}</span>
               )}
+            </span>
+            <span className="hub-card-counts">
+              {t("hub.card.members", { count: users.length })}
+              {" · "}
+              <span className="status-dot online" aria-hidden="true" />
+              {t("hub.card.online", { count: users.filter((u) => u.online).length })}
             </span>
             <HubClock timezone={hubTimezone} />
             <span className="hub-header-chevron"><ChevronIcon size={12} dir={hubDropdownOpen ? "up" : "down"} /></span>
@@ -507,16 +516,6 @@ export function ChannelSidebar({
             </div>
           )}
         </div>
-      )}
-
-      {view === "channels" && onOpenSearch && (
-        <button
-          className="btn-ghost"
-          style={{ width: "100%", textAlign: "left", padding: "6px 12px" }}
-          onClick={onOpenSearch}
-        >
-          <SearchIcon size={13} /> {t("search.placeholder")}
-        </button>
       )}
 
       <div
@@ -606,6 +605,7 @@ export function ChannelSidebar({
                         // bar duplicating this is fine: it's the controls
                         // surface (gain sliders); the row is who-is-where.
                         participants={voicePartByChannel[n.node.id] ?? []}
+                        selfPubkey={publicKey}
                         isCurrentVoiceChannel={voiceChannelId === n.node.id}
                         hubUrl={activeHub?.hub_url}
                         ownerDisplayName={resolveOwnerDisplayName(n.node.owner_pubkey, users)}
@@ -804,14 +804,6 @@ export function ChannelSidebar({
             <div className="voice-status-bar">
               {activePing !== undefined && <PingIcon ping={activePing} />}
               <span className="voice-status-label">#{voiceChannelName}</span>
-              <button
-                onClick={onVoiceLeave}
-                className="btn-icon-gear voice-call-btn end"
-                title={t("voice.leave")}
-                aria-label={t("voice.leave")}
-              >
-                <PhoneOffIcon />
-              </button>
             </div>
             {micBelowGate && onOpenVoiceSettings && <MicBelowGateWarning onOpenSensitivity={onOpenVoiceSettings} />}
             <div className="user-actions">
@@ -834,70 +826,83 @@ export function ChannelSidebar({
                 >
                   <DeafenIcon muted={selfDeafened} />
                 </button>
-                {onScreenShare && (
-                  <button
-                    onClick={onScreenShare}
-                    className={`btn-icon-gear ${sharing ? "active" : ""}`}
-                    title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
-                  >
-                    <ScreenShareIcon />
-                  </button>
-                )}
-                {onToggleVideo && (
-                  <button
-                    onClick={handleToggleVideo}
-                    className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
-                    title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                    aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                  >
-                    {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
-                  </button>
-                )}
-                {onToggleWhisperPanel && (
-                  <button
-                    ref={whisperBtnRef}
-                    onClick={onToggleWhisperPanel}
-                    className={`btn-icon-gear ${isWhispering ? "active" : ""}`}
-                    title={t("voice.whisper", "Whisper")}
-                    aria-pressed={!!isWhispering}
-                  >
-                    <WhisperIcon size={15} />
-                  </button>
-                )}
-                {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
-                  <div style={{ position: "fixed", bottom: whisperPanelPos.bottom, left: whisperPanelPos.left, zIndex: 9999 }}>
-                    <WhisperPanel
-                      voiceParticipants={
-                        voiceChannelId
-                          ? (voicePartByChannel[voiceChannelId] ?? []).filter(
-                              (p) => p.public_key !== publicKey,
-                            )
-                          : []
-                      }
-                      voiceChannels={channels.filter(c => !c.is_category)}
-                      isWhispering={!!isWhispering}
-                      whisperTargets={whisperTargets ?? []}
-                      whisperLists={whisperLists ?? []}
-                      onStartWhisper={onStartWhisper ?? (() => {})}
-                      onStopWhisper={onStopWhisper ?? (() => {})}
-                      onSaveList={onSaveWhisperList ?? (() => {})}
-                      onDeleteList={onDeleteWhisperList ?? (() => {})}
-                      onClose={onCloseWhisperPanel}
-                      whisperOptout={whisperOptout}
-                      onSetWhisperOptout={onSetWhisperOptout}
-                      onListWhisperRoles={onListWhisperRoles}
-                      whisperReplyBind={whisperReplyBind}
-                      onSetWhisperReplyBind={onSetWhisperReplyBind}
-                    />
+                <button
+                  onClick={onVoiceLeave}
+                  className="btn-icon-gear voice-call-btn end"
+                  title={t("voice.leave")}
+                  aria-label={t("voice.leave")}
+                >
+                  <PhoneOffIcon />
+                </button>
+                {voiceBarSlot && createPortal(
+                  <div className="voice-media-bar" role="toolbar" aria-label={t("voice.bar.label")}>
+                    {onScreenShare && (
+                      <button
+                        onClick={onScreenShare}
+                        className={`btn-icon-gear ${sharing ? "active" : ""}`}
+                        title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
+                      >
+                        <ScreenShareIcon />
+                      </button>
+                    )}
+                    {onToggleVideo && (
+                      <button
+                        onClick={handleToggleVideo}
+                        className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
+                        title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                        aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                      >
+                        {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
+                      </button>
+                    )}
+                    {onToggleWhisperPanel && (
+                      <button
+                        ref={whisperBtnRef}
+                        onClick={onToggleWhisperPanel}
+                        className={`btn-icon-gear ${isWhispering ? "active" : ""}`}
+                        title={t("voice.whisper", "Whisper")}
+                        aria-pressed={!!isWhispering}
+                      >
+                        <WhisperIcon size={15} />
+                      </button>
+                    )}
+                    {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
+                      <div style={{ position: "fixed", top: whisperPanelPos.top, left: Math.max(8, whisperPanelPos.left), zIndex: 9999 }}>
+                        <WhisperPanel
+                          voiceParticipants={
+                            voiceChannelId
+                              ? (voicePartByChannel[voiceChannelId] ?? []).filter(
+                                  (p) => p.public_key !== publicKey,
+                                )
+                              : []
+                          }
+                          voiceChannels={channels.filter(c => !c.is_category)}
+                          isWhispering={!!isWhispering}
+                          whisperTargets={whisperTargets ?? []}
+                          whisperLists={whisperLists ?? []}
+                          onStartWhisper={onStartWhisper ?? (() => {})}
+                          onStopWhisper={onStopWhisper ?? (() => {})}
+                          onSaveList={onSaveWhisperList ?? (() => {})}
+                          onDeleteList={onDeleteWhisperList ?? (() => {})}
+                          onClose={onCloseWhisperPanel}
+                          whisperOptout={whisperOptout}
+                          onSetWhisperOptout={onSetWhisperOptout}
+                          onListWhisperRoles={onListWhisperRoles}
+                          whisperReplyBind={whisperReplyBind}
+                          onSetWhisperReplyBind={onSetWhisperReplyBind}
+                        />
+                      </div>,
+                      document.body
+                    )}
+                    {canUseSoundboard && onTriggerSoundboardClip && onListSoundboardClips && (
+                      <SoundboardPopover
+                        onListClips={onListSoundboardClips}
+                        onTrigger={onTriggerSoundboardClip}
+                        playingClipId={soundboardPlayingClipId ?? null}
+                      />
+                    )}
                   </div>,
-                  document.body
-                )}
-                {canUseSoundboard && onTriggerSoundboardClip && onListSoundboardClips && (
-                  <SoundboardPopover
-                    onListClips={onListSoundboardClips}
-                    onTrigger={onTriggerSoundboardClip}
-                    playingClipId={soundboardPlayingClipId ?? null}
-                  />
+                  voiceBarSlot,
                 )}
               </div>
             </div>
@@ -916,10 +921,6 @@ export function ChannelSidebar({
           </>
         )}
 
-        <div className="user-identity">
-          <UserMenu {...userMenu} />
-          <span className="user-identity-name" title={publicKey ?? undefined}>{userMenu.name}</span>
-        </div>
       </div>
     </nav>
   );

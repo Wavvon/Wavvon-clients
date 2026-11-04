@@ -45,7 +45,7 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
 test("blur background engages segmentation and reports active", async ({ page }) => {
   await setupBaseRoutes(page);
   await page.goto("/");
-  await page.locator(".user-menu-trigger").first().click({ timeout: 10000 });
+  await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();

@@ -90,5 +90,5 @@ export default function AccountRoot() {
     );
   }
 
-  return <App key={activeAccountId ?? "no-account"} />;
+  return <App key={activeAccountId ?? "no-account"} accountId={activeAccountId} />;
 }

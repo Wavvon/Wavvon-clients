@@ -119,7 +119,6 @@ pub fn run() {
             hub_session::leave_hub,
             hub_session::auto_connect_saved,
             hub_session::reconnect_hub,
-            hub_session::reorder_hubs,
             hub_session::preview_hub_info,
             hub_session::get_hub_ws_info,
             // Channels

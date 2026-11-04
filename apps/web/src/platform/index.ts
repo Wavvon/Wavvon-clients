@@ -31,7 +31,6 @@ export {
   previewInvite,
   previewApplication,
   verifyLanFingerprint,
-  reorderHubs,
   restorePersistedHubs,
   connectHubWebSocket,
   ChallengeRequiredError,

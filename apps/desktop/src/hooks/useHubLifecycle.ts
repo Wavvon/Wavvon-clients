@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { DragEndEvent } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import type { Hub } from "../types";
 import { useHubPing } from "@wavvon/ui";
 
@@ -58,22 +56,6 @@ export function useHubLifecycle({
     (hubId) => invoke<number>("ping_hub", { hubId }),
   );
 
-  async function handleHubReorder(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = hubs.findIndex((h) => h.hub_id === active.id);
-    const newIndex = hubs.findIndex((h) => h.hub_id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const reordered = arrayMove(hubs, oldIndex, newIndex);
-    setHubs(reordered);
-    try {
-      await invoke("reorder_hubs", {
-        hubIds: reordered.map((h) => h.hub_id),
-      });
-    } catch (e) {
-      setError(String(e));
-    }
-  }
 
   async function handleReconnect() {
     if (!activeHubId) return;
@@ -136,7 +118,6 @@ export function useHubLifecycle({
     activeHubTimezone, setActiveHubTimezone,
     hubScope, setHubScope, lobbyHubIds,
     pingByHub,
-    handleHubReorder,
     handleReconnect,
     handleSwitchHub,
     handleRemoveHub,

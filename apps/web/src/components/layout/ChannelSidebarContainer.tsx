@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type React from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { formatPubkey } from "@wavvon/core";
 import type { Channel, TreeNode } from "@wavvon/core";
-import { ChannelSidebar, useConfirm, type MenuAccount } from "@wavvon/ui";
-import { listAccountsOrdered, getActiveAccountId, switchAccount } from "@identity/index";
+import { ChannelSidebar, useConfirm } from "@wavvon/ui";
 import type { WhisperReplyBind } from "@wavvon/ui";
 import { listRoles, listSoundboardClips } from "@platform";
 import { activeHubSupports } from "../../platform/session";
@@ -13,7 +12,7 @@ import { hasDraft } from "../../utils/drafts";
 import type { useVoice } from "../../hooks/useVoice";
 import type { useVideo } from "../../hooks/useVideo";
 import type { useWhisper } from "../../hooks/useWhisper";
-import type { useVoiceMoveUx, usePresenceStatus } from "@wavvon/ui";
+import type { useVoiceMoveUx } from "@wavvon/ui";
 import type { useNotificationPrefs } from "../../hooks/useNotificationPrefs";
 import type { useHubLifecycle } from "../../hooks/useHubLifecycle";
 import type { useDms } from "../../hooks/useDms";
@@ -34,7 +33,6 @@ type HubLifecycleState = ReturnType<typeof useHubLifecycle>;
 type UnreadCountsState = UnreadCounts;
 type DmsState = ReturnType<typeof useDms>;
 type AlliancesState = ReturnType<typeof useAlliances>;
-type PresenceState = ReturnType<typeof usePresenceStatus>;
 type ScreenShareState = ReturnType<typeof useScreenShare>;
 type ChannelCrudState = ReturnType<typeof useChannelCrud>;
 type ChannelMessagesState = ReturnType<typeof useChannelMessages>;
@@ -51,7 +49,6 @@ export interface ChannelSidebarContainerProps {
   unreadCounts: UnreadCountsState;
   dms: DmsState;
   alliances: AlliancesState;
-  presence: PresenceState;
   screenShare: ScreenShareState;
   channelCrud: ChannelCrudState;
   channelMessages: ChannelMessagesState;
@@ -77,11 +74,7 @@ export interface ChannelSidebarContainerProps {
   onOpenQuickInvite: () => void;
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenFriends: () => void;
-  onOpenSettings: (tab?: string) => void;
-  onOpenShortcuts: () => void;
   onOpenVoiceSettings: () => void;
-  settingsNeedsAttention?: boolean;
-  onOpenSearch: () => void;
   onDragEnd: (event: DragEndEvent) => void;
 }
 
@@ -92,26 +85,14 @@ export interface ChannelSidebarContainerProps {
 // UI-local state (hub dropdown, whisper panel) that only this component reads.
 export function ChannelSidebarContainer({
   voice, video, whisper, voiceMoveUx, notifyPrefs, hubLifecycle, unreadCounts, onRequestRemoveHub,
-  dms, alliances, presence, screenShare, channelCrud, channelMessages, hubAdmin,
+  dms, alliances, screenShare, channelCrud, channelMessages, hubAdmin,
   view, channels, channelTree, users, publicKey, isAdmin, canCreateInvites,
   canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, canScreenShare, canUseCamera, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
-  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenSettings, onOpenShortcuts, onOpenVoiceSettings, settingsNeedsAttention,
-  onOpenSearch, onDragEnd,
+  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenVoiceSettings,
+  onDragEnd,
 }: ChannelSidebarContainerProps) {
   const { t } = useTranslation();
-  const [accounts, setAccounts] = useState<MenuAccount[]>([]);
-  useEffect(() => {
-    const active = getActiveAccountId();
-    listAccountsOrdered()
-      .then((rs) => setAccounts(rs.map((r) => ({
-        id: r.id,
-        name: r.account_label || formatPubkey(r.canonical_pubkey ?? r.id),
-        active: r.id === active,
-      }))))
-      .catch(() => { /* the menu shows no account list */ });
-  }, []);
-  const me = users.find((u) => u.public_key === publicKey);
   const [hubDropdownOpen, setHubDropdownOpen] = useState(false);
   const [showWhisperPanel, setShowWhisperPanel] = useState(false);
   // Our hub has to sign the grant, so its capability decides whether the
@@ -119,6 +100,7 @@ export function ChannelSidebarContainer({
   // is redeemed — asking every allied hub for its /info on every load would be
   // a request storm for a button almost nobody presses.
   const allianceVoice = activeHubSupports("voice.alliance");
+  const activeHubUrl = hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId)?.hub_url ?? null;
 
   const { selectedChannel, handleSelectChannel, handleSelectAllianceChannel } = channelMessages;
   const { activeHubId, hubs, activeHubTimezone, pingByHub } = hubLifecycle;
@@ -147,6 +129,7 @@ export function ChannelSidebarContainer({
       dmPeerNames={dms.peerNames}
       publicKey={publicKey}
       pingByHub={pingByHub}
+      hubBannerUrl={activeHubUrl && activeHubSupports("hub.landing") ? `${activeHubUrl.replace(/\/+$/, "")}/hub/landing-image` : undefined}
       isAdmin={isAdmin}
       canCreateInvites={canCreateInvites}
       hubNotifyMode={notifyPrefs.hubNotifyMode}
@@ -221,29 +204,12 @@ export function ChannelSidebarContainer({
       onSelectConversation={dms.handleSelectConversation}
       onToggleSelfMute={voice.handleToggleMute}
       onToggleSelfDeafen={voice.handleToggleDeafen}
-      userMenu={{
-        name: me?.display_name || formatPubkey(publicKey ?? ""),
-        publicKey,
-        avatar: me?.avatar,
-        status: presence.myPresence.status,
-        customStatus: presence.myPresence.custom,
-        onSetStatus: presence.handleSetStatus,
-        onSetCustomStatus: presence.handleSetCustomStatus,
-        onOpenSettings,
-        settingsNeedsAttention,
-        accounts,
-        // A refusal (in voice, too soon) is explained on the accounts tab.
-        onSwitchAccount: (id) => { if (switchAccount(id, "settings-account")) onOpenSettings("accounts"); },
-        onAddAccount: () => onOpenSettings("accounts"),
-        onOpenShortcuts,
-      }}
       onDragEnd={onDragEnd}
       voiceGains={voice.voiceGains}
       onSetVoiceGain={voice.handleSetVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
       speaking={voice.voiceActiveUsers}
       hasDraft={hasDraft}
-      onOpenSearch={onOpenSearch}
       canUseSoundboard={canUseSoundboard}
       onListSoundboardClips={listSoundboardClips}
       onTriggerSoundboardClip={voice.handleTriggerSoundboardClip}

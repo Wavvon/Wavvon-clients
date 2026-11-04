@@ -1,4 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useSyncExternalStore } from "react";
+
+const NARROW = "(max-width: 767px)";
+function subscribeNarrow(cb: () => void) {
+  const mq = window.matchMedia(NARROW);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
 import { useTranslation } from "react-i18next";
 
 type Panel = "hub" | "channel" | "content";
@@ -19,11 +26,14 @@ interface MobileShellProps {
  * switches to a single-panel slide model.
  *
  * The children order is expected to be:
- *   [0] HubSidebar, [1] ChannelSidebar, [2] ContentArea
+ *   [0] HubTopBar, [1] ChannelSidebar, [2] ContentArea
  */
 export function MobileShell({ children, onBack }: MobileShellProps) {
   const { t } = useTranslation();
   const [activePanel, setActivePanel] = useState<Panel>("hub");
+  // One copy of the app at a time: two mounted copies meant two of every
+  // control, the hidden one still holding state.
+  const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -70,11 +80,14 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
 
 
       {/* Desktop: pass through normally */}
-      <div className="mobile-shell-desktop">
-        {children}
-      </div>
+      {!narrow && (
+        <div className="mobile-shell-desktop">
+          {children}
+        </div>
+      )}
 
       {/* Mobile: single-panel view */}
+      {narrow && (
       <div
         className="mobile-shell-mobile"
         onTouchStart={onTouchStart}
@@ -111,6 +124,7 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
           {activePanel === "content" && contentChild}
         </div>
       </div>
+      )}
     </>
   );
 }

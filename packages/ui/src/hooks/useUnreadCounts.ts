@@ -22,12 +22,20 @@ export interface UnreadCountsDeps {
   onTotalChange?: (total: number) => void;
 }
 
+/** The latest notification of a hub with unread channels. */
+export interface HubNotice {
+  at: number;
+  mention: boolean;
+}
+
 export interface UnreadCounts {
   unreadByChannel: Record<string, Record<string, boolean>>;
   unreadByHub: Record<string, number>;
+  /** Only hubs that still have unread channels. */
+  noticeByHub: Record<string, HubNotice>;
   unreadDms: Record<string, boolean>;
   setUnreadDms: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  bumpUnread: (hubId: string, channelId: string) => void;
+  bumpUnread: (hubId: string, channelId: string, mention?: boolean) => void;
   clearUnread: (hubId: string, channelId: string) => void;
   clearHubUnread: (hubId: string) => void;
   seedUnreadFromServer: (
@@ -95,13 +103,28 @@ export function useUnreadCounts({
 
   const total = useMemo(() => totalUnread(unreadByHub), [unreadByHub]);
 
+  // In memory only: after a reload the counts come back and the times do not.
+  const [hubNotice, setHubNotice] = useState<Record<string, HubNotice>>({});
+  const unreadByHubRef = useRef(unreadByHub);
+  unreadByHubRef.current = unreadByHub;
+  const noticeByHub = useMemo(
+    () => Object.fromEntries(Object.entries(hubNotice).filter(([h]) => (unreadByHub[h] ?? 0) > 0)),
+    [hubNotice, unreadByHub],
+  );
+
   useEffect(() => {
     document.title = unreadDocumentTitle(total);
     onTotalChange?.(total);
   }, [total, onTotalChange]);
 
-  const bumpUnread = useCallback((hubId: string, channelId: string) => {
+  const bumpUnread = useCallback((hubId: string, channelId: string, mention = false) => {
     setUnreadByChannel((prev) => bumpChannelUnread(prev, hubId, channelId));
+    // A hub read to zero starts over: an old mention does not colour a new message.
+    const fresh = (unreadByHubRef.current[hubId] ?? 0) === 0;
+    setHubNotice((prev) => ({
+      ...prev,
+      [hubId]: { at: Date.now(), mention: mention || (!fresh && !!prev[hubId]?.mention) },
+    }));
   }, []);
 
   const clearUnread = useCallback((hubId: string, channelId: string) => {
@@ -122,6 +145,7 @@ export function useUnreadCounts({
   return {
     unreadByChannel,
     unreadByHub,
+    noticeByHub,
     unreadDms,
     setUnreadDms,
     bumpUnread,

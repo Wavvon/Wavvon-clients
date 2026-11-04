@@ -29,6 +29,8 @@ interface Props {
   onOsPipChunk?: (data: ArrayBuffer) => void;
   onOsPipStop?: () => void;
   onListenOsPipClose?: (onClosed: () => void) => () => void;
+  /** Closes a stream for this viewer (the voice room's "stop watching"). */
+  onStopWatch?: (streamId: string) => void;
 }
 
 interface StreamState {
@@ -49,6 +51,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
       onOsPipChunk,
       onOsPipStop,
       onListenOsPipClose,
+      onStopWatch,
     },
     ref,
   ) => {
@@ -281,6 +284,24 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
           );
           return (
             <div key={sharerPubkey} className="screen-share-main-wrap">
+              <div className="screen-share-tile-actions">
+                <button
+                  type="button"
+                  className="btn-small"
+                  onClick={(e) => { void (e.currentTarget.closest(".screen-share-main-wrap") as HTMLElement | null)?.requestFullscreen?.(); }}
+                >
+                  {t("voice.share.fullscreen")}
+                </button>
+                {onStopWatch && (
+                  <button
+                    type="button"
+                    className="btn-small btn-secondary"
+                    onClick={() => { onStopWatch(mainStream.stream_id); if (webcamStream) onStopWatch(webcamStream.stream_id); }}
+                  >
+                    {t("voice.share.stop_watching")}
+                  </button>
+                )}
+              </div>
               {renderVideo(mainStream, "main-stream")}
               {webcamStream && renderVideo(webcamStream, "webcam-overlay")}
               {pipSupported && (

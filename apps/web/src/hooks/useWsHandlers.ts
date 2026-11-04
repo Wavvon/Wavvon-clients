@@ -23,7 +23,7 @@ export interface UseWsHandlersParams {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setStickToBottom: React.Dispatch<React.SetStateAction<boolean>>;
   setNewWhileScrolledUp: React.Dispatch<React.SetStateAction<number>>;
-  bumpUnread: (hubId: string, channelId: string) => void;
+  bumpUnread: (hubId: string, channelId: string, mention?: boolean) => void;
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   setChannels: React.Dispatch<React.SetStateAction<Channel[]>>;
   setHubs: React.Dispatch<React.SetStateAction<Hub[]>>;
@@ -98,13 +98,14 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         if (isActiveChannel) {
           setMessages((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
           setStickToBottom((stick) => { if (stick) setNewWhileScrolledUp(0); else setNewWhileScrolledUp((n) => n + 1); return stick; });
-        } else if (msgHubId && m.channel_id) {
-          bumpUnread(msgHubId, m.channel_id as string);
         }
         const myName = meInfoRef.current?.display_name ?? null;
         const myPk = publicKeyRef.current;
         const isMention = (myName && mentionsName(msg.content, myName)) ||
           (myPk && msg.content.includes(myPk));
+        if (!isActiveChannel && msgHubId && m.channel_id) {
+          bumpUnread(msgHubId, m.channel_id as string, !!isMention && msg.sender !== myPk);
+        }
         // Read-time notification gate, two independent quiets: "dnd"
         // presence (global) and a "silent" notify mode on this hub or
         // channel (hub mute). Either way unreads still accumulate.
