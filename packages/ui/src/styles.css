@@ -202,7 +202,9 @@ body {
   font-size: var(--text-md);
   background-color: var(--bg);
   color: var(--text);
+  /* dvh: on phones 100vh includes the area under the browser toolbar. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -247,6 +249,7 @@ button:disabled {
 
 #root {
   height: 100vh;
+  height: 100dvh;
 }
 
 .app {
@@ -8088,8 +8091,10 @@ a.embed-title:hover {
    `div` — no rhythm, and with the global `* { margin: 0 }` reset the
    hint ran into the heading above it.
    ============================================================ */
+/* A fixed height, not min-height: the body does not scroll, so a screen
+   taller than the viewport has to scroll inside its own box. */
 .onboarding {
-  min-height: 100vh;
+  height: 100%;
   display: grid;
   place-items: center;
   padding: var(--space-6);
@@ -8150,8 +8155,10 @@ a.embed-title:hover {
   margin-bottom: var(--space-3);
 }
 @media (max-width: 767px) {
+  /* Stacked in a grid of fixed height, the rows shrank and the side panel
+     overflowed upward, out of scroll reach. */
   .onboarding--split {
-    grid-template-columns: 1fr;
+    display: block;
   }
   .onboarding-side {
     min-height: 0;
