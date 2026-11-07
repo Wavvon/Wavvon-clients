@@ -1148,6 +1148,7 @@
   "invites.create.grant_role_none": "Keine Rolle",
   "invites.create.grant_role_title": "Beim Einlösen eine Rolle vergeben",
   "invites.create.max_uses_placeholder": "Maximale Nutzungen (leer = unbegrenzt)",
+  "invites.create.positive_hint": "Maximale Nutzungen und Ablauf müssen ganze Zahlen ab 1 sein. Lass ein Feld leer für kein Limit.",
   "invites.create.submit": "Einladung erstellen",
   "invites.create.title": "Einladung erstellen",
   "invites.default_role.hint": "Wer über eine Einladung ohne ausdrückliche Rolle beitritt, erhält automatisch diese Rolle. Ohne sie haben Neuankömmlinge nur die everyone-Rolle.",

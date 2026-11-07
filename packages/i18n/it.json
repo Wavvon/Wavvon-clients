@@ -1148,6 +1148,7 @@
   "invites.create.grant_role_none": "Nessun ruolo",
   "invites.create.grant_role_title": "Concedi un ruolo al riscatto",
   "invites.create.max_uses_placeholder": "Max utilizzi (vuoto = illimitato)",
+  "invites.create.positive_hint": "Utilizzi massimi e scadenza devono essere numeri interi da 1 in su. Lascia vuoto un campo per non porre limiti.",
   "invites.create.submit": "Crea invito",
   "invites.create.title": "Crea invito",
   "invites.default_role.hint": "Chi entra tramite un invito senza un ruolo esplicito riceve automaticamente questo ruolo. Senza di esso, i nuovi arrivati hanno solo il ruolo everyone.",
