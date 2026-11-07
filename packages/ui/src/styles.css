@@ -8960,3 +8960,11 @@ details.audit-entry > .audit-entry:last-child {
     font-weight: 600;
   }
 }
+
+/* Wording for the primary pointer: keyboard shortcuts, double-click and drag
+   mean nothing on a touch screen, so those hints swap for touch ones there. */
+.hint-coarse { display: none; }
+@media (pointer: coarse) {
+  .hint-fine { display: none !important; }
+  .hint-coarse { display: revert; }
+}

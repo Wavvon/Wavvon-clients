@@ -248,7 +248,7 @@ export function VoiceStage({
       {!inThisRoom && (
         <div className="settings-row voice-room-join">
           <button className="btn-primary" onClick={onJoin}>{t("voice.stage.join")}</button>
-          <span className="muted">{t("voice.stage.join_hint")}</span>
+          <span className="muted hint-fine">{t("voice.stage.join_hint")}</span>
         </div>
       )}
       {inThisRoom && floor && !floor.maySpeak && (
