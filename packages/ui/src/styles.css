@@ -670,6 +670,8 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
   justify-content: center;
 }
 
+.settings-close-x svg { width: 13px; height: 13px; flex-shrink: 0; }
+
 .settings-close-x:hover {
   background: var(--surface);
   color: var(--text);
@@ -8899,6 +8901,28 @@ details.audit-entry > .audit-entry:last-child {
   .user-list-close { display: inline-flex; float: right; }
   .top-bar .user-menu-panel { max-height: calc(100dvh - 60px); }
   .composer-send { padding: 0 var(--space-3); }
+  /* Settings and hub admin: the 240 px nav column left the content about
+     170 px, so titles broke a word per line. The nav becomes a scrolling
+     tab strip above full-width content. !important beats the inline styles
+     SettingsShell sets for its narrower desktop nav. */
+  .settings-page { flex-direction: column; }
+  .settings-nav {
+    width: 100% !important; flex-direction: row !important; align-items: center; flex-shrink: 0;
+    overflow-x: auto; overflow-y: hidden;
+    padding: var(--space-2) !important; border-right: none !important; border-bottom: 1px solid var(--border);
+  }
+  .settings-nav h2, .settings-nav > p, .settings-nav-group { display: none; }
+  .settings-nav ul { display: flex; gap: var(--space-1); }
+  .settings-nav-item { width: auto; white-space: nowrap; }
+  .settings-nav-close { display: none; }
+  .settings-content { padding: var(--space-4) !important; }
+  .settings-close-x { top: var(--space-3); right: var(--space-3); }
+  /* Title keeps a readable width; a wide control drops to its own line. */
+  .setting-row-head { flex-wrap: wrap; padding: var(--space-3) var(--space-4); }
+  .setting-row-id { flex: 1 1 12rem; }
+  .setting-row-control select { min-width: 0; max-width: 100%; }
+  .modal { min-width: 0; max-width: calc(100vw - 2 * var(--space-2)); }
+  .theme-cards { grid-template-columns: 1fr; }
   .mobile-shell-header {
     display: flex;
     align-items: center;
