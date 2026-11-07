@@ -25,6 +25,7 @@ import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
 import { markIdentityBackedUp } from "../../utils/identityBackup";
 import { passphraseStrength, OnboardingFrame, type InvitingHub } from "@wavvon/ui";
+import { onboardingSteps, type SetupStep } from "./onboardingSteps";
 
 export interface IdentitySetupCompletion {
   accountId: string;
@@ -57,7 +58,7 @@ function userClientJoinUrl(): string {
 // by AccountsSwitcherSection).
 export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel }: Props) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile" | "label">("choose");
+  const [step, setStep] = useState<SetupStep>("choose");
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
   const [generatedAccountId, setGeneratedAccountId] = useState("");
@@ -78,6 +79,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [backupError, setBackupError] = useState<string | null>(null);
   const [backupDone, setBackupDone] = useState(false);
   const [invitedToHub, setInvitedToHub] = useState<string | null>(null);
+  const [skippedPhrase, setSkippedPhrase] = useState(false);
   const [invitingHub, setInvitingHub] = useState<InvitingHub | null>(null);
 
   // Someone arriving on an invite link is here because of a place, not
@@ -117,9 +119,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     listAccounts().then((accts) => setExistingAccountCount(accts.length));
   }, []);
 
-  // Invite path: choose, phrase, profile, join. Without one: choose, phrase, profile.
-  const totalSteps = invitingHub || invitedToHub ? 4 : 3;
-  const stepOf = { choose: 1, generated: 2, recover: 2, pair: 2, label: 2, profile: 3 } as const;
+  const { total: totalSteps, stepOf } = onboardingSteps(!!(invitingHub || invitedToHub), step, skippedPhrase);
   const frame = (children: React.ReactNode) => (
     <OnboardingFrame hub={invitingHub} step={variant === "add" ? undefined : stepOf[step]} total={totalSteps}>
       {children}
@@ -299,6 +299,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     const { account } = await resolveOrCreateAccount(seedHex);
     const labelled = { ...account, account_label: suggestedLabel() };
     await saveIdentity(labelled);
+    setSkippedPhrase(true);
     finishWithAccount(labelled.id, false);
   }
 
@@ -566,7 +567,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       <h1>
         {variant === "add"
           ? t("identity_setup.add.title")
-          : invitedToHub
+          // The frame's side panel already names an inviting hub it could preview.
+          : invitedToHub && !invitingHub
             ? t("identity_setup.choose.invited_to", { name: invitedToHub })
             : t("identity_setup.choose.headline")}
       </h1>
