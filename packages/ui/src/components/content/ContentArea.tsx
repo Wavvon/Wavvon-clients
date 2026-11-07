@@ -38,7 +38,7 @@ import type { MessageRowActions } from "./MessageRow";
 import type { StickerActions } from "../stickers/stickerActions";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
-import { CalendarIcon } from "../Icons";
+import { CalendarIcon, CloseIcon } from "../Icons";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import type { AllianceScrollback } from "../../hooks/useAlliances";
@@ -743,6 +743,11 @@ export function ContentArea({
       {/* In a voice room the audience is the member list. */}
       {view === "channels" && !memberSidebarHidden && selectedChannel?.channel_type !== "voice" && (
         <aside className="user-list-sidebar" aria-label={t("member.list.title")}>
+          {/* Narrow screens only: there the list is a sheet over the header
+              button that would otherwise close it. */}
+          <button type="button" className="btn-icon-header user-list-close" onClick={() => onSetMemberSidebarHidden(true)} aria-label={t("content.members.hide")} title={t("content.members.hide")}>
+            <CloseIcon />
+          </button>
           <UserListGrouped
             users={users}
             speaking={voiceActiveUsers}

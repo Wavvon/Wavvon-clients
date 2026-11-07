@@ -278,7 +278,10 @@ export default function App({ initialView }: AppProps = {}) {
     handleInputTextChange,
     handleCloseSearch,
   } = channelMessages;
-  const [memberSidebarHidden, setMemberSidebarHidden] = useState(false);
+  // On a phone the member list is a sheet over the chat: start it closed.
+  const [memberSidebarHidden, setMemberSidebarHidden] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches === true,
+  );
 
   // Reset shared by useHubLifecycle's handleSwitchHub (clearMessages=true) and
   // handleRemoveHub (clearMessages=false). Defined as a function declaration
