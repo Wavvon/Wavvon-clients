@@ -1672,6 +1672,7 @@ function App({ accountId }: { accountId: string | null }) {
               hubNotifyMode={hubNotifyMode}
               lobbyHubIds={lobbyHubIds}
               onSwitchToDms={() => { if (!hasActiveHub) return; setView("dms"); loadConversations(); }}
+              onBackToChannels={() => setView("channels")}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
               onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
               onSetHubNotifyMode={setHubMode}

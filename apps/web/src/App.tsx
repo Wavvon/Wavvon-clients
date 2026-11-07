@@ -1530,6 +1530,7 @@ export default function App({ initialView }: AppProps = {}) {
         hubNotifyMode={hubNotifyMode}
         lobbyHubIds={lobbyHubs}
         onSwitchToDms={() => { if (activeHubId) setView("dms"); }}
+        onBackToChannels={goToChannelsView}
         onSwitchHub={handleSwitchHub}
         onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
         onSetHubNotifyMode={(hubId, mode) =>
