@@ -5518,6 +5518,8 @@ select:focus-visible {
 /* ============================================================
    RIGHT-SIDE USER LIST
    ============================================================ */
+.user-list-close { display: none; }
+
 .user-list-sidebar {
   width: 220px;
   background: var(--bg-elevated);
@@ -8882,6 +8884,21 @@ details.audit-entry > .audit-entry:last-child {
   .mobile-shell-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
   .mobile-shell-panel[hidden] { display: none; }
   .voice-media-bar .voice-media-bar-narrow { display: inline-flex; }
+  /* In a panel the top bar is a header; its desktop flex-basis of 100% made
+     it fill the whole column with its buttons floating in the middle. */
+  .mobile-shell-panel .top-bar { flex: 0 0 auto; }
+  /* The sidebar's resizable desktop width is set inline. */
+  .mobile-shell-panel .sidebar { width: 100% !important; flex: 1; border-right: none; }
+  .mobile-shell-panel .sidebar-resize-handle { display: none; }
+  /* A sheet over the chat instead of a column stacked under it. */
+  .user-list-sidebar {
+    position: fixed; top: 44px; right: 0; bottom: 0; z-index: 200;
+    width: min(300px, 85vw);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+  }
+  .user-list-close { display: inline-flex; float: right; }
+  .top-bar .user-menu-panel { max-height: calc(100dvh - 60px); }
+  .composer-send { padding: 0 var(--space-3); }
   .mobile-shell-header {
     display: flex;
     align-items: center;
