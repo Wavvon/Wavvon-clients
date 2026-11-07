@@ -24,7 +24,7 @@ function render(props: { initialPanel?: "hub" | "channel" | "content"; hubKey?: 
       </MobileShell>,
     );
   });
-  return host.querySelector(".mobile-shell-panel")?.textContent;
+  return host.querySelector(".mobile-shell-panel:not([hidden])")?.textContent;
 }
 
 describe("MobileShell", () => {
@@ -48,6 +48,6 @@ describe("MobileShell", () => {
     render({ initialPanel: "hub" });
     const crumbs = host.querySelectorAll<HTMLButtonElement>(".mobile-shell-crumb");
     act(() => { crumbs[2].click(); });
-    expect(host.querySelector(".mobile-shell-panel")?.textContent).toBe("CONTENT");
+    expect(host.querySelector(".mobile-shell-panel:not([hidden])")?.textContent).toBe("CONTENT");
   });
 });
