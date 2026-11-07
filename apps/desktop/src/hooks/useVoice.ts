@@ -8,6 +8,7 @@ import { listenerScope } from "../utils/listenerScope";
 import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
+import { voiceTransportFailure } from "@wavvon/ui";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -114,6 +115,12 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     const handle = setInterval(tick, 1500);
     const scope = listenerScope();
     scope.add(listen("voice-roster-update", () => { if (!cancelled) tick(); }));
+    scope.add(listen<{ url: string; elapsed_ms: number; detail: string }>("voice-transport-failed", (e) => {
+      if (cancelled) return;
+      console.warn("[voice]", e.payload.detail);
+      const { key, params } = voiceTransportFailure(e.payload.url, e.payload.elapsed_ms);
+      setError(i18n.t(key, params));
+    }));
     scope.add(listen<{ channel_id: string; public_keys: string[] }>("voice-hands", (e) => {
       if (!cancelled) setVoiceHands({ channelId: e.payload.channel_id, keys: e.payload.public_keys });
     }));
@@ -410,8 +417,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       voiceVisitIdRef.current = null;
       setError(
         String(e) === "owner_hub_no_alliance_voice"
-          ? "Voice: that hub does not support voice in alliance channels yet"
-          : "Voice: " + String(e),
+          ? i18n.t("voice.error.alliance_unsupported")
+          : i18n.t("voice.error.join_refused", { reason: String(e) }),
       );
       return null;
     }

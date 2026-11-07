@@ -11,6 +11,7 @@ import { INITIAL_CAPTURE_STATS, type CaptureStats } from './captureFraming';
 import { downmixChannels } from './soundboardMix';
 import captureWorkletUrl from './captureWorklet?worker&url';
 import type { FromWorker, ToWorker } from './voiceEncodeWorker';
+import { VoiceTransportError } from './voiceErrors';
 
 export { mixClipIntoFrame, downmixChannels, type ActiveClip } from './soundboardMix';
 
@@ -306,8 +307,11 @@ export class VoiceWtSession {
             this.captureNode!.port.postMessage({ pcmPort: port1 }, [port1]);
             resolve();
             break;
+          case 'failed':
+            if (!ready) reject(new VoiceTransportError(url, msg.name, msg.message, msg.elapsedMs));
+            break;
           case 'closed':
-            if (!ready) reject(new Error('Voice transport closed before it was ready'));
+            if (!ready) reject(new VoiceTransportError(url, 'closed', '', 0));
             else if (!this.closed) this.handlers.onClose();
             break;
           case 'datagram':
