@@ -33,6 +33,16 @@ interface Props {
   onStopWatch?: (streamId: string) => void;
 }
 
+type MediaSourceCtor = typeof MediaSource;
+
+/** The MSE constructor this browser offers. iPhone Safari has no
+ *  `MediaSource`, only `ManagedMediaSource` (iOS 17.1+); calling the missing
+ *  one threw inside an effect and took the whole app down with it. */
+export function pickMediaSource(scope: object = globalThis): MediaSourceCtor | null {
+  const g = scope as { MediaSource?: MediaSourceCtor; ManagedMediaSource?: MediaSourceCtor };
+  return g.MediaSource ?? g.ManagedMediaSource ?? null;
+}
+
 interface StreamState {
   mediaSource: MediaSource;
   sourceBuffer: SourceBuffer | null;
@@ -65,6 +75,10 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     const osPipOpenRef = useRef(false);
     const osPipStreamId = useRef<string | null>(null);
     const unlistenOsPipClose = useRef<(() => void) | null>(null);
+    const MediaSourceImpl = pickMediaSource();
+    // attachStream fills a ref; this re-renders so a WebRTC stream replaces
+    // the "can't play" notice on a browser without MSE.
+    const [, setRtcVersion] = useState(0);
 
     const osPipSupported = !!onOpenOsPipWindow && !!onCloseOsPipWindow;
     const pipSupported =
@@ -169,6 +183,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
 
       attachStream(streamId, stream) {
         webrtcStreams.current.set(streamId, stream);
+        setRtcVersion((v) => v + 1);
         const el = videoRefs.current.get(streamId);
         if (el) {
           el.srcObject = stream;
@@ -192,8 +207,9 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
 
       for (const stream of streams) {
         if (streamStates.current.has(stream.stream_id)) continue;
+        if (!MediaSourceImpl) continue;
 
-        const ms = new MediaSource();
+        const ms = new MediaSourceImpl();
         const objectUrl = URL.createObjectURL(ms);
         const state: StreamState = {
           mediaSource: ms,
@@ -206,7 +222,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
 
         ms.addEventListener("sourceopen", () => {
           try {
-            const mimeType = MediaSource.isTypeSupported(stream.mime)
+            const mimeType = MediaSourceImpl.isTypeSupported(stream.mime)
               ? stream.mime
               : "video/webm";
             const sb = ms.addSourceBuffer(mimeType);
@@ -224,7 +240,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
           videoEl.play().catch(() => {});
         }
       }
-    }, [streams]);
+    }, [streams, MediaSourceImpl]);
 
     // Apply the selected audio output device to all video elements whenever it changes.
     useEffect(() => {
@@ -251,6 +267,13 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     const sharers = [...sharerMap.entries()];
 
     function renderVideo(stream: ActiveStream, className: string) {
+      if (!MediaSourceImpl && !webrtcStreams.current.has(stream.stream_id)) {
+        return (
+          <p key={stream.stream_id} className={`muted ${className}`}>
+            {t("voice.share.unsupported")}
+          </p>
+        );
+      }
       return (
         <video
           key={stream.stream_id}
@@ -258,6 +281,9 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
           autoPlay
           muted
           playsInline
+          // ManagedMediaSource plays only when remote playback (AirPlay) is
+          // off or explicitly wired up; a screen share has no use for it.
+          disableRemotePlayback
           ref={(el) => {
             videoRefs.current.set(stream.stream_id, el);
             if (el) {
@@ -304,7 +330,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
               </div>
               {renderVideo(mainStream, "main-stream")}
               {webcamStream && renderVideo(webcamStream, "webcam-overlay")}
-              {pipSupported && (
+              {pipSupported && (MediaSourceImpl || webrtcStreams.current.has(mainStream.stream_id)) && (
                 <button
                   className="pip-btn"
                   title={pipStreamId === mainStream.stream_id ? t("voice.share.pip_exit") : t("voice.share.pip_enter")}
