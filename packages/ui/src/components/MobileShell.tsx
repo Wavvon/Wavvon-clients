@@ -133,12 +133,12 @@ export function MobileShell({ children, onBack, initialPanel = "hub", hubKey, co
           </div>
         </div>
 
-        {/* Active panel */}
-        <div className="mobile-shell-panel">
-          {activePanel === "hub" && hubChild}
-          {activePanel === "channel" && channelChild}
-          {activePanel === "content" && contentChild}
-        </div>
+        {/* Every panel stays mounted and only the active one shows: the channel
+            sidebar owns the voice controls and portals the media bar into the
+            stage, so unmounting it left a call with no mute and no hang-up. */}
+        <div className="mobile-shell-panel" hidden={activePanel !== "hub"}>{hubChild}</div>
+        <div className="mobile-shell-panel" hidden={activePanel !== "channel"}>{channelChild}</div>
+        <div className="mobile-shell-panel" hidden={activePanel !== "content"}>{contentChild}</div>
       </div>
       )}
     </>

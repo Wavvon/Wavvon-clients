@@ -2650,6 +2650,8 @@ tr.account-drop-target td {
 .voice-room-controls {
   margin-left: auto;
 }
+.voice-media-bar .voice-media-bar-narrow { display: none; }
+
 .voice-media-bar {
   display: flex;
   gap: var(--space-1);
@@ -8878,6 +8880,8 @@ details.audit-entry > .audit-entry:last-child {
   .mobile-shell-desktop { display: none !important; }
   .mobile-shell-mobile { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow: hidden; }
   .mobile-shell-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .mobile-shell-panel[hidden] { display: none; }
+  .voice-media-bar .voice-media-bar-narrow { display: inline-flex; }
   .mobile-shell-header {
     display: flex;
     align-items: center;
