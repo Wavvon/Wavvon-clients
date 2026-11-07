@@ -1515,6 +1515,12 @@ export default function App({ initialView }: AppProps = {}) {
         showChannelSidebar
         showContent
         onBack={() => {}}
+        // No hub yet: the join screen is in the content panel. The hub build
+        // has a single hub, so start on its channels rather than on a list
+        // of one.
+        initialPanel={!activeHubId ? "content" : MULTI_HUB ? "hub" : "channel"}
+        hubKey={activeHubId}
+        contentKey={sidebarView === "dms" ? selectedConversation?.id ?? null : selectedChannel?.id ?? null}
       >
       <HubTopBar
         hubs={hubs}
