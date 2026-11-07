@@ -20,6 +20,7 @@ import type {
 import { UserListGrouped } from "../users/UserListGrouped";
 import { UserProfileCard, type UserProfileCardActions } from "../users/UserProfileCard";
 import { ScreenShareViewer, type ScreenShareViewerRef } from "../ScreenShareViewer";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { AllianceView } from "./AllianceView";
 import type { PendingFilesState } from "../../hooks/usePendingFiles";
 import type { AlliancePeopleActions } from "./AlliancePeoplePanel";
@@ -569,16 +570,20 @@ export function ContentArea({
               </div>
               <VoiceStage {...voiceStage}>
                 {activeScreenShares.length > 0 && screenShareViewerRef && (
-                  <ScreenShareViewer ref={screenShareViewerRef} streams={activeScreenShares} onStopWatch={voiceStage.live?.onClose} />
+                  <ErrorBoundary fallback={<p className="muted">{t("error.generic")}</p>}>
+                    <ScreenShareViewer ref={screenShareViewerRef} streams={activeScreenShares} onStopWatch={voiceStage.live?.onClose} />
+                  </ErrorBoundary>
                 )}
               </VoiceStage>
               </>
             ) : (<>
             {activeScreenShares.length > 0 && screenShareViewerRef && (
-              <ScreenShareViewer
-                ref={screenShareViewerRef}
-                streams={activeScreenShares}
-              />
+              <ErrorBoundary fallback={<p className="muted">{t("error.generic")}</p>}>
+                <ScreenShareViewer
+                  ref={screenShareViewerRef}
+                  streams={activeScreenShares}
+                />
+              </ErrorBoundary>
             )}
 
             {eventsPresentation === "tabs" ? (

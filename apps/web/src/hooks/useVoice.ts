@@ -4,6 +4,7 @@ import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundbo
 import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
 import { playVoiceTone } from "@wavvon/core";
+import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
 import { getScoped, setScoped } from "../utils/accountScope";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
@@ -375,6 +376,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // module-level functions. Never read non-ref state/props here.
   async function handleVoiceJoin(targetChannelId: string) {
     if (voiceChannelIdRef.current === targetChannelId) return;
+    if (!voiceTransportAvailable()) { showHubError(i18n.t("voice.error.unsupported_browser")); return; }
     if (joiningVoiceRef.current === targetChannelId) return;
     joiningVoiceRef.current = targetChannelId;
     teardownCurrentVoice();
@@ -407,6 +409,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     confirmJoin: (ownerHubUrl: string, channelName: string) => boolean | Promise<boolean>,
   ) {
     if (voiceChannelIdRef.current === channelId) return;
+    if (!voiceTransportAvailable()) { showHubError(i18n.t("voice.error.unsupported_browser")); return; }
     try {
       const minted = await mintAllianceVoiceGrant(allianceId, channelId);
       if (!(await confirmJoin(minted.owner_hub_url, minted.channel_name))) return;
@@ -692,4 +695,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     onVoiceKeyReceived,
     onVoiceKeyRequest,
   };
+}
+
+/** Voice rides WebTransport, which Safari and iOS have only from 26.4. Checked
+ *  before voice_join so an older browser gets a sentence instead of a worker
+ *  that dies on a missing constructor. */
+export function voiceTransportAvailable(): boolean {
+  return typeof (globalThis as { WebTransport?: unknown }).WebTransport === "function";
 }
