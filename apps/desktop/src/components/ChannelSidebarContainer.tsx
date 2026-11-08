@@ -1,4 +1,4 @@
-import { useHubCapabilities } from "../hooks/useHubCapabilities";
+import { useHubInfo } from "../hooks/useHubCapabilities";
 import type React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Dispatch, SetStateAction } from "react";
@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { ChannelSidebar, useConfirm } from "@wavvon/ui";
 import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind, UnreadCounts } from "@wavvon/ui";
-import { formatPubkey, type TreeNode } from "@wavvon/core";
+import { formatPubkey, hubBannerUrl, type TreeNode } from "@wavvon/core";
 import { hasDraft } from "../utils/drafts";
 import type {
   Channel,
@@ -115,7 +115,7 @@ export function ChannelSidebarContainer({
   // Offered only where our own hub can mint the grant; the owning hub's half
   // is checked at join time, by name.
   const activeHubUrl = hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId)?.hub_url ?? null;
-  const caps = useHubCapabilities(activeHubUrl);
+  const { capabilities: caps, landing } = useHubInfo(activeHubUrl);
   const allianceVoice = caps.includes("voice.alliance");
   const voiceChannelsOnly = caps.includes("channels.voice");
   // Separate grants only where the hub says so; elsewhere voice.join covers both.
@@ -145,7 +145,7 @@ export function ChannelSidebarContainer({
       users={users}
       publicKey={publicKey}
       pingByHub={hubLifecycle.pingByHub}
-      hubBannerUrl={activeHubUrl && caps.includes("hub.landing") ? `${activeHubUrl.replace(/\/+$/, "")}/hub/landing-image` : undefined}
+      hubBannerUrl={hubBannerUrl(activeHubUrl, caps.includes("hub.landing"), landing)}
       isAdmin={isAdmin}
       canOpenChannelSettings={canOpenChannelSettings}
       canCreateInvites={canCreateInvites}

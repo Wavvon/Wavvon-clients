@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  hubBannerUrl,
   formatDayLabel,
   formatRelative,
   formatDate,
@@ -142,5 +143,16 @@ describe("formatDate / formatTime follow the app language", () => {
     setFormatLocale("en");
     expect(formatTime(new Date(when * 1000), { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })).toBe("12:00");
     expect(formatDateTime(when, { timeZone: "UTC", dateStyle: "short", timeStyle: "short" })).toContain("12:00");
+  });
+});
+
+describe("hubBannerUrl", () => {
+  it("asks only for an image the hub says exists", () => {
+    expect(hubBannerUrl("https://h.example/", true, { image: "/hub/landing-image" })).toBe("https://h.example/hub/landing-image");
+    expect(hubBannerUrl("https://h.example", true, {})).toBeUndefined();
+    expect(hubBannerUrl("https://h.example", false, { image: "/x" })).toBeUndefined();
+  });
+  it("falls back to asking a hub that predates the field", () => {
+    expect(hubBannerUrl("https://h.example", true, undefined)).toBe("https://h.example/hub/landing-image");
   });
 });

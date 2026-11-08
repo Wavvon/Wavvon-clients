@@ -203,3 +203,24 @@ export function formatRelativeSigned(unixSec: number): RelativeTimeResult | null
   const diff = now - toUnixSec(unixSec);
   return { future: diff < 0, duration: formatDurationMagnitude(Math.abs(diff)) };
 }
+
+/** The hub's landing look as `/info` reports it; `image` only when one is set. */
+export interface HubLanding {
+  image?: string;
+  colors?: [string, string];
+}
+
+/** The banner image to load for a hub, if any. A hub that reports `landing`
+ *  says whether an image exists, so the client asks only when one does; an
+ *  older hub that advertises `hub.landing` without the field is asked
+ *  anyway, as before. */
+export function hubBannerUrl(
+  hubUrl: string | null,
+  supportsLanding: boolean,
+  landing: HubLanding | undefined,
+): string | undefined {
+  if (!hubUrl || !supportsLanding) return undefined;
+  const base = hubUrl.replace(/\/+$/, "");
+  if (landing === undefined) return `${base}/hub/landing-image`;
+  return landing.image ? `${base}${landing.image}` : undefined;
+}
