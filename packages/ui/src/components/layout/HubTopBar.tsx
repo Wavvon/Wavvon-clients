@@ -238,7 +238,7 @@ export function HubTopBar(p: HubTopBarProps) {
       <button type="button" className="top-bar-search" onClick={p.onOpenSearch} aria-keyshortcuts="Control+K">
         <SearchIcon size={14} />
         <span>{t("hubs.search")}</span>
-        <kbd>Ctrl K</kbd>
+        <kbd className="hint-fine">Ctrl K</kbd>
       </button>
       <UserMenu {...p.userMenu} />
 

@@ -150,10 +150,13 @@ export function ChannelMessageList({
                 </p>
                 <ul className="channel-empty-tips">
                   {/* eslint-disable react/no-danger -- our own i18n catalogs, which ship in the bundle; the markup is the <strong>/<em> in the translated sentence. */}
-                  <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_voice") }} />
-                  <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_drag") }} />
+                  {/* hint-fine / hint-coarse: CSS picks mouse-and-keyboard or touch wording. */}
+                  <li className="hint-fine" dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_voice") }} />
+                  <li className="hint-coarse" dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_voice_touch") }} />
+                  <li className="hint-fine" dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_drag") }} />
+                  <li className="hint-coarse" dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_attach_touch") }} />
                   <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_mentions") }} />
-                  <li dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_jump") }} />
+                  <li className="hint-fine" dangerouslySetInnerHTML={{ __html: t("channel.empty.tip_jump") }} />
                   {/* eslint-enable react/no-danger */}
                 </ul>
               </>
