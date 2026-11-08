@@ -11,6 +11,7 @@ import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadIdentity } from "../identity/store";
 import { resolveDmSendAttribution } from "../platform/commands/dms";
 import { VoiceWtSession, type AudioProfileConfig } from "../platform/voice";
+import { voiceErrorMessage, VOICE_JOIN_TIMEOUT } from "../platform/voiceErrors";
 import type { HubWebSocket } from "../platform/ws";
 import {
   mintAllianceVoiceGrant,
@@ -360,7 +361,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       setTimeout(() => {
         if (pendingVoiceJoinRef.current) {
           pendingVoiceJoinRef.current = null;
-          reject(new Error("Voice join timed out"));
+          reject(new Error(VOICE_JOIN_TIMEOUT));
         }
       }, VOICE_JOIN_TIMEOUT_MS);
     });
@@ -389,7 +390,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
         try { return activeSession().ws; } catch { return null; }
       });
     } catch (e) {
-      showHubError("Voice: " + String(e));
+      showHubError(voiceErrorMessage(e));
     } finally {
       if (joiningVoiceRef.current === targetChannelId) joiningVoiceRef.current = null;
     }
@@ -438,10 +439,10 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     } catch (e) {
       closeVoiceVisit();
       if (e instanceof OwnerHubUnsupportedError) {
-        showHubError("Voice: that hub does not support voice in alliance channels yet");
+        showHubError(i18n.t("voice.error.alliance_unsupported"));
         return;
       }
-      showHubError("Voice: " + (e instanceof HubApiError ? e.message : String(e)));
+      showHubError(voiceErrorMessage(e));
     }
   }
 

@@ -155,10 +155,21 @@ pub(crate) async fn spawn_ws_task(
                                             let connect_url = voice_wt_url.clone();
                                             let connect_token = voice_token.clone();
                                             let connect_cert_hash = voice_cert_hash.clone();
+                                            let failed_app = app.clone();
                                             tokio::spawn(async move {
+                                                let started = std::time::Instant::now();
                                                 match wavvon_voice::transport::VoiceTransport::connect(&connect_url, &connect_token, connect_cert_hash.as_deref()).await {
                                                     Ok(t) => *transport_arc.write().await = Some(std::sync::Arc::new(t)),
-                                                    Err(e) => tracing::error!("voice WT connect failed: {e}"),
+                                                    Err(e) => {
+                                                        tracing::error!("voice WT connect failed: {e}");
+                                                        // Only logged before, so the room looked joined and stayed
+                                                        // silent. The UI words it the same way the web client does.
+                                                        let _ = failed_app.emit("voice-transport-failed", serde_json::json!({
+                                                            "url": connect_url,
+                                                            "elapsed_ms": started.elapsed().as_millis() as u64,
+                                                            "detail": e.to_string(),
+                                                        }));
+                                                    }
                                                 }
                                             });
 

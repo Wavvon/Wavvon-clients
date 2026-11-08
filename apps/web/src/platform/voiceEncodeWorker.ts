@@ -37,6 +37,10 @@ export type ToWorker =
 export type FromWorker =
   | { type: 'ready' }
   | { type: 'closed' }
+  // The transport never became ready: why, and after how long. A browser
+  // cannot tell "UDP blocked" from "server down", but the time it took
+  // separates a handshake that timed out from one that was refused.
+  | { type: 'failed'; name: string; message: string; elapsedMs: number }
   | { type: 'datagram'; data: Uint8Array }
   | { type: 'speaking'; speaking: boolean }
   | { type: 'gate'; warning: boolean }
@@ -189,14 +193,27 @@ async function openTransport(url: string, certHash: Uint8Array | null): Promise<
     // generic BufferSource needs.
     ? { serverCertificateHashes: [{ algorithm: 'sha-256', value: new Uint8Array(certHash) }] }
     : undefined;
+  const started = performance.now();
   const wt = new WebTransport(url, options);
   transport = wt;
-  wt.closed.then(() => scope.postMessage({ type: 'closed' }), () => scope.postMessage({ type: 'closed' }));
+  let isReady = false;
+  // Before ready, `failed` below reports the outcome; `closed` is only the
+  // end of a session that was up.
+  const onClosed = () => { if (isReady) scope.postMessage({ type: 'closed' }); };
+  wt.closed.then(onClosed, onClosed);
   try {
     await wt.ready;
-  } catch {
+  } catch (err) {
+    const e = err as { name?: string; message?: string } | null;
+    scope.postMessage({
+      type: 'failed',
+      name: e?.name ?? 'Error',
+      message: e?.message ?? String(err),
+      elapsedMs: Math.round(performance.now() - started),
+    });
     return;
   }
+  isReady = true;
   writer = wt.datagrams.writable.getWriter();
   scope.postMessage({ type: 'ready' });
   const reader = wt.datagrams.readable.getReader();
