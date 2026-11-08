@@ -44,11 +44,13 @@ export type VoiceMoveDecision =
  *  as-is — the local channel list may not contain the destination (a
  *  voice-only-presence target has no read access to it), so callers must
  *  never look the name up locally. */
-export function decideVoiceMove(m: VoiceMovePush): VoiceMoveDecision {
+export function decideVoiceMove(m: VoiceMovePush, inVoice: boolean): VoiceMoveDecision {
   if (!m.target_channel_id) return { kind: "ignore" };
   const targetChannelName = m.target_channel_name ?? "?";
   const sourceChannelId = m.source_channel_id ?? null;
-  return m.auto
+  // `auto` moves someone who is already talking. Honoured for anyone else, it
+  // let a hub join a user to voice, and on desktop open the mic, unasked.
+  return m.auto && inVoice
     ? { kind: "auto", targetChannelId: m.target_channel_id, targetChannelName, sourceChannelId }
     : { kind: "prompt", targetChannelId: m.target_channel_id, targetChannelName, sourceChannelId };
 }

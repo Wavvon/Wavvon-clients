@@ -495,7 +495,7 @@ export default function App({ initialView }: AppProps = {}) {
     publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef: voiceExtRef,
   });
   const video = useVideo({ voiceChannelId: voice.voiceChannelId, showHubError, publicKeyRef });
-  const voiceMoveUx = useVoiceMoveUx({ joinVoice: voice.handleVoiceJoin });
+  const voiceMoveUx = useVoiceMoveUx({ joinVoice: voice.handleVoiceJoin, isInVoice: voice.isInOrJoiningVoice });
   const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
   voiceExtRef.current = {
     createVideoSession: video.createVideoSession,
