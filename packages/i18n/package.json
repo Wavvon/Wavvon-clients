@@ -17,6 +17,6 @@
     "baseline-unused-keys": "node find-unused-keys.mjs --baseline"
   },
   "devDependencies": {
-    "intl-messageformat": "^11.2.8"
+    "intl-messageformat": "^11.2.15"
   }
 }
