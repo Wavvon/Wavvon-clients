@@ -1,3 +1,4 @@
+import { noteAppJoin } from "@wavvon/core";
 import { hubFetch } from "../http";
 import { activeSession } from "../session";
 import type { WebhookInfo, WebhookCreatedResult } from "@wavvon/ui";
@@ -69,6 +70,7 @@ export async function listAppCommands(): Promise<
 export function sendAppJoin(appId: string, channelId: string): void {
   const { ws } = activeSession();
   if (ws) {
+    noteAppJoin(appId);
     ws.send({ type: "app_join", app_id: appId, channel_id: channelId });
   }
 }

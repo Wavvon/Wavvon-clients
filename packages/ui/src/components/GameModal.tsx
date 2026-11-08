@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { miniAppHost } from "@wavvon/core";
 import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 
 interface Props {
@@ -63,7 +64,9 @@ export function GameModal({
     <div className="game-modal-overlay" role="dialog" aria-modal="true" aria-label={title}>
       <div className="game-modal">
         <div className="game-modal-titlebar">
-          <span className="game-modal-title">{title}</span>
+          <span className="game-modal-title">
+            {title} <span className="muted">{miniAppHost(miniAppUrl)}</span>
+          </span>
           <button className="game-modal-close" onClick={onClose} aria-label={t("modal.close")}>
             &#x2715;
           </button>
@@ -71,7 +74,8 @@ export function GameModal({
         <iframe
           ref={iframeRef}
           src={miniAppUrl}
-          sandbox={`allow-scripts allow-same-origin allow-forms${requiresCamera ? " allow-camera" : ""}`}
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          allow={requiresCamera ? "camera" : undefined}
           className="game-modal-frame"
           title={title}
         />

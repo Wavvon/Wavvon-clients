@@ -57,7 +57,7 @@ import {
   descendantIds,
   computeDepth,
 } from "@wavvon/core";
-import { parseHubInput, classifyHubRefusal, type HubRefusal } from "@wavvon/core";
+import { parseHubInput, classifyHubRefusal, noteAppJoin, takeAppJoin, type HubRefusal } from "@wavvon/core";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts } from "@wavvon/ui";
 import { unreadPersistence } from "./unreadPersistence";
@@ -588,6 +588,7 @@ function App({ accountId }: { accountId: string | null }) {
 
   function sendAppJoin(appId: string, channelId: string) {
     if (!activeHubId) return;
+    noteAppJoin(appId);
     invoke("send_hub_ws_raw", {
       payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
     }).catch(() => {});
@@ -847,6 +848,7 @@ function App({ accountId }: { accountId: string | null }) {
       });
     },
     onBotAppOpen: (ev: AppOpenEvent, hubUrl: string) => {
+      if (!takeAppJoin(ev.app_id)) return;
       const label = `mini-app-${ev.app_id}`;
       invoke("open_mini_app", {
         label,
