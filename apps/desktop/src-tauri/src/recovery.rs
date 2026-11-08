@@ -269,10 +269,22 @@ pub(crate) async fn attest_rotation_request(
     let base = hub_url.trim_end_matches('/');
     let bundle = fetch_rotation_bundle(&state, base, &id).await?;
 
+    // Sign the key of the hub we authenticated to, never the one the
+    // hub-supplied request carries: trusting that field let a hostile hub
+    // collect a vouch that verifies on another hub.
+    let known = state
+        .hubs
+        .lock()
+        .map_err(|e| e.to_string())?
+        .values()
+        .find(|h| h.hub_url.trim_end_matches('/') == base)
+        .map(|h| h.hub_id.clone());
+    let hub_pubkey = vouch_hub_key(known.as_deref(), &bundle.hub_pubkey)?;
+
     let identity = active_recovery_identity()?;
     let attester = identity.public_key_hex();
     let bytes = crate::identity::recovery_attestation_signing_bytes(
-        &bundle.hub_pubkey,
+        &hub_pubkey,
         &bundle.old_pubkey,
         &bundle.new_pubkey,
         &bundle.nonce,
@@ -290,4 +302,27 @@ pub(crate) async fn attest_rotation_request(
         return Err(resp.text().await.unwrap_or_default());
     }
     Ok(())
+}
+
+/// The hub key a vouch signs; refuses a request naming a different hub.
+fn vouch_hub_key(known: Option<&str>, requested: &str) -> Result<String, String> {
+    let known = known.ok_or("Not connected to this hub: cannot vouch for a request on it")?;
+    if !known.eq_ignore_ascii_case(requested) {
+        return Err(
+            "This recovery request names a different hub than the one it came from".to_string(),
+        );
+    }
+    Ok(known.to_string())
+}
+
+#[cfg(test)]
+mod vouch_tests {
+    use super::vouch_hub_key;
+
+    #[test]
+    fn a_vouch_signs_the_connected_hub_and_refuses_another() {
+        assert_eq!(vouch_hub_key(Some("ab"), "AB").unwrap(), "ab");
+        assert!(vouch_hub_key(Some("ab"), "cd").is_err());
+        assert!(vouch_hub_key(None, "ab").is_err());
+    }
 }
