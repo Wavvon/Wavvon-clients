@@ -74,7 +74,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
   const [claimStep, setClaimStep] = useState<ClaimStep>("pasting");
   const [pollInfo, setPollInfo] = useState<{
     homeHubUrl: string; pairingToken: string;
-    subkeyPubkey: string; subkeySecretHex: string;
+    subkeyPubkey: string;
     masterPubkey: string; homeHubs: string[];
   } | null>(null);
   const [claimError, setClaimError] = useState("");
@@ -205,7 +205,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
       });
       const result = await invoke<{
         home_hub_url: string; master_pubkey: string;
-        subkey_pubkey: string; subkey_secret_hex: string;
+        subkey_pubkey: string;
         pairing_token: string; home_hubs: string[];
       }>("claim_pairing_offer", { offer, deviceLabel: label });
 
@@ -213,14 +213,12 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
         homeHubUrl: result.home_hub_url,
         pairingToken: result.pairing_token,
         subkeyPubkey: result.subkey_pubkey,
-        subkeySecretHex: result.subkey_secret_hex,
         masterPubkey: result.master_pubkey,
         homeHubs: result.home_hubs,
       });
       setClaimStep("waiting");
       startClaimPoll(result.home_hub_url, result.pairing_token, {
         subkeyPubkey: result.subkey_pubkey,
-        subkeySecretHex: result.subkey_secret_hex,
         masterPubkey: result.master_pubkey,
         homeHubs: result.home_hubs,
         deviceLabel: label,
@@ -235,7 +233,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
     hubUrl: string,
     token: string,
     saved: {
-      subkeyPubkey: string; subkeySecretHex: string;
+      subkeyPubkey: string;
       masterPubkey: string; homeHubs: string[]; deviceLabel: string;
     }
   ) {
@@ -251,7 +249,6 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
           const result = await invoke<SyncResult>("save_paired_identity", {
             masterPubkey: saved.masterPubkey,
             subkeyPubkey: saved.subkeyPubkey,
-            subkeySecretHex: saved.subkeySecretHex,
             deviceLabel: saved.deviceLabel,
             cert: status.cert,
             homeHubs: saved.homeHubs,
