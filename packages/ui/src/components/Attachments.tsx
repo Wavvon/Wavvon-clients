@@ -1,6 +1,6 @@
 import type { Attachment, AttachmentRef } from "../types";
 import { isAttachmentRef } from "../utils/attachments";
-import { StoredAttachment } from "./StoredAttachment";
+import { DownloadLink, StoredAttachment } from "./StoredAttachment";
 import { useTranslation } from "react-i18next";
 import { CloseIcon } from "./Icons";
 
@@ -70,16 +70,7 @@ export function MessageAttachments({
             </button>
           );
         }
-        return (
-          <a
-            key={a.name}
-            href={url}
-            download={a.name}
-            className="message-attachment-file"
-          >
-            📄 {a.name}
-          </a>
-        );
+        return <DownloadLink key={a.name} href={url} name={a.name} />;
       })}
     </div>
   );
