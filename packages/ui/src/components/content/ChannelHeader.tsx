@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { channelPath } from "@wavvon/core";
 import type { Channel } from "@wavvon/core";
 import type { Message } from "../../types";
-import { PinIcon, SearchIcon, MembersIcon, ScreenShareIcon } from "../Icons";
+import { PinIcon, SearchIcon, MembersIcon, ScreenShareIcon, ChannelIcon } from "../Icons";
 
 interface Props {
   selectedChannel: Channel;
@@ -67,11 +67,12 @@ export function ChannelHeader({
                   <span className="channel-breadcrumb-sep" aria-hidden="true">›</span>
                 </React.Fragment>
               ))}
-              <span className="channel-breadcrumb-item current"># {selectedChannel.name}</span>
+              <span className="channel-breadcrumb-item current"><ChannelIcon icon={selectedChannel.icon ?? null} customIconSvg={selectedChannel.custom_icon_svg ?? null} channelType={selectedChannel.channel_type} /> {selectedChannel.name}</span>
             </nav>
           )}
           <h3>
-            # {selectedChannel.name}
+            {/* The sidebar's icon for this channel's type, not a "#" for every kind. */}
+            <ChannelIcon icon={selectedChannel.icon ?? null} customIconSvg={selectedChannel.custom_icon_svg ?? null} channelType={selectedChannel.channel_type} /> {selectedChannel.name}
             {selectedChannel.nsfw && (
               <span className="channel-temp-badge" style={{ marginLeft: 8 }} title={t("channel.sidebar.nsfw_badge")}>NSFW</span>
             )}
