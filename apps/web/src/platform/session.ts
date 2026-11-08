@@ -1,3 +1,4 @@
+import type { HubLanding } from "@wavvon/core";
 import { loadSavedHubs } from "./storage";
 import type { HubRefusal } from "@wavvon/core";
 import type { HubWebSocket } from "./ws";
@@ -24,6 +25,8 @@ export interface HubSession {
   capabilities?: string[];
   /** This hub's version string. Display only; gate on `capabilities`. */
   hub_version?: string;
+  /** `landing` from `/info`; undefined when the hub is too old to send it. */
+  landing?: HubLanding;
   /**
    * The pubkey this hub seated us as. Per hub, not per account: a hub that
    * knew this device before certificates keeps its key, a newer hub (and any
@@ -127,6 +130,11 @@ export function activeHubSupports(capability: string): boolean {
 }
 
 /** `hubCapabilities` for the active hub; null when there is no active hub. */
+/** The active hub's `landing` as `/info` reported it. */
+export function activeHubLanding(): HubLanding | undefined {
+  return activeHubId ? sessions.get(activeHubId)?.landing : undefined;
+}
+
 export function activeHubCapabilities(): string[] | null {
   return activeHubId ? hubCapabilities(activeHubId) : null;
 }

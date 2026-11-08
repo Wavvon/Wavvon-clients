@@ -23,7 +23,7 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { publicKeyHex, rotationAppliesTo, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
+import { publicKeyHex, rotationAppliesTo, type HubLanding, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import type { Survey } from "@wavvon/ui";
 import { probeSessionScope } from "./lobby";
@@ -44,6 +44,7 @@ interface InfoResponse {
    * is renamed; the client follows it, keyed on the pubkey that doesn't. */
   canonical_url?: string | null;
   farm_url?: string | null;
+  landing?: HubLanding;
   /** "off", "click", "puzzle" or "both": a join needs a solved challenge first. */
   challenge_mode?: string | null;
   welcome_label?: string | null;
@@ -245,6 +246,7 @@ export async function addHub(
     scope,
     capabilities: info.capabilities ?? [],
     hub_version: info.version,
+    landing: info.landing,
     canonical_pubkey: canonical,
   };
   setSession(info.public_key, session);
@@ -372,6 +374,7 @@ export async function refreshHubInfo(
       hub_icon: info.icon,
       capabilities,
       hub_version: info.version,
+      landing: info.landing,
     });
     updateSavedHub(hub_id, info.name, info.icon);
     saveHubCapabilities(hub_id, capabilities, info.version);
