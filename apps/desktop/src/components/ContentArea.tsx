@@ -1,3 +1,4 @@
+import { noteAppJoin } from "@wavvon/core";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useConnectionStats } from "../hooks/useConnectionStats";
@@ -243,6 +244,7 @@ export function ContentArea(props: Props) {
     pinMessage: (channelId, messageId) => invoke("pin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
     unpinMessage: (channelId, messageId) => invoke("unpin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
     sendAppJoin: (appId, channelId) => {
+      noteAppJoin(appId);
       invoke("send_hub_ws_raw", {
         payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
       }).catch(() => {});

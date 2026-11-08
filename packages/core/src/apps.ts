@@ -23,3 +23,30 @@ export function parseGameLaunchCard(raw: unknown): GameLaunchCard | null {
     thumbnail_url: typeof r.thumbnail_url === "string" ? r.thumbnail_url : null,
   };
 }
+
+// A hub answers the user's own `app_join` with `app_open`. An `app_open`
+// nobody asked for would open a page the hub chose, full-window, so it is
+// honoured only for an app this client joined in the last minute.
+const APP_JOIN_WINDOW_MS = 60_000;
+const appJoins = new Map<string, number>();
+
+export function noteAppJoin(appId: string, now: number = Date.now()): void {
+  appJoins.set(appId, now);
+}
+
+/** True once per join, and only within the window. */
+export function takeAppJoin(appId: string, now: number = Date.now()): boolean {
+  const at = appJoins.get(appId);
+  appJoins.delete(appId);
+  return at !== undefined && now - at <= APP_JOIN_WINDOW_MS;
+}
+
+/** The host a mini-app URL points at, shown so the user can see where the
+ *  page comes from. */
+export function miniAppHost(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
+}
