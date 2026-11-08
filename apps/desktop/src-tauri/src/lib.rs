@@ -53,6 +53,17 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // The main window shows the app and nothing else. Without this, a link
+        // a hub put in a message could turn the whole window into the hub's own
+        // page, with no address bar to tell the user they left Wavvon. Other
+        // windows (mini-apps, the stream pop-out) keep their own rules.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("main-window-navigation")
+                .on_navigation(|webview, url| {
+                    webview.label() != "main" || is_app_url(url)
+                })
+                .build(),
+        )
         .setup(|app| {
             app.manage(AppState {
                 hubs: Default::default(),
@@ -566,5 +577,31 @@ mod tests {
         let old: LocalProfile = serde_json::from_str(r#"{}"#).unwrap();
         assert!(old.default_profile.is_none());
         assert!(old.theme.is_none());
+    }
+}
+
+/// The app's own pages: the bundled frontend, or the Vite dev server in a
+/// debug build.
+fn is_app_url(url: &tauri::Url) -> bool {
+    match (url.scheme(), url.host_str()) {
+        ("tauri", _) => true,
+        ("http" | "https", Some("tauri.localhost")) => true,
+        ("http", Some("localhost")) => cfg!(debug_assertions) && url.port() == Some(1420),
+        ("about", _) => true,
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod navigation_tests {
+    use super::is_app_url;
+
+    #[test]
+    fn only_the_app_itself_is_navigable_in_the_main_window() {
+        let ok = |s: &str| is_app_url(&s.parse().unwrap());
+        assert!(ok("tauri://localhost/index.html"));
+        assert!(ok("http://tauri.localhost/"));
+        assert!(!ok("https://evil.example/recover"));
+        assert!(!ok("https://hub.example/attachments/x"));
     }
 }

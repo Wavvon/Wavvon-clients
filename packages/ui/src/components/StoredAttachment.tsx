@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { AttachmentRef } from "../types";
-import { needsDownloadWarning } from "../utils/attachments";
+import { needsDownloadWarning, sameOriginAttachmentUrl } from "../utils/attachments";
 import { useConfirm } from "./ConfirmDialog";
 
 export function StoredAttachment({
@@ -20,7 +20,13 @@ export function StoredAttachment({
   if (a.state === "expired") {
     return <span className="message-attachment-file muted">{t("attachment.expired", { name: a.name })}</span>;
   }
-  const url = `${hubUrl}${a.url}`;
+  // The hub names the path; it must not name the host. A url like
+  // "@evil.example/x" glued onto the hub address used to send the click (and
+  // on desktop the whole window) to a page the hub chose.
+  const url = sameOriginAttachmentUrl(hubUrl, a.url);
+  if (!url) {
+    return <span className="message-attachment-file muted">{t("attachment.removed", { name: a.name })}</span>;
+  }
   if (a.kind === "image") {
     return (
       <button
@@ -44,6 +50,8 @@ export function StoredAttachment({
       <a
         href={url}
         download={a.name}
+        target="_blank"
+        rel="noopener noreferrer"
         className="message-attachment-file"
         onClick={async (e) => {
           if (!needsDownloadWarning(a.name)) return;
@@ -58,6 +66,8 @@ export function StoredAttachment({
           const link = document.createElement("a");
           link.href = url;
           link.download = a.name;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
           link.click();
         }}
       >
