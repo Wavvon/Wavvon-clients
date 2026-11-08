@@ -1148,6 +1148,7 @@
   "invites.create.grant_role_none": "No role",
   "invites.create.grant_role_title": "Grant a role on redemption",
   "invites.create.max_uses_placeholder": "Max uses (blank = unlimited)",
+  "invites.create.positive_hint": "Max uses and expiry must be whole numbers from 1 up. Leave a field blank for no limit.",
   "invites.create.submit": "Create invite",
   "invites.create.title": "Create invite",
   "invites.default_role.hint": "Members who join through an invite with no explicit role get this role automatically. Without it, newcomers only have the everyone role.",

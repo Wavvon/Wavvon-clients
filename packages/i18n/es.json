@@ -1148,6 +1148,7 @@
   "invites.create.grant_role_none": "Sin rol",
   "invites.create.grant_role_title": "Conceder un rol al canjear",
   "invites.create.max_uses_placeholder": "Usos máximos (en blanco = sin límite)",
+  "invites.create.positive_hint": "Los usos máximos y la caducidad deben ser números enteros desde 1. Deja un campo vacío para no poner límite.",
   "invites.create.submit": "Crear invitación",
   "invites.create.title": "Crear invitación",
   "invites.default_role.hint": "Quien se una mediante una invitación sin un rol explícito recibe este rol automáticamente. Sin él, los recién llegados solo tienen el rol everyone.",
