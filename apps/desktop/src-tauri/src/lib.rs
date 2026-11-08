@@ -59,9 +59,7 @@ pub fn run() {
         // windows (mini-apps, the stream pop-out) keep their own rules.
         .plugin(
             tauri::plugin::Builder::<tauri::Wry>::new("main-window-navigation")
-                .on_navigation(|webview, url| {
-                    webview.label() != "main" || is_app_url(url)
-                })
+                .on_navigation(|webview, url| webview.label() != "main" || is_app_url(url))
                 .build(),
         )
         .setup(|app| {
