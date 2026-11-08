@@ -508,7 +508,6 @@
   "handover.move.label": "Zum offiziellen Client wechseln",
   "handover.move.passkey_warning": "Deine Wiederherstellungsphrase und deine Backup-Datei funktionieren dort. Ein Passkey nicht: Er gehört zu diesem Hub und funktioniert nur unter dieser Adresse, im Nutzer-Client gibt es also gar keine Passkeys — deiner bleibt gültig, wann immer du den Hub hier öffnest.",
   "hub.add_modal.connect": "Hub beitreten",
-  "hub.add_modal.fingerprint_match": "Die Hub-Identität stimmt mit dem Fingerabdruck der Einladung überein.",
   "hub.add_modal.fingerprint_mismatch": "Der Fingerabdruck stimmt nicht mit der Einladung überein — möglicherweise wurde die Verbindung abgefangen. Nicht beitreten.",
   "hub.add_modal.intro": "Füge eine Hub-Adresse oder einen <code>wavvon://</code>-Einladungslink ein.",
   "hub.add_modal.or_divider": "oder",

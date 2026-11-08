@@ -21,6 +21,15 @@ function sameHub(a: string, b: string): boolean {
   return a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
 }
 
+/** Where the picker loads a saved sticker from. Its origin was named by the hub
+ *  it was saved on, and the entry syncs to every device, so an origin the user
+ *  has not joined could be any host at all: ask the current hub instead, which
+ *  serves stickers by hash. */
+export function savedStickerSrc(entry: SavedSticker, currentHubUrl: string, joinedHubUrls: string[]): string {
+  const trusted = joinedHubUrls.some((u) => sameHub(u, entry.origin_hub_url));
+  return stickerSrc(trusted ? entry.origin_hub_url : currentHubUrl, entry.sha256);
+}
+
 /** The entry "Save to my collection" records. A sticker with no origin is one
  *  of the reading hub's own pack stickers, so that hub is the origin. */
 export function savedEntryFor(

@@ -321,10 +321,14 @@ pub struct ClaimPairingResult {
     pub home_hub_url: String,
     pub master_pubkey: String,
     pub subkey_pubkey: String,
-    pub subkey_secret_hex: String,
     pub pairing_token: String,
     pub home_hubs: Vec<String>,
 }
+
+/// The subkey secret of a claim in flight, held here between
+/// `claim_pairing_offer` and `save_paired_identity` so it never crosses into
+/// the webview.
+static PENDING_SUBKEY: std::sync::Mutex<Option<(String, String)>> = std::sync::Mutex::new(None);
 
 /// N side — parse a QR payload back into a PairingOffer and verify
 /// the master signature. Surfaces a helpful error if the QR is junk
@@ -380,11 +384,12 @@ pub async fn claim_pairing_offer(
         let endpoint = format!("{}/identity/pairing/claim", url.trim_end_matches('/'));
         match client.post(&endpoint).json(&claim).send().await {
             Ok(resp) if resp.status().is_success() => {
+                *PENDING_SUBKEY.lock().map_err(|e| e.to_string())? =
+                    Some((subkey_pubkey.clone(), subkey_secret_hex));
                 return Ok(ClaimPairingResult {
                     home_hub_url: url.clone(),
                     master_pubkey: offer.master_pubkey,
                     subkey_pubkey,
-                    subkey_secret_hex,
                     pairing_token: offer.pairing_token,
                     home_hubs: offer.home_hubs,
                 });
@@ -417,13 +422,16 @@ pub async fn claim_pairing_offer(
 pub async fn save_paired_identity(
     master_pubkey: String,
     subkey_pubkey: String,
-    subkey_secret_hex: String,
     device_label: String,
     cert: SubkeyCert,
     home_hubs: Vec<String>,
     wrapped_blob_key_hex: String,
     wrapped_dh_seed_hex: Option<String>,
 ) -> Result<SyncResult, String> {
+    let subkey_secret_hex = match PENDING_SUBKEY.lock().map_err(|e| e.to_string())?.take() {
+        Some((pubkey, secret)) if pubkey == subkey_pubkey => secret,
+        _ => return Err("no pairing claim in progress for this subkey".to_string()),
+    };
     cert.verify().map_err(|e| format!("cert signature: {e}"))?;
     if cert.master_pubkey != master_pubkey {
         return Err("cert master_pubkey doesn't match expected".to_string());
@@ -530,9 +538,28 @@ pub struct SyncResult {
     pub error: Option<String>,
 }
 
-/// Read the locally-stored paired identity, if any.
+/// What the settings screen shows about a paired identity. The device secret
+/// and the DM key stay on the Rust side.
+#[derive(serde::Serialize)]
+pub struct PairedIdentityInfo {
+    master_pubkey: String,
+    subkey_pubkey: String,
+    device_label: String,
+    home_hubs: Vec<String>,
+}
+
 #[tauri::command]
-pub fn get_paired_identity() -> Option<PairedIdentity> {
+pub fn get_paired_identity() -> Option<PairedIdentityInfo> {
+    load_paired_identity().map(|p| PairedIdentityInfo {
+        master_pubkey: p.master_pubkey,
+        subkey_pubkey: p.subkey_pubkey,
+        device_label: p.device_label,
+        home_hubs: p.home_hubs,
+    })
+}
+
+/// Read the locally-stored paired identity, if any.
+pub fn load_paired_identity() -> Option<PairedIdentity> {
     let path = paired_identity_path().ok()?;
     if !path.exists() {
         return None;
@@ -546,7 +573,7 @@ pub fn get_paired_identity() -> Option<PairedIdentity> {
 /// device — and on accounts paired before the field existed, which keep the
 /// pre-Mechanism-A behaviour of no working E2E rather than a wrong key.
 pub fn canonical_dh_scalar() -> Option<[u8; 32]> {
-    let hex_str = get_paired_identity()?.canonical_dh_scalar_hex?;
+    let hex_str = load_paired_identity()?.canonical_dh_scalar_hex?;
     let bytes = hex::decode(hex_str).ok()?;
     bytes.try_into().ok()
 }

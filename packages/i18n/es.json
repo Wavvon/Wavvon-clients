@@ -508,7 +508,6 @@
   "handover.move.label": "Pasar al cliente oficial",
   "handover.move.passkey_warning": "Tu frase de recuperación y tu archivo de copia de seguridad funcionan allí. Una passkey no: pertenece a este hub y solo funciona en esta dirección, así que el cliente de usuario no tiene passkeys — la tuya sigue siendo válida siempre que abras el hub aquí.",
   "hub.add_modal.connect": "Unirse al hub",
-  "hub.add_modal.fingerprint_match": "La identidad del hub coincide con la huella de la invitación.",
   "hub.add_modal.fingerprint_mismatch": "La huella no coincide con la invitación — posible interceptación. No te unas.",
   "hub.add_modal.intro": "Pega una dirección de hub o un enlace de invitación <code>wavvon://</code>.",
   "hub.add_modal.or_divider": "o",

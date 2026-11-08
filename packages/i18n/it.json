@@ -508,7 +508,6 @@
   "handover.move.label": "Passa al client ufficiale",
   "handover.move.passkey_warning": "La tua frase di recupero e il file di backup funzionano lì. Una passkey no: appartiene a questo hub e funziona solo su questo indirizzo, quindi nel client utente le passkey non esistono — la tua resta valida ogni volta che apri l'hub da qui.",
   "hub.add_modal.connect": "Entra nell’hub",
-  "hub.add_modal.fingerprint_match": "L'identità dell'hub corrisponde all'impronta dell'invito.",
   "hub.add_modal.fingerprint_mismatch": "L'impronta non corrisponde all'invito — possibile intercettazione. Non partecipare.",
   "hub.add_modal.intro": "Incolla un indirizzo hub o un link di invito <code>wavvon://</code>.",
   "hub.add_modal.or_divider": "oppure",

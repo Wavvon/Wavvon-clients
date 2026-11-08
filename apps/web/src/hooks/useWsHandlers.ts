@@ -5,7 +5,7 @@ import {
   refreshHubInfo, listHubs, fetchVoiceRoster, fetchAllUsers,
 } from "@platform";
 import type { WsHandlers } from "@platform";
-import { mentionsName, playMentionPing } from "@wavvon/core";
+import { mentionsName, playMentionPing, takeAppJoin } from "@wavvon/core";
 import type { Channel, Message, User, Hub, MeInfo, VoiceParticipant, NotifyMode } from "@shared/types";
 import type { AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
@@ -348,6 +348,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         });
       } else if (type === "app_open") {
         const ev = m as unknown as AppOpenEvent;
+        if (!takeAppJoin(ev.app_id)) return;
         const hubUrl = hubsRef.current.find((h) => h.hub_id === activeHubIdRef.current)?.hub_url ?? "";
         setActiveOpenApp({ event: ev, hubUrl });
       } else if (type === "app_close") {

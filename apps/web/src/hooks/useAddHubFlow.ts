@@ -44,7 +44,6 @@ export function useAddHubFlow({
   // carried a `?fp=`/`#fp=` fingerprint, so handleAddHub* can TOFU-verify it
   // against /info before joining.
   const [expectedFingerprint, setExpectedFingerprint] = useState<string | undefined>(undefined);
-  const [fingerprintMatch, setFingerprintMatch] = useState(false);
   const [showAddHub, setShowAddHub] = useState(false);
   // Set while the hub's admission challenge is open; solving it re-runs the join.
   const [admissionChallenge, setAdmissionChallenge] = useState<{ hubUrl: string; pubkey: string } | null>(null);
@@ -73,7 +72,6 @@ export function useAddHubFlow({
     setHubUrl(p?.hubUrl ?? v);
     if (p?.inviteCode) setInviteCode(p.inviteCode);
     setExpectedFingerprint(p?.fingerprint);
-    setFingerprintMatch(false);
     setHubPreview({ state: "idle" });
     setAddHubError(null);
     if (p?.target) {
@@ -112,7 +110,6 @@ export function useAddHubFlow({
         setAddHubError(t("hub.add_modal.fingerprint_mismatch"));
         return;
       }
-      if (expectedFingerprint) setFingerprintMatch(true);
       // A hub that asks joiners to apply shows its questions first, so this
       // is the moment to turn back, before any seat exists (join-forms.md).
       // A challenge token means the joiner already went past it.
@@ -158,7 +155,6 @@ export function useAddHubFlow({
         setAddHubError(t("hub.add_modal.fingerprint_mismatch"));
         return;
       }
-      if (expectedFingerprint) setFingerprintMatch(true);
       const token = await authenticateWithPasskey(hubUrl, publicKey);
       const hub = await addHub(hubUrl, stableHandlers, {
         invite_code: inviteCode || undefined,
@@ -191,7 +187,6 @@ export function useAddHubFlow({
     addingHub,
     addHubError, setAddHubError,
     expectedFingerprint,
-    fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
     admissionChallenge, setAdmissionChallenge,
     applicationPreview, setApplicationPreview,

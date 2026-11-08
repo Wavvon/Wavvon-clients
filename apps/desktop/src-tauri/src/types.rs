@@ -693,6 +693,8 @@ pub(crate) enum WsServerMessage {
         channel_id: String,
         mini_app_url: String,
         session_token: String,
+        #[serde(default)]
+        requires_camera: bool,
     },
     #[serde(rename = "app_close")]
     AppClose { app_id: String, channel_id: String },

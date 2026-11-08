@@ -128,7 +128,7 @@ describe("refreshHubInfo following a renamed hub", () => {
 
   it("adopts the new address and keeps the same hub_id", async () => {
     connectAt(OLD_URL);
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       infoResponse({ canonical_url: NEW_URL }),
     );
 
@@ -138,6 +138,30 @@ describe("refreshHubInfo following a renamed hub", () => {
     expect(loadSavedHubs()[0].hub_id).toBe(HUB_ID);
     // Subsequent calls must go to the new address, or the follow was cosmetic.
     expect(listHubs()[0].hub_url).toBe(NEW_URL);
+  });
+
+  it("refuses an address where a hub with another key answers", async () => {
+    connectAt(OLD_URL);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).startsWith(NEW_URL)
+        ? infoResponse({ public_key: "someone-else" })
+        : infoResponse({ canonical_url: NEW_URL }),
+    );
+
+    await refreshHubInfo(HUB_ID);
+    expect(loadSavedHubs()[0].hub_url).toBe(OLD_URL);
+    expect(listHubs()[0].hub_url).toBe(OLD_URL);
+  });
+
+  it("refuses an address that does not answer", async () => {
+    connectAt(OLD_URL);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).startsWith(NEW_URL)) throw new TypeError("network");
+      return infoResponse({ canonical_url: NEW_URL });
+    });
+
+    await refreshHubInfo(HUB_ID);
+    expect(loadSavedHubs()[0].hub_url).toBe(OLD_URL);
   });
 
   it("leaves the address alone when the hub reports the same one", async () => {
