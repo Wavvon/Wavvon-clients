@@ -93,7 +93,9 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
       error={error}
       onJoin={() => handleJoin()}
       onBrowse={onBrowse}
-      homeHubHint={initialHubUrl}
+      // The hub build already names its hub twice (the locked field and the
+      // preview card). Elsewhere, name the hub, not the invite link it came in.
+      homeHubHint={MULTI_HUB && initialHubUrl ? (parseHubInput(initialHubUrl)?.hubUrl ?? initialHubUrl) : undefined}
       hubUrlLocked={!MULTI_HUB}
     />
     {/* After the screen, which would otherwise paint over it. */}
