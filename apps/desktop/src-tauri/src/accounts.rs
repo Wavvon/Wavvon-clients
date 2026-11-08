@@ -200,13 +200,27 @@ fn list_accounts_in(base: &Path) -> Vec<AccountSummary> {
 /// account exists by the time it's ever invoked from the running app. Erring
 /// here (rather than silently minting an identity) also keeps this function
 /// side-effect-free when called from tests that don't go through the UI.
+/// An account directory holds DM ratchet state, DM plaintexts and a paired
+/// device's secret, so on Unix only its owner may enter it. Applied on every
+/// lookup, which also closes up a directory an older build created open.
+fn create_private_dir(dir: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("mkdir: {e}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| format!("chmod: {e}"))?;
+    }
+    Ok(())
+}
+
 fn active_account_dir_in(base: &Path) -> Result<PathBuf, String> {
     let mut reg = load_registry_in(base);
 
     if let Some(id) = reg.active_id.clone() {
         if reg.accounts.iter().any(|a| a.id == id) {
             let dir = account_dir_in(base, &id);
-            std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir: {e}"))?;
+            create_private_dir(&dir)?;
             return Ok(dir);
         }
     }
@@ -216,7 +230,7 @@ fn active_account_dir_in(base: &Path) -> Result<PathBuf, String> {
         reg.active_id = Some(id.clone());
         save_registry_in(base, &reg)?;
         let dir = account_dir_in(base, &id);
-        std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir: {e}"))?;
+        create_private_dir(&dir)?;
         return Ok(dir);
     }
 
@@ -626,6 +640,19 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_account_dir_is_closed_to_other_users_even_if_created_open() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = TempBase::new("private");
+        let dir = base.0.join("acct");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+        create_private_dir(&dir).unwrap();
+        let mode = std::fs::metadata(&dir).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
     }
 
     #[test]
