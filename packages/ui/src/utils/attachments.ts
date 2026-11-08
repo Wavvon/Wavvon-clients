@@ -29,3 +29,17 @@ export function readFileAsB64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/** `path` resolved against the hub, or null when it would leave the hub's
+ *  origin. The hub supplies only the path of a stored attachment. */
+export function sameOriginAttachmentUrl(hubUrl: string, path: string): string | null {
+  try {
+    const base = new URL(hubUrl);
+    // Concatenate like the server expects (a hub can live under /hub/<slug>),
+    // then check where the result actually points.
+    const resolved = new URL(`${hubUrl}${path}`);
+    return resolved.origin === base.origin ? resolved.href : null;
+  } catch {
+    return null;
+  }
+}
