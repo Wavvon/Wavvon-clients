@@ -3,6 +3,7 @@ import {
   stickerErrorKey,
   parseHubError,
   savedEntryFor,
+  savedStickerSrc,
   needsExternal,
   withSaved,
   withoutSaved,
@@ -79,5 +80,16 @@ describe("safeOriginHref", () => {
     expect(safeOriginHref("https://a.example")).toBe("https://a.example/");
     expect(safeOriginHref("javascript:alert(1)")).toBeNull();
     expect(safeOriginHref(null)).toBeNull();
+  });
+});
+
+describe("savedStickerSrc", () => {
+  const entry = { sha256: "ab", name: "wave", origin_hub_url: "https://a.example", origin_hub_name: "A", saved_at: 1 };
+  it("loads from the origin only when the user joined it", () => {
+    expect(savedStickerSrc(entry, "https://here.example", ["https://a.example/"])).toBe("https://a.example/stickers/ab");
+  });
+  it("asks the current hub for an origin the user never joined", () => {
+    expect(savedStickerSrc({ ...entry, origin_hub_url: "https://tracker.example" }, "https://here.example", ["https://a.example"]))
+      .toBe("https://here.example/stickers/ab");
   });
 });

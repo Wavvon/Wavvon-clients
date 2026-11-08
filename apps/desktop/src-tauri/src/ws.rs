@@ -576,7 +576,7 @@ pub(crate) async fn spawn_ws_task(
                                             "channel_id": channel_id,
                                         }));
                                     }
-                                    WsServerMessage::AppOpen { app_id, channel_id, mini_app_url, session_token } => {
+                                    WsServerMessage::AppOpen { app_id, channel_id, mini_app_url, session_token, requires_camera } => {
                                         let _ = app.emit("app-open", serde_json::json!({
                                             "hub_id": hub_id_for_task,
                                             "type": "app_open",
@@ -584,6 +584,7 @@ pub(crate) async fn spawn_ws_task(
                                             "channel_id": channel_id,
                                             "mini_app_url": mini_app_url,
                                             "session_token": session_token,
+                                            "requires_camera": requires_camera,
                                         }));
                                     }
                                     WsServerMessage::AppClose { app_id, channel_id } => {

@@ -17,7 +17,7 @@ describe("generateAvatarDataUrl", () => {
   it("returns a self-contained SVG data URL with no external references", () => {
     const url = generateAvatarDataUrl("seed-123");
     expect(url.startsWith("data:image/svg+xml;base64,")).toBe(true);
-    const svg = Buffer.from(url.split(",")[1], "base64").toString("utf-8");
+    const svg = atob(url.split(",")[1]);
     expect(svg).toContain("<svg");
     expect(svg).not.toContain("<image");
     expect(svg.toLowerCase()).not.toContain("dicebear");
