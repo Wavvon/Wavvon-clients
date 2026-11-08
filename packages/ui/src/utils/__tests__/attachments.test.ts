@@ -7,6 +7,11 @@ describe("needsDownloadWarning", () => {
     expect(needsDownloadWarning("logo.svg")).toBe(true);
     expect(needsDownloadWarning("archive.tar.sh")).toBe(true);
     expect(needsDownloadWarning("invoice.html")).toBe(true);
+    expect(needsDownloadWarning("setup.exe.")).toBe(true);
+    expect(needsDownloadWarning("setup.exe . ")).toBe(true);
+    expect(needsDownloadWarning("addin.XLL")).toBe(true);
+    expect(needsDownloadWarning("disk.vhdx")).toBe(true);
+    expect(needsDownloadWarning("app.appref-ms")).toBe(true);
   });
 
   it("leaves ordinary files alone", () => {

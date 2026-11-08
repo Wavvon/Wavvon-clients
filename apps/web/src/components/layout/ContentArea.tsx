@@ -206,6 +206,7 @@ export function ContentArea(props: Props) {
   const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
   const stickerActions = useStickers({
     hub: hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId),
+    joinedHubs: hubLifecycle.hubs,
     supported: activeHubSupports("stickers"),
     canManagePacks: hasPerm("stickers.packs.manage"),
     canUseExternal: hasPerm("stickers.external"),

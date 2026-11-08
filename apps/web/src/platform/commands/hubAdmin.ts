@@ -1,5 +1,5 @@
 import { hubFetch, rawFetch } from "../http";
-import { activeHubCapabilities, activeSession } from "../session";
+import { activeHubCapabilities, activeSession, allSessions } from "../session";
 import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
 import type { MemberAdminInfo } from "@wavvon/ui";
 import type {
@@ -209,6 +209,18 @@ export async function getRotationRequestBundle(hubUrl: string, id: string): Prom
   return r.json() as Promise<RecoveryRequestBundle>;
 }
 
+/** The hub key a vouch signs: the key of the hub this client authenticated
+ *  to, never the one the request carries. The request is hub-supplied, so
+ *  trusting its field let a hostile hub collect a vouch that verifies on
+ *  another hub. A request naming a different hub is refused outright. */
+export function vouchHubKey(knownHubKey: string | undefined, requestHubKey: string): string {
+  if (!knownHubKey) throw new Error("Not connected to this hub: cannot vouch for a request on it");
+  if (knownHubKey.toLowerCase() !== requestHubKey.toLowerCase()) {
+    throw new Error("This recovery request names a different hub than the one it came from");
+  }
+  return knownHubKey;
+}
+
 /** Signs the bundle as this device's active identity (the attesting contact)
  *  and submits it. Crypto stays client-side but never leaves this function —
  *  callers only ever see the fetched bundle, never raw key material. */
@@ -217,9 +229,14 @@ export async function attestRotationRequest(hubUrl: string, bundle: RecoveryRequ
   if (!identity) throw new Error("No local identity");
   const contactSeed = identity.seed_hex;
   const attester = publicKeyHex(identity.seed_hex);
+  const base = hubUrl.replace(/\/$/, "");
+  const hubPubkey = vouchHubKey(
+    allSessions().find((s) => s.hub_url.replace(/\/$/, "") === base)?.hub_pubkey,
+    bundle.hub_pubkey,
+  );
   const signature = signRecoveryAttestation(
     contactSeed,
-    bundle.hub_pubkey,
+    hubPubkey,
     bundle.old_pubkey,
     bundle.new_pubkey,
     bundle.nonce,
