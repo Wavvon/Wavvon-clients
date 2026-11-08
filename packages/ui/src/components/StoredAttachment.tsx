@@ -13,7 +13,6 @@ export function StoredAttachment({
   onImageClick?: (url: string, alt: string) => void;
 }) {
   const { t } = useTranslation();
-  const { confirm, dialog } = useConfirm();
   if (a.state === "removed") {
     return <span className="message-attachment-file muted">{t("attachment.removed", { name: a.name })}</span>;
   }
@@ -45,33 +44,43 @@ export function StoredAttachment({
       </button>
     );
   }
+  return <DownloadLink href={url} name={a.name} newTab />;
+}
+
+/** A file link that asks before saving a type that can run on open. Shared by
+ *  stored attachments and the inline ones of an encrypted DM, whose name and
+ *  bytes are both the sender's choice. */
+export function DownloadLink({ href, name, newTab }: { href: string; name: string; newTab?: boolean }) {
+  const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
+  const target = newTab ? "_blank" : undefined;
   return (
     <>
       <a
-        href={url}
-        download={a.name}
-        target="_blank"
+        href={href}
+        download={name}
+        target={target}
         rel="noopener noreferrer"
         className="message-attachment-file"
         onClick={async (e) => {
-          if (!needsDownloadWarning(a.name)) return;
+          if (!needsDownloadWarning(name)) return;
           e.preventDefault();
           const ok = await confirm({
-            title: t("attachment.download_title", { name: a.name }),
+            title: t("attachment.download_title", { name }),
             body: t("attachment.download_warning"),
             confirmLabel: t("attachment.download_confirm"),
             danger: true,
           });
           if (!ok) return;
           const link = document.createElement("a");
-          link.href = url;
-          link.download = a.name;
-          link.target = "_blank";
+          link.href = href;
+          link.download = name;
+          if (target) link.target = target;
           link.rel = "noopener noreferrer";
           link.click();
         }}
       >
-        📄 {a.name}
+        📄 {name}
       </a>
       {dialog}
     </>
