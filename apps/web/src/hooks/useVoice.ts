@@ -670,6 +670,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
 
   return {
     voiceChannelId,
+    isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,
     selfDeafened,

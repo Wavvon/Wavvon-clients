@@ -13,6 +13,10 @@ export interface VoiceMoveUxDeps {
   // so a stale-captured onVoiceMovePush (frozen WS handler registries) still
   // calls the current implementation.
   joinVoice: (channelId: string) => void | Promise<void>;
+  /** Whether the user is in voice, or joining it, at the moment a push
+   *  arrives. A getter over refs: a pending event assignment is pushed right
+   *  after a join, before React state for that join has rendered. */
+  isInVoice: () => boolean;
 }
 
 // Receiver + mover UX around voice_move pushes (events.md §7.1/§7.2):
@@ -21,9 +25,11 @@ export interface VoiceMoveUxDeps {
 // overrides the sidebar's local-channel-list lookup for the voice HUD
 // label (the move target may not be in the local channel list, §7.4).
 // Sending the move itself is platform transport and stays in the app.
-export function useVoiceMoveUx({ joinVoice }: VoiceMoveUxDeps) {
+export function useVoiceMoveUx({ joinVoice, isInVoice }: VoiceMoveUxDeps) {
   const joinVoiceRef = useRef(joinVoice);
   joinVoiceRef.current = joinVoice;
+  const isInVoiceRef = useRef(isInVoice);
+  isInVoiceRef.current = isInVoice;
 
   const [voiceMoveMenu, setVoiceMoveMenu] = useState<VoiceMoveMenuState | null>(null);
   const [voiceChannelNameHint, setVoiceChannelNameHint] = useState<string | null>(null);
@@ -76,7 +82,7 @@ export function useVoiceMoveUx({ joinVoice }: VoiceMoveUxDeps) {
 
   // Plug into the app's WS handler registry, after any hub-id filtering.
   function onVoiceMovePush(raw: unknown) {
-    const decision = decideVoiceMove(raw as Parameters<typeof decideVoiceMove>[0]);
+    const decision = decideVoiceMove(raw as Parameters<typeof decideVoiceMove>[0], isInVoiceRef.current());
     if (decision.kind === "ignore") return;
     if (decision.kind === "auto") {
       setVoiceChannelNameHint(decision.targetChannelName);

@@ -681,7 +681,7 @@ function App({ accountId }: { accountId: string | null }) {
     handleAcceptVoiceMove,
     handleDeclineVoiceMove,
     onVoiceMovePush,
-  } = useVoiceMoveUx({ joinVoice: (id) => void voice.handleVoiceJoin(id) });
+  } = useVoiceMoveUx({ joinVoice: (id) => void voice.handleVoiceJoin(id), isInVoice: voice.isInOrJoiningVoice });
 
   // Web's useVoice clears this on voice-leave (extRef.clearVoiceChannelNameHint);
   // desktop's hook has no ext-callback hook, so the call site clears it directly.
