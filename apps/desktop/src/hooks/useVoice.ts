@@ -71,6 +71,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   // The channel a join is under way for: a repeated click must not send a
   // second `voice_join`, which makes the hub drop the first join's token.
   const joiningVoiceRef = useRef<string | null>(null);
+  // Current on every render, for handlers that outlive the render they came from.
+  const voiceChannelIdRef = useRef(voiceChannelId);
+  voiceChannelIdRef.current = voiceChannelId;
 
   const [voiceGains, setVoiceGainsState] = useState<Record<string, number>>(() => {
     try {
@@ -534,6 +537,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
 
   return {
     voiceChannelId,
+    isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,
     selfDeafened,
