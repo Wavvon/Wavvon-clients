@@ -176,7 +176,7 @@ pub fn get_home_hub_list() -> Option<HomeHubList> {
 /// Best-effort by design — a hub too old to serve designations, or simply
 /// unreachable, must not fail a join.
 pub(crate) async fn ensure_designation(hub_url: &str, client: &reqwest::Client) {
-    if crate::pairing::get_paired_identity().is_some() {
+    if crate::pairing::load_paired_identity().is_some() {
         return;
     }
     if read_cached_designation().is_some() {

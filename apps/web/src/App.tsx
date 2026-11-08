@@ -982,7 +982,6 @@ export default function App({ initialView }: AppProps = {}) {
     hubPreview, setHubPreview,
     addingHub,
     addHubError, setAddHubError,
-    fingerprintMatch, setFingerprintMatch,
     showAddHub, setShowAddHub,
     admissionChallenge, setAdmissionChallenge,
     applicationPreview, setApplicationPreview,
@@ -1766,7 +1765,6 @@ export default function App({ initialView }: AppProps = {}) {
         editDescValue={editDescValue}
         effectiveNotifyMode={effectiveNotifyMode}
         eventComposerChannelId={eventComposerChannelId}
-        fingerprintMatch={fingerprintMatch}
         handleAddHub={handleAddHub}
         handleAddHubWithPasskey={handleAddHubWithPasskey}
         handleCreateChannel={handleCreateChannel}
@@ -1800,7 +1798,6 @@ export default function App({ initialView }: AppProps = {}) {
         setEditDescChannel={setEditDescChannel}
         setEditDescValue={setEditDescValue}
         setEventComposerChannelId={setEventComposerChannelId}
-        setFingerprintMatch={setFingerprintMatch}
         setHubPreview={setHubPreview}
         setInviteCode={setInviteCode}
         setPollComposerChannelId={setPollComposerChannelId}

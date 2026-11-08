@@ -52,8 +52,6 @@ export interface AppModalsProps {
   addingHub: boolean;
   addHubError: string | null;
   setAddHubError: (v: string | null) => void;
-  fingerprintMatch: boolean;
-  setFingerprintMatch: (v: boolean) => void;
   handleAddHub: () => void | Promise<void>;
   handleAddHubWithPasskey: () => void | Promise<void>;
   setShowDiscover: (v: boolean) => void;

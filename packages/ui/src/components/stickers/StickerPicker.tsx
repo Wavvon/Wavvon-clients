@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import type { SavedSticker } from "@wavvon/core";
 import type { Sticker, StickerPack } from "../../types";
-import { needsExternal, stickerErrorKey, stickerSrc } from "../../utils/stickers";
+import { needsExternal, savedStickerSrc, stickerErrorKey, stickerSrc } from "../../utils/stickers";
 import { FocusTrap } from "../FocusTrap";
 import type { StickerActions } from "./stickerActions";
 
@@ -132,6 +132,7 @@ export function StickerPicker({ channelId, actions, onError }: Props) {
                   status={collection.status}
                   canUseExternal={actions.canUseExternal}
                   hubUrl={actions.hubUrl}
+                  joinedHubUrls={actions.joinedHubUrls}
                   sending={sending}
                   onPick={(entry) => void send(() => actions.sendSavedSticker(channelId, entry))}
                   onRemove={collection.editable ? (sha) => void collection.remove(sha).catch((e) => onError(t(stickerErrorKey(e, "manage")))) : undefined}
@@ -158,12 +159,13 @@ export function StickerPicker({ channelId, actions, onError }: Props) {
   );
 }
 
-function SavedGrid({ saved, editable, status, canUseExternal, hubUrl, sending, onPick, onRemove }: {
+function SavedGrid({ saved, editable, status, canUseExternal, hubUrl, joinedHubUrls, sending, onPick, onRemove }: {
   saved: SavedSticker[];
   editable: boolean;
   status: "loading" | "ready" | "error";
   canUseExternal: boolean;
   hubUrl: string;
+  joinedHubUrls: string[];
   sending: boolean;
   onPick: (s: SavedSticker) => void;
   onRemove?: (sha256: string) => void;
@@ -188,7 +190,7 @@ function SavedGrid({ saved, editable, status, canUseExternal, hubUrl, sending, o
               onClick={() => onPick(s)}
             >
               <img
-                src={stickerSrc(s.origin_hub_url, s.sha256)}
+                src={savedStickerSrc(s, hubUrl, joinedHubUrls)}
                 alt={s.name}
                 className={`sticker-cell-img${blocked ? " sticker-cell-img-off" : ""}`}
                 loading="lazy"
