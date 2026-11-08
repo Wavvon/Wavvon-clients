@@ -8,6 +8,7 @@ allowBuilds:
 
 overrides:
   typescript: 6.0.3
+  '@tauri-apps/api': ~2.12.4
 
 peerDependencyRules:
   allowedVersions:

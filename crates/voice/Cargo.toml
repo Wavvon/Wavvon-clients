@@ -16,13 +16,13 @@ cpal = "0.15"
 audiopus = "0.2"
 
 # Lock-free ring buffer (bridges real-time audio thread ↔ async tokio thread)
-ringbuf = "0.4"
+ringbuf = "0.6"
 
 # Packet serialization
 byteorder = "1"
 
 # Noise suppression (RNNoise neural network, pure Rust)
-nnnoiseless = "0.5"
+nnnoiseless = { version = "0.5", default-features = false, features = ["dasp"] }
 
 # Voice-transport v2 (docs/docs/voice-transport-v2.md): WebTransport/QUIC
 # client replacing raw UDP; same version the hub relay is built against.
