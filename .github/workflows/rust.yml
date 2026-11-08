@@ -8,6 +8,7 @@ on:
       - 'crates/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'deny.toml'
       - 'wire-vectors/**'
       - '.github/workflows/rust.yml'
   pull_request:
@@ -17,10 +18,20 @@ on:
       - 'crates/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'deny.toml'
       - 'wire-vectors/**'
       - '.github/workflows/rust.yml'
 
 jobs:
+  advisories:
+    name: Rust — advisories
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
+        with:
+          command: check advisories
+
   rust:
     name: Rust — fmt + clippy + test
     runs-on: ubuntu-22.04

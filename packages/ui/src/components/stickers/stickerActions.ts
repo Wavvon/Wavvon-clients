@@ -19,6 +19,8 @@ export interface StickerCollectionState {
 export interface StickerActions {
   hubUrl: string;
   hubName: string;
+  /** Every hub the user has joined; a saved sticker loads from its origin only if listed. */
+  joinedHubUrls: string[];
   listPacks: () => Promise<StickerPack[]>;
   sendPackSticker: (channelId: string, stickerId: string) => Promise<void>;
   sendSavedSticker: (channelId: string, entry: SavedSticker) => Promise<void>;

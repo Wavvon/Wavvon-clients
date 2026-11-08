@@ -354,12 +354,10 @@ export async function refreshHubInfo(
     // owner-chosen name that can change, and `canonical_url` is how it tells
     // us the current one — so a rename costs nobody their session.
     //
-    // Safe precisely because we are keyed on the pubkey: we only change *where*
-    // we look, never who we believe we are talking to. And we only accept this
-    // from a hub whose key we have already verified, so a host handing out a
-    // bogus address gets caught on the first /info at the new one.
-    const movedTo =
-      info.canonical_url && info.canonical_url !== s.hub_url ? info.canonical_url : null;
+    // Safe because we are keyed on the pubkey: we only change *where* we look,
+    // never who we believe we are talking to, and only once the new address
+    // presents the same key.
+    const movedTo = await verifiedMove(info, hub_id, s.hub_url);
     if (movedTo) {
       console.info(`[hubs] ${logKey(hub_id)} moved to ${movedTo}`);
       updateSavedHubUrl(hub_id, movedTo);
@@ -385,6 +383,24 @@ export async function refreshHubInfo(
   } catch {
     return null;
   }
+}
+
+/** The hub's `canonical_url` if it differs from where we are and the hub
+ *  there presents the key we know this hub by; null otherwise. Without the
+ *  check any hub could send its members to an address of its choosing. */
+async function verifiedMove(info: InfoResponse, hub_id: string, currentUrl: string): Promise<string | null> {
+  const target = info.canonical_url;
+  if (!target || target === currentUrl || info.public_key !== hub_id) return null;
+  try {
+    const u = new URL(target);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    const there = await rawFetch(`${target}/info`).then((r) => r.json() as Promise<InfoResponse>);
+    if (there.public_key === hub_id) return target;
+  } catch {
+    // Unreachable or not a hub: stay where we are.
+  }
+  console.warn(`[hubs] ${logKey(hub_id)} names ${target} as its address, but no hub with its key answers there — not following`);
+  return null;
 }
 
 export function setActiveHub(hub_id: string): void {

@@ -37,7 +37,7 @@ pub struct PairedDevice {
 pub async fn device_list() -> Result<Vec<PairedDevice>, String> {
     // Determine master pubkey and "this device" subkey pubkey.
     let (master_pubkey, my_pubkey) = {
-        let paired = crate::pairing::get_paired_identity();
+        let paired = crate::pairing::load_paired_identity();
         if let Some(p) = paired {
             (p.master_pubkey, p.subkey_pubkey)
         } else {
