@@ -73,7 +73,6 @@ export function AppModals(p: AppModalsProps) {
     editDescValue,
     effectiveNotifyMode,
     eventComposerChannelId,
-    fingerprintMatch,
     handleAddHub,
     handleAddHubWithPasskey,
     handleCreateChannel,
@@ -106,7 +105,6 @@ export function AppModals(p: AppModalsProps) {
     setEditDescChannel,
     setEditDescValue,
     setEventComposerChannelId,
-    setFingerprintMatch,
     setHubPreview,
     setPollComposerChannelId,
     setRenameRoomCtx,
@@ -156,7 +154,6 @@ export function AppModals(p: AppModalsProps) {
           hubPreview={hubPreview}
           loading={addingHub}
           error={addHubError}
-          fingerprintMatch={fingerprintMatch}
           onAdd={() => void handleAddHub()}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
           passkeySupported={passkeysUsableWith(hubUrl)}
@@ -164,7 +161,6 @@ export function AppModals(p: AppModalsProps) {
             setShowAddHub(false);
             setHubPreview({ state: "idle" });
             setAddHubError(null);
-            setFingerprintMatch(false);
           }}
           onBrowse={DISCOVERY_URL ? () => { setShowAddHub(false); setShowDiscover(true); } : undefined}
         />

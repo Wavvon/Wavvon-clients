@@ -498,12 +498,15 @@ export function connectHubWebSocket(hub_id: string, handlers: WsHandlers): void 
   setSession(hub_id, { ...s, ws, scope: "member" });
 }
 
-// LAN fingerprint pinning (lan-mode.md §5): TOFU-verify the hub's
-// self-reported /info fingerprint against the one carried out-of-band in
-// the invite URL. `undefined` expectedFingerprint means the invite carried
-// none — always passes, so normal (non-LAN) hubs are unaffected. Shared by
-// every add-hub call site (App.tsx, WelcomeScreenContainer) so none of them
-// can silently skip the check.
+// LAN invite fingerprint (lan-mode.md §5): compare the fingerprint the hub
+// reports in /info with the one carried out-of-band in the invite URL.
+// `undefined` expectedFingerprint means the invite carried none — always
+// passes, so normal (non-LAN) hubs are unaffected.
+//
+// This is NOT a verification. A browser cannot see the certificate it was
+// handed, and the value compared is one the hub reports about itself, so a
+// man in the middle passes by repeating it. It only catches an invite pasted
+// against the wrong hub, which is why a match is never shown as a success.
 export async function verifyLanFingerprint(
   hub_url: string,
   expectedFingerprint: string | undefined,
