@@ -50,6 +50,7 @@ function useStickerCollection(hubUrl: string | null, enabled: boolean): StickerC
 
 interface Args {
   hub: Hub | undefined;
+  joinedHubs: Hub[];
   supported: boolean;
   canManagePacks: boolean;
   canUseExternal: boolean;
@@ -58,13 +59,14 @@ interface Args {
 
 /** Undefined where the hub does not advertise `stickers`, which hides every
  *  sticker control in the shared UI. */
-export function useStickers({ hub, supported, canManagePacks, canUseExternal, sendSticker }: Args): StickerActions | undefined {
+export function useStickers({ hub, joinedHubs, supported, canManagePacks, canUseExternal, sendSticker }: Args): StickerActions | undefined {
   const collection = useStickerCollection(hub?.hub_url ?? null, supported);
   return useMemo(() => {
     if (!supported || !hub) return undefined;
     return {
       hubUrl: hub.hub_url,
       hubName: hub.hub_name,
+      joinedHubUrls: joinedHubs.map((h) => h.hub_url),
       listPacks: listStickerPacks,
       sendPackSticker: sendSticker,
       sendSavedSticker: async (channelId, entry) => {
@@ -76,5 +78,5 @@ export function useStickers({ hub, supported, canManagePacks, canUseExternal, se
       canManagePacks,
       canUseExternal,
     };
-  }, [supported, hub, collection, canManagePacks, canUseExternal, sendSticker]);
+  }, [supported, hub, joinedHubs, collection, canManagePacks, canUseExternal, sendSticker]);
 }
