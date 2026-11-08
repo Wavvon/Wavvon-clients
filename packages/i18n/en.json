@@ -508,7 +508,6 @@
   "handover.move.label": "Move to the official client",
   "handover.move.passkey_warning": "Your recovery phrase and backup file work there. A passkey does not: it belongs to this hub and works only on this address, so the user client has no passkeys at all — yours stays valid whenever you open the hub here.",
   "hub.add_modal.connect": "Join hub",
-  "hub.add_modal.fingerprint_match": "Hub identity matches the invite fingerprint.",
   "hub.add_modal.fingerprint_mismatch": "Fingerprint does not match the invite — possible interception. Do not join.",
   "hub.add_modal.intro": "Paste a hub address or a <code>wavvon://</code> invite link.",
   "hub.add_modal.or_divider": "or",
