@@ -85,6 +85,10 @@ test("a datagram is received, unsealed and decoded — not just a roster row", a
 
   const channel = uniqueName("audio");
   await createChannel(page, channel, "Voice channel");
+  // The outbound row below needs the owner's own datagrams at the hub, so the
+  // owner transmits continuously too, rather than waiting on whether
+  // Chromium's fake capture device clears the voice-activity threshold.
+  await transmitContinuously(page);
   await joinVoice(page, channel);
 
   const speakerName = uniqueName("Speaker");
@@ -130,6 +134,28 @@ test("a datagram is received, unsealed and decoded — not just a roster row", a
     await expect(roster.filter({ hasText: speakerName })).toHaveClass(/\bspeaking\b/, { timeout: 30000 });
     // By key: other specs rename the owner, and a row's title is its pubkey.
     await expect(roster.and(page.locator(`[title="${OWNER_PUBKEY}"]`))).toHaveClass(/\bspeaking\b/, { timeout: 30000 });
+
+    // Voice shares one AudioContext and one capture node for the page's
+    // lifetime (clients#338), so a second session attaches to what the first
+    // one left behind. Both leave and come back: the speaker's frames now come
+    // from the re-attached capture node, and the owner's readout starts empty
+    // in its new session, so a percentage again means those frames decoded.
+    const leave = async (p: Page) => {
+      await p.getByRole("button", { name: "Leave voice" }).first().click();
+      await expect(p.locator(".voice-status-label")).toHaveCount(0, { timeout: 15000 });
+    };
+    await speaker.bringToFront();
+    await leave(speaker);
+    await joinVoice(speaker, channel);
+    await page.bringToFront();
+    await leave(page);
+    await joinVoice(page, channel);
+    // The panel stays open across sessions; the chip toggles it.
+    if (!(await page.locator(".conn-panel").isVisible())) await page.locator(".conn-chip").click();
+    await expect(page.locator(".conn-panel")).toBeVisible();
+    await expect(connValue(page, "Packet loss (in)")).toHaveText(/^\d+(\.\d+)? %$/, {
+      timeout: 60000,
+    });
   } finally {
     await context.close();
   }
