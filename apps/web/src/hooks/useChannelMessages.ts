@@ -1,3 +1,5 @@
+import { slowmodeRetryAfter } from "@wavvon/core";
+import i18n from "@wavvon/i18n";
 import { useEffect, useRef, useState } from "react";
 import {
   getMessages,
@@ -200,7 +202,9 @@ export function useChannelMessages({
       setReplyTarget(null);
       onMessageSent?.();
     } catch (e) {
-      onError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      const wait = slowmodeRetryAfter(message);
+      onError(wait === null ? message : i18n.t("channel.slowmode_wait", { seconds: wait }));
       // Nothing here can raise a toast, so put the text back rather than
       // dropping it silently — a rejected send (rate limit, hub down) left
       // the composer empty and the words gone.

@@ -391,6 +391,7 @@ export function AppModals(p: AppModalsProps) {
           myMaxPriority={myMaxPriority}
           hubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url}
           voiceChannels={hubCaps.includes("channels.voice")}
+          slowmode={hubCaps.includes("channels.slowmode")}
           onSave={channelCrud.channelSettingsModal ? channelCrud.handleSaveChannelSettings : channelCrud.handleCreateChannel}
           onDelete={channelCrud.handleDeleteChannelSettings}
           onClose={() => {

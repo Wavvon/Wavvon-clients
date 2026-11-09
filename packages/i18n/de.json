@@ -2346,5 +2346,12 @@
   "hub.reinstalled.title": "{name} wurde neu installiert",
   "hub.reinstalled.body": "Der Hub unter {url} ist jetzt ein neuer Hub, und deine alte Mitgliedschaft gibt es nicht mehr. Möchtest du ihm als neuem Hub beitreten?",
   "hub.reinstalled.join": "Dem neuen Hub beitreten",
-  "settings.pairing.own_fingerprint": "Der Fingerabdruck dieses Geräts ist {fingerprint}. Dein anderes Gerät muss denselben zeigen, bevor du dort bestätigst."
+  "settings.pairing.own_fingerprint": "Der Fingerabdruck dieses Geräts ist {fingerprint}. Dein anderes Gerät muss denselben zeigen, bevor du dort bestätigst.",
+  "channel.settings.slowmode": "Slowmode",
+  "channel.settings.slowmode_hint": "Hier kann jedes Mitglied eine Nachricht pro Intervall senden. Mitglieder mit der Berechtigung, den Slowmode zu umgehen, sind ausgenommen.",
+  "channel.settings.slowmode_off": "Aus",
+  "channel.settings.slowmode_seconds": "{count, plural, one {# Sekunde} other {# Sekunden}}",
+  "channel.settings.slowmode_minutes": "{count, plural, one {# Minute} other {# Minuten}}",
+  "channel.settings.slowmode_hours": "{count, plural, one {# Stunde} other {# Stunden}}",
+  "channel.slowmode_wait": "Slowmode aktiv: Du kannst in {seconds, plural, one {# Sekunde} other {# Sekunden}} wieder senden."
 }

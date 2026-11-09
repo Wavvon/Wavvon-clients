@@ -140,6 +140,7 @@ pub fn run() {
             channels::update_channel_appearance,
             channels::set_forum_require_tag,
             channels::set_channel_nsfw,
+            channels::set_channel_slowmode,
             channels::set_channel_type,
             channels::delete_channel,
             channels::reorder_channels,
