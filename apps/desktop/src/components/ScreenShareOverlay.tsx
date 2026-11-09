@@ -6,24 +6,27 @@ import { ScreenShareViewer } from "@wavvon/ui";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
 import type { ActiveStream } from "../types";
 
-// The native pop-out window is a single OS-level singleton, so every
-// ScreenShareViewer instance can share the same three handlers.
-function openOsPipWindow() {
-  return invoke<void>("open_pip_window");
+// One native pop-out window per stream, keyed by stream id: the window and
+// its events carry the key, so several float over a game at once.
+function openOsPipWindow(key: string) {
+  return invoke<void>("open_pip_window", { key });
 }
-function closeOsPipWindow() {
-  return invoke<void>("close_pip_window");
+function closeOsPipWindow(key: string) {
+  return invoke<void>("close_pip_window", { key });
 }
-function sendOsPipChunk(data: ArrayBuffer) {
-  emit("pip-stream-chunk", { data: Array.from(new Uint8Array(data)) }).catch(() => {});
+function sendOsPipChunk(key: string, data: ArrayBuffer) {
+  emit(`pip-stream-chunk-${key}`, { data: Array.from(new Uint8Array(data)) }).catch(() => {});
 }
-function stopOsPipStream() {
-  emit("pip-stream-stop", null).catch(() => {});
+function stopOsPipStream(key: string) {
+  emit(`pip-stream-stop-${key}`, null).catch(() => {});
 }
-function listenOsPipClose(onClosed: () => void) {
+function restoreOsPipCursor(key: string) {
+  invoke<void>("set_pip_click_through", { key, on: false }).catch(() => {});
+}
+function listenOsPipClose(key: string, onClosed: () => void) {
   let unlisten: (() => void) | null = null;
   let cancelled = false;
-  listen("pip-close", onClosed).then((u) => {
+  listen(`pip-close-${key}`, onClosed).then((u) => {
     if (cancelled) u();
     else unlisten = u;
   });
@@ -132,6 +135,7 @@ function SharerWindow({
           onOsPipChunk={sendOsPipChunk}
           onOsPipStop={stopOsPipStream}
           onListenOsPipClose={listenOsPipClose}
+          onOsPipRestoreCursor={restoreOsPipCursor}
         />
       </div>
       {!minimized && (

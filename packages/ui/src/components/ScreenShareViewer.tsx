@@ -21,14 +21,17 @@ interface Props {
   streams: ActiveStream[];
   /** Routes playback through a non-default audio output device. */
   mediaOutputDeviceId?: string;
-  /** Native OS pop-out window — a Tauri-only capability. All five are
-   *  supplied together or not at all; omit to hide the affordance entirely
-   *  (the browser-native Picture-in-Picture button above it still works). */
-  onOpenOsPipWindow?: () => Promise<void>;
-  onCloseOsPipWindow?: () => Promise<void>;
-  onOsPipChunk?: (data: ArrayBuffer) => void;
-  onOsPipStop?: () => void;
-  onListenOsPipClose?: (onClosed: () => void) => () => void;
+  /** Native OS pop-out windows, one per stream — a Tauri-only capability.
+   *  The five are supplied together or not at all; omit to hide the
+   *  affordance entirely (the browser's Picture-in-Picture still works). */
+  onOpenOsPipWindow?: (streamId: string) => Promise<void>;
+  onCloseOsPipWindow?: (streamId: string) => Promise<void>;
+  onOsPipChunk?: (streamId: string, data: ArrayBuffer) => void;
+  onOsPipStop?: (streamId: string) => void;
+  onListenOsPipClose?: (streamId: string, onClosed: () => void) => () => void;
+  /** Turns click-through off on a stream's pop-out: a window that lets the
+   *  mouse through cannot be clicked to undo it. */
+  onOsPipRestoreCursor?: (streamId: string) => void;
   /** Closes a stream for this viewer (the voice room's "stop watching"). */
   onStopWatch?: (streamId: string) => void;
 }
@@ -41,6 +44,20 @@ type MediaSourceCtor = typeof MediaSource;
 export function pickMediaSource(scope: object = globalThis): MediaSourceCtor | null {
   const g = scope as { MediaSource?: MediaSourceCtor; ManagedMediaSource?: MediaSourceCtor };
   return g.MediaSource ?? g.ManagedMediaSource ?? null;
+}
+
+type CapturableVideo = HTMLVideoElement & {
+  captureStream?: () => MediaStream;
+  mozCaptureStream?: () => MediaStream;
+};
+
+interface DocumentPictureInPicture {
+  requestWindow: (options: { width: number; height: number }) => Promise<Window>;
+}
+
+/** The Document Picture-in-Picture entry point, where the browser has one. */
+export function documentPictureInPicture(scope: object = globalThis): DocumentPictureInPicture | null {
+  return (scope as { documentPictureInPicture?: DocumentPictureInPicture }).documentPictureInPicture ?? null;
 }
 
 interface StreamState {
@@ -61,6 +78,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
       onOsPipChunk,
       onOsPipStop,
       onListenOsPipClose,
+      onOsPipRestoreCursor,
       onStopWatch,
     },
     ref,
@@ -71,10 +89,15 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     const webrtcStreams = useRef<Map<string, MediaStream>>(new Map());
     const [volumes, setVolumes] = useState<Record<string, number>>({});
     const [pipStreamId, setPipStreamId] = useState<string | null>(null);
-    const [osPipOpen, setOsPipOpen] = useState(false);
-    const osPipOpenRef = useRef(false);
-    const osPipStreamId = useRef<string | null>(null);
-    const unlistenOsPipClose = useRef<(() => void) | null>(null);
+    // Stream ids with a pop-out window open; the ref is what the chunk path
+    // reads, the state what renders.
+    const [osPipOpen, setOsPipOpen] = useState<ReadonlySet<string>>(new Set());
+    const osPipOpenRef = useRef<Set<string>>(new Set());
+    const unlistenOsPipClose = useRef<Map<string, () => void>>(new Map());
+    // A window opened mid-stream needs the init segment before any chunk
+    // after it will decode.
+    const initChunks = useRef<Map<string, ArrayBuffer>>(new Map());
+    const [docPipOpen, setDocPipOpen] = useState(false);
     const MediaSourceImpl = pickMediaSource();
     // attachStream fills a ref; this re-renders so a WebRTC stream replaces
     // the "can't play" notice on a browser without MSE.
@@ -84,7 +107,62 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     const pipSupported =
       typeof document !== "undefined" && "pictureInPictureEnabled" in document;
 
+    const docPipWindow = useRef<Window | null>(null);
+    const docPip = documentPictureInPicture();
+
+    // Document Picture-in-Picture (Chrome/Edge 116+, Firefox 151+): one
+    // floating window holding every watched screen share, where `<video>`
+    // PiP allows a single stream per page. The window shows copies captured
+    // from the players here, so the page's own players stay where React put
+    // them.
+    const toggleFloatAll = useCallback(async () => {
+      if (!docPip) return;
+      if (docPipWindow.current) {
+        docPipWindow.current.close();
+        return;
+      }
+      const captured: MediaStream[] = [];
+      for (const s of streams) {
+        if (s.kind === "webcam") continue;
+        const el = videoRefs.current.get(s.stream_id) as CapturableVideo | null | undefined;
+        const ms = el?.captureStream?.() ?? el?.mozCaptureStream?.();
+        if (ms) captured.push(ms);
+      }
+      if (captured.length === 0) return;
+      let win: Window;
+      try {
+        win = await docPip.requestWindow({ width: 480, height: 270 });
+      } catch {
+        return;
+      }
+      docPipWindow.current = win;
+      const doc = win.document;
+      doc.body.style.cssText =
+        "margin:0;background:#000;height:100vh;display:grid;gap:2px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))";
+      for (const ms of captured) {
+        const v = doc.createElement("video");
+        v.autoplay = true;
+        v.muted = true;
+        v.playsInline = true;
+        v.srcObject = ms;
+        v.style.cssText = "width:100%;height:100%;min-height:0;object-fit:contain";
+        doc.body.appendChild(v);
+      }
+      setDocPipOpen(true);
+      win.addEventListener("pagehide", () => {
+        for (const ms of captured) ms.getTracks().forEach((tr) => tr.stop());
+        docPipWindow.current = null;
+        setDocPipOpen(false);
+      }, { once: true });
+    }, [docPip, streams]);
+
+    useEffect(() => () => { docPipWindow.current?.close(); }, []);
+
     const enterPip = useCallback(async (streamId: string) => {
+      if (docPip) {
+        await toggleFloatAll();
+        return;
+      }
       const el = videoRefs.current.get(streamId);
       if (!el || !pipSupported) return;
       try {
@@ -98,36 +176,40 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
       } catch {
         // Browser denied PiP (not playing yet, or feature not available) — ignore
       }
-    }, [pipSupported]);
+    }, [pipSupported, docPip, toggleFloatAll]);
+
+    const markOsPipClosed = useCallback((streamId: string) => {
+      osPipOpenRef.current.delete(streamId);
+      setOsPipOpen(new Set(osPipOpenRef.current));
+      unlistenOsPipClose.current.get(streamId)?.();
+      unlistenOsPipClose.current.delete(streamId);
+    }, []);
 
     const toggleOsPip = useCallback(async (streamId: string) => {
-      if (osPipOpenRef.current) {
-        await onCloseOsPipWindow?.().catch(() => {});
-        setOsPipOpen(false);
-        osPipOpenRef.current = false;
-        osPipStreamId.current = null;
+      if (osPipOpenRef.current.has(streamId)) {
+        await onCloseOsPipWindow?.(streamId).catch(() => {});
+        markOsPipClosed(streamId);
         return;
       }
 
       try {
-        await onOpenOsPipWindow?.();
-        setOsPipOpen(true);
-        osPipOpenRef.current = true;
-        osPipStreamId.current = streamId;
+        await onOpenOsPipWindow?.(streamId);
       } catch {
         return;
       }
+      osPipOpenRef.current.add(streamId);
+      setOsPipOpen(new Set(osPipOpenRef.current));
+      const init = initChunks.current.get(streamId);
+      if (init) onOsPipChunk?.(streamId, init);
 
-      unlistenOsPipClose.current?.();
-      unlistenOsPipClose.current = onListenOsPipClose?.(() => {
-        setOsPipOpen(false);
-        osPipOpenRef.current = false;
-        osPipStreamId.current = null;
-      }) ?? null;
-    }, [onOpenOsPipWindow, onCloseOsPipWindow, onListenOsPipClose]);
+      unlistenOsPipClose.current.get(streamId)?.();
+      const unlisten = onListenOsPipClose?.(streamId, () => markOsPipClosed(streamId));
+      if (unlisten) unlistenOsPipClose.current.set(streamId, unlisten);
+    }, [onOpenOsPipWindow, onCloseOsPipWindow, onListenOsPipClose, onOsPipChunk, markOsPipClosed]);
 
     useEffect(() => {
-      return () => { unlistenOsPipClose.current?.(); };
+      const listeners = unlistenOsPipClose.current;
+      return () => { for (const u of listeners.values()) u(); };
     }, []);
 
     function drainQueue(streamId: string) {
@@ -148,6 +230,9 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
         const s = streamStates.current.get(streamId);
         if (!s) return;
 
+        if (isInit) initChunks.current.set(streamId, data);
+        if (osPipOpenRef.current.has(streamId)) onOsPipChunk?.(streamId, data);
+
         if (isInit && s.sourceBuffer) {
           s.queue = [data];
           s.busy = false;
@@ -157,10 +242,6 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
 
         s.queue.push(data);
         drainQueue(streamId);
-
-        if (osPipStreamId.current === streamId && osPipOpenRef.current) {
-          onOsPipChunk?.(data);
-        }
       },
 
       stopStream(streamId) {
@@ -176,9 +257,8 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
         const el = videoRefs.current.get(streamId);
         if (el) { el.srcObject = null; }
 
-        if (osPipStreamId.current === streamId) {
-          onOsPipStop?.();
-        }
+        initChunks.current.delete(streamId);
+        if (osPipOpenRef.current.has(streamId)) onOsPipStop?.(streamId);
       },
 
       attachStream(streamId, stream) {
@@ -330,13 +410,17 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
               </div>
               {renderVideo(mainStream, "main-stream")}
               {webcamStream && renderVideo(webcamStream, "webcam-overlay")}
-              {pipSupported && (MediaSourceImpl || webrtcStreams.current.has(mainStream.stream_id)) && (
+              {(pipSupported || docPip) && (MediaSourceImpl || webrtcStreams.current.has(mainStream.stream_id)) && (
                 <button
                   className="pip-btn"
-                  title={pipStreamId === mainStream.stream_id ? t("voice.share.pip_exit") : t("voice.share.pip_enter")}
+                  title={
+                    docPip
+                      ? (docPipOpen ? t("voice.share.pip_exit") : t("voice.share.pip_all"))
+                      : (pipStreamId === mainStream.stream_id ? t("voice.share.pip_exit") : t("voice.share.pip_enter"))
+                  }
                   onClick={() => enterPip(mainStream.stream_id)}
                 >
-                  {pipStreamId === mainStream.stream_id ? "⊞" : "⧉"}
+                  {(docPip ? docPipOpen : pipStreamId === mainStream.stream_id) ? "⊞" : "⧉"}
                 </button>
               )}
               {osPipSupported && (
@@ -344,12 +428,23 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
                   className="pip-btn pip-btn--os"
                   style={{
                     right: pipSupported ? "calc(var(--space-2) + 34px)" : "var(--space-2)",
-                    opacity: osPipOpen ? 1 : undefined,
+                    opacity: osPipOpen.has(mainStream.stream_id) ? 1 : undefined,
                   }}
-                  title={osPipOpen ? t("voice.share.window_exit") : t("voice.share.window_enter")}
+                  title={osPipOpen.has(mainStream.stream_id) ? t("voice.share.window_exit") : t("voice.share.window_enter")}
                   onClick={() => toggleOsPip(mainStream.stream_id)}
                 >
-                  {osPipOpen ? "⬇" : "⬆"}
+                  {osPipOpen.has(mainStream.stream_id) ? "⬇" : "⬆"}
+                </button>
+              )}
+              {onOsPipRestoreCursor && osPipOpen.has(mainStream.stream_id) && (
+                <button
+                  className="pip-btn pip-btn--os"
+                  style={{ right: pipSupported ? "calc(var(--space-2) + 68px)" : "calc(var(--space-2) + 34px)" }}
+                  title={t("voice.share.window_restore_cursor")}
+                  aria-label={t("voice.share.window_restore_cursor")}
+                  onClick={() => onOsPipRestoreCursor(mainStream.stream_id)}
+                >
+                  ↖
                 </button>
               )}
               {audioStream && (

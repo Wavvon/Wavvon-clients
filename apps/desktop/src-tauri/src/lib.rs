@@ -417,6 +417,7 @@ pub fn run() {
             // Screen capture / PiP
             screen_share::open_pip_window,
             screen_share::close_pip_window,
+            screen_share::set_pip_click_through,
             // Mini-app windows
             mini_app::open_mini_app,
             mini_app::close_mini_app,

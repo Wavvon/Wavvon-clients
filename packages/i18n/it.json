@@ -2387,5 +2387,7 @@
   "settings.profile.widget_hidden.label": "Escludimi dal widget online di questo hub",
   "settings.profile.widget_hidden.hint": "Il widget mostra chi è online sul sito della community. Con questa opzione non compari e non vieni contato.",
   "settings.profile.widget_hidden.failed": "Impossibile cambiare questa impostazione.",
-  "voice.participant.camera_on": "Videocamera accesa"
+  "voice.participant.camera_on": "Videocamera accesa",
+  "voice.share.pip_all": "Metti tutte le condivisioni in una finestra mobile",
+  "voice.share.window_restore_cursor": "Rendi di nuovo cliccabile la finestra separata"
 }

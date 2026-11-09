@@ -9,7 +9,11 @@
   <div id="drag-bar"></div>
   <video id="video" autoplay playsinline muted></video>
   <div id="placeholder">No stream</div>
-  <button id="close-btn" title="Close">&#x2715;</button>
+  <div id="controls">
+    <input id="opacity" type="range" min="0.2" max="1" step="0.05" value="1" title="Opacity" />
+    <button id="click-through-btn" title="Let clicks pass through to the window below">&#x2197;</button>
+    <button id="close-btn" title="Close">&#x2715;</button>
+  </div>
 
 <script type="module" src="/src/pip.ts"></script>
 </body>

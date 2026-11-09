@@ -2387,5 +2387,7 @@
   "settings.profile.widget_hidden.label": "Mich aus dem Online-Widget dieses Hubs heraushalten",
   "settings.profile.widget_hidden.hint": "Das Widget zeigt auf der Website der Community, wer online ist. Ist das an, wirst du dort weder gelistet noch gezählt.",
   "settings.profile.widget_hidden.failed": "Diese Einstellung konnte nicht geändert werden.",
-  "voice.participant.camera_on": "Kamera an"
+  "voice.participant.camera_on": "Kamera an",
+  "voice.share.pip_all": "Alle Freigaben in einem schwebenden Fenster zeigen",
+  "voice.share.window_restore_cursor": "Das Pop-out-Fenster wieder anklickbar machen"
 }
