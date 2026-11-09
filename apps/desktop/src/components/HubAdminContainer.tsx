@@ -91,7 +91,7 @@ export function HubAdminContainer({
     <HubAdminPage
       {...rest}
       isAdmin={isAdmin}
-      renderModerationTab={() => <ModerationTab />}
+      renderModerationTab={() => <ModerationTab lockdown={hubCaps.includes("hub.lockdown")} />}
       renderRecoveryContacts={() => (
         <RecoveryContactsSection
           isAdmin={isAdmin}
