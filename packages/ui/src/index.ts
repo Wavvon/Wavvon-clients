@@ -468,6 +468,8 @@ export { RemoveHubModal } from "./components/RemoveHubModal";
 export { EncryptionWarningModal } from "./components/EncryptionWarningModal";
 export { ContentReportsSection } from "./components/admin/ContentReportsSection";
 export { AutomodWebhookSection } from "./components/admin/AutomodWebhookSection";
+export { LockdownSection } from "./components/admin/LockdownSection";
+export type { LockdownActions, LockdownSettings } from "./components/admin/LockdownSection";
 export { FederatedBanlistSection } from "./components/admin/FederatedBanlistSection";
 export type { FederatedBanlistActions } from "./components/admin/FederatedBanlistSection";
 export { OutgoingWebhooksSection } from "./components/admin/OutgoingWebhooksSection";

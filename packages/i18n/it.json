@@ -2353,5 +2353,18 @@
   "channel.settings.slowmode_seconds": "{count, plural, one {# secondo} other {# secondi}}",
   "channel.settings.slowmode_minutes": "{count, plural, one {# minuto} other {# minuti}}",
   "channel.settings.slowmode_hours": "{count, plural, one {# ora} other {# ore}}",
-  "channel.slowmode_wait": "Slowmode attivo: puoi inviare di nuovo tra {seconds, plural, one {# secondo} other {# secondi}}."
+  "channel.slowmode_wait": "Slowmode attivo: puoi inviare di nuovo tra {seconds, plural, one {# secondo} other {# secondi}}.",
+  "hub.admin.lockdown.title": "Blocco anti-raid",
+  "hub.admin.lockdown.hint": "Per un raid in corso: blocca l'ingresso di nuovi membri in un solo passo, e lascia che l'hub dia l'allarme quando gli ingressi esplodono.",
+  "hub.admin.lockdown.enabled": "Blocco",
+  "hub.admin.lockdown.on_hint": "Attivo: nessun nuovo membro può entrare. I membri non sono toccati.",
+  "hub.admin.lockdown.off_hint": "Disattivo: l'hub accoglie membri come al solito.",
+  "hub.admin.lockdown.engage": "Attiva il blocco",
+  "hub.admin.lockdown.lift": "Togli il blocco",
+  "hub.admin.lockdown.freeze": "Trattieni chi è appena entrato",
+  "hub.admin.lockdown.freeze_hint": "Durante il blocco, chi è entrato da meno di questi minuti non può scrivere. 0 non trattiene nessuno; i moderatori sono esenti.",
+  "hub.admin.lockdown.threshold": "Allarme raid",
+  "hub.admin.lockdown.threshold_hint": "Ingressi in un minuto che fanno scattare un allarme nel registro attività. 0 lo disattiva.",
+  "hub.admin.lockdown.auto": "Blocco automatico",
+  "hub.admin.lockdown.auto_hint": "Attiva il blocco da solo quando scatta l'allarme raid."
 }
