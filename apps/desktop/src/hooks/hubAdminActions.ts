@@ -38,6 +38,7 @@ import type {
   SharedChannel,
   ContentReportsActions,
   AutomodWebhookActions,
+  LockdownActions,
   FederatedBanlistActions,
   BanlistSource,
   FederatedBanEntry,
@@ -286,6 +287,12 @@ export const automodActions: AutomodWebhookActions = {
       webhookUrl: webhookUrl ?? null,
       webhookSecret: webhookSecret ?? null,
     }),
+};
+
+// Raid lockdown (`hub.lockdown`), on the active session.
+export const lockdownActions: LockdownActions = {
+  getLockdown: () => invoke("get_lockdown"),
+  putLockdown: (settings) => invoke("put_lockdown", { settings }),
 };
 
 // Federated ban lists. Every call acts on the active session, like the rest of

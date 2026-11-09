@@ -247,6 +247,8 @@ pub fn run() {
             admin::set_banlist_publish,
             admin::list_reports,
             admin::get_moderation_settings,
+            admin::get_lockdown,
+            admin::put_lockdown,
             admin::set_moderation_settings,
             admin::review_report,
             admin::list_users,

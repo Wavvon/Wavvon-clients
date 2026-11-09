@@ -2353,5 +2353,18 @@
   "channel.settings.slowmode_seconds": "{count, plural, one {# Sekunde} other {# Sekunden}}",
   "channel.settings.slowmode_minutes": "{count, plural, one {# Minute} other {# Minuten}}",
   "channel.settings.slowmode_hours": "{count, plural, one {# Stunde} other {# Stunden}}",
-  "channel.slowmode_wait": "Slowmode aktiv: Du kannst in {seconds, plural, one {# Sekunde} other {# Sekunden}} wieder senden."
+  "channel.slowmode_wait": "Slowmode aktiv: Du kannst in {seconds, plural, one {# Sekunde} other {# Sekunden}} wieder senden.",
+  "hub.admin.lockdown.title": "Raid-Sperre",
+  "hub.admin.lockdown.hint": "Für einen laufenden Raid: neue Mitglieder in einem Schritt aussperren und den Hub Alarm schlagen lassen, wenn die Beitritte sprunghaft steigen.",
+  "hub.admin.lockdown.enabled": "Sperre",
+  "hub.admin.lockdown.on_hint": "An: niemand Neues kann beitreten. Mitglieder sind nicht betroffen.",
+  "hub.admin.lockdown.off_hint": "Aus: der Hub nimmt Mitglieder wie gewohnt auf.",
+  "hub.admin.lockdown.engage": "Sperren",
+  "hub.admin.lockdown.lift": "Sperre aufheben",
+  "hub.admin.lockdown.freeze": "Neue Mitglieder zurückhalten",
+  "hub.admin.lockdown.freeze_hint": "Während der Sperre können Mitglieder, die vor weniger als so vielen Minuten beigetreten sind, nicht schreiben. 0 hält niemanden zurück; Moderatoren sind ausgenommen.",
+  "hub.admin.lockdown.threshold": "Raid-Alarm",
+  "hub.admin.lockdown.threshold_hint": "Beitritte pro Minute, die einen Alarm im Prüfprotokoll auslösen. 0 schaltet ihn ab.",
+  "hub.admin.lockdown.auto": "Automatisch sperren",
+  "hub.admin.lockdown.auto_hint": "Die Sperre von selbst einschalten, wenn der Raid-Alarm auslöst."
 }

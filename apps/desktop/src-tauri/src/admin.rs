@@ -2065,3 +2065,45 @@ pub(crate) async fn admin_list_outgoing_webhook_deliveries(
         .await
         .map_err(|e| format!("Invalid response: {e}"))
 }
+
+/// The hub's raid lockdown settings, as `/admin/settings/lockdown` returns them.
+#[tauri::command]
+pub(crate) async fn get_lockdown(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .get(format!("{hub_url}/admin/settings/lockdown"))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
+
+/// Replace the raid lockdown settings; answers with what is now in force.
+#[tauri::command]
+pub(crate) async fn put_lockdown(
+    settings: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .put(format!("{hub_url}/admin/settings/lockdown"))
+        .bearer_auth(&token)
+        .json(&settings)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json()
+        .await
+        .map_err(|e| format!("Invalid response: {e}"))
+}
