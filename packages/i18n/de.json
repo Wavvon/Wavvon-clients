@@ -2386,5 +2386,6 @@
   "hub.admin.widget.embed_hint": "Füge das in deine Website ein:",
   "settings.profile.widget_hidden.label": "Mich aus dem Online-Widget dieses Hubs heraushalten",
   "settings.profile.widget_hidden.hint": "Das Widget zeigt auf der Website der Community, wer online ist. Ist das an, wirst du dort weder gelistet noch gezählt.",
-  "settings.profile.widget_hidden.failed": "Diese Einstellung konnte nicht geändert werden."
+  "settings.profile.widget_hidden.failed": "Diese Einstellung konnte nicht geändert werden.",
+  "voice.participant.camera_on": "Kamera an"
 }

@@ -2386,5 +2386,6 @@
   "hub.admin.widget.embed_hint": "Incolla questo nel tuo sito:",
   "settings.profile.widget_hidden.label": "Escludimi dal widget online di questo hub",
   "settings.profile.widget_hidden.hint": "Il widget mostra chi è online sul sito della community. Con questa opzione non compari e non vieni contato.",
-  "settings.profile.widget_hidden.failed": "Impossibile cambiare questa impostazione."
+  "settings.profile.widget_hidden.failed": "Impossibile cambiare questa impostazione.",
+  "voice.participant.camera_on": "Videocamera accesa"
 }

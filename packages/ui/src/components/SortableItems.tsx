@@ -4,7 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel } from "@wavvon/core";
 import type { VoiceParticipant } from "../types";
-import { ChannelIcon, VolumeIcon, GearIcon, PlusIcon, CloseIcon, ChevronIcon, ExpandIcon, BellOffIcon } from "./Icons";
+import { ChannelIcon, VolumeIcon, GearIcon, PlusIcon, CloseIcon, ChevronIcon, ExpandIcon, BellOffIcon, CameraOnIcon } from "./Icons";
 import { Avatar } from "./Avatar";
 import { safeRoleColor } from "../utils/roleAppearance";
 
@@ -41,6 +41,7 @@ function VoiceParticipantRow({
   participant,
   avatar,
   speaking,
+  cameraOn,
   gain,
   isWhisperingToMe,
   onSetGain,
@@ -49,6 +50,7 @@ function VoiceParticipantRow({
   participant: VoiceParticipant;
   avatar?: string | null;
   speaking?: boolean;
+  cameraOn?: boolean;
   gain: number;
   isWhisperingToMe?: boolean;
   onSetGain?: (publicKey: string, gainPct: number) => void;
@@ -77,6 +79,11 @@ function VoiceParticipantRow({
           reason anyone walks into it, so the roster is not a footnote. */}
       <Avatar src={avatar} name={label} pubkey={participant.public_key} size={22} />
       <span className="channel-participant-name">{label}</span>
+      {cameraOn && (
+        <span className="muted" title={t("voice.participant.camera_on")} aria-label={t("voice.participant.camera_on")}>
+          <CameraOnIcon />
+        </span>
+      )}
       {participant.visiting_from && (
         <span className="participant-visiting-from" title={t("voice.participant.visiting_from", { hub: participant.visiting_from })}>
           {participant.visiting_from}
@@ -159,6 +166,7 @@ export function SortableChannelItem({
   inboundWhispers,
   avatars,
   speaking,
+  cameraOn,
   hasDraft,
   joinable = true,
   onClick,
@@ -198,6 +206,9 @@ export function SortableChannelItem({
    *  An alliance visitor is not in it and falls back to initials. */
   avatars?: Map<string, string | null>;
   speaking?: Set<string>;
+  /** Pubkeys with their camera on; a camera is seen only inside its room,
+   *  so this is how the sidebar says who has one on. */
+  cameraOn?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
   /** A double click joins voice here; false on a hub where only voice
@@ -385,6 +396,7 @@ export function SortableChannelItem({
               participant={p}
               avatar={avatars?.get(p.public_key)}
               speaking={speaking?.has(p.public_key)}
+              cameraOn={cameraOn?.has(p.public_key)}
               gain={voiceGains?.[p.public_key] ?? 100}
               isWhisperingToMe={inboundWhispers?.has(p.public_key)}
               onSetGain={onSetVoiceGain}

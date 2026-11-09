@@ -2386,5 +2386,6 @@
   "hub.admin.widget.embed_hint": "Paste this into your website:",
   "settings.profile.widget_hidden.label": "Leave me out of this hub's online widget",
   "settings.profile.widget_hidden.hint": "The widget shows who is online on the community's website. With this on, you are not listed or counted there.",
-  "settings.profile.widget_hidden.failed": "Could not change this setting."
+  "settings.profile.widget_hidden.failed": "Could not change this setting.",
+  "voice.participant.camera_on": "Camera on"
 }
