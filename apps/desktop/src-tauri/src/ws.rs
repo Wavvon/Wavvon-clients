@@ -7,6 +7,31 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
+/// What goes in the socket URL: a single-use ticket from `POST /ws/ticket`,
+/// so the session token stays out of URLs (and the proxy logs that keep
+/// them); the token itself from a hub without the route, or if the ticket
+/// could not be had.
+async fn ws_credential(app: &AppHandle, hub_url: &str, token: &str) -> String {
+    let client = app.state::<AppState>().http_client.clone();
+    let ticket = async {
+        let resp = client
+            .post(format!("{hub_url}/ws/ticket"))
+            .bearer_auth(token)
+            .send()
+            .await
+            .ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        let body: serde_json::Value = resp.json().await.ok()?;
+        body["ticket"].as_str().map(str::to_string)
+    };
+    match ticket.await {
+        Some(t) => format!("ticket={t}"),
+        None => format!("token={token}"),
+    }
+}
+
 pub(crate) async fn spawn_ws_task(
     hub_id: String,
     hub_url: String,
@@ -16,7 +41,10 @@ pub(crate) async fn spawn_ws_task(
     let ws_url = hub_url
         .replace("http://", "ws://")
         .replace("https://", "wss://");
-    let url = format!("{ws_url}/ws?token={token}");
+    let url = format!(
+        "{ws_url}/ws?{}",
+        ws_credential(&app, &hub_url, &token).await
+    );
 
     let (ws_stream, _) = tokio_tungstenite::connect_async(&url)
         .await
