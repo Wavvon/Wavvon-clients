@@ -213,7 +213,7 @@ export function useChannelCrud({
   async function handleSaveChannelSettings(fields: ChannelSettingsSaveFields) {
     if (!channelSettingsModal) return;
     const channel = channelSettingsModal;
-    const { name, description, color, icon, customIconSvg, banner, forumRequireTag, nsfw, switchType } = fields;
+    const { name, description, color, icon, customIconSvg, banner, forumRequireTag, nsfw, switchType, slowmodeSecs } = fields;
     setChannelSettingsSaving(true);
     setChannelSettingsError(null);
     try {
@@ -225,6 +225,9 @@ export function useChannelCrud({
       }
       if (switchType) {
         await invoke("set_channel_type", { channelId: channel.id, channelType: switchType });
+      }
+      if (slowmodeSecs !== undefined) {
+        await invoke("set_channel_slowmode", { channelId: channel.id, secs: slowmodeSecs });
       }
       if (name !== channel.name) {
         await invoke("rename_channel", { channelId: channel.id, name });

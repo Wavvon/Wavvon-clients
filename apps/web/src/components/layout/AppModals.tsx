@@ -207,6 +207,7 @@ export function AppModals(p: AppModalsProps) {
         <ChannelSettingsModal
           channel={channelSettingsCtx}
           voiceChannels={activeHubSupports("channels.voice")}
+          slowmode={activeHubSupports("channels.slowmode")}
           createParentId={createChannelCtx?.parentId ?? null}
           createParentName={createChannelCtx?.parentId ? (channels.find((c) => c.id === createChannelCtx.parentId)?.name ?? null) : null}
           createInitialIsCategory={createChannelCtx?.isCategory}

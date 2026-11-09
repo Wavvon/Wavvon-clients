@@ -144,6 +144,7 @@ export function useChannelCrud({
           forum_require_tag: fields.forumRequireTag,
           nsfw: fields.nsfw,
           channel_type: fields.switchType,
+          slowmode_secs: fields.slowmodeSecs,
         }),
       });
       setChannelSettingsCtx(null);
