@@ -2343,5 +2343,8 @@
   "onboarding.frame.hubs_text": "Ogni comunità gestisce il proprio server. Una sola identità vale su tutti.",
   "onboarding.frame.alliances_title": "Gli hub si alleano",
   "onboarding.frame.alliances_text": "Gli hub alleati condividono canali e voce: un amico su un altro hub è a un clic.",
-  "onboarding.frame.step": "Passo {step} di {total}"
+  "onboarding.frame.step": "Passo {step} di {total}",
+  "hub.reinstalled.title": "{name} è stato reinstallato",
+  "hub.reinstalled.body": "L'hub all'indirizzo {url} ora è un hub nuovo e la tua vecchia iscrizione non esiste più. Vuoi entrare nel nuovo hub?",
+  "hub.reinstalled.join": "Entra nel nuovo hub"
 }

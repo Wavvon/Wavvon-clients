@@ -105,15 +105,14 @@ function authBaseUrl(info: InfoResponse, hub_url: string, subkeyCert?: unknown):
  * talking to while the address holds still. Neither is allowed to do both.
  */
 function followKeyRotation(info: InfoResponse, hub_id: string): string {
-  if (info.public_key === hub_id) return hub_id;
-  if (!rotationAppliesTo(info.rotation, hub_id)) {
-    if (info.public_key) {
-      console.warn(
-        `[hubs] ${logKey(hub_id)} now presents ${logKey(info.public_key)} with no verifiable endorsement — not following`,
-      );
-    }
+  if (isReinstalled(info, hub_id)) {
+    console.warn(
+      `[hubs] ${logKey(hub_id)} now presents ${logKey(info.public_key)} with no verifiable endorsement — not following`,
+    );
     return hub_id;
   }
+  if (info.public_key === hub_id) return hub_id;
+  if (!rotationAppliesTo(info.rotation, hub_id)) return hub_id;
 
   const newId = info.public_key;
   if (!rekeySavedHub(hub_id, newId)) return hub_id;
@@ -128,6 +127,38 @@ function followKeyRotation(info: InfoResponse, hub_id: string): string {
   return newId;
 }
 
+
+/** A saved hub that now presents a key its old one never endorsed: the
+ *  operator wiped and reinstalled it. It is a new hub at a familiar address,
+ *  and the membership, token and history we hold for the old one exist
+ *  nowhere any more. */
+function isReinstalled(info: InfoResponse, hub_id: string): boolean {
+  return (
+    !!info.public_key &&
+    info.public_key !== hub_id &&
+    !rotationAppliesTo(info.rotation, hub_id)
+  );
+}
+
+export interface ReinstalledHub {
+  hub_url: string;
+  hub_name: string;
+}
+
+const reinstalledHubs: ReinstalledHub[] = [];
+
+/** Forget a reinstalled hub without authenticating against its new key, and
+ *  queue it for the UI to offer as a new hub to join. Never joined here:
+ *  adopting an unendorsed key is the member's explicit act. */
+async function forgetReinstalledHub(hub_id: string, hub_url: string, hub_name: string): Promise<void> {
+  await removeHub(hub_id);
+  reinstalledHubs.push({ hub_url, hub_name });
+}
+
+/** Hubs found reinstalled since the last call, for the UI to explain once. */
+export function takeReinstalledHubs(): ReinstalledHub[] {
+  return reinstalledHubs.splice(0);
+}
 
 /** The hub runs an admission challenge; solve it, then call addHub again
  *  with the token. */
@@ -348,6 +379,11 @@ export async function refreshHubInfo(
     );
     const capabilities = info.capabilities ?? [];
 
+    if (isReinstalled(info, hub_id)) {
+      await forgetReinstalledHub(hub_id, s.hub_url, s.hub_name);
+      return null;
+    }
+
     // Identity first, address second: a rotation renames the hub we are
     // holding, and everything below this line is filed under that name.
     hub_id = followKeyRotation(info, hub_id);
@@ -481,6 +517,10 @@ export async function reauthorizeHub(
   const info: InfoResponse = await rawFetch(`${s.hub_url}/info`).then(
     (r) => r.json() as Promise<InfoResponse>,
   );
+  if (isReinstalled(info, hub_id)) {
+    await forgetReinstalledHub(hub_id, s.hub_url, s.hub_name);
+    throw new Error("hub_reinstalled");
+  }
 
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
@@ -646,6 +686,10 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
         );
+        if (isReinstalled(hubInfo, hub.hub_id)) {
+          await forgetReinstalledHub(hub.hub_id, hub.hub_url, hub.hub_name);
+          continue;
+        }
         // This branch re-authenticates from scratch, which is exactly where an
         // unfollowed rotation would file the same hub a second time.
         hub.hub_id = followKeyRotation(hubInfo, hub.hub_id);

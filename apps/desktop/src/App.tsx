@@ -36,7 +36,7 @@ import type {
 } from "./types";
 import { PendingApplication } from "./components/PendingApplication";
 import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
-import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
+import { useConfirm, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
 import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
 import type { WhisperReplyBind, WhisperTarget } from "@wavvon/ui";
@@ -92,6 +92,7 @@ import { DisplayNamePrompt } from "@wavvon/ui";
 
 function App({ accountId }: { accountId: string | null }) {
   const { t } = useTranslation();
+  const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   // Bumped by the pending screen's "check again", so the join application
   // panel reads its status again too.
@@ -1031,10 +1032,25 @@ function App({ accountId }: { accountId: string | null }) {
         } catch {}
       }
       try {
-        const { hubs: allHubs, unreachable } = await invoke<{
+        const { hubs: allHubs, unreachable, reinstalled } = await invoke<{
           hubs: Hub[];
           unreachable: { hub_name: string; hub_url: string; error: string }[];
+          reinstalled: { hub_name: string; hub_url: string }[];
         }>("auto_connect_saved");
+        // Said once, and joining is the member's explicit act: adopting an
+        // unendorsed key is exactly what the Rust side refused to do.
+        for (const h of reinstalled) {
+          const join = await confirmReinstalled({
+            title: t("hub.reinstalled.title", { name: h.hub_name }),
+            body: t("hub.reinstalled.body", { url: h.hub_url }),
+            confirmLabel: t("hub.reinstalled.join"),
+          });
+          if (join) {
+            setHubUrl(h.hub_url);
+            setShowAddHub(true);
+            break;
+          }
+        }
         // A hub that could not be reached is still saved; say so rather than
         // let it vanish, and never fall back to the welcome screen for it.
         if (unreachable.length > 0) {
@@ -1525,6 +1541,7 @@ function App({ accountId }: { accountId: string | null }) {
 
   return (
     <div className="app">
+      {reinstalledDialog}
       <div
         role="alert"
         aria-live="assertive"

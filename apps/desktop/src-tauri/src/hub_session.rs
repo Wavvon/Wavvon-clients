@@ -254,10 +254,19 @@ pub(crate) struct UnreachableHub {
     error: String,
 }
 
+/// A saved hub that came back under an unendorsed key: forgotten, and for the
+/// member to join as a new hub if they want to.
+#[derive(serde::Serialize)]
+pub(crate) struct ReinstalledHub {
+    hub_name: String,
+    hub_url: String,
+}
+
 #[derive(serde::Serialize)]
 pub(crate) struct AutoConnectResult {
     hubs: Vec<HubInfo>,
     unreachable: Vec<UnreachableHub>,
+    reinstalled: Vec<ReinstalledHub>,
 }
 
 #[tauri::command]
@@ -267,7 +276,26 @@ pub(crate) async fn auto_connect_saved(
 ) -> Result<AutoConnectResult, String> {
     let saved = load_saved_hubs();
     let mut unreachable = Vec::new();
+    let mut reinstalled = Vec::new();
     for hub in &saved {
+        // A saved hub now presenting a key its old one never endorsed was
+        // reinstalled: a new hub at a familiar address. Signing in would seat
+        // us there as a stranger and file it under the old hub's name, so it
+        // is forgotten instead and offered to the member as a new hub.
+        if let Ok(info) = preview_hub_info(hub.hub_url.clone()).await {
+            let endorsed = info
+                .rotation
+                .as_ref()
+                .is_some_and(|r| r.endorses(&hub.hub_id, &info.public_key));
+            if info.public_key != hub.hub_id && !endorsed {
+                let _ = remove_hub(hub.hub_id.clone(), state.clone());
+                reinstalled.push(ReinstalledHub {
+                    hub_name: hub.hub_name.clone(),
+                    hub_url: hub.hub_url.clone(),
+                });
+                continue;
+            }
+        }
         if let Err(error) =
             add_hub(hub.hub_url.clone(), None, None, state.clone(), app.clone()).await
         {
@@ -290,6 +318,7 @@ pub(crate) async fn auto_connect_saved(
     Ok(AutoConnectResult {
         hubs: list_hubs(state),
         unreachable,
+        reinstalled,
     })
 }
 
