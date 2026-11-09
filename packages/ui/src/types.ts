@@ -730,6 +730,10 @@ export interface ProfileEditorActions {
    *  `alliance.people` capability, which hides the control. */
   loadFindableByAllies?: (hubId: string) => Promise<boolean | null>;
   saveFindableByAllies?: (hubId: string, value: boolean) => Promise<void>;
+  /** Per-hub "leave me out of the online widget" switch; null where the hub
+   *  has no widget, which hides the control. */
+  loadWidgetHidden?: (hubId: string) => Promise<boolean | null>;
+  saveWidgetHidden?: (hubId: string, value: boolean) => Promise<void>;
 }
 
 export interface UserProfile {

@@ -715,6 +715,14 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
                       save={actions.saveFindableByAllies}
                     />
                   )}
+                  {!isDefault && actions.loadWidgetHidden && actions.saveWidgetHidden && (
+                    <FindableByAlliesToggle
+                      hubId={context}
+                      load={actions.loadWidgetHidden}
+                      save={actions.saveWidgetHidden}
+                      variant="widget"
+                    />
+                  )}
                   </>
                 )}
               </div>

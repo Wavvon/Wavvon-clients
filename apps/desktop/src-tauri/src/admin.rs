@@ -1374,6 +1374,27 @@ pub(crate) async fn get_user_profile(
     res.json().await.map_err(|e| e.to_string())
 }
 
+/// GET /me on a hub identified by URL, for the per-hub switches the profile
+/// editor shows beside the profile itself.
+#[tauri::command]
+pub(crate) async fn get_me_on_hub(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let resp = state
+        .http_client
+        .get(format!("{}/me", hub_url.trim_end_matches('/')))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
 /// PATCH /me on a hub identified by URL rather than "whichever is active" —
 /// the shared profile editor (packages/ui ProfileEditorSection) can write to
 /// any joined hub with a live session, not just the active one.

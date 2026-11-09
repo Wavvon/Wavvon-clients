@@ -416,6 +416,8 @@ export { StickerStorageSection } from "./components/admin/StickerStorageSection"
 export type { StickerStorageActions } from "./components/admin/StickerStorageSection";
 export { AttachmentSettingsSection } from "./components/admin/AttachmentSettingsSection";
 export type { AttachmentSettingsActions } from "./components/admin/AttachmentSettingsSection";
+export { WidgetSection, widgetEmbedCode } from "./components/admin/WidgetSection";
+export type { WidgetActions, WidgetSettings } from "./components/admin/WidgetSection";
 export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
 export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
 export { StickerPicker } from "./components/stickers/StickerPicker";
