@@ -1379,7 +1379,6 @@
   "settings.account.certifications.revoked_suffix": "revoked",
   "settings.account.certifications.show": "Show",
   "settings.account.certifications.trust_issuer": "Trust this issuer",
-  "settings.account.devices.claim_approve_suffix": "). Approve only if you started this.",
   "settings.account.devices.claim_wants_to_link": "wants to link",
   "settings.account.devices.copy_code_button": "Copy code",
   "settings.account.devices.default_label": "This device",
@@ -2346,5 +2345,6 @@
   "onboarding.frame.step": "Step {step} of {total}",
   "hub.reinstalled.title": "{name} has been reinstalled",
   "hub.reinstalled.body": "The hub at {url} is a new hub now, and your old membership there is gone. Join it as a new hub?",
-  "hub.reinstalled.join": "Join the new hub"
+  "hub.reinstalled.join": "Join the new hub",
+  "settings.pairing.own_fingerprint": "This device's fingerprint is {fingerprint}. Your other device must show the same before you approve there."
 }

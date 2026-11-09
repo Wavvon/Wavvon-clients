@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { bytesToHex } from "@wavvon/core";
+import { bytesToHex, deviceFingerprint } from "@wavvon/core";
 import {
   saveIdentity,
   getActiveAccountId,
@@ -379,11 +379,15 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
             {offer.phase === "claimed" && (
               <div>
                 <p style={{ fontSize: "var(--text-sm)" }}>
-                  <strong>{offer.label}</strong> {t("settings.account.devices.claim_wants_to_link")} (
-                  <span className="muted">{offer.subkeyPubkey.slice(0, 12)}…</span>{t("settings.account.devices.claim_approve_suffix")}
+                  <strong>{offer.label}</strong> {t("settings.account.devices.claim_wants_to_link")}
                 </p>
+                <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+                  {t("settings.pairing.fingerprint_label")}{" "}
+                  <code className="pairing-fingerprint">{deviceFingerprint(offer.subkeyPubkey)}</code>
+                </p>
+                <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("settings.pairing.confirm_hint")}</p>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn-primary" onClick={approve}>{t("hub.admin.members.pending.approve")}</button>
+                  <button className="btn-primary" onClick={approve}>{t("settings.pairing.confirm_button")}</button>
                   <button className="btn-small" onClick={resetOffer}>{t("settings.account.devices.reject_button")}</button>
                 </div>
               </div>

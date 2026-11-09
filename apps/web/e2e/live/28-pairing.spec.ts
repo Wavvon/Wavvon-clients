@@ -53,9 +53,14 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
     await nd.getByLabel("Pairing code").fill(code);
     await nd.getByRole("button", { name: "Pair this device" }).click();
 
-    // Owner: the claim arrives → approve it.
-    await expect(devices.getByRole("button", { name: "Approve" })).toBeVisible({ timeout: 20000 });
-    await devices.getByRole("button", { name: "Approve" }).click();
+    // Owner: the claim arrives. Approving means comparing fingerprints first:
+    // the one the owner is shown must be the one the new device shows itself.
+    const confirmPairing = devices.getByRole("button", { name: "Confirm pairing" });
+    await expect(confirmPairing).toBeVisible({ timeout: 20000 });
+    const claimed = (await devices.locator(".pairing-fingerprint").textContent())?.trim() ?? "";
+    expect(claimed).toMatch(/^([0-9a-f]{2}:){7}[0-9a-f]{2}$/);
+    await expect(nd.getByText(`This device's fingerprint is ${claimed}.`)).toBeVisible();
+    await confirmPairing.click();
 
     // New device: every first-time identity setup (paired or recovered) hits
     // the mandatory local-only account-label step, then a local profile-setup

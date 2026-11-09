@@ -72,6 +72,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
   const [pasteValue, setPasteValue] = useState("");
   const [deviceLabel, setDeviceLabel] = useState("");
   const [claimStep, setClaimStep] = useState<ClaimStep>("pasting");
+  const [ownFingerprint, setOwnFingerprint] = useState("");
   const [pollInfo, setPollInfo] = useState<{
     homeHubUrl: string; pairingToken: string;
     subkeyPubkey: string;
@@ -216,6 +217,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
         masterPubkey: result.master_pubkey,
         homeHubs: result.home_hubs,
       });
+      setOwnFingerprint(await invoke<string>("fingerprint_pubkey", { publicKeyHex: result.subkey_pubkey }));
       setClaimStep("waiting");
       startClaimPoll(result.home_hub_url, result.pairing_token, {
         subkeyPubkey: result.subkey_pubkey,
@@ -476,6 +478,9 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
             <>
               <p className="muted">{t("settings.pairing.claim_waiting")}</p>
               <p className="muted">{t("settings.pairing.claim_waiting_hint")}</p>
+              {ownFingerprint && (
+                <p>{t("settings.pairing.own_fingerprint", { fingerprint: ownFingerprint })}</p>
+              )}
               <button className="btn-secondary" onClick={reset}>
                 {t("modal.cancel")}
               </button>
