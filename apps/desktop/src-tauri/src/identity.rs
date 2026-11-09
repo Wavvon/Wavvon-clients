@@ -1399,6 +1399,17 @@ mod wire_vector_tests {
     }
 
     #[test]
+    fn bound_auth_challenge_matches_the_server_vector() {
+        let v = vector("bound_auth_challenge");
+        let sb = bound_auth_challenge_signing_bytes(
+            &s(v, "server_pubkey"),
+            &hex::decode(s(v, "challenge")).unwrap(),
+        );
+        assert_signing_bytes("bound_auth_challenge", &sb);
+        assert_signed("bound_auth_challenge", "signature", &sb);
+    }
+
+    #[test]
     fn federated_plaintext_dm_matches_the_server_vector() {
         let v = vector("federated_plaintext_dm");
         let sb = federated_plaintext_dm_signing_bytes(
