@@ -424,6 +424,10 @@ pub(crate) fn active_group_sender_keys_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("group_sender_keys.json"))
 }
 
+pub(crate) fn active_dh_pins_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("dh_pins.json"))
+}
+
 pub(crate) fn active_own_dm_plaintexts_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("own_dm_plaintexts.json"))
 }

@@ -187,6 +187,8 @@ interface Props {
   onDeleteMessage: (messageId: string) => void;
   onSend: () => void;
   onSendDm: () => void;
+  dmKeyChangedPeer?: string | null;
+  onAcceptDmKeyChange?: () => void;
   onSendAllianceMessage: () => void;
   onPingTyping: () => void;
   onPingDmTyping: () => void;

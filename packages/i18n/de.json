@@ -2389,5 +2389,7 @@
   "settings.profile.widget_hidden.failed": "Diese Einstellung konnte nicht geändert werden.",
   "voice.participant.camera_on": "Kamera an",
   "voice.share.pip_all": "Alle Freigaben in einem schwebenden Fenster zeigen",
-  "voice.share.window_restore_cursor": "Das Pop-out-Fenster wieder anklickbar machen"
+  "voice.share.window_restore_cursor": "Das Pop-out-Fenster wieder anklickbar machen",
+  "dm.key_changed.body": "Der Verschlüsselungsschlüssel von {name} hat sich geändert. Das passiert, wenn ein Identitätsschlüssel in fremde Hände gerät, oder nach einem Zurücksetzen. Prüfe das mit {name} auf einem anderen Weg, bevor du weitermachst; bis dahin wird nichts gesendet.",
+  "dm.key_changed.accept": "Neuen Schlüssel annehmen"
 }

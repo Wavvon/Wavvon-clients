@@ -603,7 +603,77 @@ pub(crate) async fn fetch_dh_key_http(
         return None;
     }
     let v: serde_json::Value = resp.json().await.ok()?;
-    verified_dh_key(&v, pubkey)
+    let dh = verified_dh_key(&v, pubkey)?;
+    check_dh_pin(pubkey, &dh).ok()?;
+    Some(dh)
+}
+
+/// Trust on first use for a peer's DH key. The key is derived from the
+/// peer's identity seed, so for one pubkey it never changes legitimately: a
+/// different, validly signed key means that identity key signed something
+/// new. Returns true when `dh` differs from the pinned key; pins it when
+/// there was none.
+pub(crate) fn pin_changed(pins: &mut HashMap<String, String>, pubkey: &str, dh: &str) -> bool {
+    match pins.get(pubkey) {
+        Some(pinned) => pinned != dh,
+        None => {
+            pins.insert(pubkey.to_string(), dh.to_string());
+            false
+        }
+    }
+}
+
+/// One read-modify-write of the pin file at a time.
+static DH_PINS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn load_dh_pins() -> Result<HashMap<String, String>, String> {
+    let path = crate::accounts::active_dh_pins_path()?;
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+fn save_dh_pins(pins: &HashMap<String, String>) -> Result<(), String> {
+    let path = crate::accounts::active_dh_pins_path()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(pins).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// `Err("dh_key_changed")` when `dh` is not the key pinned for `pubkey`:
+/// nothing may be encrypted to it, or a message from it trusted, until the
+/// user accepts it (`accept_dh_key`).
+pub(crate) fn check_dh_pin(pubkey: &str, dh: &str) -> Result<(), String> {
+    let _guard = DH_PINS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut pins = load_dh_pins()?;
+    let had = pins.len();
+    if pin_changed(&mut pins, pubkey, dh) {
+        return Err("dh_key_changed".to_string());
+    }
+    if pins.len() != had {
+        save_dh_pins(&pins)?;
+    }
+    Ok(())
+}
+
+/// The user checked with the peer and accepts the key the hub now holds.
+#[tauri::command]
+pub(crate) async fn accept_dh_key(
+    pubkey: String,
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let Some(dh) = fetch_verified_dh_key(&pubkey, &hub_url, &state).await? else {
+        return Ok(());
+    };
+    let _guard = DH_PINS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut pins = load_dh_pins()?;
+    pins.insert(pubkey, dh);
+    save_dh_pins(&pins)
 }
 
 /// The DH key a fetched record names, only if `pubkey` itself signed it. The
@@ -617,11 +687,25 @@ pub(crate) fn verified_dh_key(record: &serde_json::Value, pubkey: &str) -> Optio
     Some(dh.to_string())
 }
 
+/// The pinned-checked key: `Err("dh_key_changed")` when it differs from the
+/// one first seen for this peer.
 #[tauri::command]
 pub(crate) async fn fetch_dh_key(
     pubkey: String,
     hub_url: String,
     state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let Some(dh) = fetch_verified_dh_key(&pubkey, &hub_url, &state).await? else {
+        return Ok(None);
+    };
+    check_dh_pin(&pubkey, &dh)?;
+    Ok(Some(dh))
+}
+
+async fn fetch_verified_dh_key(
+    pubkey: &str,
+    hub_url: &str,
+    state: &State<'_, AppState>,
 ) -> Result<Option<String>, String> {
     let url = format!("{}/identity/{}/dh-key", hub_url, pubkey);
     let token: Option<String> = {
@@ -648,7 +732,7 @@ pub(crate) async fn fetch_dh_key(
         return Ok(None);
     }
     // Present but not signed by its owner: refuse, never "no key".
-    verified_dh_key(&body, &pubkey)
+    verified_dh_key(&body, pubkey)
         .map(Some)
         .ok_or_else(|| "DH key record is not signed by its owner".to_string())
 }
@@ -734,6 +818,10 @@ async fn wrap_for_members(
         let Some(dh_hex) = verified_dh_key(&dh_resp, member) else {
             continue;
         };
+        // A member whose key changed gets no sender key until it is accepted.
+        if check_dh_pin(member, &dh_hex).is_err() {
+            continue;
+        }
         let dh_hex = dh_hex.as_str();
         let Ok(dh_bytes) = hex::decode(dh_hex) else {
             continue;
@@ -1120,6 +1208,9 @@ pub(crate) async fn fetch_group_sender_keys(
         let Some(sender_dh_hex) = verified_dh_key(&dh_resp, &sender_pubkey) else {
             continue;
         };
+        if check_dh_pin(&sender_pubkey, &sender_dh_hex).is_err() {
+            continue;
+        }
         let sender_dh_hex = sender_dh_hex.as_str();
         let sender_dh_bytes = match hex::decode(sender_dh_hex) {
             Ok(b) => b,
@@ -2319,6 +2410,26 @@ mod dh_record_tests {
         assert_eq!(
             verified_dh_key(&record(&owner, &"cd".repeat(32)), &pubkey),
             None
+        );
+    }
+}
+
+#[cfg(test)]
+mod dh_pin_tests {
+    use super::pin_changed;
+    use std::collections::HashMap;
+
+    #[test]
+    fn first_key_is_pinned_and_a_different_one_is_a_change() {
+        let mut pins = HashMap::new();
+        assert!(!pin_changed(&mut pins, "alice", "k1"));
+        assert_eq!(pins.get("alice").map(String::as_str), Some("k1"));
+        assert!(!pin_changed(&mut pins, "alice", "k1"));
+        assert!(pin_changed(&mut pins, "alice", "k2"));
+        assert_eq!(
+            pins.get("alice").map(String::as_str),
+            Some("k1"),
+            "a change never overwrites the pin"
         );
     }
 }

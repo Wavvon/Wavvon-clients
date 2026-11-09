@@ -352,6 +352,7 @@ pub fn run() {
             dm::update_dm_blocks,
             dm::publish_dh_key,
             dm::fetch_dh_key,
+            dm::accept_dh_key,
             dm::push_group_sender_key,
             dm::rotate_group_sender_key,
             dm::fetch_group_sender_keys,

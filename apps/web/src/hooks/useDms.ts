@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getDmMessages, sendDm, createConversation, getConversation, HubApiError } from "@platform";
+import { getDmMessages, sendDm, createConversation, getConversation, HubApiError, acceptDhKey, dmPeerKeyChanged, DhKeyChangedError } from "@platform";
 import { readFileAsB64, type EncryptionWarning } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import { loadDmPeerNames, rememberDmPeerName } from "../utils/dmPeerNames";
@@ -52,13 +52,34 @@ export function useDms({
   const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [encryptionWarning, setEncryptionWarning] = useState<EncryptionWarning | null>(null);
+  // The peer of the open conversation whose DH key changed since we pinned
+  // it; sending is refused until the user accepts the new key.
+  const [keyChangedPeer, setKeyChangedPeer] = useState<string | null>(null);
   const selectedConvRef = useRef<Conversation | null>(null);
   useEffect(() => {
     selectedConvRef.current = selectedConversation;
   }, [selectedConversation]);
 
+  async function checkPeerKey(conv: Conversation) {
+    setKeyChangedPeer(null);
+    const peer = await dmPeerKeyChanged(conv);
+    if (peer && selectedConvRef.current?.id === conv.id) setKeyChangedPeer(peer);
+  }
+
+  async function handleAcceptKeyChange() {
+    if (!keyChangedPeer) return;
+    try {
+      await acceptDhKey(keyChangedPeer);
+      setKeyChangedPeer(null);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
   async function handleSelectConversation(conv: Conversation) {
     setSelectedConversation(conv);
+    selectedConvRef.current = conv;
+    void checkPeerKey(conv);
     onConversationSelected();
     setUnreadDms((prev) => { const n = { ...prev }; delete n[conv.id]; return n; });
     if (!dmMessages[conv.id]) {
@@ -132,6 +153,10 @@ export function useDms({
       // was typed where the user left it.
       if ((await sendDm(convId, text, attachments, { confirmUnencrypted })) === "cancelled") return;
     } catch (e) {
+      if (e instanceof DhKeyChangedError) {
+        setKeyChangedPeer(e.pubkey);
+        return;
+      }
       showHubError(e instanceof HubApiError ? e.message : String(e));
       return;
     }
@@ -188,6 +213,8 @@ export function useDms({
     selectedConvRef,
     encryptionWarning,
     handleSelectConversation,
+    keyChangedPeer,
+    handleAcceptKeyChange,
     handleStartConversation,
     peerNames,
     handleSendDm,

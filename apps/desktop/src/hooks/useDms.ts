@@ -39,6 +39,10 @@ export interface DmsReturn {
   selectConversation: (conv: Conversation) => Promise<void>;
   startDmWith: (targetKey: string, targetHubUrl?: string | null) => Promise<void>;
   handleSendDm: () => Promise<void>;
+  /** The 1:1 peer whose DH key changed since it was pinned; sending is
+   *  refused until the user accepts the new key. */
+  keyChangedPeer: string | null;
+  handleAcceptKeyChange: () => Promise<void>;
   onDmEvent: (conversationId: string, msg: DmMessage, hubId: string) => void;
   onDmMemberChanged: (payload: {
     hub_id: string;
@@ -92,6 +96,33 @@ export function useDms({
 
   const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
   const [encryptionWarning, setEncryptionWarning] = useState<EncryptionWarning | null>(null);
+  const [keyChangedPeer, setKeyChangedPeer] = useState<string | null>(null);
+
+  const isKeyChange = (e: unknown) => String(e).includes("dh_key_changed");
+
+  async function checkPeerKey(conv: Conversation) {
+    setKeyChangedPeer(null);
+    const peer = conv.conv_type === "group" ? null : conv.members.find((k) => k !== publicKeyRef.current);
+    const hub = getActiveHub();
+    if (!peer || !hub) return;
+    try {
+      await invoke<string | null>("fetch_dh_key", { pubkey: peer, hubUrl: hub.hub_url });
+    } catch (e) {
+      // A failed lookup is not a change: sending checks again and refuses then.
+      if (isKeyChange(e) && selectedConversationIdRef.current === conv.id) setKeyChangedPeer(peer);
+    }
+  }
+
+  async function handleAcceptKeyChange() {
+    const hub = getActiveHub();
+    if (!keyChangedPeer || !hub) return;
+    try {
+      await invoke("accept_dh_key", { pubkey: keyChangedPeer, hubUrl: hub.hub_url });
+      setKeyChangedPeer(null);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   async function loadConversations() {
     try {
@@ -104,6 +135,7 @@ export function useDms({
 
   async function selectConversation(conv: Conversation) {
     setSelectedConversation(conv);
+    void checkPeerKey(conv);
     clearAllDmTyping();
     setUnreadDms((prev) => {
       if (!prev[conv.id]) return prev;
@@ -271,7 +303,11 @@ export function useDms({
         attachments,
       });
       await doSend(envelope);
-    } catch {
+    } catch (e) {
+      if (isKeyChange(e)) {
+        setKeyChangedPeer(otherKey);
+        return;
+      }
       setEncryptionWarning({
         messageKey: "dm.encryption_warning.failed",
         onCancel: () => setEncryptionWarning(null),
@@ -355,6 +391,8 @@ export function useDms({
     selectConversation,
     startDmWith,
     handleSendDm,
+    keyChangedPeer,
+    handleAcceptKeyChange,
     onDmEvent,
     onDmMemberChanged,
   };
