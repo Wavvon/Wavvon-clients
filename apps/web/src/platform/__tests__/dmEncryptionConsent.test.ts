@@ -3,6 +3,7 @@ import { ed25519 } from "@noble/curves/ed25519";
 import {
   bytesToHex,
   decryptDmDr,
+  dhKeySigningBytes,
   dhKeypairFromSeed,
   federatedPlaintextDmSigningBytes,
   hexToBytes,
@@ -63,7 +64,16 @@ function dhKeyResponse(status: number, hex?: string) {
   return async (url: string) => {
     if (String(url).includes("/dh-key")) {
       return hex
-        ? new Response(JSON.stringify({ dh_pubkey_hex: hex, signature_hex: "00" }), { status: 200 })
+        ? new Response(
+            JSON.stringify({
+              dh_pubkey_hex: hex,
+              // Signed by the recipient, as a real record is; the client refuses any other.
+              signature_hex: bytesToHex(
+                ed25519.sign(dhKeySigningBytes(RECIPIENT_PUB, hex), hexToBytes(RECIPIENT_SEED)),
+              ),
+            }),
+            { status: 200 },
+          )
         : new Response("nope", { status });
     }
     throw new Error(`unexpected fetch ${url}`);
