@@ -20,7 +20,7 @@ import {
 import type { IdentityRecord, PairingOffer } from "@identity/index";
 import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
 import { encryptBackup, suggestBackupFilename } from "@wavvon/core";
-import { inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
+import { deviceFingerprint, inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
 import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
 import { markIdentityBackedUp } from "../../utils/identityBackup";
@@ -69,6 +69,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [pairCode, setPairCode] = useState("");
   const [pairLabel, setPairLabel] = useState("");
   const [pairStatus, setPairStatus] = useState<"idle" | "claiming" | "waiting">("idle");
+  const [pairFingerprint, setPairFingerprint] = useState("");
   const [pendingAccount, setPendingAccount] = useState<IdentityRecord | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
   const [existingAccountCount, setExistingAccountCount] = useState(0);
@@ -224,6 +225,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         setPairStatus("idle");
         return;
       }
+      setPairFingerprint(deviceFingerprint(subkeyPubkey));
       setPairStatus("waiting");
 
       const started = Date.now();
@@ -553,6 +555,11 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         {pairStatus === "waiting" && (
           <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
             {t("identity_setup.pair.waiting_hint")}
+          </p>
+        )}
+        {pairStatus === "waiting" && pairFingerprint && (
+          <p style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
+            {t("settings.pairing.own_fingerprint", { fingerprint: pairFingerprint })}
           </p>
         )}
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
