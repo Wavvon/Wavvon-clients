@@ -6,6 +6,7 @@ import {
   dhKeySigningBytes,
   dhKeypairFromSeed,
   federatedPlaintextDmSigningBytes,
+  federatedPlaintextDmV2SigningBytes,
   hexToBytes,
   publicKeyHex,
   type DrEnvelope,
@@ -151,6 +152,27 @@ describe("sendDm and the recipient's encryption key", () => {
     const posted = postedBodies()[1];
     expect(ed25519.verify(hexToBytes(posted.plaintext_signature as string), sb, hexToBytes(SENDER_PUB))).toBe(true);
     expect(posted.plaintext_signer_cert).toEqual(cert);
+  });
+
+  it("signs v2 with its own id, time and the members where the hub takes it", async () => {
+    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(404)));
+    capabilities = ["dms.plaintext.v2"];
+
+    await sendDm("c1", "secret", undefined, { confirmUnencrypted: async () => true });
+
+    const [posted] = postedBodies();
+    expect(posted.message_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(typeof posted.created_at).toBe("number");
+    // Members in another order sign the same bytes: the set is what counts.
+    const sb = federatedPlaintextDmV2SigningBytes(
+      "c1",
+      "dm",
+      "secret",
+      posted.message_id as string,
+      posted.created_at as number,
+      [RECIPIENT_PUB, SENDER_PUB],
+    );
+    expect(ed25519.verify(hexToBytes(posted.plaintext_signature as string), sb, hexToBytes(SENDER_PUB))).toBe(true);
   });
 
   it("sends nothing when the user declines", async () => {
