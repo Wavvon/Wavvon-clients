@@ -2367,6 +2367,8 @@
   "hub.admin.lockdown.threshold_hint": "Entradas en un minuto que activan una alarma en el registro de auditoría. 0 la desactiva.",
   "hub.admin.lockdown.auto": "Bloqueo automático",
   "hub.admin.lockdown.auto_hint": "Activa el bloqueo por sí solo cuando salta la alarma de raid.",
+  "voice.streams.this_channel": "(este canal)",
+  "content.streams.title_live": "{count, plural, one {# pantalla compartida en directo} other {# pantallas compartidas en directo}}",
   "hub.admin.tabs.widget": "Widget en línea",
   "hub.admin.widget.title": "Widget en línea",
   "hub.admin.widget.hint": "Un pequeño panel para el sitio web de tu comunidad que muestra quién está en línea. Los miembros invisibles y quienes se excluyeron nunca aparecen, y nunca muestra la clave de nadie.",

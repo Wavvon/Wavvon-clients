@@ -2367,6 +2367,8 @@
   "hub.admin.lockdown.threshold_hint": "Joins in one minute that raise an alert in the audit log. 0 turns the alert off.",
   "hub.admin.lockdown.auto": "Lock down automatically",
   "hub.admin.lockdown.auto_hint": "Turn lockdown on by itself when the raid alert fires.",
+  "voice.streams.this_channel": "(this channel)",
+  "content.streams.title_live": "{count, plural, one {# screen share live} other {# screen shares live}}",
   "hub.admin.tabs.widget": "Online widget",
   "hub.admin.widget.title": "Online widget",
   "hub.admin.widget.hint": "A small panel for your community's own website showing who is online. Invisible members and members who opted out never appear, and it never shows anyone's key.",

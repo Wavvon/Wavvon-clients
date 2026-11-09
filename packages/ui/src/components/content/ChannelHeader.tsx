@@ -25,6 +25,8 @@ interface Props {
   /** Renders the "live screen shares" header button when the caller has
    * somewhere to send it — omit to hide the button entirely. */
   onOpenHubStreams?: () => void;
+  /** Screen shares live on the hub; shown on the icon when above zero. */
+  liveShareCount?: number;
   onBreadcrumbCategoryClick: (categoryId: string) => void;
 }
 
@@ -44,6 +46,7 @@ export function ChannelHeader({
   onToggleMemberSidebar,
   onOpenEditDescription,
   onOpenHubStreams,
+  liveShareCount = 0,
   onBreadcrumbCategoryClick,
 }: Props) {
   const { t } = useTranslation();
@@ -101,9 +104,14 @@ export function ChannelHeader({
             onClick={onOpenHubStreams}
             className="btn-icon-header"
             title={t("content.streams.title")}
-            aria-label={t("content.streams.title")}
+            aria-label={
+              liveShareCount > 0
+                ? t("content.streams.title_live", { count: liveShareCount })
+                : t("content.streams.title")
+            }
           >
             <ScreenShareIcon />
+            {liveShareCount > 0 && <span className="hub-unread-pill">{liveShareCount}</span>}
           </button>
         )}
         <button
