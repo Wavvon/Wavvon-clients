@@ -2353,5 +2353,7 @@
   "channel.settings.slowmode_seconds": "{count, plural, one {# segundo} other {# segundos}}",
   "channel.settings.slowmode_minutes": "{count, plural, one {# minuto} other {# minutos}}",
   "channel.settings.slowmode_hours": "{count, plural, one {# hora} other {# horas}}",
-  "channel.slowmode_wait": "Slowmode activado: puedes volver a enviar en {seconds, plural, one {# segundo} other {# segundos}}."
+  "channel.slowmode_wait": "Slowmode activado: puedes volver a enviar en {seconds, plural, one {# segundo} other {# segundos}}.",
+  "voice.streams.this_channel": "(este canal)",
+  "content.streams.title_live": "{count, plural, one {# pantalla compartida en directo} other {# pantallas compartidas en directo}}"
 }
