@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Channel } from "@wavvon/core";
-import { HubStreamsPanel, liveScreenShares } from "../HubStreamsPanel";
+import { HubStreamsPanel, camerasOn, liveScreenShares } from "../HubStreamsPanel";
 import type { HubStreamInfo } from "../../types";
 
 const noop = () => {};
@@ -38,5 +38,6 @@ describe("HubStreamsPanel", () => {
     expect(html).toContain("pk-s1");
     expect(html).not.toContain("pk-cam");
     expect(liveScreenShares(streams)).toHaveLength(2);
+    expect([...camerasOn(streams)]).toEqual(["pk-cam"]);
   });
 });

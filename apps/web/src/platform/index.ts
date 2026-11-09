@@ -163,7 +163,8 @@ export { pinMessage, unpinMessage, getPins } from "./commands/pins";
 
 export { getUserProfile } from "./commands/profiles";
 
-export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, getFindableByAllies, setFindableByAllies, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
+export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, getFindableByAllies, setFindableByAllies, getWidgetHidden, setWidgetHidden, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
+export { getWidget, putWidget } from "./commands/widget";
 
 export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 

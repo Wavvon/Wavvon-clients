@@ -144,5 +144,13 @@ export function buildProfileEditorActions(hubs: Hub[]): ProfileEditorActions {
     loadFollowsDefault: (accountId) => loadFollowsDefault(accountId),
     saveFollowsDefault: (hubIds, accountId) => saveFollowsDefault(hubIds, accountId),
     listMyCertifications: () => invoke<MyCertification[]>("fetch_my_certs"),
+    // A hub without the widget never sends the field, which hides the switch.
+    async loadWidgetHidden(hubId) {
+      const me = await invoke<{ widget_hidden?: boolean }>("get_me_on_hub", { hubUrl: hubUrlFor(hubId) });
+      return me.widget_hidden ?? null;
+    },
+    async saveWidgetHidden(hubId, value) {
+      await invoke("update_my_profile_on_hub", { hubUrl: hubUrlFor(hubId), profile: { widget_hidden: value } });
+    },
   };
 }

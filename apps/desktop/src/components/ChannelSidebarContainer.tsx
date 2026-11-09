@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { ChannelSidebar, useConfirm } from "@wavvon/ui";
+import { ChannelSidebar, camerasOn, useConfirm } from "@wavvon/ui";
 import type { VoiceMoveMenuState, SoundboardChip, WhisperReplyBind, UnreadCounts } from "@wavvon/ui";
 import { formatPubkey, hubBannerUrl, type TreeNode } from "@wavvon/core";
 import { hasDraft } from "../utils/drafts";
@@ -208,6 +208,7 @@ export function ChannelSidebarContainer({
       onSetVoiceGain={voice.setVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
       speaking={voice.speakingPubkeys}
+      cameraOn={camerasOn(voice.hubStreams)}
       isWhispering={whisper.isWhispering}
       whisperTargets={whisper.whisperTargets}
       whisperLists={whisper.whisperLists}

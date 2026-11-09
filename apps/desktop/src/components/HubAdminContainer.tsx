@@ -28,6 +28,7 @@ import {
 } from "../hooks/hubAdminActions";
 import { stickerPacksActions, stickerStorageActions, stickerSettingsActions } from "../hooks/stickerActions";
 import { attachmentSettingsActions } from "../hooks/attachmentActions";
+import { widgetActions } from "../hooks/widgetActions";
 
 type PassthroughProps = Omit<
   HubAdminPageProps,
@@ -110,6 +111,7 @@ export function HubAdminContainer({
       canManageSoundboard={canManageSoundboard}
       stickersAdmin={stickersAdmin}
       attachmentSettingsActions={hubCaps.includes("attachments.stored") && can("hub.settings") ? attachmentSettingsActions : undefined}
+      widgetActions={hubCaps.includes("hub.widget") && can("hub.settings") ? widgetActions : undefined}
       canManageHubAlliances={canManageHubAlliances}
       rolesActions={rolesActions}
       memberRoleActions={memberRoleActions}

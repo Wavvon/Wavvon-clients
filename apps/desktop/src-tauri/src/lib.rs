@@ -302,6 +302,7 @@ pub fn run() {
             admin::revoke_invite,
             admin::get_user_profile,
             admin::update_my_profile_on_hub,
+            admin::get_me_on_hub,
             // Alliance / federation
             admin_alliance::list_alliances,
             admin_alliance::get_alliance_members,

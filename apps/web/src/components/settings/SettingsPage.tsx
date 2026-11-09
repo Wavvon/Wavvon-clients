@@ -5,7 +5,7 @@ import type { ThemeId, WavvonSkin, ProfileEditorActions, SettingsTabDef, TrustRo
 import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
-import { getMyProfileOnHub, updateMyProfileOnHub, getFindableByAllies, setFindableByAllies, NO_HUB_SESSION, listMyCertifications } from "@platform";
+import { getMyProfileOnHub, updateMyProfileOnHub, getFindableByAllies, setFindableByAllies, getWidgetHidden, setWidgetHidden, NO_HUB_SESSION, listMyCertifications } from "@platform";
 import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
 import { addTrustRoot } from "@wavvon/ui";
 import { loadTrustRoots, saveTrustRoots } from "@shared/utils/trustRoots";
@@ -31,6 +31,8 @@ const profileEditorActions: ProfileEditorActions = {
   listMyCertifications,
   loadFindableByAllies: getFindableByAllies,
   saveFindableByAllies: setFindableByAllies,
+  loadWidgetHidden: getWidgetHidden,
+  saveWidgetHidden: setWidgetHidden,
 };
 
 export type SettingsTab =

@@ -4,7 +4,7 @@ import type React from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { formatPubkey, hubBannerUrl } from "@wavvon/core";
 import type { Channel, TreeNode } from "@wavvon/core";
-import { ChannelSidebar, useConfirm } from "@wavvon/ui";
+import { ChannelSidebar, camerasOn, useConfirm } from "@wavvon/ui";
 import type { WhisperReplyBind } from "@wavvon/ui";
 import { listRoles, listSoundboardClips } from "@platform";
 import { activeHubLanding, activeHubSupports } from "../../platform/session";
@@ -209,6 +209,7 @@ export function ChannelSidebarContainer({
       onSetVoiceGain={voice.handleSetVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
       speaking={voice.voiceActiveUsers}
+      cameraOn={camerasOn(screenShare.hubStreams)}
       hasDraft={hasDraft}
       canUseSoundboard={canUseSoundboard}
       onListSoundboardClips={listSoundboardClips}

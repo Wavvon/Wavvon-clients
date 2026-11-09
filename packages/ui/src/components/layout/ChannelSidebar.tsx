@@ -177,6 +177,8 @@ interface Props {
   inboundWhispers?: Set<string>;
   /** Pubkeys speaking right now, as the hub broadcasts it (yours included). */
   speaking?: Set<string>;
+  /** Pubkeys with their camera on, for the icon beside their name. */
+  cameraOn?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
   /** Whisper (events.md whisper follow-up): named target lists (save/load/delete)
@@ -222,7 +224,7 @@ export function ChannelSidebar({
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
-  voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
+  voiceGains, onSetVoiceGain, inboundWhispers, speaking, cameraOn, hasDraft,
   isWhispering, whisperTargets, whisperLists, showWhisperPanel,
   onToggleWhisperPanel, onCloseWhisperPanel, onStartWhisper, onStopWhisper,
   onSaveWhisperList, onDeleteWhisperList, onListWhisperRoles,
@@ -619,6 +621,7 @@ export function ChannelSidebar({
                         inboundWhispers={inboundWhispers}
                         avatars={avatarByKey}
                         speaking={speaking}
+                        cameraOn={cameraOn}
                         hasDraft={hasDraft}
                         onClick={() => {
                           setChannelFocusIndex(index);

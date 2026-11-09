@@ -133,6 +133,22 @@ export async function updateMyProfileOnHub(hubId: string, profile: MyProfileUpda
   });
 }
 
+// null = the hub has no online widget; the toggle hides.
+export async function getWidgetHidden(hubId: string): Promise<boolean | null> {
+  if (!hubSupports(hubId, "hub.widget")) return null;
+  const s = sessionOf(hubId);
+  const res = await hubFetchWithToken(s.hub_url, s.token, "/me");
+  return ((await res.json()) as { widget_hidden?: boolean }).widget_hidden ?? false;
+}
+
+export async function setWidgetHidden(hubId: string, value: boolean): Promise<void> {
+  const s = sessionOf(hubId);
+  await hubFetchWithToken(s.hub_url, s.token, "/me", {
+    method: "PATCH",
+    body: JSON.stringify({ widget_hidden: value }),
+  });
+}
+
 // null = the hub does not offer alliance member discovery; the toggle hides.
 export async function getFindableByAllies(hubId: string): Promise<boolean | null> {
   if (!hubSupports(hubId, "alliance.people")) return null;

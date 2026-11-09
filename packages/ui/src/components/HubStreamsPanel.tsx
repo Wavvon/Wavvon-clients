@@ -21,6 +21,11 @@ export function liveScreenShares(streams: HubStreamInfo[]): HubStreamInfo[] {
   return streams.filter((s) => s.kind === "screen");
 }
 
+/** Who has a camera on, for the sidebar roster. */
+export function camerasOn(streams: HubStreamInfo[]): Set<string> {
+  return new Set(streams.filter((s) => s.kind === "webcam").map((s) => s.sharer_pubkey));
+}
+
 // What is live across the hub, one heading per voice channel in sidebar
 // order, the channel you are in included: watch a share without joining.
 export function HubStreamsPanel({ streams, subscribedIds, currentChannelId, channels, nameFor, onWatch, onStopWatch, onClose }: Props) {
