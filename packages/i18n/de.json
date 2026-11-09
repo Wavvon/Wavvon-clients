@@ -2366,5 +2366,7 @@
   "hub.admin.lockdown.threshold": "Raid-Alarm",
   "hub.admin.lockdown.threshold_hint": "Beitritte pro Minute, die einen Alarm im Prüfprotokoll auslösen. 0 schaltet ihn ab.",
   "hub.admin.lockdown.auto": "Automatisch sperren",
-  "hub.admin.lockdown.auto_hint": "Die Sperre von selbst einschalten, wenn der Raid-Alarm auslöst."
+  "hub.admin.lockdown.auto_hint": "Die Sperre von selbst einschalten, wenn der Raid-Alarm auslöst.",
+  "voice.streams.this_channel": "(dieser Kanal)",
+  "content.streams.title_live": "{count, plural, one {# Bildschirmfreigabe live} other {# Bildschirmfreigaben live}}"
 }

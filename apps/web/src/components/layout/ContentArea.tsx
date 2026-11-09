@@ -1,4 +1,4 @@
-import { memberActivity } from "@wavvon/ui";
+import { liveScreenShares, memberActivity } from "@wavvon/ui";
 import { useMemo, useState } from "react";
 import { useConnectionStats } from "../../hooks/useConnectionStats";
 import type {
@@ -364,6 +364,7 @@ export function ContentArea(props: Props) {
         activeScreenShares={screenShare.activeScreenShares}
         screenShareViewerRef={screenShare.screenShareViewerRef}
         onOpenHubStreams={screenShare.handleOpenHubStreams}
+        liveShareCount={liveScreenShares(screenShare.hubStreams).length}
         onStartConversation={dms.handleStartConversation}
         dmPeerNames={dms.peerNames}
         alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}

@@ -1,6 +1,6 @@
 import { memberActivity } from "@wavvon/ui";
 import type { AllianceScrollback } from "@wavvon/ui";
-import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
+import { HubStreamsPanel, liveScreenShares, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import { useStickers } from "../hooks/useStickers";
@@ -195,6 +195,7 @@ export function ContentAreaContainer({
         onToast={setToast}
         onError={setError}
         onOpenHubStreams={() => setShowHubStreams(true)}
+        liveShareCount={liveScreenShares(voice.hubStreams).length}
         voicePartByChannel={voice.voicePartByChannel}
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}

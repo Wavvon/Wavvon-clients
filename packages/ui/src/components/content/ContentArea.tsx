@@ -143,6 +143,8 @@ interface Props {
   activeScreenShares?: ActiveStream[];
   screenShareViewerRef?: React.RefObject<ScreenShareViewerRef | null>;
   onOpenHubStreams: () => void;
+  /** Screen shares live on the hub, for the count on the header icon. */
+  liveShareCount?: number;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   alliancePeopleActions?: AlliancePeopleActions;
@@ -213,6 +215,7 @@ export function ContentArea({
   slashCommands = [],
   activeScreenShares = [], screenShareViewerRef,
   onOpenHubStreams,
+  liveShareCount,
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
   onStartConversation,
@@ -552,6 +555,7 @@ export function ContentArea({
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
               onOpenHubStreams={onOpenHubStreams}
+              liveShareCount={liveShareCount}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
             {selectedChannel.channel_type === "voice" && voiceStage ? (

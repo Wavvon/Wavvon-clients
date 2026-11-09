@@ -211,6 +211,7 @@ interface Props {
   onError: (msg: string) => void;
   slashCommands?: SlashCommandEntry[];
   onOpenHubStreams: () => void;
+  liveShareCount?: number;
   voicePartByChannel: Record<string, VoiceParticipant[]>;
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;

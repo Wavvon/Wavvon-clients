@@ -2366,5 +2366,7 @@
   "hub.admin.lockdown.threshold": "Allarme raid",
   "hub.admin.lockdown.threshold_hint": "Ingressi in un minuto che fanno scattare un allarme nel registro attività. 0 lo disattiva.",
   "hub.admin.lockdown.auto": "Blocco automatico",
-  "hub.admin.lockdown.auto_hint": "Attiva il blocco da solo quando scatta l'allarme raid."
+  "hub.admin.lockdown.auto_hint": "Attiva il blocco da solo quando scatta l'allarme raid.",
+  "voice.streams.this_channel": "(questo canale)",
+  "content.streams.title_live": "{count, plural, one {# condivisione schermo attiva} other {# condivisioni schermo attive}}"
 }
