@@ -2391,5 +2391,17 @@
   "voice.share.pip_all": "Float every share in one window",
   "voice.share.window_restore_cursor": "Make the pop-out window clickable again",
   "dm.key_changed.body": "{name}'s encryption key has changed. It happens when an identity key falls into someone else's hands, or after a reset. Check with {name} another way before you continue; until then nothing is sent.",
-  "dm.key_changed.accept": "Accept the new key"
+  "dm.key_changed.accept": "Accept the new key",
+  "hub.admin.roles.section.messages": "Messages",
+  "hub.admin.roles.section.voice": "Voice",
+  "hub.admin.roles.section.moderation": "Moderation",
+  "hub.admin.roles.section.members": "Members and roles",
+  "hub.admin.roles.section.channels": "Channels",
+  "hub.admin.roles.section.events": "Events and surveys",
+  "hub.admin.roles.section.hub": "Hub",
+  "hub.admin.roles.section.integrations": "Integrations",
+  "hub.admin.roles.section.federation": "Federation and trust",
+  "hub.admin.roles.section.other": "Other",
+  "hub.admin.roles.section.all": "Permissions",
+  "hub.admin.roles.section.count": "{set} of {total}"
 }

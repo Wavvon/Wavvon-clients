@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChannelRoleOverwrites, ChannelRolePermissions, ChannelPermissionsResponse, RoleInfo } from "../../types";
 import {
-  overwritableIds, deriveRowStates, buildOverwritePayload,
+  overwritableIds, deriveRowStates, buildOverwritePayload, permissionSections,
   type TriState, type PermissionCatalogueEntry,
 } from "../../utils/channelPermissions";
+import { PermissionSections } from "../admin/PermissionSections";
 
 export interface ChannelPermissionsTabActions {
   getChannelPermissions: (channelId: string) => Promise<ChannelPermissionsResponse>;
@@ -167,7 +168,11 @@ export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Pro
         <div className="roles-panel">
           {selectedRole ? (
             <>
-              {overwritableIds(catalogue).map((permId) => {
+              <PermissionSections
+                sections={permissionSections(overwritableIds(catalogue), catalogue)}
+                isSet={(permId) => (rows[permId] ?? "inherit") !== "inherit"}
+                layout="rows"
+                renderItem={(permId) => {
                 const state = rows[permId] ?? "inherit";
                 const inheritedAllow = selectedRole.inherited.includes(permId);
                 const overridden = state !== "inherit";
@@ -218,7 +223,8 @@ export function ChannelPermissionsTab({ channelId, actions, myMaxPriority }: Pro
                     </div>
                   </div>
                 );
-              })}
+              }}
+              />
               {selectedLocked ? (
                 <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-2)" }}>
                   {t("channel.permissions.locked_rank")}

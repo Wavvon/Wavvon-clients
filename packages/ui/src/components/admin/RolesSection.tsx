@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RoleCategory, RoleInfo } from "../../types";
-import type { PermissionCatalogueEntry } from "../../utils/channelPermissions";
+import { permissionSections, type PermissionCatalogueEntry } from "../../utils/channelPermissions";
+import { PermissionSections } from "./PermissionSections";
 import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../../utils/roleAppearance";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ErrorRetry } from "../ErrorRetry";
@@ -147,10 +148,11 @@ export function RolesSection({ actions }: Props) {
   // ALL_PERMISSIONS above: a hub newer than this build enforces ids this
   // build has never heard of, and a screen that cannot offer them is how a
   // permission ends up enforced but ungrantable.
-  const [permissionIds, setPermissionIds] = useState<string[]>([]);
+  const [catalogue, setCatalogue] = useState<PermissionCatalogueEntry[]>([]);
+  const permissionIds = catalogue.map((e) => e.id);
   const [error, setError] = useState<string | null>(null);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
-  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
+  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newPriority, setNewPriority] = useState(1);
   const [newPerms, setNewPerms] = useState<Set<string>>(new Set());
@@ -183,7 +185,7 @@ export function RolesSection({ actions }: Props) {
     const pending = actions.listPermissionCatalogue?.();
     if (!pending) return;
     pending
-      .then((entries) => { if (!cancelled) setPermissionIds(entries.map((e) => e.id)); })
+      .then((entries) => { if (!cancelled) setCatalogue(entries); })
       .catch(() => { /* hub too old to serve one — nothing to offer is the honest answer */ });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,7 +234,7 @@ export function RolesSection({ actions }: Props) {
       setNewName("");
       setNewPriority(1);
       setNewPerms(new Set());
-      setNewHoist(false);
+      setNewHoist(false);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -301,8 +303,10 @@ export function RolesSection({ actions }: Props) {
               aria-label={t("hub.admin.roles.priority_aria")}
             />
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", margin: "var(--space-2) 0" }}>
-            {permissionIds.map((perm) => (
+          <PermissionSections
+            sections={permissionSections(permissionIds, catalogue)}
+            isSet={(perm) => newPerms.has(perm)}
+            renderItem={(perm) => (
               <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
                 <input
                   type="checkbox"
@@ -315,8 +319,8 @@ export function RolesSection({ actions }: Props) {
                 />
                 {permLabel(perm)}
               </label>
-            ))}
-          </div>
+            )}
+          />
           <label className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
             <input type="checkbox" checked={newHoist} onChange={(e) => setNewHoist(e.target.checked)} />
             {t("hub.admin.roles.hoist")}
@@ -409,8 +413,10 @@ export function RolesSection({ actions }: Props) {
               {role.id !== "builtin-owner" && (
                 <>
                   <span className="settings-label">{t("hub.admin.roles.permissions")}</span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", margin: "var(--space-2) 0 var(--space-3)" }}>
-                    {editableIdsFor(role).map((perm) => (
+                  <PermissionSections
+                    sections={permissionSections(editableIdsFor(role), catalogue)}
+                    isSet={(perm) => role.permissions.includes(perm)}
+                    renderItem={(perm) => (
                       <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
                         <input
                           type="checkbox"
@@ -419,8 +425,8 @@ export function RolesSection({ actions }: Props) {
                         />
                         {permLabel(perm)}
                       </label>
-                    ))}
-                  </div>
+                    )}
+                  />
                 </>
               )}
 
