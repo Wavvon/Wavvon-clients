@@ -17,6 +17,7 @@ import {
   recoveryRequestSigningBytes,
   recoveryAttestationSigningBytes,
   federatedPlaintextDmSigningBytes,
+  federatedPlaintextDmV2SigningBytes,
   authChallengeSigningBytes,
   boundAuthChallengeSigningBytes,
   signRecoveryRequest,
@@ -203,6 +204,16 @@ describe("recovery-attestation wire vectors", () => {
     const sb = boundAuthChallengeSigningBytes(v.str("server_pubkey"), hexToBytes(v.str("challenge")));
     expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
     expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
+  });
+
+  it("federatedPlaintextDmV2SigningBytes matches the server vector and signature", () => {
+    const v = vector("federated_plaintext_dm_v2");
+    const args = [v.str("conversation_id"), v.str("kind"), v.str("content"), v.str("message_id"), v.num("created_at")] as const;
+    const sb = federatedPlaintextDmV2SigningBytes(...args, v.strs("members"));
+    expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
+    expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
+    // The member set, not its order.
+    expect(bytesToHex(federatedPlaintextDmV2SigningBytes(...args, [...v.strs("members")].reverse()))).toBe(v.out("signing_bytes"));
   });
 
   it("federatedPlaintextDmSigningBytes matches the server vector and signature", () => {

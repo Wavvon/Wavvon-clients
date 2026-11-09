@@ -10,6 +10,7 @@ import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
 
 const PLAINTEXT_SIGNER_CERT_CAP = "dms.plaintext.signercert";
+const PLAINTEXT_V2_CAP = "dms.plaintext.v2";
 import {
   dhKeypairFromSeed,
   encryptDm,
@@ -22,6 +23,7 @@ import {
   dhKeySigningBytes,
   verifyDhKeyRecord,
   federatedPlaintextDmSigningBytes,
+  federatedPlaintextDmV2SigningBytes,
   verifyDmEnvelopeSigner,
   type DmEnvelope,
   type DRSession,
@@ -321,17 +323,36 @@ export async function sendDm(
     // signing with a key other than the one the conversation knows us by
     // sends the cert that ties the two together -- where the hub takes it; an
     // older hub refuses such a signature, so there it goes unsigned as before.
+    const caps = (await dmSession()).capabilities ?? [];
     const asSelf = publicKeyHex(signingSeedHex) === senderPubkey;
-    const certOk =
-      !asSelf && !!signerCert && !!(await dmSession()).capabilities?.includes(PLAINTEXT_SIGNER_CERT_CAP);
-    const plaintext_signature =
-      asSelf || certOk
-        ? signBytes(federatedPlaintextDmSigningBytes(conversation_id, conversation.conv_type, content), signingSeedHex)
-        : undefined;
+    const certOk = !asSelf && !!signerCert && caps.includes(PLAINTEXT_SIGNER_CERT_CAP);
+    // v2 signs an id and time we choose, and the members as the hub just
+    // told us, so a peer can neither replay the message nor move it into a
+    // conversation we did not pick (Wavvon-server#311).
+    const v2 = caps.includes(PLAINTEXT_V2_CAP);
+    const message_id = v2 ? crypto.randomUUID() : undefined;
+    const created_at = v2 ? Math.floor(Date.now() / 1000) : undefined;
+    const signed = v2
+      ? federatedPlaintextDmV2SigningBytes(
+          conversation_id,
+          conversation.conv_type,
+          content,
+          message_id!,
+          created_at!,
+          conversation.members,
+        )
+      : federatedPlaintextDmSigningBytes(conversation_id, conversation.conv_type, content);
+    const plaintext_signature = asSelf || certOk ? signBytes(signed, signingSeedHex) : undefined;
     const plaintext_signer_cert = certOk ? signerCert : undefined;
     await dmFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
-      body: JSON.stringify({ content, attachments, plaintext_signature, plaintext_signer_cert }),
+      body: JSON.stringify({
+        content,
+        attachments,
+        plaintext_signature,
+        plaintext_signer_cert,
+        ...(plaintext_signature && v2 ? { message_id, created_at } : {}),
+      }),
     });
   };
 

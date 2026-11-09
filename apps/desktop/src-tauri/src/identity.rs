@@ -833,6 +833,30 @@ pub fn bound_auth_challenge_signing_bytes(server_pubkey: &str, challenge: &[u8])
 
 /// What the sender of a plaintext DM signs so a receiving hub accepts it
 /// across hubs. Mirrors `federated_plaintext_dm_signing_bytes`.
+/// The v2 plaintext DM signature: v1 plus the message id and time the client
+/// chose, and the member set sorted and deduplicated. Mirrors
+/// `federated_plaintext_dm_v2_signing_bytes` (Wavvon-server#311).
+pub fn federated_plaintext_dm_v2_signing_bytes(
+    conversation_id: &str,
+    conv_type: &str,
+    content: &str,
+    message_id: &str,
+    created_at: u64,
+    members: &[String],
+) -> Vec<u8> {
+    let mut sorted = members.to_vec();
+    sorted.sort_unstable();
+    sorted.dedup();
+    let mut buf = b"wavvon/federated-dm/v2 ".to_vec();
+    write_str(&mut buf, conversation_id);
+    write_str(&mut buf, conv_type);
+    write_str(&mut buf, content);
+    write_str(&mut buf, message_id);
+    write_u64_le(&mut buf, created_at);
+    write_str_vec(&mut buf, &sorted);
+    buf
+}
+
 pub fn federated_plaintext_dm_signing_bytes(
     conversation_id: &str,
     conv_type: &str,
@@ -1407,6 +1431,21 @@ mod wire_vector_tests {
         );
         assert_signing_bytes("bound_auth_challenge", &sb);
         assert_signed("bound_auth_challenge", "signature", &sb);
+    }
+
+    #[test]
+    fn federated_plaintext_dm_v2_matches_the_server_vector() {
+        let v = vector("federated_plaintext_dm_v2");
+        let sb = federated_plaintext_dm_v2_signing_bytes(
+            &s(v, "conversation_id"),
+            &s(v, "kind"),
+            &s(v, "content"),
+            &s(v, "message_id"),
+            n(v, "created_at"),
+            &strings(v, "members"),
+        );
+        assert_signing_bytes("federated_plaintext_dm_v2", &sb);
+        assert_signed("federated_plaintext_dm_v2", "signature", &sb);
     }
 
     #[test]

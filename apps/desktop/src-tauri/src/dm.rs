@@ -335,13 +335,36 @@ fn decrypt_dm_inner(
 
 /// Whether the hub takes `plaintext_signer_cert`. A failed lookup answers no:
 /// the message then goes unsigned, which is what it did before the cert.
-async fn hub_takes_signer_cert(client: &reqwest::Client, hub_url: &str) -> bool {
+async fn hub_capabilities(client: &reqwest::Client, hub_url: &str) -> Vec<String> {
     let info: Option<serde_json::Value> = match client.get(format!("{hub_url}/info")).send().await {
         Ok(resp) => resp.json().await.ok(),
         Err(_) => None,
     };
     info.and_then(|i| i["capabilities"].as_array().cloned())
-        .is_some_and(|caps| caps.iter().any(|c| c == "dms.plaintext.signercert"))
+        .map(|caps| {
+            caps.iter()
+                .filter_map(|c| c.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// A random (v4) UUID, the id a v2 plaintext DM is signed under.
+fn random_uuid() -> String {
+    use rand::RngCore;
+    let mut b = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut b);
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    let h = hex::encode(b);
+    format!(
+        "{}-{}-{}-{}-{}",
+        &h[0..8],
+        &h[8..12],
+        &h[12..16],
+        &h[16..20],
+        &h[20..32]
+    )
 }
 
 #[tauri::command]
@@ -386,21 +409,56 @@ pub(crate) async fn send_dm(
             .await
             .map_err(|e| format!("Invalid conversation: {e}"))?;
         let conv_type = conv["conv_type"].as_str().unwrap_or("dm");
-        let sb = crate::identity::federated_plaintext_dm_signing_bytes(
-            &conversation_id,
-            conv_type,
-            &content,
-        );
+        let caps = hub_capabilities(&client, &hub_url).await;
+        // v2 signs an id and time we choose and the members as the hub just
+        // told us, so a peer can neither replay the message nor move it into
+        // a conversation we did not pick (Wavvon-server#311).
+        let v2 = caps.iter().any(|c| c == "dms.plaintext.v2");
+        let message_id = random_uuid();
+        let created_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or_default();
+        let members: Vec<String> = conv["members"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|m| m.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let sb = if v2 {
+            crate::identity::federated_plaintext_dm_v2_signing_bytes(
+                &conversation_id,
+                conv_type,
+                &content,
+                &message_id,
+                created_at,
+                &members,
+            )
+        } else {
+            crate::identity::federated_plaintext_dm_signing_bytes(
+                &conversation_id,
+                conv_type,
+                &content,
+            )
+        };
         // An older hub checks the signature against the canonical key alone
         // and refuses a subkey's, so there a paired device sends unsigned.
         let signer_cert = me.signer_cert();
-        let can_sign = signer_cert.is_none() || hub_takes_signer_cert(&client, &hub_url).await;
-        serde_json::json!({
+        let can_sign =
+            signer_cert.is_none() || caps.iter().any(|c| c == "dms.plaintext.signercert");
+        let mut body = serde_json::json!({
             "content": content,
             "attachments": attachments.clone().unwrap_or_default(),
             "plaintext_signature": can_sign.then(|| hex::encode(me.sign(&sb))),
             "plaintext_signer_cert": signer_cert.filter(|_| can_sign),
-        })
+        });
+        if can_sign && v2 {
+            body["message_id"] = serde_json::json!(message_id);
+            body["created_at"] = serde_json::json!(created_at);
+        }
+        body
     };
     let resp = client
         .post(format!(
