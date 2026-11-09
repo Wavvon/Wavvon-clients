@@ -818,6 +818,19 @@ pub fn auth_challenge_signing_bytes(challenge: &[u8]) -> Vec<u8> {
     buf
 }
 
+/// The scheme a current hub or farm names: the answer must be bound to it.
+pub const BOUND_AUTH_CHALLENGE_SCHEME: &str = "tagged-v2";
+
+/// The answer to a challenge from a server naming
+/// `BOUND_AUTH_CHALLENGE_SCHEME`, naming that server's key. Mirrors
+/// `bound_auth_challenge_signing_bytes` (Wavvon-server#294).
+pub fn bound_auth_challenge_signing_bytes(server_pubkey: &str, challenge: &[u8]) -> Vec<u8> {
+    let mut buf = b"wavvon/auth-challenge/v2 ".to_vec();
+    write_str(&mut buf, server_pubkey);
+    buf.extend_from_slice(challenge);
+    buf
+}
+
 /// What the sender of a plaintext DM signs so a receiving hub accepts it
 /// across hubs. Mirrors `federated_plaintext_dm_signing_bytes`.
 pub fn federated_plaintext_dm_signing_bytes(

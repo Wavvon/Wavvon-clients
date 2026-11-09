@@ -88,7 +88,7 @@ pub(crate) async fn alliance_voice_join(
     if !supports {
         return Err("owner_hub_no_alliance_voice".to_string());
     }
-    let auth_url = info["farm_url"].as_str().unwrap_or(&owner_url).to_string();
+    let auth_url = crate::hub_session::farm_auth_url(info["farm_url"].as_str(), &owner_url);
 
     let creds = crate::auth_creds::load_active_credentials()?;
     let outcome = creds

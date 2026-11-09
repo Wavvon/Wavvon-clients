@@ -407,6 +407,18 @@ export function authChallengeSigningBytes(challenge: Uint8Array): Uint8Array {
   return concat(tag("wavvon/auth-challenge/v1 "), challenge);
 }
 
+/** The scheme a current hub or farm names: the answer must be bound to it. */
+export const BOUND_AUTH_CHALLENGE_SCHEME = "tagged-v2";
+
+/** The answer to a challenge from a server naming BOUND_AUTH_CHALLENGE_SCHEME:
+ *  it names the server's public key, so a hostile hub relaying another
+ *  server's challenge gets an answer naming itself, useless there
+ *  (Wavvon-server#294). `serverPubkey` is the key of the server this client
+ *  is talking to, from that server's own /info, never from the challenge. */
+export function boundAuthChallengeSigningBytes(serverPubkey: string, challenge: Uint8Array): Uint8Array {
+  return concat(tag("wavvon/auth-challenge/v2 "), writeStr(serverPubkey), challenge);
+}
+
 /** What the sender of a plaintext DM signs so a receiving hub accepts it
  *  across hubs (`federated_plaintext_dm_signing_bytes`). Without it the
  *  receiving hub refuses the message and it sits in the sender's outbox. */

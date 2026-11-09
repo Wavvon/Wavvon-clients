@@ -114,18 +114,26 @@ impl AuthCredentials {
                 challenge_bytes.len()
             ));
         }
-        // Only the tagged answer: a raw signature over hub-chosen bytes is
-        // the oracle the tag exists to close, and every hub since 0.7.0
-        // names it.
-        if challenge_resp.scheme.as_deref() != Some(crate::identity::AUTH_CHALLENGE_SCHEME) {
-            return Err(format!(
-                "refusing to answer an auth challenge with scheme {:?}",
-                challenge_resp.scheme
-            ));
-        }
-        let signature_bytes = self.sign(&crate::identity::auth_challenge_signing_bytes(
-            &challenge_bytes,
-        ));
+        // Only a tagged answer: a raw signature over hub-chosen bytes is the
+        // oracle the tag exists to close. A current server wants it bound to
+        // its key, taken from the server at hub_url itself, never from the
+        // challenge: a hub relaying another server's challenge then gets an
+        // answer naming itself (Wavvon-server#294).
+        let signed = match challenge_resp.scheme.as_deref() {
+            Some(s) if s == crate::identity::BOUND_AUTH_CHALLENGE_SCHEME => {
+                let key = server_key_at(client, hub_url).await?;
+                crate::identity::bound_auth_challenge_signing_bytes(&key, &challenge_bytes)
+            }
+            Some(s) if s == crate::identity::AUTH_CHALLENGE_SCHEME => {
+                crate::identity::auth_challenge_signing_bytes(&challenge_bytes)
+            }
+            other => {
+                return Err(format!(
+                    "refusing to answer an auth challenge with scheme {other:?}"
+                ))
+            }
+        };
+        let signature_bytes = self.sign(&signed);
 
         let mut body = serde_json::json!({
             "public_key": self.public_key_hex,
@@ -380,6 +388,25 @@ struct VerifyResponse {
 pub struct AuthOutcome {
     pub token: String,
     pub canonical_pubkey: String,
+}
+
+/// The public key of the server at `base`: a hub's /info, or a farm's
+/// /farm/info when `base` is a farm.
+async fn server_key_at(client: &reqwest::Client, base: &str) -> Result<String, String> {
+    for path in ["/info", "/farm/info"] {
+        let Ok(resp) = client.get(format!("{base}{path}")).send().await else {
+            continue;
+        };
+        if !resp.status().is_success() {
+            continue;
+        }
+        if let Ok(v) = resp.json::<serde_json::Value>().await {
+            if let Some(key) = v["public_key"].as_str().filter(|k| !k.is_empty()) {
+                return Ok(key.to_string());
+            }
+        }
+    }
+    Err(format!("cannot learn the public key of {base} to sign in"))
 }
 
 #[cfg(test)]

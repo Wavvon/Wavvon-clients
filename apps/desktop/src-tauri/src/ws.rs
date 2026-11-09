@@ -761,7 +761,7 @@ pub(crate) async fn reauth_session(
         .json()
         .await
         .map_err(|e| format!("reauth info decode: {e}"))?;
-    let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
+    let auth_url = crate::hub_session::farm_auth_url(info.farm_url.as_deref(), &hub_url);
     let reauth = creds
         .authenticate(&auth_url, &client, None, None, None)
         .await?;

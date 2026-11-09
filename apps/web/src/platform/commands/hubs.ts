@@ -23,7 +23,7 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { publicKeyHex, rotationAppliesTo, type HubLanding, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
+import { farmAuthUrl, publicKeyHex, rotationAppliesTo, type HubLanding, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import type { Survey } from "@wavvon/ui";
 import { probeSessionScope } from "./lobby";
@@ -81,7 +81,7 @@ const logKey = (key: string): string => key.slice(0, LOG_KEY_CHARS);
 
 function authBaseUrl(info: InfoResponse, hub_url: string, subkeyCert?: unknown): string {
   if (subkeyCert) return hub_url;
-  return info.farm_url ?? hub_url;
+  return farmAuthUrl(info.farm_url, hub_url);
 }
 
 /**
