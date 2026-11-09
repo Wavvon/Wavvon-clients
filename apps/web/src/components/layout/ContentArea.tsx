@@ -337,6 +337,8 @@ export function ContentArea(props: Props) {
         onDeleteMessage={channelMessages.handleDeleteMessage}
         onSend={channelMessages.handleSend}
         onSendDm={dms.handleSendDm}
+        dmKeyChangedPeer={dms.keyChangedPeer}
+        onAcceptDmKeyChange={dms.handleAcceptKeyChange}
         onSendAllianceMessage={() => void channelMessages.handleSendAllianceMessage()}
         onPingTyping={typing.pingTyping}
         onPingDmTyping={typing.pingDmTyping}

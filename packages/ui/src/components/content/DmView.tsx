@@ -31,6 +31,10 @@ interface Props {
   onPingDmTyping: () => void;
   onSendDm: () => void;
   onOpenImage: (src: string, alt: string) => void;
+  /** The peer whose encryption key changed since it was first seen; sending
+   *  stays off until the user accepts the new key. */
+  keyChangedPeer?: string | null;
+  onAcceptKeyChange?: () => void;
 }
 
 export function DmView({
@@ -52,6 +56,8 @@ export function DmView({
   onPingDmTyping,
   onSendDm,
   onOpenImage,
+  keyChangedPeer,
+  onAcceptKeyChange,
 }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,6 +80,14 @@ export function DmView({
             .join(", ")}
         </h3>
       </div>
+      {keyChangedPeer && (
+        <div className="dm-group-banner error-text" role="alert">
+          <p>{t("dm.key_changed.body", { name: dmPeerLabel(keyChangedPeer, users, peerNames) })}</p>
+          {onAcceptKeyChange && (
+            <button className="btn-danger btn-small" onClick={onAcceptKeyChange}>{t("dm.key_changed.accept")}</button>
+          )}
+        </div>
+      )}
       {selectedConversation.conv_type === "group" && (
         <div className="dm-group-banner">
           {t("dm.group_banner")}
@@ -182,7 +196,7 @@ export function DmView({
           }}
           placeholder={t("composer.dm_placeholder")}
         />
-        <button onClick={onSendDm}>{t("composer.send")}</button>
+        <button onClick={onSendDm} disabled={!!keyChangedPeer}>{t("composer.send")}</button>
       </div>
     </>
   );

@@ -22,6 +22,7 @@ import {
   publicKeyHex,
   dhKeySigningBytes,
   verifyDhKeyRecord,
+  dhPinVerdict,
   federatedPlaintextDmSigningBytes,
   federatedPlaintextDmV2SigningBytes,
   verifyDmEnvelopeSigner,
@@ -427,19 +428,32 @@ async function getConversation_(conversation_id: string): Promise<Conversation> 
 }
 
 const dhKeyCache = new Map<string, { hex: string; ts: number }>();
-const DH_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-/** Null means the hub answered and this identity has published no DH key.
- *  Anything else — a 429 off the shared limiter, a hub mid-restart, no
- *  network — throws, because the caller that matters treats null as "cannot
- *  encrypt" and a failed lookup is not that. */
-export async function lookupDhKey(
-  pubkey: string,
-  hub_url?: string,
-): Promise<string | null> {
-  const cached = dhKeyCache.get(pubkey);
-  if (cached && Date.now() - cached.ts < DH_CACHE_TTL) return cached.hex;
+/** A peer's DH key differs from the one remembered for them. Nothing is
+ *  encrypted to it until the user accepts it (`acceptDhKey`). */
+export class DhKeyChangedError extends Error {
+  constructor(readonly pubkey: string, readonly dhPubkeyHex: string) {
+    super("dh_key_changed");
+  }
+}
 
+const DH_PINS_KEY = "wavvon_dh_pins";
+
+function loadDhPins(): Record<string, string> {
+  try {
+    return JSON.parse(getScoped(DH_PINS_KEY) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function saveDhPin(pubkey: string, dhPubkeyHex: string): void {
+  setScoped(DH_PINS_KEY, JSON.stringify({ ...loadDhPins(), [pubkey]: dhPubkeyHex }));
+}
+
+/** The signed record the hub holds for `pubkey`, verified, with no pin
+ *  check. Null when none is published. */
+async function fetchVerifiedDhKey(pubkey: string, hub_url?: string): Promise<string | null> {
   const base = hub_url ?? activeSession().hub_url;
   let res: Response;
   try {
@@ -458,8 +472,55 @@ export async function lookupDhKey(
   if (!verifyDhKeyRecord(pubkey, record.dh_pubkey_hex, record.signature_hex)) {
     throw new Error("dh_key_signature_invalid");
   }
-  dhKeyCache.set(pubkey, { hex: record.dh_pubkey_hex, ts: Date.now() });
   return record.dh_pubkey_hex;
+}
+
+/** The user checked with the peer and accepts the key the hub now holds. */
+export async function acceptDhKey(pubkey: string): Promise<void> {
+  const hex = await fetchVerifiedDhKey(pubkey);
+  if (!hex) return;
+  saveDhPin(pubkey, hex);
+  dhKeyCache.set(pubkey, { hex, ts: Date.now() });
+}
+
+/** The 1:1 peer whose key changed since we pinned it, for the warning shown
+ *  on opening a conversation; null otherwise. A failed lookup is not a
+ *  change: sending checks again and refuses then. */
+export async function dmPeerKeyChanged(conversation: Pick<Conversation, "conv_type" | "members">): Promise<string | null> {
+  if (conversation.conv_type === "group") return null;
+  const identity = await loadIdentity();
+  if (!identity) return null;
+  const { senderPubkey } = resolveDmSendAttribution(identity);
+  const peer = conversation.members.find((m) => m !== senderPubkey);
+  if (!peer) return null;
+  try {
+    await lookupDhKey(peer);
+    return null;
+  } catch (e) {
+    return e instanceof DhKeyChangedError ? peer : null;
+  }
+}
+const DH_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+/** Null means the hub answered and this identity has published no DH key.
+ *  Anything else — a 429 off the shared limiter, a hub mid-restart, no
+ *  network — throws, because the caller that matters treats null as "cannot
+ *  encrypt" and a failed lookup is not that. */
+export async function lookupDhKey(
+  pubkey: string,
+  hub_url?: string,
+): Promise<string | null> {
+  const cached = dhKeyCache.get(pubkey);
+  if (cached && Date.now() - cached.ts < DH_CACHE_TTL) return cached.hex;
+
+  const hex = await fetchVerifiedDhKey(pubkey, hub_url);
+  if (!hex) return null;
+  const pins = loadDhPins();
+  const verdict = dhPinVerdict(pins[pubkey], hex);
+  if (verdict === "changed") throw new DhKeyChangedError(pubkey, hex);
+  if (verdict === "new") saveDhPin(pubkey, hex);
+  dhKeyCache.set(pubkey, { hex, ts: Date.now() });
+  return hex;
 }
 
 /** The lenient reading, for callers where a missing key means "skip this

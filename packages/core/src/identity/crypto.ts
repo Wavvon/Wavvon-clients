@@ -100,6 +100,15 @@ export function verifyDhKeyRecord(pubkey: string, dhPubkeyHex: string, signature
   }
 }
 
+/** Trust on first use for a peer's DH key. The key is derived from the
+ *  peer's identity seed, so for one pubkey it never changes legitimately: a
+ *  different, validly signed key means that identity key signed something
+ *  new, and the user is asked before anything is encrypted to it. */
+export function dhPinVerdict(pinned: string | undefined, fetched: string): "new" | "same" | "changed" {
+  if (pinned === undefined) return "new";
+  return pinned === fetched ? "same" : "changed";
+}
+
 // Signing bytes for a 1:1 encrypted DM envelope.
 // Matches dm_envelope_signing_bytes() in wavvon-identity/src/wire.rs.
 export function dmEnvelopeSigningBytes(

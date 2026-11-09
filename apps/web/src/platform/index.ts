@@ -71,6 +71,9 @@ export {
   createConversation,
   getDmMessages,
   sendDm,
+  acceptDhKey,
+  dmPeerKeyChanged,
+  DhKeyChangedError,
   fetchDhKey,
   publishDhKey,
 } from "./commands/dms";

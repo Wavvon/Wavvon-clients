@@ -2389,5 +2389,7 @@
   "settings.profile.widget_hidden.failed": "No se pudo cambiar este ajuste.",
   "voice.participant.camera_on": "Cámara encendida",
   "voice.share.pip_all": "Flotar todas las pantallas compartidas en una ventana",
-  "voice.share.window_restore_cursor": "Hacer que la ventana emergente vuelva a ser clicable"
+  "voice.share.window_restore_cursor": "Hacer que la ventana emergente vuelva a ser clicable",
+  "dm.key_changed.body": "La clave de cifrado de {name} ha cambiado. Ocurre cuando una clave de identidad cae en otras manos, o tras un restablecimiento. Comprueba con {name} por otra vía antes de continuar; hasta entonces no se envía nada.",
+  "dm.key_changed.accept": "Aceptar la nueva clave"
 }

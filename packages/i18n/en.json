@@ -2389,5 +2389,7 @@
   "settings.profile.widget_hidden.failed": "Could not change this setting.",
   "voice.participant.camera_on": "Camera on",
   "voice.share.pip_all": "Float every share in one window",
-  "voice.share.window_restore_cursor": "Make the pop-out window clickable again"
+  "voice.share.window_restore_cursor": "Make the pop-out window clickable again",
+  "dm.key_changed.body": "{name}'s encryption key has changed. It happens when an identity key falls into someone else's hands, or after a reset. Check with {name} another way before you continue; until then nothing is sent.",
+  "dm.key_changed.accept": "Accept the new key"
 }
