@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import "./pip.css";
 
@@ -6,6 +7,23 @@ import "./pip.css";
   const video = document.getElementById("video") as HTMLVideoElement;
   const placeholder = document.getElementById("placeholder") as HTMLElement;
   const closeBtn = document.getElementById("close-btn") as HTMLElement;
+  const clickThroughBtn = document.getElementById("click-through-btn") as HTMLElement;
+  const opacity = document.getElementById("opacity") as HTMLInputElement;
+  // Each floating window carries the stream it shows, so several can be open
+  // at once and each hears only its own events.
+  const key = new URLSearchParams(location.search).get("key") ?? "";
+  const storedOpacity = (() => {
+    try { return localStorage.getItem("wavvon:pip-opacity"); } catch { return null; }
+  })();
+  if (storedOpacity) opacity.value = storedOpacity;
+  document.body.style.opacity = opacity.value;
+  opacity.addEventListener("input", () => {
+    document.body.style.opacity = opacity.value;
+    try { localStorage.setItem("wavvon:pip-opacity", opacity.value); } catch { /* storage off: keep it for this window only */ }
+  });
+  clickThroughBtn.addEventListener("click", () => {
+    void invoke("set_pip_click_through", { key, on: true });
+  });
 
   let mediaSource: MediaSource | null = null;
   let sourceBuffer: SourceBuffer | null = null;
@@ -70,7 +88,7 @@ import "./pip.css";
     showPlaceholder(false);
   }
 
-  await listen<{ data: number[] }>("pip-stream-chunk", (event) => {
+  await listen<{ data: number[] }>(`pip-stream-chunk-${key}`, (event) => {
     const bytes = new Uint8Array(event.payload.data);
     if (!mediaSource || mediaSource.readyState !== "open") {
       initMse();
@@ -81,7 +99,7 @@ import "./pip.css";
     drainQueue();
   });
 
-  await listen("pip-stream-stop", () => {
+  await listen(`pip-stream-stop-${key}`, () => {
     resetMse();
     video.src = "";
     video.load();
@@ -89,6 +107,6 @@ import "./pip.css";
   });
 
   closeBtn.addEventListener("click", async () => {
-    await emit("pip-close", null);
+    await emit(`pip-close-${key}`, null);
   });
 })();

@@ -2387,5 +2387,7 @@
   "settings.profile.widget_hidden.label": "Excluirme del widget en línea de este hub",
   "settings.profile.widget_hidden.hint": "El widget muestra quién está en línea en el sitio de la comunidad. Con esto activado, no apareces ni se te cuenta.",
   "settings.profile.widget_hidden.failed": "No se pudo cambiar este ajuste.",
-  "voice.participant.camera_on": "Cámara encendida"
+  "voice.participant.camera_on": "Cámara encendida",
+  "voice.share.pip_all": "Flotar todas las pantallas compartidas en una ventana",
+  "voice.share.window_restore_cursor": "Hacer que la ventana emergente vuelva a ser clicable"
 }
