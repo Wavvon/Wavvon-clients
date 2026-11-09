@@ -88,6 +88,18 @@ export function dhKeySigningBytes(pubkey: string, dhPubkeyHex: string): Uint8Arr
   return concat(prefix, writeStr(pubkey), writeStr(dhPubkeyHex));
 }
 
+/** Whether `pubkey` itself signed this DH key record. The hub stores the
+ *  record and is not trusted with it: an unverified key is one the hub could
+ *  have swapped for its own, reading and altering every DM and voice key
+ *  wrapped to it. */
+export function verifyDhKeyRecord(pubkey: string, dhPubkeyHex: string, signatureHex: string): boolean {
+  try {
+    return ed25519.verify(hexToBytes(signatureHex), dhKeySigningBytes(pubkey, dhPubkeyHex), hexToBytes(pubkey));
+  } catch {
+    return false;
+  }
+}
+
 // Signing bytes for a 1:1 encrypted DM envelope.
 // Matches dm_envelope_signing_bytes() in wavvon-identity/src/wire.rs.
 export function dmEnvelopeSigningBytes(

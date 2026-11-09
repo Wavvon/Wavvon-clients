@@ -20,6 +20,7 @@ import {
   signBytes,
   publicKeyHex,
   dhKeySigningBytes,
+  verifyDhKeyRecord,
   federatedPlaintextDmSigningBytes,
   verifyDmEnvelopeSigner,
   type DmEnvelope,
@@ -428,6 +429,12 @@ export async function lookupDhKey(
     dh_pubkey_hex: string;
     signature_hex: string;
   };
+  // A key its owner did not sign is one the hub may have swapped in. Refused
+  // rather than read as "no key": a DM must not go out in the clear because
+  // a hub tampered with the record.
+  if (!verifyDhKeyRecord(pubkey, record.dh_pubkey_hex, record.signature_hex)) {
+    throw new Error("dh_key_signature_invalid");
+  }
   dhKeyCache.set(pubkey, { hex: record.dh_pubkey_hex, ts: Date.now() });
   return record.dh_pubkey_hex;
 }

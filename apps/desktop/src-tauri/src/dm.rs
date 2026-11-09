@@ -533,7 +533,18 @@ pub(crate) async fn fetch_dh_key_http(
         return None;
     }
     let v: serde_json::Value = resp.json().await.ok()?;
-    v["dh_pubkey_hex"].as_str().map(|s| s.to_string())
+    verified_dh_key(&v, pubkey)
+}
+
+/// The DH key a fetched record names, only if `pubkey` itself signed it. The
+/// hub stores the record and is not trusted with it: a key it swapped in
+/// would let it read and alter every DM and voice key wrapped to it.
+pub(crate) fn verified_dh_key(record: &serde_json::Value, pubkey: &str) -> Option<String> {
+    let dh = record["dh_pubkey_hex"].as_str()?;
+    let sig = hex::decode(record["signature_hex"].as_str()?).ok()?;
+    let signed = crate::identity::DhKeyRecord::signing_bytes(pubkey, dh);
+    crate::identity::verify_signature(pubkey, &signed, &sig).ok()?;
+    Some(dh.to_string())
 }
 
 #[tauri::command]
@@ -563,7 +574,13 @@ pub(crate) async fn fetch_dh_key(
         return Err(format!("hub returned {}", resp.status()));
     }
     let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    Ok(body["dh_pubkey_hex"].as_str().map(|s| s.to_string()))
+    if body["dh_pubkey_hex"].is_null() {
+        return Ok(None);
+    }
+    // Present but not signed by its owner: refuse, never "no key".
+    verified_dh_key(&body, &pubkey)
+        .map(Some)
+        .ok_or_else(|| "DH key record is not signed by its owner".to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -644,9 +661,10 @@ async fn wrap_for_members(
             Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
             _ => continue,
         };
-        let Some(dh_hex) = dh_resp["dh_pubkey_hex"].as_str() else {
+        let Some(dh_hex) = verified_dh_key(&dh_resp, member) else {
             continue;
         };
+        let dh_hex = dh_hex.as_str();
         let Ok(dh_bytes) = hex::decode(dh_hex) else {
             continue;
         };
@@ -1029,10 +1047,10 @@ pub(crate) async fn fetch_group_sender_keys(
             Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
             _ => continue,
         };
-        let sender_dh_hex = match dh_resp["dh_pubkey_hex"].as_str() {
-            Some(h) => h,
-            None => continue,
+        let Some(sender_dh_hex) = verified_dh_key(&dh_resp, &sender_pubkey) else {
+            continue;
         };
+        let sender_dh_hex = sender_dh_hex.as_str();
         let sender_dh_bytes = match hex::decode(sender_dh_hex) {
             Ok(b) => b,
             Err(_) => continue,
@@ -2050,5 +2068,36 @@ mod tests {
             assert!(json.get(field).is_some(), "missing {field}");
         }
         assert_eq!(json["nonce_hex"], "");
+    }
+}
+
+#[cfg(test)]
+mod dh_record_tests {
+    use super::verified_dh_key;
+    use ed25519_dalek::{Signer, SigningKey};
+
+    #[test]
+    fn only_a_record_its_owner_signed_is_used() {
+        let owner = SigningKey::from_bytes(&[3u8; 32]);
+        let hub = SigningKey::from_bytes(&[4u8; 32]);
+        let pubkey = hex::encode(owner.verifying_key().as_bytes());
+        let dh = "ab".repeat(32);
+        let signed = crate::identity::DhKeyRecord::signing_bytes(&pubkey, &dh);
+        let record = |key: &SigningKey, dh: &str| {
+            serde_json::json!({
+                "dh_pubkey_hex": dh,
+                "signature_hex": hex::encode(key.sign(&signed).to_bytes()),
+            })
+        };
+
+        assert_eq!(
+            verified_dh_key(&record(&owner, &dh), &pubkey),
+            Some(dh.clone())
+        );
+        assert_eq!(verified_dh_key(&record(&hub, &dh), &pubkey), None);
+        assert_eq!(
+            verified_dh_key(&record(&owner, &"cd".repeat(32)), &pubkey),
+            None
+        );
     }
 }
