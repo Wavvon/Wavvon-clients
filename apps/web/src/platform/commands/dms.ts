@@ -213,14 +213,16 @@ export async function getDmMessages(
       }
     } else if (m.is_encrypted && m.encrypted_envelope) {
       const env = m.encrypted_envelope;
-      // Cert-chained attribution (decisions.md "Paired-device DMs attribute
-      // to canonical via cert-chained envelopes"): no signer_cert is
-      // trusted as-is (today's behavior); a signer_cert must verify its
-      // two-link chain AND bind sender_pubkey to the conversation's
-      // canonical member (m.sender, already resolved server-side) before
-      // the envelope is used for key selection.
+      // The hub relays the envelope and is not trusted with it, so every
+      // envelope is verified here, not only cert-chained ones: signed by the
+      // member the hub names as sender (directly, or through a device cert
+      // that member issued — decisions.md "Paired-device DMs attribute to
+      // canonical via cert-chained envelopes"), for this conversation.
       const envelopeTrusted =
-        !env.signer_cert || (verifyDmEnvelopeSigner(env) && env.sender_pubkey === m.sender);
+        env.sender_pubkey === m.sender &&
+        env.conv_id === m.conversation_id &&
+        (!env.signer_cert || env.signer_cert.master_pubkey === env.sender_pubkey) &&
+        verifyDmEnvelopeSigner(env);
 
       if (!envelopeTrusted) {
         // Not `unreadable()`: this is a cert chain that did not verify, which

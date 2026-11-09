@@ -229,6 +229,18 @@ pub(crate) async fn get_dm_messages(
             // outbound envelopes (and the group path only had a "[sent]"
             // placeholder); render the plaintext stashed at send time.
             own_plaintexts[&msg.id].clone()
+        } else if [
+            &msg.encrypted_envelope,
+            &msg.dr_envelope,
+            &msg.group_encrypted_envelope,
+        ]
+        .into_iter()
+        .flatten()
+        .any(|env| !envelope_signed_by(&conversation_id, env, &msg.sender))
+        {
+            // The hub relays envelopes and is not trusted with them: one its
+            // sender did not sign is not shown, whatever it decrypts to.
+            text("[decryption failed]")
         } else if msg.is_encrypted {
             if let Some(ref env) = msg.encrypted_envelope {
                 let is_v2 = env["v"].as_u64().unwrap_or(1) == 2;
@@ -1376,6 +1388,82 @@ fn derive_nonce_dr(msg_key: &[u8; 32]) -> [u8; 12] {
 
 /// Signing bytes for a DR v2 DM envelope.
 /// Tag: `b"wavvon/dm-ciphertext/v2\0"` — matches `wavvon_identity::dr_envelope_signing_bytes`.
+/// Signing bytes of a legacy 1:1 envelope (`wavvon/dm-ciphertext/v1`).
+/// Ciphertext and nonce are their hex strings, as the sender signed them.
+pub(crate) fn dm_envelope_signing_bytes(
+    conv_id: &str,
+    ciphertext_hex: &str,
+    nonce_hex: &str,
+    dh_pubkey_hex: &str,
+) -> Vec<u8> {
+    let mut out = b"wavvon/dm-ciphertext/v1\0".to_vec();
+    for field in [conv_id, ciphertext_hex, nonce_hex, dh_pubkey_hex] {
+        out.extend_from_slice(&(field.len() as u32).to_le_bytes());
+        out.extend_from_slice(field.as_bytes());
+    }
+    out
+}
+
+/// Whether `sender` (the conversation member the hub names as the message's
+/// sender) signed this envelope: directly, or through a device whose cert
+/// `sender` issued. 1:1 v1, double-ratchet v2 and group envelopes each sign
+/// their own bytes.
+pub(crate) fn envelope_signed_by(conv_id: &str, env: &serde_json::Value, sender: &str) -> bool {
+    let str_of = |k: &str| env[k].as_str().unwrap_or_default();
+    let u32_of = |k: &str| env[k].as_u64().and_then(|v| u32::try_from(v).ok());
+    if str_of("sender_pubkey") != sender {
+        return false;
+    }
+    let signed = if env.get("sender_key_version").is_some() {
+        let (Some(version), Some(iteration)) = (u32_of("sender_key_version"), u32_of("iteration"))
+        else {
+            return false;
+        };
+        group_envelope_signing_bytes(
+            conv_id,
+            version,
+            iteration,
+            str_of("ciphertext_hex"),
+            str_of("nonce_hex"),
+        )
+    } else if env["v"].as_u64() == Some(2) {
+        let (Some(index), Some(prev)) = (u32_of("message_index"), u32_of("prev_count")) else {
+            return false;
+        };
+        dr_envelope_signing_bytes(
+            conv_id,
+            index,
+            prev,
+            str_of("ciphertext_hex"),
+            str_of("dh_pubkey_hex"),
+        )
+    } else {
+        dm_envelope_signing_bytes(
+            conv_id,
+            str_of("ciphertext_hex"),
+            str_of("nonce_hex"),
+            str_of("dh_pubkey_hex"),
+        )
+    };
+    let Ok(sig) = hex::decode(str_of("signature_hex")) else {
+        return false;
+    };
+    let signer = match env.get("signer_cert").filter(|c| !c.is_null()) {
+        None => sender.to_string(),
+        Some(cert) => {
+            let Ok(cert) = serde_json::from_value::<crate::identity::SubkeyCert>(cert.clone())
+            else {
+                return false;
+            };
+            if cert.master_pubkey != sender || cert.verify().is_err() {
+                return false;
+            }
+            cert.subkey_pubkey
+        }
+    };
+    crate::identity::verify_signature(&signer, &signed, &sig).is_ok()
+}
+
 pub(crate) fn dr_envelope_signing_bytes(
     conv_id: &str,
     message_index: u32,
@@ -2068,6 +2156,81 @@ mod tests {
             assert!(json.get(field).is_some(), "missing {field}");
         }
         assert_eq!(json["nonce_hex"], "");
+    }
+}
+
+#[cfg(test)]
+mod envelope_vector_tests {
+    use super::{
+        dm_envelope_signing_bytes, dr_envelope_signing_bytes, envelope_signed_by,
+        group_envelope_signing_bytes,
+    };
+    use crate::wire_vectors::{n, out, s, vector};
+    use ed25519_dalek::{Signer, SigningKey};
+
+    #[test]
+    fn signing_bytes_match_the_shared_vectors() {
+        let v = vector("dm_envelope");
+        assert_eq!(
+            hex::encode(dm_envelope_signing_bytes(
+                &s(v, "conversation_id"),
+                &s(v, "ciphertext"),
+                &s(v, "nonce"),
+                &s(v, "sender_dh_pubkey")
+            )),
+            out(v, "signing_bytes")
+        );
+        let v = vector("dr_envelope");
+        assert_eq!(
+            hex::encode(dr_envelope_signing_bytes(
+                &s(v, "conversation_id"),
+                n(v, "message_index") as u32,
+                n(v, "prev_count") as u32,
+                &s(v, "ciphertext"),
+                &s(v, "dh_pubkey")
+            )),
+            out(v, "signing_bytes")
+        );
+        let v = vector("group_dm_envelope");
+        assert_eq!(
+            hex::encode(group_envelope_signing_bytes(
+                &s(v, "conversation_id"),
+                n(v, "sender_key_version") as u32,
+                n(v, "iteration") as u32,
+                &s(v, "ciphertext"),
+                &s(v, "nonce")
+            )),
+            out(v, "signing_bytes")
+        );
+    }
+
+    #[test]
+    fn only_the_named_sender_can_have_signed_an_envelope() {
+        let alice = SigningKey::from_bytes(&[5u8; 32]);
+        let hub = SigningKey::from_bytes(&[6u8; 32]);
+        let alice_pk = hex::encode(alice.verifying_key().as_bytes());
+        let signed = super::dr_envelope_signing_bytes("c1", 1, 0, "aa", "bb");
+        let env = |key: &SigningKey, sender: &str| {
+            serde_json::json!({
+                "v": 2, "sender_pubkey": sender, "message_index": 1, "prev_count": 0,
+                "ciphertext_hex": "aa", "dh_pubkey_hex": "bb",
+                "signature_hex": hex::encode(key.sign(&signed).to_bytes()),
+            })
+        };
+        assert!(envelope_signed_by("c1", &env(&alice, &alice_pk), &alice_pk));
+        // Forged by the relaying hub, or attributed to somebody else.
+        assert!(!envelope_signed_by("c1", &env(&hub, &alice_pk), &alice_pk));
+        assert!(!envelope_signed_by(
+            "c1",
+            &env(&alice, &alice_pk),
+            &"ff".repeat(32)
+        ));
+        // Moved to another conversation.
+        assert!(!envelope_signed_by(
+            "c2",
+            &env(&alice, &alice_pk),
+            &alice_pk
+        ));
     }
 }
 
