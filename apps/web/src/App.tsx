@@ -1,7 +1,7 @@
 import type { SettingsTab } from "@components/settings/SettingsPage";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel, ApplicationPreview } from "@wavvon/ui";
+import { useConfirm, useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel, ApplicationPreview } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -97,6 +97,7 @@ import {
   restorePersistedHubs,
   listHubs,
   refreshHubInfo,
+  takeReinstalledHubs,
   hubFetch,
   HubApiError,
   loadSavedHubs,
@@ -132,6 +133,29 @@ export interface AppProps {
 
 export default function App({ initialView }: AppProps = {}) {
   const { t } = useTranslation();
+  const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
+
+  // A saved hub that came back under a key its old one never endorsed was
+  // reinstalled: the platform layer forgot it without signing in. Say so once,
+  // and let the member decide whether to join the new hub at that address.
+  async function offerReinstalledHubs() {
+    const found = takeReinstalledHubs();
+    if (found.length === 0) return;
+    setHubs(listHubs());
+    setActiveHubIdState(getActiveHubId());
+    for (const hub of found) {
+      const join = await confirmReinstalled({
+        title: t("hub.reinstalled.title", { name: hub.hub_name }),
+        body: t("hub.reinstalled.body", { url: hub.hub_url }),
+        confirmLabel: t("hub.reinstalled.join"),
+      });
+      if (join) {
+        setHubUrl(hub.hub_url);
+        setShowAddHub(true);
+        return;
+      }
+    }
+  }
   // === Identity ===
   const [ready, setReady] = useState<"checking" | "setup" | "ok">("checking");
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -711,6 +735,7 @@ export default function App({ initialView }: AppProps = {}) {
     async function restore() {
       const list = await restorePersistedHubs(stableHandlers);
       setHubs(list);
+      void offerReinstalledHubs();
       const id = getActiveHubId();
       if (id) {
         setActiveHubIdState(id);
@@ -773,6 +798,8 @@ export default function App({ initialView }: AppProps = {}) {
           if (info) {
             setHubs(listHubs());
             setActiveHubTimezone(info.timezone);
+          } else {
+            void offerReinstalledHubs();
           }
         }).catch(() => { /* cosmetic sync only */ });
       }
@@ -1336,6 +1363,7 @@ export default function App({ initialView }: AppProps = {}) {
 
   return (
     <div className="main-layout">
+      {reinstalledDialog}
       <div
         role="alert"
         aria-live="assertive"

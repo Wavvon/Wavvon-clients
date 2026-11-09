@@ -27,6 +27,7 @@ export {
   reauthorizeHub,
   upgradeActiveHubIdentity,
   refreshHubInfo,
+  takeReinstalledHubs,
   previewHubInfo,
   previewInvite,
   previewApplication,
