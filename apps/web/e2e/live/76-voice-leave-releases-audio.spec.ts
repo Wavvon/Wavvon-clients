@@ -1,11 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { channelButton, createChannel, expectInHub, uniqueName } from "./helpers/live";
 
-// P76 — leaving voice releases the session's AudioContext. The capture
-// worklet's processor kept returning true, and Blink keeps an active
-// processor's node, and the node's whole context, alive: every join left one
-// behind, linearly (clients#236). Counted from the heap after a forced GC,
-// the only place a retained context is visible at all.
+// P76 — joining and leaving voice does not accumulate AudioContexts.
+// Chromium keeps a closed context that ever had an AudioWorkletNode alive
+// until the page goes away, so a context per join grew by one each time
+// (clients#236, then #338 once a newer Chromium kept them even after the
+// processor finished). Voice now shares one context for the page's lifetime.
+// Counted from the heap after a forced GC, the only place a retained context
+// is visible at all.
 
 test("voice join/leave cycles do not accumulate AudioContexts", async ({ page }) => {
   test.setTimeout(180000);
@@ -27,16 +29,22 @@ test("voice join/leave cycles do not accumulate AudioContexts", async ({ page })
     return len.result.value as number;
   };
 
-  const cycles = 6;
-  for (let i = 0; i < cycles; i++) {
+  const cycle = async () => {
     await channelButton(page, channel).dblclick();
     await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 30000 });
     await page.getByRole("button", { name: "Leave voice" }).first().click();
     await expect(page.locator(".voice-status-label")).toHaveCount(0, { timeout: 15000 });
-  }
+  };
+
+  await cycle();
+  await page.waitForTimeout(1000);
+  const afterOne = await liveContexts();
+  for (let i = 0; i < 5; i++) await cycle();
   await page.waitForTimeout(1000);
 
-  // One context may legitimately remain: the cached one the UI plays its
-  // join and leave sounds through.
-  expect(await liveContexts()).toBeLessThanOrEqual(1);
+  // Two may legitimately remain: the cached one the UI plays its join and
+  // leave sounds through, and the one voice shares across sessions.
+  const afterSix = await liveContexts();
+  expect(afterSix).toBeLessThanOrEqual(2);
+  expect(afterSix).toBe(afterOne);
 });
