@@ -18,6 +18,7 @@ import {
   recoveryAttestationSigningBytes,
   federatedPlaintextDmSigningBytes,
   authChallengeSigningBytes,
+  boundAuthChallengeSigningBytes,
   signRecoveryRequest,
   signRecoveryAttestation,
   type PairingComplete,
@@ -193,6 +194,13 @@ describe("recovery-attestation wire vectors", () => {
   it("authChallengeSigningBytes matches the server vector and signature", () => {
     const v = vector("auth_challenge");
     const sb = authChallengeSigningBytes(hexToBytes(v.str("challenge")));
+    expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
+    expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
+  });
+
+  it("boundAuthChallengeSigningBytes matches the server vector and signature", () => {
+    const v = vector("bound_auth_challenge");
+    const sb = boundAuthChallengeSigningBytes(v.str("server_pubkey"), hexToBytes(v.str("challenge")));
     expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
     expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
   });

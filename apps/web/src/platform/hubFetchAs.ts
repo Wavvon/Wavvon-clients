@@ -1,3 +1,4 @@
+import { farmAuthUrl } from "@wavvon/core";
 import { publicKeyHex } from "@wavvon/core";
 import { hubFetch, hubFetchWithToken, rawFetch } from "./http";
 import { activeSession } from "./session";
@@ -15,7 +16,7 @@ async function tokenForAccount(account: IdentityRecord, hub_url: string, hub_id:
   if (cached) return cached;
 
   const info: InfoResponse = await rawFetch(`${hub_url}/info`).then((r) => r.json() as Promise<InfoResponse>);
-  const auth_url = info.farm_url ?? hub_url;
+  const auth_url = farmAuthUrl(info.farm_url, hub_url);
   const pubkeyHex = publicKeyHex(account.seed_hex);
   const res = await acquireHubToken(
     auth_url,

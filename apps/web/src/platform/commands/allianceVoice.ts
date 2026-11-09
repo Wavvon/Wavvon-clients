@@ -1,3 +1,4 @@
+import { farmAuthUrl } from "@wavvon/core";
 import { publicKeyHex } from "@wavvon/core";
 import { hubFetch, rawFetch, HubApiError } from "../http";
 import { HubWebSocket, type WsHandlers } from "../ws";
@@ -98,7 +99,7 @@ export async function openAllianceVoiceVisit(
 
   // Same rule as every other join: a farm-hosted hub authenticates through
   // the farm, and the hub tells us so on /info.
-  const authUrl = info.farm_url ?? minted.owner_hub_url;
+  const authUrl = farmAuthUrl(info.farm_url, minted.owner_hub_url);
   const { token, canonicalPubkey } = await acquireHubToken(
     authUrl,
     publicKeyHex(identity.seed_hex),

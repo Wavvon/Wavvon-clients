@@ -1,4 +1,11 @@
-import { AUTH_CHALLENGE_SCHEME, authChallengeSigningBytes, hexToBytes, signBytes } from "@wavvon/core";
+import {
+  AUTH_CHALLENGE_SCHEME,
+  BOUND_AUTH_CHALLENGE_SCHEME,
+  authChallengeSigningBytes,
+  boundAuthChallengeSigningBytes,
+  hexToBytes,
+  signBytes,
+} from "@wavvon/core";
 import { rawFetch, hubFetchWithToken, HubApiError } from "../http";
 import { resolveSessionScope } from "@wavvon/ui";
 
@@ -10,7 +17,7 @@ import { resolveSessionScope } from "@wavvon/ui";
 
 interface ChallengeResponse {
   challenge: string;
-  /** "tagged-v1" from a hub or farm that takes the tagged answer. */
+  /** "tagged-v2" from a current hub or farm, "tagged-v1" from an older one. */
   scheme?: string;
 }
 
@@ -27,6 +34,21 @@ export interface HubTokenResult {
   token: string;
   canonicalPubkey?: string;
   scope: "member" | "lobby";
+}
+
+/** The public key of the server at `base`: a hub's /info, or a farm's
+ *  /farm/info when `base` is a farm. */
+async function serverKeyAt(base: string): Promise<string> {
+  for (const path of ["/info", "/farm/info"]) {
+    try {
+      const res = await rawFetch(`${base}${path}`);
+      const key = ((await res.json()) as { public_key?: unknown }).public_key;
+      if (typeof key === "string" && key) return key;
+    } catch {
+      // Not this kind of server; try the other.
+    }
+  }
+  throw new Error(`Cannot learn the public key of ${base} to sign in`);
 }
 
 export async function acquireHubToken(
@@ -53,12 +75,20 @@ export async function acquireHubToken(
   if (challengeBytes.length !== 32) {
     throw new Error(`Refusing to sign a ${challengeBytes.length}-byte auth challenge`);
   }
-  // Only the tagged answer: a raw signature over hub-chosen bytes is the
-  // oracle the tag exists to close, and every hub since 0.7.0 names it.
-  if (challengeRes.scheme !== AUTH_CHALLENGE_SCHEME) {
+  // Only a tagged answer: a raw signature over hub-chosen bytes is the
+  // oracle the tag exists to close. A current server wants it bound to its
+  // key, which comes from the server at auth_url itself, never from the
+  // challenge: a hub relaying another server's challenge then gets an answer
+  // naming itself.
+  let signed: Uint8Array;
+  if (challengeRes.scheme === BOUND_AUTH_CHALLENGE_SCHEME) {
+    signed = boundAuthChallengeSigningBytes(await serverKeyAt(auth_url), challengeBytes);
+  } else if (challengeRes.scheme === AUTH_CHALLENGE_SCHEME) {
+    signed = authChallengeSigningBytes(challengeBytes);
+  } else {
     throw new Error(`Refusing to answer an auth challenge with scheme ${String(challengeRes.scheme)}`);
   }
-  const signatureHex = signBytes(authChallengeSigningBytes(challengeBytes), seedHex);
+  const signatureHex = signBytes(signed, seedHex);
 
   const body: Record<string, unknown> = {
     public_key: pubkeyHex,

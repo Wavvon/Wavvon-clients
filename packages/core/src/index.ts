@@ -7,6 +7,7 @@ export * from "./format";
 export * from "./handover";
 export * from "./hex";
 export * from "./hubWire";
+export * from "./farmAuthUrl";
 export * from "./pairingFingerprint";
 export * from "./pow";
 export * from "./recentEmoji";

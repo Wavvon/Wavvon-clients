@@ -30,7 +30,7 @@ pub(crate) async fn add_hub(
     let hub_id = info.public_key.clone();
     let hub_name = info.name.clone();
     let hub_icon = info.icon.clone();
-    let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
+    let auth_url = farm_auth_url(info.farm_url.as_deref(), &hub_url);
 
     let auth = creds
         .authenticate(
@@ -269,6 +269,26 @@ pub(crate) struct AutoConnectResult {
     reinstalled: Vec<ReinstalledHub>,
 }
 
+/// Where to sign in for a hub whose /info names a `farm_url`: the farm only
+/// when it shares the hub's origin, as a farm hosting the hub does
+/// (`<farm>/hub/<slug>`). Any other address is one a hostile hub chose, and a
+/// token from there would work on every hub of that farm (Wavvon-server#294).
+pub(crate) fn farm_auth_url(farm_url: Option<&str>, hub_url: &str) -> String {
+    let origin = |u: &str| {
+        let (scheme, rest) = u.split_once("://")?;
+        let host = rest.split(['/', '?', '#']).next()?;
+        Some(format!(
+            "{}://{}",
+            scheme.to_ascii_lowercase(),
+            host.to_ascii_lowercase()
+        ))
+    };
+    match farm_url {
+        Some(f) if origin(f).is_some() && origin(f) == origin(hub_url) => f.to_string(),
+        _ => hub_url.to_string(),
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn auto_connect_saved(
     state: State<'_, AppState>,
@@ -486,4 +506,25 @@ async fn admit_farm_token(
         return Ok(());
     }
     Err(resp.text().await.unwrap_or_default())
+}
+
+#[cfg(test)]
+mod farm_auth_url_tests {
+    use super::farm_auth_url;
+
+    #[test]
+    fn only_a_farm_on_the_hubs_origin_is_followed() {
+        assert_eq!(
+            farm_auth_url(Some("https://farm.example"), "https://farm.example/hub/x"),
+            "https://farm.example"
+        );
+        assert_eq!(
+            farm_auth_url(Some("https://evil.example"), "https://hub.example"),
+            "https://hub.example"
+        );
+        assert_eq!(
+            farm_auth_url(None, "https://hub.example"),
+            "https://hub.example"
+        );
+    }
 }
