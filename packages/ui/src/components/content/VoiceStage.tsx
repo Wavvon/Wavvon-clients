@@ -6,6 +6,9 @@ import { LiveTray, type VoiceLive } from "./LiveTray";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
 import { PinIcon, ExpandIcon } from "../Icons";
 import { friendsFirst } from "../../utils/friendsFirst";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, rectSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 /** The floor in a room with a talk-power threshold (the hub's `voice.hands`). */
 export interface VoiceFloor {
@@ -123,7 +126,24 @@ export function VoiceStage({
 
   const myHandUp = !!floor && !!publicKey && floor.hands.includes(publicKey);
   const sharing = new Set(live?.streams.map((s) => s.sharer_pubkey));
-  const onStage = participants.filter((p) => pins.includes(p.public_key));
+  // The stage follows the order of the pins, which dragging rearranges.
+  const onStage = pins
+    .map((pk) => participants.find((p) => p.public_key === pk))
+    .filter((p): p is VoiceParticipant => !!p);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  function onStageDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = pins.indexOf(String(active.id));
+    const to = pins.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    const next = arrayMove(pins, from, to);
+    setPins(next);
+    try { localStorage.setItem(PINS_KEY, JSON.stringify(next)); } catch { /* not remembered */ }
+  }
   const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
   const opened = !!live && live.opened.size > 0;
   const hasStage = onStage.length > 0 || opened || !!selfShare;
@@ -145,7 +165,7 @@ export function VoiceStage({
     window.addEventListener("pointerup", up);
   }
 
-  function personTile(p: VoiceParticipant, size: number) {
+  function personTile(p: VoiceParticipant, size: number, sortable?: SortableHandle) {
     const name = p.display_name || p.public_key.slice(0, 12);
     const handUp = !!floor?.hands.includes(p.public_key);
     const pinned = pins.includes(p.public_key);
@@ -154,6 +174,11 @@ export function VoiceStage({
         key={p.public_key}
         className={`voice-tile${speaking.has(p.public_key) ? " speaking" : ""}${big === p.public_key ? " big" : ""}`}
         title={p.public_key}
+        ref={sortable?.setNodeRef}
+        style={sortable?.style}
+        {...sortable?.attributes}
+        {...sortable?.listeners}
+        aria-roledescription={sortable ? t("voice.stage.sortable") : undefined}
       >
         <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={size} />
         <span className="voice-tile-name">
@@ -215,7 +240,19 @@ export function VoiceStage({
               />
             )}
             {children}
-            {onStage.length > 0 && <ul className="voice-tiles stage">{onStage.map((p) => personTile(p, 96))}</ul>}
+            {onStage.length > 0 && (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>
+                <SortableContext items={onStage.map((p) => p.public_key)} strategy={rectSortingStrategy}>
+                  <ul className="voice-tiles stage">
+                    {onStage.map((p) => (
+                      <SortableStageTile key={p.public_key} id={p.public_key}>
+                        {(handle) => personTile(p, 96, handle)}
+                      </SortableStageTile>
+                    ))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
+            )}
           </div>
           <div
             className="voice-room-sep"
@@ -267,4 +304,28 @@ export function VoiceStage({
       )}
     </section>
   );
+}
+
+type SortableHandle = {
+  setNodeRef: (el: HTMLElement | null) => void;
+  style: React.CSSProperties;
+  attributes: ReturnType<typeof useSortable>["attributes"];
+  listeners: ReturnType<typeof useSortable>["listeners"];
+};
+
+/** A stage tile that can be dragged, or moved with the keyboard (space, then
+ *  the arrows), to reorder the stage. */
+function SortableStageTile({ id, children }: { id: string; children: (handle: SortableHandle) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return <>{children({
+    setNodeRef,
+    style: { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : undefined },
+    attributes,
+    // Space or Enter on the tile's own buttons (pin, enlarge) must press them,
+    // not pick the tile up.
+    listeners: listeners && {
+      ...listeners,
+      onKeyDown: (e: React.KeyboardEvent) => { if (e.target === e.currentTarget) listeners.onKeyDown?.(e); },
+    },
+  })}</>;
 }
