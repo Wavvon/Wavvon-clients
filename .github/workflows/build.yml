@@ -60,6 +60,9 @@ jobs:
       - name: Core vitest (wire-format mirror)
         run: pnpm --filter @wavvon/core test
 
+      - name: UI vitest
+        run: pnpm --filter @wavvon/ui test
+
       - name: Web vite build
         run: pnpm --filter wavvon-web build
 

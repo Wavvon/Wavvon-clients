@@ -53,7 +53,9 @@ describe("useConfirm wiring", () => {
     let mainReturn = -1;
     lines.forEach((l, i) => { if (/^ {2}return \($/.test(l)) mainReturn = i; });
 
-    const dialogLines = lines.flatMap((l, i) => (l.includes("{dialog}") ? [i] : []));
+    // Destructuring may rename it: `const { dialog: reinstalledDialog } = useConfirm()`.
+    const names = ["dialog", ...[...src.matchAll(/\bdialog:\s*(\w+)/g)].map((m) => m[1])];
+    const dialogLines = lines.flatMap((l, i) => (names.some((n) => l.includes(`{${n}}`)) ? [i] : []));
     if (mainReturn < 0 || !dialogLines.some((i) => i > mainReturn)) {
       offenders.push(file.slice(REPO.length + 1).replace(/\\/g, "/"));
     }
