@@ -11,7 +11,6 @@ import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useAlliances } from "./hooks/useAlliances";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useWhisper } from "./hooks/useWhisper";
-import { pickReplyPubkey, useWhisperKeybinds } from "@wavvon/ui";
 import { useScreenShare } from "./hooks/useScreenShare";
 import { useDms } from "./hooks/useDms";
 import { useVoice } from "./hooks/useVoice";
@@ -23,13 +22,18 @@ import { useChannelCrud } from "./hooks/useChannelCrud";
 import { useHubLifecycle } from "./hooks/useHubLifecycle";
 import { useChannelMessages } from "./hooks/useChannelMessages";
 import { useAppKeybinds } from "./hooks/useAppKeybinds";
-import { loadWhisperReplyBind, saveWhisperReplyBind } from "./utils/whisperReply";
-import type { DragEndEvent } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
-import { flattenTree, descendantIds, computeDepth, channelPath, inviteCodeFromPath, classifyHubRefusal } from "@wavvon/core";
+import { useIdentityBackup } from "./hooks/useIdentityBackup";
+import { useBlockIgnore } from "./hooks/useBlockIgnore";
+import { useHubErrorToast } from "./hooks/useHubErrorToast";
+import { useMeProfile } from "./hooks/useMeProfile";
+import { useHubRestore } from "./hooks/useHubRestore";
+import { usePathInviteHandoff } from "./hooks/usePathInviteHandoff";
+import { usePermissions } from "./hooks/usePermissions";
+import { useWhisperReply } from "./hooks/useWhisperReply";
+import { useChannelDragEnd } from "./hooks/useChannelDragEnd";
+import { channelPath, classifyHubRefusal } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
 import { DISCOVERY_URL, MULTI_HUB } from "./constants";
-import { handoffTargetUrl } from "./utils/handoffTarget";
 import type {
   Channel,
   User,
@@ -46,15 +50,13 @@ import { WhisperInbox } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
 import { ChannelSidebarContainer } from "@components/layout/ChannelSidebarContainer";
 import { AppModals } from "@components/layout/AppModals";
-import { identityNeedsBackup, wasBackupPrompted, markBackupPrompted } from "./utils/identityBackup";
-import { loadDefaultProfile, saveDefaultProfile, type DefaultProfile } from "./utils/profiles";
-import { startPrefsSync } from "./utils/prefsSync";
+import { saveDefaultProfile } from "./utils/profiles";
 import { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
 import {
   listHubIcons,
   forumListTags, forumCreateTag, forumEditTag, forumDeleteTag,
 } from "@platform";
-import type { UserContextMenuActions, WhisperTarget, WhisperReplyBind } from "@wavvon/ui";
+import type { UserContextMenuActions } from "@wavvon/ui";
 import { getCurrentSurvey, isLobbyScopeConfined, connectHubWebSocket, fetchAllUsers, setActiveHub } from "@platform";
 import { getApplicationForm, getApplicationStatus, submitApplication, activeHubSupports } from "@platform";
 
@@ -76,7 +78,7 @@ import { ChannelSettingsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "@wavvon/ui";
 import { AppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard } from "@wavvon/ui";
 import { createEvent, createPoll } from "@platform";
-import { moveChannelOptions, computeDragIntent } from "@wavvon/ui";
+import { moveChannelOptions } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate } from "@wavvon/ui";
 import { HubAdminContainer } from "@components/admin/HubAdminContainer";
 import {
@@ -91,16 +93,14 @@ import { listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriend
 import { MobileShell } from "@wavvon/ui";
 import { buildChannelTree } from "@wavvon/core";
 import type { TreeNode } from "@wavvon/core";
-import { listAppCommands, updateDmBlocks, getDmBlocks, fetchVoiceRoster, activeSession, sendAppJoin, listConversations } from "@platform";
+import { listAppCommands, getDmBlocks, fetchVoiceRoster, activeSession, sendAppJoin, listConversations } from "@platform";
 import { sendSetStatus } from "@platform";
 import {
-  restorePersistedHubs,
   listHubs,
   refreshHubInfo,
   takeReinstalledHubs,
   hubFetch,
   HubApiError,
-  loadSavedHubs,
   fetchWithTimeout,
   getLobbyStatus,
   getLobbyWelcome,
@@ -134,6 +134,7 @@ export interface AppProps {
 export default function App({ initialView }: AppProps = {}) {
   const { t } = useTranslation();
   const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
+  const { hubErrorToast, showHubError } = useHubErrorToast();
 
   // A saved hub that came back under a key its old one never endorsed was
   // reinstalled: the platform layer forgot it without signing in. Say so once,
@@ -160,39 +161,13 @@ export default function App({ initialView }: AppProps = {}) {
   const [ready, setReady] = useState<"checking" | "setup" | "ok">("checking");
   const [publicKey, setPublicKey] = useState<string | null>(null);
 
-  // An identity created from an invite link never met the phrase screen, so
-  // the only copy of its key is this browser's. That fact gets a marker on the
-  // settings gear until it stops being true, and one prompt at the first
-  // message — see utils/identityBackup.ts. Recomputed rather than watched:
-  // the two places that can change it are the settings panel and this prompt,
-  // and both close.
-  const [backupNeeded, setBackupNeeded] = useState(false);
-  const [showBackupPrompt, setShowBackupPrompt] = useState(false);
-  function refreshIdentityBackupState() {
-    loadIdentity().then((rec) => setBackupNeeded(identityNeedsBackup(rec)));
-  }
-  function handleOwnMessageSent() {
-    if (wasBackupPrompted()) return;
-    loadIdentity().then((rec) => {
-      if (!identityNeedsBackup(rec) || wasBackupPrompted()) return;
-      markBackupPrompted();
-      setShowBackupPrompt(true);
-    });
-  }
-
   // Captured wholesale (not just destructured) so it can be passed straight
   // through to SettingsPageContainer/ChannelSidebarContainer as one grouped
   // prop (state-access-design.md Phase 1) — App still pulls out the handful
   // of fields it needs directly (useAppKeybinds, the mention-ping ref).
   const settingsProfile = useSettingsProfile(setPublicKey, initialView);
   const { showSettings, setShowSettings, mentionPingEnabled } = settingsProfile;
-
-  // Closing the settings panel is when revealing the phrase or exporting a
-  // backup could have happened, and a fresh identity is the other moment the
-  // answer changes.
-  useEffect(() => {
-    refreshIdentityBackupState();
-  }, [publicKey, showSettings]);
+  const { backupNeeded, showBackupPrompt, setShowBackupPrompt, handleOwnMessageSent } = useIdentityBackup(publicKey, showSettings);
 
   // === Hubs ===
   const hubLifecycle = useHubLifecycle({ loadHubData, resetChannelSelectionState, goToChannelsView });
@@ -357,37 +332,7 @@ export default function App({ initialView }: AppProps = {}) {
     for (const u of users) m[u.public_key] = u.display_name ?? null;
     return m;
   }, [users]);
-  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
-  const [ignoredUsers, setIgnoredUsers] = useState<Set<string>>(() => {
-    try {
-      const raw = getScoped("wavvon.ignoredUsers");
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch { return new Set(); }
-  });
-
-  function toggleBlockUser(pubkey: string) {
-    const prev = blockedUsers;
-    const next = new Set(prev);
-    if (next.has(pubkey)) next.delete(pubkey);
-    else next.add(pubkey);
-    setBlockedUsers(next);
-    // Optimistic update; on failure revert and say so — a silently
-    // unpersisted block is a safety problem, not a cosmetic one.
-    updateDmBlocks(Array.from(next)).catch((e) => {
-      setBlockedUsers(prev);
-      showHubError(e instanceof HubApiError ? e.message : String(e));
-    });
-  }
-
-  function toggleIgnoreUser(pubkey: string) {
-    setIgnoredUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(pubkey)) next.delete(pubkey);
-      else next.add(pubkey);
-      try { setScoped("wavvon.ignoredUsers", JSON.stringify(Array.from(next))); } catch {}
-      return next;
-    });
-  }
+  const { blockedUsers, setBlockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore(showHubError);
   // === Hub admin ===
   const hubAdminState = useHubAdmin({
     activeHubId,
@@ -409,49 +354,11 @@ export default function App({ initialView }: AppProps = {}) {
     openHubAdmin,
   } = hubAdminState;
 
-  // === Profile on the active hub (community-axis; the hub is the source of
-  // truth, PATCH /me writes it). The per-account default profile is read from
-  // scoped storage at use time — no App state to go stale.
-  async function handleUpdateHubProfile(profile: DefaultProfile) {
-    try {
-      await hubFetch("/me", {
-        method: "PATCH",
-        body: JSON.stringify({
-          display_name: profile.display_name,
-          avatar: profile.avatar ?? "",
-          bio: profile.bio ?? "",
-          pronouns: profile.pronouns ?? "",
-          status_message: profile.status_message ?? "",
-          activities: profile.activities ?? "",
-          accent_color: profile.accent_color ?? "",
-          name_color: profile.name_color ?? "",
-          cover: profile.cover ?? "",
-          favorite_hubs: profile.favorite_hubs,
-          show_hubs: profile.show_hubs,
-          birthday: profile.birthday ?? "",
-        }),
-      });
-      hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
-      fetchAllUsers().then(setUsers).catch(() => {});
-    } catch (e) {
-      showHubError(e instanceof HubApiError ? e.message : String(e));
-    }
-  }
-
-  // The settings profile editor PATCHes any hub itself (via that hub's own
-  // session); App only needs to refresh its active-hub mirrors afterwards.
-  function handleHubProfileSaved(hubId: string) {
-    if (hubId !== activeHubId) return;
-    hubFetch("/me").then((r) => r.json() as Promise<MeInfo>).then(setMeInfo).catch(() => {});
-    fetchAllUsers().then(setUsers).catch(() => {});
-  }
-
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // === New web-only UI state ===
   const [showDiscover, setShowDiscover] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
-  const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
   // Full-screen image overlay, opened by clicking an image attachment. The
   // attachment renders inside a button either way, so without this the button
   // was there and did nothing.
@@ -531,27 +438,7 @@ export default function App({ initialView }: AppProps = {}) {
   };
   const whisperOptoutRef = useRef(whisper.whisperOptout);
   whisperOptoutRef.current = whisper.whisperOptout;
-  const [whisperReplyBind, setWhisperReplyBindState] = useState<WhisperReplyBind>(loadWhisperReplyBind);
-  const setWhisperReplyBind = (bind: WhisperReplyBind) => {
-    setWhisperReplyBindState(bind);
-    saveWhisperReplyBind(bind);
-  };
-  // Reply key target: the most recent inbound whisperer (see pickReplyPubkey).
-  const whisperReplyTarget = useMemo<WhisperTarget | null>(() => {
-    const pk = pickReplyPubkey(whisper.inboundWhisperLog);
-    if (!pk) return null;
-    const name = users.find((u) => u.public_key === pk)?.display_name;
-    return { type: "user", id: pk, label: name || pk.slice(0, 8) };
-  }, [whisper.inboundWhisperLog, users]);
-  useWhisperKeybinds({
-    voiceChannelId: voice.voiceChannelId,
-    whisperLists: whisper.whisperLists,
-    isWhispering: whisper.isWhispering,
-    startWhisper: whisper.startWhisper,
-    stopWhisper: whisper.stopWhisper,
-    replyBind: whisperReplyBind,
-    replyTarget: whisperReplyTarget,
-  });
+  const { whisperReplyBind, setWhisperReplyBind } = useWhisperReply(whisper, voice.voiceChannelId, users);
   const [surveyToShow, setSurveyToShow] = useState<import("@platform").SurveyAdmin | null>(null);
   const surveyDismissedRef = useRef<Set<string>>(new Set());
   // Registered so switchAccount can refuse a mid-voice switch at the source
@@ -623,69 +510,9 @@ export default function App({ initialView }: AppProps = {}) {
   useEffect(() => { channelsRef.current = channels; }, [channels]);
   useEffect(() => { hubsRef.current = hubs; }, [hubs]);
 
-  // An identity restored from a .wavvon-backup never went through onboarding,
-  // so it has no local default profile even though the hub already holds the
-  // real one -- the profile editor opened on an empty card (placeholder name,
-  // no avatar) for a user the hub knows perfectly well. Seed the default from
-  // the hub member state the first time we see it; the guard means a real
-  // default is never overwritten.
-  // ponytail: first hub to load wins if several are joined -- fine for a
-  // restore, revisit if per-hub profiles ever diverge before the seed.
-  useEffect(() => {
-    if (!meInfo?.display_name) return;
-    if (loadDefaultProfile()) return;
-    saveDefaultProfile({
-      display_name: meInfo.display_name,
-      avatar: meInfo.avatar,
-      bio: meInfo.bio,
-      pronouns: meInfo.pronouns,
-      status_message: meInfo.status_message,
-      activities: meInfo.activities,
-      accent_color: meInfo.accent_color,
-      name_color: meInfo.name_color,
-      cover: meInfo.cover,
-      favorite_hubs: meInfo.favorite_hubs,
-      show_hubs: meInfo.show_hubs,
-      birthday: meInfo.birthday,
-    });
-  }, [meInfo]);
-
-  useEffect(() => {
-    // Every hub where we have no name yet, not only the first one joined
-    // (#250): the default profile is "how I appear when I join a hub".
-    // meInfo is replaced on each /me load of the active hub, so this targets
-    // that hub; after a successful apply it reloads with a name and stops.
-    if (meInfo !== null && !meInfo.display_name) {
-      // A default profile means the user already told us who they want to
-      // be — apply it silently instead of asking again. Read at fire time so
-      // edits made in Settings since mount are honored.
-      const def = loadDefaultProfile();
-      const hubId = getActiveHubId();
-      if (def) {
-        void handleUpdateHubProfile(def);
-      } else if (hubId && !namePromptedHubsRef.current.has(hubId)) {
-        // Once per hub per session: "Skip for now" must not come back on
-        // every /me reload.
-        namePromptedHubsRef.current.add(hubId);
-        setShowDisplayNamePrompt(true);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meInfo]);
-  const namePromptedHubsRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     selectedConvIdRef.current = selectedConversation?.id;
   }, [selectedConversation]);
-
-  // Toast state for hub error messages (W6)
-  const [hubErrorToast, setHubErrorToast] = useState<string | null>(null);
-  const hubErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  function showHubError(msg: string) {
-    if (hubErrorTimerRef.current) clearTimeout(hubErrorTimerRef.current);
-    setHubErrorToast(msg);
-    hubErrorTimerRef.current = setTimeout(() => setHubErrorToast(null), 5000);
-  }
 
   // A kicked or banned member's row goes at once: the hub only broadcasts
   // MemberOffline, which would leave them listed as merely offline.
@@ -693,6 +520,10 @@ export default function App({ initialView }: AppProps = {}) {
     setUsers((prev) => prev.filter((u) => u.public_key !== pubkey));
     fetchAllUsers().then(setUsers).catch(() => {});
   }
+
+  const { showDisplayNamePrompt, setShowDisplayNamePrompt, handleSaveFirstRunName, handleHubProfileSaved } = useMeProfile({
+    meInfo, setMeInfo, setUsers, activeHubId, showHubError,
+  });
 
   const loadHubDataRef = useRef<() => Promise<void>>(async () => {});
   loadHubDataRef.current = loadHubData;
@@ -720,67 +551,9 @@ export default function App({ initialView }: AppProps = {}) {
     setActiveApps, setActiveOpenApp,
   });
 
-  // === Hub restore on startup ===
-
-  // One reload per page load is enough to let pulled boot-time settings
-  // (language, theme) take hold; the flag lives in sessionStorage so a
-  // reload loop is impossible even if a pull somehow keeps reporting changes.
-  const PREFS_RELOAD_FLAG = "wavvon.prefsReloaded";
-  const [hubsRestored, setHubsRestored] = useState(false);
-  const prefsSyncRef = useRef<Awaited<ReturnType<typeof startPrefsSync>>>(null);
-
-  useEffect(() => {
-    if (ready !== "ok") return;
-    let cancelled = false;
-    async function restore() {
-      const list = await restorePersistedHubs(stableHandlers);
-      setHubs(list);
-      void offerReinstalledHubs();
-      const id = getActiveHubId();
-      if (id) {
-        setActiveHubIdState(id);
-        await loadHubData();
-        publishDhKey().catch(() => {});
-      }
-      // The path-invite effect below needs "restored, and this is what we've
-      // got" — hubs.length alone cannot tell that apart from "not yet run".
-      setHubsRestored(true);
-      const globalHomeHub = window.__WAVVON_HOME_HUB__;
-      if (typeof globalHomeHub === "string" && globalHomeHub.trim() && loadSavedHubs().length === 0) {
-        setHomeHubUrl(globalHomeHub.trim());
-      }
-      // Cross-device settings (docs/docs/home-hub.md "Prefs blob"). Started
-      // here because it needs a hub to read and write through. Language and
-      // theme are read once at boot, so a pull that actually changed
-      // something only takes effect after a reload — done once per load, and
-      // the steady state reports no change, so it cannot loop.
-      // ponytail: a browser with no saved hub has nothing to sync through, so
-      // this returns null and the first hub added in that session syncs
-      // nothing — including the hub list it would have pulled back. It heals
-      // on the next page load. Restart the sync on the 0->1 hub transition if
-      // that first-run reload ever proves confusing.
-      startPrefsSync(() => {
-        if (!sessionStorage.getItem(PREFS_RELOAD_FLAG)) {
-          sessionStorage.setItem(PREFS_RELOAD_FLAG, "1");
-          window.location.reload();
-        }
-      })
-        .then((handle) => {
-          // An account switch can unmount before the pull resolves; without
-          // this the poll would outlive the App that started it.
-          if (cancelled) handle?.stop();
-          else prefsSyncRef.current = handle;
-        })
-        .catch(() => { /* offline, or nothing published yet */ });
-    }
-    void restore();
-    return () => {
-      cancelled = true;
-      prefsSyncRef.current?.stop();
-      prefsSyncRef.current = null;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  const hubsRestored = useHubRestore({
+    ready, stableHandlers, setHubs, setActiveHubIdState, loadHubData, offerReinstalledHubs, setHomeHubUrl,
+  });
 
   // === Hub data loading ===
 
@@ -1021,81 +794,9 @@ export default function App({ initialView }: AppProps = {}) {
     applyDeepLinkTarget, t,
   });
 
-  // An invite link is `https://hub.example/join/<code>`, and the hub serves
-  // this client there. Pick the code out of our own address and open the
-  // add-hub flow prefilled, so clicking the link a friend sent lands on the
-  // hub preview instead of an empty app. Deliberately not an automatic join:
-  // a link should not silently change someone's hub list.
-  //
-  // Runs once the identity exists — a first-time visitor has onboarding to do
-  // first, and the code is held until then. The path is cleared only when the
-  // invite is actually applied, so reloading mid-onboarding still honours the
-  // link rather than losing it.
-  const pathInviteRef = useRef<string | null>(null);
-  const pathInviteHandledRef = useRef(false);
-  if (pathInviteRef.current === null) {
-    pathInviteRef.current = inviteCodeFromPath(window.location.pathname) ?? "";
-  }
-
-  // `?hub=&code=` — a hub build sending someone here to join it with their
-  // real identity (USER_CLIENT_URL). Only ever a hub URL and an invite code:
-  // both are public, both are visible in the address bar, and the add-hub
-  // modal below is where the user confirms. A seed never arrives this way.
-  const handoffRef = useRef<{ hub: string; code: string } | null | undefined>(undefined);
-  if (handoffRef.current === undefined) {
-    const params = new URLSearchParams(window.location.search);
-    const hub = params.get("hub")?.trim() ?? "";
-    handoffRef.current = hub ? { hub, code: params.get("code")?.trim() ?? "" } : null;
-  }
-  useEffect(() => {
-    const code = pathInviteRef.current;
-    const handoff = handoffRef.current;
-    if ((!code && !handoff) || pathInviteHandledRef.current || !publicKey) return;
-    if (!MULTI_HUB) {
-      // Hub build: no add-hub modal to open, and which path is right depends
-      // on whether we already have a session here — so wait for the restore
-      // to answer rather than racing it.
-      if (!hubsRestored) return;
-      // A `?hub=` handoff is meaningless here — the hub build sends those, it
-      // cannot receive one, because it has no second hub to add.
-      if (!code) return;
-      pathInviteHandledRef.current = true;
-      window.history.replaceState({}, "", "/");
-      if (getActiveHubId()) {
-        // Already a member: re-authenticating is the registration path and
-        // would not apply the invite's role grant. This route is the one
-        // that does.
-        void redeemInvite(code)
-          .then(() => loadHubData())
-          .catch((e: unknown) => showHubError(e instanceof Error ? e.message : String(e)));
-      } else {
-        // No session: the welcome screen joins the hub serving this page, and
-        // parseHubInput lifts the code out of whatever URL it is handed — so
-        // handing it the invite link is the whole flow.
-        setHomeHubUrl(`${window.location.origin}/join/${code}`);
-      }
-      return;
-    }
-    pathInviteHandledRef.current = true;
-    window.history.replaceState({}, "", "/");
-    // Both sources end up as an invite URL because parseHubInput already
-    // knows how to take a code out of one — one shape to handle, not two.
-    const target = handoff
-      ? handoffTargetUrl(handoff.hub, handoff.code)
-      : `${window.location.origin}/join/${code}`;
-    handleHubUrlInput(target);
-    setShowAddHub(true);
-  }, [publicKey, hubsRestored]);
-
-  async function handleSaveFirstRunName(typed: string) {
-    const name = typed.trim();
-    if (!name) { setShowDisplayNamePrompt(false); return; }
-    try {
-      await hubFetch("/me", { method: "PATCH", body: JSON.stringify({ display_name: name }) });
-      setMeInfo((prev) => prev ? { ...prev, display_name: name } : prev);
-    } catch { /* non-critical, ignore */ }
-    setShowDisplayNamePrompt(false);
-  }
+  usePathInviteHandoff({
+    publicKey, hubsRestored, handleHubUrlInput, setShowAddHub, loadHubData, showHubError, setHomeHubUrl,
+  });
 
   // === Channel / messages ===
   // handleSelectChannel/handleSelectAllianceChannel/handleSendAllianceMessage
@@ -1126,64 +827,6 @@ export default function App({ initialView }: AppProps = {}) {
     });
   }
 
-  async function handleChannelDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    const forbidden = descendantIds(channelTree, activeId);
-    if (forbidden.has(overId)) return;
-
-    const allFlat = flattenTree(channelTree);
-    const activeFlat = allFlat.find((n) => n.node.id === activeId);
-    const overFlat = allFlat.find((n) => n.node.id === overId);
-    if (!activeFlat || !overFlat) return;
-
-    // Edge-zone rule (nested-channels-ux drag&drop fix): dropping on the
-    // top/bottom edge of a category reorders as a sibling instead of always
-    // nesting — otherwise root-level items could never be reordered around
-    // a category.
-    const intent = over.rect
-      ? computeDragIntent(active.rect.current.translated, over.rect, overFlat.node.is_category)
-      : "before";
-    const willNest = intent === "nest";
-
-    if (maxChannelDepth > 0) {
-      const maxCodeDepth = maxChannelDepth - 1;
-      const parentForDepth = willNest ? overFlat.node.id : overFlat.parentId;
-      const newDepth = parentForDepth !== null
-        ? computeDepth(channels, parentForDepth) + 1
-        : 0;
-      if (newDepth > maxCodeDepth) return;
-      if (activeFlat.node.is_category && newDepth >= maxCodeDepth) return;
-    }
-
-    const newParentId = willNest ? overFlat.node.id : overFlat.parentId;
-    const parentChanged = newParentId !== activeFlat.node.parent_id;
-
-    const channelsWithNewParent = parentChanged
-      ? channels.map((c) => (c.id === activeId ? { ...c, parent_id: newParentId } : c))
-      : channels;
-
-    const sorted = [...channelsWithNewParent].sort((a, b) => a.display_order - b.display_order);
-    const oldIndex = sorted.findIndex((c) => c.id === activeId);
-    const newIndex = sorted.findIndex((c) => c.id === overId);
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    const reordered = arrayMove(sorted, oldIndex, newIndex);
-    setChannels(reordered.map((c, i) => ({ ...c, display_order: i })));
-
-    try {
-      const { moveChannel, reorderChannels } = await import("./platform/commands/hubAdmin");
-      if (parentChanged) {
-        await moveChannel(activeId, newParentId);
-      }
-      await reorderChannels(reordered.map((c) => c.id));
-    } catch { /* optimistic — ignore network errors */ }
-  }
-
   // Mover's side: right-click "Move to channel…" (events.md §7.1) and the
   // event staging panel (§7.5, eventId set) both funnel through here.
   function handleMoveMember(targetPubkey: string, targetChannelId: string, eventId?: string) {
@@ -1192,22 +835,11 @@ export default function App({ initialView }: AppProps = {}) {
     ws.sendVoiceMove(targetPubkey, targetChannelId, eventId);
   }
 
-  const isAdmin = useMemo(
-    () => meInfo?.roles?.some((r) => r.id === "builtin-owner") ?? false,
-    [meInfo],
-  );
-
-  // Every client-side permission gate, with the owner short-circuit the hub
-  // itself applies (permissions.rs, `UserPermissions::has`). `builtin-owner`
-  // carries no `role_permissions` rows at all since the catalogue rebuild —
-  // the explicit rows it used to hold beside the wildcard went with it — so a
-  // gate that only reads the role list hides from the owner what the hub
-  // would happily let them do.
-  const can = useCallback(
-    (permission: string) =>
-      isAdmin || (meInfo?.roles?.some((r) => r.permissions?.includes(permission)) ?? false),
-    [isAdmin, meInfo],
-  );
+  const {
+    isAdmin, can, canManageRoles, canEditChannelPermissions, canMoveMembers, canCreateInvites,
+    canSendMessages, canUseSoundboard, canScreenShare, canUseCamera, canManageSoundboard,
+    canManageHubAlliances, myRoles, myMaxPriority,
+  } = usePermissions(meInfo, voice.myVoicePerms, voice.voiceChannelId);
 
   // First-run hub setup wizard (decisions.md 2026-07-25): shown once per hub
   // when an admin lands on an empty channel list. "Done" covers both
@@ -1249,57 +881,9 @@ export default function App({ initialView }: AppProps = {}) {
     handleHubSetupWizardComplete,
   } = channelCrud;
 
-  const canManageRoles = useMemo(() => can("roles.manage"), [can]);
-
-  // The channel-settings gear and every tab behind it. Wider than
-  // `canManageRoles`: a member given only `channels.permissions` edits this
-  // channel’s overwrites without touching the hub’s roles.
-  const canEditChannelPermissions = useMemo(
-    () => can("roles.manage") || can("channels.permissions"),
-    [can],
-  );
-
-  // Gates the voice roster's "Move to channel…" entry (events.md §7.1). The
-  // hub re-checks channel-scoped against the destination on every voice_move —
-  // this is UX-only, same posture as the other client-side permission gates here.
-  const canMoveMembers = useMemo(() => can("voice.move_members"), [can]);
-
   const voiceMoveChannelOptions = useMemo(
     () => moveChannelOptions(channels).filter((c) => c.id !== voiceMoveUx.voiceMoveMenu?.currentChannelId),
     [channels, voiceMoveUx.voiceMoveMenu],
-  );
-
-  // Same permission the invite endpoints require (routes/invites.rs) — gates
-  // the "Invite people" entry for non-admin members too.
-  const canCreateInvites = useMemo(() => can("channels.manage"), [can]);
-
-  // Same permission the poll-create endpoint requires (SEND_MESSAGES) —
-  // gates the "Create poll" context-menu entry the same way the composer's
-  // own "+" attach menu is implicitly gated (anyone who can post here).
-  const canSendMessages = useMemo(() => can("messages.send"), [can]);
-
-  const canInVoice = useCallback((perm: string) => {
-    if (voice.myVoicePerms && voice.myVoicePerms.channel_id === voice.voiceChannelId) {
-      return voice.myVoicePerms.is_owner || voice.myVoicePerms.permissions.includes(perm);
-    }
-    return can(perm);
-  }, [voice.myVoicePerms, voice.voiceChannelId, can]);
-  const canUseSoundboard = useMemo(() => canInVoice("voice.soundboard.use"), [canInVoice]);
-  // Separate grants only where the hub says so; elsewhere voice.join covers both.
-  const mediaPerms = activeHubSupports("voice.media.permissions");
-  const canScreenShare = !mediaPerms || canInVoice("voice.screen_share");
-  const canUseCamera = !mediaPerms || canInVoice("voice.camera");
-
-  const canManageSoundboard = useMemo(() => can("voice.soundboard.manage"), [can]);
-  const canManageHubAlliances = useMemo(() => can("alliances.manage"), [can]);
-
-  const myRoles = useMemo(() => meInfo?.roles ?? [], [meInfo]);
-
-  // Highest priority among the viewer's own roles — the hub only lets you
-  // assign/remove roles strictly below your own priority.
-  const myMaxPriority = useMemo(
-    () => myRoles.reduce((m, r) => Math.max(m, r.priority), 0),
-    [myRoles],
   );
 
   const userContextMenuActions: UserContextMenuActions = {
@@ -1330,6 +914,7 @@ export default function App({ initialView }: AppProps = {}) {
     () => buildChannelTree(channels),
     [channels],
   );
+  const handleChannelDragEnd = useChannelDragEnd(channels, channelTree, maxChannelDepth, setChannels);
 
   useAppKeybinds({
     hubs, channels, selectedChannel, messageInputRef, unreadByChannel, activeHubIdRef,
