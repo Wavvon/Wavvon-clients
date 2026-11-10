@@ -6,22 +6,29 @@ declare class AudioWorkletProcessor {
 }
 declare function registerProcessor(name: string, ctor: new () => AudioWorkletProcessor): void;
 
+/** One processor for the page's lifetime, shared by every voice session (see
+ *  sharedCaptureAudio in voice.ts). A session attaches the port its encode
+ *  worker reads from and detaches it when it ends; the processor never stops. */
 class CaptureProcessor extends AudioWorkletProcessor {
   private acc = new FrameAccumulator();
   private out: MessagePort | null = null;
-  private stopped = false;
+  private outId = 0;
 
   constructor() {
     super();
-    this.port.onmessage = (e: MessageEvent<{ pcmPort?: MessagePort; stop?: true }>) => {
-      if (e.data.stop) {
-        this.stopped = true;
+    this.port.onmessage = (e: MessageEvent<{ pcmPort?: MessagePort; id: number; detach?: true }>) => {
+      if (e.data.pcmPort) {
         this.out?.close();
-        this.out = null;
-        this.port.close();
+        this.out = e.data.pcmPort;
+        this.outId = e.data.id;
+        this.acc = new FrameAccumulator();
         return;
       }
-      if (e.data.pcmPort) this.out = e.data.pcmPort;
+      // A session ending after the next one attached must not detach it.
+      if (e.data.detach && e.data.id === this.outId) {
+        this.out?.close();
+        this.out = null;
+      }
     };
   }
 
@@ -31,9 +38,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
     if (channel && out) {
       this.acc.push(channel, currentFrame, Date.now(), (frame) => out.postMessage(frame, [frame.samples.buffer]));
     }
-    // Returning false is what lets Blink release the node: an active
-    // processor keeps it, and its whole AudioContext, alive (clients#236).
-    return !this.stopped;
+    return true;
   }
 }
 
