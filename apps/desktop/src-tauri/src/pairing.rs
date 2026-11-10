@@ -223,7 +223,8 @@ pub async fn complete_pairing(
     if !home_hubs.is_empty() {
         let client = http_client()?;
         let _ =
-            crate::prefs_blob::push_prefs_blob(&master, &blob_key, &home_hubs, &client, None).await;
+            crate::prefs_blob::push_prefs_blob(&master, &blob_key, &home_hubs, &client, None, None)
+                .await;
     }
 
     // multi-device.md "Mechanism A": wrap this device's canonical DM DH

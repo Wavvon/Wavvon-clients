@@ -20,8 +20,9 @@ pub struct LocalPrefs {
     #[serde(default)]
     pub hide_birthdays: Option<bool>,
     /// Web's generic settings map (packages/core `PrefsBlobContents.settings`):
-    /// storage key -> raw stored string. This client does not read it, but it
-    /// MUST carry it forward on every push — dropping it would wipe the other
+    /// storage key -> raw stored string. This client reads and writes single
+    /// keys of it (`synced_setting_get` / `synced_setting_set`) and MUST
+    /// carry the rest forward on every push — dropping it would wipe the other
     /// client's synced settings on the next write from here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings: Option<serde_json::Value>,
@@ -162,6 +163,9 @@ async fn read_latest(
     }
 }
 
+/// One key of the generic settings map, set to a raw stored string.
+pub type SettingEdit<'a> = (&'a str, &'a str);
+
 /// What a push writes: this client's own fields, with everything it does not
 /// manage carried forward from the blob already on the hub.
 fn next_prefs(
@@ -169,25 +173,35 @@ fn next_prefs(
     blocked_users: Vec<String>,
     voice_settings: crate::local_store::StoredVoiceSettings,
     stickers: Option<Vec<serde_json::Value>>,
+    setting: Option<SettingEdit>,
 ) -> LocalPrefs {
+    let mut settings = current.as_ref().and_then(|p| p.settings.clone());
+    if let Some((key, value)) = setting {
+        let map = settings.get_or_insert_with(|| serde_json::json!({}));
+        if !map.is_object() {
+            *map = serde_json::json!({});
+        }
+        map[key] = serde_json::Value::String(value.to_owned());
+    }
     LocalPrefs {
         blocked_users,
         voice_settings,
         hide_birthdays: current.as_ref().and_then(|p| p.hide_birthdays),
-        stickers: stickers.or_else(|| current.as_ref().and_then(|p| p.stickers.clone())),
-        settings: current.and_then(|p| p.settings),
+        stickers: stickers.or_else(|| current.and_then(|p| p.stickers)),
+        settings,
     }
 }
 
 /// Sign and PUT the prefs blob to every home hub in the list. `stickers`
-/// replaces the collection when given; None keeps the one on the hub. Returns
-/// how many hubs accepted it.
+/// replaces the collection when given; None keeps the one on the hub. `setting`
+/// sets one key of the settings map. Returns how many hubs accepted it.
 pub async fn push_prefs_blob(
     master: &MasterIdentity,
     blob_key: &[u8; 32],
     home_hubs: &[String],
     client: &reqwest::Client,
     stickers: Option<Vec<serde_json::Value>>,
+    setting: Option<SettingEdit<'_>>,
 ) -> Result<usize> {
     let master_pubkey = master.public_key_hex();
     let latest = read_latest(&master_pubkey, home_hubs, blob_key, client)
@@ -198,7 +212,7 @@ pub async fn push_prefs_blob(
 
     let blocked = crate::local_store::load_blocked_users().unwrap_or_default();
     let voice = crate::local_store::load_voice_settings();
-    let prefs = next_prefs(current, blocked, voice, stickers);
+    let prefs = next_prefs(current, blocked, voice, stickers, setting);
 
     let ciphertext = encrypt_prefs(blob_key, &prefs)?;
     let ciphertext_hex = hex::encode(&ciphertext);
@@ -339,13 +353,77 @@ pub(crate) async fn sticker_collection_update(
     let key = derive_blob_key(&master);
     let current = read_stickers(&master.public_key_hex(), &hubs, &key, &state.http_client).await?;
     let next = apply_collection_op(current, add, remove.as_deref());
-    let accepted = push_prefs_blob(&master, &key, &hubs, &state.http_client, Some(next.clone()))
-        .await
-        .map_err(|e| e.to_string())?;
+    let accepted = push_prefs_blob(
+        &master,
+        &key,
+        &hubs,
+        &state.http_client,
+        Some(next.clone()),
+        None,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     if accepted == 0 {
         return Err("no home hub accepted the collection".to_string());
     }
     Ok(next)
+}
+
+// ---- Synced settings (the generic map web shares) ----
+
+/// One key of the synced settings map, as the newest blob holds it. None when
+/// this device cannot read the blob (paired, or no home hub) or the key is
+/// unset; an unreachable hub is an error, so the caller keeps its local value.
+#[tauri::command]
+pub(crate) async fn synced_setting_get(
+    key: String,
+    state: tauri::State<'_, crate::state::AppState>,
+) -> Result<Option<String>, String> {
+    let hubs = collection_hubs();
+    let (Ok(master), false) = (load_master(), hubs.is_empty()) else {
+        return Ok(None);
+    };
+    let blob_key = derive_blob_key(&master);
+    let latest = read_latest(
+        &master.public_key_hex(),
+        &hubs,
+        &blob_key,
+        &state.http_client,
+    )
+    .await?;
+    Ok(latest
+        .and_then(|(_, prefs)| prefs.settings)
+        .and_then(|map| map.get(&key)?.as_str().map(str::to_owned)))
+}
+
+/// Write one key of the synced settings map to the home hubs, last writer
+/// wins like every other synced value. A device that cannot write the blob
+/// keeps the value locally only.
+#[tauri::command]
+pub(crate) async fn synced_setting_set(
+    key: String,
+    value: String,
+    state: tauri::State<'_, crate::state::AppState>,
+) -> Result<(), String> {
+    let hubs = collection_hubs();
+    let (Ok(master), false) = (load_master(), hubs.is_empty()) else {
+        return Ok(());
+    };
+    let blob_key = derive_blob_key(&master);
+    let accepted = push_prefs_blob(
+        &master,
+        &blob_key,
+        &hubs,
+        &state.http_client,
+        None,
+        Some((&key, &value)),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+    if accepted == 0 {
+        return Err("no home hub accepted the setting".to_string());
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -388,8 +466,38 @@ mod tests {
             vec![],
             Default::default(),
             None,
+            None,
         );
         assert_eq!(next.stickers, Some(stickers()));
+    }
+
+    #[test]
+    fn a_setting_edit_keeps_the_other_keys() {
+        let mut current = prefs(None);
+        current.settings =
+            Some(serde_json::json!({ "wavvon.ptt": "x", "wavvon.hubLayout": "old" }));
+        let next = next_prefs(
+            Some(current),
+            vec![],
+            Default::default(),
+            None,
+            Some(("wavvon.hubLayout", "new")),
+        );
+        assert_eq!(
+            next.settings,
+            Some(serde_json::json!({ "wavvon.ptt": "x", "wavvon.hubLayout": "new" }))
+        );
+        let fresh = next_prefs(
+            None,
+            vec![],
+            Default::default(),
+            None,
+            Some(("wavvon.hubLayout", "new")),
+        );
+        assert_eq!(
+            fresh.settings,
+            Some(serde_json::json!({ "wavvon.hubLayout": "new" }))
+        );
     }
 
     #[test]
@@ -399,6 +507,7 @@ mod tests {
             vec![],
             Default::default(),
             Some(vec![]),
+            None,
         );
         assert_eq!(next.stickers, Some(vec![]));
     }
