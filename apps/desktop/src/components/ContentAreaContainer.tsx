@@ -4,6 +4,7 @@ import { HubStreamsPanel, liveScreenShares, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import { useStickers } from "../hooks/useStickers";
+import { useFriendKeys } from "../hooks/useFriendKeys";
 import { saveDraft } from "../utils/drafts";
 import type { Channel, User, RoleInfo } from "../types";
 import type { useVoice } from "../hooks/useVoice";
@@ -73,6 +74,7 @@ export function ContentAreaContainer({
   const { activeHubId } = hubLifecycle;
   const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
   const { selectedChannel } = channelMessages;
+  const friendKeys = useFriendKeys(selectedChannel?.id);
   const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
   const stickerActions = useStickers({
     hub: hubLifecycle.hubs.find((h) => h.hub_id === activeHubId),
@@ -93,6 +95,7 @@ export function ContentAreaContainer({
         selectedChannel={selectedChannel}
         voiceStage={selectedChannel ? {
           participants: voice.voicePartByChannel[selectedChannel.id] ?? [],
+          friends: friendKeys,
           speaking: voice.speakingPubkeys,
           avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
           inThisRoom: voice.voiceChannelId === selectedChannel.id,

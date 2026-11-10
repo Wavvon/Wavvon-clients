@@ -5,6 +5,7 @@ import { Avatar } from "../Avatar";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
 import { PinIcon, ExpandIcon } from "../Icons";
+import { friendsFirst } from "../../utils/friendsFirst";
 
 /** The floor in a room with a talk-power threshold (the hub's `voice.hands`). */
 export interface VoiceFloor {
@@ -22,6 +23,8 @@ export interface VoiceFloor {
 
 export interface VoiceStageInfo {
   participants: VoiceParticipant[];
+  /** Your friends' pubkeys: they lead the audience. */
+  friends?: Set<string>;
   /** Pubkeys speaking right now (yours included). */
   speaking: Set<string>;
   /** Member avatars by pubkey; a visitor from an allied hub has none. */
@@ -84,12 +87,13 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: Med
 
 /**
  * A voice channel is people and media only. The stage holds who you pinned
- * and what you opened; the audience is everyone else, in arrival order, and
+ * and what you opened; the audience is everyone else, friends first and then
+ * in arrival order, and
  * nobody moves when they speak. With nothing on the stage the audience fills
  * the room. `children` is the viewer of the opened streams.
  */
 export function VoiceStage({
-  participants, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, children,
+  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, children,
 }: VoiceStageInfo & { children?: React.ReactNode }) {
   const { t } = useTranslation();
   const [pins, setPins] = useState<string[]>(loadPins);
@@ -120,7 +124,7 @@ export function VoiceStage({
   const myHandUp = !!floor && !!publicKey && floor.hands.includes(publicKey);
   const sharing = new Set(live?.streams.map((s) => s.sharer_pubkey));
   const onStage = participants.filter((p) => pins.includes(p.public_key));
-  const audience = participants.filter((p) => !pins.includes(p.public_key));
+  const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
   const opened = !!live && live.opened.size > 0;
   const hasStage = onStage.length > 0 || opened || !!selfShare;
   const q = query.trim().toLowerCase();
