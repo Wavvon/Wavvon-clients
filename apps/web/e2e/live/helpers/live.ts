@@ -385,7 +385,11 @@ export async function startCameraPreview(page: Page) {
  *  would, by its heading: the role editor and the channel overwrites tab group
  *  permissions into sections, closed unless something in them is set. */
 export async function openPermissionSection(scope: Locator, name: string): Promise<void> {
-  const header = scope.locator(".permission-section > button").filter({ hasText: name });
+  const headers = scope.locator(".permission-section > button");
+  await expect(headers.first()).toBeVisible();
+  // A hub without `permissions.categories` serves one section holding all.
+  const named = headers.filter({ hasText: name });
+  const header = (await named.count()) ? named : headers.first();
   await expect(header).toHaveCount(1);
   if ((await header.getAttribute("aria-expanded")) !== "true") await header.click();
   await expect(header).toHaveAttribute("aria-expanded", "true");
