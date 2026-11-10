@@ -164,7 +164,7 @@ test("capture join-flow video", async ({ browser }) => {
   await page.waitForTimeout(3000); // linger on the recovery phrase
   await page.getByRole("button", { name: /I saved my phrase/ }).click();
   await page.waitForTimeout(1200);
-  await page.getByPlaceholder("Your name").pressSequentially("kestrel", { delay: 120 });
+  await page.getByPlaceholder("Display name").pressSequentially("kestrel", { delay: 120 });
   await page.waitForTimeout(600);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.waitForTimeout(1000);

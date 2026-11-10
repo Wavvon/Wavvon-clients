@@ -50,7 +50,6 @@ import { WhisperInbox } from "@wavvon/ui";
 import { ContentArea } from "@components/layout/ContentArea";
 import { ChannelSidebarContainer } from "@components/layout/ChannelSidebarContainer";
 import { AppModals } from "@components/layout/AppModals";
-import { saveDefaultProfile } from "./utils/profiles";
 import { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser, createInvite } from "@platform";
 import {
   listHubIcons,
@@ -116,7 +115,7 @@ import {
   publishDhKey,
 } from "@platform";
 import { loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
-import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
+import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
 import type { HubInputResult } from "@wavvon/core";
 
 // ---- Types ----
@@ -465,10 +464,7 @@ export default function App({ initialView }: AppProps = {}) {
     });
   }, []);
 
-  function handleIdentityComplete(result: IdentitySetupCompletion) {
-    // Nickname + avatar chosen during onboarding become the default profile,
-    // which the first-hub effect below applies automatically via PATCH /me.
-    if (result.profile) saveDefaultProfile({ display_name: result.profile.display_name, avatar: result.profile.avatar, bio: null, pronouns: null, status_message: null, activities: null, accent_color: null, name_color: null, cover: null, favorite_hubs: [], show_hubs: false, birthday: null });
+  function handleIdentityComplete() {
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");

@@ -18,7 +18,8 @@ import {
   listAccounts,
 } from "@identity/index";
 import type { IdentityRecord, PairingOffer } from "@identity/index";
-import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
+import { ProfileEditorSection } from "@wavvon/ui";
+import { profileEditorActions } from "../../utils/profileEditorActions";
 import { encryptBackup, suggestBackupFilename } from "@wavvon/core";
 import { deviceFingerprint, inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
 import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
@@ -29,7 +30,6 @@ import { onboardingSteps, type SetupStep } from "./onboardingSteps";
 
 export interface IdentitySetupCompletion {
   accountId: string;
-  profile?: { display_name: string; avatar: string | null };
 }
 
 interface Props {
@@ -499,10 +499,23 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   if (step === "profile") {
     return (
       frame(
-        <ProfileSetupStep
-          onSave={(display_name, avatar) => onComplete({ accountId: generatedAccountId, profile: { display_name, avatar } })}
-          onSkip={() => onComplete({ accountId: generatedAccountId })}
-        />,
+        <>
+          <h2>{t("onboarding.profile.title")}</h2>
+          <p className="onboarding-lede">{t("onboarding.profile.hint")}</p>
+          {/* The full card, saved straight into this account's default profile,
+              which the first hub joined copies. */}
+          <ProfileEditorSection
+            hubs={[]}
+            account={{ id: generatedAccountId }}
+            isActive={false}
+            publicKey={null}
+            actions={profileEditorActions}
+            onboarding={{
+              onSaved: () => onComplete({ accountId: generatedAccountId }),
+              onSkip: () => onComplete({ accountId: generatedAccountId }),
+            }}
+          />
+        </>,
       )
     );
   }

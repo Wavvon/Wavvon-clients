@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
-import type { ThemeId, WavvonSkin, ProfileEditorActions, SettingsTabDef, TrustRoot } from "@wavvon/ui";
+import type { ThemeId, WavvonSkin, SettingsTabDef, TrustRoot } from "@wavvon/ui";
 import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell } from "@wavvon/ui";
 import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
-import { getMyProfileOnHub, updateMyProfileOnHub, getFindableByAllies, setFindableByAllies, getWidgetHidden, setWidgetHidden, NO_HUB_SESSION, listMyCertifications } from "@platform";
-import { loadDefaultProfile, saveDefaultProfile, loadFollowsDefault, saveFollowsDefault } from "@shared/utils/profiles";
+import { profileEditorActions } from "../../utils/profileEditorActions";
 import { addTrustRoot } from "@wavvon/ui";
 import { loadTrustRoots, saveTrustRoots } from "@shared/utils/trustRoots";
 import { identityNeedsBackup } from "../../utils/identityBackup";
@@ -16,24 +15,6 @@ import { VoiceTab } from "./tabs/VoiceTab";
 import { ManageAccountsTab } from "./tabs/ManageAccountsTab";
 import { DevicesTab } from "./tabs/DevicesTab";
 import { PrivacyTab } from "./tabs/PrivacyTab";
-
-// Web's platform wiring for the shared ProfileEditorSection (packages/ui):
-// hub sessions via @platform, the local default profile via
-// @shared/utils/profiles. Built once — none of this depends on props.
-const profileEditorActions: ProfileEditorActions = {
-  getMyProfileOnHub,
-  updateMyProfileOnHub,
-  noHubSessionError: NO_HUB_SESSION,
-  loadDefaultProfile: (accountId) => loadDefaultProfile(accountId),
-  saveDefaultProfile: (profile, accountId) => saveDefaultProfile(profile, accountId),
-  loadFollowsDefault: (accountId) => loadFollowsDefault(accountId),
-  saveFollowsDefault: (hubIds, accountId) => saveFollowsDefault(hubIds, accountId),
-  listMyCertifications,
-  loadFindableByAllies: getFindableByAllies,
-  saveFindableByAllies: setFindableByAllies,
-  loadWidgetHidden: getWidgetHidden,
-  saveWidgetHidden: setWidgetHidden,
-};
 
 export type SettingsTab =
   | "profile"

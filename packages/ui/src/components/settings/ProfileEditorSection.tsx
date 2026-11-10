@@ -33,6 +33,9 @@ interface Props {
    *  to their own birthday. Omit to hide the toggle. */
   showBirthdays?: boolean;
   onShowBirthdaysChange?: (show: boolean) => void;
+  /** The onboarding profile step: the default profile only, no context
+   *  picker, and Continue / Skip in place of Save. */
+  onboarding?: { onSaved: () => void; onSkip: () => void };
 }
 
 const DEFAULT_CONTEXT = "__default__";
@@ -124,7 +127,7 @@ const trimToNull = (s: string) => {
 // Edits are kept as per-context drafts (dirty contexts get a • in the
 // dropdown) and a single "Save changes" persists all of them: default →
 // local scoped storage, each hub → its own session (PATCH /me).
-export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHubProfileSaved, actions, showBirthdays, onShowBirthdaysChange }: Props) {
+export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHubProfileSaved, actions, showBirthdays, onShowBirthdaysChange, onboarding }: Props) {
   const { t } = useTranslation();
   const [context, setContext] = useState<string>(DEFAULT_CONTEXT);
   const [tab, setTab] = useState<CardTab>("bio");
@@ -392,6 +395,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
         setFollowingBaseline(new Set(following));
       }
       setStatus("saved");
+      onboarding?.onSaved();
     } catch (e) {
       setStatus("idle");
       const msg = e instanceof Error ? e.message : String(e);
@@ -413,6 +417,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
 
   return (
     <div className="settings-section">
+      {!onboarding && (<>
       <label className="settings-label" htmlFor="profile-context-select">
         {t("settings.profile.context.label")}
       </label>
@@ -463,6 +468,7 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
           {t("settings.profile.current_hub.active_only")}
         </p>
       )}
+      </>)}
 
       {status === "loading" && <p className="muted">{t("settings.profile.context.loading")}</p>}
       {error === "no_session" && (
@@ -845,10 +851,19 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
             </div>
           )}
           <div className="settings-row" style={{ maxWidth: 560, gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
-            <button onClick={saveAll} disabled={dirtyContexts.length === 0 || status === "saving"}>
-              {t("settings.profile.save_all")}
+            <button
+              className={onboarding ? "btn-primary" : undefined}
+              onClick={saveAll}
+              disabled={dirtyContexts.length === 0 || status === "saving"}
+            >
+              {onboarding ? t("onboarding.profile.continue") : t("settings.profile.save_all")}
             </button>
-            {status === "saved" && (
+            {onboarding && (
+              <button className="btn-ghost" onClick={onboarding.onSkip}>
+                {t("onboarding.profile.skip")}
+              </button>
+            )}
+            {!onboarding && status === "saved" && (
               <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
                 ✓ {t("settings.profile.default.saved")}
               </span>

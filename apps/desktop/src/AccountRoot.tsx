@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import App from "./App";
-import { OnboardingFrame } from "@wavvon/ui";
+import { OnboardingFrame, ProfileEditorSection } from "@wavvon/ui";
 import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSummary } from "./accounts/store";
+import { buildProfileEditorActions, loadDefaultProfileAsync } from "./utils/profileEditorActions";
 
 // Account switching is a key-remount, not a reload -- the desktop analogue
 // of web's AccountRoot.tsx (decisions.md "Account switching is an in-place
@@ -25,6 +26,8 @@ export default function AccountRoot() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phrase, setPhrase] = useState("");
+  // The first account on this device goes through the profile step, as on web.
+  const [profileStep, setProfileStep] = useState(false);
 
   async function refresh() {
     const list = await listAccounts();
@@ -47,6 +50,9 @@ export default function AccountRoot() {
       await createAccount(withPhrase ? { phrase: phrase.trim() } : {});
       setPhrase("");
       await refresh();
+      // Warms the editor's synchronous read of the default profile.
+      await loadDefaultProfileAsync().catch(() => null);
+      setProfileStep(true);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -86,6 +92,23 @@ export default function AccountRoot() {
           </button>
         </div>
       </div>
+      </OnboardingFrame>
+    );
+  }
+
+  if (profileStep && activeAccountId) {
+    return (
+      <OnboardingFrame>
+        <h2>{t("onboarding.profile.title")}</h2>
+        <p className="onboarding-lede">{t("onboarding.profile.hint")}</p>
+        <ProfileEditorSection
+          hubs={[]}
+          account={{ id: activeAccountId }}
+          isActive={false}
+          publicKey={null}
+          actions={buildProfileEditorActions([])}
+          onboarding={{ onSaved: () => setProfileStep(false), onSkip: () => setProfileStep(false) }}
+        />
       </OnboardingFrame>
     );
   }
