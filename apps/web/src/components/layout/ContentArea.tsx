@@ -1,6 +1,7 @@
 import { liveScreenShares, memberActivity } from "@wavvon/ui";
 import { useMemo, useState } from "react";
 import { useConnectionStats } from "../../hooks/useConnectionStats";
+import { useFriendKeys } from "../../hooks/useFriendKeys";
 import type {
   Channel,
   Message,
@@ -194,6 +195,7 @@ interface Props {
 
 export function ContentArea(props: Props) {
   const [showPinsModal, setShowPinsModal] = useState(false);
+  const friendKeys = useFriendKeys(props.channelMessages.selectedChannel?.id);
   const {
     channelMessages, dms, alliances, hubLifecycle, hubConnection, voice, screenShare,
     notifyPrefs, channelCrud, typing,
@@ -259,6 +261,7 @@ export function ContentArea(props: Props) {
         selectedChannel={selectedChannel}
         voiceStage={selectedChannel ? {
           participants: voice.voicePartByChannel[selectedChannel.id] ?? [],
+          friends: friendKeys,
           speaking: voice.voiceActiveUsers,
           avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
           inThisRoom: voice.voiceChannelId === selectedChannel.id,
