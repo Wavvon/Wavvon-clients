@@ -7,7 +7,7 @@
 // - Event handlers use camelCase: onClick, onChange, onSubmit
 
 import type { SettingsTab } from "./components/SettingsPage";
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { DISCOVERY_URL } from "./constants";
 import { invoke } from "@tauri-apps/api/core";
@@ -79,7 +79,8 @@ import { useSlashCommands } from "./hooks/useSlashCommands";
 import { SettingsPageContainer } from "./components/SettingsPageContainer";
 import { HubAdminContainer } from "./components/HubAdminContainer";
 import { AppModals } from "./components/AppModals";
-import { HubTopBar, useHubLayout } from "@wavvon/ui";
+import { HubTopBar } from "@wavvon/ui";
+import { useSyncedHubLayout } from "./hooks/useSyncedHubLayout";
 import { useUserMenu } from "./hooks/useUserMenu";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
@@ -431,12 +432,7 @@ function App({ accountId }: { accountId: string | null }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
   // Per account: App is remounted on a switch, and every account has its own hubs.
-  const layoutKey = `wavvon.hubLayout:${accountId ?? ""}`;
-  const [hubLayout, setHubLayout] = useHubLayout(
-    () => localStorage.getItem(layoutKey),
-    useCallback((raw: string) => localStorage.setItem(layoutKey, raw), [layoutKey]),
-    hubs.map((h) => h.hub_id),
-  );
+  const [hubLayout, setHubLayout] = useSyncedHubLayout(accountId, hubs.map((h) => h.hub_id));
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Above useChannelMessages: the alliance state it wires to the composer now

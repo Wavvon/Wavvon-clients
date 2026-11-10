@@ -217,6 +217,8 @@ pub fn run() {
             stickers::sticker_upload,
             prefs_blob::sticker_collection_get,
             prefs_blob::sticker_collection_update,
+            prefs_blob::synced_setting_get,
+            prefs_blob::synced_setting_set,
             // Local store
             local_store::load_appearance,
             local_store::save_appearance,
