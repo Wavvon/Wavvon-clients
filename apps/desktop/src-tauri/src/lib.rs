@@ -258,6 +258,7 @@ pub fn run() {
             admin::list_roles,
             admin::create_role,
             admin::update_role,
+            admin::reorder_roles,
             admin::delete_role,
             admin::assign_role,
             admin::unassign_role,
