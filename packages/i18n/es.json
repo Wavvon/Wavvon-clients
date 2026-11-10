@@ -2413,5 +2413,6 @@
   "hub.admin.roles.order.reset": "Deshacer cambios",
   "hub.admin.roles.order.drag": "Arrastrar {name}",
   "hub.admin.roles.order.up": "Subir {name}",
-  "hub.admin.roles.order.down": "Bajar {name}"
+  "hub.admin.roles.order.down": "Bajar {name}",
+  "voice.stage.sortable": "recuadro arrastrable"
 }

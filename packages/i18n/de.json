@@ -2413,5 +2413,6 @@
   "hub.admin.roles.order.reset": "Änderungen verwerfen",
   "hub.admin.roles.order.drag": "{name} ziehen",
   "hub.admin.roles.order.up": "{name} nach oben",
-  "hub.admin.roles.order.down": "{name} nach unten"
+  "hub.admin.roles.order.down": "{name} nach unten",
+  "voice.stage.sortable": "verschiebbare Kachel"
 }

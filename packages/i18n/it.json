@@ -2413,5 +2413,6 @@
   "hub.admin.roles.order.reset": "Annulla modifiche",
   "hub.admin.roles.order.drag": "Trascina {name}",
   "hub.admin.roles.order.up": "Sposta {name} su",
-  "hub.admin.roles.order.down": "Sposta {name} giù"
+  "hub.admin.roles.order.down": "Sposta {name} giù",
+  "voice.stage.sortable": "riquadro trascinabile"
 }

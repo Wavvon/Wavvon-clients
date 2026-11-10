@@ -2413,5 +2413,6 @@
   "hub.admin.roles.order.reset": "Undo changes",
   "hub.admin.roles.order.drag": "Drag {name}",
   "hub.admin.roles.order.up": "Move {name} up",
-  "hub.admin.roles.order.down": "Move {name} down"
+  "hub.admin.roles.order.down": "Move {name} down",
+  "voice.stage.sortable": "draggable tile"
 }
