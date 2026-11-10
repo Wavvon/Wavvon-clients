@@ -2403,5 +2403,15 @@
   "hub.admin.roles.section.federation": "Federation and trust",
   "hub.admin.roles.section.other": "Other",
   "hub.admin.roles.section.all": "Permissions",
-  "hub.admin.roles.section.count": "{set} of {total}"
+  "hub.admin.roles.section.count": "{set} of {total}",
+  "hub.admin.roles.order.title": "Order",
+  "hub.admin.roles.order.state": "Drag to set who ranks above whom",
+  "hub.admin.roles.order.hint": "Higher in the list ranks above: it decides who can edit or assign whom, and the order of the member list. Roles at or above your own cannot move.",
+  "hub.admin.roles.order.fixed": "(fixed)",
+  "hub.admin.roles.order.none": "No role here can be moved by you.",
+  "hub.admin.roles.order.save": "Save order",
+  "hub.admin.roles.order.reset": "Undo changes",
+  "hub.admin.roles.order.drag": "Drag {name}",
+  "hub.admin.roles.order.up": "Move {name} up",
+  "hub.admin.roles.order.down": "Move {name} down"
 }

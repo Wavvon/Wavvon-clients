@@ -2403,5 +2403,15 @@
   "hub.admin.roles.section.federation": "Federación y confianza",
   "hub.admin.roles.section.other": "Otros",
   "hub.admin.roles.section.all": "Permisos",
-  "hub.admin.roles.section.count": "{set} de {total}"
+  "hub.admin.roles.section.count": "{set} de {total}",
+  "hub.admin.roles.order.title": "Orden",
+  "hub.admin.roles.order.state": "Arrastra para decidir quién está por encima de quién",
+  "hub.admin.roles.order.hint": "Más arriba en la lista está por encima: decide quién puede editar o asignar a quién, y el orden de la lista de miembros. Los roles iguales o superiores al tuyo no se mueven.",
+  "hub.admin.roles.order.fixed": "(fijo)",
+  "hub.admin.roles.order.none": "Aquí no hay ningún rol que puedas mover.",
+  "hub.admin.roles.order.save": "Guardar orden",
+  "hub.admin.roles.order.reset": "Deshacer cambios",
+  "hub.admin.roles.order.drag": "Arrastrar {name}",
+  "hub.admin.roles.order.up": "Subir {name}",
+  "hub.admin.roles.order.down": "Bajar {name}"
 }

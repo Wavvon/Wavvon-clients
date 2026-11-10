@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { RoleCategory, RoleInfo } from "../../types";
 import { permissionSections, type PermissionCatalogueEntry } from "../../utils/channelPermissions";
 import { PermissionSections } from "./PermissionSections";
+import { RoleOrderEditor } from "./RoleOrderEditor";
 import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../../utils/roleAppearance";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ErrorRetry } from "../ErrorRetry";
@@ -126,15 +127,20 @@ export interface RolesSectionActions extends Partial<RoleCategoryManagerActions>
    *  checkboxes the hub would refuse. Same shape as
    *  `ChannelPermissionsTabActions`. */
   listPermissionCatalogue?: () => Promise<PermissionCatalogueEntry[]>;
+  /** `PUT /roles/order`, highest first; present only on a hub advertising
+   *  `roles.order`. Returns every role in its new place. */
+  reorderRoles?: (roleIdsHighestFirst: string[]) => Promise<RoleInfo[]>;
 }
 
 interface Props {
   actions: RolesSectionActions;
+  /** The caller's highest role priority: roles at or above it cannot move. */
+  myMaxPriority?: number;
 }
 
 const isBuiltin = (role: RoleInfo) => role.id.startsWith("builtin-");
 
-export function RolesSection({ actions }: Props) {
+export function RolesSection({ actions, myMaxPriority }: Props) {
   const { t } = useTranslation();
   const { confirm, dialog } = useConfirm();
   const [open, setOpen] = useState<string | null>(null);
@@ -333,7 +339,19 @@ export function RolesSection({ actions }: Props) {
         </div>
       </SettingRow>
 
-
+      {actions.reorderRoles && myMaxPriority !== undefined && (
+        <SettingRow
+          title={t("hub.admin.roles.order.title")}
+          state={t("hub.admin.roles.order.state")}
+          {...row("order")}
+        >
+          <RoleOrderEditor
+            roles={roles}
+            myMaxPriority={myMaxPriority}
+            onSave={async (ids) => setRoles(await actions.reorderRoles!(ids))}
+          />
+        </SettingRow>
+      )}
 
       {groups.map((group) => (
         <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
