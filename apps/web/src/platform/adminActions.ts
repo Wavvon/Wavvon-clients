@@ -13,7 +13,7 @@ import {
   listHubIcons, getTalkPower, setTalkPower,
 } from "@platform";
 import {
-  listRoles, createRole, updateRole, deleteRole,
+  listRoles, createRole, updateRole, deleteRole, reorderRoles,
   createRoleCategory, updateRoleCategory, deleteRoleCategory,
   listUserRoles, assignRoleToUser, removeRoleFromUser,
   getDiscoveryTags, setDiscoveryTags,
@@ -108,6 +108,9 @@ export const rolesActions = {
   listPermissionCatalogue: async () =>
     activeHubSupports("permissions.catalogue") ? listPermissionCatalogue() : [],
 } as RolesSectionActions;
+
+/** `rolesActions` plus one-call reordering, for a hub advertising `roles.order`. */
+export const rolesActionsWithOrder: RolesSectionActions = { ...rolesActions, reorderRoles };
 
 export const memberRoleActions = { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } as MemberRoleManagerActions;
 

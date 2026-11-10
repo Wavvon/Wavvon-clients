@@ -96,10 +96,38 @@ export interface AudioProfileConfig {
 
 const GAINS_STORAGE_KEY = 'wavvon.voice_gains';
 
+/** One AudioContext and one capture node for the page's lifetime, shared by
+ *  every voice session. Chromium keeps a closed AudioContext that ever had an
+ *  AudioWorkletNode alive until the page goes away, even once its processor
+ *  has finished and the node is disconnected, so a context per join grew by
+ *  one with every join (clients#338, after #236). Suspended between sessions
+ *  so an idle page runs no audio thread. */
+let sharedCapture: Promise<{ ctx: AudioContext; capture: AudioWorkletNode }> | null = null;
+let activeCaptureSessions = 0;
+let nextCaptureId = 1;
+
+function sharedCaptureAudio(): Promise<{ ctx: AudioContext; capture: AudioWorkletNode }> {
+  sharedCapture ??= (async () => {
+    const ctx = new AudioContext({ sampleRate: CAPTURE_SAMPLE_RATE });
+    await ctx.audioWorklet.addModule(captureWorkletUrl);
+    const capture = new AudioWorkletNode(ctx, 'wavvon-capture');
+    // Pulled only while connected downstream; the node writes no output.
+    capture.connect(ctx.destination);
+    return { ctx, capture };
+  })().catch((e) => {
+    sharedCapture = null;
+    throw e;
+  });
+  return sharedCapture;
+}
+
 export class VoiceWtSession {
   private audioCtx: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private captureNode: AudioWorkletNode | null = null;
+  private captureSource: MediaStreamAudioSourceNode | null = null;
+  /** This session's claim on the shared capture node's output port. */
+  private captureId = 0;
   /** Owns the WebTransport session, Opus encode, seal, the speaking detector
    *  and soundboard mixing — everything between capture and the wire. Nothing
    *  on the main thread sits in the send path; inbound datagrams are handed
@@ -159,21 +187,28 @@ export class VoiceWtSession {
     // browser defaults to — see micCapture.ts.
     this.mediaStream = await captureMic();
 
-    this.audioCtx = new AudioContext({ sampleRate: CAPTURE_SAMPLE_RATE });
+    const { ctx: audioCtx, capture } = await sharedCaptureAudio();
+    // Left while the context was being made: nothing to attach to.
+    if (this.closed) {
+      for (const track of this.mediaStream?.getTracks() ?? []) track.stop();
+      this.mediaStream = null;
+      return;
+    }
+    activeCaptureSessions++;
+    this.audioCtx = audioCtx;
+    this.captureNode = capture;
+    this.captureId = nextCaptureId++;
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
     // Route playback to the chosen output device where supported (Chrome 110+).
     try {
       const outputId = localStorage.getItem("wavvon.audioOutputDevice");
-      const ctx = this.audioCtx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
+      const ctx = audioCtx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
       if (outputId && typeof ctx.setSinkId === "function") {
         await ctx.setSinkId(outputId).catch(() => { /* device gone — fall back to default */ });
       }
     } catch { /* setSinkId unsupported */ }
-    await this.audioCtx.audioWorklet.addModule(captureWorkletUrl);
-    const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
-    this.captureNode = new AudioWorkletNode(this.audioCtx, 'wavvon-capture');
-    source.connect(this.captureNode);
-    // Pulled only while connected downstream; the node writes no output.
-    this.captureNode.connect(this.audioCtx.destination);
+    this.captureSource = audioCtx.createMediaStreamSource(this.mediaStream);
+    this.captureSource.connect(capture);
 
     const url = `${this.join.wtUrl}?token=${encodeURIComponent(this.join.token)}`;
     const certHash = this.join.certHash;
@@ -304,7 +339,7 @@ export class VoiceWtSession {
         switch (msg.type) {
           case 'ready':
             ready = true;
-            this.captureNode!.port.postMessage({ pcmPort: port1 }, [port1]);
+            this.captureNode!.port.postMessage({ pcmPort: port1, id: this.captureId }, [port1]);
             resolve();
             break;
           case 'failed':
@@ -553,13 +588,18 @@ export class VoiceWtSession {
 
   stop(): void {
     this.closed = true;
-    // The worklet stops processing (see captureWorklet.ts) before the
-    // context closes; a node whose processor is still active kept itself and
-    // its AudioContext alive after leaving, one per join (clients#236).
-    this.captureNode?.port.postMessage({ stop: true });
-    this.captureNode?.port.close();
-    this.captureNode?.disconnect();
+    // The context and capture node are shared and outlive the session (see
+    // sharedCaptureAudio): detach from them, never close them.
+    const ctx = this.audioCtx;
+    this.captureNode?.port.postMessage({ detach: true, id: this.captureId });
     this.captureNode = null;
+    this.captureSource?.disconnect();
+    this.captureSource = null;
+    this.audioCtx = null;
+    if (ctx) {
+      activeCaptureSessions = Math.max(0, activeCaptureSessions - 1);
+      if (activeCaptureSessions === 0) ctx.suspend().catch(() => {});
+    }
     this.postToWorker({ type: 'stop' });
     this.encodeWorker = null;
     for (const track of this.mediaStream?.getTracks() ?? []) track.stop();
@@ -568,11 +608,6 @@ export class VoiceWtSession {
       gainNode.disconnect();
     }
     this.gainNodes.clear();
-    // One render quantum is ~3 ms; give the worklet a few to see `stop`
-    // and return false before rendering halts for good.
-    const ctx = this.audioCtx;
-    setTimeout(() => { ctx?.close().catch(() => {}); }, 50);
-    this.audioCtx = null;
     for (const sid of [...this.decoders.keys()]) this.closeDecoder(sid);
   }
 }

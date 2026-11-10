@@ -33,9 +33,26 @@ fn encode_dm_plaintext(content: String, attachments: Option<Vec<AttachmentInfo>>
 // Friends
 // ---------------------------------------------------------------------------
 
+/// The hub the friend list lives on. Friends are personal-axis state, so the
+/// list belongs on a home hub, not on whichever hub is on screen: the first
+/// hub of the cached designation this client has a session with, else the
+/// active hub (Wavvon-clients#279). Reads and writes go to the same hub, so a
+/// friend added once is found again from any hub.
+fn friends_session(state: &AppState) -> Result<(String, String), String> {
+    let home = crate::home_hub::read_cached_designation()
+        .map(|d| d.hubs)
+        .unwrap_or_default();
+    for url in &home {
+        if let Ok(token) = crate::state::session_for_url(state, url) {
+            return Ok((url.trim_end_matches('/').to_string(), token));
+        }
+    }
+    active_session(state)
+}
+
 #[tauri::command]
 pub(crate) async fn list_friends(state: State<'_, AppState>) -> Result<Vec<FriendInfo>, String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
     client
         .get(format!("{hub_url}/friends"))
@@ -52,7 +69,7 @@ pub(crate) async fn list_friends(state: State<'_, AppState>) -> Result<Vec<Frien
 pub(crate) async fn list_pending_friends(
     state: State<'_, AppState>,
 ) -> Result<Vec<FriendInfo>, String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
     client
         .get(format!("{hub_url}/friends/pending"))
@@ -72,7 +89,7 @@ pub(crate) async fn send_friend_request(
     display_name: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
         .post(format!("{hub_url}/friends"))
@@ -96,7 +113,7 @@ pub(crate) async fn accept_friend(
     from_public_key: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
         .post(format!("{hub_url}/friends/{from_public_key}/accept"))
@@ -115,7 +132,7 @@ pub(crate) async fn remove_friend(
     target_public_key: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
     let resp = client
         .delete(format!("{hub_url}/friends/{target_public_key}"))
