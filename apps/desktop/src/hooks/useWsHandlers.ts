@@ -43,9 +43,7 @@ export interface WsHandlersParams {
   voiceVisitIdRef: RefObject<string | null>;
   /** That socket closed under us — the room is gone. */
   onVoiceVisitLost: () => void;
-  pendingVoiceAnnouncementsRef: RefObject<string[]>;
-  voiceAnnounceTimerRef: RefObject<ReturnType<typeof setTimeout> | null>;
-  setVoicePoliteAnnouncement: (msg: string) => void;
+  announceVoice: (msg: string) => void;
   hubs: { hub_id: string; hub_name: string; hub_url: string }[];
   channelsRef: RefObject<{ id: string; name: string }[]>;
   onBotAppLaunch: (event: AppLaunchEvent) => void;
@@ -87,9 +85,7 @@ export function useWsHandlers({
   onParticipantLeft,
   onMicLevel,
   onHubErrorVoiceJoin,
-  pendingVoiceAnnouncementsRef,
-  voiceAnnounceTimerRef,
-  setVoicePoliteAnnouncement,
+  announceVoice,
   hubs,
   channelsRef,
   onBotAppLaunch,
@@ -322,14 +318,7 @@ export function useWsHandlers({
             onParticipantJoined(event.payload.channel_id, event.payload.participant);
             if (event.payload.participant.public_key !== publicKeyRef.current) {
               const name = event.payload.participant.display_name || formatPubkey(event.payload.participant.public_key);
-              pendingVoiceAnnouncementsRef.current.push(`${name} joined voice`);
-              if (!voiceAnnounceTimerRef.current) {
-                voiceAnnounceTimerRef.current = setTimeout(() => {
-                  const batch = pendingVoiceAnnouncementsRef.current.splice(0);
-                  setVoicePoliteAnnouncement(batch.join(". "));
-                  voiceAnnounceTimerRef.current = null;
-                }, 2000);
-              }
+              announceVoice(i18n.t("voice.announce.joined", { name }));
             }
           }
         )
@@ -344,14 +333,7 @@ export function useWsHandlers({
             if (event.payload.public_key !== publicKeyRef.current) {
               const u = users.find((u) => u.public_key === event.payload.public_key);
               const name = u?.display_name || formatPubkey(event.payload.public_key);
-              pendingVoiceAnnouncementsRef.current.push(`${name} left voice`);
-              if (!voiceAnnounceTimerRef.current) {
-                voiceAnnounceTimerRef.current = setTimeout(() => {
-                  const batch = pendingVoiceAnnouncementsRef.current.splice(0);
-                  setVoicePoliteAnnouncement(batch.join(". "));
-                  voiceAnnounceTimerRef.current = null;
-                }, 2000);
-              }
+              announceVoice(i18n.t("voice.announce.left", { name }));
             }
           }
         )

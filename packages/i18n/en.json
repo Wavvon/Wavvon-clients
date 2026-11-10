@@ -1835,6 +1835,8 @@
   "user.profile.roles": "Roles",
   "users.list.filter_placeholder": "Filter members…",
   "users.list.no_matches": "No matches",
+  "voice.announce.joined": "{name} joined voice",
+  "voice.announce.left": "{name} left voice",
   "voice.camera.off": "Turn off camera",
   "voice.camera.on": "Turn on camera",
   "voice.deafen": "Mute all audio",

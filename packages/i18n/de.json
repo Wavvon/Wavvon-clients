@@ -1835,6 +1835,8 @@
   "user.profile.roles": "Rollen",
   "users.list.filter_placeholder": "Mitglieder filtern…",
   "users.list.no_matches": "Keine Treffer",
+  "voice.announce.joined": "{name} ist dem Sprachkanal beigetreten",
+  "voice.announce.left": "{name} hat den Sprachkanal verlassen",
   "voice.camera.off": "Kamera ausschalten",
   "voice.camera.on": "Kamera einschalten",
   "voice.deafen": "Ton deaktivieren",

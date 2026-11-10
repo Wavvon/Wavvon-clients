@@ -3,7 +3,8 @@ import type { RefObject } from "react";
 import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
 import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
-import { playVoiceTone } from "@wavvon/core";
+import { playVoiceTone, formatPubkey } from "@wavvon/core";
+import { useBatchedAnnouncement } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
 import { getScoped, setScoped } from "../utils/accountScope";
@@ -116,6 +117,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     catch { return {}; }
   });
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
+  // onVoiceState runs from a frozen handler registry, so it reads the roster
+  // through a ref to name whoever just left.
+  const voicePartByChannelRef = useRef(voicePartByChannel);
+  voicePartByChannelRef.current = voicePartByChannel;
+  const { announcement: voicePoliteAnnouncement, announce: announceVoice } = useBatchedAnnouncement();
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
@@ -570,6 +576,10 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       const leftKey = m.public_key;
       if (channelId === voiceChannelIdRef.current) {
         voiceSessionRef.current?.handleParticipantLeft(leftKey);
+        if (leftKey !== publicKeyRef.current) {
+          const left = voicePartByChannelRef.current[channelId]?.find((p) => p.public_key === leftKey);
+          announceVoice(i18n.t("voice.announce.left", { name: left?.display_name || formatPubkey(leftKey) }));
+        }
       }
       setVoicePartByChannel((prev) => {
         const existing = prev[channelId];
@@ -590,6 +600,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     } else if (m.type === "voice_participant_joined") {
       if (!m.participant) return;
       const joined = m.participant;
+      if (channelId === voiceChannelIdRef.current && joined.public_key !== publicKeyRef.current) {
+        announceVoice(i18n.t("voice.announce.joined", { name: joined.display_name || formatPubkey(joined.public_key) }));
+      }
       setVoicePartByChannel((prev) => {
         const existing = prev[channelId] ?? [];
         if (existing.some((p) => p.public_key === joined.public_key)) return prev;
@@ -680,6 +693,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     handleSetVoiceGain,
     voicePartByChannel,
     setVoicePartByChannel,
+    voicePoliteAnnouncement,
     voiceActiveUsers,
     myVoicePerms,
     soundboardPlayingClipId,

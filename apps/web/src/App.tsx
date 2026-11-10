@@ -194,9 +194,6 @@ export default function App({ initialView }: AppProps = {}) {
   const hubConnection = useHubConnection();
   const { hubConnected, reconnectingHubs, handleStatusChange } = hubConnection;
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
-  const [voicePoliteAnnouncement, setVoicePoliteAnnouncement] = useState("");
-  const voiceAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingVoiceAnnouncementsRef = useRef<string[]>([]);
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   const [homeHubUrl, setHomeHubUrl] = useState<string | undefined>(undefined);
   const [channelCtxMenu, setChannelCtxMenu] = useState<{ channel: Channel; x: number; y: number } | null>(null);
@@ -963,7 +960,7 @@ export default function App({ initialView }: AppProps = {}) {
         aria-atomic="true"
         className="sr-only"
       >
-        {voicePoliteAnnouncement}
+        {voice.voicePoliteAnnouncement}
       </div>
       <WhisperInbox
         entries={whisper.inboundWhisperLog.map((e) => ({

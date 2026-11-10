@@ -59,7 +59,7 @@ import {
 } from "@wavvon/core";
 import { parseHubInput, classifyHubRefusal, noteAppJoin, takeAppJoin, type HubRefusal } from "@wavvon/core";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
-import { useUnreadCounts } from "@wavvon/ui";
+import { useUnreadCounts, useBatchedAnnouncement } from "@wavvon/ui";
 import { unreadPersistence } from "./unreadPersistence";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
 import { useHubConnections } from "./hooks/useHubConnections";
@@ -335,9 +335,7 @@ function App({ accountId }: { accountId: string | null }) {
   });
 
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
-  const [voicePoliteAnnouncement, setVoicePoliteAnnouncement] = useState("");
-  const voiceAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingVoiceAnnouncementsRef = useRef<string[]>([]);
+  const { announcement: voicePoliteAnnouncement, announce: announceVoice } = useBatchedAnnouncement();
 
   const publicKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -836,9 +834,7 @@ function App({ accountId }: { accountId: string | null }) {
     onHubErrorVoiceJoin: voice.onHubErrorVoiceJoin,
     voiceVisitIdRef: voice.voiceVisitIdRef,
     onVoiceVisitLost: leaveVoiceChannel,
-    pendingVoiceAnnouncementsRef,
-    voiceAnnounceTimerRef,
-    setVoicePoliteAnnouncement,
+    announceVoice,
     hubs,
     channelsRef,
     onBotAppLaunch: (ev: AppLaunchEvent) => {
