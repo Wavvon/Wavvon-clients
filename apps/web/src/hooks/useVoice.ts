@@ -4,7 +4,7 @@ import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundbo
 import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
 import { playVoiceTone, formatPubkey } from "@wavvon/core";
-import { useBatchedAnnouncement } from "@wavvon/ui";
+import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
 import { getScoped, setScoped } from "../utils/accountScope";
@@ -122,6 +122,10 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const voicePartByChannelRef = useRef(voicePartByChannel);
   voicePartByChannelRef.current = voicePartByChannel;
   const { announcement: voicePoliteAnnouncement, announce: announceVoice } = useBatchedAnnouncement();
+  // The room map: the first voice zone in the room we are in, as the UI draws
+  // it. VoiceWtSession keeps its own copy for the attenuation.
+  const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
+  useEffect(() => { if (!voiceChannelId) setRoomZone(null); }, [voiceChannelId]);
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
@@ -628,6 +632,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const m = raw as { channel_id?: string; zones?: VoiceZone[] };
     if (!m.channel_id || !m.zones) return;
     voiceSessionRef.current?.handleZoneState(m.channel_id, m.zones);
+    // Only sent on our own voice join, so it is the room we are in.
+    const z = m.zones[0];
+    setRoomZone(z ? { zoneId: z.zone_id, positions: { ...z.positions } } : null);
   }
 
   function onVoiceZoneCreated(raw: unknown) {
@@ -639,18 +646,49 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       coordinate_system: m.coordinate_system,
       attenuation: m.attenuation,
     });
+    const zoneId = m.zone_id;
+    setRoomZone((cur) => cur ?? { zoneId, positions: {} });
   }
 
   function onVoiceZoneDestroyed(raw: unknown) {
     const m = raw as { zone_id?: string };
     if (!m.zone_id) return;
     voiceSessionRef.current?.handleZoneDestroyed(m.zone_id);
+    setRoomZone((cur) => (cur?.zoneId === m.zone_id ? null : cur));
   }
 
+  // The hub names the member `pubkey` here (WsServerMessage::VoicePositionUpdated);
+  // reading `public_key` meant no position from anyone ever reached the mix.
   function onVoicePositionUpdated(raw: unknown) {
-    const m = raw as { zone_id?: string; public_key?: string; position?: number[] };
-    if (!m.zone_id || !m.public_key || !m.position) return;
-    voiceSessionRef.current?.handlePositionUpdated(m.zone_id, m.public_key, m.position);
+    const m = raw as { zone_id?: string; pubkey?: string; position?: number[] };
+    if (!m.zone_id || !m.pubkey || !m.position) return;
+    const { zone_id: zoneId, pubkey, position } = m;
+    voiceSessionRef.current?.handlePositionUpdated(zoneId, pubkey, position);
+    setRoomZone((cur) => (cur?.zoneId === zoneId ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
+  }
+
+  // The hub checks channels.manage for both; this only asks.
+  function enableRoomMap() {
+    voiceWs()?.send({
+      type: "voice_zone_create",
+      zone_id: crypto.randomUUID(),
+      name: "room",
+      coordinate_system: "2d",
+      attenuation: { model: "linear", max_radius: ROOM_MAP_RADIUS },
+      auth_mode: "any_channel_member",
+    });
+  }
+
+  function disableRoomMap() {
+    if (roomZone) voiceWs()?.send({ type: "voice_zone_destroy", zone_id: roomZone.zoneId });
+  }
+
+  function moveInRoom(position: [number, number]) {
+    const me = publicKeyRef.current;
+    if (!roomZone || !me) return;
+    voiceWs()?.send({ type: "voice_position_update", zone_id: roomZone.zoneId, position });
+    voiceSessionRef.current?.setMyPosition(roomZone.zoneId, position);
+    setRoomZone({ ...roomZone, positions: { ...roomZone.positions, [me]: position } });
   }
 
   // voice-transport-v2.md "E2E key distribution" — a peer's offer for us.
@@ -694,6 +732,10 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voicePartByChannel,
     setVoicePartByChannel,
     voicePoliteAnnouncement,
+    roomZone,
+    enableRoomMap,
+    disableRoomMap,
+    moveInRoom,
     voiceActiveUsers,
     myVoicePerms,
     soundboardPlayingClipId,

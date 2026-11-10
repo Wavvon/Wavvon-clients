@@ -8,7 +8,7 @@ import { listenerScope } from "../utils/listenerScope";
 import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
-import { voiceTransportFailure } from "@wavvon/ui";
+import { voiceTransportFailure, ROOM_MAP_RADIUS } from "@wavvon/ui";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -158,6 +158,42 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       scope.close();
     };
   }, [activeHubId]);
+
+  // The room map: the first voice zone in the room we are in. The shell
+  // keeps its own copy for the attenuation; this one is for drawing.
+  const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
+  useEffect(() => { if (voiceChannelId === null) setRoomZone(null); }, [voiceChannelId]);
+  // Always listening: the zone state arrives with the join, before
+  // voiceChannelId is set.
+  useEffect(() => {
+    const scope = listenerScope();
+    scope.add(listen<{ zones: { zone_id: string; positions: Record<string, number[]> }[] }>("voice-zone-state", (e) => {
+      const z = e.payload.zones[0];
+      setRoomZone(z ? { zoneId: z.zone_id, positions: { ...z.positions } } : null);
+    }));
+    scope.add(listen<{ zone_id: string }>("voice-zone-created", (e) => {
+      setRoomZone((cur) => cur ?? { zoneId: e.payload.zone_id, positions: {} });
+    }));
+    scope.add(listen<{ zone_id: string }>("voice-zone-destroyed", (e) => {
+      setRoomZone((cur) => (cur?.zoneId === e.payload.zone_id ? null : cur));
+    }));
+    scope.add(listen<{ zone_id: string; pubkey: string; position: number[] }>("voice-position-updated", (e) => {
+      const { zone_id, pubkey, position } = e.payload;
+      setRoomZone((cur) => (cur?.zoneId === zone_id ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
+    }));
+    return () => scope.close();
+  }, []);
+
+  function enableRoomMap() {
+    invoke("voice_room_map_enable", { maxRadius: ROOM_MAP_RADIUS }).catch((e) => setError(String(e)));
+  }
+  function disableRoomMap() {
+    if (roomZone) invoke("voice_room_map_disable", { zoneId: roomZone.zoneId }).catch((e) => setError(String(e)));
+  }
+  function moveInRoom(position: [number, number]) {
+    if (!roomZone) return;
+    invoke("voice_room_map_move", { zoneId: roomZone.zoneId, position }).catch((e) => setError(String(e)));
+  }
 
   useEffect(() => {
     if (voiceMode !== "ptt" || voiceChannelId === null) return;
@@ -537,6 +573,10 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
 
   return {
     voiceChannelId,
+    roomZone,
+    enableRoomMap,
+    disableRoomMap,
+    moveInRoom,
     isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,

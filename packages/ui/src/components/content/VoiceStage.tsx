@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
 import { LiveTray, type VoiceLive } from "./LiveTray";
+import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
 import { PinIcon, ExpandIcon } from "../Icons";
 import { friendsFirst } from "../../utils/friendsFirst";
@@ -44,6 +45,8 @@ export interface VoiceStageInfo {
   /** Your own share as you capture it: the hub does not send you your own stream. */
   /** `kbps` is what is actually being sent, which the browser may keep below the choice. */
   selfShare?: { stream: MediaStream; kbps: number; onStop: () => void };
+  /** The room map; absent when you are not in the room. */
+  room?: VoiceRoomMapInfo;
 }
 
 // Pins are the member's own, on this device, for every room.
@@ -96,7 +99,7 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: Med
  * the room. `children` is the viewer of the opened streams.
  */
 export function VoiceStage({
-  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, children,
+  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, children,
 }: VoiceStageInfo & { children?: React.ReactNode }) {
   const { t } = useTranslation();
   const [pins, setPins] = useState<string[]>(loadPins);
@@ -301,6 +304,9 @@ export function VoiceStage({
             <button className="btn-primary" onClick={floor.onRaise}>{t("voice.stage.raise_hand")}</button>
           )}
         </div>
+      )}
+      {inThisRoom && room && (
+        <VoiceRoomMap room={room} participants={participants} avatars={avatars} publicKey={publicKey} />
       )}
     </section>
   );
