@@ -12,6 +12,7 @@ import { buildRecoveryActions } from "../utils/recoveryActions";
 import type { Hub, RoleInfo } from "../types";
 import {
   rolesActions,
+  rolesActionsWithOrder,
   memberRoleActions,
   serverTagsActions,
   inviteActions,
@@ -113,7 +114,7 @@ export function HubAdminContainer({
       attachmentSettingsActions={hubCaps.includes("attachments.stored") && can("hub.settings") ? attachmentSettingsActions : undefined}
       widgetActions={hubCaps.includes("hub.widget") && can("hub.settings") ? widgetActions : undefined}
       canManageHubAlliances={canManageHubAlliances}
-      rolesActions={rolesActions}
+      rolesActions={hubCaps.includes("roles.order") ? rolesActionsWithOrder : rolesActions}
       memberRoleActions={memberRoleActions}
       serverTagsActions={serverTagsActions}
       inviteActions={inviteActions}

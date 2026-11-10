@@ -53,6 +53,14 @@ export async function updateRole(roleId: string, updates: RoleUpdateInput): Prom
   return r.json() as Promise<RoleInfo>;
 }
 
+export async function reorderRoles(roleIdsHighestFirst: string[]): Promise<RoleInfo[]> {
+  const r = await hubFetch("/roles/order", {
+    method: "PUT",
+    body: JSON.stringify({ role_ids: roleIdsHighestFirst }),
+  });
+  return r.json() as Promise<RoleInfo[]>;
+}
+
 export async function deleteRole(roleId: string): Promise<void> {
   await hubFetch(`/roles/${roleId}`, { method: "DELETE" });
 }

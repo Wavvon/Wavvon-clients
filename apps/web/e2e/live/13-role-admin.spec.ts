@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
+import { expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow, openPermissionSection } from "./helpers/live";
 
 // P13 — create / edit-permissions / delete a role from the web Roles admin
 // tab (previously desktop-only; see docs/client-parity.md).
@@ -23,6 +23,7 @@ test("create a role with a permission, edit its permissions, then delete it", as
   // Create: open the creator, name it, tick a permission, submit.
   await openSettingRow(page, "New role");
   await page.getByRole("textbox", { name: "Role name" }).fill(roleName);
+  await openPermissionSection(page.locator(".setting-row").filter({ has: page.getByRole("button", { name: "Create role" }) }), "Moderation");
   await page.getByRole("checkbox", { name: "Kick members" }).check();
   await page.getByRole("button", { name: "Create role" }).click();
 
@@ -35,6 +36,7 @@ test("create a role with a permission, edit its permissions, then delete it", as
     (await hubApi<Role[]>(page, "/roles")).find((r) => r.name === roleName);
   await expect.poll(async () => (await findRole())?.permissions).toContain("moderation.kick");
 
+  await openPermissionSection(row, "Moderation");
   // Edit permissions: the open row lists them. This checkbox is
   // server-controlled (flips only after the PATCH round-trips), so click and
   // poll the API rather than using check()'s immediate assert.

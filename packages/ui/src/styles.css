@@ -5414,6 +5414,10 @@ select:focus-visible {
 .checkbox-label input {
   width: auto;
   margin: 0;
+  /* The generic input padding made a checkbox 31px tall, except while it
+     had focus, so blurring one reflowed the form under the pointer and a
+     click on the next button could land on something else. */
+  padding: 0;
 }
 
 /* ============================================================

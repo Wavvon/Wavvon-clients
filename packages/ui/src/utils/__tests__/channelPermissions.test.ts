@@ -4,6 +4,7 @@ import {
   deriveRowStates,
   buildOverwritePayload,
   overwritableIds,
+  permissionSections,
   type PermissionCatalogueEntry,
 } from "../channelPermissions";
 
@@ -107,5 +108,25 @@ describe("buildOverwritePayload", () => {
   it("sends nothing when every row is inherit", () => {
     const payload = buildOverwritePayload({ "messages.read": "inherit" });
     expect(payload).toEqual({ allow: [], deny: [] });
+  });
+});
+
+describe("permissionSections", () => {
+  const entry = (id: string, category?: string) => ({ id, scope: "hub" as const, group: id.split(".")[0], category });
+
+  it("orders known sections, keeps an unknown category, and puts unlisted ids in other", () => {
+    const catalogue = [
+      entry("voice.join", "voice"),
+      entry("messages.send", "messages"),
+      entry("future.thing", "future"),
+      entry("roles.manage", "members"),
+    ];
+    const sections = permissionSections(["voice.join", "future.thing", "messages.send", "roles.manage", "legacy.extra"], catalogue);
+    expect(sections.map((s) => s.key)).toEqual(["messages", "voice", "members", "future", "other"]);
+    expect(sections.find((s) => s.key === "other")?.ids).toEqual(["legacy.extra"]);
+  });
+
+  it("shows one section on a hub that serves no categories", () => {
+    expect(permissionSections(["a.b", "c.d"], [entry("a.b"), entry("c.d")])).toEqual([{ key: "all", ids: ["a.b", "c.d"] }]);
   });
 });

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName, openPermissionSection } from "./helpers/live";
 
 // P50 — hub-level events (events.md §5): a hub_wide event bypasses the
 // anchor channel's read-gate in list_events, so a member who can't read the
@@ -54,6 +54,8 @@ test("hub-wide event bypasses read-gating; a plain event on the same anchor stay
   // Deny messages.read *and* voice.join for @everyone on the restricted anchor.
   const dialog = await openPermissionsTab(page, restricted);
   await dialog.getByRole("button", { name: "everyone" }).click();
+  await openPermissionSection(dialog, "Messages");
+  await openPermissionSection(dialog, "Voice");
   const readRow = dialog.locator(".settings-row").filter({ hasText: "Read messages" });
   await readRow.getByRole("button", { name: "Deny", exact: true }).click();
   await dialog.getByRole("button", { name: "Save", exact: true }).click();

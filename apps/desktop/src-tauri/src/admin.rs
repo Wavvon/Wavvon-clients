@@ -371,6 +371,28 @@ pub(crate) async fn update_role(
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }
 
+/// PUT /roles/order: every role the caller may move, highest first, in one
+/// call (Wavvon-clients#286).
+#[tauri::command]
+pub(crate) async fn reorder_roles(
+    role_ids: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<RoleInfo>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let resp = state
+        .http_client
+        .put(format!("{hub_url}/roles/order"))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "role_ids": role_ids }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+}
+
 #[tauri::command]
 pub(crate) async fn delete_role(role_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
