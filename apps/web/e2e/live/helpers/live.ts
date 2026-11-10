@@ -74,7 +74,7 @@ export async function onboardWithSeed(
   const profileStep = page.getByRole("heading", { name: "Set up your profile" });
   await profileStep.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
   if (await profileStep.isVisible()) {
-    await page.getByPlaceholder("Your name").fill(displayName);
+    await page.getByPlaceholder("Display name").fill(displayName);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
   }
 
