@@ -1835,6 +1835,8 @@
   "user.profile.roles": "Ruoli",
   "users.list.filter_placeholder": "Filtra i membri…",
   "users.list.no_matches": "Nessun risultato",
+  "voice.announce.joined": "{name} è entrato in voce",
+  "voice.announce.left": "{name} è uscito dalla voce",
   "voice.camera.off": "Disattiva webcam",
   "voice.camera.on": "Attiva webcam",
   "voice.deafen": "Disattiva audio",
