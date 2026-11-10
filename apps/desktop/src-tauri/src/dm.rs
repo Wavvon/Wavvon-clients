@@ -367,7 +367,7 @@ async fn hub_capabilities(client: &reqwest::Client, hub_url: &str) -> Vec<String
 }
 
 /// A random (v4) UUID, the id a v2 plaintext DM is signed under.
-fn random_uuid() -> String {
+pub(crate) fn random_uuid() -> String {
     use rand::RngCore;
     let mut b = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut b);

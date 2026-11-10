@@ -108,6 +108,15 @@ export function ContentAreaContainer({
                 canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")),
               }
             : undefined,
+          room: voice.voiceChannelId === selectedChannel.id
+            ? {
+                zone: voice.roomZone,
+                canManage: hasPerm("channels.manage"),
+                onEnable: voice.enableRoomMap,
+                onDisable: voice.disableRoomMap,
+                onMove: voice.moveInRoom,
+              }
+            : undefined,
           live: {
             streams: voice.hubStreams.filter((s) => s.channel_id === selectedChannel.id),
             opened: voice.openedIds,

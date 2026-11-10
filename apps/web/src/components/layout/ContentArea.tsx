@@ -270,6 +270,15 @@ export function ContentArea(props: Props) {
           floor: voice.floor && voice.voiceChannelId === selectedChannel.id && activeHubSupports("voice.hands")
             ? { ...voice.floor, canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
             : undefined,
+          room: voice.voiceChannelId === selectedChannel.id
+            ? {
+                zone: voice.roomZone,
+                canManage: isAdmin || myRoles.some((r) => r.permissions.includes("channels.manage")),
+                onEnable: voice.enableRoomMap,
+                onDisable: voice.disableRoomMap,
+                onMove: voice.moveInRoom,
+              }
+            : undefined,
           live: {
             streams: screenShare.liveStreams.filter((s) => s.channel_id === selectedChannel.id),
             opened: screenShare.openedIds,
