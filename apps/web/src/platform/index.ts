@@ -233,7 +233,7 @@ export {
 export type { MyChannelPermissions } from "./commands/channelPermissions";
 
 export { fetchAllUsers } from "./commands/users";
-export { listRoles, createRole, updateRole, deleteRole, listUserRoles, assignRoleToUser, removeRoleFromUser } from "./commands/roles";
+export { listRoles, createRole, updateRole, deleteRole, reorderRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } from "./commands/roles";
 export type { RoleCreateInput, RoleUpdateInput } from "./commands/roles";
 
 export {
