@@ -11,6 +11,7 @@ import { getScoped, setScoped } from "../../utils/accountScope";
 
 const PLAINTEXT_SIGNER_CERT_CAP = "dms.plaintext.signercert";
 const PLAINTEXT_V2_CAP = "dms.plaintext.v2";
+const SIGNED_MEMBERS_CAP = "dms.group.signedmembers";
 import {
   dhKeypairFromSeed,
   encryptDm,
@@ -25,13 +26,17 @@ import {
   dhPinVerdict,
   federatedPlaintextDmSigningBytes,
   federatedPlaintextDmV2SigningBytes,
+  dmMemberChangeSigningBytes,
   verifyDmEnvelopeSigner,
+  verifyGroupEnvelopeSigner,
   type DmEnvelope,
+  type GroupEnvelope,
   type DRSession,
   type DrEnvelope,
   type SubkeyCert,
 } from "@wavvon/core";
 import type { Conversation, DmMessage, DmMessageFull, Attachment } from "@shared/types";
+import { decryptGroupDm, encryptGroupDm, fetchGroupSenderKeys, holdsGroupKey } from "./groupDms";
 
 // ---------------------------------------------------------------------------
 // Cert-chained DM attribution (decisions.md "Paired-device DMs attribute to
@@ -141,7 +146,7 @@ interface RawDmMessage {
   attachments?: Attachment[];
   is_encrypted?: boolean;
   encrypted_envelope?: DmEnvelope | DrEnvelope;
-  group_encrypted_envelope?: unknown;
+  group_encrypted_envelope?: GroupEnvelope;
   delivery_failed?: boolean;
 }
 
@@ -200,13 +205,16 @@ export async function getDmMessages(
 
   const unreadable = (sender: string) => i18n.t(unreadableDmKey(sender, mySenderPubkey));
 
+  // Fetched once per page, and only when a message names a key we lack.
+  let fetchedGroupKeys = false;
+
   const results: DmMessageFull[] = [];
   for (const m of raw) {
     let content = m.content ?? "";
     // An encrypted message's attachments come from its plaintext only:
     // anything the hub lists beside an envelope is not covered by it.
     let attachments = m.is_encrypted || m.group_encrypted_envelope ? undefined : m.attachments;
-    const ownPlaintext = m.is_encrypted ? loadOwnPlaintext(m.id) : null;
+    const ownPlaintext = m.is_encrypted || m.group_encrypted_envelope ? loadOwnPlaintext(m.id) : null;
     if (ownPlaintext !== null) {
       content = ownPlaintext;
       try {
@@ -258,8 +266,24 @@ export async function getDmMessages(
           content = unreadable(m.sender);
         }
       }
-    } else if (!m.content && m.group_encrypted_envelope) {
-      content = "🔒 Encrypted message (upgrade client to read)";
+    } else if (m.group_encrypted_envelope) {
+      const env = m.group_encrypted_envelope;
+      // Same rule as the 1:1 envelope above: the hub is not trusted with it.
+      if (env.sender_pubkey !== m.sender || env.conv_id !== m.conversation_id || !verifyGroupEnvelopeSigner(env)) {
+        content = i18n.t("dm.decryption_failed");
+      } else {
+        try {
+          if (!holdsGroupKey(env) && !fetchedGroupKeys) {
+            fetchedGroupKeys = true;
+            await fetchGroupSenderKeys(m.conversation_id);
+          }
+          const plain = decryptGroupDm(env);
+          content = plain.content;
+          attachments = plain.attachments;
+        } catch {
+          content = unreadable(m.sender);
+        }
+      }
     }
     results.push({
       id: m.id,
@@ -269,7 +293,7 @@ export async function getDmMessages(
       content,
       created_at: m.created_at,
       attachments,
-      is_encrypted: m.is_encrypted,
+      is_encrypted: m.is_encrypted || !!m.group_encrypted_envelope,
       delivery_failed: m.delivery_failed,
     });
   }
@@ -301,14 +325,16 @@ export async function sendDm(
   const { signingSeedHex, senderPubkey, signerCert, dhPriv } = resolveDmSendAttribution(identity);
   const conversation = await getConversation_(conversation_id);
 
-  // Group DMs use sender keys, which this client does not implement — it says
-  // so when *reading* one ("upgrade client to read"). Sending had no such
-  // check, and the 1:1 path below would have picked whichever member happened
-  // to come first and encrypted to them alone: readable by one person in the
-  // group, undecryptable for everyone else, and reported to the sender as
-  // sent. Reachable, because a desktop client can put a web user in a group.
+  // Never through the 1:1 path below: it would encrypt to whichever member
+  // came first, readable by one person in the group and by nobody else.
   if (conversation.conv_type === "group") {
-    throw new Error(i18n.t("dm.group_send_unsupported"));
+    const groupEnvelope = await encryptGroupDm(conversation, content, attachments);
+    const res = await dmFetch(`/conversations/${conversation_id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ group_encrypted_envelope: groupEnvelope }),
+    });
+    await stashOwnCopy(res, content, attachments);
+    return "sent";
   }
 
   const members = conversation.members;
@@ -398,8 +424,13 @@ export async function sendDm(
     // the hub the files in the clear.
     body: JSON.stringify({ encrypted_envelope: drEnvelope }),
   });
-  // Stash own plaintext for history rendering — a ratchet can't decrypt
-  // its own outbound envelopes (see saveOwnPlaintext).
+  await stashOwnCopy(res, content, attachments);
+  return "sent";
+}
+
+// Stash own plaintext for history rendering — a ratchet can't decrypt
+// its own outbound envelopes (see saveOwnPlaintext).
+async function stashOwnCopy(res: Response, content: string, attachments?: Attachment[]): Promise<void> {
   try {
     const created = (await res.json()) as { id?: string };
     if (created.id) {
@@ -412,7 +443,44 @@ export async function sendDm(
     // in history. Worth a line rather than nothing.
     console.warn("[dm] sent, but could not stash our own plaintext copy:", e);
   }
-  return "sent";
+}
+
+/** The actor's signature over a membership change, so the other members'
+ *  hubs apply it too. Unsigned where the hub predates it: the change then
+ *  holds on that hub only. */
+async function signedMemberChange(convId: string, added: string[], removed: string[]) {
+  const caps = (await dmSession()).capabilities ?? [];
+  if (!caps.includes(SIGNED_MEMBERS_CAP)) return undefined;
+  const identity = await loadIdentity();
+  if (!identity) throw new Error("No identity");
+  const { signingSeedHex, senderPubkey, signerCert } = resolveDmSendAttribution(identity);
+  const issued_at = Math.floor(Date.now() / 1000);
+  const signature = signBytes(dmMemberChangeSigningBytes(convId, senderPubkey, added, removed, issued_at), signingSeedHex);
+  const asSelf = publicKeyHex(signingSeedHex) === senderPubkey;
+  return { issued_at, signature, ...(asSelf ? {} : { signer_cert: signerCert }) };
+}
+
+/** One at a time: the hub takes a single member per request. */
+export async function addGroupMembers(convId: string, pubkeys: string[]): Promise<void> {
+  for (const public_key of pubkeys) {
+    const signed = await signedMemberChange(convId, [public_key], []);
+    await dmFetch(`/conversations/${convId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ public_key, ...(signed ? { signed } : {}) }),
+    });
+  }
+}
+
+/** The hub lets a member remove only themselves. */
+export async function leaveGroup(convId: string): Promise<void> {
+  const identity = await loadIdentity();
+  if (!identity) throw new Error("No identity");
+  const me = resolveDmSendAttribution(identity).senderPubkey;
+  const signed = await signedMemberChange(convId, [], [me]);
+  await dmFetch(`/conversations/${convId}/members/${me}`, {
+    method: "DELETE",
+    ...(signed ? { body: JSON.stringify(signed) } : {}),
+  });
 }
 
 /** One conversation as the DM hub has it. Exported because the WS arm that

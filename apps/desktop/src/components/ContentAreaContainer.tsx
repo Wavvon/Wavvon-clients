@@ -167,6 +167,8 @@ export function ContentAreaContainer({
         onSendDm={dms.handleSendDm}
         dmKeyChangedPeer={dms.keyChangedPeer}
         onAcceptDmKeyChange={dms.handleAcceptKeyChange}
+        onDmAddPeople={(keys) => void dms.handleAddPeople(keys)}
+        onDmLeaveGroup={() => void dms.handleLeaveGroup()}
         onSendAllianceMessage={channelMessages.handleSendAllianceMessage}
         onPingTyping={typing.pingTyping}
         onPingDmTyping={typing.pingDmTyping}

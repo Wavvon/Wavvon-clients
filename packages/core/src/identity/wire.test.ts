@@ -17,6 +17,7 @@ import {
   recoveryRequestSigningBytes,
   recoveryAttestationSigningBytes,
   federatedPlaintextDmSigningBytes,
+  dmMemberChangeSigningBytes,
   federatedPlaintextDmV2SigningBytes,
   authChallengeSigningBytes,
   boundAuthChallengeSigningBytes,
@@ -219,6 +220,13 @@ describe("recovery-attestation wire vectors", () => {
   it("federatedPlaintextDmSigningBytes matches the server vector and signature", () => {
     const v = vector("federated_plaintext_dm");
     const sb = federatedPlaintextDmSigningBytes(v.str("conversation_id"), v.str("kind"), v.str("content"));
+    expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
+    expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
+  });
+
+  it("dmMemberChangeSigningBytes matches the server vector and signature", () => {
+    const v = vector("dm_member_change");
+    const sb = dmMemberChangeSigningBytes(v.str("conversation_id"), v.str("actor"), v.strs("added"), v.strs("removed"), v.num("timestamp"));
     expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
     expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
   });

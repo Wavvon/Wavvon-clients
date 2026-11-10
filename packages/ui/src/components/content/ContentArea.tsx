@@ -117,6 +117,8 @@ interface Props {
   /** The DM peer whose encryption key changed; see DmView. */
   dmKeyChangedPeer?: string | null;
   onAcceptDmKeyChange?: () => void;
+  onDmAddPeople?: (pubkeys: string[]) => void;
+  onDmLeaveGroup?: () => void;
   onSendAllianceMessage: () => void;
   onPingTyping: () => void;
   onPingDmTyping: () => void;
@@ -207,7 +209,7 @@ export function ContentArea({
   messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
   onReconnect, onToggleReaction, onSetReplyTarget,
   onSaveEdit, onCancelEdit, onStartEdit, onDeleteMessage,
-  onSend, onSendDm, dmKeyChangedPeer, onAcceptDmKeyChange, onSendAllianceMessage,
+  onSend, onSendDm, dmKeyChangedPeer, onAcceptDmKeyChange, onDmAddPeople, onDmLeaveGroup, onSendAllianceMessage,
   onPingTyping, onPingDmTyping,
   onSetPendingAttachments, onAttachFiles,
   onOpenEditDescription, firstNotifyingMessageId, onClearFirstNotify, onScrollToMessage,
@@ -526,6 +528,8 @@ export function ContentArea({
               onOpenImage={onOpenImage}
               keyChangedPeer={dmKeyChangedPeer}
               onAcceptKeyChange={onAcceptDmKeyChange}
+              onAddPeople={onDmAddPeople}
+              onLeaveGroup={onDmLeaveGroup}
             />
           ) : (
             <div className="no-channel"><p>{t("dm.no_selection")}</p></div>

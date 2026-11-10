@@ -454,6 +454,26 @@ export function federatedPlaintextDmSigningBytes(
   return concat(tag("wavvon/federated-dm/v1 "), writeStr(conversationId), writeStr(convType), writeStr(content));
 }
 
+/** What a group member signs to add someone to a group DM or to leave it, so
+ *  the other members' hubs apply the change (`dm_member_change_signing_bytes`).
+ *  `issuedAt` is unix seconds. */
+export function dmMemberChangeSigningBytes(
+  conversationId: string,
+  actor: string,
+  added: string[],
+  removed: string[],
+  issuedAt: number,
+): Uint8Array {
+  return concat(
+    tag("wavvon/dm-member-change/v1 "),
+    writeStr(conversationId),
+    writeStr(actor),
+    writeStrVec(added),
+    writeStrVec(removed),
+    writeU64Le(issuedAt),
+  );
+}
+
 /** Sign the new-key proof for POST /recovery/rotate-key with the requester's master seed. */
 export function signRecoveryRequest(
   newMasterSeedHex: string,

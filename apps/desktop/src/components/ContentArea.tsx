@@ -189,6 +189,8 @@ interface Props {
   onSendDm: () => void;
   dmKeyChangedPeer?: string | null;
   onAcceptDmKeyChange?: () => void;
+  onDmAddPeople?: (pubkeys: string[]) => void;
+  onDmLeaveGroup?: () => void;
   onSendAllianceMessage: () => void;
   onPingTyping: () => void;
   onPingDmTyping: () => void;
