@@ -2391,5 +2391,17 @@
   "voice.share.pip_all": "Metti tutte le condivisioni in una finestra mobile",
   "voice.share.window_restore_cursor": "Rendi di nuovo cliccabile la finestra separata",
   "dm.key_changed.body": "La chiave di cifratura di {name} è cambiata. Succede quando una chiave d'identità finisce in mani altrui, o dopo un reset. Verifica con {name} per un altro canale prima di continuare; fino ad allora non viene inviato nulla.",
-  "dm.key_changed.accept": "Accetta la nuova chiave"
+  "dm.key_changed.accept": "Accetta la nuova chiave",
+  "hub.admin.roles.section.messages": "Messaggi",
+  "hub.admin.roles.section.voice": "Voce",
+  "hub.admin.roles.section.moderation": "Moderazione",
+  "hub.admin.roles.section.members": "Membri e ruoli",
+  "hub.admin.roles.section.channels": "Canali",
+  "hub.admin.roles.section.events": "Eventi e sondaggi",
+  "hub.admin.roles.section.hub": "Hub",
+  "hub.admin.roles.section.integrations": "Integrazioni",
+  "hub.admin.roles.section.federation": "Federazione e fiducia",
+  "hub.admin.roles.section.other": "Altro",
+  "hub.admin.roles.section.all": "Permessi",
+  "hub.admin.roles.section.count": "{set} su {total}"
 }

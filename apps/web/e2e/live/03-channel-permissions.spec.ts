@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
+import { createChannel, expectInHub, newMemberPage, uniqueName, openPermissionSection } from "./helpers/live";
 
 // P3 — channel permission overwrites (Permissions tab in channel settings).
 // Owner denies send_messages for @everyone on one channel; a fresh member
@@ -28,6 +28,7 @@ test("deny send_messages overwrite blocks a plain member", async ({ page, browse
   // Owner: deny send_messages for @everyone on the restricted channel.
   const dialog = await openPermissionsTab(page, restricted);
   await dialog.getByRole("button", { name: "everyone" }).click();
+  await openPermissionSection(dialog, "Messages");
   const sendRow = dialog.locator(".settings-row").filter({ hasText: "Send messages" });
   await sendRow.getByRole("button", { name: "Deny", exact: true }).click();
   await dialog.getByRole("button", { name: "Save", exact: true }).click();

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName, openPermissionSection } from "./helpers/live";
 
 // P53 — voice-only presence (events.md §7.4): a member moved into a channel
 // they can't read still gets voice — the hub's staging_voice_grants bypass
@@ -58,6 +58,8 @@ test("a member moved into a channel they can't read gets voice-only presence, ne
   // never see it in their sidebar, before or after the move.
   const permDialog = await openPermissionsTab(page, hidden);
   await permDialog.getByRole("button", { name: "everyone" }).click();
+  await openPermissionSection(permDialog, "Messages");
+  await openPermissionSection(permDialog, "Voice");
   // Both gates, because `GET /channels` admits a channel on read **or**
   // voice-join (routes/channels.rs, the visibility fold) — denying read alone
   // leaves the member the voice gate that `builtin-everyone` seeds, and the

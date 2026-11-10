@@ -2391,5 +2391,17 @@
   "voice.share.pip_all": "Alle Freigaben in einem schwebenden Fenster zeigen",
   "voice.share.window_restore_cursor": "Das Pop-out-Fenster wieder anklickbar machen",
   "dm.key_changed.body": "Der Verschlüsselungsschlüssel von {name} hat sich geändert. Das passiert, wenn ein Identitätsschlüssel in fremde Hände gerät, oder nach einem Zurücksetzen. Prüfe das mit {name} auf einem anderen Weg, bevor du weitermachst; bis dahin wird nichts gesendet.",
-  "dm.key_changed.accept": "Neuen Schlüssel annehmen"
+  "dm.key_changed.accept": "Neuen Schlüssel annehmen",
+  "hub.admin.roles.section.messages": "Nachrichten",
+  "hub.admin.roles.section.voice": "Sprache",
+  "hub.admin.roles.section.moderation": "Moderation",
+  "hub.admin.roles.section.members": "Mitglieder und Rollen",
+  "hub.admin.roles.section.channels": "Kanäle",
+  "hub.admin.roles.section.events": "Events und Umfragen",
+  "hub.admin.roles.section.hub": "Hub",
+  "hub.admin.roles.section.integrations": "Integrationen",
+  "hub.admin.roles.section.federation": "Föderation und Vertrauen",
+  "hub.admin.roles.section.other": "Sonstiges",
+  "hub.admin.roles.section.all": "Berechtigungen",
+  "hub.admin.roles.section.count": "{set} von {total}"
 }
