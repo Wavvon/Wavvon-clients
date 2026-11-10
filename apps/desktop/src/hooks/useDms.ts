@@ -38,6 +38,9 @@ export interface DmsReturn {
   loadConversations: () => Promise<void>;
   selectConversation: (conv: Conversation) => Promise<void>;
   startDmWith: (targetKey: string, targetHubUrl?: string | null) => Promise<void>;
+  /** In a group, adds the people; in a 1:1, starts a new group with the peer and them. */
+  handleAddPeople: (pubkeys: string[]) => Promise<void>;
+  handleLeaveGroup: () => Promise<void>;
   handleSendDm: () => Promise<void>;
   /** The 1:1 peer whose DH key changed since it was pinned; sending is
    *  refused until the user accepts the new key. */
@@ -128,6 +131,44 @@ export function useDms({
     try {
       const c = await invoke<Conversation[]>("list_conversations");
       setConversations(c);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleAddPeople(pubkeys: string[]) {
+    const conv = selectedConversation;
+    if (!conv || pubkeys.length === 0) return;
+    try {
+      if (conv.conv_type === "group") {
+        await invoke("add_group_members", { convId: conv.id, pubkeys });
+        const list = await invoke<Conversation[]>("list_conversations");
+        setConversations(list);
+        const updated = list.find((c) => c.id === conv.id);
+        if (updated) setSelectedConversation(updated);
+        // Our own key, now for the new members too; the hub's member event
+        // may not reach the device that made the change.
+        await invoke("rotate_group_sender_key", { convId: conv.id });
+      } else {
+        const group = await invoke<Conversation>("create_conversation", {
+          members: [...conv.members.filter((m) => m !== publicKeyRef.current), ...pubkeys],
+          memberHubs: {},
+        });
+        setConversations((prev) => [group, ...prev.filter((c) => c.id !== group.id)]);
+        await selectConversation(group);
+      }
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleLeaveGroup() {
+    const conv = selectedConversation;
+    if (!conv) return;
+    try {
+      await invoke("leave_group", { convId: conv.id });
+      setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+      setSelectedConversation(null);
     } catch (e) {
       setError(String(e));
     }
@@ -390,6 +431,8 @@ export function useDms({
     loadConversations,
     selectConversation,
     startDmWith,
+    handleAddPeople,
+    handleLeaveGroup,
     handleSendDm,
     keyChangedPeer,
     handleAcceptKeyChange,

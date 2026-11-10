@@ -342,6 +342,8 @@ export function ContentArea(props: Props) {
         onSendDm={dms.handleSendDm}
         dmKeyChangedPeer={dms.keyChangedPeer}
         onAcceptDmKeyChange={dms.handleAcceptKeyChange}
+        onDmAddPeople={(keys) => void dms.handleAddPeople(keys, publicKey)}
+        onDmLeaveGroup={() => void dms.handleLeaveGroup()}
         onSendAllianceMessage={() => void channelMessages.handleSendAllianceMessage()}
         onPingTyping={typing.pingTyping}
         onPingDmTyping={typing.pingDmTyping}

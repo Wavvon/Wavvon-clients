@@ -869,6 +869,24 @@ pub fn federated_plaintext_dm_signing_bytes(
     buf
 }
 
+/// What a group member signs to add someone to a group DM or to leave it
+/// (`dm_member_change_signing_bytes` in the server identity crate).
+pub fn dm_member_change_signing_bytes(
+    conversation_id: &str,
+    actor: &str,
+    added: &[String],
+    removed: &[String],
+    issued_at: u64,
+) -> Vec<u8> {
+    let mut buf = b"wavvon/dm-member-change/v1 ".to_vec();
+    write_str(&mut buf, conversation_id);
+    write_str(&mut buf, actor);
+    write_str_vec(&mut buf, added);
+    write_str_vec(&mut buf, removed);
+    write_u64_le(&mut buf, issued_at);
+    buf
+}
+
 // ---------------------------------------------------------------------------
 // Wire-format test vectors
 // ---------------------------------------------------------------------------
@@ -1446,6 +1464,20 @@ mod wire_vector_tests {
         );
         assert_signing_bytes("federated_plaintext_dm_v2", &sb);
         assert_signed("federated_plaintext_dm_v2", "signature", &sb);
+    }
+
+    #[test]
+    fn dm_member_change_matches_the_server_vector() {
+        let v = vector("dm_member_change");
+        let sb = dm_member_change_signing_bytes(
+            &s(v, "conversation_id"),
+            &s(v, "actor"),
+            &strings(v, "added"),
+            &strings(v, "removed"),
+            n(v, "timestamp"),
+        );
+        assert_signing_bytes("dm_member_change", &sb);
+        assert_signed("dm_member_change", "signature", &sb);
     }
 
     #[test]

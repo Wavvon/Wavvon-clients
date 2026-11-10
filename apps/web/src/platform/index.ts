@@ -76,7 +76,10 @@ export {
   DhKeyChangedError,
   fetchDhKey,
   publishDhKey,
+  addGroupMembers,
+  leaveGroup,
 } from "./commands/dms";
+export { rotateGroupSenderKey } from "./commands/groupDms";
 
 export {
   getHomeHubDesignation,

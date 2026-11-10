@@ -217,6 +217,8 @@ pub fn run() {
             stickers::sticker_upload,
             prefs_blob::sticker_collection_get,
             prefs_blob::sticker_collection_update,
+            dm::add_group_members,
+            dm::leave_group,
             prefs_blob::synced_setting_get,
             prefs_blob::synced_setting_set,
             // Local store

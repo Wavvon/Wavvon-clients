@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getDmMessages, sendDm, createConversation, getConversation, HubApiError, acceptDhKey, dmPeerKeyChanged, DhKeyChangedError } from "@platform";
+import { getDmMessages, sendDm, createConversation, getConversation, HubApiError, acceptDhKey, dmPeerKeyChanged, DhKeyChangedError, rotateGroupSenderKey, addGroupMembers, leaveGroup } from "@platform";
 import { readFileAsB64, type EncryptionWarning } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import { loadDmPeerNames, rememberDmPeerName } from "../utils/dmPeerNames";
@@ -109,6 +109,42 @@ export function useDms({
     }
   }
 
+  /** In a group, adds the people. In a 1:1, which the hub never grows, starts
+   *  a new group with the peer and them. */
+  async function handleAddPeople(pubkeys: string[], me: string | null) {
+    const conv = selectedConversation;
+    if (!conv || pubkeys.length === 0) return;
+    try {
+      if (conv.conv_type === "group") {
+        await addGroupMembers(conv.id, pubkeys);
+        const updated = await getConversation(conv.id);
+        setConversations((prev) => prev.map((c) => (c.id === conv.id ? updated : c)));
+        setSelectedConversation(updated);
+        // Our own key, now for the new members too; the hub's member event
+        // may not reach the device that made the change.
+        await rotateGroupSenderKey(updated);
+      } else {
+        const group = await createConversation([...conv.members.filter((m) => m !== me), ...pubkeys]);
+        setConversations((prev) => [group, ...prev.filter((c) => c.id !== group.id)]);
+        await handleSelectConversation(group);
+      }
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
+  async function handleLeaveGroup() {
+    const conv = selectedConversation;
+    if (!conv) return;
+    try {
+      await leaveGroup(conv.id);
+      setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+      setSelectedConversation(null);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
   // Resolved by whichever button the user presses in EncryptionWarningModal.
   // A pending ask is the only reason this hook holds a promise: sendDm needs
   // an answer, and the answer arrives from the render tree.
@@ -192,6 +228,11 @@ export function useDms({
     if (!m.conversation_id) return;
     const convId = m.conversation_id;
     getConversation(convId).then((updated) => {
+      // A removed member must not read what we send next, and an added one
+      // needs our key at all (e2e-encryption.md "Key rotation").
+      if (updated.conv_type === "group") {
+        rotateGroupSenderKey(updated).catch((e) => console.warn("[dm] sender key rotation failed:", e));
+      }
       // Upsert: a brand-new conversation (someone just started a DM with us)
       // arrives via this event too — the hub announces creation since
       // 2026-07-26 — so prepend it when it's not in the list yet.
@@ -216,6 +257,8 @@ export function useDms({
     keyChangedPeer,
     handleAcceptKeyChange,
     handleStartConversation,
+    handleAddPeople,
+    handleLeaveGroup,
     peerNames,
     handleSendDm,
     attachFiles,

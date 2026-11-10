@@ -301,7 +301,7 @@ pub(crate) async fn get_dm_messages(
             content: shown.content,
             created_at: msg.created_at,
             attachments: shown.attachments,
-            is_encrypted: msg.is_encrypted,
+            is_encrypted: msg.is_encrypted || msg.is_group_encrypted,
             is_group_encrypted: msg.is_group_encrypted,
             delivery_failed: msg.delivery_failed,
         });
@@ -932,6 +932,41 @@ pub(crate) fn group_envelope_signing_bytes(
     out
 }
 
+// The group ratchet's three derivations (e2e-encryption.md "Group DMs — v2").
+// packages/core crypto.ts mirrors them; the tests below pin both to one vector.
+fn group_hkdf(ikm: &[u8], salt: &[u8], info: &[u8]) -> [u8; 32] {
+    let hk = hkdf::Hkdf::<sha2::Sha256>::new(Some(salt), ikm);
+    let mut out = [0u8; 32];
+    hk.expand(info, &mut out)
+        .expect("32 bytes is a valid HKDF-SHA256 output length");
+    out
+}
+
+fn group_msg_key(chain_key: &[u8; 32], iteration: u32) -> [u8; 32] {
+    group_hkdf(chain_key, &iteration.to_be_bytes(), b"wavvon/group-msg/v1")
+}
+
+fn group_next_chain_key(chain_key: &[u8; 32], iteration: u32) -> [u8; 32] {
+    group_hkdf(
+        chain_key,
+        &iteration.to_be_bytes(),
+        b"wavvon/group-chain/v1",
+    )
+}
+
+fn group_wrap_key(
+    my_dh_sec: &x25519_dalek::StaticSecret,
+    peer_dh_pub: &x25519_dalek::PublicKey,
+    conv_id: &str,
+) -> [u8; 32] {
+    let shared = my_dh_sec.diffie_hellman(peer_dh_pub);
+    group_hkdf(
+        shared.as_bytes(),
+        conv_id.as_bytes(),
+        b"wavvon/group-key-dist/v1",
+    )
+}
+
 fn wrap_chain_key(
     my_dh_sec: &x25519_dalek::StaticSecret,
     recipient_dh_pub: &x25519_dalek::PublicKey,
@@ -939,21 +974,32 @@ fn wrap_chain_key(
     chain_key: &[u8; 32],
     iteration: u32,
 ) -> Result<(String, String), String> {
-    use aes_gcm::aead::{Aead, KeyInit};
-    use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hkdf::Hkdf;
     use rand::RngCore;
-    use sha2::Sha256;
-
-    let shared = my_dh_sec.diffie_hellman(recipient_dh_pub);
-    let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
-    let mut wrap_key = [0u8; 32];
-    hk.expand(b"wavvon/group-key-dist/v1", &mut wrap_key)
-        .map_err(|e| e.to_string())?;
-
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
     let mut nonce_bytes = [0u8; 12];
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    wrap_chain_key_with_nonce(
+        my_dh_sec,
+        recipient_dh_pub,
+        conv_id,
+        chain_key,
+        iteration,
+        nonce_bytes,
+    )
+}
+
+fn wrap_chain_key_with_nonce(
+    my_dh_sec: &x25519_dalek::StaticSecret,
+    recipient_dh_pub: &x25519_dalek::PublicKey,
+    conv_id: &str,
+    chain_key: &[u8; 32],
+    iteration: u32,
+    nonce_bytes: [u8; 12],
+) -> Result<(String, String), String> {
+    use aes_gcm::aead::{Aead, KeyInit};
+    use aes_gcm::{Aes256Gcm, Key, Nonce};
+
+    let wrap_key = group_wrap_key(my_dh_sec, recipient_dh_pub, conv_id);
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let mut plaintext = [0u8; 36];
@@ -1241,18 +1287,8 @@ pub(crate) async fn fetch_group_sender_keys(
 
         use aes_gcm::aead::{Aead, KeyInit};
         use aes_gcm::{Aes256Gcm, Key, Nonce};
-        use hkdf::Hkdf;
-        use sha2::Sha256;
 
-        let shared = my_dh_sec.diffie_hellman(&sender_dh_pub);
-        let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
-        let mut wrap_key = [0u8; 32];
-        if hk
-            .expand(b"wavvon/group-key-dist/v1", &mut wrap_key)
-            .is_err()
-        {
-            continue;
-        }
+        let wrap_key = group_wrap_key(&my_dh_sec, &sender_dh_pub, &conv_id);
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
         let nonce_bytes = match hex::decode(wrap_nonce_hex) {
             Ok(b) => b,
@@ -1308,8 +1344,6 @@ pub(crate) async fn encrypt_group_dm(
 ) -> Result<serde_json::Value, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hkdf::Hkdf;
-    use sha2::Sha256;
 
     let mut key_state = load_sender_key_state()?;
 
@@ -1329,11 +1363,7 @@ pub(crate) async fn encrypt_group_dm(
         (ck_arr, ver, iter)
     };
 
-    let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
-    let mut msg_key = [0u8; 32];
-    hk_msg
-        .expand(b"wavvon/group-msg/v1", &mut msg_key)
-        .map_err(|e| e.to_string())?;
+    let msg_key = group_msg_key(&chain_key, iteration);
 
     let mut nonce_bytes = [0u8; 12];
     nonce_bytes[8..12].copy_from_slice(&iteration.to_be_bytes());
@@ -1345,11 +1375,7 @@ pub(crate) async fn encrypt_group_dm(
         .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| e.to_string())?;
 
-    let hk_chain = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
-    let mut new_chain_key = [0u8; 32];
-    hk_chain
-        .expand(b"wavvon/group-chain/v1", &mut new_chain_key)
-        .map_err(|e| e.to_string())?;
+    let new_chain_key = group_next_chain_key(&chain_key, iteration);
     let new_iteration = iteration + 1;
 
     key_state["my_keys"][&conv_id] = serde_json::json!({
@@ -1380,6 +1406,115 @@ pub(crate) async fn encrypt_group_dm(
         // above. `None` on a device that signs as itself.
         "signer_cert": me.signer_cert(),
     }))
+}
+
+// ---------------------------------------------------------------------------
+// Group membership: add people, leave
+// ---------------------------------------------------------------------------
+
+/// The actor's signature over a membership change (the hub's
+/// `SignedMemberChange`), so the other members' hubs apply it too. None on a
+/// hub that predates `dms.group.signedmembers`: the change then holds there only.
+async fn signed_member_change(
+    state: &AppState,
+    client: &reqwest::Client,
+    hub_url: &str,
+    conv_id: &str,
+    added: &[String],
+    removed: &[String],
+) -> Result<Option<serde_json::Value>, String> {
+    let caps = hub_capabilities(client, hub_url).await;
+    if !caps.iter().any(|c| c == "dms.group.signedmembers") {
+        return Ok(None);
+    }
+    let me =
+        crate::auth_creds::hub_identity(crate::state::active_canonical_pubkey(state).as_deref())?;
+    let issued_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or_default();
+    let sb = crate::identity::dm_member_change_signing_bytes(
+        conv_id,
+        &me.pubkey(),
+        added,
+        removed,
+        issued_at,
+    );
+    let mut signed = serde_json::json!({
+        "issued_at": issued_at,
+        "signature": hex::encode(me.sign(&sb)),
+    });
+    if let Some(cert) = me.signer_cert() {
+        signed["signer_cert"] = serde_json::json!(cert);
+    }
+    Ok(Some(signed))
+}
+
+/// One member per request, as the hub takes them.
+#[tauri::command]
+pub(crate) async fn add_group_members(
+    conv_id: String,
+    pubkeys: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    for public_key in pubkeys {
+        let signed = signed_member_change(
+            &state,
+            &client,
+            &hub_url,
+            &conv_id,
+            std::slice::from_ref(&public_key),
+            &[],
+        )
+        .await?;
+        let mut body = serde_json::json!({ "public_key": public_key });
+        if let Some(signed) = signed {
+            body["signed"] = signed;
+        }
+        let resp = client
+            .post(format!("{hub_url}/conversations/{conv_id}/members"))
+            .bearer_auth(&token)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Failed: {e}"))?;
+        if !resp.status().is_success() {
+            return Err(resp.text().await.unwrap_or_default());
+        }
+    }
+    Ok(())
+}
+
+/// The hub lets a member remove only themselves.
+#[tauri::command]
+pub(crate) async fn leave_group(conv_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let me =
+        crate::auth_creds::hub_identity(crate::state::active_canonical_pubkey(&state).as_deref())?
+            .pubkey();
+    let signed = signed_member_change(
+        &state,
+        &client,
+        &hub_url,
+        &conv_id,
+        &[],
+        std::slice::from_ref(&me),
+    )
+    .await?;
+    let mut req = client
+        .delete(format!("{hub_url}/conversations/{conv_id}/members/{me}"))
+        .bearer_auth(&token);
+    if let Some(signed) = signed {
+        req = req.json(&signed);
+    }
+    let resp = req.send().await.map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -2023,8 +2158,6 @@ fn decrypt_group_dm_inner(
 ) -> Result<DmPlaintext, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hkdf::Hkdf;
-    use sha2::Sha256;
 
     let sender_pubkey = envelope["sender_pubkey"]
         .as_str()
@@ -2072,18 +2205,10 @@ fn decrypt_group_dm_inner(
     }
 
     for i in stored_iteration..iteration {
-        let hk = Hkdf::<Sha256>::new(Some(&i.to_be_bytes()), &chain_key);
-        let mut next = [0u8; 32];
-        hk.expand(b"wavvon/group-chain/v1", &mut next)
-            .map_err(|e| e.to_string())?;
-        chain_key = next;
+        chain_key = group_next_chain_key(&chain_key, i);
     }
 
-    let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
-    let mut msg_key = [0u8; 32];
-    hk_msg
-        .expand(b"wavvon/group-msg/v1", &mut msg_key)
-        .map_err(|e| e.to_string())?;
+    let msg_key = group_msg_key(&chain_key, iteration);
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&msg_key));
     let nonce_bytes = hex::decode(nonce_hex).map_err(|e| e.to_string())?;
@@ -2098,6 +2223,42 @@ fn decrypt_group_dm_inner(
 #[cfg(test)]
 mod tests {
     use super::{dist_recipients_json, dist_signing_pairs, WrappedForRecipient};
+
+    // The same vector as packages/core's crypto.test.ts "group ratchet", so
+    // web and desktop cannot drift: chain key 0x11 x32 at iteration 2, and a
+    // wrap from the master fixture's DH key to the subkey fixture's.
+    #[test]
+    fn group_ratchet_matches_the_web_vector() {
+        let ck = [0x11u8; 32];
+        assert_eq!(
+            hex::encode(super::group_msg_key(&ck, 2)),
+            "7de5c477aadff1d7633bce5fc6d6974b908b9d05a3897cd5aba30c6490eba427"
+        );
+        assert_eq!(
+            hex::encode(super::group_next_chain_key(&ck, 2)),
+            "fd8b5df061c574c9c5ecdb3d87c37f54bb6c48585a6253b7914a1144d75939dc"
+        );
+        // dh_keypair, not e2e_dh_secret: the latter reads this machine's
+        // pairing state.
+        let dh = |seed: &str| {
+            crate::identity::Identity::from_secret_key_hex(seed)
+                .unwrap()
+                .dh_keypair()
+        };
+        let (a_sec, _) = dh("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20");
+        let (_, b_pub) = dh("2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40");
+        let (wrapped, nonce) = super::wrap_chain_key_with_nonce(
+            &a_sec,
+            &b_pub,
+            "conv123",
+            &ck,
+            2,
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        )
+        .unwrap();
+        assert_eq!(wrapped, "354ebd62de34d85fbd7179d96abf4202938c5609e18bc6015926550c48ec21bd5702ae96b979f0bf45ab36a7158bc5d204e173e7");
+        assert_eq!(nonce, "0102030405060708090a0b0c");
+    }
 
     fn wrapped() -> Vec<WrappedForRecipient> {
         vec![
