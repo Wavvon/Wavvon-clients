@@ -56,7 +56,6 @@ const user = bundle("dist");
 const hub = bundle("dist-hub");
 
 const failures = [];
-let skipped = 0;
 
 for (const m of USER_ONLY) {
   if (!user.includes(m)) failures.push(`marker "${m}" is not in the user bundle — it no longer proves anything, pick another`);
@@ -64,17 +63,6 @@ for (const m of USER_ONLY) {
 }
 
 for (const m of HUB_ONLY) {
-  if (!hub.includes(m) && !user.includes(m)) {
-    // In neither bundle: the handover section's body sits behind an early
-    // return on USER_CLIENT_URL, which is null until the hosted app has a
-    // domain, so the minifier proves the whole render dead in both builds.
-    // Nothing to compare yet — say so rather than failing on a bundle that is
-    // correct, or deleting a check that arms itself the day the constant is
-    // set.
-    console.log(`SKIP: "${m}" is in neither bundle — USER_CLIENT_URL is not configured yet.`);
-    skipped += 1;
-    continue;
-  }
   if (!hub.includes(m)) failures.push(`marker "${m}" is not in the hub bundle — it no longer proves anything, pick another`);
   if (user.includes(m)) failures.push(`marker "${m}" IS in the user bundle — a hub-build screen was not eliminated`);
 }
@@ -84,9 +72,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-const checked = USER_ONLY.length + HUB_ONLY.length - skipped;
 console.log(
-  `both builds clean: ${checked} markers checked, each present in its own bundle and absent from the other` +
-    (skipped ? ` (${skipped} skipped, see above)` : "") +
-    ".",
+  `both builds clean: ${USER_ONLY.length + HUB_ONLY.length} markers checked, each present in its own bundle and absent from the other.`,
 );

@@ -1245,6 +1245,42 @@ body:has(.update-banner) #root {
   padding-top: 49px;
 }
 
+/* Pre-release channel notice (web ChannelBanner). Same layout trick as the
+   update banner below: fixed on top, the app root yields its height. */
+body:has(.channel-banner) #root {
+  box-sizing: border-box;
+  padding-top: 32px;
+}
+
+.channel-banner {
+  box-sizing: border-box;
+  height: 32px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  padding: 0 var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: var(--text-sm);
+}
+
+.channel-banner span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.channel-banner a {
+  color: inherit;
+  text-decoration: underline;
+  margin-left: var(--space-1);
+}
+
 .update-banner {
   box-sizing: border-box;
   height: 49px;

@@ -41,7 +41,10 @@ export const MULTI_HUB: boolean = import.meta.env.VITE_BUILD_TARGET !== "hub";
 // Only hub URL and invite code ever travel in that link. They are not secrets
 // and the user can read them in the address bar. A seed never goes in a URL —
 // that handover is a postMessage, see decisions.md 2026-08-25.
-const USER_CLIENT_ORIGIN: string | null = null; // set once the hosted app has a domain
+// The interim pilot until the final domain exists (decisions.md 2026-11-11).
+// Hub images released meanwhile keep this baked in, so that host stays up and
+// forwards after the move.
+const USER_CLIENT_ORIGIN: string | null = "https://wavvon.pages.dev";
 
 /** null in the user build too, structurally: you are already there. */
 export const USER_CLIENT_URL: string | null = MULTI_HUB ? null : USER_CLIENT_ORIGIN;
