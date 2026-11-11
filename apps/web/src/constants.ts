@@ -49,6 +49,9 @@ const USER_CLIENT_ORIGIN: string | null = "https://wavvon.pages.dev";
 /** null in the user build too, structurally: you are already there. */
 export const USER_CLIENT_URL: string | null = MULTI_HUB ? null : USER_CLIENT_ORIGIN;
 
+// Where "Get the desktop app" points: the installers attached to each release.
+export const DESKTOP_DOWNLOAD_URL = "https://github.com/Wavvon/Wavvon-clients/releases/latest";
+
 // The public hub directory (discovery-v2.md). null means every surface that
 // needs it — browse public hubs, the hub-creation wizard link, the skins
 // gallery, the directory listing form in hub admin — is not rendered at all.
