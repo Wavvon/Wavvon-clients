@@ -50,6 +50,12 @@ pub fn run() {
     use tauri::tray::TrayIconBuilder;
 
     tauri::Builder::default()
+        // First, so a second launch (a wavvon:// link clicked while the app
+        // runs) hands its URL to this instance instead of opening a window.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            deep_link::focus_main(app)
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -71,6 +77,7 @@ pub fn run() {
                 http_client: reqwest::Client::new(),
             });
             app.manage(PendingUpdate(std::sync::Mutex::new(None)));
+            deep_link::setup(app);
             let update_handle = app.handle().clone();
             tauri::async_runtime::spawn(updater::check_for_updates(update_handle));
 

@@ -44,6 +44,11 @@
     ]
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["wavvon"]
+      }
+    },
     "shell": {
       "open": true
     },
