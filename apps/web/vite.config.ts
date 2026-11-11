@@ -35,8 +35,24 @@ function pilotHeaders(): Plugin {
   };
 }
 
+// GitHub Pages cannot send headers, so the nightly (VITE_CHANNEL=nightly)
+// carries the policy in a meta tag. frame-ancestors is dropped: browsers
+// ignore it in a meta tag and log an error for it.
+function nightlyMetaCsp(): Plugin {
+  return {
+    name: "wavvon-nightly-meta-csp",
+    apply: "build",
+    transformIndexHtml() {
+      if (process.env.VITE_CHANNEL !== "nightly") return;
+      const policy = HUB_CSP.replace(/; frame-ancestors [^;]+/, "");
+      return [{ tag: "meta", attrs: { "http-equiv": "Content-Security-Policy", content: policy }, injectTo: "head-prepend" }];
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), mediapipeAssets(), pilotHeaders()],
+  base: process.env.VITE_BASE ?? "/",
+  plugins: [react(), mediapipeAssets(), pilotHeaders(), nightlyMetaCsp()],
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
   },
