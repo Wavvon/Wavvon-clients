@@ -1134,6 +1134,8 @@
   "identity_setup.pair.waiting_hint": "Approve this device on your other device to finish.",
   "identity_setup.recover.error_invalid_hex": "Must be 64 hex chars.",
   "identity_setup.recover.error_invalid_phrase": "Invalid recovery phrase.",
+  "identity_setup.recover.file_label": "Or a backup file (.wavvon-backup)",
+  "identity_setup.recover.from_file": "Recover from backup file",
   "identity_setup.recover.from_hex": "Recover from hex",
   "identity_setup.recover.from_phrase": "Recover from phrase",
   "identity_setup.recover.hex_label": "Or seed hex (64 chars)",

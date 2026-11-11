@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import App from "./App";
 import { OnboardingFrame, ProfileEditorSection } from "@wavvon/ui";
 import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSummary } from "./accounts/store";
@@ -26,6 +28,8 @@ export default function AccountRoot() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phrase, setPhrase] = useState("");
+  const [backupPath, setBackupPath] = useState<string | null>(null);
+  const [backupPassphrase, setBackupPassphrase] = useState("");
   // The first account on this device goes through the profile step, as on web.
   const [profileStep, setProfileStep] = useState(false);
 
@@ -60,6 +64,32 @@ export default function AccountRoot() {
     }
   }
 
+  async function pickBackup() {
+    const path = await open({
+      multiple: false,
+      filters: [{ name: t("settings.account.identity_backup.file_filter"), extensions: ["wavvon-backup"] }],
+    });
+    if (typeof path === "string") setBackupPath(path);
+  }
+
+  async function handleRestoreBackup() {
+    if (!backupPath) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await invoke("import_account_backup", { path: backupPath, passphrase: backupPassphrase });
+      await refresh();
+      await loadDefaultProfileAsync().catch(() => null);
+      setProfileStep(true);
+    } catch (e) {
+      setError(t(String(e) === "unsupported_backup_format"
+        ? "settings.account.identity_backup.error_unsupported"
+        : "settings.account.identity_backup.error_decrypt"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (accounts === null) {
     // Brief loading flash only -- avoids a placeholder screen web rejected
     // for the equivalent switch case (decisions.md "no transition overlay").
@@ -89,6 +119,22 @@ export default function AccountRoot() {
           />
           <button disabled={busy || wordCount !== 24} onClick={() => handleCreate(true)}>
             {t("settings.account.accounts.import_button")}
+          </button>
+        </div>
+        <div className="settings-section">
+          <label className="settings-label">{t("identity_setup.recover.file_label")}</label>
+          <button className="btn-ghost" disabled={busy} onClick={pickBackup}>
+            {backupPath ?? t("settings.account.identity_backup.choose_file")}
+          </button>
+          <input
+            type="password"
+            placeholder={t("settings.account.full_archive.passphrase")}
+            aria-label={t("settings.account.full_archive.passphrase")}
+            value={backupPassphrase}
+            onChange={(e) => setBackupPassphrase(e.target.value)}
+          />
+          <button disabled={busy || !backupPath} onClick={handleRestoreBackup}>
+            {t("identity_setup.recover.from_file")}
           </button>
         </div>
       </div>

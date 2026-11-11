@@ -20,7 +20,7 @@ import {
 import type { IdentityRecord, PairingOffer } from "@identity/index";
 import { ProfileEditorSection } from "@wavvon/ui";
 import { profileEditorActions } from "../../utils/profileEditorActions";
-import { encryptBackup, suggestBackupFilename } from "@wavvon/core";
+import { decryptBackup, encryptBackup, suggestBackupFilename } from "@wavvon/core";
 import { deviceFingerprint, inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
 import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
@@ -65,6 +65,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [showHexBackup, setShowHexBackup] = useState(false);
   const [phrase, setPhrase] = useState("");
   const [hexInput, setHexInput] = useState("");
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePassphrase, setRestorePassphrase] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pairCode, setPairCode] = useState("");
   const [pairLabel, setPairLabel] = useState("");
@@ -164,7 +166,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       return;
     }
     setPendingAccount(account);
-    setLabelDraft(suggestedLabel());
+    setLabelDraft(account.account_label || suggestedLabel());
     setStep("label");
   }
 
@@ -365,6 +367,21 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     } catch (e) { setError(String(e)); }
   }
 
+  async function doRecoverFile() {
+    if (!restoreFile) return;
+    setError(null);
+    try {
+      const backup = await decryptBackup(await restoreFile.text(), restorePassphrase);
+      const { account, isNew } = await resolveOrCreateAccount(backup.secret_key_hex, { account_label: backup.label });
+      proceedAfterResolve(account, isNew);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(t(message === "unsupported_backup_format"
+        ? "settings.account.identity_backup.error_unsupported"
+        : "settings.account.identity_backup.error_decrypt"));
+    }
+  }
+
   async function doRecoverHex() {
     setError(null);
     if (!/^[0-9a-fA-F]{64}$/.test(hexInput)) { setError(t("identity_setup.recover.error_invalid_hex")); return; }
@@ -529,7 +546,11 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         <button onClick={doRecoverPhrase} style={{ marginBottom: 16 }}>{t("identity_setup.recover.from_phrase")}</button>
         <label className="onboarding-field-label">{t("identity_setup.recover.hex_label")}</label>
         <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder={t("identity_setup.recover.hex_placeholder")} style={{ width: "100%", fontFamily: "monospace", marginBottom: 8 }} />
-        <button onClick={doRecoverHex} style={{ marginBottom: 8 }}>{t("identity_setup.recover.from_hex")}</button>
+        <button onClick={doRecoverHex} style={{ marginBottom: 16 }}>{t("identity_setup.recover.from_hex")}</button>
+        <label className="onboarding-field-label">{t("identity_setup.recover.file_label")}</label>
+        <input type="file" accept=".wavvon-backup,application/json" onChange={(e) => setRestoreFile(e.target.files?.[0] ?? null)} style={{ width: "100%", marginBottom: 8 }} />
+        <input type="password" value={restorePassphrase} onChange={(e) => setRestorePassphrase(e.target.value)} placeholder={t("settings.account.full_archive.passphrase")} aria-label={t("settings.account.full_archive.passphrase")} style={{ width: "100%", marginBottom: 8 }} />
+        <button onClick={doRecoverFile} disabled={!restoreFile} style={{ marginBottom: 8 }}>{t("identity_setup.recover.from_file")}</button>
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
         <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>{t("modal.back")}</button>

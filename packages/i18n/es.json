@@ -1134,6 +1134,8 @@
   "identity_setup.pair.waiting_hint": "Aprueba este dispositivo desde tu otro dispositivo para terminar.",
   "identity_setup.recover.error_invalid_hex": "Debe tener 64 caracteres hexadecimales.",
   "identity_setup.recover.error_invalid_phrase": "Frase de recuperación no válida.",
+  "identity_setup.recover.file_label": "O un archivo de copia de seguridad (.wavvon-backup)",
+  "identity_setup.recover.from_file": "Recuperar desde el archivo de copia",
   "identity_setup.recover.from_hex": "Recuperar desde el hexadecimal",
   "identity_setup.recover.from_phrase": "Recuperar desde la frase",
   "identity_setup.recover.hex_label": "O semilla hexadecimal (64 caracteres)",

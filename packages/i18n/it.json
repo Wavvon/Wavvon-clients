@@ -1134,6 +1134,8 @@
   "identity_setup.pair.waiting_hint": "Approva questo dispositivo dall'altro dispositivo per completare.",
   "identity_setup.recover.error_invalid_hex": "Deve contenere 64 caratteri esadecimali.",
   "identity_setup.recover.error_invalid_phrase": "Frase di recupero non valida.",
+  "identity_setup.recover.file_label": "Oppure un file di backup (.wavvon-backup)",
+  "identity_setup.recover.from_file": "Recupera dal file di backup",
   "identity_setup.recover.from_hex": "Recupera dall'esadecimale",
   "identity_setup.recover.from_phrase": "Recupera dalla frase",
   "identity_setup.recover.hex_label": "Oppure seed esadecimale (64 caratteri)",

@@ -1134,6 +1134,8 @@
   "identity_setup.pair.waiting_hint": "Bestätige dieses Gerät auf deinem anderen Gerät, um fortzufahren.",
   "identity_setup.recover.error_invalid_hex": "Muss 64 Hex-Zeichen enthalten.",
   "identity_setup.recover.error_invalid_phrase": "Ungültige Wiederherstellungsphrase.",
+  "identity_setup.recover.file_label": "Oder eine Sicherungsdatei (.wavvon-backup)",
+  "identity_setup.recover.from_file": "Aus Sicherungsdatei wiederherstellen",
   "identity_setup.recover.from_hex": "Aus Hex wiederherstellen",
   "identity_setup.recover.from_phrase": "Aus Phrase wiederherstellen",
   "identity_setup.recover.hex_label": "Oder Seed-Hex (64 Zeichen)",
