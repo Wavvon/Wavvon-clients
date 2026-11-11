@@ -4,6 +4,7 @@ import { I18nextProvider } from "react-i18next";
 import { initI18n } from "@wavvon/i18n";
 import AccountRoot from "./AccountRoot";
 import { AdoptScreen } from "./components/handover/AdoptScreen";
+import { ChannelBanner } from "./components/ChannelBanner";
 import { MULTI_HUB } from "./constants";
 import { ErrorBoundary } from "@wavvon/ui";
 import "@wavvon/ui/styles.css";
@@ -24,6 +25,7 @@ const isAdopt = MULTI_HUB && window.location.pathname === "/adopt";
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nextProvider i18n={i18n}>
+      <ChannelBanner />
       <ErrorBoundary>
         {isAdopt ? <AdoptScreen /> : <AccountRoot />}
       </ErrorBoundary>
