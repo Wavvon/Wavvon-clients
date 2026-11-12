@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Channel } from "@wavvon/core";
 import type { NotifyMode } from "../../types";
@@ -46,6 +46,18 @@ export function ChannelContextMenu({
 }: ChannelContextMenuProps) {
   const { t } = useTranslation();
   const { x, y, channel } = menu;
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Clamp to the viewport after render, as MessageContextMenu does: opened
+  // on a channel low in the sidebar, the menu ran past the bottom edge and
+  // its last entries could not be clicked.
+  useEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right > window.innerWidth) el.style.left = `${Math.max(0, x - rect.width)}px`;
+    if (rect.bottom > window.innerHeight) el.style.top = `${Math.max(0, y - rect.height)}px`;
+  }, [x, y]);
 
   const notifyModeLabels: Record<NotifyMode, string> = {
     all: t("hub.notifications.all"),
@@ -131,6 +143,7 @@ export function ChannelContextMenu({
       onContextMenu={(e) => { e.preventDefault(); onClose(); }}
     >
       <div
+        ref={menuRef}
         className="context-menu"
         style={{ top: y, left: x }}
         onClick={(e) => e.stopPropagation()}
