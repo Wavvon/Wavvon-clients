@@ -1393,6 +1393,7 @@
   "settings.account.devices.claim_wants_to_link": "möchte sich verknüpfen",
   "settings.account.devices.copy_code_button": "Code kopieren",
   "settings.account.devices.default_label": "Dieses Gerät",
+  "settings.account.devices.desktop_hint": "Du nutzt die Desktop-App? Starte hier die Kopplung, wähle dann auf dem ersten Bildschirm der App „Mit vorhandenem Gerät koppeln“ und füge den Code ein.",
   "settings.account.devices.empty": "Noch keine verknüpften Geräte auf diesem Hub registriert.",
   "settings.account.devices.enable_button": "Mehrgeräte-Modus aktivieren",
   "settings.account.devices.enabling": "Wird aktiviert…",

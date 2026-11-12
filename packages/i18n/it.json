@@ -1393,6 +1393,7 @@
   "settings.account.devices.claim_wants_to_link": "vuole collegarsi",
   "settings.account.devices.copy_code_button": "Copia codice",
   "settings.account.devices.default_label": "Questo dispositivo",
+  "settings.account.devices.desktop_hint": "Usi l'app desktop? Avvia l'accoppiamento qui, poi scegli “Abbina un dispositivo esistente” nella prima schermata dell'app e incolla il codice.",
   "settings.account.devices.empty": "Nessun dispositivo collegato registrato su questo hub.",
   "settings.account.devices.enable_button": "Attiva multi-dispositivo",
   "settings.account.devices.enabling": "Attivazione…",

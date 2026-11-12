@@ -1393,6 +1393,7 @@
   "settings.account.devices.claim_wants_to_link": "wants to link",
   "settings.account.devices.copy_code_button": "Copy code",
   "settings.account.devices.default_label": "This device",
+  "settings.account.devices.desktop_hint": "Using the desktop app? Start pairing here, then choose “Pair with an existing device” on the app's first screen and paste the code.",
   "settings.account.devices.empty": "No linked devices registered on this hub yet.",
   "settings.account.devices.enable_button": "Enable multi-device",
   "settings.account.devices.enabling": "Enabling…",
