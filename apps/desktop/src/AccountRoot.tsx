@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import App from "./App";
 import { OnboardingFrame, ProfileEditorSection } from "@wavvon/ui";
+import { PairingSection } from "./components/PairingSection";
 import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSummary } from "./accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "./utils/profileEditorActions";
 
@@ -30,6 +31,7 @@ export default function AccountRoot() {
   const [phrase, setPhrase] = useState("");
   const [backupPath, setBackupPath] = useState<string | null>(null);
   const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [pairing, setPairing] = useState(false);
   // The first account on this device goes through the profile step, as on web.
   const [profileStep, setProfileStep] = useState(false);
 
@@ -96,6 +98,14 @@ export default function AccountRoot() {
     return null;
   }
 
+  if (accounts.length === 0 && pairing) {
+    return (
+      <OnboardingFrame>
+        <PairingSection hubs={[]} claimOnly onCancel={() => setPairing(false)} onPaired={() => { setPairing(false); refresh().catch((e) => setError(String(e))); }} />
+      </OnboardingFrame>
+    );
+  }
+
   if (accounts.length === 0) {
     return (
       <OnboardingFrame>
@@ -135,6 +145,11 @@ export default function AccountRoot() {
           />
           <button disabled={busy || !backupPath} onClick={handleRestoreBackup}>
             {t("identity_setup.recover.from_file")}
+          </button>
+        </div>
+        <div className="settings-section">
+          <button className="btn-secondary" disabled={busy} onClick={() => setPairing(true)}>
+            {t("identity_setup.pair.title")}
           </button>
         </div>
       </div>

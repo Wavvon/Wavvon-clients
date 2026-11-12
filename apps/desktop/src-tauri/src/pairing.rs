@@ -481,12 +481,12 @@ pub async fn save_paired_identity(
         canonical_dh_scalar_hex,
     };
 
-    let path = paired_identity_path()?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
-    }
     let text = serde_json::to_string_pretty(&identity).map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| format!("write: {e}"))?;
+    crate::accounts::save_paired_identity_file(
+        &identity.subkey_pubkey,
+        &identity.device_label,
+        &text,
+    )?;
 
     // Attempt to unwrap the blob key and pull current prefs from the home hubs.
     let sync_result = if !wrapped_blob_key_hex.is_empty()
