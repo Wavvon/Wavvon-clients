@@ -14,19 +14,11 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   Channel,
   Attachment,
-  ReplyContext,
-  Message,
   NotifyMode,
   User,
-  VoiceParticipant,
   Hub,
   MeInfo,
-  BanInfo,
   Conversation,
-  DmMessage,
-  AllianceInfo,
-  AllianceSharedChannel,
-  ActiveStream,
   LobbyStatus,
 } from "./types";
 import { PendingApplication } from "./components/PendingApplication";
@@ -51,7 +43,7 @@ import { useWhisper } from "./hooks/useWhisper";
 import { useAddHubFlow } from "./hooks/useAddHubFlow";
 import { useChannelCrud } from "./hooks/useChannelCrud";
 import { VideoGrid } from "./components/VideoGrid";
-import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
+import { type ThemeId, type WavvonSkin, applySkinTokens } from "@wavvon/ui";
 import {
   formatPubkey,
   buildChannelTree,
@@ -245,7 +237,6 @@ function App({ accountId }: { accountId: string | null }) {
     openHubAdmin,
     openHubAdminInvites,
     handleSaveHubBranding,
-    refreshPending,
     handleApproveMember,
     handleRejectMember,
     loadApplication,
@@ -256,9 +247,7 @@ function App({ accountId }: { accountId: string | null }) {
     handleUnmuteMember,
     adminMutes,
     handleTimeoutMember,
-    refreshBans,
     handleUnban,
-    refreshInvites,
     handleCreateInvite,
     handleRevokeInvite,
     loadAdminTabData,
@@ -352,13 +341,9 @@ function App({ accountId }: { accountId: string | null }) {
   const {
     view,
     setView,
-    viewRef,
     setConversations,
-    conversationsRef,
-    setSelectedConversation,
     selectedConversationIdRef,
     encryptionWarning,
-    setEncryptionWarning,
     loadConversations,
     selectConversation,
     startDmWith,
@@ -508,9 +493,6 @@ function App({ accountId }: { accountId: string | null }) {
     openCreateChannelUnder,
   } = channelCrud;
 
-  // Message edit state — which message id is being edited and its draft
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editingDraft, setEditingDraft] = useState("");
 
   // Hub users
   const [users, setUsers] = useState<User[]>([]);
@@ -653,7 +635,6 @@ function App({ accountId }: { accountId: string | null }) {
     loading,
     hubUrl,
     setHubUrl,
-    inviteCode,
     setInviteCode,
     hubPreview,
     handleHubUrlChange,
