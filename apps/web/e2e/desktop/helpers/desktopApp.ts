@@ -124,6 +124,11 @@ export async function launchDesktopApp(opts?: {
     throw e;
   });
 
+  // The app follows the OS language, and the specs match English copy: on a
+  // non-English machine every button lookup missed until the test timed out.
+  await page.evaluate(() => localStorage.setItem("wavvon_language", "en"));
+  await page.reload();
+
   return {
     page,
     home,

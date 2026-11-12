@@ -47,8 +47,10 @@ test.describe("web → desktop pairing", () => {
 
     await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await page.getByRole("button", { name: "Devices", exact: true }).click();
-    const devices = page.locator(".settings-section", { has: page.getByText("Devices") }).first();
-    await expect(devices).toBeVisible({ timeout: 15_000 });
+    // The Devices tab shows a collapsed row since the settings redesign.
+    await page.getByRole("button", { name: "Open", exact: true }).first().click();
+    const devices = page;
+    await expect(page.getByText("Pair a new device")).toBeVisible({ timeout: 15_000 });
     const enable = devices.getByRole("button", { name: "Enable multi-device" });
     if (await enable.isVisible().catch(() => false)) await enable.click();
     await devices.getByRole("button", { name: "Start pairing" }).click();
@@ -73,14 +75,15 @@ test.describe("web → desktop pairing", () => {
 
     await desktop.page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
     await desktop.page.getByRole("button", { name: "Devices", exact: true }).click();
+    await desktop.page.locator(".setting-row", { hasText: "Device Pairing" }).getByRole("button", { name: "Open" }).click();
     await desktop.page.getByRole("button", { name: "Pair this device with another…" }).click();
     await desktop.page.getByPlaceholder("Paste pairing code here…").fill(code);
     await desktop.page.getByPlaceholder("e.g. My Laptop").fill("Paired desktop");
     await desktop.page.getByRole("button", { name: "Pair this device", exact: true }).click();
 
     // Web: the claim arrives, and approving it issues the cert.
-    await expect(devices.getByRole("button", { name: "Approve" })).toBeVisible({ timeout: 60_000 });
-    await devices.getByRole("button", { name: "Approve" }).click();
+    await expect(devices.getByRole("button", { name: "Confirm pairing" })).toBeVisible({ timeout: 60_000 });
+    await devices.getByRole("button", { name: "Confirm pairing" }).click();
 
     // Desktop: paired, and paired to *this* identity — the hub attributes it
     // to the web client's canonical pubkey rather than seating it as a second

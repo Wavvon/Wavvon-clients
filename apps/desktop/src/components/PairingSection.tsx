@@ -51,10 +51,18 @@ type ClaimStep = "pasting" | "claiming" | "waiting" | "done" | "error";
 
 const POLL_INTERVAL_MS = 2000;
 
-export function PairingSection({ hubs }: { hubs: Hub[] }) {
+// `claimOnly` is the first-run gate (AccountRoot.tsx, issue #378): no
+// account exists yet, so there is no status to show and nothing to offer;
+// the pairing becomes this device's first account.
+export function PairingSection({ hubs, claimOnly, onPaired, onCancel }: {
+  hubs: Hub[];
+  claimOnly?: boolean;
+  onPaired?: () => void;
+  onCancel?: () => void;
+}) {
   const { t } = useTranslation();
-  const [pairedId, setPairedId] = useState<PairedIdentityInfo | null | undefined>(undefined);
-  const [mode, setMode] = useState<Mode>(null);
+  const [pairedId, setPairedId] = useState<PairedIdentityInfo | null | undefined>(claimOnly ? null : undefined);
+  const [mode, setMode] = useState<Mode>(claimOnly ? "claim" : null);
 
   // --- E-side state ---
   const [selectedHubs, setSelectedHubs] = useState<string[]>([]);
@@ -85,6 +93,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    if (claimOnly) return;
     invoke<PairedIdentityInfo | null>("get_paired_identity").then(setPairedId).catch(() => setPairedId(null));
   }, []);
 
@@ -119,6 +128,10 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
     setClaimError("");
     setSyncResult(null);
     setCopied(false);
+    if (claimOnly) {
+      setMode("claim");
+      onCancel?.();
+    }
   }
 
   // --- E-side: generate offer ---
@@ -287,7 +300,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
 
   return (
     <div className="settings-section">
-      {pairedId ? (
+      {claimOnly ? null : pairedId ? (
         <div className="pairing-status-card paired">
           <span className="pairing-status-icon"><LinkIcon size={16} /></span>
           <div>
@@ -499,8 +512,8 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
                     : t("settings.pairing.sync_skipped")}
                 </p>
               )}
-              <p className="muted">{t("settings.pairing.claim_restart")}</p>
-              <button onClick={reset}>{t("modal.done")}</button>
+              {!onPaired && <p className="muted">{t("settings.pairing.claim_restart")}</p>}
+              <button onClick={onPaired ?? reset}>{t("modal.done")}</button>
             </>
           )}
         </div>
