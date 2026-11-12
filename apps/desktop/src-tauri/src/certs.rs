@@ -70,12 +70,13 @@ pub(crate) async fn list_issued_certs(
     state: State<'_, AppState>,
 ) -> Result<Vec<serde_json::Value>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let rows: Vec<serde_json::Value> = crate::admin::get_all_pages(
+    let rows: Vec<serde_json::Value> = crate::paging::walk_pages(
         &state.http_client,
-        &format!("{}/admin/certs", hub_url.trim_end_matches('/')),
         &token,
+        &format!("{}/admin/certs", hub_url.trim_end_matches('/')),
         &[],
-        |r: &serde_json::Value| r["id"].as_str().unwrap_or_default().to_string(),
+        |r: &serde_json::Value| r["id"].as_str().map(str::to_string),
+        "list_issued_certs",
     )
     .await?;
     Ok(rows

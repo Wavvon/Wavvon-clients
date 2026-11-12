@@ -9,55 +9,6 @@ use tauri::{AppHandle, Emitter, State};
 // User list — with transparent reauth on 401
 // ---------------------------------------------------------------------------
 
-/// The hub's `USERS_MAX_LIMIT`; asking for more is clamped server-side.
-const USERS_PAGE_SIZE: usize = 500;
-// ponytail: bounded so a server that stopped advancing the cursor cannot spin
-// here. The keyset uses a strict `>`, so it cannot legitimately repeat a row.
-const USERS_MAX_PAGES: usize = 40;
-
-/// Walk a paged hub list to exhaustion: `limit` plus a keyset `cursor` on
-/// the previous page's last row, the same walk as web's `fetchAllPages`.
-///
-/// A hub that predates the paging ignores both and answers with its whole
-/// list; the next request then ends on the cursor just sent, which the stall
-/// check reads as "not advancing" and stops on, so no row is counted twice.
-pub(crate) async fn get_all_pages<T: serde::de::DeserializeOwned>(
-    client: &reqwest::Client,
-    url: &str,
-    token: &str,
-    query: &[(&str, String)],
-    cursor_of: impl Fn(&T) -> String,
-) -> Result<Vec<T>, String> {
-    let mut all: Vec<T> = Vec::new();
-    let mut cursor: Option<String> = None;
-    for _ in 0..USERS_MAX_PAGES {
-        let mut req = client
-            .get(url)
-            .bearer_auth(token)
-            .query(query)
-            .query(&[("limit", USERS_PAGE_SIZE.to_string())]);
-        if let Some(c) = &cursor {
-            req = req.query(&[("cursor", c)]);
-        }
-        let resp = req.send().await.map_err(|e| format!("Failed: {e}"))?;
-        if !resp.status().is_success() {
-            return Err(resp.text().await.unwrap_or_default());
-        }
-        let page: Vec<T> = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-        let next = page.last().map(&cursor_of);
-        if next.is_some() && next == cursor {
-            return Ok(all);
-        }
-        let short = page.len() < USERS_PAGE_SIZE;
-        all.extend(page);
-        if short {
-            return Ok(all);
-        }
-        cursor = next;
-    }
-    Ok(all)
-}
-
 async fn fetch_users_page(
     client: &reqwest::Client,
     hub_url: &str,
@@ -67,7 +18,7 @@ async fn fetch_users_page(
     let mut req = client
         .get(format!("{hub_url}/users"))
         .bearer_auth(token)
-        .query(&[("limit", USERS_PAGE_SIZE.to_string())]);
+        .query(&[("limit", crate::paging::LIST_PAGE_SIZE.to_string())]);
     if let Some(c) = cursor {
         req = req.query(&[("cursor", c)]);
     }
@@ -90,7 +41,7 @@ pub(crate) async fn list_users(
     let mut all: Vec<UserInfo> = Vec::new();
     let mut cursor: Option<String> = None;
 
-    for _ in 0..USERS_MAX_PAGES {
+    for _ in 0..crate::paging::LIST_MAX_PAGES {
         let mut resp = fetch_users_page(&client, &hub_url, &token, cursor.as_deref()).await?;
 
         if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
@@ -121,7 +72,7 @@ pub(crate) async fn list_users(
         }
 
         let page: Vec<UserInfo> = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
-        let short = page.len() < USERS_PAGE_SIZE;
+        let short = page.len() < crate::paging::LIST_PAGE_SIZE;
         cursor = page.last().map(|u| u.public_key.clone());
         all.extend(page);
         if short || cursor.is_none() {
@@ -130,7 +81,8 @@ pub(crate) async fn list_users(
     }
 
     eprintln!(
-        "list_users: stopped at {USERS_MAX_PAGES} pages ({} members)",
+        "list_users: stopped at {} pages ({} members)",
+        crate::paging::LIST_MAX_PAGES,
         all.len()
     );
     Ok(all)
@@ -775,12 +727,13 @@ pub(crate) async fn list_hub_members(
     state: State<'_, AppState>,
 ) -> Result<Vec<MemberAdminInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
-    get_all_pages(
+    crate::paging::walk_pages(
         &state.http_client,
-        &format!("{hub_url}/hub/members"),
         &token,
+        &format!("{hub_url}/hub/members"),
         &[],
-        |m: &MemberAdminInfo| m.public_key.clone(),
+        |m: &MemberAdminInfo| Some(m.public_key.clone()),
+        "list_hub_members",
     )
     .await
 }
@@ -1685,13 +1638,19 @@ pub(crate) async fn get_banlist_entries(
         .map(|s| ("source", s))
         .into_iter()
         .collect();
-    get_all_pages(
+    crate::paging::walk_pages(
         &state.http_client,
-        &format!("{}/admin/banlist/entries", hub_url.trim_end_matches('/')),
         &token,
+        &format!("{}/admin/banlist/entries", hub_url.trim_end_matches('/')),
         &query,
         // An entry is keyed by the pair, so the cursor is too.
-        |e: &FederatedBanEntry| format!("{}:{}", e.source_hub_pubkey, e.target_master_pubkey),
+        |e: &FederatedBanEntry| {
+            Some(format!(
+                "{}:{}",
+                e.source_hub_pubkey, e.target_master_pubkey
+            ))
+        },
+        "get_banlist_entries",
     )
     .await
 }
