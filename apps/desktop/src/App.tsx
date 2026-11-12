@@ -11,6 +11,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { DISCOVERY_URL } from "./constants";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type {
@@ -750,6 +751,65 @@ function App({ accountId }: { accountId: string | null }) {
     handleAddHub,
   } = addHubFlow;
 
+  // wavvon:// links (issue #385). A channel or message link for a hub already
+  // joined opens that channel; anything else (an invite, an unknown hub)
+  // opens add-hub on it. The target is applied once the hub's channels have
+  // loaded, by the effect below.
+  const [pendingLinkTarget, setPendingLinkTarget] = useState<
+    { hubId: string; channelId: string; messageId?: string } | null
+  >(null);
+  function routeDeepLink(url: string, joined: Hub[]) {
+    const parsed = parseHubInput(url);
+    if (!parsed) return;
+    const host = (u: string) => { try { return new URL(u).host.toLowerCase(); } catch { return ""; } };
+    const hub = parsed.target ? joined.find((h) => host(h.hub_url) === host(parsed.hubUrl)) : undefined;
+    if (hub && parsed.target) {
+      setPendingLinkTarget({
+        hubId: hub.hub_id,
+        channelId: parsed.target.channelId,
+        messageId: parsed.target.kind === "message" ? parsed.target.messageId : undefined,
+      });
+      setView("channels");
+      void handleSwitchHub(hub.hub_id);
+      return;
+    }
+    setHubUrl(parsed.hubUrl);
+    setInviteCode(parsed.inviteCode);
+    setShowAddHub(true);
+  }
+  const routeDeepLinkRef = useRef(routeDeepLink);
+  routeDeepLinkRef.current = routeDeepLink;
+
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | null = null;
+    listen<string>("join-hub-requested", (event) => {
+      routeDeepLinkRef.current(event.payload, hubsRef.current);
+    }).then((fn) => {
+      if (cancelled) fn(); else unlisten = fn;
+    });
+    return () => { cancelled = true; unlisten?.(); };
+  }, []);
+
+  useEffect(() => {
+    const p = pendingLinkTarget;
+    if (!p || activeHubId !== p.hubId) return;
+    const ch = channels.find((c) => c.id === p.channelId);
+    if (!ch) return;
+    if (channelMessages.selectedChannel?.id !== ch.id) {
+      channelMessages.selectChannel(ch);
+      if (!p.messageId) setPendingLinkTarget(null);
+      return;
+    }
+    if (!p.messageId) { setPendingLinkTarget(null); return; }
+    if (channelMessages.messages.some((m) => m.id === p.messageId)) {
+      const id = p.messageId;
+      requestAnimationFrame(() => channelMessages.scrollToMessage(id));
+      setPendingLinkTarget(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLinkTarget, activeHubId, channels, channelMessages.selectedChannel, channelMessages.messages]);
+
   const {
     showFriends,
     setShowFriends,
@@ -1059,6 +1119,12 @@ function App({ accountId }: { accountId: string | null }) {
       } catch (e) {
         console.error("Auto-connect failed:", e);
       }
+      // Read after auto-connect, so a channel link that launched the app
+      // can be matched against the hubs this account has joined.
+      try {
+        const link = await invoke<string | null>("get_pending_deep_link");
+        if (link) routeDeepLinkRef.current(link, hubsRef.current);
+      } catch { /* no launch link */ }
       invoke("publish_dh_key").catch((e) =>
         console.warn("Failed to publish DH key:", e)
       );

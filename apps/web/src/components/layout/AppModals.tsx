@@ -28,7 +28,7 @@ import {
 } from "@platform";
 import { passkeysUsableWith, activeHubSupports } from "@platform";
 import { allianceActions } from "../../platform/adminActions";
-import { DISCOVERY_URL, MULTI_HUB } from "../../constants";
+import { DESKTOP_DOWNLOAD_URL, DISCOVERY_URL, MULTI_HUB } from "../../constants";
 import { HubAdminContainer } from "../admin/HubAdminContainer";
 import type { AppModalsProps } from "./appModalsProps";
 import { IdentityBackupPrompt } from "@components/identity/IdentityBackupPrompt";
@@ -257,6 +257,11 @@ export function AppModals(p: AppModalsProps) {
             });
           }}
           onClose={() => setChannelCtxMenu(null)}
+          onOpenInDesktop={(channel) => {
+            const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+            if (hubUrl) window.location.href = `wavvon://${hubUrl.replace(/^https?:\/\//, "")}/channel/${channel.id}`;
+          }}
+          onGetDesktop={() => window.open(DESKTOP_DOWNLOAD_URL, "_blank", "noopener")}
           onCopyLink={async (channel) => {
             const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
             if (!hubUrl) return;

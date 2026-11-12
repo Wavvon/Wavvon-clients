@@ -24,6 +24,9 @@ const PLATFORM_BOUND = new Set([
   // Desktop types a hub address before it has one; the web build is served by
   // the hub it is about to talk to.
   "onCheckHubUrl",
+  // "Open in the desktop app" and its download entry make no sense inside
+  // the desktop app itself.
+  "onOpenInDesktop", "onGetDesktop",
   // Mobile shell only; no desktop or web caller.
   "onBack",
   // The unread total drives the OS tray badge (set_tray_unread). A browser
