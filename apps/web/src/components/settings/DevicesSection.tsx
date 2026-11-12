@@ -26,6 +26,7 @@ import {
   upgradeActiveHubIdentity,
 } from "@platform";
 import { SettingRow } from "@wavvon/ui";
+import { DESKTOP_DOWNLOAD_URL } from "../../constants";
 
 // Operates on `account` — the account currently selected in AccountTab's
 // "Managing" selector, which defaults to (but need not be) the active one.
@@ -350,6 +351,17 @@ export function DevicesSection({ activeHubUrl, account }: Props) {
 
           <div style={{ marginTop: "var(--space-4)" }}>
             <span className="settings-label">{t("settings.account.devices.pair_label")}</span>
+            {/* The desktop app pairs from its first screen (issue #378). The
+                code is pasted, never put in a wavvon:// link: it carries the
+                claim token, and a URL ends up in history and logs. */}
+            {(offer.phase === "idle" || offer.phase === "waiting") && (
+              <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+                {t("settings.account.devices.desktop_hint")}{" "}
+                <a href={DESKTOP_DOWNLOAD_URL} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+                  {t("identity_setup.choose.desktop_get")}
+                </a>
+              </p>
+            )}
             {offer.phase === "idle" && (
               <button className="btn-secondary" onClick={startPairing} disabled={!activeHubUrl}>
                 {t("settings.account.devices.start_pairing_button")}

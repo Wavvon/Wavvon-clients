@@ -1393,6 +1393,7 @@
   "settings.account.devices.claim_wants_to_link": "quiere vincularse",
   "settings.account.devices.copy_code_button": "Copiar código",
   "settings.account.devices.default_label": "Este dispositivo",
+  "settings.account.devices.desktop_hint": "¿Usas la aplicación de escritorio? Inicia la vinculación aquí, luego elige “Vincular con un dispositivo existente” en la primera pantalla de la aplicación y pega el código.",
   "settings.account.devices.empty": "Aún no hay dispositivos vinculados registrados en este hub.",
   "settings.account.devices.enable_button": "Activar multidispositivo",
   "settings.account.devices.enabling": "Activando…",
