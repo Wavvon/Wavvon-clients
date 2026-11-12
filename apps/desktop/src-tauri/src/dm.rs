@@ -91,20 +91,17 @@ pub(crate) async fn send_friend_request(
 ) -> Result<(), String> {
     let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/friends"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "target_public_key": target_public_key,
-            "hub_url": friend_hub_url,
-            "display_name": display_name,
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/friends"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "target_public_key": target_public_key,
+                "hub_url": friend_hub_url,
+                "display_name": display_name,
+            })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -115,15 +112,12 @@ pub(crate) async fn accept_friend(
 ) -> Result<(), String> {
     let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/friends/{from_public_key}/accept"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/friends/{from_public_key}/accept"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -134,15 +128,12 @@ pub(crate) async fn remove_friend(
 ) -> Result<(), String> {
     let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/friends/{target_public_key}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/friends/{target_public_key}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -174,20 +165,16 @@ pub(crate) async fn create_conversation(
 ) -> Result<ConversationInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/conversations"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "members": members,
-            "member_hubs": member_hubs.unwrap_or_default(),
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/conversations"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "members": members,
+                "member_hubs": member_hubs.unwrap_or_default(),
+            })),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -477,18 +464,15 @@ pub(crate) async fn send_dm(
         }
         body
     };
-    let resp = client
-        .post(format!(
-            "{hub_url}/conversations/{conversation_id}/messages"
-        ))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        client
+            .post(format!(
+                "{hub_url}/conversations/{conversation_id}/messages"
+            ))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await?;
     if let Some(pt) = plaintext {
         if let Ok(created) = resp.json::<serde_json::Value>().await {
             if let Some(id) = created["id"].as_str() {
@@ -516,19 +500,16 @@ pub(crate) async fn update_dm_blocks(
     struct Payload {
         blocked_pubkeys: Vec<String>,
     }
-    let resp = state
-        .http_client
-        .put(format!("{base}/identity/dm-blocks"))
-        .bearer_auth(&token)
-        .json(&Payload {
-            blocked_pubkeys: blocked,
-        })
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .put(format!("{base}/identity/dm-blocks"))
+            .bearer_auth(&token)
+            .json(&Payload {
+                blocked_pubkeys: blocked,
+            }),
+    )
+    .await?;
     Ok(())
 }
 
@@ -1190,24 +1171,20 @@ pub(crate) async fn rotate_group_sender_key(
         sender_key_dist_signing_bytes(&conv_id, new_version, &dist_signing_pairs(&recipients));
     let signature_hex = hex::encode(me.sign(&signing_bytes));
 
-    let resp = client
-        .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "sender_pubkey": my_pubkey,
-            "sender_key_version": new_version,
-            "iteration": iteration,
-            "recipients": dist_recipients_json(&recipients, iteration),
-            "signature_hex": signature_hex,
-            "signer_cert": me.signer_cert(),
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "sender_pubkey": my_pubkey,
+                "sender_key_version": new_version,
+                "iteration": iteration,
+                "recipients": dist_recipients_json(&recipients, iteration),
+                "signature_hex": signature_hex,
+                "signer_cert": me.signer_cert(),
+            })),
+    )
+    .await?;
 
     if key_state["my_keys"].is_null() || !key_state["my_keys"].is_object() {
         key_state["my_keys"] = serde_json::json!({});
@@ -1473,16 +1450,13 @@ pub(crate) async fn add_group_members(
         if let Some(signed) = signed {
             body["signed"] = signed;
         }
-        let resp = client
-            .post(format!("{hub_url}/conversations/{conv_id}/members"))
-            .bearer_auth(&token)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| format!("Failed: {e}"))?;
-        if !resp.status().is_success() {
-            return Err(resp.text().await.unwrap_or_default());
-        }
+        crate::http::send_ok(
+            client
+                .post(format!("{hub_url}/conversations/{conv_id}/members"))
+                .bearer_auth(&token)
+                .json(&body),
+        )
+        .await?;
     }
     Ok(())
 }

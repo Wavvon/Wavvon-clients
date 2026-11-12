@@ -54,17 +54,13 @@ pub(crate) async fn get_recovery_contacts(
 ) -> Result<RecoveryContactsResponse, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
-    let resp = state
-        .http_client
-        .get(format!("{base}/recovery/contacts"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        state
+            .http_client
+            .get(format!("{base}/recovery/contacts"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 /// `GET /recovery/requests/to-attest` — open requests naming this account as
@@ -92,16 +88,13 @@ pub(crate) async fn list_recovery_requests_to_attest(
     if !supported {
         return Ok(None);
     }
-    let resp = state
-        .http_client
-        .get(format!("{base}/recovery/requests/to-attest"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .get(format!("{base}/recovery/requests/to-attest"))
+            .bearer_auth(&token),
+    )
+    .await?;
     resp.json()
         .await
         .map(Some)
@@ -118,20 +111,17 @@ pub(crate) async fn set_recovery_contacts(
 ) -> Result<(), String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
-    let resp = state
-        .http_client
-        .put(format!("{base}/recovery/contacts"))
-        .bearer_auth(&token)
-        .json(&SetContactsPayload {
-            contacts,
-            threshold,
-        })
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .put(format!("{base}/recovery/contacts"))
+            .bearer_auth(&token)
+            .json(&SetContactsPayload {
+                contacts,
+                threshold,
+            }),
+    )
+    .await?;
     Ok(())
 }
 
@@ -143,16 +133,13 @@ pub(crate) async fn remove_recovery_contact(
 ) -> Result<(), String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
-    let resp = state
-        .http_client
-        .delete(format!("{base}/recovery/contacts/{pubkey}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .delete(format!("{base}/recovery/contacts/{pubkey}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -225,21 +212,18 @@ pub(crate) async fn submit_rotation_request(
         crate::identity::recovery_request_signing_bytes(&hub_pubkey, &old_pubkey, &new_pubkey);
     let new_key_signature = hex::encode(identity.sign(&proof_bytes).to_bytes());
 
-    let resp = state
-        .http_client
-        .post(format!("{base}/recovery/rotate-key"))
-        .json(&serde_json::json!({
-            "old_pubkey": old_pubkey,
-            "new_pubkey": new_pubkey,
-            "reason": reason,
-            "new_key_signature": new_key_signature,
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .post(format!("{base}/recovery/rotate-key"))
+            .json(&serde_json::json!({
+                "old_pubkey": old_pubkey,
+                "new_pubkey": new_pubkey,
+                "reason": reason,
+                "new_key_signature": new_key_signature,
+            })),
+    )
+    .await?;
     let created: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
     let id = created["id"].as_str().unwrap_or("").to_string();
     fetch_rotation_bundle(&state, &base, &id).await
@@ -291,16 +275,13 @@ pub(crate) async fn attest_rotation_request(
     );
     let signature = hex::encode(identity.sign(&bytes).to_bytes());
 
-    let resp = state
-        .http_client
-        .post(format!("{base}/recovery/rotation-request/{id}/attest"))
-        .json(&serde_json::json!({ "attester": attester, "signature": signature }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .post(format!("{base}/recovery/rotation-request/{id}/attest"))
+            .json(&serde_json::json!({ "attester": attester, "signature": signature })),
+    )
+    .await?;
     Ok(())
 }
 

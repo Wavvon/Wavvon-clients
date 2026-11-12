@@ -78,16 +78,12 @@ pub(crate) async fn list_alliances(
 ) -> Result<Vec<AllianceInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/alliances"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/alliances"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 /// The hubs in one alliance, for offering them as certification issuers.
@@ -97,16 +93,13 @@ pub(crate) async fn get_alliance_members(
     state: State<'_, AppState>,
 ) -> Result<Vec<AllianceMemberInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .get(format!("{hub_url}/alliances/{alliance_id}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .get(format!("{hub_url}/alliances/{alliance_id}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     let detail: AllianceDetail = resp.json().await.map_err(|e| format!("Invalid: {e}"))?;
     Ok(detail.members)
 }
@@ -118,17 +111,13 @@ pub(crate) async fn create_alliance(
 ) -> Result<AllianceInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/alliances"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "name": name }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/alliances"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "name": name })),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -138,16 +127,12 @@ pub(crate) async fn create_alliance_invite(
 ) -> Result<AllianceInvite, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/alliances/{alliance_id}/invite"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/alliances/{alliance_id}/invite"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -160,22 +145,18 @@ pub(crate) async fn join_alliance(
 ) -> Result<AllianceDetail, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/alliances/join"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "inviter_hub_url": inviter_hub_url,
-            "alliance_id": alliance_id,
-            "invite_token": invite_token,
-            "own_hub_url": own_hub_public_url,
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/alliances/join"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "inviter_hub_url": inviter_hub_url,
+                "alliance_id": alliance_id,
+                "invite_token": invite_token,
+                "own_hub_url": own_hub_public_url,
+            })),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -185,15 +166,12 @@ pub(crate) async fn leave_alliance(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/alliances/{alliance_id}/leave"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/alliances/{alliance_id}/leave"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -207,20 +185,17 @@ pub(crate) async fn send_alliance_push_invite(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/alliances/{alliance_id}/push-invite"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "target_hub_url": target_hub_url,
-            "own_hub_url": own_hub_url,
-            "message": message,
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/alliances/{alliance_id}/push-invite"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "target_hub_url": target_hub_url,
+                "own_hub_url": own_hub_url,
+                "message": message,
+            })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -230,16 +205,12 @@ pub(crate) async fn list_pending_alliance_invites(
 ) -> Result<Vec<PendingAllianceInvite>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/alliances/pending-invites"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/alliances/pending-invites"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -253,28 +224,22 @@ pub(crate) async fn respond_to_alliance_invite(
     let client = state.http_client.clone();
     if accept {
         let url_val = own_hub_url.unwrap_or_default();
-        let resp = client
-            .post(format!(
-                "{hub_url}/alliances/pending-invites/{invite_id}/accept"
-            ))
-            .bearer_auth(&token)
-            .json(&serde_json::json!({ "own_hub_url": url_val }))
-            .send()
-            .await
-            .map_err(|e| format!("Failed: {e}"))?;
-        if !resp.status().is_success() {
-            return Err(resp.text().await.unwrap_or_default());
-        }
+        crate::http::send_ok(
+            client
+                .post(format!(
+                    "{hub_url}/alliances/pending-invites/{invite_id}/accept"
+                ))
+                .bearer_auth(&token)
+                .json(&serde_json::json!({ "own_hub_url": url_val })),
+        )
+        .await?;
     } else {
-        let resp = client
-            .delete(format!("{hub_url}/alliances/pending-invites/{invite_id}"))
-            .bearer_auth(&token)
-            .send()
-            .await
-            .map_err(|e| format!("Failed: {e}"))?;
-        if !resp.status().is_success() {
-            return Err(resp.text().await.unwrap_or_default());
-        }
+        crate::http::send_ok(
+            client
+                .delete(format!("{hub_url}/alliances/pending-invites/{invite_id}"))
+                .bearer_auth(&token),
+        )
+        .await?;
     }
     Ok(())
 }
@@ -286,16 +251,12 @@ pub(crate) async fn list_alliance_shared_channels(
 ) -> Result<Vec<AllianceSharedChannel>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/alliances/{alliance_id}/channels"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/alliances/{alliance_id}/channels"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -311,18 +272,15 @@ pub(crate) async fn get_alliance_channel_messages(
     if let Some(cursor) = cursor {
         query.push(("cursor", cursor));
     }
-    let resp = client
-        .get(format!(
-            "{hub_url}/alliances/{alliance_id}/channels/{channel_id}/messages"
-        ))
-        .query(&query)
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        client
+            .get(format!(
+                "{hub_url}/alliances/{alliance_id}/channels/{channel_id}/messages"
+            ))
+            .query(&query)
+            .bearer_auth(&token),
+    )
+    .await?;
     // The hub pages newest first; the view, like get_messages', reads oldest
     // first.
     let mut messages: Vec<ProxiedMessage> =
@@ -340,18 +298,15 @@ pub(crate) async fn send_alliance_channel_message(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!(
-            "{hub_url}/alliances/{alliance_id}/channels/{channel_id}/messages"
-        ))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "content": content }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!(
+                "{hub_url}/alliances/{alliance_id}/channels/{channel_id}/messages"
+            ))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "content": content })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -364,19 +319,16 @@ pub(crate) async fn share_channel_with_alliance(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/alliances/{alliance_id}/channels"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "channel_id": channel_id,
-            "include_descendants": include_descendants.unwrap_or(false),
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/alliances/{alliance_id}/channels"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "channel_id": channel_id,
+                "include_descendants": include_descendants.unwrap_or(false),
+            })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -388,17 +340,14 @@ pub(crate) async fn unshare_channel_from_alliance(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!(
-            "{hub_url}/alliances/{alliance_id}/channels/{channel_id}"
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!(
+                "{hub_url}/alliances/{alliance_id}/channels/{channel_id}"
+            ))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 

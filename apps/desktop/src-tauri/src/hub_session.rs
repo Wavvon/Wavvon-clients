@@ -212,16 +212,13 @@ pub(crate) async fn leave_hub(hub_id: String, state: State<'_, AppState>) -> Res
         let s = hubs.get(&hub_id).ok_or("Hub not connected")?;
         (s.hub_url.clone(), s.token.clone())
     };
-    let resp = state
-        .http_client
-        .delete(format!("{hub_url}/me"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .delete(format!("{hub_url}/me"))
+            .bearer_auth(&token),
+    )
+    .await?;
     remove_hub(hub_id, state)
 }
 

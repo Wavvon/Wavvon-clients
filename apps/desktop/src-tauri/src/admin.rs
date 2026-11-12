@@ -262,17 +262,13 @@ pub(crate) async fn create_role(
     if let Some(c) = category_id {
         obj.insert("category_id".to_string(), serde_json::Value::String(c));
     }
-    let resp = client
-        .post(format!("{hub_url}/roles"))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/roles"))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -310,17 +306,13 @@ pub(crate) async fn update_role(
     if let Some(c) = category_id {
         obj.insert("category_id".to_string(), serde_json::Value::String(c));
     }
-    let resp = client
-        .patch(format!("{hub_url}/roles/{role_id}"))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .patch(format!("{hub_url}/roles/{role_id}"))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await
 }
 
 /// PUT /roles/order: every role the caller may move, highest first, in one
@@ -331,33 +323,26 @@ pub(crate) async fn reorder_roles(
     state: State<'_, AppState>,
 ) -> Result<Vec<RoleInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .put(format!("{hub_url}/roles/order"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "role_ids": role_ids }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        state
+            .http_client
+            .put(format!("{hub_url}/roles/order"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "role_ids": role_ids })),
+    )
+    .await
 }
 
 #[tauri::command]
 pub(crate) async fn delete_role(role_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/roles/{role_id}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/roles/{role_id}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -368,16 +353,12 @@ pub(crate) async fn list_user_roles(
 ) -> Result<Vec<RoleInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/users/{target_public_key}/roles"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/users/{target_public_key}/roles"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -388,17 +369,14 @@ pub(crate) async fn assign_role(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .put(format!(
-            "{hub_url}/users/{target_public_key}/roles/{role_id}"
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .put(format!(
+                "{hub_url}/users/{target_public_key}/roles/{role_id}"
+            ))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -410,17 +388,14 @@ pub(crate) async fn unassign_role(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!(
-            "{hub_url}/users/{target_public_key}/roles/{role_id}"
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!(
+                "{hub_url}/users/{target_public_key}/roles/{role_id}"
+            ))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -453,17 +428,13 @@ pub(crate) async fn create_role_category(
 ) -> Result<RoleCategory, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/role-categories"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "name": name, "position": position }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/role-categories"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "name": name, "position": position })),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -495,17 +466,13 @@ pub(crate) async fn update_role_category(
     if let Some(p) = position {
         obj.insert("position".to_string(), serde_json::json!(p));
     }
-    let resp = client
-        .patch(format!("{hub_url}/role-categories/{category_id}"))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .patch(format!("{hub_url}/role-categories/{category_id}"))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -515,15 +482,12 @@ pub(crate) async fn delete_role_category(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/role-categories/{category_id}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/role-categories/{category_id}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -535,16 +499,12 @@ pub(crate) async fn delete_role_category(
 pub(crate) async fn get_hub_settings(state: State<'_, AppState>) -> Result<HubSettings, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/hub/settings"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/hub/settings"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -570,15 +530,12 @@ pub(crate) async fn approve_member(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/hub/pending/{target_public_key}/approve"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/hub/pending/{target_public_key}/approve"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -590,19 +547,15 @@ pub(crate) async fn application_response(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .get(format!(
-            "{hub_url}/admin/application/responses/{target_public_key}"
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        state
+            .http_client
+            .get(format!(
+                "{hub_url}/admin/application/responses/{target_public_key}"
+            ))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 /// Reject a pending joiner's application, with a reason they will read.
@@ -613,17 +566,14 @@ pub(crate) async fn reject_member(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .post(format!("{hub_url}/hub/pending/{target_public_key}/reject"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "reason": reason }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .post(format!("{hub_url}/hub/pending/{target_public_key}/reject"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "reason": reason })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -631,15 +581,12 @@ pub(crate) async fn reject_member(
 pub(crate) async fn list_hub_icons(state: State<'_, AppState>) -> Result<Vec<HubIcon>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/hub/icons"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        client
+            .get(format!("{hub_url}/hub/icons"))
+            .bearer_auth(&token),
+    )
+    .await?;
     resp.json::<Vec<HubIcon>>()
         .await
         .map_err(|e| format!("Parse error: {e}"))
@@ -653,16 +600,13 @@ pub(crate) async fn create_hub_icon(
 ) -> Result<HubIcon, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/hub/icons"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "name": name, "svg_content": svg_content }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/hub/icons"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "name": name, "svg_content": svg_content })),
+    )
+    .await?;
     resp.json::<HubIcon>()
         .await
         .map_err(|e| format!("Parse error: {e}"))
@@ -676,16 +620,13 @@ pub(crate) async fn rename_hub_icon(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .patch(format!("{hub_url}/hub/icons/{icon_id}"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "name": name }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .patch(format!("{hub_url}/hub/icons/{icon_id}"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "name": name })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -696,15 +637,12 @@ pub(crate) async fn delete_hub_icon(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/hub/icons/{icon_id}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/hub/icons/{icon_id}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -745,16 +683,13 @@ pub(crate) async fn post_moderation(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/{path}"))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/{path}"))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await?;
     Ok(())
 }
 
@@ -829,16 +764,13 @@ pub(crate) async fn unmute_user_cmd(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .delete(format!("{hub_url}/moderation/mutes/{target_public_key}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .delete(format!("{hub_url}/moderation/mutes/{target_public_key}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -908,19 +840,16 @@ pub(crate) async fn channel_ban_user(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/channels/{channel_id}/bans"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "pubkey": target_public_key,
-            "reason": reason,
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/channels/{channel_id}/bans"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "pubkey": target_public_key,
+                "reason": reason,
+            })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -932,17 +861,14 @@ pub(crate) async fn channel_unban_user(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!(
-            "{hub_url}/channels/{channel_id}/bans/{target_public_key}"
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!(
+                "{hub_url}/channels/{channel_id}/bans/{target_public_key}"
+            ))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -953,16 +879,12 @@ pub(crate) async fn list_channel_bans(
 ) -> Result<Vec<ChannelBanInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/channels/{channel_id}/bans"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/channels/{channel_id}/bans"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 // ---------------------------------------------------------------------------
@@ -999,16 +921,12 @@ pub(crate) async fn get_channel_permissions(
 ) -> Result<ChannelPermissionsResponse, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/channels/{channel_id}/permissions"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/channels/{channel_id}/permissions"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1021,19 +939,15 @@ pub(crate) async fn set_channel_role_permissions(
 ) -> Result<ChannelRolePermissionsView, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .put(format!(
-            "{hub_url}/channels/{channel_id}/permissions/{role_id}"
-        ))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "allow": allow, "deny": deny }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .put(format!(
+                "{hub_url}/channels/{channel_id}/permissions/{role_id}"
+            ))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "allow": allow, "deny": deny })),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1044,17 +958,14 @@ pub(crate) async fn clear_channel_role_permissions(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!(
-            "{hub_url}/channels/{channel_id}/permissions/{role_id}"
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!(
+                "{hub_url}/channels/{channel_id}/permissions/{role_id}"
+            ))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -1136,17 +1047,14 @@ pub(crate) async fn voice_unmute_user_cmd(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!(
-            "{hub_url}/moderation/voice-mutes/{target_public_key}"
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!(
+                "{hub_url}/moderation/voice-mutes/{target_public_key}"
+            ))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -1156,16 +1064,12 @@ pub(crate) async fn list_voice_mutes(
 ) -> Result<Vec<VoiceMuteInfo>, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/moderation/voice-mutes"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/moderation/voice-mutes"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -1181,16 +1085,12 @@ pub(crate) async fn get_talk_power(
 ) -> Result<TalkPowerInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .get(format!("{hub_url}/channels/{channel_id}/talk-power"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .get(format!("{hub_url}/channels/{channel_id}/talk-power"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1201,16 +1101,13 @@ pub(crate) async fn set_talk_power_cmd(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/channels/{channel_id}/talk-power"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "min_talk_power": min_talk_power }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/channels/{channel_id}/talk-power"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "min_talk_power": min_talk_power })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -1247,15 +1144,12 @@ pub(crate) async fn unban_user(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/moderation/bans/{target_public_key}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/moderation/bans/{target_public_key}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -1294,36 +1188,29 @@ pub(crate) async fn create_invite(
 ) -> Result<InviteInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/invites"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "max_uses": max_uses,
-            "expires_in_seconds": expires_in_seconds,
-            "grant_role_id": grant_role_id,
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/invites"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "max_uses": max_uses,
+                "expires_in_seconds": expires_in_seconds,
+                "grant_role_id": grant_role_id,
+            })),
+    )
+    .await
 }
 
 #[tauri::command]
 pub(crate) async fn revoke_invite(code: String, state: State<'_, AppState>) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/invites/{code}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/invites/{code}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -1357,16 +1244,13 @@ pub(crate) async fn get_me_on_hub(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let resp = state
-        .http_client
-        .get(format!("{}/me", hub_url.trim_end_matches('/')))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .get(format!("{}/me", hub_url.trim_end_matches('/')))
+            .bearer_auth(&token),
+    )
+    .await?;
     resp.json().await.map_err(|e| e.to_string())
 }
 
@@ -1380,17 +1264,14 @@ pub(crate) async fn update_my_profile_on_hub(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let resp = state
-        .http_client
-        .patch(format!("{}/me", hub_url.trim_end_matches('/')))
-        .bearer_auth(&token)
-        .json(&profile)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{}/me", hub_url.trim_end_matches('/')))
+            .bearer_auth(&token)
+            .json(&profile),
+    )
+    .await?;
     Ok(())
 }
 
@@ -2072,16 +1953,13 @@ pub(crate) async fn admin_list_outgoing_webhook_deliveries(
 #[tauri::command]
 pub(crate) async fn get_lockdown(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .get(format!("{hub_url}/admin/settings/lockdown"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .get(format!("{hub_url}/admin/settings/lockdown"))
+            .bearer_auth(&token),
+    )
+    .await?;
     resp.json()
         .await
         .map_err(|e| format!("Invalid response: {e}"))
@@ -2094,17 +1972,14 @@ pub(crate) async fn put_lockdown(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .put(format!("{hub_url}/admin/settings/lockdown"))
-        .bearer_auth(&token)
-        .json(&settings)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .put(format!("{hub_url}/admin/settings/lockdown"))
+            .bearer_auth(&token)
+            .json(&settings),
+    )
+    .await?;
     resp.json()
         .await
         .map_err(|e| format!("Invalid response: {e}"))
