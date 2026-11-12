@@ -22,7 +22,7 @@ import { ProfileEditorSection } from "@wavvon/ui";
 import { profileEditorActions } from "../../utils/profileEditorActions";
 import { decryptBackup, encryptBackup, suggestBackupFilename } from "@wavvon/core";
 import { deviceFingerprint, inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
-import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
+import { DESKTOP_DOWNLOAD_URL, MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
 import { markIdentityBackedUp } from "../../utils/identityBackup";
 import { passphraseStrength, OnboardingFrame, type InvitingHub } from "@wavvon/ui";
@@ -50,6 +50,13 @@ function userClientJoinUrl(): string {
   const params = new URLSearchParams({ hub: window.location.origin });
   if (code) params.set("code", code);
   return `${USER_CLIENT_URL}/join?${params.toString()}`;
+}
+
+/** The same place for the desktop app: this hub and the invite code, as a
+ *  wavvon:// link (`/hub/<slug>/join/<code>` becomes `/hub/<slug>/<code>`).
+ *  Public data only, like the link above. */
+function desktopDeepLink(): string {
+  return `wavvon://${window.location.host}${window.location.pathname.replace("/join/", "/")}`;
 }
 
 // Identity creation/recovery/pairing flow. Used both for a device's first
@@ -650,6 +657,20 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           {t("identity_setup.choose.use_user_client_hint")}{" "}
           <a href={userClientJoinUrl()} style={{ color: "var(--accent)" }}>
             {t("identity_setup.choose.use_user_client_link")}
+          </a>
+        </p>
+      )}
+      {/* A page cannot tell whether the app is installed, so the open link
+          always comes with the download link. */}
+      {!MULTI_HUB && variant === "initial" && (
+        <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
+          {t("identity_setup.choose.desktop_hint")}{" "}
+          <a href={desktopDeepLink()} style={{ color: "var(--accent)" }}>
+            {t("identity_setup.choose.desktop_open")}
+          </a>
+          {" · "}
+          <a href={DESKTOP_DOWNLOAD_URL} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+            {t("identity_setup.choose.desktop_get")}
           </a>
         </p>
       )}
