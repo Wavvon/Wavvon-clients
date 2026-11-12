@@ -14,6 +14,10 @@ export interface ChannelContextMenuProps {
   // (which channel kinds an entry makes sense for) live here; permission and
   // ownership gating stays in the app, which passes or omits the callback.
   onCopyLink?: (channel: Channel) => void;
+  // Web only: open the channel in the desktop app. A page cannot tell whether
+  // the app is installed, so it always comes with the download entry.
+  onOpenInDesktop?: (channel: Channel) => void;
+  onGetDesktop?: () => void;
   onCreateEvent?: (channel: Channel) => void;
   onCreatePoll?: (channel: Channel) => void;
   // Temp-room owner rename (temp-voice-channels.md §3): a non-admin owner
@@ -36,7 +40,7 @@ const NOTIFY_MODES: NotifyMode[] = ["all", "mentions", "silent"];
 // omits the rest.
 export function ChannelContextMenu({
   menu, activeHubId, effectiveNotifyMode, onSetNotifyMode, onClose,
-  onCopyLink, onCreateEvent, onCreatePoll, onRenameTempRoom, onEditBanner,
+  onCopyLink, onOpenInDesktop, onGetDesktop, onCreateEvent, onCreatePoll, onRenameTempRoom, onEditBanner,
   onCreateChannelIn, onCreateChannel, onCreateCategory,
   onEditChannel, onDeleteChannel,
 }: ChannelContextMenuProps) {
@@ -86,6 +90,10 @@ export function ChannelContextMenu({
     ),
     !channel.is_category && onCopyLink &&
       item(t("channel.ctx.copy_link"), () => onCopyLink(channel)),
+    !channel.is_category && onOpenInDesktop &&
+      item(t("identity_setup.choose.desktop_open"), () => onOpenInDesktop(channel)),
+    !channel.is_category && onOpenInDesktop && onGetDesktop &&
+      item(t("identity_setup.choose.desktop_get"), onGetDesktop),
     isComposerTarget && onCreateEvent &&
       item(t("channel.ctx.create_event"), () => onCreateEvent(channel)),
     isComposerTarget && onCreatePoll &&
