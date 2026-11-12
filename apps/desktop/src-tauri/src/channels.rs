@@ -49,26 +49,22 @@ pub(crate) async fn create_channel(
 ) -> Result<ChannelInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/channels"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "name": name,
-            "parent_id": parent_id,
-            "is_category": is_category,
-            "description": description,
-            "channel_type": channel_type,
-            "banner_url": banner_url,
-            "spawner_name_template": spawner_name_template,
-            "nsfw": nsfw.unwrap_or(false),
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/channels"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "name": name,
+                "parent_id": parent_id,
+                "is_category": is_category,
+                "description": description,
+                "channel_type": channel_type,
+                "banner_url": banner_url,
+                "spawner_name_template": spawner_name_template,
+                "nsfw": nsfw.unwrap_or(false),
+            })),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -78,17 +74,14 @@ pub(crate) async fn update_channel_description(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "description": description }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "description": description })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -99,17 +92,14 @@ pub(crate) async fn rename_channel(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "name": name }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "name": name })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -121,17 +111,14 @@ pub(crate) async fn move_channel(
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
     let body = serde_json::json!({ "parent_id": parent_id });
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await?;
     Ok(())
 }
 
@@ -146,17 +133,14 @@ pub(crate) async fn update_channel_appearance(
     let (hub_url, token) = active_session(&state)?;
     let body =
         serde_json::json!({ "icon": icon, "color": color, "custom_icon_svg": custom_icon_svg });
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await?;
     Ok(())
 }
 
@@ -167,17 +151,14 @@ pub(crate) async fn set_forum_require_tag(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "forum_require_tag": require_tag }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "forum_require_tag": require_tag })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -189,17 +170,14 @@ pub(crate) async fn set_channel_slowmode(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "slowmode_secs": secs }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "slowmode_secs": secs })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -210,17 +188,14 @@ pub(crate) async fn set_channel_nsfw(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "nsfw": nsfw }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "nsfw": nsfw })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -232,17 +207,14 @@ pub(crate) async fn set_channel_type(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .patch(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "channel_type": channel_type }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .patch(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "channel_type": channel_type })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -252,17 +224,14 @@ pub(crate) async fn reorder_channels(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .post(format!("{hub_url}/channels/reorder"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "channel_ids": channel_ids }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .post(format!("{hub_url}/channels/reorder"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "channel_ids": channel_ids })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -272,16 +241,13 @@ pub(crate) async fn delete_channel(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let (hub_url, token) = active_session(&state)?;
-    let resp = state
-        .http_client
-        .delete(format!("{hub_url}/channels/{channel_id}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .delete(format!("{hub_url}/channels/{channel_id}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 

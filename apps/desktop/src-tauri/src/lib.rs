@@ -16,6 +16,7 @@ mod discovery;
 mod dm;
 mod events_polls;
 mod home_hub;
+mod http;
 mod hub_session;
 mod identity;
 mod identity_cmd;

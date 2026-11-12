@@ -37,17 +37,14 @@ pub(crate) async fn mint_alliance_voice_grant(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = crate::state::active_session(&state)?;
-    let resp = state
-        .http_client
-        .post(format!("{hub_url}/alliances/{alliance_id}/voice-grant"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "channel_id": channel_id }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .post(format!("{hub_url}/alliances/{alliance_id}/voice-grant"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "channel_id": channel_id })),
+    )
+    .await?;
     resp.json().await.map_err(|e| format!("Invalid grant: {e}"))
 }
 
@@ -590,17 +587,13 @@ pub(crate) async fn voice_channel_participants(
     state: State<'_, AppState>,
 ) -> Result<std::collections::HashMap<String, Vec<crate::types::VoiceParticipantInfo>>, String> {
     let (hub_url, token) = crate::state::active_session(&state)?;
-    let resp = state
-        .http_client
-        .get(format!("{hub_url}/voice/participants"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        state
+            .http_client
+            .get(format!("{hub_url}/voice/participants"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 /// The floor in a room with a talk-power threshold: `raise` and `lower` your
@@ -627,14 +620,7 @@ pub(crate) async fn voice_floor(
         "list" => state.http_client.get(format!("{base}/raise-hands")),
         other => return Err(format!("unknown floor action: {other}")),
     };
-    let resp = req
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(req.bearer_auth(&token)).await?;
     if action != "list" {
         return Ok(Vec::new());
     }
