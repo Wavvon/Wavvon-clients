@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { parseHubInput } from "@wavvon/core";
 import type { Hub, LobbyStatus, Survey } from "../types";
 import i18n from "@wavvon/i18n";
@@ -60,37 +59,6 @@ export function useAddHubFlow({
     const parsed = parseHubInput(v);
     if (parsed?.inviteCode) setInviteCode(parsed.inviteCode);
   }
-
-  // On mount: check whether the app was launched via a wavvon:// deep link,
-  // and listen for deep links opened while the app is already running.
-  useEffect(() => {
-    invoke<string | null>("get_pending_deep_link").then((url) => {
-      if (!url) return;
-      const parsed = parseHubInput(url);
-      if (parsed) {
-        setHubUrl(parsed.hubUrl);
-        setInviteCode(parsed.inviteCode);
-        setShowAddHub(true);
-      }
-    });
-    let cancelled = false;
-    let unlistenFn: (() => void) | null = null;
-    listen<string>("join-hub-requested", (event) => {
-      const parsed = parseHubInput(event.payload);
-      if (parsed) {
-        setHubUrl(parsed.hubUrl);
-        setInviteCode(parsed.inviteCode);
-        setShowAddHub(true);
-      }
-    }).then((fn) => {
-      if (cancelled) { fn(); return; }
-      unlistenFn = fn;
-    });
-    return () => {
-      cancelled = true;
-      unlistenFn?.();
-    };
-  }, []);
 
   // Debounced fetch of /info while the user types a hub URL.
   useEffect(() => {

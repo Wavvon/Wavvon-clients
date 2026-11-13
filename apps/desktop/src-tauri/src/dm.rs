@@ -33,9 +33,26 @@ fn encode_dm_plaintext(content: String, attachments: Option<Vec<AttachmentInfo>>
 // Friends
 // ---------------------------------------------------------------------------
 
+/// The hub the friend list lives on. Friends are personal-axis state, so the
+/// list belongs on a home hub, not on whichever hub is on screen: the first
+/// hub of the cached designation this client has a session with, else the
+/// active hub (Wavvon-clients#279). Reads and writes go to the same hub, so a
+/// friend added once is found again from any hub.
+fn friends_session(state: &AppState) -> Result<(String, String), String> {
+    let home = crate::home_hub::read_cached_designation()
+        .map(|d| d.hubs)
+        .unwrap_or_default();
+    for url in &home {
+        if let Ok(token) = crate::state::session_for_url(state, url) {
+            return Ok((url.trim_end_matches('/').to_string(), token));
+        }
+    }
+    active_session(state)
+}
+
 #[tauri::command]
 pub(crate) async fn list_friends(state: State<'_, AppState>) -> Result<Vec<FriendInfo>, String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
     client
         .get(format!("{hub_url}/friends"))
@@ -52,7 +69,7 @@ pub(crate) async fn list_friends(state: State<'_, AppState>) -> Result<Vec<Frien
 pub(crate) async fn list_pending_friends(
     state: State<'_, AppState>,
 ) -> Result<Vec<FriendInfo>, String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
     client
         .get(format!("{hub_url}/friends/pending"))
@@ -72,22 +89,19 @@ pub(crate) async fn send_friend_request(
     display_name: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/friends"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "target_public_key": target_public_key,
-            "hub_url": friend_hub_url,
-            "display_name": display_name,
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/friends"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "target_public_key": target_public_key,
+                "hub_url": friend_hub_url,
+                "display_name": display_name,
+            })),
+    )
+    .await?;
     Ok(())
 }
 
@@ -96,17 +110,14 @@ pub(crate) async fn accept_friend(
     from_public_key: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/friends/{from_public_key}/accept"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .post(format!("{hub_url}/friends/{from_public_key}/accept"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -115,17 +126,14 @@ pub(crate) async fn remove_friend(
     target_public_key: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let (hub_url, token) = active_session(&state)?;
+    let (hub_url, token) = friends_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .delete(format!("{hub_url}/friends/{target_public_key}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .delete(format!("{hub_url}/friends/{target_public_key}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
@@ -157,20 +165,16 @@ pub(crate) async fn create_conversation(
 ) -> Result<ConversationInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
-    let resp = client
-        .post(format!("{hub_url}/conversations"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "members": members,
-            "member_hubs": member_hubs.unwrap_or_default(),
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        client
+            .post(format!("{hub_url}/conversations"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "members": members,
+                "member_hubs": member_hubs.unwrap_or_default(),
+            })),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -229,6 +233,18 @@ pub(crate) async fn get_dm_messages(
             // outbound envelopes (and the group path only had a "[sent]"
             // placeholder); render the plaintext stashed at send time.
             own_plaintexts[&msg.id].clone()
+        } else if [
+            &msg.encrypted_envelope,
+            &msg.dr_envelope,
+            &msg.group_encrypted_envelope,
+        ]
+        .into_iter()
+        .flatten()
+        .any(|env| !envelope_signed_by(&conversation_id, env, &msg.sender))
+        {
+            // The hub relays envelopes and is not trusted with them: one its
+            // sender did not sign is not shown, whatever it decrypts to.
+            text("[decryption failed]")
         } else if msg.is_encrypted {
             if let Some(ref env) = msg.encrypted_envelope {
                 let is_v2 = env["v"].as_u64().unwrap_or(1) == 2;
@@ -272,7 +288,7 @@ pub(crate) async fn get_dm_messages(
             content: shown.content,
             created_at: msg.created_at,
             attachments: shown.attachments,
-            is_encrypted: msg.is_encrypted,
+            is_encrypted: msg.is_encrypted || msg.is_group_encrypted,
             is_group_encrypted: msg.is_group_encrypted,
             delivery_failed: msg.delivery_failed,
         });
@@ -323,13 +339,36 @@ fn decrypt_dm_inner(
 
 /// Whether the hub takes `plaintext_signer_cert`. A failed lookup answers no:
 /// the message then goes unsigned, which is what it did before the cert.
-async fn hub_takes_signer_cert(client: &reqwest::Client, hub_url: &str) -> bool {
+async fn hub_capabilities(client: &reqwest::Client, hub_url: &str) -> Vec<String> {
     let info: Option<serde_json::Value> = match client.get(format!("{hub_url}/info")).send().await {
         Ok(resp) => resp.json().await.ok(),
         Err(_) => None,
     };
     info.and_then(|i| i["capabilities"].as_array().cloned())
-        .is_some_and(|caps| caps.iter().any(|c| c == "dms.plaintext.signercert"))
+        .map(|caps| {
+            caps.iter()
+                .filter_map(|c| c.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// A random (v4) UUID, the id a v2 plaintext DM is signed under.
+pub(crate) fn random_uuid() -> String {
+    use rand::RngCore;
+    let mut b = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut b);
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    let h = hex::encode(b);
+    format!(
+        "{}-{}-{}-{}-{}",
+        &h[0..8],
+        &h[8..12],
+        &h[12..16],
+        &h[16..20],
+        &h[20..32]
+    )
 }
 
 #[tauri::command]
@@ -374,34 +413,66 @@ pub(crate) async fn send_dm(
             .await
             .map_err(|e| format!("Invalid conversation: {e}"))?;
         let conv_type = conv["conv_type"].as_str().unwrap_or("dm");
-        let sb = crate::identity::federated_plaintext_dm_signing_bytes(
-            &conversation_id,
-            conv_type,
-            &content,
-        );
+        let caps = hub_capabilities(&client, &hub_url).await;
+        // v2 signs an id and time we choose and the members as the hub just
+        // told us, so a peer can neither replay the message nor move it into
+        // a conversation we did not pick (Wavvon-server#311).
+        let v2 = caps.iter().any(|c| c == "dms.plaintext.v2");
+        let message_id = random_uuid();
+        let created_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or_default();
+        let members: Vec<String> = conv["members"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|m| m.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let sb = if v2 {
+            crate::identity::federated_plaintext_dm_v2_signing_bytes(
+                &conversation_id,
+                conv_type,
+                &content,
+                &message_id,
+                created_at,
+                &members,
+            )
+        } else {
+            crate::identity::federated_plaintext_dm_signing_bytes(
+                &conversation_id,
+                conv_type,
+                &content,
+            )
+        };
         // An older hub checks the signature against the canonical key alone
         // and refuses a subkey's, so there a paired device sends unsigned.
         let signer_cert = me.signer_cert();
-        let can_sign = signer_cert.is_none() || hub_takes_signer_cert(&client, &hub_url).await;
-        serde_json::json!({
+        let can_sign =
+            signer_cert.is_none() || caps.iter().any(|c| c == "dms.plaintext.signercert");
+        let mut body = serde_json::json!({
             "content": content,
             "attachments": attachments.clone().unwrap_or_default(),
             "plaintext_signature": can_sign.then(|| hex::encode(me.sign(&sb))),
             "plaintext_signer_cert": signer_cert.filter(|_| can_sign),
-        })
+        });
+        if can_sign && v2 {
+            body["message_id"] = serde_json::json!(message_id);
+            body["created_at"] = serde_json::json!(created_at);
+        }
+        body
     };
-    let resp = client
-        .post(format!(
-            "{hub_url}/conversations/{conversation_id}/messages"
-        ))
-        .bearer_auth(&token)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        client
+            .post(format!(
+                "{hub_url}/conversations/{conversation_id}/messages"
+            ))
+            .bearer_auth(&token)
+            .json(&body),
+    )
+    .await?;
     if let Some(pt) = plaintext {
         if let Ok(created) = resp.json::<serde_json::Value>().await {
             if let Some(id) = created["id"].as_str() {
@@ -429,19 +500,16 @@ pub(crate) async fn update_dm_blocks(
     struct Payload {
         blocked_pubkeys: Vec<String>,
     }
-    let resp = state
-        .http_client
-        .put(format!("{base}/identity/dm-blocks"))
-        .bearer_auth(&token)
-        .json(&Payload {
-            blocked_pubkeys: blocked,
-        })
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .put(format!("{base}/identity/dm-blocks"))
+            .bearer_auth(&token)
+            .json(&Payload {
+                blocked_pubkeys: blocked,
+            }),
+    )
+    .await?;
     Ok(())
 }
 
@@ -533,14 +601,109 @@ pub(crate) async fn fetch_dh_key_http(
         return None;
     }
     let v: serde_json::Value = resp.json().await.ok()?;
-    v["dh_pubkey_hex"].as_str().map(|s| s.to_string())
+    let dh = verified_dh_key(&v, pubkey)?;
+    check_dh_pin(pubkey, &dh).ok()?;
+    Some(dh)
 }
 
+/// Trust on first use for a peer's DH key. The key is derived from the
+/// peer's identity seed, so for one pubkey it never changes legitimately: a
+/// different, validly signed key means that identity key signed something
+/// new. Returns true when `dh` differs from the pinned key; pins it when
+/// there was none.
+pub(crate) fn pin_changed(pins: &mut HashMap<String, String>, pubkey: &str, dh: &str) -> bool {
+    match pins.get(pubkey) {
+        Some(pinned) => pinned != dh,
+        None => {
+            pins.insert(pubkey.to_string(), dh.to_string());
+            false
+        }
+    }
+}
+
+/// One read-modify-write of the pin file at a time.
+static DH_PINS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn load_dh_pins() -> Result<HashMap<String, String>, String> {
+    let path = crate::accounts::active_dh_pins_path()?;
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+fn save_dh_pins(pins: &HashMap<String, String>) -> Result<(), String> {
+    let path = crate::accounts::active_dh_pins_path()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(pins).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+/// `Err("dh_key_changed")` when `dh` is not the key pinned for `pubkey`:
+/// nothing may be encrypted to it, or a message from it trusted, until the
+/// user accepts it (`accept_dh_key`).
+pub(crate) fn check_dh_pin(pubkey: &str, dh: &str) -> Result<(), String> {
+    let _guard = DH_PINS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut pins = load_dh_pins()?;
+    let had = pins.len();
+    if pin_changed(&mut pins, pubkey, dh) {
+        return Err("dh_key_changed".to_string());
+    }
+    if pins.len() != had {
+        save_dh_pins(&pins)?;
+    }
+    Ok(())
+}
+
+/// The user checked with the peer and accepts the key the hub now holds.
+#[tauri::command]
+pub(crate) async fn accept_dh_key(
+    pubkey: String,
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let Some(dh) = fetch_verified_dh_key(&pubkey, &hub_url, &state).await? else {
+        return Ok(());
+    };
+    let _guard = DH_PINS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut pins = load_dh_pins()?;
+    pins.insert(pubkey, dh);
+    save_dh_pins(&pins)
+}
+
+/// The DH key a fetched record names, only if `pubkey` itself signed it. The
+/// hub stores the record and is not trusted with it: a key it swapped in
+/// would let it read and alter every DM and voice key wrapped to it.
+pub(crate) fn verified_dh_key(record: &serde_json::Value, pubkey: &str) -> Option<String> {
+    let dh = record["dh_pubkey_hex"].as_str()?;
+    let sig = hex::decode(record["signature_hex"].as_str()?).ok()?;
+    let signed = crate::identity::DhKeyRecord::signing_bytes(pubkey, dh);
+    crate::identity::verify_signature(pubkey, &signed, &sig).ok()?;
+    Some(dh.to_string())
+}
+
+/// The pinned-checked key: `Err("dh_key_changed")` when it differs from the
+/// one first seen for this peer.
 #[tauri::command]
 pub(crate) async fn fetch_dh_key(
     pubkey: String,
     hub_url: String,
     state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let Some(dh) = fetch_verified_dh_key(&pubkey, &hub_url, &state).await? else {
+        return Ok(None);
+    };
+    check_dh_pin(&pubkey, &dh)?;
+    Ok(Some(dh))
+}
+
+async fn fetch_verified_dh_key(
+    pubkey: &str,
+    hub_url: &str,
+    state: &State<'_, AppState>,
 ) -> Result<Option<String>, String> {
     let url = format!("{}/identity/{}/dh-key", hub_url, pubkey);
     let token: Option<String> = {
@@ -563,7 +726,13 @@ pub(crate) async fn fetch_dh_key(
         return Err(format!("hub returned {}", resp.status()));
     }
     let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    Ok(body["dh_pubkey_hex"].as_str().map(|s| s.to_string()))
+    if body["dh_pubkey_hex"].is_null() {
+        return Ok(None);
+    }
+    // Present but not signed by its owner: refuse, never "no key".
+    verified_dh_key(&body, pubkey)
+        .map(Some)
+        .ok_or_else(|| "DH key record is not signed by its owner".to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -644,9 +813,14 @@ async fn wrap_for_members(
             Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
             _ => continue,
         };
-        let Some(dh_hex) = dh_resp["dh_pubkey_hex"].as_str() else {
+        let Some(dh_hex) = verified_dh_key(&dh_resp, member) else {
             continue;
         };
+        // A member whose key changed gets no sender key until it is accepted.
+        if check_dh_pin(member, &dh_hex).is_err() {
+            continue;
+        }
+        let dh_hex = dh_hex.as_str();
         let Ok(dh_bytes) = hex::decode(dh_hex) else {
             continue;
         };
@@ -739,6 +913,41 @@ pub(crate) fn group_envelope_signing_bytes(
     out
 }
 
+// The group ratchet's three derivations (e2e-encryption.md "Group DMs — v2").
+// packages/core crypto.ts mirrors them; the tests below pin both to one vector.
+fn group_hkdf(ikm: &[u8], salt: &[u8], info: &[u8]) -> [u8; 32] {
+    let hk = hkdf::Hkdf::<sha2::Sha256>::new(Some(salt), ikm);
+    let mut out = [0u8; 32];
+    hk.expand(info, &mut out)
+        .expect("32 bytes is a valid HKDF-SHA256 output length");
+    out
+}
+
+fn group_msg_key(chain_key: &[u8; 32], iteration: u32) -> [u8; 32] {
+    group_hkdf(chain_key, &iteration.to_be_bytes(), b"wavvon/group-msg/v1")
+}
+
+fn group_next_chain_key(chain_key: &[u8; 32], iteration: u32) -> [u8; 32] {
+    group_hkdf(
+        chain_key,
+        &iteration.to_be_bytes(),
+        b"wavvon/group-chain/v1",
+    )
+}
+
+fn group_wrap_key(
+    my_dh_sec: &x25519_dalek::StaticSecret,
+    peer_dh_pub: &x25519_dalek::PublicKey,
+    conv_id: &str,
+) -> [u8; 32] {
+    let shared = my_dh_sec.diffie_hellman(peer_dh_pub);
+    group_hkdf(
+        shared.as_bytes(),
+        conv_id.as_bytes(),
+        b"wavvon/group-key-dist/v1",
+    )
+}
+
 fn wrap_chain_key(
     my_dh_sec: &x25519_dalek::StaticSecret,
     recipient_dh_pub: &x25519_dalek::PublicKey,
@@ -746,21 +955,32 @@ fn wrap_chain_key(
     chain_key: &[u8; 32],
     iteration: u32,
 ) -> Result<(String, String), String> {
-    use aes_gcm::aead::{Aead, KeyInit};
-    use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hkdf::Hkdf;
     use rand::RngCore;
-    use sha2::Sha256;
-
-    let shared = my_dh_sec.diffie_hellman(recipient_dh_pub);
-    let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
-    let mut wrap_key = [0u8; 32];
-    hk.expand(b"wavvon/group-key-dist/v1", &mut wrap_key)
-        .map_err(|e| e.to_string())?;
-
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
     let mut nonce_bytes = [0u8; 12];
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    wrap_chain_key_with_nonce(
+        my_dh_sec,
+        recipient_dh_pub,
+        conv_id,
+        chain_key,
+        iteration,
+        nonce_bytes,
+    )
+}
+
+fn wrap_chain_key_with_nonce(
+    my_dh_sec: &x25519_dalek::StaticSecret,
+    recipient_dh_pub: &x25519_dalek::PublicKey,
+    conv_id: &str,
+    chain_key: &[u8; 32],
+    iteration: u32,
+    nonce_bytes: [u8; 12],
+) -> Result<(String, String), String> {
+    use aes_gcm::aead::{Aead, KeyInit};
+    use aes_gcm::{Aes256Gcm, Key, Nonce};
+
+    let wrap_key = group_wrap_key(my_dh_sec, recipient_dh_pub, conv_id);
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let mut plaintext = [0u8; 36];
@@ -951,24 +1171,20 @@ pub(crate) async fn rotate_group_sender_key(
         sender_key_dist_signing_bytes(&conv_id, new_version, &dist_signing_pairs(&recipients));
     let signature_hex = hex::encode(me.sign(&signing_bytes));
 
-    let resp = client
-        .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({
-            "sender_pubkey": my_pubkey,
-            "sender_key_version": new_version,
-            "iteration": iteration,
-            "recipients": dist_recipients_json(&recipients, iteration),
-            "signature_hex": signature_hex,
-            "signer_cert": me.signer_cert(),
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        client
+            .put(format!("{hub_url}/conversations/{conv_id}/sender-keys"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "sender_pubkey": my_pubkey,
+                "sender_key_version": new_version,
+                "iteration": iteration,
+                "recipients": dist_recipients_json(&recipients, iteration),
+                "signature_hex": signature_hex,
+                "signer_cert": me.signer_cert(),
+            })),
+    )
+    .await?;
 
     if key_state["my_keys"].is_null() || !key_state["my_keys"].is_object() {
         key_state["my_keys"] = serde_json::json!({});
@@ -1029,10 +1245,13 @@ pub(crate) async fn fetch_group_sender_keys(
             Ok(r) if r.status().is_success() => r.json().await.unwrap_or(serde_json::Value::Null),
             _ => continue,
         };
-        let sender_dh_hex = match dh_resp["dh_pubkey_hex"].as_str() {
-            Some(h) => h,
-            None => continue,
+        let Some(sender_dh_hex) = verified_dh_key(&dh_resp, &sender_pubkey) else {
+            continue;
         };
+        if check_dh_pin(&sender_pubkey, &sender_dh_hex).is_err() {
+            continue;
+        }
+        let sender_dh_hex = sender_dh_hex.as_str();
         let sender_dh_bytes = match hex::decode(sender_dh_hex) {
             Ok(b) => b,
             Err(_) => continue,
@@ -1045,18 +1264,8 @@ pub(crate) async fn fetch_group_sender_keys(
 
         use aes_gcm::aead::{Aead, KeyInit};
         use aes_gcm::{Aes256Gcm, Key, Nonce};
-        use hkdf::Hkdf;
-        use sha2::Sha256;
 
-        let shared = my_dh_sec.diffie_hellman(&sender_dh_pub);
-        let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
-        let mut wrap_key = [0u8; 32];
-        if hk
-            .expand(b"wavvon/group-key-dist/v1", &mut wrap_key)
-            .is_err()
-        {
-            continue;
-        }
+        let wrap_key = group_wrap_key(&my_dh_sec, &sender_dh_pub, &conv_id);
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&wrap_key));
         let nonce_bytes = match hex::decode(wrap_nonce_hex) {
             Ok(b) => b,
@@ -1112,8 +1321,6 @@ pub(crate) async fn encrypt_group_dm(
 ) -> Result<serde_json::Value, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hkdf::Hkdf;
-    use sha2::Sha256;
 
     let mut key_state = load_sender_key_state()?;
 
@@ -1133,11 +1340,7 @@ pub(crate) async fn encrypt_group_dm(
         (ck_arr, ver, iter)
     };
 
-    let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
-    let mut msg_key = [0u8; 32];
-    hk_msg
-        .expand(b"wavvon/group-msg/v1", &mut msg_key)
-        .map_err(|e| e.to_string())?;
+    let msg_key = group_msg_key(&chain_key, iteration);
 
     let mut nonce_bytes = [0u8; 12];
     nonce_bytes[8..12].copy_from_slice(&iteration.to_be_bytes());
@@ -1149,11 +1352,7 @@ pub(crate) async fn encrypt_group_dm(
         .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| e.to_string())?;
 
-    let hk_chain = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
-    let mut new_chain_key = [0u8; 32];
-    hk_chain
-        .expand(b"wavvon/group-chain/v1", &mut new_chain_key)
-        .map_err(|e| e.to_string())?;
+    let new_chain_key = group_next_chain_key(&chain_key, iteration);
     let new_iteration = iteration + 1;
 
     key_state["my_keys"][&conv_id] = serde_json::json!({
@@ -1184,6 +1383,112 @@ pub(crate) async fn encrypt_group_dm(
         // above. `None` on a device that signs as itself.
         "signer_cert": me.signer_cert(),
     }))
+}
+
+// ---------------------------------------------------------------------------
+// Group membership: add people, leave
+// ---------------------------------------------------------------------------
+
+/// The actor's signature over a membership change (the hub's
+/// `SignedMemberChange`), so the other members' hubs apply it too. None on a
+/// hub that predates `dms.group.signedmembers`: the change then holds there only.
+async fn signed_member_change(
+    state: &AppState,
+    client: &reqwest::Client,
+    hub_url: &str,
+    conv_id: &str,
+    added: &[String],
+    removed: &[String],
+) -> Result<Option<serde_json::Value>, String> {
+    let caps = hub_capabilities(client, hub_url).await;
+    if !caps.iter().any(|c| c == "dms.group.signedmembers") {
+        return Ok(None);
+    }
+    let me =
+        crate::auth_creds::hub_identity(crate::state::active_canonical_pubkey(state).as_deref())?;
+    let issued_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or_default();
+    let sb = crate::identity::dm_member_change_signing_bytes(
+        conv_id,
+        &me.pubkey(),
+        added,
+        removed,
+        issued_at,
+    );
+    let mut signed = serde_json::json!({
+        "issued_at": issued_at,
+        "signature": hex::encode(me.sign(&sb)),
+    });
+    if let Some(cert) = me.signer_cert() {
+        signed["signer_cert"] = serde_json::json!(cert);
+    }
+    Ok(Some(signed))
+}
+
+/// One member per request, as the hub takes them.
+#[tauri::command]
+pub(crate) async fn add_group_members(
+    conv_id: String,
+    pubkeys: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    for public_key in pubkeys {
+        let signed = signed_member_change(
+            &state,
+            &client,
+            &hub_url,
+            &conv_id,
+            std::slice::from_ref(&public_key),
+            &[],
+        )
+        .await?;
+        let mut body = serde_json::json!({ "public_key": public_key });
+        if let Some(signed) = signed {
+            body["signed"] = signed;
+        }
+        crate::http::send_ok(
+            client
+                .post(format!("{hub_url}/conversations/{conv_id}/members"))
+                .bearer_auth(&token)
+                .json(&body),
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+/// The hub lets a member remove only themselves.
+#[tauri::command]
+pub(crate) async fn leave_group(conv_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let (hub_url, token) = active_session(&state)?;
+    let client = state.http_client.clone();
+    let me =
+        crate::auth_creds::hub_identity(crate::state::active_canonical_pubkey(&state).as_deref())?
+            .pubkey();
+    let signed = signed_member_change(
+        &state,
+        &client,
+        &hub_url,
+        &conv_id,
+        &[],
+        std::slice::from_ref(&me),
+    )
+    .await?;
+    let mut req = client
+        .delete(format!("{hub_url}/conversations/{conv_id}/members/{me}"))
+        .bearer_auth(&token);
+    if let Some(signed) = signed {
+        req = req.json(&signed);
+    }
+    let resp = req.send().await.map_err(|e| format!("Failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1358,6 +1663,82 @@ fn derive_nonce_dr(msg_key: &[u8; 32]) -> [u8; 12] {
 
 /// Signing bytes for a DR v2 DM envelope.
 /// Tag: `b"wavvon/dm-ciphertext/v2\0"` — matches `wavvon_identity::dr_envelope_signing_bytes`.
+/// Signing bytes of a legacy 1:1 envelope (`wavvon/dm-ciphertext/v1`).
+/// Ciphertext and nonce are their hex strings, as the sender signed them.
+pub(crate) fn dm_envelope_signing_bytes(
+    conv_id: &str,
+    ciphertext_hex: &str,
+    nonce_hex: &str,
+    dh_pubkey_hex: &str,
+) -> Vec<u8> {
+    let mut out = b"wavvon/dm-ciphertext/v1\0".to_vec();
+    for field in [conv_id, ciphertext_hex, nonce_hex, dh_pubkey_hex] {
+        out.extend_from_slice(&(field.len() as u32).to_le_bytes());
+        out.extend_from_slice(field.as_bytes());
+    }
+    out
+}
+
+/// Whether `sender` (the conversation member the hub names as the message's
+/// sender) signed this envelope: directly, or through a device whose cert
+/// `sender` issued. 1:1 v1, double-ratchet v2 and group envelopes each sign
+/// their own bytes.
+pub(crate) fn envelope_signed_by(conv_id: &str, env: &serde_json::Value, sender: &str) -> bool {
+    let str_of = |k: &str| env[k].as_str().unwrap_or_default();
+    let u32_of = |k: &str| env[k].as_u64().and_then(|v| u32::try_from(v).ok());
+    if str_of("sender_pubkey") != sender {
+        return false;
+    }
+    let signed = if env.get("sender_key_version").is_some() {
+        let (Some(version), Some(iteration)) = (u32_of("sender_key_version"), u32_of("iteration"))
+        else {
+            return false;
+        };
+        group_envelope_signing_bytes(
+            conv_id,
+            version,
+            iteration,
+            str_of("ciphertext_hex"),
+            str_of("nonce_hex"),
+        )
+    } else if env["v"].as_u64() == Some(2) {
+        let (Some(index), Some(prev)) = (u32_of("message_index"), u32_of("prev_count")) else {
+            return false;
+        };
+        dr_envelope_signing_bytes(
+            conv_id,
+            index,
+            prev,
+            str_of("ciphertext_hex"),
+            str_of("dh_pubkey_hex"),
+        )
+    } else {
+        dm_envelope_signing_bytes(
+            conv_id,
+            str_of("ciphertext_hex"),
+            str_of("nonce_hex"),
+            str_of("dh_pubkey_hex"),
+        )
+    };
+    let Ok(sig) = hex::decode(str_of("signature_hex")) else {
+        return false;
+    };
+    let signer = match env.get("signer_cert").filter(|c| !c.is_null()) {
+        None => sender.to_string(),
+        Some(cert) => {
+            let Ok(cert) = serde_json::from_value::<crate::identity::SubkeyCert>(cert.clone())
+            else {
+                return false;
+            };
+            if cert.master_pubkey != sender || cert.verify().is_err() {
+                return false;
+            }
+            cert.subkey_pubkey
+        }
+    };
+    crate::identity::verify_signature(&signer, &signed, &sig).is_ok()
+}
+
 pub(crate) fn dr_envelope_signing_bytes(
     conv_id: &str,
     message_index: u32,
@@ -1751,8 +2132,6 @@ fn decrypt_group_dm_inner(
 ) -> Result<DmPlaintext, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hkdf::Hkdf;
-    use sha2::Sha256;
 
     let sender_pubkey = envelope["sender_pubkey"]
         .as_str()
@@ -1800,18 +2179,10 @@ fn decrypt_group_dm_inner(
     }
 
     for i in stored_iteration..iteration {
-        let hk = Hkdf::<Sha256>::new(Some(&i.to_be_bytes()), &chain_key);
-        let mut next = [0u8; 32];
-        hk.expand(b"wavvon/group-chain/v1", &mut next)
-            .map_err(|e| e.to_string())?;
-        chain_key = next;
+        chain_key = group_next_chain_key(&chain_key, i);
     }
 
-    let hk_msg = Hkdf::<Sha256>::new(Some(&iteration.to_be_bytes()), &chain_key);
-    let mut msg_key = [0u8; 32];
-    hk_msg
-        .expand(b"wavvon/group-msg/v1", &mut msg_key)
-        .map_err(|e| e.to_string())?;
+    let msg_key = group_msg_key(&chain_key, iteration);
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&msg_key));
     let nonce_bytes = hex::decode(nonce_hex).map_err(|e| e.to_string())?;
@@ -1826,6 +2197,42 @@ fn decrypt_group_dm_inner(
 #[cfg(test)]
 mod tests {
     use super::{dist_recipients_json, dist_signing_pairs, WrappedForRecipient};
+
+    // The same vector as packages/core's crypto.test.ts "group ratchet", so
+    // web and desktop cannot drift: chain key 0x11 x32 at iteration 2, and a
+    // wrap from the master fixture's DH key to the subkey fixture's.
+    #[test]
+    fn group_ratchet_matches_the_web_vector() {
+        let ck = [0x11u8; 32];
+        assert_eq!(
+            hex::encode(super::group_msg_key(&ck, 2)),
+            "7de5c477aadff1d7633bce5fc6d6974b908b9d05a3897cd5aba30c6490eba427"
+        );
+        assert_eq!(
+            hex::encode(super::group_next_chain_key(&ck, 2)),
+            "fd8b5df061c574c9c5ecdb3d87c37f54bb6c48585a6253b7914a1144d75939dc"
+        );
+        // dh_keypair, not e2e_dh_secret: the latter reads this machine's
+        // pairing state.
+        let dh = |seed: &str| {
+            crate::identity::Identity::from_secret_key_hex(seed)
+                .unwrap()
+                .dh_keypair()
+        };
+        let (a_sec, _) = dh("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20");
+        let (_, b_pub) = dh("2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40");
+        let (wrapped, nonce) = super::wrap_chain_key_with_nonce(
+            &a_sec,
+            &b_pub,
+            "conv123",
+            &ck,
+            2,
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        )
+        .unwrap();
+        assert_eq!(wrapped, "354ebd62de34d85fbd7179d96abf4202938c5609e18bc6015926550c48ec21bd5702ae96b979f0bf45ab36a7158bc5d204e173e7");
+        assert_eq!(nonce, "0102030405060708090a0b0c");
+    }
 
     fn wrapped() -> Vec<WrappedForRecipient> {
         vec![
@@ -2050,5 +2457,131 @@ mod tests {
             assert!(json.get(field).is_some(), "missing {field}");
         }
         assert_eq!(json["nonce_hex"], "");
+    }
+}
+
+#[cfg(test)]
+mod envelope_vector_tests {
+    use super::{
+        dm_envelope_signing_bytes, dr_envelope_signing_bytes, envelope_signed_by,
+        group_envelope_signing_bytes,
+    };
+    use crate::wire_vectors::{n, out, s, vector};
+    use ed25519_dalek::{Signer, SigningKey};
+
+    #[test]
+    fn signing_bytes_match_the_shared_vectors() {
+        let v = vector("dm_envelope");
+        assert_eq!(
+            hex::encode(dm_envelope_signing_bytes(
+                &s(v, "conversation_id"),
+                &s(v, "ciphertext"),
+                &s(v, "nonce"),
+                &s(v, "sender_dh_pubkey")
+            )),
+            out(v, "signing_bytes")
+        );
+        let v = vector("dr_envelope");
+        assert_eq!(
+            hex::encode(dr_envelope_signing_bytes(
+                &s(v, "conversation_id"),
+                n(v, "message_index") as u32,
+                n(v, "prev_count") as u32,
+                &s(v, "ciphertext"),
+                &s(v, "dh_pubkey")
+            )),
+            out(v, "signing_bytes")
+        );
+        let v = vector("group_dm_envelope");
+        assert_eq!(
+            hex::encode(group_envelope_signing_bytes(
+                &s(v, "conversation_id"),
+                n(v, "sender_key_version") as u32,
+                n(v, "iteration") as u32,
+                &s(v, "ciphertext"),
+                &s(v, "nonce")
+            )),
+            out(v, "signing_bytes")
+        );
+    }
+
+    #[test]
+    fn only_the_named_sender_can_have_signed_an_envelope() {
+        let alice = SigningKey::from_bytes(&[5u8; 32]);
+        let hub = SigningKey::from_bytes(&[6u8; 32]);
+        let alice_pk = hex::encode(alice.verifying_key().as_bytes());
+        let signed = super::dr_envelope_signing_bytes("c1", 1, 0, "aa", "bb");
+        let env = |key: &SigningKey, sender: &str| {
+            serde_json::json!({
+                "v": 2, "sender_pubkey": sender, "message_index": 1, "prev_count": 0,
+                "ciphertext_hex": "aa", "dh_pubkey_hex": "bb",
+                "signature_hex": hex::encode(key.sign(&signed).to_bytes()),
+            })
+        };
+        assert!(envelope_signed_by("c1", &env(&alice, &alice_pk), &alice_pk));
+        // Forged by the relaying hub, or attributed to somebody else.
+        assert!(!envelope_signed_by("c1", &env(&hub, &alice_pk), &alice_pk));
+        assert!(!envelope_signed_by(
+            "c1",
+            &env(&alice, &alice_pk),
+            &"ff".repeat(32)
+        ));
+        // Moved to another conversation.
+        assert!(!envelope_signed_by(
+            "c2",
+            &env(&alice, &alice_pk),
+            &alice_pk
+        ));
+    }
+}
+
+#[cfg(test)]
+mod dh_record_tests {
+    use super::verified_dh_key;
+    use ed25519_dalek::{Signer, SigningKey};
+
+    #[test]
+    fn only_a_record_its_owner_signed_is_used() {
+        let owner = SigningKey::from_bytes(&[3u8; 32]);
+        let hub = SigningKey::from_bytes(&[4u8; 32]);
+        let pubkey = hex::encode(owner.verifying_key().as_bytes());
+        let dh = "ab".repeat(32);
+        let signed = crate::identity::DhKeyRecord::signing_bytes(&pubkey, &dh);
+        let record = |key: &SigningKey, dh: &str| {
+            serde_json::json!({
+                "dh_pubkey_hex": dh,
+                "signature_hex": hex::encode(key.sign(&signed).to_bytes()),
+            })
+        };
+
+        assert_eq!(
+            verified_dh_key(&record(&owner, &dh), &pubkey),
+            Some(dh.clone())
+        );
+        assert_eq!(verified_dh_key(&record(&hub, &dh), &pubkey), None);
+        assert_eq!(
+            verified_dh_key(&record(&owner, &"cd".repeat(32)), &pubkey),
+            None
+        );
+    }
+}
+
+#[cfg(test)]
+mod dh_pin_tests {
+    use super::pin_changed;
+    use std::collections::HashMap;
+
+    #[test]
+    fn first_key_is_pinned_and_a_different_one_is_a_change() {
+        let mut pins = HashMap::new();
+        assert!(!pin_changed(&mut pins, "alice", "k1"));
+        assert_eq!(pins.get("alice").map(String::as_str), Some("k1"));
+        assert!(!pin_changed(&mut pins, "alice", "k1"));
+        assert!(pin_changed(&mut pins, "alice", "k2"));
+        assert_eq!(
+            pins.get("alice").map(String::as_str),
+            Some("k1"),
+            "a change never overwrites the pin"
+        );
     }
 }

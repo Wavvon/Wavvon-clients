@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { mentionsName, playMentionPing } from "@wavvon/core";
+import { mentionsName, playMentionPing, slowmodeRetryAfter } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
 import { readFileAsB64, useOlderPages, usePendingFiles, type PendingFilesState, type SelectedAllianceChannel } from "@wavvon/ui";
@@ -460,7 +460,8 @@ export function useChannelMessages({
         return [...prev, msg];
       });
     } catch (e) {
-      setError(String(e));
+      const wait = slowmodeRetryAfter(String(e));
+      setError(wait === null ? String(e) : i18n.t("channel.slowmode_wait", { seconds: wait }));
       setInputText(content);
       setReplyTarget(reply);
     }

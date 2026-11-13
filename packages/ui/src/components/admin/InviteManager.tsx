@@ -93,9 +93,15 @@ export function InviteManager(props: Props) {
 
   const selectedRole = grantRoleId ? rolesById.get(grantRoleId) : undefined;
   const bound = boundPubkey.trim();
-  // The hub forces a bound invite to one use; say so before it happens rather
-  // than letting the number the admin typed come back changed.
-  const forcesSingleUse = (selectedRole ? roleGrantsAdmin(selectedRole) : false) || bound.length > 0;
+  // The hub caps a role-management grant to one use and 24 hours, and a bound
+  // invite to one use; say so before it happens rather than letting the
+  // numbers the admin typed come back changed.
+  const adminCapped = selectedRole ? roleGrantsAdmin(selectedRole) : false;
+  const forcesSingleUse = adminCapped || bound.length > 0;
+  // Blank means unlimited; anything typed must be a whole number from 1 up,
+  // or the hub would mint a code that is dead on arrival.
+  const notPositive = (v: string) => v.trim() !== "" && !(Number.isInteger(Number(v)) && Number(v) >= 1);
+  const badNumbers = (!forcesSingleUse && notPositive(inviteMaxUses)) || (!adminCapped && notPositive(inviteExpiry));
   // The hub's own rule (routes/invites.rs::create_invite). Mirrored here so a
   // typo is caught beside the field rather than as a 400 after the click.
   const boundLooksWrong = bound.length > 0 && !/^[0-9a-f]{64}$/i.test(bound);
@@ -103,7 +109,7 @@ export function InviteManager(props: Props) {
   function handleCreate() {
     props.onCreateInvite(
       forcesSingleUse ? 1 : (inviteMaxUses ? Number(inviteMaxUses) : null),
-      forcesSingleUse ? ADMIN_GRANT_DEFAULT_EXPIRY_SECS : (inviteExpiry ? Number(inviteExpiry) : null),
+      adminCapped ? ADMIN_GRANT_DEFAULT_EXPIRY_SECS : (inviteExpiry ? Number(inviteExpiry) : null),
       grantRoleId || null,
       bound || null,
     );
@@ -163,6 +169,8 @@ export function InviteManager(props: Props) {
         <div className="settings-row">
           <input
             type="number"
+            min={1}
+            step={1}
             placeholder={t("invites.create.max_uses_placeholder")}
             value={forcesSingleUse ? "1" : inviteMaxUses}
             disabled={forcesSingleUse}
@@ -171,9 +179,11 @@ export function InviteManager(props: Props) {
           />
           <input
             type="number"
+            min={1}
+            step={1}
             placeholder={t("admin.invite.expires_placeholder")}
-            value={forcesSingleUse ? String(ADMIN_GRANT_DEFAULT_EXPIRY_SECS) : inviteExpiry}
-            disabled={forcesSingleUse}
+            value={adminCapped ? String(ADMIN_GRANT_DEFAULT_EXPIRY_SECS) : inviteExpiry}
+            disabled={adminCapped}
             onChange={(e) => setInviteExpiry(e.target.value)}
             style={{ width: 220 }}
           />
@@ -187,10 +197,11 @@ export function InviteManager(props: Props) {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <button className="btn-primary" onClick={handleCreate} disabled={boundLooksWrong}>
+          <button className="btn-primary" onClick={handleCreate} disabled={boundLooksWrong || badNumbers}>
             {t("invites.create.submit")}
           </button>
         </div>
+        {badNumbers && <p className="error-text">{t("invites.create.positive_hint")}</p>}
         {props.supportsBoundInvites && (
           <div className="settings-section">
             <label className="settings-label" htmlFor="invite-bound-pubkey">
@@ -210,7 +221,7 @@ export function InviteManager(props: Props) {
             {boundLooksWrong && <p className="error-text">{t("invites.create.bound_invalid")}</p>}
           </div>
         )}
-        {forcesSingleUse && (
+        {adminCapped && (
           <p className="muted">{t("invites.create.admin_grant_hint")}</p>
         )}
       </SettingRow>

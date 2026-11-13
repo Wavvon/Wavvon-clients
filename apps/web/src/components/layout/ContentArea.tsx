@@ -1,6 +1,7 @@
-import { memberActivity } from "@wavvon/ui";
+import { liveScreenShares, memberActivity } from "@wavvon/ui";
 import { useMemo, useState } from "react";
 import { useConnectionStats } from "../../hooks/useConnectionStats";
+import { useFriendKeys } from "../../hooks/useFriendKeys";
 import type {
   Channel,
   Message,
@@ -194,6 +195,7 @@ interface Props {
 
 export function ContentArea(props: Props) {
   const [showPinsModal, setShowPinsModal] = useState(false);
+  const friendKeys = useFriendKeys(props.channelMessages.selectedChannel?.id);
   const {
     channelMessages, dms, alliances, hubLifecycle, hubConnection, voice, screenShare,
     notifyPrefs, channelCrud, typing,
@@ -206,6 +208,7 @@ export function ContentArea(props: Props) {
   const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
   const stickerActions = useStickers({
     hub: hubLifecycle.hubs.find((h) => h.hub_id === hubLifecycle.activeHubId),
+    joinedHubs: hubLifecycle.hubs,
     supported: activeHubSupports("stickers"),
     canManagePacks: hasPerm("stickers.packs.manage"),
     canUseExternal: hasPerm("stickers.external"),
@@ -258,6 +261,7 @@ export function ContentArea(props: Props) {
         selectedChannel={selectedChannel}
         voiceStage={selectedChannel ? {
           participants: voice.voicePartByChannel[selectedChannel.id] ?? [],
+          friends: friendKeys,
           speaking: voice.voiceActiveUsers,
           avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
           inThisRoom: voice.voiceChannelId === selectedChannel.id,
@@ -265,6 +269,15 @@ export function ContentArea(props: Props) {
           publicKey,
           floor: voice.floor && voice.voiceChannelId === selectedChannel.id && activeHubSupports("voice.hands")
             ? { ...voice.floor, canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
+            : undefined,
+          room: voice.voiceChannelId === selectedChannel.id
+            ? {
+                zone: voice.roomZone,
+                canManage: isAdmin || myRoles.some((r) => r.permissions.includes("channels.manage")),
+                onEnable: voice.enableRoomMap,
+                onDisable: voice.disableRoomMap,
+                onMove: voice.moveInRoom,
+              }
             : undefined,
           live: {
             streams: screenShare.liveStreams.filter((s) => s.channel_id === selectedChannel.id),
@@ -336,6 +349,10 @@ export function ContentArea(props: Props) {
         onDeleteMessage={channelMessages.handleDeleteMessage}
         onSend={channelMessages.handleSend}
         onSendDm={dms.handleSendDm}
+        dmKeyChangedPeer={dms.keyChangedPeer}
+        onAcceptDmKeyChange={dms.handleAcceptKeyChange}
+        onDmAddPeople={(keys) => void dms.handleAddPeople(keys, publicKey)}
+        onDmLeaveGroup={() => void dms.handleLeaveGroup()}
         onSendAllianceMessage={() => void channelMessages.handleSendAllianceMessage()}
         onPingTyping={typing.pingTyping}
         onPingDmTyping={typing.pingDmTyping}
@@ -363,6 +380,7 @@ export function ContentArea(props: Props) {
         activeScreenShares={screenShare.activeScreenShares}
         screenShareViewerRef={screenShare.screenShareViewerRef}
         onOpenHubStreams={screenShare.handleOpenHubStreams}
+        liveShareCount={liveScreenShares(screenShare.hubStreams).length}
         onStartConversation={dms.handleStartConversation}
         dmPeerNames={dms.peerNames}
         alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}

@@ -535,12 +535,13 @@ pub(crate) async fn survey_admin_responses(
 ) -> Result<Vec<SurveyResponseAdminTs>, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
     let base = hub_url.trim_end_matches('/');
-    crate::admin::get_all_pages(
+    crate::paging::walk_pages(
         &state.http_client,
-        &format!("{base}/admin/survey/responses"),
         &token,
+        &format!("{base}/admin/survey/responses"),
         &[("status", status)],
-        |r: &SurveyResponseAdminTs| r.response_id.clone(),
+        |r: &SurveyResponseAdminTs| Some(r.response_id.clone()),
+        "survey_admin_responses",
     )
     .await
 }

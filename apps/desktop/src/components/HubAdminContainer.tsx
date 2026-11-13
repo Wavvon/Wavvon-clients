@@ -12,6 +12,7 @@ import { buildRecoveryActions } from "../utils/recoveryActions";
 import type { Hub, RoleInfo } from "../types";
 import {
   rolesActions,
+  rolesActionsWithOrder,
   memberRoleActions,
   serverTagsActions,
   inviteActions,
@@ -28,6 +29,7 @@ import {
 } from "../hooks/hubAdminActions";
 import { stickerPacksActions, stickerStorageActions, stickerSettingsActions } from "../hooks/stickerActions";
 import { attachmentSettingsActions } from "../hooks/attachmentActions";
+import { widgetActions } from "../hooks/widgetActions";
 
 type PassthroughProps = Omit<
   HubAdminPageProps,
@@ -91,7 +93,7 @@ export function HubAdminContainer({
     <HubAdminPage
       {...rest}
       isAdmin={isAdmin}
-      renderModerationTab={() => <ModerationTab />}
+      renderModerationTab={() => <ModerationTab lockdown={hubCaps.includes("hub.lockdown")} />}
       renderRecoveryContacts={() => (
         <RecoveryContactsSection
           isAdmin={isAdmin}
@@ -110,8 +112,9 @@ export function HubAdminContainer({
       canManageSoundboard={canManageSoundboard}
       stickersAdmin={stickersAdmin}
       attachmentSettingsActions={hubCaps.includes("attachments.stored") && can("hub.settings") ? attachmentSettingsActions : undefined}
+      widgetActions={hubCaps.includes("hub.widget") && can("hub.settings") ? widgetActions : undefined}
       canManageHubAlliances={canManageHubAlliances}
-      rolesActions={rolesActions}
+      rolesActions={hubCaps.includes("roles.order") ? rolesActionsWithOrder : rolesActions}
       memberRoleActions={memberRoleActions}
       serverTagsActions={serverTagsActions}
       inviteActions={inviteActions}

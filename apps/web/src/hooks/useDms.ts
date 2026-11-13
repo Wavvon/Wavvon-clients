@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getDmMessages, sendDm, createConversation, getConversation, HubApiError } from "@platform";
+import { getDmMessages, sendDm, createConversation, getConversation, HubApiError, acceptDhKey, dmPeerKeyChanged, DhKeyChangedError, rotateGroupSenderKey, addGroupMembers, leaveGroup } from "@platform";
 import { readFileAsB64, type EncryptionWarning } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import { loadDmPeerNames, rememberDmPeerName } from "../utils/dmPeerNames";
@@ -52,13 +52,34 @@ export function useDms({
   const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [encryptionWarning, setEncryptionWarning] = useState<EncryptionWarning | null>(null);
+  // The peer of the open conversation whose DH key changed since we pinned
+  // it; sending is refused until the user accepts the new key.
+  const [keyChangedPeer, setKeyChangedPeer] = useState<string | null>(null);
   const selectedConvRef = useRef<Conversation | null>(null);
   useEffect(() => {
     selectedConvRef.current = selectedConversation;
   }, [selectedConversation]);
 
+  async function checkPeerKey(conv: Conversation) {
+    setKeyChangedPeer(null);
+    const peer = await dmPeerKeyChanged(conv);
+    if (peer && selectedConvRef.current?.id === conv.id) setKeyChangedPeer(peer);
+  }
+
+  async function handleAcceptKeyChange() {
+    if (!keyChangedPeer) return;
+    try {
+      await acceptDhKey(keyChangedPeer);
+      setKeyChangedPeer(null);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
   async function handleSelectConversation(conv: Conversation) {
     setSelectedConversation(conv);
+    selectedConvRef.current = conv;
+    void checkPeerKey(conv);
     onConversationSelected();
     setUnreadDms((prev) => { const n = { ...prev }; delete n[conv.id]; return n; });
     if (!dmMessages[conv.id]) {
@@ -83,6 +104,42 @@ export function useDms({
         ? prev.map((c) => c.id === conv.id ? conv : c)
         : [conv, ...prev]);
       await handleSelectConversation(conv);
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
+  /** In a group, adds the people. In a 1:1, which the hub never grows, starts
+   *  a new group with the peer and them. */
+  async function handleAddPeople(pubkeys: string[], me: string | null) {
+    const conv = selectedConversation;
+    if (!conv || pubkeys.length === 0) return;
+    try {
+      if (conv.conv_type === "group") {
+        await addGroupMembers(conv.id, pubkeys);
+        const updated = await getConversation(conv.id);
+        setConversations((prev) => prev.map((c) => (c.id === conv.id ? updated : c)));
+        setSelectedConversation(updated);
+        // Our own key, now for the new members too; the hub's member event
+        // may not reach the device that made the change.
+        await rotateGroupSenderKey(updated);
+      } else {
+        const group = await createConversation([...conv.members.filter((m) => m !== me), ...pubkeys]);
+        setConversations((prev) => [group, ...prev.filter((c) => c.id !== group.id)]);
+        await handleSelectConversation(group);
+      }
+    } catch (e) {
+      showHubError(e instanceof HubApiError ? e.message : String(e));
+    }
+  }
+
+  async function handleLeaveGroup() {
+    const conv = selectedConversation;
+    if (!conv) return;
+    try {
+      await leaveGroup(conv.id);
+      setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+      setSelectedConversation(null);
     } catch (e) {
       showHubError(e instanceof HubApiError ? e.message : String(e));
     }
@@ -132,6 +189,10 @@ export function useDms({
       // was typed where the user left it.
       if ((await sendDm(convId, text, attachments, { confirmUnencrypted })) === "cancelled") return;
     } catch (e) {
+      if (e instanceof DhKeyChangedError) {
+        setKeyChangedPeer(e.pubkey);
+        return;
+      }
       showHubError(e instanceof HubApiError ? e.message : String(e));
       return;
     }
@@ -167,6 +228,11 @@ export function useDms({
     if (!m.conversation_id) return;
     const convId = m.conversation_id;
     getConversation(convId).then((updated) => {
+      // A removed member must not read what we send next, and an added one
+      // needs our key at all (e2e-encryption.md "Key rotation").
+      if (updated.conv_type === "group") {
+        rotateGroupSenderKey(updated).catch((e) => console.warn("[dm] sender key rotation failed:", e));
+      }
       // Upsert: a brand-new conversation (someone just started a DM with us)
       // arrives via this event too — the hub announces creation since
       // 2026-07-26 — so prepend it when it's not in the list yet.
@@ -188,7 +254,11 @@ export function useDms({
     selectedConvRef,
     encryptionWarning,
     handleSelectConversation,
+    keyChangedPeer,
+    handleAcceptKeyChange,
     handleStartConversation,
+    handleAddPeople,
+    handleLeaveGroup,
     peerNames,
     handleSendDm,
     attachFiles,

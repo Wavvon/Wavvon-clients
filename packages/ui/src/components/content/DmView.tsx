@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DmMessage, Attachment, User, Conversation } from "../../types";
 import { formatPubkey, meAction, colorForKey, formatFullTimestamp, formatRelative } from "@wavvon/core";
@@ -7,6 +7,8 @@ import { MessageContent } from "../MessageContent";
 import { TypingIndicator } from "../TypingIndicator";
 import { dmPeerLabel } from "../../utils/dmPeerLabel";
 import { PaperclipIcon, LockIcon } from "../Icons";
+import { useConfirm } from "../ConfirmDialog";
+import { DmAddPeopleModal } from "./DmAddPeopleModal";
 
 interface TypingEntry { name: string; ts: number }
 
@@ -31,6 +33,14 @@ interface Props {
   onPingDmTyping: () => void;
   onSendDm: () => void;
   onOpenImage: (src: string, alt: string) => void;
+  /** The peer whose encryption key changed since it was first seen; sending
+   *  stays off until the user accepts the new key. */
+  keyChangedPeer?: string | null;
+  onAcceptKeyChange?: () => void;
+  /** Bring hub members in: a new group from a 1:1, more members in a group. */
+  onAddPeople?: (pubkeys: string[]) => void;
+  /** Leave a group conversation. The hub lets a member remove only themselves. */
+  onLeaveGroup?: () => void;
 }
 
 export function DmView({
@@ -52,8 +62,26 @@ export function DmView({
   onPingDmTyping,
   onSendDm,
   onOpenImage,
+  keyChangedPeer,
+  onAcceptKeyChange,
+  onAddPeople,
+  onLeaveGroup,
 }: Props) {
   const { t } = useTranslation();
+  const { confirm, dialog } = useConfirm();
+  const [addingPeople, setAddingPeople] = useState(false);
+  const isGroup = selectedConversation.conv_type === "group";
+
+  async function handleLeave() {
+    if (!onLeaveGroup) return;
+    const ok = await confirm({
+      title: t("dm.leave_group.title"),
+      body: t("dm.leave_group.body"),
+      confirmLabel: t("dm.leave_group.confirm"),
+      danger: true,
+    });
+    if (ok) onLeaveGroup();
+  }
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposing = useRef(false);
 
@@ -66,17 +94,39 @@ export function DmView({
   return (
     <>
       <div className="channel-header">
-        <h3>
+        <h3 className="dm-view-title">
           @{" "}
           {selectedConversation.members
             .filter((m) => m !== publicKey)
             .map((k) => dmPeerLabel(k, users, peerNames))
             .join(", ")}
         </h3>
+        {onAddPeople && (
+          <button className="btn-small btn-secondary" onClick={() => setAddingPeople(true)}>
+            {t("dm.add_people.open")}
+          </button>
+        )}
+        {isGroup && onLeaveGroup && (
+          <button className="btn-small btn-secondary danger" onClick={() => void handleLeave()}>
+            {t("dm.leave_group.open")}
+          </button>
+        )}
       </div>
-      {selectedConversation.conv_type === "group" && (
-        <div className="dm-group-banner">
-          {t("dm.group_banner")}
+      {addingPeople && onAddPeople && (
+        <DmAddPeopleModal
+          users={users}
+          exclude={[...selectedConversation.members, ...(publicKey ? [publicKey] : [])]}
+          onConfirm={(keys) => { setAddingPeople(false); onAddPeople(keys); }}
+          onCancel={() => setAddingPeople(false)}
+        />
+      )}
+      {dialog}
+      {keyChangedPeer && (
+        <div className="dm-group-banner error-text" role="alert">
+          <p>{t("dm.key_changed.body", { name: dmPeerLabel(keyChangedPeer, users, peerNames) })}</p>
+          {onAcceptKeyChange && (
+            <button className="btn-danger btn-small" onClick={onAcceptKeyChange}>{t("dm.key_changed.accept")}</button>
+          )}
         </div>
       )}
       <div className="messages">
@@ -182,7 +232,7 @@ export function DmView({
           }}
           placeholder={t("composer.dm_placeholder")}
         />
-        <button onClick={onSendDm}>{t("composer.send")}</button>
+        <button onClick={onSendDm} disabled={!!keyChangedPeer}>{t("composer.send")}</button>
       </div>
     </>
   );

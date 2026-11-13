@@ -1,3 +1,4 @@
+import { noteAppJoin } from "@wavvon/core";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useConnectionStats } from "../hooks/useConnectionStats";
@@ -186,6 +187,10 @@ interface Props {
   onDeleteMessage: (messageId: string) => void;
   onSend: () => void;
   onSendDm: () => void;
+  dmKeyChangedPeer?: string | null;
+  onAcceptDmKeyChange?: () => void;
+  onDmAddPeople?: (pubkeys: string[]) => void;
+  onDmLeaveGroup?: () => void;
   onSendAllianceMessage: () => void;
   onPingTyping: () => void;
   onPingDmTyping: () => void;
@@ -210,6 +215,7 @@ interface Props {
   onError: (msg: string) => void;
   slashCommands?: SlashCommandEntry[];
   onOpenHubStreams: () => void;
+  liveShareCount?: number;
   voicePartByChannel: Record<string, VoiceParticipant[]>;
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
@@ -243,6 +249,7 @@ export function ContentArea(props: Props) {
     pinMessage: (channelId, messageId) => invoke("pin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
     unpinMessage: (channelId, messageId) => invoke("unpin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
     sendAppJoin: (appId, channelId) => {
+      noteAppJoin(appId);
       invoke("send_hub_ws_raw", {
         payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
       }).catch(() => {});

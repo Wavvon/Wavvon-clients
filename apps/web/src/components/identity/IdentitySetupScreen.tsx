@@ -18,17 +18,18 @@ import {
   listAccounts,
 } from "@identity/index";
 import type { IdentityRecord, PairingOffer } from "@identity/index";
-import { ProfileSetupStep } from "@components/onboarding/ProfileSetupStep";
-import { encryptBackup, suggestBackupFilename } from "@wavvon/core";
-import { inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
-import { MULTI_HUB, USER_CLIENT_URL } from "../../constants";
+import { ProfileEditorSection } from "@wavvon/ui";
+import { profileEditorActions } from "../../utils/profileEditorActions";
+import { decryptBackup, encryptBackup, suggestBackupFilename } from "@wavvon/core";
+import { deviceFingerprint, inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
+import { DESKTOP_DOWNLOAD_URL, MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
 import { markIdentityBackedUp } from "../../utils/identityBackup";
 import { passphraseStrength, OnboardingFrame, type InvitingHub } from "@wavvon/ui";
+import { onboardingSteps, type SetupStep } from "./onboardingSteps";
 
 export interface IdentitySetupCompletion {
   accountId: string;
-  profile?: { display_name: string; avatar: string | null };
 }
 
 interface Props {
@@ -51,23 +52,33 @@ function userClientJoinUrl(): string {
   return `${USER_CLIENT_URL}/join?${params.toString()}`;
 }
 
+/** The same place for the desktop app: this hub and the invite code, as a
+ *  wavvon:// link (`/hub/<slug>/join/<code>` becomes `/hub/<slug>/<code>`).
+ *  Public data only, like the link above. */
+function desktopDeepLink(): string {
+  return `wavvon://${window.location.host}${window.location.pathname.replace("/join/", "/")}`;
+}
+
 // Identity creation/recovery/pairing flow. Used both for a device's first
 // account (variant="initial", full-page) and for adding another account to a
 // device that already has one (variant="add", typically shown in an overlay
 // by AccountsSwitcherSection).
 export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel }: Props) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<"choose" | "generated" | "recover" | "pair" | "profile" | "label">("choose");
+  const [step, setStep] = useState<SetupStep>("choose");
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
   const [generatedAccountId, setGeneratedAccountId] = useState("");
   const [showHexBackup, setShowHexBackup] = useState(false);
   const [phrase, setPhrase] = useState("");
   const [hexInput, setHexInput] = useState("");
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePassphrase, setRestorePassphrase] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pairCode, setPairCode] = useState("");
   const [pairLabel, setPairLabel] = useState("");
   const [pairStatus, setPairStatus] = useState<"idle" | "claiming" | "waiting">("idle");
+  const [pairFingerprint, setPairFingerprint] = useState("");
   const [pendingAccount, setPendingAccount] = useState<IdentityRecord | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
   const [existingAccountCount, setExistingAccountCount] = useState(0);
@@ -78,6 +89,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   const [backupError, setBackupError] = useState<string | null>(null);
   const [backupDone, setBackupDone] = useState(false);
   const [invitedToHub, setInvitedToHub] = useState<string | null>(null);
+  const [skippedPhrase, setSkippedPhrase] = useState(false);
   const [invitingHub, setInvitingHub] = useState<InvitingHub | null>(null);
 
   // Someone arriving on an invite link is here because of a place, not
@@ -117,9 +129,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     listAccounts().then((accts) => setExistingAccountCount(accts.length));
   }, []);
 
-  // Invite path: choose, phrase, profile, join. Without one: choose, phrase, profile.
-  const totalSteps = invitingHub || invitedToHub ? 4 : 3;
-  const stepOf = { choose: 1, generated: 2, recover: 2, pair: 2, label: 2, profile: 3 } as const;
+  const { total: totalSteps, stepOf } = onboardingSteps(!!(invitingHub || invitedToHub), step, skippedPhrase);
   const frame = (children: React.ReactNode) => (
     <OnboardingFrame hub={invitingHub} step={variant === "add" ? undefined : stepOf[step]} total={totalSteps}>
       {children}
@@ -163,7 +173,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       return;
     }
     setPendingAccount(account);
-    setLabelDraft(suggestedLabel());
+    setLabelDraft(account.account_label || suggestedLabel());
     setStep("label");
   }
 
@@ -224,6 +234,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         setPairStatus("idle");
         return;
       }
+      setPairFingerprint(deviceFingerprint(subkeyPubkey));
       setPairStatus("waiting");
 
       const started = Date.now();
@@ -299,6 +310,7 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     const { account } = await resolveOrCreateAccount(seedHex);
     const labelled = { ...account, account_label: suggestedLabel() };
     await saveIdentity(labelled);
+    setSkippedPhrase(true);
     finishWithAccount(labelled.id, false);
   }
 
@@ -360,6 +372,21 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       const { account, isNew } = await resolveOrCreateAccount(hex);
       proceedAfterResolve(account, isNew);
     } catch (e) { setError(String(e)); }
+  }
+
+  async function doRecoverFile() {
+    if (!restoreFile) return;
+    setError(null);
+    try {
+      const backup = await decryptBackup(await restoreFile.text(), restorePassphrase);
+      const { account, isNew } = await resolveOrCreateAccount(backup.secret_key_hex, { account_label: backup.label });
+      proceedAfterResolve(account, isNew);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(t(message === "unsupported_backup_format"
+        ? "settings.account.identity_backup.error_unsupported"
+        : "settings.account.identity_backup.error_decrypt"));
+    }
   }
 
   async function doRecoverHex() {
@@ -496,10 +523,23 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
   if (step === "profile") {
     return (
       frame(
-        <ProfileSetupStep
-          onSave={(display_name, avatar) => onComplete({ accountId: generatedAccountId, profile: { display_name, avatar } })}
-          onSkip={() => onComplete({ accountId: generatedAccountId })}
-        />,
+        <>
+          <h2>{t("onboarding.profile.title")}</h2>
+          <p className="onboarding-lede">{t("onboarding.profile.hint")}</p>
+          {/* The full card, saved straight into this account's default profile,
+              which the first hub joined copies. */}
+          <ProfileEditorSection
+            hubs={[]}
+            account={{ id: generatedAccountId }}
+            isActive={false}
+            publicKey={null}
+            actions={profileEditorActions}
+            onboarding={{
+              onSaved: () => onComplete({ accountId: generatedAccountId }),
+              onSkip: () => onComplete({ accountId: generatedAccountId }),
+            }}
+          />
+        </>,
       )
     );
   }
@@ -513,7 +553,11 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         <button onClick={doRecoverPhrase} style={{ marginBottom: 16 }}>{t("identity_setup.recover.from_phrase")}</button>
         <label className="onboarding-field-label">{t("identity_setup.recover.hex_label")}</label>
         <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder={t("identity_setup.recover.hex_placeholder")} style={{ width: "100%", fontFamily: "monospace", marginBottom: 8 }} />
-        <button onClick={doRecoverHex} style={{ marginBottom: 8 }}>{t("identity_setup.recover.from_hex")}</button>
+        <button onClick={doRecoverHex} style={{ marginBottom: 16 }}>{t("identity_setup.recover.from_hex")}</button>
+        <label className="onboarding-field-label">{t("identity_setup.recover.file_label")}</label>
+        <input type="file" accept=".wavvon-backup,application/json" onChange={(e) => setRestoreFile(e.target.files?.[0] ?? null)} style={{ width: "100%", marginBottom: 8 }} />
+        <input type="password" value={restorePassphrase} onChange={(e) => setRestorePassphrase(e.target.value)} placeholder={t("settings.account.full_archive.passphrase")} aria-label={t("settings.account.full_archive.passphrase")} style={{ width: "100%", marginBottom: 8 }} />
+        <button onClick={doRecoverFile} disabled={!restoreFile} style={{ marginBottom: 8 }}>{t("identity_setup.recover.from_file")}</button>
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
         <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); }}>{t("modal.back")}</button>
@@ -554,6 +598,11 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
             {t("identity_setup.pair.waiting_hint")}
           </p>
         )}
+        {pairStatus === "waiting" && pairFingerprint && (
+          <p style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
+            {t("settings.pairing.own_fingerprint", { fingerprint: pairFingerprint })}
+          </p>
+        )}
         {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
         <br />
         <button className="btn-ghost" onClick={() => { setStep("choose"); setError(null); setPairStatus("idle"); }}>{t("modal.back")}</button>
@@ -566,7 +615,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
       <h1>
         {variant === "add"
           ? t("identity_setup.add.title")
-          : invitedToHub
+          // The frame's side panel already names an inviting hub it could preview.
+          : invitedToHub && !invitingHub
             ? t("identity_setup.choose.invited_to", { name: invitedToHub })
             : t("identity_setup.choose.headline")}
       </h1>
@@ -607,6 +657,20 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
           {t("identity_setup.choose.use_user_client_hint")}{" "}
           <a href={userClientJoinUrl()} style={{ color: "var(--accent)" }}>
             {t("identity_setup.choose.use_user_client_link")}
+          </a>
+        </p>
+      )}
+      {/* A page cannot tell whether the app is installed, so the open link
+          always comes with the download link. */}
+      {!MULTI_HUB && variant === "initial" && (
+        <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 8 }}>
+          {t("identity_setup.choose.desktop_hint")}{" "}
+          <a href={desktopDeepLink()} style={{ color: "var(--accent)" }}>
+            {t("identity_setup.choose.desktop_open")}
+          </a>
+          {" · "}
+          <a href={DESKTOP_DOWNLOAD_URL} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+            {t("identity_setup.choose.desktop_get")}
           </a>
         </p>
       )}

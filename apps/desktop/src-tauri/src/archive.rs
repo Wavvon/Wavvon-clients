@@ -280,7 +280,7 @@ pub(crate) async fn export_full_archive(
         .to_string();
 
     // A paired account's own file takes precedence, as everywhere else.
-    let (mut identity, master_pubkey, blob_key) = match crate::pairing::get_paired_identity() {
+    let (mut identity, master_pubkey, blob_key) = match crate::pairing::load_paired_identity() {
         Some(p) => {
             let mut id = json!({
                 "seed_hex": p.subkey_secret_hex,

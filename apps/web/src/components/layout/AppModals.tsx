@@ -28,7 +28,7 @@ import {
 } from "@platform";
 import { passkeysUsableWith, activeHubSupports } from "@platform";
 import { allianceActions } from "../../platform/adminActions";
-import { DISCOVERY_URL, MULTI_HUB } from "../../constants";
+import { DESKTOP_DOWNLOAD_URL, DISCOVERY_URL, MULTI_HUB } from "../../constants";
 import { HubAdminContainer } from "../admin/HubAdminContainer";
 import type { AppModalsProps } from "./appModalsProps";
 import { IdentityBackupPrompt } from "@components/identity/IdentityBackupPrompt";
@@ -73,7 +73,6 @@ export function AppModals(p: AppModalsProps) {
     editDescValue,
     effectiveNotifyMode,
     eventComposerChannelId,
-    fingerprintMatch,
     handleAddHub,
     handleAddHubWithPasskey,
     handleCreateChannel,
@@ -106,7 +105,6 @@ export function AppModals(p: AppModalsProps) {
     setEditDescChannel,
     setEditDescValue,
     setEventComposerChannelId,
-    setFingerprintMatch,
     setHubPreview,
     setPollComposerChannelId,
     setRenameRoomCtx,
@@ -156,7 +154,6 @@ export function AppModals(p: AppModalsProps) {
           hubPreview={hubPreview}
           loading={addingHub}
           error={addHubError}
-          fingerprintMatch={fingerprintMatch}
           onAdd={() => void handleAddHub()}
           onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
           passkeySupported={passkeysUsableWith(hubUrl)}
@@ -164,7 +161,6 @@ export function AppModals(p: AppModalsProps) {
             setShowAddHub(false);
             setHubPreview({ state: "idle" });
             setAddHubError(null);
-            setFingerprintMatch(false);
           }}
           onBrowse={DISCOVERY_URL ? () => { setShowAddHub(false); setShowDiscover(true); } : undefined}
         />
@@ -211,6 +207,7 @@ export function AppModals(p: AppModalsProps) {
         <ChannelSettingsModal
           channel={channelSettingsCtx}
           voiceChannels={activeHubSupports("channels.voice")}
+          slowmode={activeHubSupports("channels.slowmode")}
           createParentId={createChannelCtx?.parentId ?? null}
           createParentName={createChannelCtx?.parentId ? (channels.find((c) => c.id === createChannelCtx.parentId)?.name ?? null) : null}
           createInitialIsCategory={createChannelCtx?.isCategory}
@@ -260,6 +257,11 @@ export function AppModals(p: AppModalsProps) {
             });
           }}
           onClose={() => setChannelCtxMenu(null)}
+          onOpenInDesktop={(channel) => {
+            const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
+            if (hubUrl) window.location.href = `wavvon://${hubUrl.replace(/^https?:\/\//, "")}/channel/${channel.id}`;
+          }}
+          onGetDesktop={() => window.open(DESKTOP_DOWNLOAD_URL, "_blank", "noopener")}
           onCopyLink={async (channel) => {
             const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
             if (!hubUrl) return;

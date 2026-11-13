@@ -32,6 +32,8 @@ export interface HubTopBarProps {
   hubNotifyMode: Record<string, NotifyMode>;
   lobbyHubIds?: Set<string>;
   onSwitchToDms: () => void;
+  /** Leaves the DM view for the active hub's channels, keeping the selected channel. */
+  onBackToChannels: () => void;
   onSwitchHub: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
   onSetHubNotifyMode?: (hubId: string, mode: NotifyMode) => void;
@@ -196,6 +198,25 @@ export function HubTopBar(p: HubTopBarProps) {
         <Count count={p.unreadDmCount} mention={false} />
       </button>
 
+      {/* The hub build has no tabs, so its one hub gets a plain tab: without
+          it nothing leads back from the DM view. No drag, no context menu —
+          removing the hub that serves this client makes no sense. */}
+      {!p.multiHub && activeHub && (
+        <div className="hub-tabs" role="tablist" aria-label={t("hubs.tabs")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={onChannels}
+            className={`hub-tab${onChannels ? " active" : ""}`}
+            title={activeHub.hub_name}
+            onClick={p.onBackToChannels}
+          >
+            <Avatar src={activeHub.hub_icon} name={activeHub.hub_name} pubkey={activeHub.hub_id} size={24} />
+            <span className="hub-tab-name">{activeHub.hub_name}</span>
+          </button>
+        </div>
+      )}
+
       {p.multiHub && (
         <>
           <button type="button" className="top-bar-hubs" aria-haspopup="dialog" onClick={() => setDrawer(true)}>
@@ -217,7 +238,7 @@ export function HubTopBar(p: HubTopBarProps) {
       <button type="button" className="top-bar-search" onClick={p.onOpenSearch} aria-keyshortcuts="Control+K">
         <SearchIcon size={14} />
         <span>{t("hubs.search")}</span>
-        <kbd>Ctrl K</kbd>
+        <kbd className="hint-fine">Ctrl K</kbd>
       </button>
       <UserMenu {...p.userMenu} />
 

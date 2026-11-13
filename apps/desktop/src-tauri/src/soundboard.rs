@@ -25,17 +25,13 @@ pub(crate) async fn soundboard_list_clips(
     state: State<'_, AppState>,
 ) -> Result<Vec<SoundboardClipInfo>, String> {
     let (hub_url, token) = crate::state::active_session(&state)?;
-    let resp = state
-        .http_client
-        .get(format!("{hub_url}/soundboard"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        state
+            .http_client
+            .get(format!("{hub_url}/soundboard"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 /// Fetches a clip's raw audio bytes as base64 -- used only by the admin
@@ -73,18 +69,14 @@ pub(crate) async fn soundboard_upload_clip(
         .map_err(|e| e.to_string())?;
     form = form.part("audio", part);
 
-    let resp = state
-        .http_client
-        .post(format!("{hub_url}/soundboard"))
-        .bearer_auth(&token)
-        .multipart(form)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        state
+            .http_client
+            .post(format!("{hub_url}/soundboard"))
+            .bearer_auth(&token)
+            .multipart(form),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -93,31 +85,25 @@ pub(crate) async fn soundboard_delete_clip(
     clip_id: String,
 ) -> Result<(), String> {
     let (hub_url, token) = crate::state::active_session(&state)?;
-    let resp = state
-        .http_client
-        .delete(format!("{hub_url}/soundboard/{clip_id}"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .delete(format!("{hub_url}/soundboard/{clip_id}"))
+            .bearer_auth(&token),
+    )
+    .await?;
     Ok(())
 }
 
 async fn fetch_clip_bytes(state: &State<'_, AppState>, clip_id: &str) -> Result<Vec<u8>, String> {
     let (hub_url, token) = crate::state::active_session(state)?;
-    let resp = state
-        .http_client
-        .get(format!("{hub_url}/soundboard/{clip_id}/audio"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .get(format!("{hub_url}/soundboard/{clip_id}/audio"))
+            .bearer_auth(&token),
+    )
+    .await?;
     let bytes = resp.bytes().await.map_err(|e| format!("Read error: {e}"))?;
     Ok(bytes.to_vec())
 }

@@ -94,7 +94,11 @@ export class BackgroundProcessor {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (globalThis as any).SelfieSegmentation;
       const seg = new SelfieSegmentation({
-        locateFile: (file: string) => `/mediapipe/${file}`,
+        // Under the app's base path: the nightly is served from a subpath.
+        // The cast because this package carries no vite/client types; the
+        // expression is still the literal Vite replaces at build time.
+        locateFile: (file: string) =>
+          `${(import.meta as unknown as { env: { BASE_URL: string } }).env.BASE_URL}mediapipe/${file}`,
       });
       seg.setOptions({ modelSelection: 1 });
       seg.onResults((results: { segmentationMask: CanvasImageSource }) => {

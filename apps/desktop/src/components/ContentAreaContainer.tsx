@@ -1,9 +1,10 @@
 import { memberActivity } from "@wavvon/ui";
 import type { AllianceScrollback } from "@wavvon/ui";
-import { HubStreamsPanel, typingForScope } from "@wavvon/ui";
+import { HubStreamsPanel, liveScreenShares, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import { useStickers } from "../hooks/useStickers";
+import { useFriendKeys } from "../hooks/useFriendKeys";
 import { saveDraft } from "../utils/drafts";
 import type { Channel, User, RoleInfo } from "../types";
 import type { useVoice } from "../hooks/useVoice";
@@ -73,9 +74,11 @@ export function ContentAreaContainer({
   const { activeHubId } = hubLifecycle;
   const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
   const { selectedChannel } = channelMessages;
+  const friendKeys = useFriendKeys(selectedChannel?.id);
   const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
   const stickerActions = useStickers({
     hub: hubLifecycle.hubs.find((h) => h.hub_id === activeHubId),
+    joinedHubs: hubLifecycle.hubs,
     supported: caps.includes("stickers"),
     canManagePacks: hasPerm("stickers.packs.manage"),
     canUseExternal: hasPerm("stickers.external"),
@@ -92,6 +95,7 @@ export function ContentAreaContainer({
         selectedChannel={selectedChannel}
         voiceStage={selectedChannel ? {
           participants: voice.voicePartByChannel[selectedChannel.id] ?? [],
+          friends: friendKeys,
           speaking: voice.speakingPubkeys,
           avatars: new Map(users.map((u) => [u.public_key, u.avatar])),
           inThisRoom: voice.voiceChannelId === selectedChannel.id,
@@ -102,6 +106,15 @@ export function ContentAreaContainer({
                 ...voice.floor,
                 onLower: () => { if (publicKey) voice.floor?.onDismiss(publicKey); },
                 canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")),
+              }
+            : undefined,
+          room: voice.voiceChannelId === selectedChannel.id
+            ? {
+                zone: voice.roomZone,
+                canManage: hasPerm("channels.manage"),
+                onEnable: voice.enableRoomMap,
+                onDisable: voice.disableRoomMap,
+                onMove: voice.moveInRoom,
               }
             : undefined,
           live: {
@@ -161,6 +174,10 @@ export function ContentAreaContainer({
         onDeleteMessage={channelMessages.handleDeleteMessage}
         onSend={channelMessages.handleSend}
         onSendDm={dms.handleSendDm}
+        dmKeyChangedPeer={dms.keyChangedPeer}
+        onAcceptDmKeyChange={dms.handleAcceptKeyChange}
+        onDmAddPeople={(keys) => void dms.handleAddPeople(keys)}
+        onDmLeaveGroup={() => void dms.handleLeaveGroup()}
         onSendAllianceMessage={channelMessages.handleSendAllianceMessage}
         onPingTyping={typing.pingTyping}
         onPingDmTyping={typing.pingDmTyping}
@@ -194,6 +211,7 @@ export function ContentAreaContainer({
         onToast={setToast}
         onError={setError}
         onOpenHubStreams={() => setShowHubStreams(true)}
+        liveShareCount={liveScreenShares(voice.hubStreams).length}
         voicePartByChannel={voice.voicePartByChannel}
         canMoveMembers={canMoveMembers}
         onMoveMember={handleMoveMember}

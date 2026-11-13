@@ -88,6 +88,27 @@ export function dhKeySigningBytes(pubkey: string, dhPubkeyHex: string): Uint8Arr
   return concat(prefix, writeStr(pubkey), writeStr(dhPubkeyHex));
 }
 
+/** Whether `pubkey` itself signed this DH key record. The hub stores the
+ *  record and is not trusted with it: an unverified key is one the hub could
+ *  have swapped for its own, reading and altering every DM and voice key
+ *  wrapped to it. */
+export function verifyDhKeyRecord(pubkey: string, dhPubkeyHex: string, signatureHex: string): boolean {
+  try {
+    return ed25519.verify(hexToBytes(signatureHex), dhKeySigningBytes(pubkey, dhPubkeyHex), hexToBytes(pubkey));
+  } catch {
+    return false;
+  }
+}
+
+/** Trust on first use for a peer's DH key. The key is derived from the
+ *  peer's identity seed, so for one pubkey it never changes legitimately: a
+ *  different, validly signed key means that identity key signed something
+ *  new, and the user is asked before anything is encrypted to it. */
+export function dhPinVerdict(pinned: string | undefined, fetched: string): "new" | "same" | "changed" {
+  if (pinned === undefined) return "new";
+  return pinned === fetched ? "same" : "changed";
+}
+
 // Signing bytes for a 1:1 encrypted DM envelope.
 // Matches dm_envelope_signing_bytes() in wavvon-identity/src/wire.rs.
 export function dmEnvelopeSigningBytes(
@@ -497,6 +518,168 @@ export function verifyDmEnvelopeSigner(env: DmEnvelope | DrEnvelope): boolean {
       return ed25519.verify(sigBytes, sigMsg, hexToBytes(env.sender_pubkey));
     }
     if (!verifySubkeyCert(env.signer_cert)) return false;
+    return ed25519.verify(sigBytes, sigMsg, hexToBytes(env.signer_cert.subkey_pubkey));
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Group DMs: sender-key symmetric ratchet (e2e-encryption.md "Group DMs — v2").
+// Mirrors the desktop shell's dm.rs byte-for-byte.
+// ---------------------------------------------------------------------------
+
+function u32be(n: number): Uint8Array {
+  const buf = new Uint8Array(4);
+  new DataView(buf.buffer).setUint32(0, n, false);
+  return buf;
+}
+
+const GROUP_MSG_INFO = new TextEncoder().encode("wavvon/group-msg/v1");
+const GROUP_CHAIN_INFO = new TextEncoder().encode("wavvon/group-chain/v1");
+const GROUP_KEY_DIST_INFO = new TextEncoder().encode("wavvon/group-key-dist/v1");
+
+/** The message key for `iteration` under the chain key of that iteration. */
+export function groupMessageKey(chainKey: Uint8Array, iteration: number): Uint8Array {
+  return hkdf(sha256, chainKey, u32be(iteration), GROUP_MSG_INFO, 32);
+}
+
+/** The chain key for `iteration + 1`. */
+export function groupNextChainKey(chainKey: Uint8Array, iteration: number): Uint8Array {
+  return hkdf(sha256, chainKey, u32be(iteration), GROUP_CHAIN_INFO, 32);
+}
+
+/** The nonce is the iteration, big-endian in the last four of twelve bytes. */
+export function groupNonce(iteration: number): Uint8Array {
+  const nonce = new Uint8Array(12);
+  nonce.set(u32be(iteration), 8);
+  return nonce;
+}
+
+export function groupEnvelopeSigningBytes(
+  convId: string,
+  version: number,
+  iteration: number,
+  ciphertextHex: string,
+  nonceHex: string,
+): Uint8Array {
+  return concat(
+    new TextEncoder().encode("wavvon/group-dm-ciphertext/v1\0"),
+    writeStr(convId),
+    writeStr(String(version)),
+    writeStr(String(iteration)),
+    writeStr(ciphertextHex),
+    writeStr(nonceHex),
+  );
+}
+
+/** `recipients` are `[recipient_pubkey, wrapped_key_hex]`, in any order: the
+ *  bytes sort them by pubkey. */
+export function senderKeyDistSigningBytes(
+  convId: string,
+  version: number,
+  recipients: [string, string][],
+): Uint8Array {
+  const sorted = [...recipients].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return concat(
+    new TextEncoder().encode("wavvon/group-key-dist/v1\0"),
+    writeStr(convId),
+    writeStr(String(version)),
+    ...sorted.flatMap(([pubkey, wrapped]) => [writeStr(pubkey), writeStr(wrapped)]),
+  );
+}
+
+/** Encrypt one message at `iteration`; the caller stores `nextChainKey` and
+ *  `iteration + 1` before anything else uses the chain. */
+export function encryptGroupMessage(
+  chainKey: Uint8Array,
+  iteration: number,
+  plaintext: DmPlaintext,
+): { ciphertextHex: string; nonceHex: string; nextChainKey: Uint8Array } {
+  const nonce = groupNonce(iteration);
+  const ciphertext = gcm(groupMessageKey(chainKey, iteration), nonce).encrypt(encodeDmPlaintext(plaintext));
+  return {
+    ciphertextHex: bytesToHex(ciphertext),
+    nonceHex: bytesToHex(nonce),
+    nextChainKey: groupNextChainKey(chainKey, iteration),
+  };
+}
+
+/** Decrypt a message at `iteration` from a peer chain key held at
+ *  `heldIteration`. The held key is not advanced, so history decrypts in any
+ *  order; a message from before `heldIteration` is unreadable by design. */
+export function decryptGroupMessage(
+  chainKey: Uint8Array,
+  heldIteration: number,
+  iteration: number,
+  ciphertextHex: string,
+  nonceHex: string,
+): DmPlaintext {
+  if (iteration < heldIteration) throw new Error("chain_advanced_past_message");
+  let ck = chainKey;
+  for (let i = heldIteration; i < iteration; i++) ck = groupNextChainKey(ck, i);
+  const plaintext = gcm(groupMessageKey(ck, iteration), hexToBytes(nonceHex)).decrypt(hexToBytes(ciphertextHex));
+  return decodeDmPlaintext(plaintext);
+}
+
+function groupWrapKey(myDhPriv: Uint8Array, peerDhPub: Uint8Array, convId: string): Uint8Array {
+  const shared = x25519.scalarMult(myDhPriv, peerDhPub);
+  return hkdf(sha256, shared, new TextEncoder().encode(convId), GROUP_KEY_DIST_INFO, 32);
+}
+
+/** A sender's chain key and iteration, wrapped for one member under their
+ *  published DH key. */
+export function wrapGroupChainKey(
+  myDhPriv: Uint8Array,
+  recipientDhPub: Uint8Array,
+  convId: string,
+  chainKey: Uint8Array,
+  iteration: number,
+  nonce: Uint8Array = crypto.getRandomValues(new Uint8Array(12)),
+): { wrappedHex: string; nonceHex: string } {
+  const wrapped = gcm(groupWrapKey(myDhPriv, recipientDhPub, convId), nonce).encrypt(concat(chainKey, u32be(iteration)));
+  return { wrappedHex: bytesToHex(wrapped), nonceHex: bytesToHex(nonce) };
+}
+
+export function unwrapGroupChainKey(
+  myDhPriv: Uint8Array,
+  senderDhPub: Uint8Array,
+  convId: string,
+  wrappedHex: string,
+  nonceHex: string,
+): { chainKey: Uint8Array; iteration: number } {
+  const plain = gcm(groupWrapKey(myDhPriv, senderDhPub, convId), hexToBytes(nonceHex)).decrypt(hexToBytes(wrappedHex));
+  if (plain.length < 36) throw new Error("bad wrapped chain key");
+  return {
+    chainKey: plain.slice(0, 32),
+    iteration: new DataView(plain.buffer, plain.byteOffset + 32, 4).getUint32(0, false),
+  };
+}
+
+/** What the hub stores for a group message (`group_encrypted_envelope`). */
+export interface GroupEnvelope {
+  sender_pubkey: string;
+  conv_id: string;
+  sender_key_version: number;
+  iteration: number;
+  ciphertext_hex: string;
+  nonce_hex: string;
+  signature_hex: string;
+  /** See DmEnvelope.signer_cert: present only when a paired device signs. */
+  signer_cert?: SubkeyCert;
+}
+
+/** The group envelope's signature, by its sender or through a cert the
+ *  sender issued. Like verifyDmEnvelopeSigner, the caller binds
+ *  `sender_pubkey` to the member the hub names. */
+export function verifyGroupEnvelopeSigner(env: GroupEnvelope): boolean {
+  try {
+    const sigMsg = groupEnvelopeSigningBytes(
+      env.conv_id, env.sender_key_version, env.iteration, env.ciphertext_hex, env.nonce_hex,
+    );
+    const sigBytes = hexToBytes(env.signature_hex);
+    if (!env.signer_cert) return ed25519.verify(sigBytes, sigMsg, hexToBytes(env.sender_pubkey));
+    if (env.signer_cert.master_pubkey !== env.sender_pubkey || !verifySubkeyCert(env.signer_cert)) return false;
     return ed25519.verify(sigBytes, sigMsg, hexToBytes(env.signer_cert.subkey_pubkey));
   } catch {
     return false;

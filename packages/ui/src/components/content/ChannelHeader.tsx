@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { channelPath } from "@wavvon/core";
 import type { Channel } from "@wavvon/core";
 import type { Message } from "../../types";
-import { PinIcon, SearchIcon, MembersIcon, ScreenShareIcon } from "../Icons";
+import { PinIcon, SearchIcon, MembersIcon, ScreenShareIcon, ChannelIcon } from "../Icons";
 
 interface Props {
   selectedChannel: Channel;
@@ -25,6 +25,8 @@ interface Props {
   /** Renders the "live screen shares" header button when the caller has
    * somewhere to send it — omit to hide the button entirely. */
   onOpenHubStreams?: () => void;
+  /** Screen shares live on the hub; shown on the icon when above zero. */
+  liveShareCount?: number;
   onBreadcrumbCategoryClick: (categoryId: string) => void;
 }
 
@@ -44,6 +46,7 @@ export function ChannelHeader({
   onToggleMemberSidebar,
   onOpenEditDescription,
   onOpenHubStreams,
+  liveShareCount = 0,
   onBreadcrumbCategoryClick,
 }: Props) {
   const { t } = useTranslation();
@@ -67,11 +70,12 @@ export function ChannelHeader({
                   <span className="channel-breadcrumb-sep" aria-hidden="true">›</span>
                 </React.Fragment>
               ))}
-              <span className="channel-breadcrumb-item current"># {selectedChannel.name}</span>
+              <span className="channel-breadcrumb-item current"><ChannelIcon icon={selectedChannel.icon ?? null} customIconSvg={selectedChannel.custom_icon_svg ?? null} channelType={selectedChannel.channel_type} /> {selectedChannel.name}</span>
             </nav>
           )}
           <h3>
-            # {selectedChannel.name}
+            {/* The sidebar's icon for this channel's type, not a "#" for every kind. */}
+            <ChannelIcon icon={selectedChannel.icon ?? null} customIconSvg={selectedChannel.custom_icon_svg ?? null} channelType={selectedChannel.channel_type} /> {selectedChannel.name}
             {selectedChannel.nsfw && (
               <span className="channel-temp-badge" style={{ marginLeft: 8 }} title={t("channel.sidebar.nsfw_badge")}>NSFW</span>
             )}
@@ -100,9 +104,14 @@ export function ChannelHeader({
             onClick={onOpenHubStreams}
             className="btn-icon-header"
             title={t("content.streams.title")}
-            aria-label={t("content.streams.title")}
+            aria-label={
+              liveShareCount > 0
+                ? t("content.streams.title_live", { count: liveShareCount })
+                : t("content.streams.title")
+            }
           >
             <ScreenShareIcon />
+            {liveShareCount > 0 && <span className="hub-unread-pill">{liveShareCount}</span>}
           </button>
         )}
         <button

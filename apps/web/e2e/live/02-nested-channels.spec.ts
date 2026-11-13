@@ -94,5 +94,5 @@ test("deep nesting: breadcrumbs, drill-in, and permalink", async ({ page }) => {
   await expect(addHub).toBeVisible();
   await addHub.getByRole("textbox").fill(link);
   await expect(addHub).not.toBeVisible({ timeout: 10000 });
-  await expect(page.getByRole("heading", { name: `# ${leaf}` })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole("heading", { name: leaf, exact: true })).toBeVisible({ timeout: 10000 });
 });

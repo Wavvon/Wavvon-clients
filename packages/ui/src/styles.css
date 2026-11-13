@@ -202,7 +202,9 @@ body {
   font-size: var(--text-md);
   background-color: var(--bg);
   color: var(--text);
+  /* dvh: on phones 100vh includes the area under the browser toolbar. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -247,6 +249,7 @@ button:disabled {
 
 #root {
   height: 100vh;
+  height: 100dvh;
 }
 
 .app {
@@ -666,6 +669,8 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
   align-items: center;
   justify-content: center;
 }
+
+.settings-close-x svg { width: 13px; height: 13px; flex-shrink: 0; }
 
 .settings-close-x:hover {
   background: var(--surface);
@@ -1238,6 +1243,42 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
 body:has(.update-banner) #root {
   box-sizing: border-box;
   padding-top: 49px;
+}
+
+/* Pre-release channel notice (web ChannelBanner). Same layout trick as the
+   update banner below: fixed on top, the app root yields its height. */
+body:has(.channel-banner) #root {
+  box-sizing: border-box;
+  padding-top: 32px;
+}
+
+.channel-banner {
+  box-sizing: border-box;
+  height: 32px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1001;
+  padding: 0 var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: var(--text-sm);
+}
+
+.channel-banner span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.channel-banner a {
+  color: inherit;
+  text-decoration: underline;
+  margin-left: var(--space-1);
 }
 
 .update-banner {
@@ -2647,6 +2688,8 @@ tr.account-drop-target td {
 .voice-room-controls {
   margin-left: auto;
 }
+.voice-media-bar .voice-media-bar-narrow { display: none; }
+
 .voice-media-bar {
   display: flex;
   gap: var(--space-1);
@@ -5407,6 +5450,10 @@ select:focus-visible {
 .checkbox-label input {
   width: auto;
   margin: 0;
+  /* The generic input padding made a checkbox 31px tall, except while it
+     had focus, so blurring one reflowed the form under the pointer and a
+     click on the next button could land on something else. */
+  padding: 0;
 }
 
 /* ============================================================
@@ -5513,6 +5560,8 @@ select:focus-visible {
 /* ============================================================
    RIGHT-SIDE USER LIST
    ============================================================ */
+.user-list-close { display: none; }
+
 .user-list-sidebar {
   width: 220px;
   background: var(--bg-elevated);
@@ -6285,6 +6334,27 @@ select:focus-visible {
   background: var(--surface);
   border-radius: var(--r-sm);
   padding: var(--space-2) var(--space-3);
+}
+
+/* DM header: the names take the free space, the actions sit on the right. */
+.dm-view-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.dm-add-people-list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.dm-add-people-list label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
 }
 
 /* E2E DM encryption UI */
@@ -8088,8 +8158,10 @@ a.embed-title:hover {
    `div` — no rhythm, and with the global `* { margin: 0 }` reset the
    hint ran into the heading above it.
    ============================================================ */
+/* A fixed height, not min-height: the body does not scroll, so a screen
+   taller than the viewport has to scroll inside its own box. */
 .onboarding {
-  min-height: 100vh;
+  height: 100%;
   display: grid;
   place-items: center;
   padding: var(--space-6);
@@ -8150,8 +8222,10 @@ a.embed-title:hover {
   margin-bottom: var(--space-3);
 }
 @media (max-width: 767px) {
+  /* Stacked in a grid of fixed height, the rows shrank and the side panel
+     overflowed upward, out of scroll reach. */
   .onboarding--split {
-    grid-template-columns: 1fr;
+    display: block;
   }
   .onboarding-side {
     min-height: 0;
@@ -8871,6 +8945,45 @@ details.audit-entry > .audit-entry:last-child {
   .mobile-shell-desktop { display: none !important; }
   .mobile-shell-mobile { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow: hidden; }
   .mobile-shell-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .mobile-shell-panel[hidden] { display: none; }
+  .voice-media-bar .voice-media-bar-narrow { display: inline-flex; }
+  /* In a panel the top bar is a header; its desktop flex-basis of 100% made
+     it fill the whole column with its buttons floating in the middle. */
+  .mobile-shell-panel .top-bar { flex: 0 0 auto; }
+  /* The sidebar's resizable desktop width is set inline. */
+  .mobile-shell-panel .sidebar { width: 100% !important; flex: 1; border-right: none; }
+  .mobile-shell-panel .sidebar-resize-handle { display: none; }
+  /* A sheet over the chat instead of a column stacked under it. */
+  .user-list-sidebar {
+    position: fixed; top: 44px; right: 0; bottom: 0; z-index: 200;
+    width: min(300px, 85vw);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+  }
+  .user-list-close { display: inline-flex; float: right; }
+  .top-bar .user-menu-panel { max-height: calc(100dvh - 60px); }
+  .composer-send { padding: 0 var(--space-3); }
+  /* Settings and hub admin: the 240 px nav column left the content about
+     170 px, so titles broke a word per line. The nav becomes a scrolling
+     tab strip above full-width content. !important beats the inline styles
+     SettingsShell sets for its narrower desktop nav. */
+  .settings-page { flex-direction: column; }
+  .settings-nav {
+    width: 100% !important; flex-direction: row !important; align-items: center; flex-shrink: 0;
+    overflow-x: auto; overflow-y: hidden;
+    padding: var(--space-2) !important; border-right: none !important; border-bottom: 1px solid var(--border);
+  }
+  .settings-nav h2, .settings-nav > p, .settings-nav-group { display: none; }
+  .settings-nav ul { display: flex; gap: var(--space-1); }
+  .settings-nav-item { width: auto; white-space: nowrap; }
+  .settings-nav-close { display: none; }
+  .settings-content { padding: var(--space-4) !important; }
+  .settings-close-x { top: var(--space-3); right: var(--space-3); }
+  /* Title keeps a readable width; a wide control drops to its own line. */
+  .setting-row-head { flex-wrap: wrap; padding: var(--space-3) var(--space-4); }
+  .setting-row-id { flex: 1 1 12rem; }
+  .setting-row-control select { min-width: 0; max-width: 100%; }
+  .modal { min-width: 0; max-width: calc(100vw - 2 * var(--space-2)); }
+  .theme-cards { grid-template-columns: 1fr; }
   .mobile-shell-header {
     display: flex;
     align-items: center;
@@ -8907,4 +9020,56 @@ details.audit-entry > .audit-entry:last-child {
     color: var(--text);
     font-weight: 600;
   }
+}
+
+/* Wording for the primary pointer: keyboard shortcuts, double-click and drag
+   mean nothing on a touch screen, so those hints swap for touch ones there. */
+.hint-coarse { display: none; }
+@media (pointer: coarse) {
+  .hint-fine { display: none !important; }
+  .hint-coarse { display: revert; }
+}
+
+/* Voice room map (proximity voice): click to stand, voices fade with distance. */
+.voice-room-map-wrap {
+  margin-top: var(--space-3);
+  max-width: 360px;
+}
+
+.voice-room-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
+}
+
+.voice-room-map {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+  cursor: crosshair;
+}
+
+.voice-room-map:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.voice-room-map-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+.voice-room-map-dot.is-me {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.voice-room-map-off {
+  margin-top: var(--space-3);
 }

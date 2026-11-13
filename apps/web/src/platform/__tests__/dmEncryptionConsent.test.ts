@@ -3,11 +3,17 @@ import { ed25519 } from "@noble/curves/ed25519";
 import {
   bytesToHex,
   decryptDmDr,
+  dhKeySigningBytes,
   dhKeypairFromSeed,
   federatedPlaintextDmSigningBytes,
+  federatedPlaintextDmV2SigningBytes,
   hexToBytes,
   publicKeyHex,
+  decryptGroupMessage,
+  unwrapGroupChainKey,
+  verifyGroupEnvelopeSigner,
   type DrEnvelope,
+  type GroupEnvelope,
 } from "@wavvon/core";
 
 // The one path where a wrong answer is not a bug but a disclosure: sendDm
@@ -63,7 +69,16 @@ function dhKeyResponse(status: number, hex?: string) {
   return async (url: string) => {
     if (String(url).includes("/dh-key")) {
       return hex
-        ? new Response(JSON.stringify({ dh_pubkey_hex: hex, signature_hex: "00" }), { status: 200 })
+        ? new Response(
+            JSON.stringify({
+              dh_pubkey_hex: hex,
+              // Signed by the recipient, as a real record is; the client refuses any other.
+              signature_hex: bytesToHex(
+                ed25519.sign(dhKeySigningBytes(RECIPIENT_PUB, hex), hexToBytes(RECIPIENT_SEED)),
+              ),
+            }),
+            { status: 200 },
+          )
         : new Response("nope", { status });
     }
     throw new Error(`unexpected fetch ${url}`);
@@ -143,6 +158,27 @@ describe("sendDm and the recipient's encryption key", () => {
     expect(posted.plaintext_signer_cert).toEqual(cert);
   });
 
+  it("signs v2 with its own id, time and the members where the hub takes it", async () => {
+    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(404)));
+    capabilities = ["dms.plaintext.v2"];
+
+    await sendDm("c1", "secret", undefined, { confirmUnencrypted: async () => true });
+
+    const [posted] = postedBodies();
+    expect(posted.message_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(typeof posted.created_at).toBe("number");
+    // Members in another order sign the same bytes: the set is what counts.
+    const sb = federatedPlaintextDmV2SigningBytes(
+      "c1",
+      "dm",
+      "secret",
+      posted.message_id as string,
+      posted.created_at as number,
+      [RECIPIENT_PUB, SENDER_PUB],
+    );
+    expect(ed25519.verify(hexToBytes(posted.plaintext_signature as string), sb, hexToBytes(SENDER_PUB))).toBe(true);
+  });
+
   it("sends nothing when the user declines", async () => {
     vi.stubGlobal("fetch", vi.fn(dhKeyResponse(404)));
 
@@ -197,24 +233,39 @@ describe("sendDm and attachments", () => {
 });
 
 describe("sendDm and group conversations", () => {
-  it("refuses a group rather than encrypting to one arbitrary member", async () => {
-    // The read path already says "upgrade client to read" for a group; the
-    // send path had no equivalent, and would have picked whichever member
-    // came first — one reader, everyone else locked out, reported as sent.
-    dmFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+  it("sends one sender-key envelope a member can open, never the plaintext", async () => {
+    // Never the 1:1 path: it would encrypt to whichever member came first.
+    const recipientDh = dhKeypairFromSeed(RECIPIENT_SEED);
+    dmFetch.mockImplementation(async (_path: string, init?: RequestInit) => {
       if (init?.method === "POST") return new Response(JSON.stringify({ id: "m1" }), { status: 201 });
+      if (init?.method === "PUT") return new Response("{}", { status: 200 });
       return new Response(
-        JSON.stringify({
-          id: "c1",
-          members: [SENDER_PUB, RECIPIENT_PUB, "cc".repeat(32)],
-          conv_type: "group",
-        }),
+        JSON.stringify({ id: "c1", members: [SENDER_PUB, RECIPIENT_PUB, "cc".repeat(32)], conv_type: "group" }),
         { status: 200 },
       );
     });
-    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(200, "aa".repeat(32))));
+    // Only the recipient's record verifies: the third member gets no key.
+    vi.stubGlobal("fetch", vi.fn(dhKeyResponse(200, bytesToHex(recipientDh.dhPub))));
 
-    await expect(sendDm("c1", "hello group")).rejects.toThrow();
-    expect(postedBodies()).toHaveLength(0);
+    expect(await sendDm("c1", "hello group")).toBe("sent");
+
+    const [body] = postedBodies();
+    expect(body.content).toBeUndefined();
+    const env = body.group_encrypted_envelope as GroupEnvelope;
+    expect(verifyGroupEnvelopeSigner(env)).toBe(true);
+
+    const put = dmFetch.mock.calls.find(([, init]) => init?.method === "PUT")!;
+    const dist = JSON.parse(put[1].body as string) as {
+      recipients: { recipient_pubkey: string; wrapped_key_hex: string; wrap_nonce_hex: string }[];
+    };
+    expect(dist.recipients.map((r) => r.recipient_pubkey)).toEqual([RECIPIENT_PUB]);
+    const { chainKey, iteration } = unwrapGroupChainKey(
+      recipientDh.dhPriv,
+      dhKeypairFromSeed(SENDER_SEED).dhPub,
+      "c1",
+      dist.recipients[0].wrapped_key_hex,
+      dist.recipients[0].wrap_nonce_hex,
+    );
+    expect(decryptGroupMessage(chainKey, iteration, env.iteration, env.ciphertext_hex, env.nonce_hex).content).toBe("hello group");
   });
 });

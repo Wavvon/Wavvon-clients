@@ -3,13 +3,16 @@ import type { RefObject } from "react";
 import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
 import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
-import { playVoiceTone } from "@wavvon/core";
+import { playVoiceTone, formatPubkey } from "@wavvon/core";
+import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
+import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
 import { getScoped, setScoped } from "../utils/accountScope";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadIdentity } from "../identity/store";
 import { resolveDmSendAttribution } from "../platform/commands/dms";
 import { VoiceWtSession, type AudioProfileConfig } from "../platform/voice";
+import { voiceErrorMessage, VOICE_JOIN_TIMEOUT } from "../platform/voiceErrors";
 import type { HubWebSocket } from "../platform/ws";
 import {
   mintAllianceVoiceGrant,
@@ -114,6 +117,15 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     catch { return {}; }
   });
   const [voicePartByChannel, setVoicePartByChannel] = useState<Record<string, VoiceParticipant[]>>({});
+  // onVoiceState runs from a frozen handler registry, so it reads the roster
+  // through a ref to name whoever just left.
+  const voicePartByChannelRef = useRef(voicePartByChannel);
+  voicePartByChannelRef.current = voicePartByChannel;
+  const { announcement: voicePoliteAnnouncement, announce: announceVoice } = useBatchedAnnouncement();
+  // The room map: the first voice zone in the room we are in, as the UI draws
+  // it. VoiceWtSession keeps its own copy for the attenuation.
+  const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
+  useEffect(() => { if (!voiceChannelId) setRoomZone(null); }, [voiceChannelId]);
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
@@ -359,7 +371,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       setTimeout(() => {
         if (pendingVoiceJoinRef.current) {
           pendingVoiceJoinRef.current = null;
-          reject(new Error("Voice join timed out"));
+          reject(new Error(VOICE_JOIN_TIMEOUT));
         }
       }, VOICE_JOIN_TIMEOUT_MS);
     });
@@ -375,6 +387,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // module-level functions. Never read non-ref state/props here.
   async function handleVoiceJoin(targetChannelId: string) {
     if (voiceChannelIdRef.current === targetChannelId) return;
+    if (!voiceTransportAvailable()) { showHubError(i18n.t("voice.error.unsupported_browser")); return; }
     if (joiningVoiceRef.current === targetChannelId) return;
     joiningVoiceRef.current = targetChannelId;
     teardownCurrentVoice();
@@ -387,7 +400,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
         try { return activeSession().ws; } catch { return null; }
       });
     } catch (e) {
-      showHubError("Voice: " + String(e));
+      showHubError(voiceErrorMessage(e));
     } finally {
       if (joiningVoiceRef.current === targetChannelId) joiningVoiceRef.current = null;
     }
@@ -407,6 +420,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     confirmJoin: (ownerHubUrl: string, channelName: string) => boolean | Promise<boolean>,
   ) {
     if (voiceChannelIdRef.current === channelId) return;
+    if (!voiceTransportAvailable()) { showHubError(i18n.t("voice.error.unsupported_browser")); return; }
     try {
       const minted = await mintAllianceVoiceGrant(allianceId, channelId);
       if (!(await confirmJoin(minted.owner_hub_url, minted.channel_name))) return;
@@ -435,10 +449,10 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     } catch (e) {
       closeVoiceVisit();
       if (e instanceof OwnerHubUnsupportedError) {
-        showHubError("Voice: that hub does not support voice in alliance channels yet");
+        showHubError(i18n.t("voice.error.alliance_unsupported"));
         return;
       }
-      showHubError("Voice: " + (e instanceof HubApiError ? e.message : String(e)));
+      showHubError(voiceErrorMessage(e));
     }
   }
 
@@ -566,6 +580,10 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       const leftKey = m.public_key;
       if (channelId === voiceChannelIdRef.current) {
         voiceSessionRef.current?.handleParticipantLeft(leftKey);
+        if (leftKey !== publicKeyRef.current) {
+          const left = voicePartByChannelRef.current[channelId]?.find((p) => p.public_key === leftKey);
+          announceVoice(i18n.t("voice.announce.left", { name: left?.display_name || formatPubkey(leftKey) }));
+        }
       }
       setVoicePartByChannel((prev) => {
         const existing = prev[channelId];
@@ -586,6 +604,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     } else if (m.type === "voice_participant_joined") {
       if (!m.participant) return;
       const joined = m.participant;
+      if (channelId === voiceChannelIdRef.current && joined.public_key !== publicKeyRef.current) {
+        announceVoice(i18n.t("voice.announce.joined", { name: joined.display_name || formatPubkey(joined.public_key) }));
+      }
       setVoicePartByChannel((prev) => {
         const existing = prev[channelId] ?? [];
         if (existing.some((p) => p.public_key === joined.public_key)) return prev;
@@ -611,6 +632,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const m = raw as { channel_id?: string; zones?: VoiceZone[] };
     if (!m.channel_id || !m.zones) return;
     voiceSessionRef.current?.handleZoneState(m.channel_id, m.zones);
+    // Only sent on our own voice join, so it is the room we are in.
+    const z = m.zones[0];
+    setRoomZone(z ? { zoneId: z.zone_id, positions: { ...z.positions } } : null);
   }
 
   function onVoiceZoneCreated(raw: unknown) {
@@ -622,18 +646,49 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       coordinate_system: m.coordinate_system,
       attenuation: m.attenuation,
     });
+    const zoneId = m.zone_id;
+    setRoomZone((cur) => cur ?? { zoneId, positions: {} });
   }
 
   function onVoiceZoneDestroyed(raw: unknown) {
     const m = raw as { zone_id?: string };
     if (!m.zone_id) return;
     voiceSessionRef.current?.handleZoneDestroyed(m.zone_id);
+    setRoomZone((cur) => (cur?.zoneId === m.zone_id ? null : cur));
   }
 
+  // The hub names the member `pubkey` here (WsServerMessage::VoicePositionUpdated);
+  // reading `public_key` meant no position from anyone ever reached the mix.
   function onVoicePositionUpdated(raw: unknown) {
-    const m = raw as { zone_id?: string; public_key?: string; position?: number[] };
-    if (!m.zone_id || !m.public_key || !m.position) return;
-    voiceSessionRef.current?.handlePositionUpdated(m.zone_id, m.public_key, m.position);
+    const m = raw as { zone_id?: string; pubkey?: string; position?: number[] };
+    if (!m.zone_id || !m.pubkey || !m.position) return;
+    const { zone_id: zoneId, pubkey, position } = m;
+    voiceSessionRef.current?.handlePositionUpdated(zoneId, pubkey, position);
+    setRoomZone((cur) => (cur?.zoneId === zoneId ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
+  }
+
+  // The hub checks channels.manage for both; this only asks.
+  function enableRoomMap() {
+    voiceWs()?.send({
+      type: "voice_zone_create",
+      zone_id: crypto.randomUUID(),
+      name: "room",
+      coordinate_system: "2d",
+      attenuation: { model: "linear", max_radius: ROOM_MAP_RADIUS },
+      auth_mode: "any_channel_member",
+    });
+  }
+
+  function disableRoomMap() {
+    if (roomZone) voiceWs()?.send({ type: "voice_zone_destroy", zone_id: roomZone.zoneId });
+  }
+
+  function moveInRoom(position: [number, number]) {
+    const me = publicKeyRef.current;
+    if (!roomZone || !me) return;
+    voiceWs()?.send({ type: "voice_position_update", zone_id: roomZone.zoneId, position });
+    voiceSessionRef.current?.setMyPosition(roomZone.zoneId, position);
+    setRoomZone({ ...roomZone, positions: { ...roomZone.positions, [me]: position } });
   }
 
   // voice-transport-v2.md "E2E key distribution" — a peer's offer for us.
@@ -666,6 +721,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
 
   return {
     voiceChannelId,
+    isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,
     selfDeafened,
@@ -675,6 +731,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     handleSetVoiceGain,
     voicePartByChannel,
     setVoicePartByChannel,
+    voicePoliteAnnouncement,
+    roomZone,
+    enableRoomMap,
+    disableRoomMap,
+    moveInRoom,
     voiceActiveUsers,
     myVoicePerms,
     soundboardPlayingClipId,
@@ -692,4 +753,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     onVoiceKeyReceived,
     onVoiceKeyRequest,
   };
+}
+
+/** Voice rides WebTransport, which Safari and iOS have only from 26.4. Checked
+ *  before voice_join so an older browser gets a sentence instead of a worker
+ *  that dies on a missing constructor. */
+export function voiceTransportAvailable(): boolean {
+  return typeof (globalThis as { WebTransport?: unknown }).WebTransport === "function";
 }

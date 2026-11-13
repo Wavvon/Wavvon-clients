@@ -8,13 +8,17 @@ import {
 import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection, SettingsModal } from "@wavvon/ui";
 import type { RecoveryContactsSectionActions } from "@wavvon/ui";
 import {
-  rolesActions, memberRoleActions, serverTagsActions, inviteActions,
+  rolesActions, rolesActionsWithOrder, memberRoleActions, serverTagsActions, inviteActions,
   webhookActions, auditLogActions,
   certActions, soundboardActions, onboardingActions, allianceActions,
   hubIconActions, surveyActions, applicationActions,
   stickerPacksActions, stickerStorageActions, stickerSettingsActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
+import { getWidget, putWidget } from "@platform";
+
+// Module-level: the section reloads whenever its actions object changes.
+const widgetActions = { getWidget, putWidget };
 import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../platform/commands/recoveryPeople";
 import { outgoingWebhookActions } from "./outgoingWebhookActions";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
@@ -135,7 +139,7 @@ export function HubAdminContainer({
           hubAdmin.removeInvite(code);
         }}
         channels={channels}
-        rolesActions={rolesActions}
+        rolesActions={activeHubSupports("roles.order") ? rolesActionsWithOrder : rolesActions}
         memberRoleActions={memberRoleActions}
         serverTagsActions={serverTagsActions}
         inviteActions={inviteActions}
@@ -147,6 +151,7 @@ export function HubAdminContainer({
         attachmentSettingsActions={activeHubSupports("attachments.stored") && canDo("hub.settings")
           ? { getSettings: getAttachmentSettings, saveSettings: saveAttachmentSettings }
           : undefined}
+        widgetActions={activeHubSupports("hub.widget") && canDo("hub.settings") ? widgetActions : undefined}
         onboardingActions={onboardingActions}
         allianceActions={allianceActions}
         hubIconActions={hubIconActions}

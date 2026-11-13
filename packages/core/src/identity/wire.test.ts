@@ -17,7 +17,10 @@ import {
   recoveryRequestSigningBytes,
   recoveryAttestationSigningBytes,
   federatedPlaintextDmSigningBytes,
+  dmMemberChangeSigningBytes,
+  federatedPlaintextDmV2SigningBytes,
   authChallengeSigningBytes,
+  boundAuthChallengeSigningBytes,
   signRecoveryRequest,
   signRecoveryAttestation,
   type PairingComplete,
@@ -197,9 +200,33 @@ describe("recovery-attestation wire vectors", () => {
     expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
   });
 
+  it("boundAuthChallengeSigningBytes matches the server vector and signature", () => {
+    const v = vector("bound_auth_challenge");
+    const sb = boundAuthChallengeSigningBytes(v.str("server_pubkey"), hexToBytes(v.str("challenge")));
+    expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
+    expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
+  });
+
+  it("federatedPlaintextDmV2SigningBytes matches the server vector and signature", () => {
+    const v = vector("federated_plaintext_dm_v2");
+    const args = [v.str("conversation_id"), v.str("kind"), v.str("content"), v.str("message_id"), v.num("created_at")] as const;
+    const sb = federatedPlaintextDmV2SigningBytes(...args, v.strs("members"));
+    expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
+    expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
+    // The member set, not its order.
+    expect(bytesToHex(federatedPlaintextDmV2SigningBytes(...args, [...v.strs("members")].reverse()))).toBe(v.out("signing_bytes"));
+  });
+
   it("federatedPlaintextDmSigningBytes matches the server vector and signature", () => {
     const v = vector("federated_plaintext_dm");
     const sb = federatedPlaintextDmSigningBytes(v.str("conversation_id"), v.str("kind"), v.str("content"));
+    expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
+    expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
+  });
+
+  it("dmMemberChangeSigningBytes matches the server vector and signature", () => {
+    const v = vector("dm_member_change");
+    const sb = dmMemberChangeSigningBytes(v.str("conversation_id"), v.str("actor"), v.strs("added"), v.strs("removed"), v.num("timestamp"));
     expect(bytesToHex(sb)).toBe(v.out("signing_bytes"));
     expect(signHex(sb, v.str("signer_seed"))).toBe(v.out("signature"));
   });

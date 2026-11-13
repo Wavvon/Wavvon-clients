@@ -17,13 +17,16 @@ const PLATFORM_BOUND = new Set([
   // Windows/macOS picture-in-picture is an OS surface the browser has no
   // equivalent for.
   "onOpenOsPipWindow", "onCloseOsPipWindow", "onListenOsPipClose",
-  "onOsPipChunk", "onOsPipStop",
+  "onOsPipChunk", "onOsPipStop", "onOsPipRestoreCursor",
   // The user build is a web artefact: adding a hub, its invite field and the
   // passkey path all exist on the page a hub serves, not in the Tauri shell.
   "onAddWithPasskey", "onInviteCodeChange",
   // Desktop types a hub address before it has one; the web build is served by
   // the hub it is about to talk to.
   "onCheckHubUrl",
+  // "Open in the desktop app" and its download entry make no sense inside
+  // the desktop app itself.
+  "onOpenInDesktop", "onGetDesktop",
   // Mobile shell only; no desktop or web caller.
   "onBack",
   // The unread total drives the OS tray badge (set_tray_unread). A browser

@@ -177,6 +177,8 @@ interface Props {
   inboundWhispers?: Set<string>;
   /** Pubkeys speaking right now, as the hub broadcasts it (yours included). */
   speaking?: Set<string>;
+  /** Pubkeys with their camera on, for the icon beside their name. */
+  cameraOn?: Set<string>;
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
   /** Whisper (events.md whisper follow-up): named target lists (save/load/delete)
@@ -222,7 +224,7 @@ export function ChannelSidebar({
   onOpenFriends, onToggleSelfMute, onToggleSelfDeafen,
   onDragEnd, onToggleHideSilenced, sharing, onScreenShare,
   videoEnabled, onToggleVideo,
-  voiceGains, onSetVoiceGain, inboundWhispers, speaking, hasDraft,
+  voiceGains, onSetVoiceGain, inboundWhispers, speaking, cameraOn, hasDraft,
   isWhispering, whisperTargets, whisperLists, showWhisperPanel,
   onToggleWhisperPanel, onCloseWhisperPanel, onStartWhisper, onStopWhisper,
   onSaveWhisperList, onDeleteWhisperList, onListWhisperRoles,
@@ -619,6 +621,7 @@ export function ChannelSidebar({
                         inboundWhispers={inboundWhispers}
                         avatars={avatarByKey}
                         speaking={speaking}
+                        cameraOn={cameraOn}
                         hasDraft={hasDraft}
                         onClick={() => {
                           setChannelFocusIndex(index);
@@ -836,6 +839,17 @@ export function ChannelSidebar({
                 </button>
                 {voiceBarSlot && createPortal(
                   <div className="voice-media-bar" role="toolbar" aria-label={t("voice.bar.label")}>
+                    {/* On a phone the sidebar footer is in another panel, so the stage
+                        carries mute, deafen and hang-up too (CSS shows these only there). */}
+                    <button onClick={onToggleSelfMute} className={`btn-icon-gear voice-media-bar-narrow ${selfMuted ? "active" : ""}`} aria-pressed={selfMuted} aria-label={selfMuted ? t("voice.unmute") : t("voice.mute")} title={selfMuted ? t("voice.unmute.short") : t("voice.mute.short")}>
+                      {selfMuted ? <MicOffIcon /> : <MicOnIcon />}
+                    </button>
+                    <button onClick={onToggleSelfDeafen} className={`btn-icon-gear voice-media-bar-narrow ${selfDeafened ? "active" : ""}`} aria-pressed={selfDeafened} aria-label={selfDeafened ? t("voice.undeafen") : t("voice.deafen")} title={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}>
+                      <DeafenIcon muted={selfDeafened} />
+                    </button>
+                    <button onClick={onVoiceLeave} className="btn-icon-gear voice-call-btn end voice-media-bar-narrow" title={t("voice.leave")} aria-label={t("voice.leave")}>
+                      <PhoneOffIcon />
+                    </button>
                     {onScreenShare && (
                       <button
                         onClick={onScreenShare}

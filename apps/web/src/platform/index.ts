@@ -27,6 +27,7 @@ export {
   reauthorizeHub,
   upgradeActiveHubIdentity,
   refreshHubInfo,
+  takeReinstalledHubs,
   previewHubInfo,
   previewInvite,
   previewApplication,
@@ -70,9 +71,15 @@ export {
   createConversation,
   getDmMessages,
   sendDm,
+  acceptDhKey,
+  dmPeerKeyChanged,
+  DhKeyChangedError,
   fetchDhKey,
   publishDhKey,
+  addGroupMembers,
+  leaveGroup,
 } from "./commands/dms";
+export { rotateGroupSenderKey } from "./commands/groupDms";
 
 export {
   getHomeHubDesignation,
@@ -162,7 +169,8 @@ export { pinMessage, unpinMessage, getPins } from "./commands/pins";
 
 export { getUserProfile } from "./commands/profiles";
 
-export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, getFindableByAllies, setFindableByAllies, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
+export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, getFindableByAllies, setFindableByAllies, getWidgetHidden, setWidgetHidden, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
+export { getWidget, putWidget } from "./commands/widget";
 
 export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 
@@ -228,7 +236,7 @@ export {
 export type { MyChannelPermissions } from "./commands/channelPermissions";
 
 export { fetchAllUsers } from "./commands/users";
-export { listRoles, createRole, updateRole, deleteRole, listUserRoles, assignRoleToUser, removeRoleFromUser } from "./commands/roles";
+export { listRoles, createRole, updateRole, deleteRole, reorderRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } from "./commands/roles";
 export type { RoleCreateInput, RoleUpdateInput } from "./commands/roles";
 
 export {

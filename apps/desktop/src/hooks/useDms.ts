@@ -38,7 +38,14 @@ export interface DmsReturn {
   loadConversations: () => Promise<void>;
   selectConversation: (conv: Conversation) => Promise<void>;
   startDmWith: (targetKey: string, targetHubUrl?: string | null) => Promise<void>;
+  /** In a group, adds the people; in a 1:1, starts a new group with the peer and them. */
+  handleAddPeople: (pubkeys: string[]) => Promise<void>;
+  handleLeaveGroup: () => Promise<void>;
   handleSendDm: () => Promise<void>;
+  /** The 1:1 peer whose DH key changed since it was pinned; sending is
+   *  refused until the user accepts the new key. */
+  keyChangedPeer: string | null;
+  handleAcceptKeyChange: () => Promise<void>;
   onDmEvent: (conversationId: string, msg: DmMessage, hubId: string) => void;
   onDmMemberChanged: (payload: {
     hub_id: string;
@@ -92,6 +99,33 @@ export function useDms({
 
   const [dmMessages, setDmMessages] = useState<Record<string, DmMessage[]>>({});
   const [encryptionWarning, setEncryptionWarning] = useState<EncryptionWarning | null>(null);
+  const [keyChangedPeer, setKeyChangedPeer] = useState<string | null>(null);
+
+  const isKeyChange = (e: unknown) => String(e).includes("dh_key_changed");
+
+  async function checkPeerKey(conv: Conversation) {
+    setKeyChangedPeer(null);
+    const peer = conv.conv_type === "group" ? null : conv.members.find((k) => k !== publicKeyRef.current);
+    const hub = getActiveHub();
+    if (!peer || !hub) return;
+    try {
+      await invoke<string | null>("fetch_dh_key", { pubkey: peer, hubUrl: hub.hub_url });
+    } catch (e) {
+      // A failed lookup is not a change: sending checks again and refuses then.
+      if (isKeyChange(e) && selectedConversationIdRef.current === conv.id) setKeyChangedPeer(peer);
+    }
+  }
+
+  async function handleAcceptKeyChange() {
+    const hub = getActiveHub();
+    if (!keyChangedPeer || !hub) return;
+    try {
+      await invoke("accept_dh_key", { pubkey: keyChangedPeer, hubUrl: hub.hub_url });
+      setKeyChangedPeer(null);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   async function loadConversations() {
     try {
@@ -102,8 +136,47 @@ export function useDms({
     }
   }
 
+  async function handleAddPeople(pubkeys: string[]) {
+    const conv = selectedConversation;
+    if (!conv || pubkeys.length === 0) return;
+    try {
+      if (conv.conv_type === "group") {
+        await invoke("add_group_members", { convId: conv.id, pubkeys });
+        const list = await invoke<Conversation[]>("list_conversations");
+        setConversations(list);
+        const updated = list.find((c) => c.id === conv.id);
+        if (updated) setSelectedConversation(updated);
+        // Our own key, now for the new members too; the hub's member event
+        // may not reach the device that made the change.
+        await invoke("rotate_group_sender_key", { convId: conv.id });
+      } else {
+        const group = await invoke<Conversation>("create_conversation", {
+          members: [...conv.members.filter((m) => m !== publicKeyRef.current), ...pubkeys],
+          memberHubs: {},
+        });
+        setConversations((prev) => [group, ...prev.filter((c) => c.id !== group.id)]);
+        await selectConversation(group);
+      }
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function handleLeaveGroup() {
+    const conv = selectedConversation;
+    if (!conv) return;
+    try {
+      await invoke("leave_group", { convId: conv.id });
+      setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+      setSelectedConversation(null);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   async function selectConversation(conv: Conversation) {
     setSelectedConversation(conv);
+    void checkPeerKey(conv);
     clearAllDmTyping();
     setUnreadDms((prev) => {
       if (!prev[conv.id]) return prev;
@@ -271,7 +344,11 @@ export function useDms({
         attachments,
       });
       await doSend(envelope);
-    } catch {
+    } catch (e) {
+      if (isKeyChange(e)) {
+        setKeyChangedPeer(otherKey);
+        return;
+      }
       setEncryptionWarning({
         messageKey: "dm.encryption_warning.failed",
         onCancel: () => setEncryptionWarning(null),
@@ -354,7 +431,11 @@ export function useDms({
     loadConversations,
     selectConversation,
     startDmWith,
+    handleAddPeople,
+    handleLeaveGroup,
     handleSendDm,
+    keyChangedPeer,
+    handleAcceptKeyChange,
     onDmEvent,
     onDmMemberChanged,
   };

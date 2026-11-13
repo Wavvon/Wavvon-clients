@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import App from "./App";
-import { OnboardingFrame } from "@wavvon/ui";
+import { OnboardingFrame, ProfileEditorSection } from "@wavvon/ui";
+import { PairingSection } from "./components/PairingSection";
 import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSummary } from "./accounts/store";
+import { buildProfileEditorActions, loadDefaultProfileAsync } from "./utils/profileEditorActions";
 
 // Account switching is a key-remount, not a reload -- the desktop analogue
 // of web's AccountRoot.tsx (decisions.md "Account switching is an in-place
@@ -25,6 +29,11 @@ export default function AccountRoot() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phrase, setPhrase] = useState("");
+  const [backupPath, setBackupPath] = useState<string | null>(null);
+  const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [pairing, setPairing] = useState(false);
+  // The first account on this device goes through the profile step, as on web.
+  const [profileStep, setProfileStep] = useState(false);
 
   async function refresh() {
     const list = await listAccounts();
@@ -47,8 +56,37 @@ export default function AccountRoot() {
       await createAccount(withPhrase ? { phrase: phrase.trim() } : {});
       setPhrase("");
       await refresh();
+      // Warms the editor's synchronous read of the default profile.
+      await loadDefaultProfileAsync().catch(() => null);
+      setProfileStep(true);
     } catch (e) {
       setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pickBackup() {
+    const path = await open({
+      multiple: false,
+      filters: [{ name: t("settings.account.identity_backup.file_filter"), extensions: ["wavvon-backup"] }],
+    });
+    if (typeof path === "string") setBackupPath(path);
+  }
+
+  async function handleRestoreBackup() {
+    if (!backupPath) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await invoke("import_account_backup", { path: backupPath, passphrase: backupPassphrase });
+      await refresh();
+      await loadDefaultProfileAsync().catch(() => null);
+      setProfileStep(true);
+    } catch (e) {
+      setError(t(String(e) === "unsupported_backup_format"
+        ? "settings.account.identity_backup.error_unsupported"
+        : "settings.account.identity_backup.error_decrypt"));
     } finally {
       setBusy(false);
     }
@@ -58,6 +96,14 @@ export default function AccountRoot() {
     // Brief loading flash only -- avoids a placeholder screen web rejected
     // for the equivalent switch case (decisions.md "no transition overlay").
     return null;
+  }
+
+  if (accounts.length === 0 && pairing) {
+    return (
+      <OnboardingFrame>
+        <PairingSection hubs={[]} claimOnly onCancel={() => setPairing(false)} onPaired={() => { setPairing(false); refresh().catch((e) => setError(String(e))); }} />
+      </OnboardingFrame>
+    );
   }
 
   if (accounts.length === 0) {
@@ -85,7 +131,45 @@ export default function AccountRoot() {
             {t("settings.account.accounts.import_button")}
           </button>
         </div>
+        <div className="settings-section">
+          <label className="settings-label">{t("identity_setup.recover.file_label")}</label>
+          <button className="btn-ghost" disabled={busy} onClick={pickBackup}>
+            {backupPath ?? t("settings.account.identity_backup.choose_file")}
+          </button>
+          <input
+            type="password"
+            placeholder={t("settings.account.full_archive.passphrase")}
+            aria-label={t("settings.account.full_archive.passphrase")}
+            value={backupPassphrase}
+            onChange={(e) => setBackupPassphrase(e.target.value)}
+          />
+          <button disabled={busy || !backupPath} onClick={handleRestoreBackup}>
+            {t("identity_setup.recover.from_file")}
+          </button>
+        </div>
+        <div className="settings-section">
+          <button className="btn-secondary" disabled={busy} onClick={() => setPairing(true)}>
+            {t("identity_setup.pair.title")}
+          </button>
+        </div>
       </div>
+      </OnboardingFrame>
+    );
+  }
+
+  if (profileStep && activeAccountId) {
+    return (
+      <OnboardingFrame>
+        <h2>{t("onboarding.profile.title")}</h2>
+        <p className="onboarding-lede">{t("onboarding.profile.hint")}</p>
+        <ProfileEditorSection
+          hubs={[]}
+          account={{ id: activeAccountId }}
+          isActive={false}
+          publicKey={null}
+          actions={buildProfileEditorActions([])}
+          onboarding={{ onSaved: () => setProfileStep(false), onSkip: () => setProfileStep(false) }}
+        />
       </OnboardingFrame>
     );
   }

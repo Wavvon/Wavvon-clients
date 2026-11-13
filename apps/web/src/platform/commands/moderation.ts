@@ -1,3 +1,4 @@
+import type { LockdownSettings } from "@wavvon/ui";
 import { hubFetch } from "../http";
 import { activeHubCapabilities } from "../session";
 import { fetchAllPages, LIST_CURSOR_ADMIN_CAP, LIST_CURSOR_CAP, LIST_MAX_PAGES, LIST_PAGE_SIZE } from "./paged";
@@ -230,4 +231,19 @@ export async function listBans(): Promise<BanInfo[]> {
       ).json()) as BanInfo[],
     label: "listBans",
   });
+}
+
+/** Raid lockdown (`hub.lockdown`). */
+export async function getLockdown(): Promise<LockdownSettings> {
+  const r = await hubFetch("/admin/settings/lockdown");
+  return r.json() as Promise<LockdownSettings>;
+}
+
+export async function putLockdown(settings: LockdownSettings): Promise<LockdownSettings> {
+  const r = await hubFetch("/admin/settings/lockdown", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  return r.json() as Promise<LockdownSettings>;
 }

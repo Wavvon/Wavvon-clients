@@ -16,6 +16,7 @@ mod discovery;
 mod dm;
 mod events_polls;
 mod home_hub;
+mod http;
 mod hub_session;
 mod identity;
 mod identity_cmd;
@@ -50,9 +51,24 @@ pub fn run() {
     use tauri::tray::TrayIconBuilder;
 
     tauri::Builder::default()
+        // First, so a second launch (a wavvon:// link clicked while the app
+        // runs) hands its URL to this instance instead of opening a window.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            deep_link::focus_main(app)
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // The main window shows the app and nothing else. Without this, a link
+        // a hub put in a message could turn the whole window into the hub's own
+        // page, with no address bar to tell the user they left Wavvon. Other
+        // windows (mini-apps, the stream pop-out) keep their own rules.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("main-window-navigation")
+                .on_navigation(|webview, url| webview.label() != "main" || is_app_url(url))
+                .build(),
+        )
         .setup(|app| {
             app.manage(AppState {
                 hubs: Default::default(),
@@ -62,6 +78,7 @@ pub fn run() {
                 http_client: reqwest::Client::new(),
             });
             app.manage(PendingUpdate(std::sync::Mutex::new(None)));
+            deep_link::setup(app);
             let update_handle = app.handle().clone();
             tauri::async_runtime::spawn(updater::check_for_updates(update_handle));
 
@@ -131,6 +148,7 @@ pub fn run() {
             channels::update_channel_appearance,
             channels::set_forum_require_tag,
             channels::set_channel_nsfw,
+            channels::set_channel_slowmode,
             channels::set_channel_type,
             channels::delete_channel,
             channels::reorder_channels,
@@ -182,6 +200,9 @@ pub fn run() {
             voice_cmd::mint_alliance_voice_grant,
             voice_cmd::alliance_voice_join,
             voice_cmd::voice_leave,
+            voice_cmd::voice_room_map_enable,
+            voice_cmd::voice_room_map_disable,
+            voice_cmd::voice_room_map_move,
             voice_cmd::voice_set_muted,
             voice_cmd::voice_set_deafened,
             voice_cmd::list_audio_devices,
@@ -207,6 +228,10 @@ pub fn run() {
             stickers::sticker_upload,
             prefs_blob::sticker_collection_get,
             prefs_blob::sticker_collection_update,
+            dm::add_group_members,
+            dm::leave_group,
+            prefs_blob::synced_setting_get,
+            prefs_blob::synced_setting_set,
             // Local store
             local_store::load_appearance,
             local_store::save_appearance,
@@ -237,6 +262,8 @@ pub fn run() {
             admin::set_banlist_publish,
             admin::list_reports,
             admin::get_moderation_settings,
+            admin::get_lockdown,
+            admin::put_lockdown,
             admin::set_moderation_settings,
             admin::review_report,
             admin::list_users,
@@ -246,6 +273,7 @@ pub fn run() {
             admin::list_roles,
             admin::create_role,
             admin::update_role,
+            admin::reorder_roles,
             admin::delete_role,
             admin::assign_role,
             admin::unassign_role,
@@ -290,6 +318,7 @@ pub fn run() {
             admin::revoke_invite,
             admin::get_user_profile,
             admin::update_my_profile_on_hub,
+            admin::get_me_on_hub,
             // Alliance / federation
             admin_alliance::list_alliances,
             admin_alliance::get_alliance_members,
@@ -339,6 +368,7 @@ pub fn run() {
             dm::update_dm_blocks,
             dm::publish_dh_key,
             dm::fetch_dh_key,
+            dm::accept_dh_key,
             dm::push_group_sender_key,
             dm::rotate_group_sender_key,
             dm::fetch_group_sender_keys,
@@ -404,6 +434,7 @@ pub fn run() {
             // Screen capture / PiP
             screen_share::open_pip_window,
             screen_share::close_pip_window,
+            screen_share::set_pip_click_through,
             // Mini-app windows
             mini_app::open_mini_app,
             mini_app::close_mini_app,
@@ -566,5 +597,31 @@ mod tests {
         let old: LocalProfile = serde_json::from_str(r#"{}"#).unwrap();
         assert!(old.default_profile.is_none());
         assert!(old.theme.is_none());
+    }
+}
+
+/// The app's own pages: the bundled frontend, or the Vite dev server in a
+/// debug build.
+fn is_app_url(url: &tauri::Url) -> bool {
+    match (url.scheme(), url.host_str()) {
+        ("tauri", _) => true,
+        ("http" | "https", Some("tauri.localhost")) => true,
+        ("http", Some("localhost")) => cfg!(debug_assertions) && url.port() == Some(1420),
+        ("about", _) => true,
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod navigation_tests {
+    use super::is_app_url;
+
+    #[test]
+    fn only_the_app_itself_is_navigable_in_the_main_window() {
+        let ok = |s: &str| is_app_url(&s.parse().unwrap());
+        assert!(ok("tauri://localhost/index.html"));
+        assert!(ok("http://tauri.localhost/"));
+        assert!(!ok("https://evil.example/recover"));
+        assert!(!ok("https://hub.example/attachments/x"));
     }
 }

@@ -818,8 +818,45 @@ pub fn auth_challenge_signing_bytes(challenge: &[u8]) -> Vec<u8> {
     buf
 }
 
+/// The scheme a current hub or farm names: the answer must be bound to it.
+pub const BOUND_AUTH_CHALLENGE_SCHEME: &str = "tagged-v2";
+
+/// The answer to a challenge from a server naming
+/// `BOUND_AUTH_CHALLENGE_SCHEME`, naming that server's key. Mirrors
+/// `bound_auth_challenge_signing_bytes` (Wavvon-server#294).
+pub fn bound_auth_challenge_signing_bytes(server_pubkey: &str, challenge: &[u8]) -> Vec<u8> {
+    let mut buf = b"wavvon/auth-challenge/v2 ".to_vec();
+    write_str(&mut buf, server_pubkey);
+    buf.extend_from_slice(challenge);
+    buf
+}
+
 /// What the sender of a plaintext DM signs so a receiving hub accepts it
 /// across hubs. Mirrors `federated_plaintext_dm_signing_bytes`.
+/// The v2 plaintext DM signature: v1 plus the message id and time the client
+/// chose, and the member set sorted and deduplicated. Mirrors
+/// `federated_plaintext_dm_v2_signing_bytes` (Wavvon-server#311).
+pub fn federated_plaintext_dm_v2_signing_bytes(
+    conversation_id: &str,
+    conv_type: &str,
+    content: &str,
+    message_id: &str,
+    created_at: u64,
+    members: &[String],
+) -> Vec<u8> {
+    let mut sorted = members.to_vec();
+    sorted.sort_unstable();
+    sorted.dedup();
+    let mut buf = b"wavvon/federated-dm/v2 ".to_vec();
+    write_str(&mut buf, conversation_id);
+    write_str(&mut buf, conv_type);
+    write_str(&mut buf, content);
+    write_str(&mut buf, message_id);
+    write_u64_le(&mut buf, created_at);
+    write_str_vec(&mut buf, &sorted);
+    buf
+}
+
 pub fn federated_plaintext_dm_signing_bytes(
     conversation_id: &str,
     conv_type: &str,
@@ -829,6 +866,24 @@ pub fn federated_plaintext_dm_signing_bytes(
     write_str(&mut buf, conversation_id);
     write_str(&mut buf, conv_type);
     write_str(&mut buf, content);
+    buf
+}
+
+/// What a group member signs to add someone to a group DM or to leave it
+/// (`dm_member_change_signing_bytes` in the server identity crate).
+pub fn dm_member_change_signing_bytes(
+    conversation_id: &str,
+    actor: &str,
+    added: &[String],
+    removed: &[String],
+    issued_at: u64,
+) -> Vec<u8> {
+    let mut buf = b"wavvon/dm-member-change/v1 ".to_vec();
+    write_str(&mut buf, conversation_id);
+    write_str(&mut buf, actor);
+    write_str_vec(&mut buf, added);
+    write_str_vec(&mut buf, removed);
+    write_u64_le(&mut buf, issued_at);
     buf
 }
 
@@ -1383,6 +1438,46 @@ mod wire_vector_tests {
         let sb = auth_challenge_signing_bytes(&hex::decode(s(v, "challenge")).unwrap());
         assert_signing_bytes("auth_challenge", &sb);
         assert_signed("auth_challenge", "signature", &sb);
+    }
+
+    #[test]
+    fn bound_auth_challenge_matches_the_server_vector() {
+        let v = vector("bound_auth_challenge");
+        let sb = bound_auth_challenge_signing_bytes(
+            &s(v, "server_pubkey"),
+            &hex::decode(s(v, "challenge")).unwrap(),
+        );
+        assert_signing_bytes("bound_auth_challenge", &sb);
+        assert_signed("bound_auth_challenge", "signature", &sb);
+    }
+
+    #[test]
+    fn federated_plaintext_dm_v2_matches_the_server_vector() {
+        let v = vector("federated_plaintext_dm_v2");
+        let sb = federated_plaintext_dm_v2_signing_bytes(
+            &s(v, "conversation_id"),
+            &s(v, "kind"),
+            &s(v, "content"),
+            &s(v, "message_id"),
+            n(v, "created_at"),
+            &strings(v, "members"),
+        );
+        assert_signing_bytes("federated_plaintext_dm_v2", &sb);
+        assert_signed("federated_plaintext_dm_v2", "signature", &sb);
+    }
+
+    #[test]
+    fn dm_member_change_matches_the_server_vector() {
+        let v = vector("dm_member_change");
+        let sb = dm_member_change_signing_bytes(
+            &s(v, "conversation_id"),
+            &s(v, "actor"),
+            &strings(v, "added"),
+            &strings(v, "removed"),
+            n(v, "timestamp"),
+        );
+        assert_signing_bytes("dm_member_change", &sb);
+        assert_signed("dm_member_change", "signature", &sb);
     }
 
     #[test]

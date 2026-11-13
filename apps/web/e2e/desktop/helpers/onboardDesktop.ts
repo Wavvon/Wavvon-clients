@@ -52,7 +52,7 @@ export async function joinHub(
 
   // The display-name prompt is optional — an identity that already carries a
   // profile (a paired or imported one) never sees it.
-  const nameInput = page.getByPlaceholder("Your name");
+  const nameInput = page.getByPlaceholder("Display name");
   await nameInput.waitFor({ state: "visible", timeout: 30_000 }).catch(() => {});
   if (await nameInput.isVisible().catch(() => false)) {
     await nameInput.fill(displayName);
@@ -82,7 +82,7 @@ async function dismissSetupSteps(page: Page, displayName?: string): Promise<void
   await profile.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
   if (await profile.isVisible().catch(() => false)) {
     if (displayName) {
-      await page.getByPlaceholder("Your name").fill(displayName);
+      await page.getByPlaceholder("Display name").fill(displayName);
       await page.getByRole("button", { name: "Continue", exact: true }).click();
     } else {
       await page.getByRole("button", { name: "Skip for now" }).click();

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useSyncExternalStore } from "react";
+import React, { useState, useRef, useEffect, useSyncExternalStore } from "react";
 
 const NARROW = "(max-width: 767px)";
 function subscribeNarrow(cb: () => void) {
@@ -16,6 +16,13 @@ interface MobileShellProps {
   showContent: boolean;
   children: React.ReactNode;
   onBack?: () => void;
+  /** Panel shown first. A hub build has one hub, so its hub panel is not a
+   *  useful place to start. */
+  initialPanel?: Panel;
+  /** Changes when a hub becomes active: the shell moves to its channels. */
+  hubKey?: string | null;
+  /** Changes when a channel or conversation is opened: the shell moves to it. */
+  contentKey?: string | null;
 }
 
 /**
@@ -28,9 +35,19 @@ interface MobileShellProps {
  * The children order is expected to be:
  *   [0] HubTopBar, [1] ChannelSidebar, [2] ContentArea
  */
-export function MobileShell({ children, onBack }: MobileShellProps) {
+export function MobileShell({ children, onBack, initialPanel = "hub", hubKey, contentKey }: MobileShellProps) {
   const { t } = useTranslation();
-  const [activePanel, setActivePanel] = useState<Panel>("hub");
+  const [activePanel, setActivePanel] = useState<Panel>(initialPanel);
+  // Selecting something used to leave the user on the list they picked it
+  // from, with only a sideways swipe to reach it.
+  const lastHubKey = useRef(hubKey);
+  const lastContentKey = useRef(contentKey);
+  useEffect(() => {
+    if (contentKey && contentKey !== lastContentKey.current) setActivePanel("content");
+    else if (hubKey && hubKey !== lastHubKey.current) setActivePanel("channel");
+    lastHubKey.current = hubKey;
+    lastContentKey.current = contentKey;
+  }, [hubKey, contentKey]);
   // One copy of the app at a time: two mounted copies meant two of every
   // control, the hidden one still holding state.
   const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
@@ -106,9 +123,8 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
                 {idx > 0 && <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>›</span>}
                 <button
                   className={`mobile-shell-crumb${activePanel === panel ? " active" : ""}`}
-                  onClick={() => idx <= currentIdx && setActivePanel(panel)}
+                  onClick={() => setActivePanel(panel)}
                   aria-current={activePanel === panel ? "page" : undefined}
-                  disabled={idx > currentIdx}
                 >
                   {t(`mobile.panel.${panel}`)}
                 </button>
@@ -117,12 +133,12 @@ export function MobileShell({ children, onBack }: MobileShellProps) {
           </div>
         </div>
 
-        {/* Active panel */}
-        <div className="mobile-shell-panel">
-          {activePanel === "hub" && hubChild}
-          {activePanel === "channel" && channelChild}
-          {activePanel === "content" && contentChild}
-        </div>
+        {/* Every panel stays mounted and only the active one shows: the channel
+            sidebar owns the voice controls and portals the media bar into the
+            stage, so unmounting it left a call with no mute and no hang-up. */}
+        <div className="mobile-shell-panel" hidden={activePanel !== "hub"}>{hubChild}</div>
+        <div className="mobile-shell-panel" hidden={activePanel !== "channel"}>{channelChild}</div>
+        <div className="mobile-shell-panel" hidden={activePanel !== "content"}>{contentChild}</div>
       </div>
       )}
     </>

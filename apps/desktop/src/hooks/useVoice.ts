@@ -8,6 +8,7 @@ import { listenerScope } from "../utils/listenerScope";
 import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
+import { voiceTransportFailure, ROOM_MAP_RADIUS } from "@wavvon/ui";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -70,6 +71,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   // The channel a join is under way for: a repeated click must not send a
   // second `voice_join`, which makes the hub drop the first join's token.
   const joiningVoiceRef = useRef<string | null>(null);
+  // Current on every render, for handlers that outlive the render they came from.
+  const voiceChannelIdRef = useRef(voiceChannelId);
+  voiceChannelIdRef.current = voiceChannelId;
 
   const [voiceGains, setVoiceGainsState] = useState<Record<string, number>>(() => {
     try {
@@ -114,6 +118,12 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     const handle = setInterval(tick, 1500);
     const scope = listenerScope();
     scope.add(listen("voice-roster-update", () => { if (!cancelled) tick(); }));
+    scope.add(listen<{ url: string; elapsed_ms: number; detail: string }>("voice-transport-failed", (e) => {
+      if (cancelled) return;
+      console.warn("[voice]", e.payload.detail);
+      const { key, params } = voiceTransportFailure(e.payload.url, e.payload.elapsed_ms);
+      setError(i18n.t(key, params));
+    }));
     scope.add(listen<{ channel_id: string; public_keys: string[] }>("voice-hands", (e) => {
       if (!cancelled) setVoiceHands({ channelId: e.payload.channel_id, keys: e.payload.public_keys });
     }));
@@ -148,6 +158,42 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       scope.close();
     };
   }, [activeHubId]);
+
+  // The room map: the first voice zone in the room we are in. The shell
+  // keeps its own copy for the attenuation; this one is for drawing.
+  const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
+  useEffect(() => { if (voiceChannelId === null) setRoomZone(null); }, [voiceChannelId]);
+  // Always listening: the zone state arrives with the join, before
+  // voiceChannelId is set.
+  useEffect(() => {
+    const scope = listenerScope();
+    scope.add(listen<{ zones: { zone_id: string; positions: Record<string, number[]> }[] }>("voice-zone-state", (e) => {
+      const z = e.payload.zones[0];
+      setRoomZone(z ? { zoneId: z.zone_id, positions: { ...z.positions } } : null);
+    }));
+    scope.add(listen<{ zone_id: string }>("voice-zone-created", (e) => {
+      setRoomZone((cur) => cur ?? { zoneId: e.payload.zone_id, positions: {} });
+    }));
+    scope.add(listen<{ zone_id: string }>("voice-zone-destroyed", (e) => {
+      setRoomZone((cur) => (cur?.zoneId === e.payload.zone_id ? null : cur));
+    }));
+    scope.add(listen<{ zone_id: string; pubkey: string; position: number[] }>("voice-position-updated", (e) => {
+      const { zone_id, pubkey, position } = e.payload;
+      setRoomZone((cur) => (cur?.zoneId === zone_id ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
+    }));
+    return () => scope.close();
+  }, []);
+
+  function enableRoomMap() {
+    invoke("voice_room_map_enable", { maxRadius: ROOM_MAP_RADIUS }).catch((e) => setError(String(e)));
+  }
+  function disableRoomMap() {
+    if (roomZone) invoke("voice_room_map_disable", { zoneId: roomZone.zoneId }).catch((e) => setError(String(e)));
+  }
+  function moveInRoom(position: [number, number]) {
+    if (!roomZone) return;
+    invoke("voice_room_map_move", { zoneId: roomZone.zoneId, position }).catch((e) => setError(String(e)));
+  }
 
   useEffect(() => {
     if (voiceMode !== "ptt" || voiceChannelId === null) return;
@@ -410,8 +456,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       voiceVisitIdRef.current = null;
       setError(
         String(e) === "owner_hub_no_alliance_voice"
-          ? "Voice: that hub does not support voice in alliance channels yet"
-          : "Voice: " + String(e),
+          ? i18n.t("voice.error.alliance_unsupported")
+          : i18n.t("voice.error.join_refused", { reason: String(e) }),
       );
       return null;
     }
@@ -527,6 +573,11 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
 
   return {
     voiceChannelId,
+    roomZone,
+    enableRoomMap,
+    disableRoomMap,
+    moveInRoom,
+    isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,
     selfDeafened,

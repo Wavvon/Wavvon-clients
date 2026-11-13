@@ -30,7 +30,7 @@ pub(crate) async fn add_hub(
     let hub_id = info.public_key.clone();
     let hub_name = info.name.clone();
     let hub_icon = info.icon.clone();
-    let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
+    let auth_url = farm_auth_url(info.farm_url.as_deref(), &hub_url);
 
     let auth = creds
         .authenticate(
@@ -212,16 +212,13 @@ pub(crate) async fn leave_hub(hub_id: String, state: State<'_, AppState>) -> Res
         let s = hubs.get(&hub_id).ok_or("Hub not connected")?;
         (s.hub_url.clone(), s.token.clone())
     };
-    let resp = state
-        .http_client
-        .delete(format!("{hub_url}/me"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    crate::http::send_ok(
+        state
+            .http_client
+            .delete(format!("{hub_url}/me"))
+            .bearer_auth(&token),
+    )
+    .await?;
     remove_hub(hub_id, state)
 }
 
@@ -254,10 +251,39 @@ pub(crate) struct UnreachableHub {
     error: String,
 }
 
+/// A saved hub that came back under an unendorsed key: forgotten, and for the
+/// member to join as a new hub if they want to.
+#[derive(serde::Serialize)]
+pub(crate) struct ReinstalledHub {
+    hub_name: String,
+    hub_url: String,
+}
+
 #[derive(serde::Serialize)]
 pub(crate) struct AutoConnectResult {
     hubs: Vec<HubInfo>,
     unreachable: Vec<UnreachableHub>,
+    reinstalled: Vec<ReinstalledHub>,
+}
+
+/// Where to sign in for a hub whose /info names a `farm_url`: the farm only
+/// when it shares the hub's origin, as a farm hosting the hub does
+/// (`<farm>/hub/<slug>`). Any other address is one a hostile hub chose, and a
+/// token from there would work on every hub of that farm (Wavvon-server#294).
+pub(crate) fn farm_auth_url(farm_url: Option<&str>, hub_url: &str) -> String {
+    let origin = |u: &str| {
+        let (scheme, rest) = u.split_once("://")?;
+        let host = rest.split(['/', '?', '#']).next()?;
+        Some(format!(
+            "{}://{}",
+            scheme.to_ascii_lowercase(),
+            host.to_ascii_lowercase()
+        ))
+    };
+    match farm_url {
+        Some(f) if origin(f).is_some() && origin(f) == origin(hub_url) => f.to_string(),
+        _ => hub_url.to_string(),
+    }
 }
 
 #[tauri::command]
@@ -267,7 +293,26 @@ pub(crate) async fn auto_connect_saved(
 ) -> Result<AutoConnectResult, String> {
     let saved = load_saved_hubs();
     let mut unreachable = Vec::new();
+    let mut reinstalled = Vec::new();
     for hub in &saved {
+        // A saved hub now presenting a key its old one never endorsed was
+        // reinstalled: a new hub at a familiar address. Signing in would seat
+        // us there as a stranger and file it under the old hub's name, so it
+        // is forgotten instead and offered to the member as a new hub.
+        if let Ok(info) = preview_hub_info(hub.hub_url.clone()).await {
+            let endorsed = info
+                .rotation
+                .as_ref()
+                .is_some_and(|r| r.endorses(&hub.hub_id, &info.public_key));
+            if info.public_key != hub.hub_id && !endorsed {
+                let _ = remove_hub(hub.hub_id.clone(), state.clone());
+                reinstalled.push(ReinstalledHub {
+                    hub_name: hub.hub_name.clone(),
+                    hub_url: hub.hub_url.clone(),
+                });
+                continue;
+            }
+        }
         if let Err(error) =
             add_hub(hub.hub_url.clone(), None, None, state.clone(), app.clone()).await
         {
@@ -290,6 +335,7 @@ pub(crate) async fn auto_connect_saved(
     Ok(AutoConnectResult {
         hubs: list_hubs(state),
         unreachable,
+        reinstalled,
     })
 }
 
@@ -457,4 +503,25 @@ async fn admit_farm_token(
         return Ok(());
     }
     Err(resp.text().await.unwrap_or_default())
+}
+
+#[cfg(test)]
+mod farm_auth_url_tests {
+    use super::farm_auth_url;
+
+    #[test]
+    fn only_a_farm_on_the_hubs_origin_is_followed() {
+        assert_eq!(
+            farm_auth_url(Some("https://farm.example"), "https://farm.example/hub/x"),
+            "https://farm.example"
+        );
+        assert_eq!(
+            farm_auth_url(Some("https://evil.example"), "https://hub.example"),
+            "https://hub.example"
+        );
+        assert_eq!(
+            farm_auth_url(None, "https://hub.example"),
+            "https://hub.example"
+        );
+    }
 }

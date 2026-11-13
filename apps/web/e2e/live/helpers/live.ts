@@ -1,4 +1,4 @@
-import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 
 // Live-hub test constants. The owner seed is deterministic: its pubkey is
 // passed to the hub as WAVVON_OWNER_PUBKEY so the recovered identity lands
@@ -74,7 +74,7 @@ export async function onboardWithSeed(
   const profileStep = page.getByRole("heading", { name: "Set up your profile" });
   await profileStep.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
   if (await profileStep.isVisible()) {
-    await page.getByPlaceholder("Your name").fill(displayName);
+    await page.getByPlaceholder("Display name").fill(displayName);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
   }
 
@@ -379,4 +379,18 @@ export async function startCameraPreview(page: Page) {
   if (await allow.isVisible()) await allow.click();
   await expect(video).toBeVisible({ timeout: 15000 });
   return video;
+}
+
+/** Opens the permission section called `name` in `scope`, as a person
+ *  would, by its heading: the role editor and the channel overwrites tab group
+ *  permissions into sections, closed unless something in them is set. */
+export async function openPermissionSection(scope: Locator, name: string): Promise<void> {
+  const headers = scope.locator(".permission-section > button");
+  await expect(headers.first()).toBeVisible();
+  // A hub without `permissions.categories` serves one section holding all.
+  const named = headers.filter({ hasText: name });
+  const header = (await named.count()) ? named : headers.first();
+  await expect(header).toHaveCount(1);
+  if ((await header.getAttribute("aria-expanded")) !== "true") await header.click();
+  await expect(header).toHaveAttribute("aria-expanded", "true");
 }

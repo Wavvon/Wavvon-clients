@@ -20,6 +20,7 @@ fn allowed(method: &str, path: &str) -> bool {
         (_, ["stickers", "packs", ..]) | (_, ["admin", "stickers", ..]) => true,
         ("POST", ["channels", id, "stickers"]) => !id.is_empty(),
         ("GET", ["hub", "settings"]) | ("PATCH", ["hub"]) => true,
+        ("GET" | "PUT", ["admin", "settings", "widget"]) => true,
         _ => false,
     }
 }

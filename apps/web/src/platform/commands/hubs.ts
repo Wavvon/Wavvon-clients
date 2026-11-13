@@ -23,7 +23,7 @@ import {
   type SavedHub,
 } from "../storage";
 import { loadIdentity, saveIdentity } from "../../identity/store";
-import { publicKeyHex, rotationAppliesTo, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
+import { farmAuthUrl, publicKeyHex, rotationAppliesTo, type HubLanding, classifyHubRefusal, type HubKeyRotation, type ChallengePrompt, type ChallengeResult } from "@wavvon/core";
 import type { Hub } from "@shared/types";
 import type { Survey } from "@wavvon/ui";
 import { probeSessionScope } from "./lobby";
@@ -44,6 +44,7 @@ interface InfoResponse {
    * is renamed; the client follows it, keyed on the pubkey that doesn't. */
   canonical_url?: string | null;
   farm_url?: string | null;
+  landing?: HubLanding;
   /** "off", "click", "puzzle" or "both": a join needs a solved challenge first. */
   challenge_mode?: string | null;
   welcome_label?: string | null;
@@ -80,7 +81,7 @@ const logKey = (key: string): string => key.slice(0, LOG_KEY_CHARS);
 
 function authBaseUrl(info: InfoResponse, hub_url: string, subkeyCert?: unknown): string {
   if (subkeyCert) return hub_url;
-  return info.farm_url ?? hub_url;
+  return farmAuthUrl(info.farm_url, hub_url);
 }
 
 /**
@@ -104,15 +105,14 @@ function authBaseUrl(info: InfoResponse, hub_url: string, subkeyCert?: unknown):
  * talking to while the address holds still. Neither is allowed to do both.
  */
 function followKeyRotation(info: InfoResponse, hub_id: string): string {
-  if (info.public_key === hub_id) return hub_id;
-  if (!rotationAppliesTo(info.rotation, hub_id)) {
-    if (info.public_key) {
-      console.warn(
-        `[hubs] ${logKey(hub_id)} now presents ${logKey(info.public_key)} with no verifiable endorsement — not following`,
-      );
-    }
+  if (isReinstalled(info, hub_id)) {
+    console.warn(
+      `[hubs] ${logKey(hub_id)} now presents ${logKey(info.public_key)} with no verifiable endorsement — not following`,
+    );
     return hub_id;
   }
+  if (info.public_key === hub_id) return hub_id;
+  if (!rotationAppliesTo(info.rotation, hub_id)) return hub_id;
 
   const newId = info.public_key;
   if (!rekeySavedHub(hub_id, newId)) return hub_id;
@@ -127,6 +127,38 @@ function followKeyRotation(info: InfoResponse, hub_id: string): string {
   return newId;
 }
 
+
+/** A saved hub that now presents a key its old one never endorsed: the
+ *  operator wiped and reinstalled it. It is a new hub at a familiar address,
+ *  and the membership, token and history we hold for the old one exist
+ *  nowhere any more. */
+function isReinstalled(info: InfoResponse, hub_id: string): boolean {
+  return (
+    !!info.public_key &&
+    info.public_key !== hub_id &&
+    !rotationAppliesTo(info.rotation, hub_id)
+  );
+}
+
+export interface ReinstalledHub {
+  hub_url: string;
+  hub_name: string;
+}
+
+const reinstalledHubs: ReinstalledHub[] = [];
+
+/** Forget a reinstalled hub without authenticating against its new key, and
+ *  queue it for the UI to offer as a new hub to join. Never joined here:
+ *  adopting an unendorsed key is the member's explicit act. */
+async function forgetReinstalledHub(hub_id: string, hub_url: string, hub_name: string): Promise<void> {
+  await removeHub(hub_id);
+  reinstalledHubs.push({ hub_url, hub_name });
+}
+
+/** Hubs found reinstalled since the last call, for the UI to explain once. */
+export function takeReinstalledHubs(): ReinstalledHub[] {
+  return reinstalledHubs.splice(0);
+}
 
 /** The hub runs an admission challenge; solve it, then call addHub again
  *  with the token. */
@@ -245,6 +277,7 @@ export async function addHub(
     scope,
     capabilities: info.capabilities ?? [],
     hub_version: info.version,
+    landing: info.landing,
     canonical_pubkey: canonical,
   };
   setSession(info.public_key, session);
@@ -346,6 +379,11 @@ export async function refreshHubInfo(
     );
     const capabilities = info.capabilities ?? [];
 
+    if (isReinstalled(info, hub_id)) {
+      await forgetReinstalledHub(hub_id, s.hub_url, s.hub_name);
+      return null;
+    }
+
     // Identity first, address second: a rotation renames the hub we are
     // holding, and everything below this line is filed under that name.
     hub_id = followKeyRotation(info, hub_id);
@@ -354,12 +392,10 @@ export async function refreshHubInfo(
     // owner-chosen name that can change, and `canonical_url` is how it tells
     // us the current one — so a rename costs nobody their session.
     //
-    // Safe precisely because we are keyed on the pubkey: we only change *where*
-    // we look, never who we believe we are talking to. And we only accept this
-    // from a hub whose key we have already verified, so a host handing out a
-    // bogus address gets caught on the first /info at the new one.
-    const movedTo =
-      info.canonical_url && info.canonical_url !== s.hub_url ? info.canonical_url : null;
+    // Safe because we are keyed on the pubkey: we only change *where* we look,
+    // never who we believe we are talking to, and only once the new address
+    // presents the same key.
+    const movedTo = await verifiedMove(info, hub_id, s.hub_url);
     if (movedTo) {
       console.info(`[hubs] ${logKey(hub_id)} moved to ${movedTo}`);
       updateSavedHubUrl(hub_id, movedTo);
@@ -372,6 +408,7 @@ export async function refreshHubInfo(
       hub_icon: info.icon,
       capabilities,
       hub_version: info.version,
+      landing: info.landing,
     });
     updateSavedHub(hub_id, info.name, info.icon);
     saveHubCapabilities(hub_id, capabilities, info.version);
@@ -385,6 +422,24 @@ export async function refreshHubInfo(
   } catch {
     return null;
   }
+}
+
+/** The hub's `canonical_url` if it differs from where we are and the hub
+ *  there presents the key we know this hub by; null otherwise. Without the
+ *  check any hub could send its members to an address of its choosing. */
+async function verifiedMove(info: InfoResponse, hub_id: string, currentUrl: string): Promise<string | null> {
+  const target = info.canonical_url;
+  if (!target || target === currentUrl || info.public_key !== hub_id) return null;
+  try {
+    const u = new URL(target);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    const there = await rawFetch(`${target}/info`).then((r) => r.json() as Promise<InfoResponse>);
+    if (there.public_key === hub_id) return target;
+  } catch {
+    // Unreachable or not a hub: stay where we are.
+  }
+  console.warn(`[hubs] ${logKey(hub_id)} names ${target} as its address, but no hub with its key answers there — not following`);
+  return null;
 }
 
 export function setActiveHub(hub_id: string): void {
@@ -462,6 +517,10 @@ export async function reauthorizeHub(
   const info: InfoResponse = await rawFetch(`${s.hub_url}/info`).then(
     (r) => r.json() as Promise<InfoResponse>,
   );
+  if (isReinstalled(info, hub_id)) {
+    await forgetReinstalledHub(hub_id, s.hub_url, s.hub_name);
+    throw new Error("hub_reinstalled");
+  }
 
   const identity = await loadIdentity();
   if (!identity) throw new Error("No identity");
@@ -498,12 +557,15 @@ export function connectHubWebSocket(hub_id: string, handlers: WsHandlers): void 
   setSession(hub_id, { ...s, ws, scope: "member" });
 }
 
-// LAN fingerprint pinning (lan-mode.md §5): TOFU-verify the hub's
-// self-reported /info fingerprint against the one carried out-of-band in
-// the invite URL. `undefined` expectedFingerprint means the invite carried
-// none — always passes, so normal (non-LAN) hubs are unaffected. Shared by
-// every add-hub call site (App.tsx, WelcomeScreenContainer) so none of them
-// can silently skip the check.
+// LAN invite fingerprint (lan-mode.md §5): compare the fingerprint the hub
+// reports in /info with the one carried out-of-band in the invite URL.
+// `undefined` expectedFingerprint means the invite carried none — always
+// passes, so normal (non-LAN) hubs are unaffected.
+//
+// This is NOT a verification. A browser cannot see the certificate it was
+// handed, and the value compared is one the hub reports about itself, so a
+// man in the middle passes by repeating it. It only catches an invite pasted
+// against the wrong hub, which is why a match is never shown as a success.
 export async function verifyLanFingerprint(
   hub_url: string,
   expectedFingerprint: string | undefined,
@@ -624,6 +686,10 @@ export async function restorePersistedHubs(handlers: WsHandlers): Promise<Hub[]>
         const hubInfo: InfoResponse = await rawFetch(`${hub.hub_url}/info`).then(
           (r) => r.json() as Promise<InfoResponse>,
         );
+        if (isReinstalled(hubInfo, hub.hub_id)) {
+          await forgetReinstalledHub(hub.hub_id, hub.hub_url, hub.hub_name);
+          continue;
+        }
         // This branch re-authenticates from scratch, which is exactly where an
         // unfollowed rotation would file the same hub a second time.
         hub.hub_id = followKeyRotation(hubInfo, hub.hub_id);

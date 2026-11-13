@@ -21,7 +21,7 @@ function makeChannel(overrides: Partial<Channel> = {}): Channel {
 
 describe("decideVoiceMove", () => {
   it("ignores a push with no destination channel", () => {
-    expect(decideVoiceMove({})).toEqual({ kind: "ignore" });
+    expect(decideVoiceMove({}, true)).toEqual({ kind: "ignore" });
   });
 
   it("auto-accepts and carries the pushed name and source through untouched", () => {
@@ -30,7 +30,7 @@ describe("decideVoiceMove", () => {
       target_channel_name: "Squad Alpha",
       source_channel_id: "chan-1",
       auto: true,
-    });
+    }, true);
     expect(decision).toEqual({
       kind: "auto",
       targetChannelId: "chan-2",
@@ -45,13 +45,20 @@ describe("decideVoiceMove", () => {
       target_channel_name: "Squad Alpha",
       source_channel_id: null,
       auto: false,
-    });
+    }, true);
     expect(decision.kind).toBe("prompt");
   });
 
   it("falls back to a placeholder name rather than looking the channel up locally", () => {
-    const decision = decideVoiceMove({ target_channel_id: "chan-2", auto: true });
+    const decision = decideVoiceMove({ target_channel_id: "chan-2", auto: true }, true);
     expect(decision).toMatchObject({ targetChannelName: "?", sourceChannelId: null });
+  });
+});
+
+describe("decideVoiceMove outside voice", () => {
+  it("asks instead of auto-joining someone who is not in voice", () => {
+    const decision = decideVoiceMove({ target_channel_id: "chan-2", target_channel_name: "Squad", auto: true }, false);
+    expect(decision.kind).toBe("prompt");
   });
 });
 

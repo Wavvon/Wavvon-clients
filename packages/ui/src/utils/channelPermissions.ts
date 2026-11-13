@@ -7,6 +7,43 @@ export interface PermissionCatalogueEntry {
   id: string;
   scope: "hub" | "hub_and_channel";
   group: string;
+  /** The section it is shown under; absent on a hub without
+   *  `permissions.categories`. */
+  category?: string;
+}
+
+/** The hub's sections, in the order an admin reads them. */
+const SECTION_ORDER = ["messages", "voice", "moderation", "members", "channels", "events", "hub", "integrations", "federation"];
+
+/** One heading of the permission list and the ids under it. */
+export interface PermissionSection {
+  /** A known section name, a category this build has no name for, `other`
+   *  for ids the catalogue does not list, or `all` on a hub that serves no
+   *  categories. */
+  key: string;
+  ids: string[];
+}
+
+/** `ids` grouped by the catalogue's categories, known sections first in a
+ *  fixed order. Nothing is dropped: a category this build does not know keeps
+ *  a section of its own, an id the catalogue does not list goes to `other`,
+ *  and a hub that serves no categories gets one section holding everything. */
+export function permissionSections(ids: string[], catalogue: PermissionCatalogueEntry[]): PermissionSection[] {
+  const byId = new Map(catalogue.map((e) => [e.id, e.category]));
+  if (!catalogue.some((e) => e.category)) return ids.length ? [{ key: "all", ids }] : [];
+  const groups = new Map<string, string[]>();
+  for (const id of ids) {
+    const key = byId.get(id) ?? "other";
+    groups.set(key, [...(groups.get(key) ?? []), id]);
+  }
+  const rank = (k: string) => {
+    if (k === "other") return SECTION_ORDER.length + 1;
+    const i = SECTION_ORDER.indexOf(k);
+    return i === -1 ? SECTION_ORDER.length : i;
+  };
+  return [...groups.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(([key, ids]) => ({ key, ids }));
 }
 
 /** Ids that may be set as a channel overwrite, from the hub's own catalogue.

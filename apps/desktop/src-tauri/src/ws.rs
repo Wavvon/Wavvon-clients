@@ -7,6 +7,31 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
+/// What goes in the socket URL: a single-use ticket from `POST /ws/ticket`,
+/// so the session token stays out of URLs (and the proxy logs that keep
+/// them); the token itself from a hub without the route, or if the ticket
+/// could not be had.
+async fn ws_credential(app: &AppHandle, hub_url: &str, token: &str) -> String {
+    let client = app.state::<AppState>().http_client.clone();
+    let ticket = async {
+        let resp = client
+            .post(format!("{hub_url}/ws/ticket"))
+            .bearer_auth(token)
+            .send()
+            .await
+            .ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        let body: serde_json::Value = resp.json().await.ok()?;
+        body["ticket"].as_str().map(str::to_string)
+    };
+    match ticket.await {
+        Some(t) => format!("ticket={t}"),
+        None => format!("token={token}"),
+    }
+}
+
 pub(crate) async fn spawn_ws_task(
     hub_id: String,
     hub_url: String,
@@ -16,7 +41,10 @@ pub(crate) async fn spawn_ws_task(
     let ws_url = hub_url
         .replace("http://", "ws://")
         .replace("https://", "wss://");
-    let url = format!("{ws_url}/ws?token={token}");
+    let url = format!(
+        "{ws_url}/ws?{}",
+        ws_credential(&app, &hub_url, &token).await
+    );
 
     let (ws_stream, _) = tokio_tungstenite::connect_async(&url)
         .await
@@ -155,10 +183,21 @@ pub(crate) async fn spawn_ws_task(
                                             let connect_url = voice_wt_url.clone();
                                             let connect_token = voice_token.clone();
                                             let connect_cert_hash = voice_cert_hash.clone();
+                                            let failed_app = app.clone();
                                             tokio::spawn(async move {
+                                                let started = std::time::Instant::now();
                                                 match wavvon_voice::transport::VoiceTransport::connect(&connect_url, &connect_token, connect_cert_hash.as_deref()).await {
                                                     Ok(t) => *transport_arc.write().await = Some(std::sync::Arc::new(t)),
-                                                    Err(e) => tracing::error!("voice WT connect failed: {e}"),
+                                                    Err(e) => {
+                                                        tracing::error!("voice WT connect failed: {e}");
+                                                        // Only logged before, so the room looked joined and stayed
+                                                        // silent. The UI words it the same way the web client does.
+                                                        let _ = failed_app.emit("voice-transport-failed", serde_json::json!({
+                                                            "url": connect_url,
+                                                            "elapsed_ms": started.elapsed().as_millis() as u64,
+                                                            "detail": e.to_string(),
+                                                        }));
+                                                    }
                                                 }
                                             });
 
@@ -565,7 +604,7 @@ pub(crate) async fn spawn_ws_task(
                                             "channel_id": channel_id,
                                         }));
                                     }
-                                    WsServerMessage::AppOpen { app_id, channel_id, mini_app_url, session_token } => {
+                                    WsServerMessage::AppOpen { app_id, channel_id, mini_app_url, session_token, requires_camera } => {
                                         let _ = app.emit("app-open", serde_json::json!({
                                             "hub_id": hub_id_for_task,
                                             "type": "app_open",
@@ -573,6 +612,7 @@ pub(crate) async fn spawn_ws_task(
                                             "channel_id": channel_id,
                                             "mini_app_url": mini_app_url,
                                             "session_token": session_token,
+                                            "requires_camera": requires_camera,
                                         }));
                                     }
                                     WsServerMessage::AppClose { app_id, channel_id } => {
@@ -721,7 +761,7 @@ pub(crate) async fn reauth_session(
         .json()
         .await
         .map_err(|e| format!("reauth info decode: {e}"))?;
-    let auth_url = info.farm_url.as_deref().unwrap_or(&hub_url).to_string();
+    let auth_url = crate::hub_session::farm_auth_url(info.farm_url.as_deref(), &hub_url);
     let reauth = creds
         .authenticate(&auth_url, &client, None, None, None)
         .await?;

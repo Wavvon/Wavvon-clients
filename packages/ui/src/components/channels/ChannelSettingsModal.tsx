@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SLOWMODE_STEPS } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
 import { EmojiPicker } from "../content/EmojiPicker";
 import { ChannelIcon, CHANNEL_ICONS, ChannelIconGlyph, CloseIcon } from "../Icons";
@@ -40,6 +41,7 @@ export interface ChannelSettingsModalChannel {
   /** Forum channels only (forum.md §10.1). */
   forum_require_tag?: boolean;
   nsfw?: boolean;
+  slowmode_secs?: number;
 }
 
 export interface ChannelSettingsSaveFields {
@@ -58,6 +60,9 @@ export interface ChannelSettingsSaveFields {
   /** Edit mode: switch a text channel to voice or back (both keep their
    *  chat). Absent when unchanged. */
   switchType?: "text" | "voice";
+  /** Edit mode, hubs with slowmode: seconds between one member's messages.
+   *  Absent when unchanged. */
+  slowmodeSecs?: number;
 }
 
 interface Props {
@@ -94,6 +99,8 @@ interface Props {
   /** The hub has `channels.voice`: voice lives in `voice` channels, which
    *  can be created, and a text channel can switch to voice and back. */
   voiceChannels?: boolean;
+  /** The hub has per-channel slowmode (`channels.slowmode`). */
+  slowmode?: boolean;
   onDelete: () => void;
   onClose: () => void;
   permissionsActions?: ChannelPermissionsTabActions;
@@ -124,7 +131,7 @@ export function ChannelSettingsModal({
   onSave, onDelete, onClose,
   permissionsActions, bansActions, bansUsers, bansSupportReason, talkPowerActions, allianceActions, listHubIcons,
   bannerUploadSupported = true,
-  forumTagsActions, listForumTags, voiceChannels = false,
+  forumTagsActions, listForumTags, voiceChannels = false, slowmode = false,
 }: Props) {
   useCloseOnEscape(onClose);
   const { t } = useTranslation();
@@ -136,6 +143,7 @@ export function ChannelSettingsModal({
   const [icon, setIcon] = useState<string | null>(channel?.icon ?? null);
   const [customIconSvg, setCustomIconSvg] = useState<string | null>(channel?.custom_icon_svg ?? null);
   const [nsfw, setNsfw] = useState(channel?.nsfw ?? false);
+  const [slowmodeSecs, setSlowmodeSecs] = useState(channel?.slowmode_secs ?? 0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [hubIcons, setHubIcons] = useState<HubIcon[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -235,6 +243,7 @@ export function ChannelSettingsModal({
       customIconSvg !== (channel.custom_icon_svg ?? null) ||
       bannerDirty ||
       nsfw !== (channel.nsfw ?? false) ||
+      slowmodeSecs !== (channel.slowmode_secs ?? 0) ||
       requireTag !== (channel.forum_require_tag ?? false));
 
   const canSubmit = isCreate ? name.trim().length > 0 : name.trim().length > 0 && dirty;
@@ -256,6 +265,9 @@ export function ChannelSettingsModal({
           ? { url: bannerUrl.trim() || undefined }
           : { file: bannerFile }
         : undefined;
+    }
+    if (slowmode && !isCreate && slowmodeSecs !== (channel.slowmode_secs ?? 0)) {
+      fields.slowmodeSecs = slowmodeSecs;
     }
     if (canSwitchType && roomType !== channel?.channel_type) {
       fields.switchType = roomType as "text" | "voice";
@@ -453,6 +465,32 @@ export function ChannelSettingsModal({
                     {t("channel.settings.nsfw")}
                   </label>
                 </div>
+              )}
+
+              {slowmode && !isCreate && !isCategory && (
+                <label className="settings-section">
+                  {t("channel.settings.slowmode")}
+                  <select
+                    value={slowmodeSecs}
+                    onChange={(e) => setSlowmodeSecs(Number(e.target.value))}
+                    style={{ display: "block", marginTop: 4 }}
+                  >
+                    {SLOWMODE_STEPS.map((secs) => (
+                      <option key={secs} value={secs}>
+                        {secs === 0
+                          ? t("channel.settings.slowmode_off")
+                          : secs < 60
+                            ? t("channel.settings.slowmode_seconds", { count: secs })
+                            : secs < 3600
+                              ? t("channel.settings.slowmode_minutes", { count: secs / 60 })
+                              : t("channel.settings.slowmode_hours", { count: secs / 3600 })}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="muted" style={{ display: "block", fontSize: "var(--text-xs)", marginTop: 4 }}>
+                    {t("channel.settings.slowmode_hint")}
+                  </span>
+                </label>
               )}
 
               {isForum && (

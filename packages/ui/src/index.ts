@@ -248,7 +248,7 @@ export {
   DiscoverIcon,
   MentionIcon,
 } from "./components/Icons";
-export { HubStreamsPanel } from "./components/HubStreamsPanel";
+export { HubStreamsPanel, liveScreenShares, camerasOn } from "./components/HubStreamsPanel";
 export { ShareDialog, shareVideoConstraints, declaredQuality, estimateKbps } from "./components/voice/ShareDialog";
 export type { ShareQuality, StreamLimits } from "./components/voice/ShareDialog";
 export type { HubStreamInfo } from "./types";
@@ -416,6 +416,8 @@ export { StickerStorageSection } from "./components/admin/StickerStorageSection"
 export type { StickerStorageActions } from "./components/admin/StickerStorageSection";
 export { AttachmentSettingsSection } from "./components/admin/AttachmentSettingsSection";
 export type { AttachmentSettingsActions } from "./components/admin/AttachmentSettingsSection";
+export { WidgetSection, widgetEmbedCode } from "./components/admin/WidgetSection";
+export type { WidgetActions, WidgetSettings } from "./components/admin/WidgetSection";
 export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
 export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
 export { StickerPicker } from "./components/stickers/StickerPicker";
@@ -468,6 +470,8 @@ export { RemoveHubModal } from "./components/RemoveHubModal";
 export { EncryptionWarningModal } from "./components/EncryptionWarningModal";
 export { ContentReportsSection } from "./components/admin/ContentReportsSection";
 export { AutomodWebhookSection } from "./components/admin/AutomodWebhookSection";
+export { LockdownSection } from "./components/admin/LockdownSection";
+export type { LockdownActions, LockdownSettings } from "./components/admin/LockdownSection";
 export { FederatedBanlistSection } from "./components/admin/FederatedBanlistSection";
 export type { FederatedBanlistActions } from "./components/admin/FederatedBanlistSection";
 export { OutgoingWebhooksSection } from "./components/admin/OutgoingWebhooksSection";
@@ -485,6 +489,9 @@ export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry
 export type { StoredPresence } from "./utils/presenceExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
+export { useBatchedAnnouncement } from "./hooks/useBatchedAnnouncement";
+export { ROOM_MAP_RADIUS } from "./components/content/VoiceRoomMap";
+export type { VoiceRoomMapInfo } from "./components/content/VoiceRoomMap";
 export { useOlderPages, mergeOlderPage, MESSAGE_PAGE_SIZE } from "./hooks/useOlderPages";
 export type { AllianceScrollback } from "./hooks/useAlliances";
 export { useConfirm } from "./components/ConfirmDialog";
@@ -527,3 +534,4 @@ export type { MemberActivity } from "./utils/memberActivity";
 export { OnboardingFrame } from "./components/layout/OnboardingFrame";
 export type { InvitingHub } from "./components/layout/OnboardingFrame";
 export { SettingsModal } from "./components/settings/SettingsModal";
+export { voiceTransportFailure, VOICE_UNREACHABLE_AFTER_MS } from "./utils/voiceFailure";

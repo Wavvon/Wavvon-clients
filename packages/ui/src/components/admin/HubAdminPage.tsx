@@ -22,6 +22,7 @@ import { AttachmentSettingsSection, type AttachmentSettingsActions } from "./Att
 import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./OnboardingAdminSection";
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
+import { WidgetSection, type WidgetActions } from "./WidgetSection";
 import { CloseIcon } from "../Icons";
 
 export type MemberAction = Promise<boolean | void>;
@@ -43,6 +44,7 @@ export type HubAdminTab =
   | "sticker-storage"
   | "sticker-settings"
   | "attachments"
+  | "widget"
   | "alliances"
   | "hub-icons"
   | "onboarding"
@@ -186,6 +188,8 @@ export interface HubAdminPageProps {
   };
   /** Present only on a hub advertising `attachments.stored`, for a viewer holding `hub.settings`. */
   attachmentSettingsActions?: AttachmentSettingsActions;
+  /** Present only on a hub advertising `hub.widget`, for a viewer holding `hub.settings`. */
+  widgetActions?: WidgetActions;
   onboardingActions: OnboardingAdminSectionActions;
   allianceActions: AlliancesSectionActions;
   hubIconActions: HubIconsSectionActions;
@@ -343,6 +347,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_MODERATION }] : []),
     ...(showAlliances ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_CONNECTIONS }] : []),
     { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
+    ...(props.widgetActions ? [{ id: "widget" as HubAdminTab, label: t("hub.admin.tabs.widget"), group: G_CONNECTIONS }] : []),
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
     ...(props.stickersAdmin?.packs ? [{ id: "stickers" as HubAdminTab, label: t("hub.admin.tabs.stickers"), group: G_CUSTOM }] : []),
@@ -822,7 +827,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           />
         )}
 
-        {props.tab === "roles" && <RolesSection actions={props.rolesActions} />}
+        {props.tab === "roles" && <RolesSection actions={props.rolesActions} myMaxPriority={props.myMaxPriority} />}
 
         {props.tab === "integrations" && (
           <section>
@@ -861,6 +866,10 @@ export function HubAdminPage(props: HubAdminPageProps) {
             rolesActions={props.rolesActions}
             canManageRoles={props.canManageRoles}
           />
+        )}
+
+        {props.tab === "widget" && props.widgetActions && (
+          <WidgetSection actions={props.widgetActions} hubUrl={props.activeHubUrl} />
         )}
 
         {props.tab === "attachments" && props.attachmentSettingsActions && (

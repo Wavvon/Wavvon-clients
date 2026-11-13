@@ -7,12 +7,14 @@ import type { RoleInfo } from "@wavvon/core";
 // three copies meant three places to miss when the hub changes one.
 
 
-/** True if holding `role` alone grants the hub's admin permission — mirrors
- *  hub/src/routes/invites.rs::role_grants_admin. Used both to force
- *  single-use/short-expiry on admin-granting invites and to keep the hub's
- *  default invite role from ever being an admin role. */
+/** True if a code granting `role` could take the hub over: the owner role,
+ *  or any role carrying `roles.manage` — mirrors
+ *  hub/src/routes/invites.rs::role_is_a_takeover_token. The hub forces such an
+ *  invite to one use and a 24-hour expiry, and refuses it as the default
+ *  invite role; checking only the owner role let the form promise an admin
+ *  invite the hub then silently capped. */
 export function roleGrantsAdmin(role: RoleInfo): boolean {
-  return role.id === "builtin-owner";
+  return role.id === "builtin-owner" || role.permissions.includes("roles.manage");
 }
 
 /** Roles a user with `myMaxPriority` may grant via invite — mirrors the

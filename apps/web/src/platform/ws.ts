@@ -85,19 +85,49 @@ export class HubWebSocket {
     this.connect();
   }
 
-  private get wsUrl(): string {
+  private wsUrl(credential: string): string {
     const base = this.hub_url
       .replace(/^http:\/\//, "ws://")
       .replace(/^https:\/\//, "wss://");
     // A live reaches us only once opened (#259); read at every connect, so a
     // reconnect after capabilities arrive picks it up.
     const onRequest = hubSupports(this.hub_id, "screenshare.onrequest") ? "&streams=on_request" : "";
-    return `${base}/ws?token=${encodeURIComponent(this.token)}${onRequest}`;
+    return `${base}/ws?${credential}${onRequest}`;
+  }
+
+  /** What goes in the socket URL: a single-use ticket where the hub offers
+   *  one, so the session token stays out of URLs and the logs that keep them;
+   *  the token itself on an older hub, or if the ticket could not be had (the
+   *  handshake then fails or succeeds exactly as it always did). */
+  private async ticketCredential(): Promise<string> {
+    try {
+      const res = await fetch(`${this.hub_url}/ws/ticket`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}` },
+      });
+      if (res.ok) {
+        const { ticket } = (await res.json()) as { ticket: string };
+        return `ticket=${encodeURIComponent(ticket)}`;
+      }
+    } catch {
+      // Fall through to the token.
+    }
+    return `token=${encodeURIComponent(this.token)}`;
   }
 
   private connect(): void {
     if (this.closed) return;
-    this.ws = new WebSocket(this.wsUrl);
+    if (!hubSupports(this.hub_id, "ws.ticket")) {
+      this.open(`token=${encodeURIComponent(this.token)}`);
+      return;
+    }
+    void this.ticketCredential().then((credential) => {
+      if (!this.closed) this.open(credential);
+    });
+  }
+
+  private open(credential: string): void {
+    this.ws = new WebSocket(this.wsUrl(credential));
     this.ws.binaryType = "arraybuffer";
 
     this.ws.onopen = () => {

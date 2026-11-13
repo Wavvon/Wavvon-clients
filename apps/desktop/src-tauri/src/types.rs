@@ -94,6 +94,37 @@ pub(crate) struct InfoResponse {
     pub min_security_level: Option<u32>,
     #[serde(default)]
     pub challenge_mode: Option<String>,
+    /// The old key's signed endorsement of the new one, while a key
+    /// rotation's transition window is open.
+    #[serde(default)]
+    pub rotation: Option<HubKeyRotation>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub(crate) struct HubKeyRotation {
+    pub old_pubkey: String,
+    pub new_pubkey: String,
+    pub effective_at: i64,
+    pub signature: String,
+}
+
+impl HubKeyRotation {
+    /// Whether this endorses `new_pubkey` as the successor of `saved`, the
+    /// key we already trust the hub under. Signed by the old key over
+    /// `"<old>:<new>:<effective_at>"`, exactly as the hub writes it.
+    pub(crate) fn endorses(&self, saved: &str, new_pubkey: &str) -> bool {
+        if self.old_pubkey != saved || self.new_pubkey != new_pubkey {
+            return false;
+        }
+        let message = format!(
+            "{}:{}:{}",
+            self.old_pubkey, self.new_pubkey, self.effective_at
+        );
+        let Ok(sig) = hex::decode(&self.signature) else {
+            return false;
+        };
+        crate::identity::verify_signature(saved, message.as_bytes(), &sig).is_ok()
+    }
 }
 
 pub(crate) fn default_birthdays_enabled() -> bool {
@@ -693,6 +724,8 @@ pub(crate) enum WsServerMessage {
         channel_id: String,
         mini_app_url: String,
         session_token: String,
+        #[serde(default)]
+        requires_camera: bool,
     },
     #[serde(rename = "app_close")]
     AppClose { app_id: String, channel_id: String },
@@ -761,5 +794,36 @@ mod message_info_tests {
         assert_eq!(ui["reply_count"], 2);
         assert_eq!(ui["embeds"][0]["title"], "t");
         assert_eq!(ui["masquerade"]["name"], "Ada");
+    }
+}
+
+#[cfg(test)]
+mod rotation_tests {
+    use super::HubKeyRotation;
+    use ed25519_dalek::{Signer, SigningKey};
+
+    fn rotation(old: &SigningKey, new_pubkey: &str) -> HubKeyRotation {
+        let old_pubkey = hex::encode(old.verifying_key().as_bytes());
+        let message = format!("{old_pubkey}:{new_pubkey}:100");
+        HubKeyRotation {
+            signature: hex::encode(old.sign(message.as_bytes()).to_bytes()),
+            old_pubkey,
+            new_pubkey: new_pubkey.to_string(),
+            effective_at: 100,
+        }
+    }
+
+    #[test]
+    fn only_the_saved_key_can_endorse_its_successor() {
+        let old = SigningKey::from_bytes(&[7u8; 32]);
+        let stranger = SigningKey::from_bytes(&[9u8; 32]);
+        let saved = hex::encode(old.verifying_key().as_bytes());
+        let new_pubkey = "ab".repeat(32);
+
+        assert!(rotation(&old, &new_pubkey).endorses(&saved, &new_pubkey));
+        // A reinstalled hub can sign a "rotation" with a key of its own.
+        assert!(!rotation(&stranger, &new_pubkey).endorses(&saved, &new_pubkey));
+        // An endorsement of a different successor says nothing about this one.
+        assert!(!rotation(&old, &new_pubkey).endorses(&saved, &"cd".repeat(32)));
     }
 }

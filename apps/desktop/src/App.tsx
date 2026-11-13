@@ -7,41 +7,35 @@
 // - Event handlers use camelCase: onClick, onChange, onSubmit
 
 import type { SettingsTab } from "./components/SettingsPage";
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { DISCOVERY_URL } from "./constants";
 import { invoke } from "@tauri-apps/api/core";
-import type { DragEndEvent } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import type {
   Channel,
   Attachment,
-  ReplyContext,
-  Message,
   NotifyMode,
   User,
-  VoiceParticipant,
   Hub,
   MeInfo,
-  BanInfo,
   Conversation,
-  DmMessage,
-  AllianceInfo,
-  AllianceSharedChannel,
-  ActiveStream,
   LobbyStatus,
-  AppLaunchEvent,
-  AppOpenEvent,
-  AppCloseEvent,
 } from "./types";
 import { PendingApplication } from "./components/PendingApplication";
 import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
-import { VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions, computeDragIntent } from "@wavvon/ui";
+import { useConfirm, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
-import { useWhisperKeybinds, pickReplyPubkey, WhisperInbox } from "@wavvon/ui";
-import type { WhisperReplyBind, WhisperTarget } from "@wavvon/ui";
-import { loadWhisperReplyBind, saveWhisperReplyBind } from "./utils/whisperReply";
-import type { GlobalSearchResult, ProfileDraftFields } from "@wavvon/ui";
+import { WhisperInbox } from "@wavvon/ui";
+import type { GlobalSearchResult } from "@wavvon/ui";
+import { useWhisperReply } from "./hooks/useWhisperReply";
+import { useCollapsedCategories } from "./hooks/useCollapsedCategories";
+import { useBlockIgnore } from "./hooks/useBlockIgnore";
+import { useActiveApps } from "./hooks/useActiveApps";
+import { useDeepLink } from "./hooks/useDeepLink";
+import { useMeProfile } from "./hooks/useMeProfile";
+import { useChannelDragEnd } from "./hooks/useChannelDragEnd";
+import { useAppKeybinds } from "./hooks/useAppKeybinds";
+import { useSuppressNativeContextMenu } from "./hooks/useSuppressNativeContextMenu";
 import { useVoice } from "./hooks/useVoice";
 import { useSoundboard } from "./hooks/useSoundboard";
 import { useVideo } from "./hooks/useVideo";
@@ -49,17 +43,14 @@ import { useWhisper } from "./hooks/useWhisper";
 import { useAddHubFlow } from "./hooks/useAddHubFlow";
 import { useChannelCrud } from "./hooks/useChannelCrud";
 import { VideoGrid } from "./components/VideoGrid";
-import { type ThemeId, type WavvonSkin, applySkinTokens, clearSkinTokens } from "@wavvon/ui";
+import { type ThemeId, type WavvonSkin, applySkinTokens } from "@wavvon/ui";
 import {
   formatPubkey,
   buildChannelTree,
-  flattenTree,
-  descendantIds,
-  computeDepth,
 } from "@wavvon/core";
-import { parseHubInput, classifyHubRefusal, type HubRefusal } from "@wavvon/core";
+import { classifyHubRefusal, type HubRefusal } from "@wavvon/core";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
-import { useUnreadCounts } from "@wavvon/ui";
+import { useUnreadCounts, useBatchedAnnouncement } from "@wavvon/ui";
 import { unreadPersistence } from "./unreadPersistence";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
 import { useHubConnections } from "./hooks/useHubConnections";
@@ -79,7 +70,8 @@ import { useSlashCommands } from "./hooks/useSlashCommands";
 import { SettingsPageContainer } from "./components/SettingsPageContainer";
 import { HubAdminContainer } from "./components/HubAdminContainer";
 import { AppModals } from "./components/AppModals";
-import { HubTopBar, useHubLayout } from "@wavvon/ui";
+import { HubTopBar } from "@wavvon/ui";
+import { useSyncedHubLayout } from "./hooks/useSyncedHubLayout";
 import { useUserMenu } from "./hooks/useUserMenu";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
@@ -87,11 +79,11 @@ import { fetchWithTimeout } from "./utils/fetchWithTimeout";
 import { WelcomeScreen } from "@wavvon/ui";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { setSwitchGuard } from "./accounts/store";
-import { loadDefaultProfileAsync } from "./utils/profileEditorActions";
 import { DisplayNamePrompt } from "@wavvon/ui";
 
 function App({ accountId }: { accountId: string | null }) {
   const { t } = useTranslation();
+  const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   // Bumped by the pending screen's "check again", so the join application
   // panel reads its status again too.
@@ -120,34 +112,6 @@ function App({ accountId }: { accountId: string | null }) {
     setChannelMode,
   } = notifyPrefs;
 
-  // Blocked users: pubkey set. Persisted to ~/.wavvon/blocked_users.json so
-  // the choice carries across sessions. Used to filter out their messages
-  // from channel + DM views without involving any hub state.
-  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
-
-  function toggleBlockUser(pubkey: string) {
-    setBlockedUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(pubkey)) next.delete(pubkey);
-      else next.add(pubkey);
-      const list = Array.from(next);
-      invoke("save_blocked_users", { blocked: list }).catch(() => {});
-      invoke("update_dm_blocks", { blocked: list }).catch(() => {});
-      return next;
-    });
-  }
-
-  const [ignoredUsers, setIgnoredUsers] = useState<Set<string>>(new Set());
-
-  function toggleIgnoreUser(pubkey: string) {
-    setIgnoredUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(pubkey)) next.delete(pubkey);
-      else next.add(pubkey);
-      invoke("save_ignored_users", { ignored: Array.from(next) }).catch(() => {});
-      return next;
-    });
-  }
 
   // Own presence — global across hubs, not per-hub. The device is the
   // source of truth: the picker broadcasts to every session and each hub
@@ -174,23 +138,6 @@ function App({ accountId }: { accountId: string | null }) {
     },
   });
 
-  // Collapsed categories: hub_id -> { category_id: true }. Persisted so a
-  // folded category stays folded across restarts. Categories not in the
-  // map render expanded by default.
-  const [collapsedCategories, setCollapsedCategories] = useState<
-    Record<string, Record<string, boolean>>
-  >({});
-
-  function toggleCategoryCollapsed(hubId: string, categoryId: string) {
-    setCollapsedCategories((prev) => {
-      const hubMap = { ...(prev[hubId] ?? {}) };
-      if (hubMap[categoryId]) delete hubMap[categoryId];
-      else hubMap[categoryId] = true;
-      const next = { ...prev, [hubId]: hubMap };
-      invoke("save_collapsed_categories", { state: next }).catch(() => {});
-      return next;
-    });
-  }
 
   const hubConnections = useHubConnections();
   const {
@@ -215,23 +162,8 @@ function App({ accountId }: { accountId: string | null }) {
     return hubNotifyMode[hubId] ?? "all";
   }
 
-  // Hydrate collapsed-category state on launch.
-  useEffect(() => {
-    invoke<Record<string, Record<string, boolean>>>("load_collapsed_categories")
-      .then((s) => setCollapsedCategories(s ?? {}))
-      .catch(console.error);
-  }, []);
-
-  // Hydrate blocked-users list on launch.
-  useEffect(() => {
-    invoke<string[]>("load_blocked_users")
-      .then((s) => setBlockedUsers(new Set(s ?? [])))
-      .catch(console.error);
-
-    invoke<string[]>("load_ignored_users")
-      .then((s) => setIgnoredUsers(new Set(s ?? [])))
-      .catch(() => {});
-  }, []);
+  const { collapsedCategories, toggleCategoryCollapsed } = useCollapsedCategories();
+  const { blockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore();
 
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -305,7 +237,6 @@ function App({ accountId }: { accountId: string | null }) {
     openHubAdmin,
     openHubAdminInvites,
     handleSaveHubBranding,
-    refreshPending,
     handleApproveMember,
     handleRejectMember,
     loadApplication,
@@ -316,9 +247,7 @@ function App({ accountId }: { accountId: string | null }) {
     handleUnmuteMember,
     adminMutes,
     handleTimeoutMember,
-    refreshBans,
     handleUnban,
-    refreshInvites,
     handleCreateInvite,
     handleRevokeInvite,
     loadAdminTabData,
@@ -334,9 +263,7 @@ function App({ accountId }: { accountId: string | null }) {
   });
 
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
-  const [voicePoliteAnnouncement, setVoicePoliteAnnouncement] = useState("");
-  const voiceAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingVoiceAnnouncementsRef = useRef<string[]>([]);
+  const { announcement: voicePoliteAnnouncement, announce: announceVoice } = useBatchedAnnouncement();
 
   const publicKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -414,13 +341,9 @@ function App({ accountId }: { accountId: string | null }) {
   const {
     view,
     setView,
-    viewRef,
     setConversations,
-    conversationsRef,
-    setSelectedConversation,
     selectedConversationIdRef,
     encryptionWarning,
-    setEncryptionWarning,
     loadConversations,
     selectConversation,
     startDmWith,
@@ -432,12 +355,7 @@ function App({ accountId }: { accountId: string | null }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const removeHubConfirm = useRemoveHubConfirm(handleRemoveHub);
   // Per account: App is remounted on a switch, and every account has its own hubs.
-  const layoutKey = `wavvon.hubLayout:${accountId ?? ""}`;
-  const [hubLayout, setHubLayout] = useHubLayout(
-    () => localStorage.getItem(layoutKey),
-    useCallback((raw: string) => localStorage.setItem(layoutKey, raw), [layoutKey]),
-    hubs.map((h) => h.hub_id),
-  );
+  const [hubLayout, setHubLayout] = useSyncedHubLayout(accountId, hubs.map((h) => h.hub_id));
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Above useChannelMessages: the alliance state it wires to the composer now
@@ -575,23 +493,13 @@ function App({ accountId }: { accountId: string | null }) {
     openCreateChannelUnder,
   } = channelCrud;
 
-  // Message edit state — which message id is being edited and its draft
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editingDraft, setEditingDraft] = useState("");
 
   // Hub users
   const [users, setUsers] = useState<User[]>([]);
 
   const { slashCommands, loadSlashCommands, clearSlashCommands } = useSlashCommands();
 
-  const [activeApps, setActiveApps] = useState<Map<string, AppLaunchEvent>>(new Map());
-
-  function sendAppJoin(appId: string, channelId: string) {
-    if (!activeHubId) return;
-    invoke("send_hub_ws_raw", {
-      payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
-    }).catch(() => {});
-  }
+  const { activeApps, sendAppJoin, onBotAppLaunch, onBotAppOpen, onBotAppClose } = useActiveApps(activeHubId);
 
   const pubkeyToName = useMemo(() => {
     const m: Record<string, string | null> = {};
@@ -644,27 +552,7 @@ function App({ accountId }: { accountId: string | null }) {
   const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips();
   const whisperOptoutRef = useRef(whisper.whisperOptout);
   whisperOptoutRef.current = whisper.whisperOptout;
-  const [whisperReplyBind, setWhisperReplyBindState] = useState<WhisperReplyBind>(loadWhisperReplyBind);
-  const setWhisperReplyBind = (bind: WhisperReplyBind) => {
-    setWhisperReplyBindState(bind);
-    saveWhisperReplyBind(bind);
-  };
-  // Reply key target: the most recent inbound whisperer (see pickReplyPubkey).
-  const whisperReplyTarget = useMemo<WhisperTarget | null>(() => {
-    const pk = pickReplyPubkey(whisper.inboundWhisperLog);
-    if (!pk) return null;
-    const name = users.find((u) => u.public_key === pk)?.display_name;
-    return { type: "user", id: pk, label: name || pk.slice(0, 8) };
-  }, [whisper.inboundWhisperLog, users]);
-  useWhisperKeybinds({
-    voiceChannelId: voice.voiceChannelId,
-    whisperLists: whisper.whisperLists,
-    isWhispering: whisper.isWhispering,
-    startWhisper: whisper.startWhisper,
-    stopWhisper: whisper.stopWhisper,
-    replyBind: whisperReplyBind,
-    replyTarget: whisperReplyTarget,
-  });
+  const { whisperReplyBind, setWhisperReplyBind } = useWhisperReply(whisper, voice.voiceChannelId, users);
   const [showWhisperPanel, setShowWhisperPanel] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
 
@@ -681,7 +569,7 @@ function App({ accountId }: { accountId: string | null }) {
     handleAcceptVoiceMove,
     handleDeclineVoiceMove,
     onVoiceMovePush,
-  } = useVoiceMoveUx({ joinVoice: (id) => void voice.handleVoiceJoin(id) });
+  } = useVoiceMoveUx({ joinVoice: (id) => void voice.handleVoiceJoin(id), isInVoice: voice.isInOrJoiningVoice });
 
   // Web's useVoice clears this on voice-leave (extRef.clearVoiceChannelNameHint);
   // desktop's hook has no ext-callback hook, so the call site clears it directly.
@@ -747,12 +635,23 @@ function App({ accountId }: { accountId: string | null }) {
     loading,
     hubUrl,
     setHubUrl,
-    inviteCode,
     setInviteCode,
     hubPreview,
     handleHubUrlChange,
     handleAddHub,
   } = addHubFlow;
+
+  const { routeDeepLinkRef } = useDeepLink({
+    hubsRef,
+    activeHubId,
+    channels,
+    channelMessages,
+    setView,
+    handleSwitchHub,
+    setHubUrl,
+    setInviteCode,
+    setShowAddHub,
+  });
 
   const {
     showFriends,
@@ -834,38 +733,12 @@ function App({ accountId }: { accountId: string | null }) {
     onHubErrorVoiceJoin: voice.onHubErrorVoiceJoin,
     voiceVisitIdRef: voice.voiceVisitIdRef,
     onVoiceVisitLost: leaveVoiceChannel,
-    pendingVoiceAnnouncementsRef,
-    voiceAnnounceTimerRef,
-    setVoicePoliteAnnouncement,
+    announceVoice,
     hubs,
     channelsRef,
-    onBotAppLaunch: (ev: AppLaunchEvent) => {
-      setActiveApps((prev) => {
-        const next = new Map(prev);
-        next.set(ev.app_id, ev);
-        return next;
-      });
-    },
-    onBotAppOpen: (ev: AppOpenEvent, hubUrl: string) => {
-      const label = `mini-app-${ev.app_id}`;
-      invoke("open_mini_app", {
-        label,
-        url: ev.mini_app_url,
-        hubUrl,
-        token: ev.session_token,
-        channelId: ev.channel_id,
-        appId: ev.app_id,
-        requiresCamera: ev.requires_camera,
-      }).catch(() => {});
-    },
-    onBotAppClose: (ev: AppCloseEvent) => {
-      setActiveApps((prev) => {
-        const next = new Map(prev);
-        next.delete(ev.app_id);
-        return next;
-      });
-      invoke("close_mini_app", { label: `mini-app-${ev.app_id}` }).catch(() => {});
-    },
+    onBotAppLaunch,
+    onBotAppOpen,
+    onBotAppClose,
     onVoiceMove: onVoiceMovePush,
     onChannelsChanged: () => {
       invoke<Channel[]>("list_channels").then(setChannels).catch(() => {});
@@ -1029,10 +902,25 @@ function App({ accountId }: { accountId: string | null }) {
         } catch {}
       }
       try {
-        const { hubs: allHubs, unreachable } = await invoke<{
+        const { hubs: allHubs, unreachable, reinstalled } = await invoke<{
           hubs: Hub[];
           unreachable: { hub_name: string; hub_url: string; error: string }[];
+          reinstalled: { hub_name: string; hub_url: string }[];
         }>("auto_connect_saved");
+        // Said once, and joining is the member's explicit act: adopting an
+        // unendorsed key is exactly what the Rust side refused to do.
+        for (const h of reinstalled) {
+          const join = await confirmReinstalled({
+            title: t("hub.reinstalled.title", { name: h.hub_name }),
+            body: t("hub.reinstalled.body", { url: h.hub_url }),
+            confirmLabel: t("hub.reinstalled.join"),
+          });
+          if (join) {
+            setHubUrl(h.hub_url);
+            setShowAddHub(true);
+            break;
+          }
+        }
         // A hub that could not be reached is still saved; say so rather than
         // let it vanish, and never fall back to the welcome screen for it.
         if (unreachable.length > 0) {
@@ -1049,6 +937,12 @@ function App({ accountId }: { accountId: string | null }) {
       } catch (e) {
         console.error("Auto-connect failed:", e);
       }
+      // Read after auto-connect, so a channel link that launched the app
+      // can be matched against the hubs this account has joined.
+      try {
+        const link = await invoke<string | null>("get_pending_deep_link");
+        if (link) routeDeepLinkRef.current(link, hubsRef.current);
+      } catch { /* no launch link */ }
       invoke("publish_dh_key").catch((e) =>
         console.warn("Failed to publish DH key:", e)
       );
@@ -1072,101 +966,16 @@ function App({ accountId }: { accountId: string | null }) {
       .catch(() => {});
   }, [activeHubId]);
 
-  // Ask for a display name once, on the first hub this identity joins with
-  // none. Without it a fresh desktop identity sat in every roster as a slice
-  // of its pubkey: the nickname step and this prompt were both web-only
-  // (found 2026-09-06 by the web-desktop harness, which could not find its own
-  // member by name).
-  const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false);
-  const me = users.find((u) => u.public_key === publicKey);
-  // "Skip for now" is an answer too; without remembering it the prompt came
-  // back on every launch. Keyed by account, since each one is asked once.
-  const nameSkipKey = `wavvon.displayNamePromptSkipped.${publicKey}`;
-  useEffect(() => {
-    // Every hub where we have no name yet, not only the first one joined
-    // (#250): the default profile is "how I appear when I join a hub".
-    if (!me || me.display_name) return;
-    const skipped = localStorage.getItem(nameSkipKey) === "1";
-    // A default profile means the user already said who they want to be —
-    // apply all of it instead of asking again, the same way web does.
-    void loadDefaultProfileAsync()
-      .then((def) => {
-        if (def?.display_name?.trim()) return applyDefaultProfile(def);
-        if (!skipped) setShowDisplayNamePrompt(true);
-      })
-      .catch(() => { if (!skipped) setShowDisplayNamePrompt(true); });
-    // Only when the hub or the answer changes, not on every roster update.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeHubId, me?.public_key, me?.display_name]);
+  const { showDisplayNamePrompt, setShowDisplayNamePrompt, nameSkipKey, saveDisplayName } = useMeProfile({
+    hubs,
+    activeHubId,
+    users,
+    setUsers,
+    publicKey,
+    setError,
+  });
 
-  async function applyDefaultProfile(def: ProfileDraftFields) {
-    const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
-    if (!hubUrl) return;
-    try {
-      await invoke("update_my_profile_on_hub", {
-        hubUrl,
-        profile: {
-          display_name: def.display_name.trim(),
-          avatar: def.avatar ?? "",
-          bio: def.bio ?? "",
-          pronouns: def.pronouns ?? "",
-          status_message: def.status_message ?? "",
-          activities: def.activities ?? "",
-          accent_color: def.accent_color ?? "",
-          name_color: def.name_color ?? "",
-          cover: def.cover ?? "",
-          favorite_hubs: def.favorite_hubs,
-          show_hubs: def.show_hubs,
-          birthday: def.birthday ?? "",
-        },
-      });
-      setUsers((prev) =>
-        prev.map((u) => (u.public_key === publicKey ? { ...u, display_name: def.display_name.trim(), avatar: def.avatar ?? u.avatar } : u)),
-      );
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function saveDisplayName(name: string) {
-    setShowDisplayNamePrompt(false);
-    const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
-    if (!hubUrl) return;
-    try {
-      await invoke("update_my_profile_on_hub", { hubUrl, profile: { display_name: name } });
-      setUsers((prev) =>
-        prev.map((u) => (u.public_key === publicKey ? { ...u, display_name: name } : u)),
-      );
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  // Suppress the webview's default right-click menu (Reload / Inspect /
-  // Back). Tauri 2 still enables it by default and a stray right-click
-  // anywhere on the chrome would let the user accidentally reload the app.
-  // Components that want their own context menu (channel rows, messages,
-  // user list items) call e.preventDefault() in their onContextMenu, which
-  // also stops the browser default — so they keep working unchanged.
-  // Native menus stay available inside text inputs so copy/paste isn't
-  // broken.
-  useEffect(() => {
-    const onContext = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable ||
-        target.closest("[data-allow-context-menu]")
-      ) {
-        return;
-      }
-      e.preventDefault();
-    };
-    document.addEventListener("contextmenu", onContext);
-    return () => document.removeEventListener("contextmenu", onContext);
-  }, []);
+  useSuppressNativeContextMenu();
 
   // Auto-select the first text-channel-style room when a hub loads, so
   // the user lands on something readable instead of an empty content
@@ -1263,68 +1072,7 @@ function App({ accountId }: { accountId: string | null }) {
     );
   }, [activeHubId, hideSilenced, channels, channelNotifyMode, hubNotifyMode]);
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    // Client-side cycle guard: can't drop a node into its own descendant.
-    const forbidden = descendantIds(channelTree, activeId);
-    if (forbidden.has(overId)) return;
-
-    // Determine the new parent: dropping on the top/bottom edge of an item
-    // reorders as a sibling; only the middle band of a category nests
-    // (nested-channels-ux drag&drop fix — dropping anywhere on a category
-    // used to always nest, so root-level items could never be reordered
-    // around one).
-    const allFlat = flattenTree(channelTree);
-    const activeFlat = allFlat.find((n) => n.node.id === activeId);
-    const overFlat = allFlat.find((n) => n.node.id === overId);
-    if (!activeFlat || !overFlat) return;
-
-    const intent = over.rect
-      ? computeDragIntent(active.rect.current.translated, over.rect, overFlat.node.is_category)
-      : "before";
-    const willNest = intent === "nest";
-
-    if (maxChannelDepth > 0) {
-      const maxCodeDepth = maxChannelDepth - 1;
-      const parentForDepth = willNest ? overFlat.node.id : overFlat.parentId;
-      const newDepth = parentForDepth !== null
-        ? computeDepth(channels, parentForDepth) + 1
-        : 0;
-      if (newDepth > maxCodeDepth) return;
-      if (activeFlat.node.is_category && newDepth >= maxCodeDepth) return;
-    }
-
-    const newParentId = willNest ? overFlat.node.id : overFlat.parentId;
-    const parentChanged = newParentId !== activeFlat.node.parent_id;
-
-    // Optimistic parent update so the reorder below sees the new shape.
-    const channelsWithNewParent = parentChanged
-      ? channels.map((c) => (c.id === activeId ? { ...c, parent_id: newParentId } : c))
-      : channels;
-
-    // Reorder within the flat global list.
-    const sorted = [...channelsWithNewParent].sort((a, b) => a.display_order - b.display_order);
-    const oldIndex = sorted.findIndex((c) => c.id === activeId);
-    const newIndex = sorted.findIndex((c) => c.id === overId);
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    const reordered = arrayMove(sorted, oldIndex, newIndex);
-    setChannels(reordered.map((c, i) => ({ ...c, display_order: i })));
-
-    try {
-      if (parentChanged) {
-        await invoke("move_channel", { channelId: activeId, parentId: newParentId });
-      }
-      await invoke("reorder_channels", { channelIds: reordered.map((c) => c.id) });
-    } catch (e) {
-      setError(String(e));
-    }
-  }
+  const handleDragEnd = useChannelDragEnd(channels, channelTree, maxChannelDepth, setChannels, setError);
 
   async function handleHubSetupWizardComplete(firstChannelId: string | null) {
     if (!activeHubId) return;
@@ -1382,134 +1130,24 @@ function App({ accountId }: { accountId: string | null }) {
     };
   }
 
-  useEffect(() => {
-    function isTextInput(el: Element | null): boolean {
-      if (!el) return false;
-      const tag = (el as HTMLElement).tagName;
-      return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
-    }
-
-    function onKey(e: KeyboardEvent) {
-      const meta = e.ctrlKey || e.metaKey;
-      const inText = isTextInput(document.activeElement);
-
-      if (meta && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen(true);
-        return;
-      }
-
-      if (meta && e.key === "/") {
-        e.preventDefault();
-        setShowKeyboardShortcuts((v) => !v);
-        return;
-      }
-
-      if (meta && e.key === ",") {
-        e.preventDefault();
-        openSettings();
-        return;
-      }
-
-      if (meta && e.shiftKey && e.key.toLowerCase() === "m") {
-        e.preventDefault();
-        voice.toggleSelfMute();
-        return;
-      }
-
-      if (meta && e.shiftKey && e.key.toLowerCase() === "d") {
-        e.preventDefault();
-        voice.toggleSelfDeafen();
-        return;
-      }
-
-      if (meta && e.shiftKey && e.key.toLowerCase() === "v") {
-        e.preventDefault();
-        if (voice.voiceChannelId) {
-          leaveVoiceChannel();
-        } else if (channelMessages.selectedChannel && !channelMessages.selectedChannel.is_category) {
-          voice.handleVoiceJoin(channelMessages.selectedChannel);
-        }
-        return;
-      }
-
-      if (meta && e.key === "ArrowUp") {
-        e.preventDefault();
-        const idx = hubs.findIndex((h) => h.hub_id === activeHubId);
-        if (idx > 0) {
-          const prev = hubs[idx - 1];
-          handleSwitchHub(prev.hub_id);
-          setView("channels");
-        }
-        return;
-      }
-
-      if (meta && e.key === "ArrowDown") {
-        e.preventDefault();
-        const idx = hubs.findIndex((h) => h.hub_id === activeHubId);
-        if (idx >= 0 && idx < hubs.length - 1) {
-          const next = hubs[idx + 1];
-          handleSwitchHub(next.hub_id);
-          setView("channels");
-        }
-        return;
-      }
-
-      if (e.altKey && e.key === "ArrowUp") {
-        e.preventDefault();
-        if (view === "channels" && activeHubId) {
-          const unreadSet = unreadByChannel[activeHubId] ?? {};
-          const unreadChannels = channels.filter((c) => !c.is_category && unreadSet[c.id]);
-          if (unreadChannels.length > 0) {
-            const idx = channelMessages.selectedChannel
-              ? unreadChannels.findIndex((c) => c.id === channelMessages.selectedChannel!.id)
-              : -1;
-            const prev = idx > 0 ? unreadChannels[idx - 1] : unreadChannels[unreadChannels.length - 1];
-            channelMessages.selectChannel(prev);
-          }
-        }
-        return;
-      }
-
-      if (e.altKey && e.key === "ArrowDown") {
-        e.preventDefault();
-        if (view === "channels" && activeHubId) {
-          const unreadSet = unreadByChannel[activeHubId] ?? {};
-          const unreadChannels = channels.filter((c) => !c.is_category && unreadSet[c.id]);
-          if (unreadChannels.length > 0) {
-            const idx = channelMessages.selectedChannel
-              ? unreadChannels.findIndex((c) => c.id === channelMessages.selectedChannel!.id)
-              : -1;
-            const next = idx >= 0 && idx < unreadChannels.length - 1
-              ? unreadChannels[idx + 1]
-              : unreadChannels[0];
-            channelMessages.selectChannel(next);
-          }
-        }
-        return;
-      }
-
-      if (meta && e.key.toLowerCase() === "f" && !inText) {
-        e.preventDefault();
-        channelMessages.setSearchOpen(true);
-        return;
-      }
-
-      if (e.key === "/" && !inText && !meta) {
-        e.preventDefault();
-        channelMessages.messageInputRef.current?.focus();
-        return;
-      }
-
-      if (e.key === "Escape") {
-        if (contextMenu) { setContextMenu(null); return; }
-        if (paletteOpen) { setPaletteOpen(false); return; }
-        if (channelMessages.replyTarget) { channelMessages.setReplyTarget(null); return; }
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [hubs, activeHubId, channelMessages.selectedChannel, channels, view, voice, unreadByChannel, contextMenu, paletteOpen, channelMessages.replyTarget]);
+  useAppKeybinds({
+    hubs,
+    activeHubId,
+    channels,
+    view,
+    setView,
+    voice,
+    channelMessages,
+    unreadByChannel,
+    contextMenu,
+    setContextMenu,
+    paletteOpen,
+    setPaletteOpen,
+    setShowKeyboardShortcuts,
+    handleSwitchHub,
+    openSettings,
+    leaveVoiceChannel,
+  });
 
   const userMenu = useUserMenu({
     users,
@@ -1523,6 +1161,7 @@ function App({ accountId }: { accountId: string | null }) {
 
   return (
     <div className="app">
+      {reinstalledDialog}
       <div
         role="alert"
         aria-live="assertive"
@@ -1672,6 +1311,7 @@ function App({ accountId }: { accountId: string | null }) {
               hubNotifyMode={hubNotifyMode}
               lobbyHubIds={lobbyHubIds}
               onSwitchToDms={() => { if (!hasActiveHub) return; setView("dms"); loadConversations(); }}
+              onBackToChannels={() => setView("channels")}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
               onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
               onSetHubNotifyMode={setHubMode}

@@ -19,6 +19,9 @@ function ErrorFallback({ onReload }: FallbackProps) {
 
 interface Props {
   children: ReactNode;
+  /** Shown instead of the app-wide reload screen, so a broken widget stays
+   *  contained to its own spot. */
+  fallback?: ReactNode;
 }
 
 interface State {
@@ -37,6 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback !== undefined) return this.props.fallback;
       return <ErrorFallback onReload={() => window.location.reload()} />;
     }
     return this.props.children;

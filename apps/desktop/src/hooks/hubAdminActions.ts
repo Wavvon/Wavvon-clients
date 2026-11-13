@@ -38,6 +38,7 @@ import type {
   SharedChannel,
   ContentReportsActions,
   AutomodWebhookActions,
+  LockdownActions,
   FederatedBanlistActions,
   BanlistSource,
   FederatedBanEntry,
@@ -55,6 +56,9 @@ import type {
 // argument (they operate on "the active hub" implicitly via the request's
 // auth context) — no App state involved, so these are stable module-level
 // consts rather than something rebuilt every render inside App's JSX.
+/** `rolesActions` plus one-call reordering, for a hub advertising `roles.order`. */
+export const reorderRoles = (roleIds: string[]) => invoke<RoleInfo[]>("reorder_roles", { roleIds });
+
 export const rolesActions: RolesSectionActions = {
   listRoles: () => invoke<RoleInfo[]>("list_roles"),
   createRole: (input) =>
@@ -92,6 +96,8 @@ export const rolesActions: RolesSectionActions = {
     }),
   deleteRoleCategory: (id) => invoke("delete_role_category", { categoryId: id }),
 };
+
+export const rolesActionsWithOrder: RolesSectionActions = { ...rolesActions, reorderRoles };
 
 export const memberRoleActions: MemberRoleManagerActions = {
   listRoles: () => invoke<RoleInfo[]>("list_roles"),
@@ -286,6 +292,12 @@ export const automodActions: AutomodWebhookActions = {
       webhookUrl: webhookUrl ?? null,
       webhookSecret: webhookSecret ?? null,
     }),
+};
+
+// Raid lockdown (`hub.lockdown`), on the active session.
+export const lockdownActions: LockdownActions = {
+  getLockdown: () => invoke("get_lockdown"),
+  putLockdown: (settings) => invoke("put_lockdown", { settings }),
 };
 
 // Federated ban lists. Every call acts on the active session, like the rest of

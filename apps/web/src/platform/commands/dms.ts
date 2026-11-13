@@ -10,6 +10,8 @@ import type { IdentityRecord } from "../../identity/store";
 import { getScoped, setScoped } from "../../utils/accountScope";
 
 const PLAINTEXT_SIGNER_CERT_CAP = "dms.plaintext.signercert";
+const PLAINTEXT_V2_CAP = "dms.plaintext.v2";
+const SIGNED_MEMBERS_CAP = "dms.group.signedmembers";
 import {
   dhKeypairFromSeed,
   encryptDm,
@@ -20,14 +22,21 @@ import {
   signBytes,
   publicKeyHex,
   dhKeySigningBytes,
+  verifyDhKeyRecord,
+  dhPinVerdict,
   federatedPlaintextDmSigningBytes,
+  federatedPlaintextDmV2SigningBytes,
+  dmMemberChangeSigningBytes,
   verifyDmEnvelopeSigner,
+  verifyGroupEnvelopeSigner,
   type DmEnvelope,
+  type GroupEnvelope,
   type DRSession,
   type DrEnvelope,
   type SubkeyCert,
 } from "@wavvon/core";
 import type { Conversation, DmMessage, DmMessageFull, Attachment } from "@shared/types";
+import { decryptGroupDm, encryptGroupDm, fetchGroupSenderKeys, holdsGroupKey } from "./groupDms";
 
 // ---------------------------------------------------------------------------
 // Cert-chained DM attribution (decisions.md "Paired-device DMs attribute to
@@ -137,7 +146,7 @@ interface RawDmMessage {
   attachments?: Attachment[];
   is_encrypted?: boolean;
   encrypted_envelope?: DmEnvelope | DrEnvelope;
-  group_encrypted_envelope?: unknown;
+  group_encrypted_envelope?: GroupEnvelope;
   delivery_failed?: boolean;
 }
 
@@ -196,13 +205,16 @@ export async function getDmMessages(
 
   const unreadable = (sender: string) => i18n.t(unreadableDmKey(sender, mySenderPubkey));
 
+  // Fetched once per page, and only when a message names a key we lack.
+  let fetchedGroupKeys = false;
+
   const results: DmMessageFull[] = [];
   for (const m of raw) {
     let content = m.content ?? "";
     // An encrypted message's attachments come from its plaintext only:
     // anything the hub lists beside an envelope is not covered by it.
     let attachments = m.is_encrypted || m.group_encrypted_envelope ? undefined : m.attachments;
-    const ownPlaintext = m.is_encrypted ? loadOwnPlaintext(m.id) : null;
+    const ownPlaintext = m.is_encrypted || m.group_encrypted_envelope ? loadOwnPlaintext(m.id) : null;
     if (ownPlaintext !== null) {
       content = ownPlaintext;
       try {
@@ -212,14 +224,16 @@ export async function getDmMessages(
       }
     } else if (m.is_encrypted && m.encrypted_envelope) {
       const env = m.encrypted_envelope;
-      // Cert-chained attribution (decisions.md "Paired-device DMs attribute
-      // to canonical via cert-chained envelopes"): no signer_cert is
-      // trusted as-is (today's behavior); a signer_cert must verify its
-      // two-link chain AND bind sender_pubkey to the conversation's
-      // canonical member (m.sender, already resolved server-side) before
-      // the envelope is used for key selection.
+      // The hub relays the envelope and is not trusted with it, so every
+      // envelope is verified here, not only cert-chained ones: signed by the
+      // member the hub names as sender (directly, or through a device cert
+      // that member issued — decisions.md "Paired-device DMs attribute to
+      // canonical via cert-chained envelopes"), for this conversation.
       const envelopeTrusted =
-        !env.signer_cert || (verifyDmEnvelopeSigner(env) && env.sender_pubkey === m.sender);
+        env.sender_pubkey === m.sender &&
+        env.conv_id === m.conversation_id &&
+        (!env.signer_cert || env.signer_cert.master_pubkey === env.sender_pubkey) &&
+        verifyDmEnvelopeSigner(env);
 
       if (!envelopeTrusted) {
         // Not `unreadable()`: this is a cert chain that did not verify, which
@@ -252,8 +266,24 @@ export async function getDmMessages(
           content = unreadable(m.sender);
         }
       }
-    } else if (!m.content && m.group_encrypted_envelope) {
-      content = "🔒 Encrypted message (upgrade client to read)";
+    } else if (m.group_encrypted_envelope) {
+      const env = m.group_encrypted_envelope;
+      // Same rule as the 1:1 envelope above: the hub is not trusted with it.
+      if (env.sender_pubkey !== m.sender || env.conv_id !== m.conversation_id || !verifyGroupEnvelopeSigner(env)) {
+        content = i18n.t("dm.decryption_failed");
+      } else {
+        try {
+          if (!holdsGroupKey(env) && !fetchedGroupKeys) {
+            fetchedGroupKeys = true;
+            await fetchGroupSenderKeys(m.conversation_id);
+          }
+          const plain = decryptGroupDm(env);
+          content = plain.content;
+          attachments = plain.attachments;
+        } catch {
+          content = unreadable(m.sender);
+        }
+      }
     }
     results.push({
       id: m.id,
@@ -263,7 +293,7 @@ export async function getDmMessages(
       content,
       created_at: m.created_at,
       attachments,
-      is_encrypted: m.is_encrypted,
+      is_encrypted: m.is_encrypted || !!m.group_encrypted_envelope,
       delivery_failed: m.delivery_failed,
     });
   }
@@ -295,14 +325,16 @@ export async function sendDm(
   const { signingSeedHex, senderPubkey, signerCert, dhPriv } = resolveDmSendAttribution(identity);
   const conversation = await getConversation_(conversation_id);
 
-  // Group DMs use sender keys, which this client does not implement — it says
-  // so when *reading* one ("upgrade client to read"). Sending had no such
-  // check, and the 1:1 path below would have picked whichever member happened
-  // to come first and encrypted to them alone: readable by one person in the
-  // group, undecryptable for everyone else, and reported to the sender as
-  // sent. Reachable, because a desktop client can put a web user in a group.
+  // Never through the 1:1 path below: it would encrypt to whichever member
+  // came first, readable by one person in the group and by nobody else.
   if (conversation.conv_type === "group") {
-    throw new Error(i18n.t("dm.group_send_unsupported"));
+    const groupEnvelope = await encryptGroupDm(conversation, content, attachments);
+    const res = await dmFetch(`/conversations/${conversation_id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ group_encrypted_envelope: groupEnvelope }),
+    });
+    await stashOwnCopy(res, content, attachments);
+    return "sent";
   }
 
   const members = conversation.members;
@@ -318,17 +350,36 @@ export async function sendDm(
     // signing with a key other than the one the conversation knows us by
     // sends the cert that ties the two together -- where the hub takes it; an
     // older hub refuses such a signature, so there it goes unsigned as before.
+    const caps = (await dmSession()).capabilities ?? [];
     const asSelf = publicKeyHex(signingSeedHex) === senderPubkey;
-    const certOk =
-      !asSelf && !!signerCert && !!(await dmSession()).capabilities?.includes(PLAINTEXT_SIGNER_CERT_CAP);
-    const plaintext_signature =
-      asSelf || certOk
-        ? signBytes(federatedPlaintextDmSigningBytes(conversation_id, conversation.conv_type, content), signingSeedHex)
-        : undefined;
+    const certOk = !asSelf && !!signerCert && caps.includes(PLAINTEXT_SIGNER_CERT_CAP);
+    // v2 signs an id and time we choose, and the members as the hub just
+    // told us, so a peer can neither replay the message nor move it into a
+    // conversation we did not pick (Wavvon-server#311).
+    const v2 = caps.includes(PLAINTEXT_V2_CAP);
+    const message_id = v2 ? crypto.randomUUID() : undefined;
+    const created_at = v2 ? Math.floor(Date.now() / 1000) : undefined;
+    const signed = v2
+      ? federatedPlaintextDmV2SigningBytes(
+          conversation_id,
+          conversation.conv_type,
+          content,
+          message_id!,
+          created_at!,
+          conversation.members,
+        )
+      : federatedPlaintextDmSigningBytes(conversation_id, conversation.conv_type, content);
+    const plaintext_signature = asSelf || certOk ? signBytes(signed, signingSeedHex) : undefined;
     const plaintext_signer_cert = certOk ? signerCert : undefined;
     await dmFetch(`/conversations/${conversation_id}/messages`, {
       method: "POST",
-      body: JSON.stringify({ content, attachments, plaintext_signature, plaintext_signer_cert }),
+      body: JSON.stringify({
+        content,
+        attachments,
+        plaintext_signature,
+        plaintext_signer_cert,
+        ...(plaintext_signature && v2 ? { message_id, created_at } : {}),
+      }),
     });
   };
 
@@ -373,8 +424,13 @@ export async function sendDm(
     // the hub the files in the clear.
     body: JSON.stringify({ encrypted_envelope: drEnvelope }),
   });
-  // Stash own plaintext for history rendering — a ratchet can't decrypt
-  // its own outbound envelopes (see saveOwnPlaintext).
+  await stashOwnCopy(res, content, attachments);
+  return "sent";
+}
+
+// Stash own plaintext for history rendering — a ratchet can't decrypt
+// its own outbound envelopes (see saveOwnPlaintext).
+async function stashOwnCopy(res: Response, content: string, attachments?: Attachment[]): Promise<void> {
   try {
     const created = (await res.json()) as { id?: string };
     if (created.id) {
@@ -387,7 +443,44 @@ export async function sendDm(
     // in history. Worth a line rather than nothing.
     console.warn("[dm] sent, but could not stash our own plaintext copy:", e);
   }
-  return "sent";
+}
+
+/** The actor's signature over a membership change, so the other members'
+ *  hubs apply it too. Unsigned where the hub predates it: the change then
+ *  holds on that hub only. */
+async function signedMemberChange(convId: string, added: string[], removed: string[]) {
+  const caps = (await dmSession()).capabilities ?? [];
+  if (!caps.includes(SIGNED_MEMBERS_CAP)) return undefined;
+  const identity = await loadIdentity();
+  if (!identity) throw new Error("No identity");
+  const { signingSeedHex, senderPubkey, signerCert } = resolveDmSendAttribution(identity);
+  const issued_at = Math.floor(Date.now() / 1000);
+  const signature = signBytes(dmMemberChangeSigningBytes(convId, senderPubkey, added, removed, issued_at), signingSeedHex);
+  const asSelf = publicKeyHex(signingSeedHex) === senderPubkey;
+  return { issued_at, signature, ...(asSelf ? {} : { signer_cert: signerCert }) };
+}
+
+/** One at a time: the hub takes a single member per request. */
+export async function addGroupMembers(convId: string, pubkeys: string[]): Promise<void> {
+  for (const public_key of pubkeys) {
+    const signed = await signedMemberChange(convId, [public_key], []);
+    await dmFetch(`/conversations/${convId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ public_key, ...(signed ? { signed } : {}) }),
+    });
+  }
+}
+
+/** The hub lets a member remove only themselves. */
+export async function leaveGroup(convId: string): Promise<void> {
+  const identity = await loadIdentity();
+  if (!identity) throw new Error("No identity");
+  const me = resolveDmSendAttribution(identity).senderPubkey;
+  const signed = await signedMemberChange(convId, [], [me]);
+  await dmFetch(`/conversations/${convId}/members/${me}`, {
+    method: "DELETE",
+    ...(signed ? { body: JSON.stringify(signed) } : {}),
+  });
 }
 
 /** One conversation as the DM hub has it. Exported because the WS arm that
@@ -403,6 +496,78 @@ async function getConversation_(conversation_id: string): Promise<Conversation> 
 }
 
 const dhKeyCache = new Map<string, { hex: string; ts: number }>();
+
+/** A peer's DH key differs from the one remembered for them. Nothing is
+ *  encrypted to it until the user accepts it (`acceptDhKey`). */
+export class DhKeyChangedError extends Error {
+  constructor(readonly pubkey: string, readonly dhPubkeyHex: string) {
+    super("dh_key_changed");
+  }
+}
+
+const DH_PINS_KEY = "wavvon_dh_pins";
+
+function loadDhPins(): Record<string, string> {
+  try {
+    return JSON.parse(getScoped(DH_PINS_KEY) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function saveDhPin(pubkey: string, dhPubkeyHex: string): void {
+  setScoped(DH_PINS_KEY, JSON.stringify({ ...loadDhPins(), [pubkey]: dhPubkeyHex }));
+}
+
+/** The signed record the hub holds for `pubkey`, verified, with no pin
+ *  check. Null when none is published. */
+async function fetchVerifiedDhKey(pubkey: string, hub_url?: string): Promise<string | null> {
+  const base = hub_url ?? activeSession().hub_url;
+  let res: Response;
+  try {
+    res = await rawFetch(`${base}/identity/${pubkey}/dh-key`);
+  } catch (e) {
+    if (e instanceof HubApiError && e.status === 404) return null;
+    throw e;
+  }
+  const record = (await res.json()) as {
+    dh_pubkey_hex: string;
+    signature_hex: string;
+  };
+  // A key its owner did not sign is one the hub may have swapped in. Refused
+  // rather than read as "no key": a DM must not go out in the clear because
+  // a hub tampered with the record.
+  if (!verifyDhKeyRecord(pubkey, record.dh_pubkey_hex, record.signature_hex)) {
+    throw new Error("dh_key_signature_invalid");
+  }
+  return record.dh_pubkey_hex;
+}
+
+/** The user checked with the peer and accepts the key the hub now holds. */
+export async function acceptDhKey(pubkey: string): Promise<void> {
+  const hex = await fetchVerifiedDhKey(pubkey);
+  if (!hex) return;
+  saveDhPin(pubkey, hex);
+  dhKeyCache.set(pubkey, { hex, ts: Date.now() });
+}
+
+/** The 1:1 peer whose key changed since we pinned it, for the warning shown
+ *  on opening a conversation; null otherwise. A failed lookup is not a
+ *  change: sending checks again and refuses then. */
+export async function dmPeerKeyChanged(conversation: Pick<Conversation, "conv_type" | "members">): Promise<string | null> {
+  if (conversation.conv_type === "group") return null;
+  const identity = await loadIdentity();
+  if (!identity) return null;
+  const { senderPubkey } = resolveDmSendAttribution(identity);
+  const peer = conversation.members.find((m) => m !== senderPubkey);
+  if (!peer) return null;
+  try {
+    await lookupDhKey(peer);
+    return null;
+  } catch (e) {
+    return e instanceof DhKeyChangedError ? peer : null;
+  }
+}
 const DH_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 /** Null means the hub answered and this identity has published no DH key.
@@ -416,20 +581,14 @@ export async function lookupDhKey(
   const cached = dhKeyCache.get(pubkey);
   if (cached && Date.now() - cached.ts < DH_CACHE_TTL) return cached.hex;
 
-  const base = hub_url ?? activeSession().hub_url;
-  let res: Response;
-  try {
-    res = await rawFetch(`${base}/identity/${pubkey}/dh-key`);
-  } catch (e) {
-    if (e instanceof HubApiError && e.status === 404) return null;
-    throw e;
-  }
-  const record = (await res.json()) as {
-    dh_pubkey_hex: string;
-    signature_hex: string;
-  };
-  dhKeyCache.set(pubkey, { hex: record.dh_pubkey_hex, ts: Date.now() });
-  return record.dh_pubkey_hex;
+  const hex = await fetchVerifiedDhKey(pubkey, hub_url);
+  if (!hex) return null;
+  const pins = loadDhPins();
+  const verdict = dhPinVerdict(pins[pubkey], hex);
+  if (verdict === "changed") throw new DhKeyChangedError(pubkey, hex);
+  if (verdict === "new") saveDhPin(pubkey, hex);
+  dhKeyCache.set(pubkey, { hex, ts: Date.now() });
+  return hex;
 }
 
 /** The lenient reading, for callers where a missing key means "skip this

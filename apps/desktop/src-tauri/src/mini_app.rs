@@ -29,16 +29,16 @@ pub(crate) fn open_mini_app(
         hub_url, token, channel_id, app_id, requires_camera
     );
 
-    WebviewWindowBuilder::new(
-        &app,
-        label,
-        WebviewUrl::External(url.parse().map_err(|e: url::ParseError| e.to_string())?),
-    )
-    .title("Mini App")
-    .inner_size(800.0, 600.0)
-    .initialization_script(&init_script)
-    .build()
-    .map_err(|e| e.to_string())?;
+    let url: url::Url = url.parse().map_err(|e: url::ParseError| e.to_string())?;
+    // The window has no address bar, so its title is where the user sees whose
+    // page this is.
+    let title = format!("Mini App - {}", url.host_str().unwrap_or_default());
+    WebviewWindowBuilder::new(&app, label, WebviewUrl::External(url))
+        .title(title)
+        .inner_size(800.0, 600.0)
+        .initialization_script(&init_script)
+        .build()
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

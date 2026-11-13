@@ -37,17 +37,14 @@ pub(crate) async fn mint_alliance_voice_grant(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let (hub_url, token) = crate::state::active_session(&state)?;
-    let resp = state
-        .http_client
-        .post(format!("{hub_url}/alliances/{alliance_id}/voice-grant"))
-        .bearer_auth(&token)
-        .json(&serde_json::json!({ "channel_id": channel_id }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(
+        state
+            .http_client
+            .post(format!("{hub_url}/alliances/{alliance_id}/voice-grant"))
+            .bearer_auth(&token)
+            .json(&serde_json::json!({ "channel_id": channel_id })),
+    )
+    .await?;
     resp.json().await.map_err(|e| format!("Invalid grant: {e}"))
 }
 
@@ -88,7 +85,7 @@ pub(crate) async fn alliance_voice_join(
     if !supports {
         return Err("owner_hub_no_alliance_voice".to_string());
     }
-    let auth_url = info["farm_url"].as_str().unwrap_or(&owner_url).to_string();
+    let auth_url = crate::hub_session::farm_auth_url(info["farm_url"].as_str(), &owner_url);
 
     let creds = crate::auth_creds::load_active_credentials()?;
     let outcome = creds
@@ -590,17 +587,13 @@ pub(crate) async fn voice_channel_participants(
     state: State<'_, AppState>,
 ) -> Result<std::collections::HashMap<String, Vec<crate::types::VoiceParticipantInfo>>, String> {
     let (hub_url, token) = crate::state::active_session(&state)?;
-    let resp = state
-        .http_client
-        .get(format!("{hub_url}/voice/participants"))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
-    resp.json().await.map_err(|e| format!("Invalid: {e}"))
+    crate::http::send_json(
+        state
+            .http_client
+            .get(format!("{hub_url}/voice/participants"))
+            .bearer_auth(&token),
+    )
+    .await
 }
 
 /// The floor in a room with a talk-power threshold: `raise` and `lower` your
@@ -627,14 +620,7 @@ pub(crate) async fn voice_floor(
         "list" => state.http_client.get(format!("{base}/raise-hands")),
         other => return Err(format!("unknown floor action: {other}")),
     };
-    let resp = req
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| format!("Failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(resp.text().await.unwrap_or_default());
-    }
+    let resp = crate::http::send_ok(req.bearer_auth(&token)).await?;
     if action != "list" {
         return Ok(Vec::new());
     }
@@ -705,4 +691,86 @@ pub(crate) fn save_whisper_lists(hub_id: String, lists: serde_json::Value) -> Re
     }
     let text = serde_json::to_string(&lists).map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Room map (proximity-voice.md): the zone messages, sent on the socket the
+// room lives on — the allied hub's voice-only one while visiting.
+// ---------------------------------------------------------------------------
+
+fn send_on_voice_socket(state: &AppState, payload: serde_json::Value) -> Result<(), String> {
+    let voice = state.voice.lock().unwrap();
+    let s = voice.as_ref().ok_or("Not in voice")?;
+    let tx = match &s.visit {
+        Some(visit) => visit.ws_tx.clone(),
+        None => state
+            .hubs
+            .lock()
+            .unwrap()
+            .get(&s.hub_id)
+            .map(|h| h.ws_tx.clone())
+            .ok_or("No session for the voice hub")?,
+    };
+    tx.send(WsCommand::Raw(payload.to_string()))
+        .map_err(|_| "WS closed".to_string())
+}
+
+/// The hub checks `channels.manage` for both of these; the client only asks.
+#[tauri::command]
+pub(crate) fn voice_room_map_enable(
+    max_radius: f64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    send_on_voice_socket(
+        &state,
+        serde_json::json!({
+            "type": "voice_zone_create",
+            "zone_id": crate::dm::random_uuid(),
+            "name": "room",
+            "coordinate_system": "2d",
+            "attenuation": { "model": "linear", "max_radius": max_radius },
+            "auth_mode": "any_channel_member",
+        }),
+    )
+}
+
+#[tauri::command]
+pub(crate) fn voice_room_map_disable(
+    zone_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    send_on_voice_socket(
+        &state,
+        serde_json::json!({ "type": "voice_zone_destroy", "zone_id": zone_id }),
+    )
+}
+
+/// Our own place on the map: what the attenuation measures every other
+/// voice from, and what the room is told.
+#[tauri::command]
+pub(crate) fn voice_room_map_move(
+    zone_id: String,
+    position: Vec<f64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    {
+        let voice = state.voice.lock().unwrap();
+        if let Some(s) = voice.as_ref() {
+            s.my_position
+                .lock()
+                .unwrap()
+                .insert(zone_id.clone(), position.clone());
+            crate::ws::recompute_proximity_gains(
+                &s.voice_zones,
+                &s.my_position,
+                &s.roster_map,
+                &s.gain_map,
+                &crate::local_store::load_voice_gains(),
+            );
+        }
+    }
+    send_on_voice_socket(
+        &state,
+        serde_json::json!({ "type": "voice_position_update", "zone_id": zone_id, "position": position }),
+    )
 }

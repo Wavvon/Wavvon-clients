@@ -1,6 +1,6 @@
 {
   "productName": "Wavvon",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "identifier": "com.wavvon.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -44,6 +44,11 @@
     ]
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["wavvon"]
+      }
+    },
     "shell": {
       "open": true
     },

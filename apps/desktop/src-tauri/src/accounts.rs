@@ -200,13 +200,27 @@ fn list_accounts_in(base: &Path) -> Vec<AccountSummary> {
 /// account exists by the time it's ever invoked from the running app. Erring
 /// here (rather than silently minting an identity) also keeps this function
 /// side-effect-free when called from tests that don't go through the UI.
+/// An account directory holds DM ratchet state, DM plaintexts and a paired
+/// device's secret, so on Unix only its owner may enter it. Applied on every
+/// lookup, which also closes up a directory an older build created open.
+fn create_private_dir(dir: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("mkdir: {e}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| format!("chmod: {e}"))?;
+    }
+    Ok(())
+}
+
 fn active_account_dir_in(base: &Path) -> Result<PathBuf, String> {
     let mut reg = load_registry_in(base);
 
     if let Some(id) = reg.active_id.clone() {
         if reg.accounts.iter().any(|a| a.id == id) {
             let dir = account_dir_in(base, &id);
-            std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir: {e}"))?;
+            create_private_dir(&dir)?;
             return Ok(dir);
         }
     }
@@ -216,7 +230,7 @@ fn active_account_dir_in(base: &Path) -> Result<PathBuf, String> {
         reg.active_id = Some(id.clone());
         save_registry_in(base, &reg)?;
         let dir = account_dir_in(base, &id);
-        std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir: {e}"))?;
+        create_private_dir(&dir)?;
         return Ok(dir);
     }
 
@@ -410,6 +424,10 @@ pub(crate) fn active_group_sender_keys_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("group_sender_keys.json"))
 }
 
+pub(crate) fn active_dh_pins_path() -> Result<PathBuf, String> {
+    Ok(active_account_dir()?.join("dh_pins.json"))
+}
+
 pub(crate) fn active_own_dm_plaintexts_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("own_dm_plaintexts.json"))
 }
@@ -500,6 +518,39 @@ pub(crate) fn account_label_for(id: &str) -> Result<Option<String>, String> {
         .iter()
         .find(|a| a.id == id)
         .and_then(|a| a.label.clone()))
+}
+
+/// Where a completed pairing is written. On a device with accounts it is the
+/// active one, as before. On a fresh device (pairing from the first-run gate,
+/// issue #378) there is no active account to write into, so the paired
+/// subkey becomes the first account and the active one.
+pub(crate) fn save_paired_identity_file(id: &str, label: &str, text: &str) -> Result<(), String> {
+    save_paired_identity_file_in(&wavvon_dir()?, id, label, text)
+}
+
+fn save_paired_identity_file_in(
+    base: &Path,
+    id: &str,
+    label: &str,
+    text: &str,
+) -> Result<(), String> {
+    let mut reg = load_registry_in(base);
+    if !reg.accounts.is_empty() {
+        let path = active_account_dir_in(base)?.join("paired_identity.json");
+        return std::fs::write(path, text).map_err(|e| format!("write: {e}"));
+    }
+    let dir = account_dir_in(base, id);
+    create_private_dir(&dir)?;
+    std::fs::write(dir.join("paired_identity.json"), text).map_err(|e| format!("write: {e}"))?;
+    let order = next_order_in(&reg);
+    reg.accounts.push(AccountEntry {
+        id: id.to_string(),
+        label: Some(label.to_string()).filter(|l| !l.trim().is_empty()),
+        order: Some(order),
+        created_at: now_secs(),
+    });
+    reg.active_id = Some(id.to_string());
+    save_registry_in(base, &reg)
 }
 
 pub(crate) fn create_account_from_secret_key_hex(
@@ -626,6 +677,41 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_account_dir_is_closed_to_other_users_even_if_created_open() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = TempBase::new("private");
+        let dir = base.0.join("acct");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+        create_private_dir(&dir).unwrap();
+        let mode = std::fs::metadata(&dir).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
+
+    #[test]
+    fn pairing_on_a_fresh_device_makes_the_paired_subkey_the_active_account() {
+        let base = TempBase::new("paired-fresh");
+        save_paired_identity_file_in(&base.0, "abcd", "Laptop", "{}").expect("save");
+        let listed = list_accounts_in(&base.0);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, "abcd");
+        assert_eq!(listed[0].kind, "paired");
+        assert!(listed[0].is_active);
+    }
+
+    #[test]
+    fn pairing_with_an_account_present_writes_into_the_active_one() {
+        let base = TempBase::new("paired-existing");
+        let active = create_account_in(&base.0, None, None).expect("create active");
+        save_paired_identity_file_in(&base.0, "abcd", "Laptop", "{}").expect("save");
+        let listed = list_accounts_in(&base.0);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, active.id);
+        assert_eq!(listed[0].kind, "paired");
     }
 
     #[test]

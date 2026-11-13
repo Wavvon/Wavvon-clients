@@ -20,6 +20,7 @@ import type {
 import { UserListGrouped } from "../users/UserListGrouped";
 import { UserProfileCard, type UserProfileCardActions } from "../users/UserProfileCard";
 import { ScreenShareViewer, type ScreenShareViewerRef } from "../ScreenShareViewer";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { AllianceView } from "./AllianceView";
 import type { PendingFilesState } from "../../hooks/usePendingFiles";
 import type { AlliancePeopleActions } from "./AlliancePeoplePanel";
@@ -37,7 +38,7 @@ import type { MessageRowActions } from "./MessageRow";
 import type { StickerActions } from "../stickers/stickerActions";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
-import { CalendarIcon } from "../Icons";
+import { CalendarIcon, CloseIcon } from "../Icons";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import type { AllianceScrollback } from "../../hooks/useAlliances";
@@ -113,6 +114,11 @@ interface Props {
   onDeleteMessage: (messageId: string) => void;
   onSend: () => void;
   onSendDm: () => void;
+  /** The DM peer whose encryption key changed; see DmView. */
+  dmKeyChangedPeer?: string | null;
+  onAcceptDmKeyChange?: () => void;
+  onDmAddPeople?: (pubkeys: string[]) => void;
+  onDmLeaveGroup?: () => void;
   onSendAllianceMessage: () => void;
   onPingTyping: () => void;
   onPingDmTyping: () => void;
@@ -142,6 +148,8 @@ interface Props {
   activeScreenShares?: ActiveStream[];
   screenShareViewerRef?: React.RefObject<ScreenShareViewerRef | null>;
   onOpenHubStreams: () => void;
+  /** Screen shares live on the hub, for the count on the header icon. */
+  liveShareCount?: number;
   pinnedMessageIds?: Set<string>;
   onPinToggle?: (messageId: string, isPinned: boolean) => void;
   alliancePeopleActions?: AlliancePeopleActions;
@@ -201,7 +209,7 @@ export function ContentArea({
   messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
   onReconnect, onToggleReaction, onSetReplyTarget,
   onSaveEdit, onCancelEdit, onStartEdit, onDeleteMessage,
-  onSend, onSendDm, onSendAllianceMessage,
+  onSend, onSendDm, dmKeyChangedPeer, onAcceptDmKeyChange, onDmAddPeople, onDmLeaveGroup, onSendAllianceMessage,
   onPingTyping, onPingDmTyping,
   onSetPendingAttachments, onAttachFiles,
   onOpenEditDescription, firstNotifyingMessageId, onClearFirstNotify, onScrollToMessage,
@@ -212,6 +220,7 @@ export function ContentArea({
   slashCommands = [],
   activeScreenShares = [], screenShareViewerRef,
   onOpenHubStreams,
+  liveShareCount,
   pinnedMessageIds = new Set<string>(),
   onPinToggle,
   onStartConversation,
@@ -517,6 +526,10 @@ export function ContentArea({
               onPingDmTyping={onPingDmTyping}
               onSendDm={onSendDm}
               onOpenImage={onOpenImage}
+              keyChangedPeer={dmKeyChangedPeer}
+              onAcceptKeyChange={onAcceptDmKeyChange}
+              onAddPeople={onDmAddPeople}
+              onLeaveGroup={onDmLeaveGroup}
             />
           ) : (
             <div className="no-channel"><p>{t("dm.no_selection")}</p></div>
@@ -551,6 +564,7 @@ export function ContentArea({
               onToggleMemberSidebar={() => onSetMemberSidebarHidden(!memberSidebarHidden)}
               onOpenEditDescription={onOpenEditDescription}
               onOpenHubStreams={onOpenHubStreams}
+              liveShareCount={liveShareCount}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
             />
             {selectedChannel.channel_type === "voice" && voiceStage ? (
@@ -569,16 +583,20 @@ export function ContentArea({
               </div>
               <VoiceStage {...voiceStage}>
                 {activeScreenShares.length > 0 && screenShareViewerRef && (
-                  <ScreenShareViewer ref={screenShareViewerRef} streams={activeScreenShares} onStopWatch={voiceStage.live?.onClose} />
+                  <ErrorBoundary fallback={<p className="muted">{t("error.generic")}</p>}>
+                    <ScreenShareViewer ref={screenShareViewerRef} streams={activeScreenShares} onStopWatch={voiceStage.live?.onClose} />
+                  </ErrorBoundary>
                 )}
               </VoiceStage>
               </>
             ) : (<>
             {activeScreenShares.length > 0 && screenShareViewerRef && (
-              <ScreenShareViewer
-                ref={screenShareViewerRef}
-                streams={activeScreenShares}
-              />
+              <ErrorBoundary fallback={<p className="muted">{t("error.generic")}</p>}>
+                <ScreenShareViewer
+                  ref={screenShareViewerRef}
+                  streams={activeScreenShares}
+                />
+              </ErrorBoundary>
             )}
 
             {eventsPresentation === "tabs" ? (
@@ -738,6 +756,11 @@ export function ContentArea({
       {/* In a voice room the audience is the member list. */}
       {view === "channels" && !memberSidebarHidden && selectedChannel?.channel_type !== "voice" && (
         <aside className="user-list-sidebar" aria-label={t("member.list.title")}>
+          {/* Narrow screens only: there the list is a sheet over the header
+              button that would otherwise close it. */}
+          <button type="button" className="btn-icon-header user-list-close" onClick={() => onSetMemberSidebarHidden(true)} aria-label={t("content.members.hide")} title={t("content.members.hide")}>
+            <CloseIcon />
+          </button>
           <UserListGrouped
             users={users}
             speaking={voiceActiveUsers}

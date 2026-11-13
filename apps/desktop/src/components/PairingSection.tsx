@@ -51,10 +51,18 @@ type ClaimStep = "pasting" | "claiming" | "waiting" | "done" | "error";
 
 const POLL_INTERVAL_MS = 2000;
 
-export function PairingSection({ hubs }: { hubs: Hub[] }) {
+// `claimOnly` is the first-run gate (AccountRoot.tsx, issue #378): no
+// account exists yet, so there is no status to show and nothing to offer;
+// the pairing becomes this device's first account.
+export function PairingSection({ hubs, claimOnly, onPaired, onCancel }: {
+  hubs: Hub[];
+  claimOnly?: boolean;
+  onPaired?: () => void;
+  onCancel?: () => void;
+}) {
   const { t } = useTranslation();
-  const [pairedId, setPairedId] = useState<PairedIdentityInfo | null | undefined>(undefined);
-  const [mode, setMode] = useState<Mode>(null);
+  const [pairedId, setPairedId] = useState<PairedIdentityInfo | null | undefined>(claimOnly ? null : undefined);
+  const [mode, setMode] = useState<Mode>(claimOnly ? "claim" : null);
 
   // --- E-side state ---
   const [selectedHubs, setSelectedHubs] = useState<string[]>([]);
@@ -72,9 +80,10 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
   const [pasteValue, setPasteValue] = useState("");
   const [deviceLabel, setDeviceLabel] = useState("");
   const [claimStep, setClaimStep] = useState<ClaimStep>("pasting");
+  const [ownFingerprint, setOwnFingerprint] = useState("");
   const [pollInfo, setPollInfo] = useState<{
     homeHubUrl: string; pairingToken: string;
-    subkeyPubkey: string; subkeySecretHex: string;
+    subkeyPubkey: string;
     masterPubkey: string; homeHubs: string[];
   } | null>(null);
   const [claimError, setClaimError] = useState("");
@@ -84,6 +93,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    if (claimOnly) return;
     invoke<PairedIdentityInfo | null>("get_paired_identity").then(setPairedId).catch(() => setPairedId(null));
   }, []);
 
@@ -118,6 +128,10 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
     setClaimError("");
     setSyncResult(null);
     setCopied(false);
+    if (claimOnly) {
+      setMode("claim");
+      onCancel?.();
+    }
   }
 
   // --- E-side: generate offer ---
@@ -205,7 +219,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
       });
       const result = await invoke<{
         home_hub_url: string; master_pubkey: string;
-        subkey_pubkey: string; subkey_secret_hex: string;
+        subkey_pubkey: string;
         pairing_token: string; home_hubs: string[];
       }>("claim_pairing_offer", { offer, deviceLabel: label });
 
@@ -213,14 +227,13 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
         homeHubUrl: result.home_hub_url,
         pairingToken: result.pairing_token,
         subkeyPubkey: result.subkey_pubkey,
-        subkeySecretHex: result.subkey_secret_hex,
         masterPubkey: result.master_pubkey,
         homeHubs: result.home_hubs,
       });
+      setOwnFingerprint(await invoke<string>("fingerprint_pubkey", { publicKeyHex: result.subkey_pubkey }));
       setClaimStep("waiting");
       startClaimPoll(result.home_hub_url, result.pairing_token, {
         subkeyPubkey: result.subkey_pubkey,
-        subkeySecretHex: result.subkey_secret_hex,
         masterPubkey: result.master_pubkey,
         homeHubs: result.home_hubs,
         deviceLabel: label,
@@ -235,7 +248,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
     hubUrl: string,
     token: string,
     saved: {
-      subkeyPubkey: string; subkeySecretHex: string;
+      subkeyPubkey: string;
       masterPubkey: string; homeHubs: string[]; deviceLabel: string;
     }
   ) {
@@ -251,7 +264,6 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
           const result = await invoke<SyncResult>("save_paired_identity", {
             masterPubkey: saved.masterPubkey,
             subkeyPubkey: saved.subkeyPubkey,
-            subkeySecretHex: saved.subkeySecretHex,
             deviceLabel: saved.deviceLabel,
             cert: status.cert,
             homeHubs: saved.homeHubs,
@@ -288,7 +300,7 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
 
   return (
     <div className="settings-section">
-      {pairedId ? (
+      {claimOnly ? null : pairedId ? (
         <div className="pairing-status-card paired">
           <span className="pairing-status-icon"><LinkIcon size={16} /></span>
           <div>
@@ -479,6 +491,9 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
             <>
               <p className="muted">{t("settings.pairing.claim_waiting")}</p>
               <p className="muted">{t("settings.pairing.claim_waiting_hint")}</p>
+              {ownFingerprint && (
+                <p>{t("settings.pairing.own_fingerprint", { fingerprint: ownFingerprint })}</p>
+              )}
               <button className="btn-secondary" onClick={reset}>
                 {t("modal.cancel")}
               </button>
@@ -497,8 +512,8 @@ export function PairingSection({ hubs }: { hubs: Hub[] }) {
                     : t("settings.pairing.sync_skipped")}
                 </p>
               )}
-              <p className="muted">{t("settings.pairing.claim_restart")}</p>
-              <button onClick={reset}>{t("modal.done")}</button>
+              {!onPaired && <p className="muted">{t("settings.pairing.claim_restart")}</p>}
+              <button onClick={onPaired ?? reset}>{t("modal.done")}</button>
             </>
           )}
         </div>

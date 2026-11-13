@@ -1,0 +1,8 @@
+[advisories]
+ignore = [
+    { id = "RUSTSEC-2026-0150", reason = "audiopus_sys is unmaintained; it is the only Opus binding audiopus has, and the build links the system libopus" },
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error is unmaintained; transitive via the gtk 0.18 macros that Tauri's Linux webview pins" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant is unmaintained (merged into zbus 6); transitive via zbus 5, which tauri-plugin-single-instance uses for D-Bus on Linux" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is unmaintained (merged into zbus 6); transitive via zbus 5, which tauri-plugin-single-instance uses for D-Bus on Linux" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names is unmaintained (merged into zbus 6); transitive via zbus 5, which tauri-plugin-single-instance uses for D-Bus on Linux" },
+]

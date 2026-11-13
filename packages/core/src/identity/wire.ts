@@ -407,6 +407,42 @@ export function authChallengeSigningBytes(challenge: Uint8Array): Uint8Array {
   return concat(tag("wavvon/auth-challenge/v1 "), challenge);
 }
 
+/** The scheme a current hub or farm names: the answer must be bound to it. */
+export const BOUND_AUTH_CHALLENGE_SCHEME = "tagged-v2";
+
+/** The answer to a challenge from a server naming BOUND_AUTH_CHALLENGE_SCHEME:
+ *  it names the server's public key, so a hostile hub relaying another
+ *  server's challenge gets an answer naming itself, useless there
+ *  (Wavvon-server#294). `serverPubkey` is the key of the server this client
+ *  is talking to, from that server's own /info, never from the challenge. */
+export function boundAuthChallengeSigningBytes(serverPubkey: string, challenge: Uint8Array): Uint8Array {
+  return concat(tag("wavvon/auth-challenge/v2 "), writeStr(serverPubkey), challenge);
+}
+
+/** The v2 plaintext DM signature (`federated_plaintext_dm_v2_signing_bytes`):
+ *  v1 plus the message id and time the client chose, and the member set,
+ *  sorted and deduplicated so every party computes the same bytes
+ *  (Wavvon-server#311). Signed for a hub advertising `dms.plaintext.v2`. */
+export function federatedPlaintextDmV2SigningBytes(
+  conversationId: string,
+  convType: string,
+  content: string,
+  messageId: string,
+  createdAt: number,
+  members: string[],
+): Uint8Array {
+  const sorted = [...new Set(members)].sort();
+  return concat(
+    tag("wavvon/federated-dm/v2 "),
+    writeStr(conversationId),
+    writeStr(convType),
+    writeStr(content),
+    writeStr(messageId),
+    writeU64Le(createdAt),
+    writeStrVec(sorted),
+  );
+}
+
 /** What the sender of a plaintext DM signs so a receiving hub accepts it
  *  across hubs (`federated_plaintext_dm_signing_bytes`). Without it the
  *  receiving hub refuses the message and it sits in the sender's outbox. */
@@ -416,6 +452,26 @@ export function federatedPlaintextDmSigningBytes(
   content: string,
 ): Uint8Array {
   return concat(tag("wavvon/federated-dm/v1 "), writeStr(conversationId), writeStr(convType), writeStr(content));
+}
+
+/** What a group member signs to add someone to a group DM or to leave it, so
+ *  the other members' hubs apply the change (`dm_member_change_signing_bytes`).
+ *  `issuedAt` is unix seconds. */
+export function dmMemberChangeSigningBytes(
+  conversationId: string,
+  actor: string,
+  added: string[],
+  removed: string[],
+  issuedAt: number,
+): Uint8Array {
+  return concat(
+    tag("wavvon/dm-member-change/v1 "),
+    writeStr(conversationId),
+    writeStr(actor),
+    writeStrVec(added),
+    writeStrVec(removed),
+    writeU64Le(issuedAt),
+  );
 }
 
 /** Sign the new-key proof for POST /recovery/rotate-key with the requester's master seed. */

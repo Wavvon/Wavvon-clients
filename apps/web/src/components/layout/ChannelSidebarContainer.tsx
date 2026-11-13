@@ -2,12 +2,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type React from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { formatPubkey } from "@wavvon/core";
+import { formatPubkey, hubBannerUrl } from "@wavvon/core";
 import type { Channel, TreeNode } from "@wavvon/core";
-import { ChannelSidebar, useConfirm } from "@wavvon/ui";
+import { ChannelSidebar, camerasOn, useConfirm } from "@wavvon/ui";
 import type { WhisperReplyBind } from "@wavvon/ui";
 import { listRoles, listSoundboardClips } from "@platform";
-import { activeHubSupports } from "../../platform/session";
+import { activeHubLanding, activeHubSupports } from "../../platform/session";
 import { hasDraft } from "../../utils/drafts";
 import type { useVoice } from "../../hooks/useVoice";
 import type { useVideo } from "../../hooks/useVideo";
@@ -129,7 +129,7 @@ export function ChannelSidebarContainer({
       dmPeerNames={dms.peerNames}
       publicKey={publicKey}
       pingByHub={pingByHub}
-      hubBannerUrl={activeHubUrl && activeHubSupports("hub.landing") ? `${activeHubUrl.replace(/\/+$/, "")}/hub/landing-image` : undefined}
+      hubBannerUrl={hubBannerUrl(activeHubUrl, activeHubSupports("hub.landing"), activeHubLanding())}
       isAdmin={isAdmin}
       canCreateInvites={canCreateInvites}
       hubNotifyMode={notifyPrefs.hubNotifyMode}
@@ -209,6 +209,7 @@ export function ChannelSidebarContainer({
       onSetVoiceGain={voice.handleSetVoiceGain}
       inboundWhispers={whisper.inboundWhispers}
       speaking={voice.voiceActiveUsers}
+      cameraOn={camerasOn(screenShare.hubStreams)}
       hasDraft={hasDraft}
       canUseSoundboard={canUseSoundboard}
       onListSoundboardClips={listSoundboardClips}
