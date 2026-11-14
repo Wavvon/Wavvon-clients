@@ -1,6 +1,9 @@
 # Wavvon Clients
 
-[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Wavvon/Wavvon-clients?sort=semver)](https://github.com/Wavvon/Wavvon-clients/releases/latest)
+[![Build](https://github.com/Wavvon/Wavvon-clients/actions/workflows/build.yml/badge.svg)](https://github.com/Wavvon/Wavvon-clients/actions/workflows/build.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-informational)](https://github.com/Wavvon/Wavvon-clients/releases/latest)
 
 The client monorepo for [Wavvon](https://github.com/Wavvon/Wavvon-docs) — an
 open-source, federated voice + text platform where communities run
