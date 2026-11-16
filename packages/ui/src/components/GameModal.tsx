@@ -44,7 +44,11 @@ export function GameModal({
     } catch {
       return;
     }
+    const focusFrame = () => iframe.focus();
+    focusFrame();
+    window.addEventListener("focus", focusFrame);
     const onLoad = () => {
+      focusFrame();
       iframe.contentWindow?.postMessage(
         {
           type: "wavvon_context",
@@ -57,7 +61,10 @@ export function GameModal({
       );
     };
     iframe.addEventListener("load", onLoad);
-    return () => iframe.removeEventListener("load", onLoad);
+    return () => {
+      iframe.removeEventListener("load", onLoad);
+      window.removeEventListener("focus", focusFrame);
+    };
   }, [miniAppUrl, sessionToken, channelId, appId, hubUrl]);
 
   return (
