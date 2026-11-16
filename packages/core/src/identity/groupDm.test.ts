@@ -1,16 +1,14 @@
 // Group DM sender keys (e2e-encryption.md "Group DMs — v2"). The signing
-// bytes are pinned to the server's vectors; the ratchet and the wrap to one
-// vector the desktop shell asserts too (dm.rs group_ratchet_matches_the_web_vector).
+// bytes are pinned to the server's vectors; the ratchet and the wrap to the
+// group_ratchet and group_key_wrap vectors (dmVectors.test.ts).
 import { describe, it, expect } from "vitest";
 import { ed25519 } from "@noble/curves/ed25519";
-import { bytesToHex, hexToBytes } from "../hex";
+import { bytesToHex } from "../hex";
 import {
   dhKeypairFromSeed,
   decryptGroupMessage,
   encryptGroupMessage,
   groupEnvelopeSigningBytes,
-  groupMessageKey,
-  groupNextChainKey,
   senderKeyDistSigningBytes,
   unwrapGroupChainKey,
   wrapGroupChainKey,
@@ -42,13 +40,6 @@ describe("group ratchet", () => {
   const ck = new Uint8Array(32).fill(0x11);
   const alice = dhKeypairFromSeed(fixture("master_seed"));
   const bob = dhKeypairFromSeed(fixture("subkey_seed"));
-
-  it("derives the same keys as the desktop shell", () => {
-    expect(bytesToHex(groupMessageKey(ck, 2))).toBe("7de5c477aadff1d7633bce5fc6d6974b908b9d05a3897cd5aba30c6490eba427");
-    expect(bytesToHex(groupNextChainKey(ck, 2))).toBe("fd8b5df061c574c9c5ecdb3d87c37f54bb6c48585a6253b7914a1144d75939dc");
-    const wrap = wrapGroupChainKey(alice.dhPriv, bob.dhPub, "conv123", ck, 2, hexToBytes("0102030405060708090a0b0c"));
-    expect(wrap.wrappedHex).toBe("354ebd62de34d85fbd7179d96abf4202938c5609e18bc6015926550c48ec21bd5702ae96b979f0bf45ab36a7158bc5d204e173e7");
-  });
 
   it("unwraps what it wraps, from the other side", () => {
     const wrap = wrapGroupChainKey(alice.dhPriv, bob.dhPub, "conv123", ck, 7);
