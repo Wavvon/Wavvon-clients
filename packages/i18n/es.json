@@ -1201,6 +1201,10 @@
   "message.action.reply": "Responder",
   "message.action.text_copied": "Texto copiado",
   "message.action.unpin": "Dejar de fijar el mensaje",
+  "message.action.save": "Guardar mensaje",
+  "message.action.unsave": "Quitar de guardados",
+  "message.action.saved": "Guardado",
+  "message.action.unsaved": "Quitado de guardados",
   "message.actions.aria": "Acciones del mensaje",
   "message.birthday": "Cumpleaños hoy",
   "message.component.select": "Elige…",
@@ -2567,5 +2571,11 @@
   "hub.mute.for_1h": "Silenciar 1 hora",
   "hub.mute.for_8h": "Silenciar 8 horas",
   "hub.mute.for_tomorrow": "Silenciar hasta mañana",
-  "hub.mute.until": "Silenciado hasta {time}"
+  "hub.mute.until": "Silenciado hasta {time}",
+  "saved.title": "Mensajes guardados",
+  "saved.empty": "Aún no hay nada guardado. Haz clic derecho en un mensaje y elige Guardar mensaje para tenerlo aquí, de todos tus hubs.",
+  "saved.saved_at": "guardado {when}",
+  "saved.deleted": "Este mensaje fue eliminado.",
+  "saved.remove": "Quitar",
+  "saved.hub_gone": "{hub} ya no está en tu lista de hubs."
 }

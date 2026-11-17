@@ -1,5 +1,5 @@
 import { memberActivity } from "@wavvon/ui";
-import type { AllianceScrollback } from "@wavvon/ui";
+import type { AllianceScrollback, MessageRowActions } from "@wavvon/ui";
 import { HubStreamsPanel, liveScreenShares, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
@@ -54,6 +54,7 @@ interface Props {
   channelMessages: ReturnType<typeof useChannelMessages>;
   dms: ReturnType<typeof useDms>;
   firstNotify: ReturnType<typeof useFirstNotify>;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved">;
 }
 
 // Absorbs desktop's ContentArea call site (itself an app-local wrapper
@@ -69,7 +70,7 @@ export function ContentAreaContainer({
   openEditDescription, setUserContextMenu, slashCommands, openImage,
   setToast, setError, showHubStreams, setShowHubStreams,
   canMoveMembers, handleMoveMember,
-  voice, hubLifecycle, hubConnections, typing, channelMessages, dms, firstNotify,
+  voice, hubLifecycle, hubConnections, typing, channelMessages, dms, firstNotify, savedActions,
 }: Props) {
   const { activeHubId } = hubLifecycle;
   const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
@@ -220,6 +221,7 @@ export function ContentAreaContainer({
         onMoveMember={handleMoveMember}
         onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
         stickerActions={stickerActions}
+        savedActions={savedActions}
         markUnread={caps.includes("channels.markunread") ? channelMessages.markUnread : undefined}
       />
       {showHubStreams && (

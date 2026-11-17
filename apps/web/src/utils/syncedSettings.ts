@@ -47,6 +47,7 @@ export const SYNCED_KEYS: SyncedKey[] = [
   { key: "wavvon.hideBirthdays", scoped: true },
   { key: "wavvon.trustedIssuers", scoped: true },
   { key: "wavvon.hubLayout", scoped: true },
+  { key: "wavvon.savedMessages", scoped: true },
 ];
 
 function read(k: SyncedKey): string | null {

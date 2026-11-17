@@ -602,6 +602,18 @@ export function MessagesIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+/** Saved messages. */
+export function BookmarkIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("bookmark", size);
+  if (themed) return themed;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3.5h12v17l-6-4.5-6 4.5z" />
+    </svg>
+  );
+}
+
 /** The public hub directory — looking outward, not adding what you have. */
 export function DiscoverIcon({ size = 18 }: { size?: number }) {
   const themed = useThemedIcon("discover", size);

@@ -39,6 +39,8 @@ export interface UseWsHandlersParams {
   handleStatusChange: (hubId: string, hubName: string, connected: boolean, setAssertive: (msg: string) => void) => void;
   setAssertiveAnnouncement: (msg: string) => void;
   showHubError: (msg: string) => void;
+  /** Any hub's message delete, active or not (the Saved list marks it). */
+  onAnyMessageDeleted: (hubId: string, messageId: string) => void;
   // Function declarations are hoisted, so the frozen memo below could close
   // over loadHubData directly like the original App did — but loadHubData is
   // now a prop passed in fresh on every render, and the memo (deps []) only
@@ -73,7 +75,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     setMessages, setStickToBottom, setNewWhileScrolledUp, bumpUnread,
     setUsers, setChannels, setHubs, setActiveHubTimezone, setVoicePartByChannel,
     onDm, onDmMemberChanged, receiveTyping, onScreenShare, onScreenShareChunk, resubscribeStreams,
-    receiveSoundboardPlayed, handleStatusChange, setAssertiveAnnouncement, showHubError,
+    receiveSoundboardPlayed, handleStatusChange, setAssertiveAnnouncement, showHubError, onAnyMessageDeleted,
     loadHubDataRef, voiceOnVoiceState, voiceOnVoiceZoneState, voiceOnVoiceZoneCreated,
     voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoiceKeyReceived,
     voiceOnVoiceKeyRequest, handleVideoMessage,
@@ -130,6 +132,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         const msg = m.message as Message | undefined;
         if (msg) setMessages((prev) => prev.map((x) => x.id === msg.id ? msg : x));
       } else if (type === "message_deleted") {
+        if (msgHubId && typeof m.message_id === "string") onAnyMessageDeleted(msgHubId, m.message_id);
         if (msgHubId !== activeHub) return;
         if (m.channel_id !== selectedChannelRef.current?.id) return;
         const id = m.message_id as string;
