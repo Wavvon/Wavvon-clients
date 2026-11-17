@@ -31,7 +31,7 @@ import { usePathInviteHandoff } from "./hooks/usePathInviteHandoff";
 import { usePermissions } from "./hooks/usePermissions";
 import { useWhisperReply } from "./hooks/useWhisperReply";
 import { useChannelDragEnd } from "./hooks/useChannelDragEnd";
-import { channelPath, classifyHubRefusal } from "@wavvon/core";
+import { appSessionKey, channelPath, classifyHubRefusal } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
 import { DISCOVERY_URL, MULTI_HUB } from "./constants";
 import type {
@@ -1202,7 +1202,7 @@ export default function App({ initialView }: AppProps = {}) {
           channelId={activeOpenApp.event.channel_id}
           appId={activeOpenApp.event.app_id}
           hubUrl={activeOpenApp.hubUrl}
-          title={activeApps.get(activeOpenApp.event.app_id)?.title ?? t("app.default_title")}
+          title={activeApps.get(appSessionKey(activeOpenApp.event.app_id, activeOpenApp.event.channel_id))?.title ?? t("app.default_title")}
           requiresCamera={activeOpenApp.event.requires_camera}
           onClose={() => setActiveOpenApp(null)}
         />

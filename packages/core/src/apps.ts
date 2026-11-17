@@ -24,20 +24,45 @@ export function parseGameLaunchCard(raw: unknown): GameLaunchCard | null {
   };
 }
 
+/** A hub scopes a mini-app session to one app and one channel. */
+export function appSessionKey(appId: string, channelId: string): string {
+  return `${appId}:${channelId}`;
+}
+
+export function withAppSession<T>(
+  prev: Map<string, T>,
+  ev: { app_id: string; channel_id: string },
+  value: T,
+): Map<string, T> {
+  const next = new Map(prev);
+  next.set(appSessionKey(ev.app_id, ev.channel_id), value);
+  return next;
+}
+
+export function withoutAppSession<T>(
+  prev: Map<string, T>,
+  ev: { app_id: string; channel_id: string },
+): Map<string, T> {
+  const next = new Map(prev);
+  next.delete(appSessionKey(ev.app_id, ev.channel_id));
+  return next;
+}
+
 // A hub answers the user's own `app_join` with `app_open`. An `app_open`
 // nobody asked for would open a page the hub chose, full-window, so it is
 // honoured only for an app this client joined in the last minute.
 const APP_JOIN_WINDOW_MS = 60_000;
 const appJoins = new Map<string, number>();
 
-export function noteAppJoin(appId: string, now: number = Date.now()): void {
-  appJoins.set(appId, now);
+export function noteAppJoin(appId: string, channelId: string, now: number = Date.now()): void {
+  appJoins.set(appSessionKey(appId, channelId), now);
 }
 
 /** True once per join, and only within the window. */
-export function takeAppJoin(appId: string, now: number = Date.now()): boolean {
-  const at = appJoins.get(appId);
-  appJoins.delete(appId);
+export function takeAppJoin(appId: string, channelId: string, now: number = Date.now()): boolean {
+  const key = appSessionKey(appId, channelId);
+  const at = appJoins.get(key);
+  appJoins.delete(key);
   return at !== undefined && now - at <= APP_JOIN_WINDOW_MS;
 }
 
