@@ -5,6 +5,7 @@ import { readBaseToken, type Scheme, type ThemeManifest } from "../themes/theme"
 import type { StoredPackage } from "../themes/packageStore";
 import { composeRgba, splitRgba, THEME_TOKENS, type ThemeTokenType } from "../themes/themeTokens";
 import { ResetIcon } from "./Icons";
+import { ThemeIconsEditor } from "./ThemeIconsEditor";
 
 interface Props {
   pkg: StoredPackage<ThemeManifest>;
@@ -84,6 +85,7 @@ function TokenRow({
 export function ThemeEditor({ pkg, onChange }: Props) {
   const { t } = useTranslation();
   const present = SCHEMES.filter((s) => pkg.manifest.colors[s]);
+  const [tab, setTab] = useState<"colors" | "icons">("colors");
   const [picked, setPicked] = useState<Scheme>(present[0] ?? "dark");
   const scheme = present.includes(picked) ? picked : (present[0] ?? "dark");
   const map = pkg.manifest.colors[scheme] ?? {};
@@ -109,7 +111,14 @@ export function ThemeEditor({ pkg, onChange }: Props) {
             aria-label={t("settings.theme.name")}
           />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }} role="tablist">
+          {(["colors", "icons"] as const).map((id) => (
+            <button key={id} role="tab" aria-selected={tab === id} className={`btn-small${tab === id ? "" : " btn-secondary"}`} onClick={() => setTab(id)}>
+              {t(`settings.theme.tab.${id}`)}
+            </button>
+          ))}
+        </div>
+        {tab === "colors" && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
           {present.length > 1 ? (
             <select value={scheme} onChange={(e) => setPicked(e.target.value as Scheme)} aria-label={t("settings.theme.editing_scheme")}>
               {present.map((s) => <option key={s} value={s}>{t(`settings.theme.scheme.${s}`)}</option>)}
@@ -130,8 +139,8 @@ export function ThemeEditor({ pkg, onChange }: Props) {
               {t("settings.theme.reset_all", { count: Object.keys(map).length })}
             </button>
           )}
-        </div>
-        {warnings.length > 0 && (
+        </div>}
+        {tab === "colors" && warnings.length > 0 && (
           <div role="status" style={{ color: "var(--warning)", fontSize: "var(--text-xs)" }}>
             <p style={{ margin: "0 0 4px" }}>{t("settings.theme.contrast_warning")}</p>
             <ul style={{ margin: 0, paddingLeft: 18 }}>
@@ -145,7 +154,8 @@ export function ThemeEditor({ pkg, onChange }: Props) {
         )}
       </div>
 
-      {THEME_TOKENS.map((group) => (
+      {tab === "icons" && <ThemeIconsEditor pkg={pkg} onChange={onChange} />}
+      {tab === "colors" && THEME_TOKENS.map((group) => (
         <div key={group.group} className="settings-section">
           <label className="settings-label">{group.group}</label>
           {group.tokens.map((tok) => (

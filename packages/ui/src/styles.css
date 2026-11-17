@@ -8983,3 +8983,31 @@ details.audit-entry > .audit-entry:last-child {
 .voice-room-map-off {
   margin-top: var(--space-3);
 }
+
+.themed-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.themed-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.themed-icon-off .themed-icon {
+  opacity: 0.55;
+}
+
+.themed-icon-off::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 2px;
+  background: var(--danger);
+  transform: rotate(-45deg);
+}

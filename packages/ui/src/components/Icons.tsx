@@ -1,10 +1,13 @@
 import React from "react";
+import { useThemedIcon } from "../themes/themeIcons";
 
 // Inline SVG icons. Kept as components rather than icon-library deps
 // because we use a small handful and bundling a full set would dominate
 // the icon footprint.
 
 export function PhoneOffIcon() {
+  const themed = useThemedIcon("phone-off", 16);
+  if (themed) return themed;
   return (
     <svg
       viewBox="0 0 24 24"
@@ -24,6 +27,8 @@ export function PhoneOffIcon() {
 }
 
 export function MicOnIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("mic", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 2a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4zm-1 16.93A8 8 0 0 1 4.07 11H6a6 6 0 0 0 12 0h1.93A8 8 0 0 1 13 18.93V22h-2v-3.07z" />
@@ -32,6 +37,8 @@ export function MicOnIcon({ size = 16 }: { size?: number }) {
 }
 
 export function MicOffIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("mic-off", size, { off: true });
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M2 2l20 20-1.4 1.4-3.07-3.07A8 8 0 0 1 4.07 11H6a6 6 0 0 0 8.93 5.52l-1.56-1.56A4 4 0 0 1 8 12V9.41L3.4 4.82 2 3.41 3.41 2zM13 5.17V6a4 4 0 0 1 .83 7.9L12 12.07V6a1.98 1.98 0 0 0-2.92-1.75L7.64 2.82A4 4 0 0 1 13 5.17zm-1 13.76V22h-2v-3.07A8 8 0 0 1 5.08 13h1.95A6 6 0 0 0 12 18.93z" />
@@ -40,6 +47,8 @@ export function MicOffIcon({ size = 16 }: { size?: number }) {
 }
 
 export function DeafenIcon({ size = 16, muted = false }: { size?: number; muted?: boolean }) {
+  const themed = useThemedIcon("deafen", size, { off: muted });
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={muted ? { opacity: 0.4 } : undefined} aria-hidden="true">
       <path d="M12 3a9 9 0 0 0-9 9v5a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H5v-2a7 7 0 0 1 14 0v2h-2a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-5a9 9 0 0 0-9-9z" />
@@ -48,6 +57,8 @@ export function DeafenIcon({ size = 16, muted = false }: { size?: number; muted?
 }
 
 export function ScreenShareIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("screen-share", size);
+  if (themed) return themed;
   // Feather "monitor": stroke-based like the camera icons next to it. The
   // previous filled path was corrupted — its outer frame and inner cutout
   // shared the same right edge, so the monitor had no right bezel and
@@ -66,6 +77,8 @@ export function ScreenShareIcon({ size = 16 }: { size?: number }) {
 }
 
 export function CameraOnIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("camera", size);
+  if (themed) return themed;
   return (
     <svg
       viewBox="0 0 24 24" width={size} height={size}
@@ -79,6 +92,8 @@ export function CameraOnIcon({ size = 16 }: { size?: number }) {
 }
 
 export function CameraOffIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("camera-off", size, { off: true });
+  if (themed) return themed;
   return (
     <svg
       viewBox="0 0 24 24" width={size} height={size}
@@ -160,7 +175,9 @@ export const CHANNEL_ICONS: ChannelIconDef[] = [
 ];
 
 export function ChannelIconGlyph({ icon, size = 14 }: { icon: string | null; size?: number }) {
+  const themed = useThemedIcon(`channel-${icon}`, size);
   if (!icon) return null;
+  if (themed) return themed;
   const def = CHANNEL_ICONS.find((d) => d.id === icon);
   if (!def) {
     // Not a registry id — channel settings stores emoji picked via the
@@ -206,6 +223,7 @@ export function ChannelIcon({
   channelType?: string | null;
   size?: number;
 }) {
+  const themed = useThemedIcon(`channel-${channelType ?? "text"}`, size);
   if (customIconSvg) {
     const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(customIconSvg)}`;
     return (
@@ -220,6 +238,7 @@ export function ChannelIcon({
     );
   }
   if (icon) return <ChannelIconGlyph icon={icon} size={size} />;
+  if (themed) return themed;
   if (!channelType || channelType === "text") {
     return <span className="channel-type-hash" aria-hidden="true">#</span>;
   }
@@ -251,6 +270,8 @@ export function ChannelIcon({
 // from them has as many visual languages as it has buttons.
 
 export function PinIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("pin", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -261,6 +282,8 @@ export function PinIcon({ size = 16 }: { size?: number }) {
 }
 
 export function SearchIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("search", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -271,6 +294,8 @@ export function SearchIcon({ size = 16 }: { size?: number }) {
 }
 
 export function MembersIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("members", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -283,6 +308,8 @@ export function MembersIcon({ size = 16 }: { size?: number }) {
 }
 
 export function LinkIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("link", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -293,6 +320,8 @@ export function LinkIcon({ size = 16 }: { size?: number }) {
 }
 
 export function FlagIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("flag", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -303,6 +332,8 @@ export function FlagIcon({ size = 16 }: { size?: number }) {
 }
 
 export function ReplyIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("reply", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -313,6 +344,8 @@ export function ReplyIcon({ size = 16 }: { size?: number }) {
 }
 
 export function EditIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("edit", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -322,6 +355,8 @@ export function EditIcon({ size = 16 }: { size?: number }) {
 }
 
 export function TrashIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("trash", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -344,6 +379,8 @@ export function VolumeIcon({ size = 14, level }: { size?: number; level: "muted"
 }
 
 export function GearIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("settings", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -355,6 +392,8 @@ export function GearIcon({ size = 16 }: { size?: number }) {
 }
 
 export function PlusIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("plus", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -364,6 +403,8 @@ export function PlusIcon({ size = 16 }: { size?: number }) {
 }
 
 export function CloseIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("close", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -375,6 +416,8 @@ export function CloseIcon({ size = 16 }: { size?: number }) {
 /** One shape, four rotations — a caret that points where it is going. */
 export function ChevronIcon({ size = 16, dir = "down" }: { size?: number; dir?: "up" | "down" | "left" | "right" }) {
   const deg = { up: 180, down: 0, left: 90, right: -90 }[dir];
+  const themed = useThemedIcon("chevron", size, { style: { transform: `rotate(${deg}deg)` } });
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
@@ -385,6 +428,8 @@ export function ChevronIcon({ size = 16, dir = "down" }: { size?: number; dir?: 
 }
 
 export function ExpandIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("expand", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -394,6 +439,8 @@ export function ExpandIcon({ size = 16 }: { size?: number }) {
 }
 
 export function ResetIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("reset", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -405,6 +452,8 @@ export function ResetIcon({ size = 16 }: { size?: number }) {
 
 /** A channel where the topic is the thread, not the day — the forum type. */
 export function ForumIcon({ size = 14 }: { size?: number }) {
+  const themed = useThemedIcon("forum", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -415,6 +464,8 @@ export function ForumIcon({ size = 14 }: { size?: number }) {
 }
 
 export function BellOffIcon({ size = 14 }: { size?: number }) {
+  const themed = useThemedIcon("bell-off", size, { off: true });
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -426,6 +477,8 @@ export function BellOffIcon({ size = 14 }: { size?: number }) {
 }
 
 export function LockIcon({ size = 14 }: { size?: number }) {
+  const themed = useThemedIcon("lock", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -436,6 +489,8 @@ export function LockIcon({ size = 14 }: { size?: number }) {
 }
 
 export function PaperclipIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("paperclip", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -445,6 +500,8 @@ export function PaperclipIcon({ size = 16 }: { size?: number }) {
 }
 
 export function SpeakerIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("speaker", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -456,6 +513,8 @@ export function SpeakerIcon({ size = 16 }: { size?: number }) {
 }
 
 export function ClockIcon({ size = 14 }: { size?: number }) {
+  const themed = useThemedIcon("clock", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -467,6 +526,8 @@ export function ClockIcon({ size = 14 }: { size?: number }) {
 
 /** Whispering: a voice aimed at one person, so the cone is narrowed. */
 export function WhisperIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("whisper", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -478,6 +539,8 @@ export function WhisperIcon({ size = 16 }: { size?: number }) {
 }
 
 export function CakeIcon({ size = 14 }: { size?: number }) {
+  const themed = useThemedIcon("cake", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -488,6 +551,8 @@ export function CakeIcon({ size = 14 }: { size?: number }) {
 }
 
 export function CalendarIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("calendar", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -499,6 +564,8 @@ export function CalendarIcon({ size = 16 }: { size?: number }) {
 
 /** The empty-channel illustration: nobody has said anything here yet. */
 export function WaveIcon({ size = 28 }: { size?: number }) {
+  const themed = useThemedIcon("wave", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -511,6 +578,8 @@ export function WaveIcon({ size = 28 }: { size?: number }) {
 /** Add a reaction. A drawn face, not the platform emoji it opens a picker
  *  for: the button is chrome, what it inserts is content. */
 export function ReactionAddIcon({ size = 16 }: { size?: number }) {
+  const themed = useThemedIcon("reaction-add", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -523,6 +592,8 @@ export function ReactionAddIcon({ size = 16 }: { size?: number }) {
 
 /** Direct messages: the hub rail's first stop, which is not a hub. */
 export function MessagesIcon({ size = 18 }: { size?: number }) {
+  const themed = useThemedIcon("messages", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -533,6 +604,8 @@ export function MessagesIcon({ size = 18 }: { size?: number }) {
 
 /** The public hub directory — looking outward, not adding what you have. */
 export function DiscoverIcon({ size = 18 }: { size?: number }) {
+  const themed = useThemedIcon("discover", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -544,6 +617,8 @@ export function DiscoverIcon({ size = 18 }: { size?: number }) {
 
 /** A mention waiting on a hub you are not looking at. */
 export function MentionIcon({ size = 11 }: { size?: number }) {
+  const themed = useThemedIcon("mention", size);
+  if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -551,4 +626,49 @@ export function MentionIcon({ size = 11 }: { size?: number }) {
       <path d="M15.6 12v2a2.6 2.6 0 0 0 5.2 0v-2a8.8 8.8 0 1 0-3.4 6.9" />
     </svg>
   );
+}
+
+// What the theme editor shows next to an icon name before a theme replaces it.
+export function iconPreview(name: string, size: number): React.ReactElement | null {
+  switch (name) {
+    case "phone-off": return <PhoneOffIcon />;
+    case "mic": return <MicOnIcon size={size} />;
+    case "mic-off": return <MicOffIcon size={size} />;
+    case "deafen": return <DeafenIcon size={size} />;
+    case "screen-share": return <ScreenShareIcon size={size} />;
+    case "camera": return <CameraOnIcon size={size} />;
+    case "camera-off": return <CameraOffIcon size={size} />;
+    case "pin": return <PinIcon size={size} />;
+    case "search": return <SearchIcon size={size} />;
+    case "members": return <MembersIcon size={size} />;
+    case "link": return <LinkIcon size={size} />;
+    case "flag": return <FlagIcon size={size} />;
+    case "reply": return <ReplyIcon size={size} />;
+    case "edit": return <EditIcon size={size} />;
+    case "trash": return <TrashIcon size={size} />;
+    case "settings": return <GearIcon size={size} />;
+    case "plus": return <PlusIcon size={size} />;
+    case "close": return <CloseIcon size={size} />;
+    case "chevron": return <ChevronIcon size={size} />;
+    case "expand": return <ExpandIcon size={size} />;
+    case "reset": return <ResetIcon size={size} />;
+    case "forum": return <ForumIcon size={size} />;
+    case "bell-off": return <BellOffIcon size={size} />;
+    case "lock": return <LockIcon size={size} />;
+    case "paperclip": return <PaperclipIcon size={size} />;
+    case "speaker": return <SpeakerIcon size={size} />;
+    case "clock": return <ClockIcon size={size} />;
+    case "whisper": return <WhisperIcon size={size} />;
+    case "cake": return <CakeIcon size={size} />;
+    case "calendar": return <CalendarIcon size={size} />;
+    case "wave": return <WaveIcon size={size} />;
+    case "reaction-add": return <ReactionAddIcon size={size} />;
+    case "messages": return <MessagesIcon size={size} />;
+    case "discover": return <DiscoverIcon size={size} />;
+    case "mention": return <MentionIcon size={size} />;
+    case "channel-text": case "channel-voice": case "channel-forum": case "channel-spawner":
+      return <ChannelIcon icon={null} customIconSvg={null} channelType={name.slice(8)} size={size} />;
+  }
+  if (name.startsWith("channel-")) return <ChannelIconGlyph icon={name.slice(8)} size={size} />;
+  return null;
 }
