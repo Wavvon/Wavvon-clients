@@ -918,7 +918,7 @@ function App({ accountId }: { accountId: string | null }) {
     }
   }
 
-  const { updateInfo, dismissUpdateInfo } = useUpdateBanner();
+  const { updateStatus, dismissUpdate } = useUpdateBanner();
 
   // Auto-connect saved hubs on app start + load our own public key once
   useEffect(() => {
@@ -1222,11 +1222,11 @@ function App({ accountId }: { accountId: string | null }) {
           {toast}
         </div>
       )}
-      {updateInfo && (
+      {updateStatus && (
         <UpdateBanner
-          version={updateInfo.version}
-          notes={updateInfo.notes}
-          onDismiss={dismissUpdateInfo}
+          status={updateStatus}
+          isInVoice={voice.isInOrJoiningVoice}
+          onDismiss={dismissUpdate}
         />
       )}
       <>

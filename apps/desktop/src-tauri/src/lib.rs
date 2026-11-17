@@ -44,7 +44,7 @@ mod ws;
 
 use tauri::Manager;
 
-use state::{AppState, PendingUpdate};
+use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -78,11 +78,11 @@ pub fn run() {
                 voice: Default::default(),
                 http_client: reqwest::Client::new(),
             });
-            app.manage(PendingUpdate(std::sync::Mutex::new(None)));
+            app.manage(updater::UpdaterState::default());
             app.manage(mini_app::MiniAppRegistry::default());
             deep_link::setup(app);
             let update_handle = app.handle().clone();
-            tauri::async_runtime::spawn(updater::check_for_updates(update_handle));
+            tauri::async_runtime::spawn(updater::run_update_checks(update_handle));
 
             let show = MenuItem::with_id(app, "show", "Show Wavvon", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -468,7 +468,9 @@ pub fn run() {
             discovery::remove_badge,
             discovery::grant_badge,
             // Updater / tray
-            updater::install_pending_update,
+            updater::get_update_status,
+            updater::retry_update_download,
+            updater::install_update,
             updater::set_tray_unread,
             // Deep links
             deep_link::get_pending_deep_link,
@@ -490,8 +492,13 @@ pub fn run() {
             passkey_cmd::passkey_delete,
             passkey_cmd::passkey_rename,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                updater::install_on_quit(app);
+            }
+        });
 }
 
 // ---------------------------------------------------------------------------

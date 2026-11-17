@@ -88,8 +88,6 @@ pub(crate) struct AppState {
     pub http_client: reqwest::Client,
 }
 
-pub(crate) struct PendingUpdate(pub std::sync::Mutex<Option<tauri_plugin_updater::Update>>);
-
 pub(crate) struct HubSession {
     pub hub_id: String,
     pub hub_name: String,
