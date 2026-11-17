@@ -164,6 +164,20 @@ function App({ accountId }: { accountId: string | null }) {
     return hubNotifyMode[hubId] ?? "all";
   }
 
+  /** Deadline of the timed mute deciding this channel's mode, if any: the
+   *  level effectiveNotifyMode stopped at. */
+  function muteUntil(hubId: string, channelId: string): number | undefined {
+    const { muteDeadlines } = notifyPrefs;
+    let id: string | null = channelId;
+    while (id !== null) {
+      const mode = channelNotifyMode[hubId]?.[id];
+      if (mode !== undefined) return mode === "silent" ? muteDeadlines.channels[hubId]?.[id] : undefined;
+      const ch = channels.find((c) => c.id === id);
+      id = ch?.parent_id ?? null;
+    }
+    return hubNotifyMode[hubId] === "silent" ? muteDeadlines.hubs[hubId] : undefined;
+  }
+
   const { collapsedCategories, toggleCategoryCollapsed } = useCollapsedCategories();
   const { blockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore();
 
@@ -1289,6 +1303,8 @@ function App({ accountId }: { accountId: string | null }) {
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
               onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
               onSetHubNotifyMode={setHubMode}
+              hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+              onMuteHubUntil={(hubId, until) => setHubMode(hubId, "silent", until)}
               onOpenSearch={() => setShowSearchBar(true)}
               onAddHub={() => setShowAddHub(true)}
               onDiscover={DISCOVERY_URL ? () => setShowDiscover((v) => !v) : undefined}
@@ -1587,6 +1603,7 @@ function App({ accountId }: { accountId: string | null }) {
           setContextMenu={setContextMenu}
           effectiveNotifyMode={effectiveNotifyMode}
           setChannelMode={setChannelMode}
+          muteUntil={muteUntil}
           showHubSetupWizard={showHubSetupWizard}
           closeHubSetupWizard={closeHubSetupWizard}
           handleHubSetupWizardComplete={handleHubSetupWizardComplete}

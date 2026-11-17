@@ -391,7 +391,7 @@ export function MessageRow({
               onChange={(e) => onSetEditingDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") onSaveEdit();
-                if (e.key === "Escape") onCancelEdit();
+                if (e.key === "Escape") { e.preventDefault(); onCancelEdit(); }
               }}
               autoFocus
             />

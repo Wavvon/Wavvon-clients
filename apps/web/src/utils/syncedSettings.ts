@@ -40,6 +40,7 @@ export const SYNCED_KEYS: SyncedKey[] = [
   { key: "wavvon.voice_gains", scoped: true },
   { key: "wavvon.notifyMode.hub", scoped: true },
   { key: "wavvon.notifyMode.channel", scoped: true },
+  { key: "wavvon.notifyMuteUntil", scoped: true },
   { key: "wavvon.pinnedChannels", scoped: true },
   { key: "wavvon.collapsedCategories", scoped: true },
   { key: "wavvon.hideSilenced", scoped: true },

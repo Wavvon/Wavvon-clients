@@ -2562,5 +2562,10 @@
   "hub.admin.languages.default_none": "None (each browser's own)",
   "hub.admin.languages.none": "No language packs uploaded.",
   "hub.admin.languages.remove": "Remove",
-  "hub.admin.languages.upload": "Upload a language pack"
+  "hub.admin.languages.upload": "Upload a language pack",
+  "hub.mute.for_15m": "Mute for 15 minutes",
+  "hub.mute.for_1h": "Mute for 1 hour",
+  "hub.mute.for_8h": "Mute for 8 hours",
+  "hub.mute.for_tomorrow": "Mute until tomorrow",
+  "hub.mute.until": "Muted until {time}"
 }

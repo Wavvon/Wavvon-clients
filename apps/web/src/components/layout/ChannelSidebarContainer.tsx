@@ -153,9 +153,9 @@ export function ChannelSidebarContainer({
         })
       }
       onHubDropdownOpenChange={setHubDropdownOpen}
-      onSetHubMode={(hubId, mode) =>
-        notifyPrefs.setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
-      }
+      onSetHubMode={(hubId, mode) => notifyPrefs.setHubMode(hubId, mode)}
+      hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+      onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
       onToggleHideSilenced={notifyPrefs.toggleHideSilenced}
       onClearHubUnread={unreadCounts.clearHubUnread}
       onRemoveHub={onRequestRemoveHub}

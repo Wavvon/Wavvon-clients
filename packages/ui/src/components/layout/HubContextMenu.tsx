@@ -1,14 +1,18 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, NotifyMode } from "../../types";
+import { MuteForItems } from "./MuteForItems";
 
 /** Right-click menu of a hub, wherever the hub is shown: notifications and removal. */
-export function HubContextMenu({ hub, x, y, mode, onSetMode, onRemove, onClose }: {
+export function HubContextMenu({ hub, x, y, mode, muteUntil, onSetMode, onMuteUntil, onRemove, onClose }: {
   hub: Hub;
   x: number;
   y: number;
   mode: NotifyMode;
+  /** Deadline of this hub's timed mute, if any. */
+  muteUntil?: number;
   onSetMode?: (hubId: string, mode: NotifyMode) => void;
+  onMuteUntil?: (hubId: string, until: number) => void;
   onRemove: (hubId: string) => void;
   onClose: () => void;
 }) {
@@ -41,6 +45,14 @@ export function HubContextMenu({ hub, x, y, mode, onSetMode, onRemove, onClose }
                 {t(`hub.notifications.${m}`)}
               </button>
             ))}
+            {onMuteUntil && (
+              <MuteForItems
+                itemClassName="context-menu-item"
+                until={mode === "silent" ? muteUntil : undefined}
+                onMuteUntil={(until) => onMuteUntil(hub.hub_id, until)}
+                onDone={onClose}
+              />
+            )}
             <div className="context-menu-separator" />
           </>
         )}

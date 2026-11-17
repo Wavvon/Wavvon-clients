@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Channel } from "@wavvon/core";
 import type { NotifyMode } from "../../types";
 import { HoverSubmenu } from "../HoverSubmenu";
+import { MuteForItems } from "../layout/MuteForItems";
 
 export interface ChannelContextMenuProps {
   menu: { x: number; y: number; channel: Channel };
@@ -10,6 +11,9 @@ export interface ChannelContextMenuProps {
   effectiveNotifyMode: (hubId: string, channelId: string) => NotifyMode;
   onSetNotifyMode: (hubId: string, channelId: string, mode: NotifyMode) => void;
   onClose: () => void;
+  /** Deadline of the timed mute silencing this channel, if any. */
+  muteUntil?: (hubId: string, channelId: string) => number | undefined;
+  onMuteUntil?: (hubId: string, channelId: string, until: number) => void;
   // Optional entries: an omitted callback hides its entry. Structural rules
   // (which channel kinds an entry makes sense for) live here; permission and
   // ownership gating stays in the app, which passes or omits the callback.
@@ -39,7 +43,7 @@ const NOTIFY_MODES: NotifyMode[] = ["all", "mentions", "silent"];
 // shipped capability drops): each app wires the entries it can serve and
 // omits the rest.
 export function ChannelContextMenu({
-  menu, activeHubId, effectiveNotifyMode, onSetNotifyMode, onClose,
+  menu, activeHubId, effectiveNotifyMode, onSetNotifyMode, onClose, muteUntil, onMuteUntil,
   onCopyLink, onOpenInDesktop, onGetDesktop, onCreateEvent, onCreatePoll, onRenameTempRoom, onEditBanner,
   onCreateChannelIn, onCreateChannel, onCreateCategory,
   onEditChannel, onDeleteChannel,
@@ -98,6 +102,14 @@ export function ChannelContextMenu({
             </button>
           );
         })}
+        {onMuteUntil && (
+          <MuteForItems
+            itemClassName="context-menu-item context-menu-subitem"
+            until={muteUntil?.(activeHubId!, channel.id)}
+            onMuteUntil={(until) => onMuteUntil(activeHubId!, channel.id, until)}
+            onDone={onClose}
+          />
+        )}
       </HoverSubmenu>
     ),
     !channel.is_category && onCopyLink &&
