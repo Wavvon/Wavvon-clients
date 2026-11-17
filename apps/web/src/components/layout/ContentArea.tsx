@@ -363,6 +363,8 @@ export function ContentArea(props: Props) {
         onOpenEditDescription={(ch) => { channelCrud.setEditDescChannel(ch); channelCrud.setEditDescValue(ch.description ?? ""); }}
         firstNotifyingMessageId={channelMessages.firstNotifyingMessageId}
         onClearFirstNotify={() => channelMessages.setFirstNotifyingMessageId(null)}
+        firstUnreadId={channelMessages.firstUnreadId}
+        onMarkRead={channelMessages.handleMarkRead}
         onScrollToMessage={channelMessages.handleScrollToMessage}
         onSetMemberSidebarHidden={onSetMemberSidebarHidden}
         onSetSearchOpen={channelMessages.setSearchOpen}

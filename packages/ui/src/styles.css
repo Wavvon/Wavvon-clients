@@ -4464,6 +4464,44 @@ select:focus-visible {
   white-space: nowrap;
 }
 
+.new-messages-divider {
+  color: var(--accent);
+}
+
+.new-messages-divider::before,
+.new-messages-divider::after {
+  background: var(--accent);
+}
+
+/* Sticky inside the message list, so it stays over the messages and clear
+   of the channel header. Zero height (and the list gap taken back): showing
+   or hiding it must not move the messages, or a jump that hides it lands
+   one bar short of the divider and brings it straight back. */
+.new-messages-bar {
+  position: sticky;
+  top: 0;
+  height: 0;
+  margin-bottom: calc(-1 * var(--space-2));
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: var(--space-2);
+  z-index: 6;
+}
+
+.new-messages-bar-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: var(--r-pill);
+  font-size: var(--text-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 .message-reactions {
   display: flex;
   flex-wrap: wrap;

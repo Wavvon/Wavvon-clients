@@ -7,6 +7,7 @@ import {
   unreadCountsByHub,
   totalUnread,
   unreadDocumentTitle,
+  firstUnreadId,
   type UnreadMap,
 } from "../unreadCounts";
 
@@ -70,5 +71,22 @@ describe("derived counts and title", () => {
     expect(unreadDocumentTitle(1)).toBe("(1) Wavvon");
     expect(unreadDocumentTitle(99)).toBe("(99) Wavvon");
     expect(unreadDocumentTitle(100)).toBe("(99+) Wavvon");
+  });
+});
+
+describe("firstUnreadId", () => {
+  const msgs = [
+    { id: "a", sender: "bob", created_at: 10 },
+    { id: "b", sender: "me", created_at: 20 },
+    { id: "c", sender: "bob", created_at: 30 },
+  ];
+  it("picks the first later message someone else wrote", () => {
+    expect(firstUnreadId(msgs, 15, "me")).toBe("c");
+    expect(firstUnreadId(msgs, 5, "me")).toBe("a");
+  });
+  it("draws nothing when caught up, never read, or the hub did not say", () => {
+    expect(firstUnreadId(msgs, 30, "me")).toBeNull();
+    expect(firstUnreadId(msgs, 0, "me")).toBeNull();
+    expect(firstUnreadId(msgs, null, "me")).toBeNull();
   });
 });
