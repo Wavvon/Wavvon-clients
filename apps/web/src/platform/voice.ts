@@ -491,10 +491,12 @@ export class VoiceWtSession {
     this.recomputeAllProximityGains();
   }
 
-  setMyPosition(zoneId: string, position: number[]): void {
+  /** null forgets our place in the zone (a refused first move). */
+  setMyPosition(zoneId: string, position: number[] | null): void {
     const z = this.zones.get(zoneId);
     if (!z) return;
-    z.positions[this.myPubkey] = position;
+    if (position) z.positions[this.myPubkey] = position;
+    else delete z.positions[this.myPubkey];
     this.recomputeAllProximityGains();
   }
 

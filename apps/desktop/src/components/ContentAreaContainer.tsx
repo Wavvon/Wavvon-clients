@@ -117,6 +117,7 @@ export function ContentAreaContainer({
                 onDisable: voice.disableRoomMap,
                 onMove: (p) => voice.moveInRoom(p),
                 movedBy: voice.roomMover,
+                refused: voice.positionRefused,
               }
             : undefined,
           live: {

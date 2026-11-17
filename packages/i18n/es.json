@@ -1958,6 +1958,7 @@
   "voice.room_map.label": "Mapa de la sala",
   "voice.room_map.place_yourself": "Haz clic en el mapa para colocarte. Hasta entonces, oyes a todos a pleno volumen.",
   "voice.room_map.moved_by": "{app} te está moviendo",
+  "voice.room_map.refused": "El hub rechazó ese movimiento; vuelves a donde te colocó la última vez.",
   "voice.camera.off": "Desactivar cámara",
   "voice.camera.on": "Activar cámara",
   "voice.deafen": "Silenciar todo el audio",

@@ -15,9 +15,13 @@ interface UseVoiceParams {
   selectedChannel: Channel | null;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
+  /** Our key in the room's positions, to find where the hub last placed us. */
+  publicKey: string | null;
 }
 
-export function useVoice({ activeHubId, selectedChannel, setError, setToast }: UseVoiceParams) {
+export function useVoice({ activeHubId, selectedChannel, setError, setToast, publicKey }: UseVoiceParams) {
+  const publicKeyRef = useRef(publicKey);
+  publicKeyRef.current = publicKey;
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
@@ -163,6 +167,13 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   // keeps its own copy for the attenuation; this one is for drawing.
   const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
   const [roomMover, setRoomMover] = useState<string | null>(null);
+  const [positionRefusals, setPositionRefusals] = useState(0);
+  const [positionRefused, setPositionRefused] = useState(false);
+  useEffect(() => {
+    if (!positionRefused) return;
+    const timer = setTimeout(() => setPositionRefused(false), 5000);
+    return () => clearTimeout(timer);
+  }, [positionRefused, positionRefusals]);
   useEffect(() => { if (voiceChannelId === null) { setRoomZone(null); setRoomMover(null); } }, [voiceChannelId]);
   // Always listening: the zone state arrives with the join, before
   // voiceChannelId is set.
@@ -181,6 +192,22 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     scope.add(listen<{ zone_id: string; pubkey: string; position: number[] }>("voice-position-updated", (e) => {
       const { zone_id, pubkey, position } = e.payload;
       setRoomZone((cur) => (cur?.zoneId === zone_id ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
+    }));
+    // The hub refused a move (an `error` frame, context voice_position_update).
+    // The drawn dot only ever moves on the hub's broadcast, so it is already
+    // where everyone else hears us; the shell's own attenuation moved ahead
+    // and goes back to it.
+    scope.add(listen<{ context: string }>("hub-error", (e) => {
+      if (e.payload.context !== "voice_position_update") return;
+      setRoomZone((cur) => {
+        const me = publicKeyRef.current;
+        if (cur && me) {
+          invoke("voice_room_map_restore", { zoneId: cur.zoneId, position: cur.positions[me] ?? null }).catch(() => {});
+        }
+        return cur;
+      });
+      setPositionRefused(true);
+      setPositionRefusals((n) => n + 1);
     }));
     return () => scope.close();
   }, []);
@@ -598,6 +625,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     moveInRoomForApp,
     roomMover,
     clearRoomMover: () => setRoomMover(null),
+    positionRefused,
+    positionRefusals,
     isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,

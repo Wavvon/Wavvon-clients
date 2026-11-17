@@ -16,6 +16,9 @@ import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
 export interface MiniAppVoiceBridge {
   state: VoiceBridgeState;
   onSetPosition: (zoneId: string, position: number[]) => void;
+  /** How many moves the hub has refused while this frame was moving the
+   *  user; each new one is forwarded as `wavvon:voicePositionRefused`. */
+  refusals?: number;
 }
 
 interface Props {
@@ -117,6 +120,22 @@ export function GameModal({
     }
     iframeRef.current?.contentWindow?.postMessage(voiceStateMessage(voiceRef.current.state), appOrigin);
   }, [stateKey, miniAppUrl]);
+
+  // A refusal arrives from the hub after the move was sent, so it is
+  // forwarded here rather than answered where the request was checked.
+  const refusals = voice?.refusals;
+  const seenRefusals = useRef(refusals);
+  useEffect(() => {
+    const seen = seenRefusals.current;
+    seenRefusals.current = refusals;
+    if (refusals === undefined || seen === undefined || refusals <= seen || !frameLoadedRef.current) return;
+    try {
+      const appOrigin = new URL(miniAppUrl, window.location.href).origin;
+      iframeRef.current?.contentWindow?.postMessage(voiceRefusedMessage("refused"), appOrigin);
+    } catch {
+      // An unparseable app URL has no frame to tell.
+    }
+  }, [refusals, miniAppUrl]);
 
   return (
     <div className="game-modal-overlay" role="dialog" aria-modal="true" aria-label={title}>

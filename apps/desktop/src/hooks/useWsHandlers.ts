@@ -350,6 +350,8 @@ export function useWsHandlers({
           "hub-error",
           async (event) => {
             if (!isVoiceHub(event.payload.hub_id)) return;
+            // A refused room-map move is shown on the map (useVoice).
+            if (event.payload.context === "voice_position_update") return;
             setToast(event.payload.message);
             if (event.payload.context === "voice_join") {
               await onHubErrorVoiceJoin();
