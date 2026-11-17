@@ -330,8 +330,9 @@ export default function App({ initialView }: AppProps = {}) {
     return m;
   }, [users]);
   const { blockedUsers, setBlockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore(showHubError);
-  // The hub build applies its hub's theme; the user build will once it offers the opt-in.
-  useActiveHubTheme(MULTI_HUB ? null : activeHubId, settingsProfile.themes.setHubTheme);
+  // Applied while that hub is open: by default in the hub build, after the
+  // user opts in on the user build and desktop (useThemes hubThemesDefault).
+  useActiveHubTheme(activeHubId, settingsProfile.themes.setHubTheme);
   // === Hub admin ===
   const hubAdminState = useHubAdmin({
     activeHubId,

@@ -58,6 +58,7 @@ import { useHubLifecycle } from "./hooks/useHubLifecycle";
 import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useFriends } from "./hooks/useFriends";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
+import { useActiveHubTheme } from "./hooks/useActiveHubTheme";
 import { useDms } from "./hooks/useDms";
 import { useChannelMessages } from "./hooks/useChannelMessages";
 import { useAlliances } from "./hooks/useAlliances";
@@ -614,6 +615,7 @@ function App({ accountId }: { accountId: string | null }) {
     setShowSettings,
     setRecoveryPhrase,
   } = settingsProfile;
+  useActiveHubTheme(hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null, settingsProfile.themes.setHubTheme);
 
   const [showDiscover, setShowDiscover] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
