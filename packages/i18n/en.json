@@ -2530,5 +2530,14 @@
   "hub.admin.theme.preview_alt": "Preview of the hub theme",
   "hub.admin.theme.upload": "Upload a theme",
   "hub.admin.theme.replace": "Replace",
-  "hub.admin.theme.remove": "Remove"
+  "hub.admin.theme.remove": "Remove",
+  "settings.language.hint": "Install a language pack (.wavvonlang) to add a language. Strings a pack lacks show in English, and the recovery, backup, pairing and security texts always come from the official translation.",
+  "settings.language.install": "Install from file",
+  "settings.language.install_aria": "Language pack file",
+  "settings.language.installed": "Installed language packs",
+  "settings.language.none": "No language packs installed.",
+  "settings.language.remove": "Remove",
+  "settings.language.invalid": "This is not a valid language pack.",
+  "settings.language.coverage": "{label} ({percent}%)",
+  "settings.language.hub_coverage": "{label} (this hub, {percent}%)"
 }

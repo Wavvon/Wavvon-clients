@@ -15,7 +15,7 @@ const { memoryStore } = vi.hoisted(() => ({ memoryStore: { current: null as unkn
 vi.mock("@wavvon/ui", async (importOriginal) => {
   const orig = await importOriginal<typeof import("@wavvon/ui")>();
   memoryStore.current = orig.createMemoryPackageStore();
-  return { ...orig, deviceThemeStore: memoryStore.current };
+  return { ...orig, deviceThemeStore: memoryStore.current, deviceLanguageStore: orig.createMemoryPackageStore() };
 });
 
 import { bytesToBase64, exportTheme, newTheme, type ThemeStore } from "@wavvon/ui";

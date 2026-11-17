@@ -19,7 +19,7 @@ function makeHub(overrides: Partial<ArchiveHub> = {}): ArchiveHub {
 }
 
 function emptySnapshot(overrides: Partial<ExistingAccountSnapshot> = {}): ExistingAccountSnapshot {
-  return { hubList: [], drafts: {}, themeNames: [], ignoredUsers: [], voiceGains: {}, hasMentionPingSetting: false, ...overrides };
+  return { hubList: [], drafts: {}, themeNames: [], languageNames: [], ignoredUsers: [], voiceGains: {}, hasMentionPingSetting: false, ...overrides };
 }
 
 function makeArchive(overrides: Partial<ArchiveDocument> = {}): ArchiveDocument {

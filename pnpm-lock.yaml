@@ -247,13 +247,12 @@ importers:
       i18next-icu:
         specifier: '>=2'
         version: 2.7.0(intl-messageformat@11.2.15)
-      react-i18next:
-        specifier: '>=14'
-        version: 18.0.0(i18next@27.0.0(typescript@6.0.3))(react@19.3.1)(typescript@6.0.3)
-    devDependencies:
       intl-messageformat:
         specifier: ^11.2.15
         version: 11.2.15
+      react-i18next:
+        specifier: '>=14'
+        version: 18.0.0(i18next@27.0.0(typescript@6.0.3))(react@19.3.1)(typescript@6.0.3)
 
   packages/ui:
     dependencies:
@@ -278,6 +277,9 @@ importers:
       '@wavvon/core':
         specifier: workspace:*
         version: link:../core
+      '@wavvon/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       dompurify:
         specifier: '>=3.4.17'
         version: 3.4.17

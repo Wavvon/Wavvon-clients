@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LANGUAGES, setLanguage } from "@wavvon/i18n";
 import type { Hub } from "../types";
 import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
@@ -17,6 +16,7 @@ import {
   SettingsAccountPicker,
   ActiveAccountOnlyNotice,
   SettingRow,
+  LanguageSetting,
   resolveManagingAccount,
   type ThemesController,
   type SettingsTabDef,
@@ -113,7 +113,7 @@ function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
 }
 
 export function SettingsPage(props: SettingsPageProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   // Desktop's own multi-account list, for the shared ProfileTab's account
   // scope line — Devices/Privacy stay active-account-only for now (see
@@ -262,25 +262,7 @@ export function SettingsPage(props: SettingsPageProps) {
           <section>
             <h1>{t("settings.tabs.appearance")}</h1>
 
-            <SettingRow
-              title={t("settings.language.label")}
-              state={LANGUAGES.find((l) => l.id === i18n.language.slice(0, 2))?.label ?? i18n.language}
-              control={
-                <select
-                  id="settings-language"
-                  aria-label={t("settings.language.label")}
-                  value={i18n.language.slice(0, 2)}
-                  onChange={(e) => {
-                    void setLanguage(e.target.value);
-                    localStorage.setItem("wavvon_language", e.target.value);
-                  }}
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.id} value={l.id}>{l.label}</option>
-                  ))}
-                </select>
-              }
-            />
+            <LanguageSetting {...settingRow("language")} />
 
             <SettingRow
               title={t("settings.theme.label")}

@@ -1,5 +1,14 @@
 import type { SavedHub } from "@platform";
-import { deviceThemeStore, restoreThemes, type ExistingAccountSnapshot, type RestorePlan, type ThemeStore } from "@wavvon/ui";
+import {
+  deviceLanguageStore,
+  deviceThemeStore,
+  restoreLanguages,
+  restoreThemes,
+  type ExistingAccountSnapshot,
+  type LanguageStore,
+  type RestorePlan,
+  type ThemeStore,
+} from "@wavvon/ui";
 import { getScoped, setScoped } from "./accountScope";
 
 // Web's storage half of a full-archive restore (docs/docs/data-export.md §5);
@@ -36,11 +45,13 @@ function safeJsonParse<T>(raw: string | null, fallback: T): T {
 export async function readExistingAccountSnapshot(
   accountId: string,
   themeStore: ThemeStore = deviceThemeStore,
+  languageStore: LanguageStore = deviceLanguageStore,
 ): Promise<ExistingAccountSnapshot> {
   return {
     hubList: safeJsonParse<SavedHub[]>(getScoped(SAVED_HUBS_KEY, accountId), []),
     drafts: safeJsonParse<Record<string, string>>(getScoped(DRAFTS_KEY, accountId), {}),
     themeNames: (await themeStore.list()).map((t) => t.manifest.name),
+    languageNames: (await languageStore.list()).map((l) => l.manifest.name),
     ignoredUsers: safeJsonParse<string[]>(getScoped(IGNORED_USERS_KEY, accountId), []),
     voiceGains: safeJsonParse<Record<string, number>>(getScoped(VOICE_GAINS_KEY, accountId), {}),
     hasMentionPingSetting: getScoped(MENTION_PING_KEY, accountId) !== null,
@@ -51,10 +62,12 @@ export async function applyRestorePlan(
   accountId: string,
   plan: RestorePlan,
   themeStore: ThemeStore = deviceThemeStore,
+  languageStore: LanguageStore = deviceLanguageStore,
 ): Promise<void> {
   setScoped(SAVED_HUBS_KEY, JSON.stringify(plan.hubList), accountId);
   setScoped(DRAFTS_KEY, JSON.stringify(plan.drafts), accountId);
   await restoreThemes(themeStore, plan.newThemes);
+  await restoreLanguages(plan.newLanguages, languageStore);
   setScoped(IGNORED_USERS_KEY, JSON.stringify(plan.ignoredUsers), accountId);
   setScoped(VOICE_GAINS_KEY, JSON.stringify(plan.voiceGains), accountId);
   if (plan.mentionPingEnabled !== null) {

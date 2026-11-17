@@ -221,7 +221,8 @@ fn write_stores(dir: &Path, stores: &ArchiveStores) -> Result<(), String> {
 
 /// What only the renderer holds: DM plaintext comes through the existing
 /// get_dm_messages command; drafts, the mention-ping switch, the theme mode
-/// and the installed theme packages live in its localStorage / IndexedDB.
+/// and the installed theme and language packages live in its localStorage /
+/// IndexedDB.
 #[derive(Deserialize)]
 pub(crate) struct RendererSections {
     dms: Value,
@@ -229,6 +230,7 @@ pub(crate) struct RendererSections {
     mention_ping_enabled: bool,
     theme: String,
     themes: Value,
+    languages: Value,
 }
 
 /// GET against the active hub, where 404 is the one answer that means "none":
@@ -376,6 +378,7 @@ pub(crate) async fn export_full_archive(
         },
         "dms": sections.dms,
         "themes": sections.themes,
+        "languages": sections.languages,
         "drafts": sections.drafts,
     });
     validate_document(&document)?;

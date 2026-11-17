@@ -8,7 +8,10 @@ import {
   type DmArchiveConversation,
   type FullArchiveSectionActions,
   type RestorableArchive,
+  deviceLanguageStore,
   deviceThemeStore,
+  languagesForArchive,
+  restoreLanguages,
   restoreThemes,
   themesForArchive,
 } from "@wavvon/ui";
@@ -67,6 +70,7 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
           mention_ping_enabled: localStorage.getItem(MENTION_PING_KEY) !== "0",
           theme: readThemeMode(),
           themes: await themesForArchive(deviceThemeStore),
+          languages: await languagesForArchive(deviceLanguageStore),
         },
       });
     },
@@ -83,6 +87,7 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
           hubList: existing.hub_list,
           drafts: loadAllDrafts(),
           themeNames: (await deviceThemeStore.list()).map((t) => t.manifest.name),
+          languageNames: (await deviceLanguageStore.list()).map((l) => l.manifest.name),
           ignoredUsers: existing.ignored_users,
           voiceGains: existing.voice_gains,
           hasMentionPingSetting: localStorage.getItem(MENTION_PING_KEY) !== null,
@@ -94,6 +99,7 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
         stores: { hub_list: plan.hubList, ignored_users: plan.ignoredUsers, voice_gains: plan.voiceGains },
       });
       await restoreThemes(deviceThemeStore, plan.newThemes);
+      await restoreLanguages(plan.newLanguages, deviceLanguageStore);
       saveAllDrafts(plan.drafts);
       if (plan.mentionPingEnabled !== null) localStorage.setItem(MENTION_PING_KEY, plan.mentionPingEnabled ? "1" : "0");
       return { accountId: account_id, summary: plan.summary, wasFirstAccount: was_first_account };

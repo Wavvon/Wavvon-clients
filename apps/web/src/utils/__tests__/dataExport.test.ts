@@ -51,6 +51,7 @@ function makeFetchers(overrides: Partial<ArchiveFetchers> = {}): ArchiveFetchers
     getDmMessages: () => Promise.resolve([]),
     loadSavedHubs: () => [],
     listThemes: () => Promise.resolve([]),
+    listLanguages: () => Promise.resolve([]),
     ...overrides,
   };
 }

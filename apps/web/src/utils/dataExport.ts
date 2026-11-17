@@ -27,7 +27,9 @@ import {
   type DmArchiveConversation,
   type LocalPrefsSnapshot,
   deviceThemeStore,
+  languagesForArchive,
   themesForArchive,
+  type ArchiveLanguage,
   type ArchiveTheme,
 } from "@wavvon/ui";
 import { loadAllDrafts } from "./drafts";
@@ -104,6 +106,7 @@ export interface ArchiveFetchers {
   getDmMessages: (conversationId: string) => Promise<DmMessageFull[]>;
   loadSavedHubs: () => SavedHub[];
   listThemes: () => Promise<ArchiveTheme[]>;
+  listLanguages: () => Promise<ArchiveLanguage[]>;
 }
 
 export const defaultArchiveFetchers: ArchiveFetchers = {
@@ -116,6 +119,7 @@ export const defaultArchiveFetchers: ArchiveFetchers = {
   getDmMessages: platformGetDmMessages,
   loadSavedHubs: platformLoadSavedHubs,
   listThemes: () => themesForArchive(deviceThemeStore),
+  listLanguages: () => languagesForArchive(),
 };
 
 export interface AssembleArchiveOptions {
@@ -173,6 +177,7 @@ export async function assembleArchive(
     prefs,
     dms,
     themes: await fetchers.listThemes(),
+    languages: await fetchers.listLanguages(),
     drafts: loadAllDrafts(),
   };
 }

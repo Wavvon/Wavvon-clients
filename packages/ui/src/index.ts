@@ -282,6 +282,19 @@ export { deviceThemeStore, themesForArchive, restoreThemes } from "./themes/them
 export type { ThemeStore, ArchiveTheme, RestoredTheme } from "./themes/themeStore";
 export { useThemes, primeHubTheme, hubThemeWanted } from "./hooks/useThemes";
 export type { ThemesController, UseThemesOptions } from "./hooks/useThemes";
+export {
+  deviceLanguageStore,
+  loadLangPack,
+  exportLangPack,
+  registerLangPack,
+  registerInstalledLanguages,
+  installLangPack,
+  removeLangPack,
+  languagesForArchive,
+  restoreLanguages,
+  MAX_LANG_BYTES,
+} from "./languages/langPack";
+export type { LangManifest, LangPackage, StoredLangPack, LanguageStore, ArchiveLanguage, RestoredLanguage } from "./languages/langPack";
 export { loadHubTheme, hubThemeUrl } from "./themes/hubTheme";
 export type { HubThemeRef, HubTheme } from "./themes/hubTheme";
 export { ThemeEditor } from "./components/ThemeEditor";
@@ -521,6 +534,7 @@ export { useOlderPages, mergeOlderPage, MESSAGE_PAGE_SIZE } from "./hooks/useOld
 export type { AllianceScrollback } from "./hooks/useAlliances";
 export { useConfirm } from "./components/ConfirmDialog";
 export { SettingRow } from "./components/SettingRow";
+export { LanguageSetting } from "./components/LanguageSetting";
 export type { SettingRowProps } from "./components/SettingRow";
 export { CameraTab } from "./components/CameraTab";
 export type { ConfirmRequest } from "./components/ConfirmDialog";
