@@ -11,6 +11,7 @@ import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useAlliances } from "./hooks/useAlliances";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
 import { useActiveHubTheme } from "./hooks/useActiveHubTheme";
+import { useActiveHubLanguages } from "./hooks/useActiveHubLanguages";
 import { useWhisper } from "./hooks/useWhisper";
 import { useScreenShare } from "./hooks/useScreenShare";
 import { useDms } from "./hooks/useDms";
@@ -333,6 +334,7 @@ export default function App({ initialView }: AppProps = {}) {
   // Applied while that hub is open: by default in the hub build, after the
   // user opts in on the user build and desktop (useThemes hubThemesDefault).
   useActiveHubTheme(activeHubId, settingsProfile.themes.setHubTheme);
+  useActiveHubLanguages(activeHubId);
   // === Hub admin ===
   const hubAdminState = useHubAdmin({
     activeHubId,

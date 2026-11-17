@@ -15,11 +15,22 @@ import {
   stickerPacksActions, stickerStorageActions, stickerSettingsActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
-import { getWidget, putWidget, fetchCurrentHubTheme, uploadHubTheme, removeHubTheme } from "@platform";
+import {
+  getWidget,
+  putWidget,
+  fetchCurrentHubTheme,
+  uploadHubTheme,
+  removeHubTheme,
+  listHubLanguages,
+  uploadHubLanguage,
+  removeHubLanguage,
+  setHubDefaultLanguage,
+} from "@platform";
 
 // Module-level: the section reloads whenever its actions object changes.
 const widgetActions = { getWidget, putWidget };
 const hubThemeActions = { fetchCurrent: fetchCurrentHubTheme, upload: uploadHubTheme, remove: removeHubTheme };
+const hubLanguagesActions = { list: listHubLanguages, upload: uploadHubLanguage, remove: removeHubLanguage, setDefault: setHubDefaultLanguage };
 import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../platform/commands/recoveryPeople";
 import { outgoingWebhookActions } from "./outgoingWebhookActions";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
@@ -154,6 +165,7 @@ export function HubAdminContainer({
           : undefined}
         widgetActions={activeHubSupports("hub.widget") && canDo("hub.settings") ? widgetActions : undefined}
         hubThemeActions={activeHubSupports("hub.theme") && canDo("hub.appearance") ? hubThemeActions : undefined}
+        hubLanguagesActions={activeHubSupports("hub.languages") && isAdmin ? hubLanguagesActions : undefined}
         onboardingActions={onboardingActions}
         allianceActions={allianceActions}
         hubIconActions={hubIconActions}

@@ -22,6 +22,8 @@ fn allowed(method: &str, path: &str) -> bool {
         ("GET", ["hub", "settings"]) | ("PATCH", ["hub"]) => true,
         ("GET" | "PUT", ["admin", "settings", "widget"]) => true,
         ("DELETE", ["hub", "theme"]) => true,
+        ("PUT", ["hub", "languages", "default"]) => true,
+        ("DELETE", ["hub", "languages", sha]) => !sha.is_empty() && *sha != "default",
         _ => false,
     }
 }
@@ -104,13 +106,30 @@ pub(crate) async fn hub_theme_upload(
     file_b64: String,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    let (hub_url, token) = active_session(&state)?;
+    put_package(&state, "/hub/theme", file_b64).await
+}
+
+/// `PUT /hub/languages`: the raw `.wavvonlang` package as the body.
+#[tauri::command]
+pub(crate) async fn hub_language_upload(
+    file_b64: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    put_package(&state, "/hub/languages", file_b64).await
+}
+
+async fn put_package(
+    state: &State<'_, AppState>,
+    path: &str,
+    file_b64: String,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(state)?;
     let bytes = B64
         .decode(file_b64)
         .map_err(|e| format!("Bad file data: {e}"))?;
     let resp = state
         .http_client
-        .put(format!("{hub_url}/hub/theme"))
+        .put(format!("{hub_url}{path}"))
         .bearer_auth(&token)
         .header(reqwest::header::CONTENT_TYPE, "application/zip")
         .body(bytes)
@@ -140,6 +159,10 @@ mod tests {
         assert!(!allowed("DELETE", "/hub"));
         assert!(allowed("DELETE", "/hub/theme"));
         assert!(!allowed("PUT", "/hub/theme"));
+        assert!(allowed("PUT", "/hub/languages/default"));
+        assert!(allowed("DELETE", "/hub/languages/abc"));
+        assert!(!allowed("PUT", "/hub/languages"));
+        assert!(!allowed("DELETE", "/hub/languages/default"));
         assert!(!allowed("GET", "/channels/c1/messages"));
         assert!(!allowed("DELETE", "/channels/c1/stickers"));
         assert!(!allowed("GET", "/stickers/packs/../../admin/users"));
