@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { LAYOUT_OPTIONS } from "../../../themes/layout";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -18,14 +19,17 @@ const SHORTCUT_IDS = [
   "composer", "messages", "lists", "collapse", "expand", "home_end",
 ];
 
+const LAYOUT_OPTIONS_IDS = Object.entries(LAYOUT_OPTIONS).flatMap(([k, vs]) => vs.map((v) => `${k}.${v}`));
 const SCHEMES = ["dark", "light"];
 
 const FAMILIES: { name: string; prefix: string; ids: string[] }[] = [
   { name: "role permissions", prefix: "hub.admin.roles.perm", ids: ALL_PERMISSIONS },
   { name: "channel icons", prefix: "channel.icon", ids: CHANNEL_ICONS.map((d) => d.id) },
   { name: "keyboard shortcuts", prefix: "shortcuts.action", ids: SHORTCUT_IDS },
-  { name: "theme tab", prefix: "settings.theme.tab", ids: ["colors", "icons", "background"] },
+  { name: "theme tab", prefix: "settings.theme.tab", ids: ["colors", "icons", "background", "layout"] },
   { name: "theme background fit", prefix: "settings.theme.background.fit", ids: ["cover", "contain", "tile", "center"] },
+  { name: "theme layout key", prefix: "settings.theme.layout", ids: Object.keys(LAYOUT_OPTIONS) },
+  { name: "theme layout value", prefix: "settings.theme.layout", ids: LAYOUT_OPTIONS_IDS },
   { name: "theme mode", prefix: "settings.theme.mode", ids: ["system", ...SCHEMES] },
   { name: "theme scheme", prefix: "settings.theme.scheme", ids: SCHEMES },
   { name: "theme add scheme", prefix: "settings.theme.add_scheme", ids: SCHEMES },

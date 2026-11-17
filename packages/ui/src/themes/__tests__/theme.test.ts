@@ -3,6 +3,7 @@ import { strToU8, zipSync } from "fflate";
 import { PackageError } from "../packageFormat";
 import { contrastRatio, contrastWarnings } from "../contrast";
 import { translucent } from "../background";
+import { resolveLayout } from "../layout";
 import { ICON_NAMES } from "../iconRegistry";
 import { exportTheme, loadTheme, newTheme, resolveScheme } from "../theme";
 
@@ -113,5 +114,22 @@ describe("background", () => {
     expect(translucent("#102030", 0.8)).toBe("rgba(16, 32, 48, 0.8)");
     expect(translucent("rgba(1, 2, 3, 0.5)", 0.7)).toBe("rgba(1, 2, 3, 0.7)");
     expect(translucent("nonsense", 0.7)).toBeNull();
+  });
+});
+
+describe("layout", () => {
+  it("drops unknown keys and values, which means the default", () => {
+    const pkg = loadTheme(zip({ "theme.json": manifest({ layout: { member_list: "left", tabs: "diagonal", future_key: "x", density: "compact" } }) }));
+    expect(pkg.manifest.layout).toEqual({ member_list: "left", density: "compact" });
+  });
+
+  it("lets the user's choice beat the theme's, and the theme's beat the default", () => {
+    expect(resolveLayout({ member_list: "left", density: "compact" }, { member_list: "hidden" })).toEqual({
+      member_list: "hidden",
+      channel_list: "tree",
+      tabs: "top",
+      density: "compact",
+      avatar_shape: "square",
+    });
   });
 });

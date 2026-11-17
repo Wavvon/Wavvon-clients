@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ThemesController } from "../hooks/useThemes";
 import { downloadTheme, readBaseToken, resolveScheme, type SchemeMode } from "../themes/theme";
+import { LayoutPicker } from "./LayoutPicker";
 import { ThemeEditor } from "./ThemeEditor";
 
 const MODES: SchemeMode[] = ["system", "dark", "light"];
@@ -66,6 +67,11 @@ export function ThemesSection({ controller }: { controller: ThemesController }) 
             />
           ))}
         </div>
+      </div>
+
+      <div className="settings-section">
+        <label className="settings-label">{t("settings.theme.layout.yours")}</label>
+        <LayoutPicker value={controller.userLayout} unsetLabel={t("settings.theme.layout.follow_theme")} onChange={controller.setUserLayout} />
       </div>
 
       {active?.manifest.background && (
