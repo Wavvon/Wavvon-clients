@@ -1249,6 +1249,12 @@ body:has(.channel-banner) #root {
   font-size: var(--text-xs);
 }
 
+.update-banner-progress {
+  width: 160px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
 .update-banner-installing {
   color: var(--text-muted);
 }
