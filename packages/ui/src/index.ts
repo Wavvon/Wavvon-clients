@@ -280,8 +280,10 @@ export { createIdbPackageStore, createMemoryPackageStore, newPackageId, bytesToB
 export type { PackageStore, StoredPackage } from "./themes/packageStore";
 export { deviceThemeStore, themesForArchive, restoreThemes } from "./themes/themeStore";
 export type { ThemeStore, ArchiveTheme, RestoredTheme } from "./themes/themeStore";
-export { useThemes } from "./hooks/useThemes";
-export type { ThemesController } from "./hooks/useThemes";
+export { useThemes, primeHubTheme, hubThemeWanted } from "./hooks/useThemes";
+export type { ThemesController, UseThemesOptions } from "./hooks/useThemes";
+export { loadHubTheme, hubThemeUrl } from "./themes/hubTheme";
+export type { HubThemeRef, HubTheme } from "./themes/hubTheme";
 export { ThemeEditor } from "./components/ThemeEditor";
 export { LAYOUT_OPTIONS, LAYOUT_KEYS, LAYOUT_DEFAULTS, normalizeLayout, resolveLayout } from "./themes/layout";
 export type { LayoutKey, LayoutChoice } from "./themes/layout";
@@ -439,6 +441,8 @@ export { AttachmentSettingsSection } from "./components/admin/AttachmentSettings
 export type { AttachmentSettingsActions } from "./components/admin/AttachmentSettingsSection";
 export { WidgetSection, widgetEmbedCode } from "./components/admin/WidgetSection";
 export type { WidgetActions, WidgetSettings } from "./components/admin/WidgetSection";
+export { HubThemeSection } from "./components/admin/HubThemeSection";
+export type { HubThemeActions } from "./components/admin/HubThemeSection";
 export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
 export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
 export { StickerPicker } from "./components/stickers/StickerPicker";

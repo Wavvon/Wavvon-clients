@@ -79,6 +79,14 @@ export function ThemesSection({ controller }: { controller: ThemesController }) 
         <LayoutPicker value={controller.userLayout} unsetLabel={t("settings.theme.layout.follow_theme")} onChange={controller.setUserLayout} />
       </div>
 
+      <div className="settings-section">
+        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--text-sm)" }}>
+          <input type="checkbox" checked={controller.hubThemesOn} onChange={(e) => controller.setHubThemesOn(e.target.checked)} />
+          {t("settings.theme.hub_themes")}
+        </label>
+        <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("settings.theme.hub_themes_hint")}</p>
+      </div>
+
       {active?.manifest.background && (
         <div className="settings-section">
           <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--text-sm)" }}>

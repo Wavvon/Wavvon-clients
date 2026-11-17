@@ -1,4 +1,5 @@
 import { rawFetch, hubFetch, HubApiError } from "../http";
+import type { HubThemeRef } from "@wavvon/ui";
 import {
   getSession,
   setSession,
@@ -45,6 +46,7 @@ interface InfoResponse {
   canonical_url?: string | null;
   farm_url?: string | null;
   landing?: HubLanding;
+  theme?: HubThemeRef;
   /** "off", "click", "puzzle" or "both": a join needs a solved challenge first. */
   challenge_mode?: string | null;
   welcome_label?: string | null;
@@ -278,6 +280,7 @@ export async function addHub(
     capabilities: info.capabilities ?? [],
     hub_version: info.version,
     landing: info.landing,
+    theme: info.theme,
     canonical_pubkey: canonical,
   };
   setSession(info.public_key, session);
@@ -409,6 +412,7 @@ export async function refreshHubInfo(
       capabilities,
       hub_version: info.version,
       landing: info.landing,
+      theme: info.theme,
     });
     updateSavedHub(hub_id, info.name, info.icon);
     saveHubCapabilities(hub_id, capabilities, info.version);

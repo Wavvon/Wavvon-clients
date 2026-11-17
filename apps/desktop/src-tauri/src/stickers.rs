@@ -21,6 +21,7 @@ fn allowed(method: &str, path: &str) -> bool {
         ("POST", ["channels", id, "stickers"]) => !id.is_empty(),
         ("GET", ["hub", "settings"]) | ("PATCH", ["hub"]) => true,
         ("GET" | "PUT", ["admin", "settings", "widget"]) => true,
+        ("DELETE", ["hub", "theme"]) => true,
         _ => false,
     }
 }
@@ -97,6 +98,33 @@ pub(crate) async fn sticker_upload(
     serde_json::from_str(&text).map_err(|e| format!("Invalid: {e}"))
 }
 
+/// `PUT /hub/theme`: the raw `.wavvontheme` package as the body.
+#[tauri::command]
+pub(crate) async fn hub_theme_upload(
+    file_b64: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let bytes = B64
+        .decode(file_b64)
+        .map_err(|e| format!("Bad file data: {e}"))?;
+    let resp = state
+        .http_client
+        .put(format!("{hub_url}/hub/theme"))
+        .bearer_auth(&token)
+        .header(reqwest::header::CONTENT_TYPE, "application/zip")
+        .body(bytes)
+        .send()
+        .await
+        .map_err(|e| format!("Failed: {e}"))?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(status_error(status, text));
+    }
+    serde_json::from_str(&text).map_err(|e| format!("Invalid: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,6 +138,8 @@ mod tests {
         assert!(allowed("POST", "/channels/c1/stickers"));
         assert!(allowed("PATCH", "/hub"));
         assert!(!allowed("DELETE", "/hub"));
+        assert!(allowed("DELETE", "/hub/theme"));
+        assert!(!allowed("PUT", "/hub/theme"));
         assert!(!allowed("GET", "/channels/c1/messages"));
         assert!(!allowed("DELETE", "/channels/c1/stickers"));
         assert!(!allowed("GET", "/stickers/packs/../../admin/users"));

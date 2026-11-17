@@ -2519,5 +2519,16 @@
   "hub.admin.roles.order.drag": "Arrastrar {name}",
   "hub.admin.roles.order.up": "Subir {name}",
   "hub.admin.roles.order.down": "Bajar {name}",
-  "voice.stage.sortable": "recuadro arrastrable"
+  "voice.stage.sortable": "recuadro arrastrable",
+  "settings.theme.hub_themes": "Usar el tema de cada hub",
+  "settings.theme.hub_themes_hint": "Mientras un hub está abierto, muestra el tema que eligió su propietario. Un tema que elijas tú siempre gana.",
+  "hub.admin.tabs.theme": "Tema",
+  "hub.admin.theme.title": "Tema del hub",
+  "hub.admin.theme.hint": "Un paquete .wavvontheme que los miembros ven por defecto. Su propio tema siempre gana, y pueden desactivar los temas de los hubs.",
+  "hub.admin.theme.loading": "Cargando…",
+  "hub.admin.theme.none": "No hay tema del hub: los miembros ven el tema integrado.",
+  "hub.admin.theme.preview_alt": "Vista previa del tema del hub",
+  "hub.admin.theme.upload": "Subir un tema",
+  "hub.admin.theme.replace": "Reemplazar",
+  "hub.admin.theme.remove": "Quitar"
 }

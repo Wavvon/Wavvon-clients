@@ -227,6 +227,7 @@ pub fn run() {
             soundboard::soundboard_play_clip,
             stickers::sticker_api,
             stickers::sticker_upload,
+            stickers::hub_theme_upload,
             prefs_blob::sticker_collection_get,
             prefs_blob::sticker_collection_update,
             dm::add_group_members,

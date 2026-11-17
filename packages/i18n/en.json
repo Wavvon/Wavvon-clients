@@ -2519,5 +2519,16 @@
   "hub.admin.roles.order.drag": "Drag {name}",
   "hub.admin.roles.order.up": "Move {name} up",
   "hub.admin.roles.order.down": "Move {name} down",
-  "voice.stage.sortable": "draggable tile"
+  "voice.stage.sortable": "draggable tile",
+  "settings.theme.hub_themes": "Use each hub's theme",
+  "settings.theme.hub_themes_hint": "While a hub is open, show the theme its owner set. A theme you pick yourself always wins.",
+  "hub.admin.tabs.theme": "Theme",
+  "hub.admin.theme.title": "Hub theme",
+  "hub.admin.theme.hint": "A .wavvontheme package members see by default. Their own theme always wins, and they can turn hub themes off.",
+  "hub.admin.theme.loading": "Loading…",
+  "hub.admin.theme.none": "No hub theme is set: members see the built-in theme.",
+  "hub.admin.theme.preview_alt": "Preview of the hub theme",
+  "hub.admin.theme.upload": "Upload a theme",
+  "hub.admin.theme.replace": "Replace",
+  "hub.admin.theme.remove": "Remove"
 }
