@@ -2592,5 +2592,16 @@
   "remind.dismiss": "Descartar",
   "remind.cancel": "Cancelar recordatorio",
   "remind.toast": "Recordatorio: {excerpt}",
-  "remind.notification_title": "Recordatorio de {where}"
+  "remind.notification_title": "Recordatorio de {where}",
+  "voice_message.hold": "Mantén pulsado para grabar un mensaje de voz",
+  "voice_message.slide_to_cancel": "suelta para enviar, desliza para cancelar",
+  "voice_message.release_to_cancel": "suelta para cancelar",
+  "voice_message.too_short": "Mantén pulsado el botón mientras hablas.",
+  "voice_message.no_mic": "Se denegó el acceso al micrófono.",
+  "voice_message.unsupported": "Este navegador no puede grabar mensajes de voz.",
+  "voice_message.label": "Mensaje de voz {name}",
+  "voice_message.play": "Reproducir",
+  "voice_message.pause": "Pausa",
+  "voice_message.seek": "Posición",
+  "voice_message.speed": "Velocidad de reproducción {speed}×"
 }

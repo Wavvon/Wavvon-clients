@@ -2592,5 +2592,16 @@
   "remind.dismiss": "Dismiss",
   "remind.cancel": "Cancel reminder",
   "remind.toast": "Reminder: {excerpt}",
-  "remind.notification_title": "Reminder from {where}"
+  "remind.notification_title": "Reminder from {where}",
+  "voice_message.hold": "Hold to record a voice message",
+  "voice_message.slide_to_cancel": "release to send, slide away to cancel",
+  "voice_message.release_to_cancel": "release to cancel",
+  "voice_message.too_short": "Hold the button while you speak.",
+  "voice_message.no_mic": "Microphone access was refused.",
+  "voice_message.unsupported": "This browser cannot record voice messages.",
+  "voice_message.label": "Voice message {name}",
+  "voice_message.play": "Play",
+  "voice_message.pause": "Pause",
+  "voice_message.seek": "Position",
+  "voice_message.speed": "Playback speed {speed}×"
 }

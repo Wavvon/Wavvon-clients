@@ -2592,5 +2592,16 @@
   "remind.dismiss": "Ignora",
   "remind.cancel": "Annulla promemoria",
   "remind.toast": "Promemoria: {excerpt}",
-  "remind.notification_title": "Promemoria da {where}"
+  "remind.notification_title": "Promemoria da {where}",
+  "voice_message.hold": "Tieni premuto per registrare un messaggio vocale",
+  "voice_message.slide_to_cancel": "rilascia per inviare, scorri via per annullare",
+  "voice_message.release_to_cancel": "rilascia per annullare",
+  "voice_message.too_short": "Tieni premuto il pulsante mentre parli.",
+  "voice_message.no_mic": "L'accesso al microfono è stato negato.",
+  "voice_message.unsupported": "Questo browser non può registrare messaggi vocali.",
+  "voice_message.label": "Messaggio vocale {name}",
+  "voice_message.play": "Riproduci",
+  "voice_message.pause": "Pausa",
+  "voice_message.seek": "Posizione",
+  "voice_message.speed": "Velocità di riproduzione {speed}×"
 }

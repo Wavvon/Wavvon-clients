@@ -72,6 +72,7 @@ export interface ChannelMessagesReturn {
   setAllianceMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   handleSend: () => Promise<void>;
   handleSendSticker: (channelId: string, stickerId: string) => Promise<void>;
+  handleSendVoice: (file: File) => Promise<void>;
   handleSendAllianceMessage: () => Promise<void>;
   startEditingMessage: (m: Message) => void;
   cancelEditingMessage: () => void;
@@ -482,6 +483,22 @@ export function useChannelMessages({
     }
   }
 
+  // A voice message is one attachment and no text; it answers the reply
+  // target like any message. Throws so the recorder can report it.
+  async function handleSendVoice(file: File) {
+    if (!selectedChannel) return;
+    const reply = replyTarget;
+    const uploaded = await uploadAttachment(selectedChannel.id, file, true);
+    const msg = await invoke<Message>("send_message", {
+      channelId: selectedChannel.id,
+      content: "",
+      attachmentIds: [uploaded.id],
+      replyTo: reply?.id ?? null,
+    });
+    setReplyTarget(null);
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+  }
+
   async function handleSendAllianceMessage() {
     if (!selectedAllianceChannel || !inputText.trim()) return;
     if (await sendAllianceMessage(inputText)) setInputText("");
@@ -674,6 +691,7 @@ export function useChannelMessages({
     selectAllianceChannel,
     handleSend,
     handleSendSticker,
+    handleSendVoice,
     handleSendAllianceMessage,
     startEditingMessage,
     cancelEditingMessage,

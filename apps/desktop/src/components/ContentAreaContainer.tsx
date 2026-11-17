@@ -221,6 +221,7 @@ export function ContentAreaContainer({
         onMoveMember={handleMoveMember}
         onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
         stickerActions={stickerActions}
+        onSendVoice={channelMessages.handleSendVoice}
         savedActions={savedActions}
         markUnread={caps.includes("channels.markunread") ? channelMessages.markUnread : undefined}
       />
