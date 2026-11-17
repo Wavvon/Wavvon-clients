@@ -1,30 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, setLanguage } from "@wavvon/i18n";
-import type { ThemeId, WavvonSkin } from "@wavvon/ui";
-import { SettingRow, SkinEditor, SkinsGallery } from "@wavvon/ui";
-import { DISCOVERY_URL } from "../../../constants";
-import type { NamedCustomTheme } from "@shared/utils/customThemes";
-import { fetchWithTimeout } from "@platform";
-import { CustomThemesSection } from "../CustomThemesSection";
-
-// The four base names reuse the skin editor's keys; "custom" is this picker's
-// own. The names themselves are not translated — Calm is called Calm.
-const THEMES: ThemeId[] = ["dark", "light", "custom"];
+import type { ThemesController } from "@wavvon/ui";
+import { SettingRow, ThemesSection } from "@wavvon/ui";
 
 interface Props {
-  theme: ThemeId;
-  onThemeChange: (t: ThemeId) => void;
-  skin: WavvonSkin | null;
-  onSkinChange: (skin: WavvonSkin) => void;
-  customThemes: NamedCustomTheme[];
-  activeCustomThemeId: string | null;
-  onApplyCustomTheme: (id: string) => void;
-  onNewCustomTheme: () => void;
-  onRenameCustomTheme: (id: string, name: string) => void;
-  onDuplicateCustomTheme: (id: string) => void;
-  onDeleteCustomTheme: (id: string) => void;
-  onImportSkin: (skin: WavvonSkin) => void;
+  themes: ThemesController;
 }
 
 export function AppearanceTab(props: Props) {
@@ -40,10 +21,7 @@ export function AppearanceTab(props: Props) {
     onToggle: () => setOpen((cur) => (cur === id ? null : id)),
   });
 
-  const activeCustom = props.customThemes.find((c) => c.id === props.activeCustomThemeId);
-  const themeState = props.theme === "custom"
-    ? activeCustom?.name ?? t("settings.theme.custom")
-    : t(`settings.skin.base.${props.theme}`);
+  const themeState = props.themes.active?.manifest.name ?? t("settings.theme.builtin");
 
   return (
     <section>
@@ -67,49 +45,10 @@ export function AppearanceTab(props: Props) {
         {...row("language")}
       />
 
-      <SettingRow
-        title={t("settings.theme.label")}
-        state={themeState}
-        {...row("theme")}
-      >
+      <SettingRow title={t("settings.theme.label")} state={themeState} {...row("theme")}>
         <p className="muted">{t("settings.theme.hint")}</p>
-        <div className="theme-picker">
-          {THEMES.map((theme) => (
-            <button
-              key={theme}
-              className={`theme-choice${props.theme === theme ? " active" : ""}`}
-              onClick={() => props.onThemeChange(theme)}
-            >
-              {theme === "custom" ? t("settings.theme.custom") : t(`settings.skin.base.${theme}`)}
-            </button>
-          ))}
-        </div>
-        {props.theme === "custom" && (
-          <>
-            <CustomThemesSection
-              themes={props.customThemes}
-              activeId={props.activeCustomThemeId}
-              onApply={props.onApplyCustomTheme}
-              onNew={props.onNewCustomTheme}
-              onRename={props.onRenameCustomTheme}
-              onDuplicate={props.onDuplicateCustomTheme}
-              onDelete={props.onDeleteCustomTheme}
-            />
-            {props.skin && <SkinEditor skin={props.skin} onChange={props.onSkinChange} />}
-          </>
-        )}
+        <ThemesSection controller={props.themes} />
       </SettingRow>
-
-      {/* Not a row: the gallery renders nothing when discovery is
-          unreachable, and a row that opens onto nothing is worse than no
-          row at all. */}
-      {DISCOVERY_URL && (
-        <SkinsGallery
-          fetchWithTimeout={fetchWithTimeout}
-          onImport={props.onImportSkin}
-          discoveryUrl={DISCOVERY_URL}
-        />
-      )}
     </section>
   );
 }

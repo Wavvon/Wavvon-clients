@@ -234,8 +234,6 @@ pub fn run() {
             prefs_blob::synced_setting_get,
             prefs_blob::synced_setting_set,
             // Local store
-            local_store::load_appearance,
-            local_store::save_appearance,
             local_store::clear_local_data,
             local_store::load_unread_state,
             local_store::save_unread_state,

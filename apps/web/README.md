@@ -30,8 +30,8 @@ webcam video and screen share via WebRTC.
   sees ciphertext.
 - **Identity portability** — passphrase-encrypted identity backups,
   interchangeable with the other clients.
-- **Make it yours** — themes plus a custom skin editor with shareable
-  `.wavvonskin` files; localized UI; keyboard navigation and
+- **Make it yours** — themes: install, edit and share `.wavvontheme` packages, with
+  a built-in editor; localized UI; keyboard navigation and
   screen-reader support.
 - **Self-hostable** — the production build is a static bundle; serve
   `dist/` from any web server or CDN. Tagged releases are also

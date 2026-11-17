@@ -44,7 +44,6 @@ import { useWhisper } from "./hooks/useWhisper";
 import { useAddHubFlow } from "./hooks/useAddHubFlow";
 import { useChannelCrud } from "./hooks/useChannelCrud";
 import { VideoGrid } from "./components/VideoGrid";
-import { type ThemeId, type WavvonSkin, applySkinTokens } from "@wavvon/ui";
 import {
   formatPubkey,
   buildChannelTree,
@@ -613,8 +612,6 @@ function App({ accountId }: { accountId: string | null }) {
   const {
     showSettings,
     setShowSettings,
-    setTheme,
-    setSkin,
     setRecoveryPhrase,
   } = settingsProfile;
 
@@ -865,34 +862,6 @@ function App({ accountId }: { accountId: string | null }) {
   // Auto-connect saved hubs on app start + load our own public key once
   useEffect(() => {
     (async () => {
-      // Apply persisted theme/skin as early as possible to avoid a flash.
-      try {
-        const appearance = await invoke<{ slot: string; skin?: WavvonSkin | null }>("load_appearance");
-        if (appearance.slot === "custom" && appearance.skin) {
-          const s = appearance.skin;
-          setSkin(s);
-          setTheme("custom");
-          document.documentElement.dataset.theme = s.base;
-          applySkinTokens(s);
-        } else {
-          const valid =
-            appearance.slot === "dark" || appearance.slot === "light"
-              ? (appearance.slot as ThemeId)
-              : "dark";
-          setTheme(valid);
-          document.documentElement.dataset.theme = valid;
-        }
-      } catch {
-        try {
-          const profile = await invoke<{ theme?: string | null }>("get_profile");
-          const t = (profile.theme ?? "dark") as ThemeId;
-          const valid = t === "dark" || t === "light" ? t : "dark";
-          setTheme(valid);
-          document.documentElement.dataset.theme = valid;
-        } catch {
-          document.documentElement.dataset.theme = "dark";
-        }
-      }
       try {
         const key = await invoke<string>("get_my_public_key");
         setPublicKey(key);
@@ -1038,14 +1007,6 @@ function App({ accountId }: { accountId: string | null }) {
   async function openSettings() {
     setShowSettings(true);
     setRecoveryPhrase(null);
-    try {
-      const profile = await invoke<{ theme?: string | null }>("get_profile");
-      const t = profile.theme;
-      if (t === "dark" || t === "light") {
-        setTheme(t);
-      }
-    } catch {}
-
     await voice.loadVoiceSettings();
   }
 

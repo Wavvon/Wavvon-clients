@@ -1,7 +1,6 @@
 import type { SavedHub } from "@platform";
-import type { ExistingAccountSnapshot, RestorePlan } from "@wavvon/ui";
+import { deviceThemeStore, restoreThemes, type ExistingAccountSnapshot, type RestorePlan, type ThemeStore } from "@wavvon/ui";
 import { getScoped, setScoped } from "./accountScope";
-import { loadCustomThemeStore, saveCustomThemeStore } from "./customThemes";
 
 // Web's storage half of a full-archive restore (docs/docs/data-export.md §5);
 // the merge rule itself is the shared planRestore. Both functions take an
@@ -34,24 +33,28 @@ function safeJsonParse<T>(raw: string | null, fallback: T): T {
   }
 }
 
-export function readExistingAccountSnapshot(accountId: string): ExistingAccountSnapshot {
+export async function readExistingAccountSnapshot(
+  accountId: string,
+  themeStore: ThemeStore = deviceThemeStore,
+): Promise<ExistingAccountSnapshot> {
   return {
     hubList: safeJsonParse<SavedHub[]>(getScoped(SAVED_HUBS_KEY, accountId), []),
     drafts: safeJsonParse<Record<string, string>>(getScoped(DRAFTS_KEY, accountId), {}),
-    themeNames: loadCustomThemeStore(accountId).themes.map((t) => t.name),
+    themeNames: (await themeStore.list()).map((t) => t.manifest.name),
     ignoredUsers: safeJsonParse<string[]>(getScoped(IGNORED_USERS_KEY, accountId), []),
     voiceGains: safeJsonParse<Record<string, number>>(getScoped(VOICE_GAINS_KEY, accountId), {}),
     hasMentionPingSetting: getScoped(MENTION_PING_KEY, accountId) !== null,
   };
 }
 
-export function applyRestorePlan(accountId: string, plan: RestorePlan): void {
+export async function applyRestorePlan(
+  accountId: string,
+  plan: RestorePlan,
+  themeStore: ThemeStore = deviceThemeStore,
+): Promise<void> {
   setScoped(SAVED_HUBS_KEY, JSON.stringify(plan.hubList), accountId);
   setScoped(DRAFTS_KEY, JSON.stringify(plan.drafts), accountId);
-  if (plan.newThemes.length > 0) {
-    const store = loadCustomThemeStore(accountId);
-    saveCustomThemeStore({ ...store, themes: [...store.themes, ...plan.newThemes] }, accountId);
-  }
+  await restoreThemes(themeStore, plan.newThemes);
   setScoped(IGNORED_USERS_KEY, JSON.stringify(plan.ignoredUsers), accountId);
   setScoped(VOICE_GAINS_KEY, JSON.stringify(plan.voiceGains), accountId);
   if (plan.mentionPingEnabled !== null) {

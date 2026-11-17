@@ -72,7 +72,6 @@ export type {
   ExistingAccountSnapshot,
   LocalPrefsSnapshot,
   RestorableArchive,
-  RestoredTheme,
   RestorePlan,
   RestoreSummary,
   UnrestorableNote,
@@ -257,18 +256,34 @@ export type { ScreenShareViewerRef } from "./components/ScreenShareViewer";
 export type { ActiveStream } from "./types";
 export { MobileShell } from "./components/MobileShell";
 export {
-  SKINNABLE_TOKENS,
-  validateSkin,
-  readBaseToken,
-  applySkinTokens,
-  clearSkinTokens,
-  downloadSkin,
-  parseSkinFromRgba,
+  THEME_TOKENS,
+  composeRgba,
   splitRgba,
-} from "./skinValidation";
-export type { SkinBase, ThemeId, WavvonSkin, AppearanceState } from "./skinValidation";
-export { SkinEditor, makeSeed } from "./components/SkinEditor";
-export { SkinsGallery } from "./components/SkinsGallery";
+} from "./themes/themeTokens";
+export {
+  THEME_MANIFEST_FILE,
+  validateThemeManifest,
+  loadTheme,
+  exportTheme,
+  newTheme,
+  resolveScheme,
+  applyThemeTokens,
+  clearThemeTokens,
+  readBaseToken,
+  downloadTheme,
+} from "./themes/theme";
+export type { Scheme, SchemeMode, ThemeManifest, ThemePackage } from "./themes/theme";
+export { PackageError, loadPackage, buildPackage } from "./themes/packageFormat";
+export type { PackageSpec, LoadedPackage, PackageFiles } from "./themes/packageFormat";
+export { contrastRatio, contrastWarnings, WCAG_AA } from "./themes/contrast";
+export { createIdbPackageStore, createMemoryPackageStore, newPackageId, bytesToBase64, base64ToBytes } from "./themes/packageStore";
+export type { PackageStore, StoredPackage } from "./themes/packageStore";
+export { deviceThemeStore, themesForArchive, restoreThemes } from "./themes/themeStore";
+export type { ThemeStore, ArchiveTheme, RestoredTheme } from "./themes/themeStore";
+export { useThemes } from "./hooks/useThemes";
+export type { ThemesController } from "./hooks/useThemes";
+export { ThemeEditor } from "./components/ThemeEditor";
+export { ThemesSection } from "./components/ThemesSection";
 export { AddHubModal } from "./components/hubs/AddHubModal";
 export { QuickInviteModal, type QuickInviteModalActions } from "./components/hubs/QuickInviteModal";
 export { WelcomeScreen } from "./components/layout/WelcomeScreen";

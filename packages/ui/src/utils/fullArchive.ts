@@ -1,5 +1,5 @@
 import type { HomeHubList, PrefsBlobContents, RevocationEntry, SubkeyCert } from "@wavvon/core";
-import type { WavvonSkin } from "../skinValidation";
+import type { ArchiveTheme, RestoredTheme } from "../themes/themeStore";
 
 // The full personal-data archive document (docs wiki data-export.md §2-5) and
 // the merge rule a restore applies. Both clients read and write this shape —
@@ -60,7 +60,7 @@ export interface ArchiveDocument {
   devices: { subkey_certs: SubkeyCert[]; revocations: RevocationEntry[] };
   prefs: LocalPrefsSnapshot;
   dms: DmArchiveConversation[];
-  themes: WavvonSkin[];
+  themes: ArchiveTheme[];
   drafts: Record<string, string>;
 }
 
@@ -127,12 +127,6 @@ export interface ExistingAccountSnapshot {
   hasMentionPingSetting: boolean;
 }
 
-export interface RestoredTheme {
-  id: string;
-  name: string;
-  skin: WavvonSkin;
-}
-
 /** Things the archive holds that a restore cannot write anywhere — reported,
  *  never silently dropped (data-export.md §5). */
 export type UnrestorableNote =
@@ -183,11 +177,11 @@ export function planRestore(
 
   const themeNames = new Set(existing.themeNames);
   const newThemes: RestoredTheme[] = [];
-  for (const skin of archive.themes) {
-    const name = skin.name?.trim() || "Restored theme";
+  for (const theme of archive.themes) {
+    const name = theme.name?.trim() || "Restored theme";
     if (themeNames.has(name)) continue;
     themeNames.add(name);
-    newThemes.push({ id: idFactory(), name, skin: { ...skin, name } });
+    newThemes.push({ id: idFactory(), name, package_b64: theme.package_b64 });
   }
 
   const ignored = new Set(existing.ignoredUsers);

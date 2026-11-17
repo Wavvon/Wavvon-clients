@@ -26,10 +26,11 @@ import {
   type ArchiveIdentity,
   type DmArchiveConversation,
   type LocalPrefsSnapshot,
-  type WavvonSkin,
+  deviceThemeStore,
+  themesForArchive,
+  type ArchiveTheme,
 } from "@wavvon/ui";
 import { loadAllDrafts } from "./drafts";
-import { loadCustomThemeStore } from "./customThemes";
 import { getScoped } from "./accountScope";
 
 export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platformLoadSavedHubs): LocalPrefsSnapshot {
@@ -39,7 +40,7 @@ export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platfo
   let theme = "dark";
   try {
     const raw = localStorage.getItem("wavvon:appearance");
-    if (raw) theme = (JSON.parse(raw) as { slot?: string }).slot ?? "dark";
+    if (raw) theme = (JSON.parse(raw) as { mode?: string }).mode ?? "dark";
   } catch {
     // ignore malformed local state
   }
@@ -93,10 +94,6 @@ export async function resolveHubSyncedPrefs(
   return decryptPrefsBlob(blob.ciphertext_hex, blobKey);
 }
 
-export function buildThemesSection(): WavvonSkin[] {
-  return loadCustomThemeStore().themes.map((t) => t.skin);
-}
-
 export interface ArchiveFetchers {
   loadIdentity: () => Promise<ArchiveIdentity | null>;
   getHomeHubDesignation: (pubkey: string) => Promise<HomeHubList | null>;
@@ -106,6 +103,7 @@ export interface ArchiveFetchers {
   listConversations: () => Promise<Conversation[]>;
   getDmMessages: (conversationId: string) => Promise<DmMessageFull[]>;
   loadSavedHubs: () => SavedHub[];
+  listThemes: () => Promise<ArchiveTheme[]>;
 }
 
 export const defaultArchiveFetchers: ArchiveFetchers = {
@@ -117,6 +115,7 @@ export const defaultArchiveFetchers: ArchiveFetchers = {
   listConversations: platformListConversations,
   getDmMessages: platformGetDmMessages,
   loadSavedHubs: platformLoadSavedHubs,
+  listThemes: () => themesForArchive(deviceThemeStore),
 };
 
 export interface AssembleArchiveOptions {
@@ -173,7 +172,7 @@ export async function assembleArchive(
     devices: { subkey_certs: subkeyCerts, revocations },
     prefs,
     dms,
-    themes: buildThemesSection(),
+    themes: await fetchers.listThemes(),
     drafts: loadAllDrafts(),
   };
 }

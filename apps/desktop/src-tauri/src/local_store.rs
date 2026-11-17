@@ -39,22 +39,6 @@ pub(crate) struct StoredVoiceSettings {
 }
 
 // ---------------------------------------------------------------------------
-// AppearanceSettings
-// ---------------------------------------------------------------------------
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct AppearanceSettings {
-    #[serde(default = "default_appearance_slot")]
-    pub slot: String,
-    #[serde(default)]
-    pub skin: Option<serde_json::Value>,
-}
-
-fn default_appearance_slot() -> String {
-    "calm".to_string()
-}
-
-// ---------------------------------------------------------------------------
 // Profile types
 //
 // The 2026-07-12 converged model (settings-ia.md §5): one local default
@@ -121,17 +105,8 @@ pub(crate) fn voice_settings_path() -> Result<std::path::PathBuf, String> {
     Ok(home.join(".wavvon").join("voice.json"))
 }
 
-// Device-global: the theme *slot* choice, matching web's unscoped
-// `wavvon:appearance` key. The *skin* half of `AppearanceSettings` is
-// per-account instead — see load_appearance/save_appearance below, which
-// merge this file with accounts::active_skin_path().
-pub(crate) fn appearance_settings_path() -> Result<std::path::PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    Ok(home.join(".wavvon").join("appearance.json"))
-}
-
 // Device-global: the `theme` field only (a legacy duplicate of
-// appearance.json's slot — see useSettingsProfile.ts's persistTheme). The
+// the theme choice, now kept in the renderer). The
 // `default_profile` half of `LocalProfile` is per-account instead — see
 // load_profile/save_profile_to_disk below, which merge this file with
 // accounts::active_default_profile_path().
@@ -339,67 +314,9 @@ pub(crate) fn save_blocked_users_raw(users: &[String]) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
-// Tauri commands: appearance, blocked/ignored users, collapsables, profile,
+// Tauri commands: blocked/ignored users, collapsables, profile,
 // voice settings, DnD, unread, notification mutes
 // ---------------------------------------------------------------------------
-
-// The on-disk shape of the device-global half of AppearanceSettings — just
-// `slot` (see appearance_settings_path()'s doc comment for why `skin` isn't
-// here).
-#[derive(Serialize, Deserialize)]
-struct GlobalAppearanceFile {
-    #[serde(default = "default_appearance_slot")]
-    slot: String,
-}
-
-#[tauri::command]
-pub(crate) fn load_appearance() -> AppearanceSettings {
-    let slot = appearance_settings_path()
-        .ok()
-        .and_then(|p| std::fs::read_to_string(&p).ok())
-        .and_then(|s| serde_json::from_str::<GlobalAppearanceFile>(&s).ok())
-        .map(|g| g.slot)
-        .unwrap_or_else(default_appearance_slot);
-    let skin = crate::accounts::active_skin_path()
-        .ok()
-        .and_then(|p| std::fs::read_to_string(&p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok());
-    AppearanceSettings { slot, skin }
-}
-
-#[tauri::command]
-pub(crate) fn save_appearance(settings: AppearanceSettings) -> Result<(), String> {
-    // `slot` is device-global — always persisted, even with no active
-    // account yet.
-    let path = appearance_settings_path()?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("Dir error: {e}"))?;
-    }
-    let json = serde_json::to_string_pretty(&GlobalAppearanceFile {
-        slot: settings.slot.clone(),
-    })
-    .map_err(|e| format!("Serialize: {e}"))?;
-    std::fs::write(&path, json).map_err(|e| format!("Write error: {e}"))?;
-
-    // `skin` is per-account; best-effort so a plain slot switch (away from
-    // "custom") still succeeds before any account exists.
-    if let Ok(skin_path) = crate::accounts::active_skin_path() {
-        if let Some(parent) = skin_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        match &settings.skin {
-            Some(skin) => {
-                if let Ok(json) = serde_json::to_string_pretty(skin) {
-                    let _ = std::fs::write(&skin_path, json);
-                }
-            }
-            None => {
-                let _ = std::fs::remove_file(&skin_path);
-            }
-        }
-    }
-    Ok(())
-}
 
 #[tauri::command]
 pub(crate) fn load_blocked_users() -> Result<Vec<String>, String> {

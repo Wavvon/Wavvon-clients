@@ -44,7 +44,6 @@ export const SYNCED_KEYS: SyncedKey[] = [
   { key: "wavvon.collapsedCategories", scoped: true },
   { key: "wavvon.hideSilenced", scoped: true },
   { key: "wavvon.hideBirthdays", scoped: true },
-  { key: "wavvon.customThemes", scoped: true },
   { key: "wavvon.trustedIssuers", scoped: true },
   { key: "wavvon.hubLayout", scoped: true },
 ];
