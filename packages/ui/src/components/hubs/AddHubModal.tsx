@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { parseHubInput } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
@@ -41,8 +41,7 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error
       <FocusTrap>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-hub-title" onClick={(e) => e.stopPropagation()}>
         <h3 id="add-hub-title">{t("hub.add_modal.title")}</h3>
-        {/* eslint-disable-next-line react/no-danger -- our own i18n catalog, not hub input. */}
-        <p className="muted" style={{ marginBottom: "var(--space-3)" }} dangerouslySetInnerHTML={{ __html: t("hub.add_modal.intro") }} />
+        <p className="muted" style={{ marginBottom: "var(--space-3)" }}><Trans i18nKey="hub.add_modal.intro" components={{ code: <code /> }} /></p>
         <input
           type="text"
           value={hubUrl}
