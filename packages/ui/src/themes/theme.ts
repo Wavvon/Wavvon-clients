@@ -30,6 +30,8 @@ export interface ThemeManifest {
   background?: ThemeBackground;
   /** Defaults for the layout options; the user's own choices win. */
   layout?: LayoutChoice;
+  /** Path of a captured preview image, for the gallery. */
+  preview?: string;
 }
 
 export interface ThemeBackground {
@@ -66,6 +68,11 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
   const icons = validateIcons(s.icons);
   const background = validateBackground(s.background);
   const layout = normalizeLayout(s.layout);
+  let preview: string | undefined;
+  if (typeof s.preview === "string") {
+    checkRelativePath(s.preview);
+    preview = s.preview;
+  }
   return {
     format: "wavvon.theme",
     version: 1,
@@ -76,6 +83,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
     ...(icons ? { icons } : {}),
     ...(background ? { background } : {}),
     ...(Object.keys(layout).length ? { layout } : {}),
+    ...(preview ? { preview } : {}),
   };
 }
 
@@ -102,6 +110,12 @@ function validateBackground(raw: unknown): ThemeBackground | undefined {
 }
 
 function validateThemeFiles(manifest: ThemeManifest, files: PackageFiles): void {
+  if (manifest.preview) {
+    const file = files[manifest.preview];
+    if (!file) throw new PackageError(`preview: ${manifest.preview} is not in the package`);
+    if (!isImagePath(manifest.preview)) throw new PackageError(`preview: ${manifest.preview} is not an image`);
+    if (file.byteLength > MAX_BACKGROUND_BYTES) throw new PackageError(`preview: ${manifest.preview} is larger than 2 MB`);
+  }
   const bg = manifest.background;
   if (bg) {
     const file = files[bg.image];

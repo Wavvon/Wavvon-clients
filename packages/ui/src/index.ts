@@ -288,6 +288,7 @@ export type { LayoutKey, LayoutChoice } from "./themes/layout";
 export { ICON_NAMES, isIconName, OFF_STATE_ICONS } from "./themes/iconRegistry";
 export { ThemesSection } from "./components/ThemesSection";
 export { ThemesGallery } from "./components/ThemesGallery";
+export { ThemePreviewDemo } from "./components/ThemePreviewDemo";
 export type { ThemeListing } from "./themes/gallery";
 export { AddHubModal } from "./components/hubs/AddHubModal";
 export { QuickInviteModal, type QuickInviteModalActions } from "./components/hubs/QuickInviteModal";
