@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LANGUAGES, setLanguage } from "@wavvon/i18n";
 import type { ThemeId, WavvonSkin } from "@wavvon/ui";
 import { SettingRow, SkinEditor, SkinsGallery } from "@wavvon/ui";
 import { DISCOVERY_URL } from "../../../constants";
@@ -10,13 +11,6 @@ import { CustomThemesSection } from "../CustomThemesSection";
 // The four base names reuse the skin editor's keys; "custom" is this picker's
 // own. The names themselves are not translated — Calm is called Calm.
 const THEMES: ThemeId[] = ["dark", "light", "custom"];
-
-const LANGUAGES: { id: string; label: string }[] = [
-  { id: "en", label: "English" },
-  { id: "it", label: "Italiano" },
-  { id: "es", label: "Español" },
-  { id: "de", label: "Deutsch" },
-];
 
 interface Props {
   theme: ThemeId;
@@ -37,7 +31,7 @@ export function AppearanceTab(props: Props) {
   const { t, i18n } = useTranslation();
   const currentLang = (i18n.language ?? "en").slice(0, 2);
   function changeLanguage(lng: string) {
-    void i18n.changeLanguage(lng);
+    void setLanguage(lng);
     try { localStorage.setItem("wavvon_language", lng); } catch { /* ignore */ }
   }
   const [open, setOpen] = useState<string | null>(null);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LANGUAGES, setLanguage } from "@wavvon/i18n";
 import type { Hub } from "../types";
 import { DISCOVERY_URL } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";
@@ -117,13 +118,6 @@ export interface SettingsPageProps {
 function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
   return { id: a.id, account_label: a.label ?? undefined };
 }
-
-const LANGUAGES: { id: string; label: string }[] = [
-  { id: "en", label: "English" },
-  { id: "it", label: "Italiano" },
-  { id: "es", label: "Español" },
-  { id: "de", label: "Deutsch" },
-];
 
 export function SettingsPage(props: SettingsPageProps) {
   const { t, i18n } = useTranslation();
@@ -284,7 +278,7 @@ export function SettingsPage(props: SettingsPageProps) {
                   aria-label={t("settings.language.label")}
                   value={i18n.language.slice(0, 2)}
                   onChange={(e) => {
-                    i18n.changeLanguage(e.target.value);
+                    void setLanguage(e.target.value);
                     localStorage.setItem("wavvon_language", e.target.value);
                   }}
                 >
