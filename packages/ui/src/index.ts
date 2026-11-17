@@ -205,6 +205,8 @@ export type { VoiceLive } from "./components/content/LiveTray";
 export { PinnedMessagesModal } from "./components/content/PinnedMessagesModal";
 export type { PinnedMessageEntry } from "./components/content/PinnedMessagesModal";
 export { SavedMessagesModal } from "./components/content/SavedMessagesModal";
+export { FindableSection } from "./components/settings/FindableSection";
+export type { FindableActions } from "./components/settings/FindableSection";
 export { useSavedMessages } from "./hooks/useSavedMessages";
 export type { SavedMessages } from "./hooks/useSavedMessages";
 export { parseSaved, savedKey, toggleSaved, markSavedDeleted, remindDeadline, REMIND_IN, notifyReminder } from "./utils/savedMessages";

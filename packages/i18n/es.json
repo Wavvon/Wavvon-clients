@@ -2607,5 +2607,22 @@
   "voice_message.play": "Reproducir",
   "voice_message.pause": "Pausa",
   "voice_message.seek": "Posición",
-  "voice_message.speed": "Velocidad de reproducción {speed}×"
+  "voice_message.speed": "Velocidad de reproducción {speed}×",
+  "findable.toggle": "Aparecer en el directorio",
+  "findable.hint": "Incluye esta identidad en el directorio público de invitaciones, para que los hubs a los que no te has unido puedan encontrarte e invitarte.",
+  "findable.no_home_hub": "Necesita un hub principal: las invitaciones llegan allí. Configura uno primero en Hubs principales.",
+  "findable.no_master": "Solo el dispositivo que guarda tu frase de recuperación puede publicar un anuncio; este fue emparejado.",
+  "findable.consent_title": "¿Hacer pública esta identidad?",
+  "findable.consent_body": "El anuncio es público: cualquiera puede leerlo y guardar una copia, y vincula tu clave pública con lo que escribas aquí. También apunta a tu hub principal {hub}, cuya lista de hubs principales también es pública, así que toda la lista queda visible. Quitar el anuncio lo elimina solo de este directorio; las copias que otros hayan hecho no se pueden recuperar.",
+  "findable.consent_confirm": "Entendido",
+  "findable.name": "Nombre",
+  "findable.tagline": "Lema",
+  "findable.tags": "Etiquetas",
+  "findable.tags_placeholder": "ajedrez, juegos-de-mesa",
+  "findable.languages": "Idiomas",
+  "findable.languages_placeholder": "es, en",
+  "findable.routes_to": "Las invitaciones se entregarán a tu hub principal {hub}.",
+  "findable.publish": "Publicar anuncio",
+  "findable.republish": "Actualizar anuncio",
+  "findable.published": "Anuncio publicado."
 }

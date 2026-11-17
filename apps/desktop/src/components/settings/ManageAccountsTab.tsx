@@ -20,6 +20,8 @@ import { buildFullArchiveActions } from "../../utils/fullArchiveActions";
 import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
+import { FindableDirectorySection } from "../FindableDirectorySection";
+import { DISCOVERY_URL } from "../../constants";
 import { RestoreIdentitySection } from "../RestoreIdentitySection";
 import type { Hub } from "../../types";
 
@@ -109,6 +111,7 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
         actions={buildFullArchiveActions(t("settings.account.full_archive.file_filter"), t("settings.account.accounts.switch_cooldown"))}
       />
       <HomeHubSection hubs={hubs} />
+      {DISCOVERY_URL && <FindableDirectorySection directoryUrl={DISCOVERY_URL} />}
       <SettingRow
         title={t("settings.account.local_data.label")}
         state={t("settings.account.local_data.state")}

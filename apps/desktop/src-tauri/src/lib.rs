@@ -12,6 +12,7 @@ mod certs;
 mod channels;
 mod deep_link;
 mod devices;
+mod directory_identity;
 mod discovery;
 mod dm;
 mod events_polls;
@@ -357,6 +358,9 @@ pub fn run() {
             identity_cmd::get_my_pubkey,
             identity_cmd::fetch_public_profile,
             identity_cmd::submit_to_directory,
+            directory_identity::directory_identity_get,
+            directory_identity::directory_identity_publish,
+            directory_identity::directory_identity_unpublish,
             // DM / friends / E2E crypto
             dm::list_friends,
             dm::list_pending_friends,
