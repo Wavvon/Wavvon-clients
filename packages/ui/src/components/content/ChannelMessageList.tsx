@@ -1,4 +1,4 @@
-import React, { createElement } from "react";
+import React, { createElement, useEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { Message, User, RoleInfo, Hub, Poll } from "../../types";
 import { MessageRow, type MessageRowActions } from "./MessageRow";
@@ -63,6 +63,8 @@ interface Props {
   onMessagesScroll: () => void;
   onJumpToBottom: () => void;
   onClearFirstNotify: () => void;
+  firstUnreadId?: string | null;
+  onMarkRead?: () => void;
   onMessageKeyDown: (e: React.KeyboardEvent<HTMLLIElement>, index: number, displayedMessages: Message[]) => void;
   onComponentInteract: (messageId: string, customId: string, values: string[]) => void;
   channelPolls?: Poll[];
@@ -129,6 +131,8 @@ export function ChannelMessageList({
   onMessagesScroll,
   onJumpToBottom,
   onClearFirstNotify,
+  firstUnreadId,
+  onMarkRead,
   onMessageKeyDown,
   onComponentInteract,
   channelPolls = [],
@@ -137,6 +141,40 @@ export function ChannelMessageList({
 }: Props) {
   const { t } = useTranslation();
   const displayedMessages = (searchResults ?? messages).filter((msg) => !blockedUsers.has(msg.sender));
+  const dividerIndex = firstUnreadId && searchResults === null
+    ? displayedMessages.findIndex((m) => m.id === firstUnreadId)
+    : -1;
+  const dividerRef = useRef<HTMLLIElement | null>(null);
+  const [dividerAbove, setDividerAbove] = useState(false);
+  const hasDivider = dividerIndex >= 0;
+
+  // Open at the divider, not the bottom. A frame later, so it lands after the
+  // app's own scroll-to-newest for the same load.
+  useEffect(() => {
+    if (!hasDivider) return;
+    const frame = requestAnimationFrame(() => dividerRef.current?.scrollIntoView({ block: "start" }));
+    return () => cancelAnimationFrame(frame);
+  }, [firstUnreadId, hasDivider]);
+
+  useEffect(() => {
+    const el = dividerRef.current;
+    const root = messagesContainerRef.current;
+    if (!hasDivider || !el || !root) { setDividerAbove(false); return; }
+    const io = new IntersectionObserver(([e]) => {
+      setDividerAbove(!e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0));
+    }, { root });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [firstUnreadId, hasDivider, messagesContainerRef]);
+
+  useEffect(() => {
+    if (!hasDivider || !onMarkRead) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !e.defaultPrevented) onMarkRead?.();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hasDivider, onMarkRead]);
 
   return (
     <>
@@ -168,8 +206,13 @@ export function ChannelMessageList({
           </li>
         )}
         {displayedMessages.map((m, i, arr) => (
+          <React.Fragment key={m.id}>
+          {i === dividerIndex && (
+            <li ref={dividerRef} className="day-separator new-messages-divider" role="separator">
+              <span className="day-separator-label">{t("message.unread.divider")}</span>
+            </li>
+          )}
           <MessageRow
-            key={m.id}
             message={m}
             index={i}
             prevMessage={arr[i - 1]}
@@ -218,9 +261,23 @@ export function ChannelMessageList({
             onPollUpdate={(poll) => onPollUpdate?.(poll)}
             onPollDelete={(pollId) => onPollDelete?.(pollId)}
           />
+          </React.Fragment>
         ))}
         <li ref={messagesEndChannelRef} aria-hidden="true" />
       </ol>
+      {hasDivider && dividerAbove && (
+        <div className="new-messages-bar" role="status">
+          <span>{t("message.unread.bar", { count: displayedMessages.length - dividerIndex })}</span>
+          <button className="btn-small" onClick={() => dividerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+            {t("message.unread.jump")}
+          </button>
+          {onMarkRead && (
+            <button className="btn-small" onClick={onMarkRead}>
+              {t("message.unread.mark_read")}
+            </button>
+          )}
+        </div>
+      )}
       {firstNotifyingMessageId &&
         messages.some((m) => m.id === firstNotifyingMessageId) && (
         <button

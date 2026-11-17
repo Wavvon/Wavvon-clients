@@ -193,6 +193,8 @@ export function ContentAreaContainer({
         onClearFirstNotify={() => {
           if (activeHubId && selectedChannel) firstNotify.clearFirstNotify(activeHubId, selectedChannel.id);
         }}
+        firstUnreadId={channelMessages.firstUnreadId}
+        onMarkRead={channelMessages.markRead}
         onScrollToMessage={channelMessages.scrollToMessage}
         onSetMemberSidebarHidden={setMemberSidebarHidden}
         onSetSearchOpen={channelMessages.setSearchOpen}

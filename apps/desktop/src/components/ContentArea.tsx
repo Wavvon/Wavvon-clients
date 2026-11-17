@@ -199,6 +199,8 @@ interface Props {
   onOpenEditDescription: (channel: Channel) => void;
   firstNotifyingMessageId: string | null;
   onClearFirstNotify: () => void;
+  firstUnreadId: string | null;
+  onMarkRead: () => void;
   onScrollToMessage: (id: string) => void;
   onSetMemberSidebarHidden: (v: boolean) => void;
   onSetSearchOpen: (v: boolean) => void;

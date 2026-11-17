@@ -13,7 +13,7 @@ import {
   subscribeChannel,
   uploadFile,
 } from "@platform";
-import { useOlderPages, usePendingFiles } from "@wavvon/ui";
+import { firstUnreadId as findFirstUnread, useOlderPages, usePendingFiles } from "@wavvon/ui";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import type { SelectedAllianceChannel } from "./useAlliances";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel } from "@shared/types";
@@ -28,6 +28,7 @@ export interface UseChannelMessagesParams {
   clearConversationSelection: () => void;
   clearUnread: (hubId: string, channelId: string) => void;
   bumpUnread: (hubId: string, channelId: string) => void;
+  publicKey: string | null;
   selectedAllianceChannel: SelectedAllianceChannel | null;
   clearSelectedAllianceChannel: () => void;
   selectAllianceChannel: (alliance: AllianceInfo, channel: AllianceSharedChannel) => Promise<void>;
@@ -44,7 +45,7 @@ export interface UseChannelMessagesParams {
 // read — same ref objects every consumer already relied on before this hook
 // existed.
 export function useChannelMessages({
-  activeHubId, setView, clearConversationSelection, clearUnread, bumpUnread,
+  activeHubId, setView, clearConversationSelection, clearUnread, bumpUnread, publicKey,
   selectedAllianceChannel, clearSelectedAllianceChannel, selectAllianceChannel, sendAllianceMessage,
   onMessageSent, onError,
 }: UseChannelMessagesParams) {
@@ -70,6 +71,9 @@ export function useChannelMessages({
   const [searchResults, setSearchResults] = useState<Message[] | null>(null);
   const [firstNotifyingMessageId, setFirstNotifyingMessageId] = useState<string | null>(null);
   const [pendingScrollMessageId, setPendingScrollMessageId] = useState<string | null>(null);
+  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
+  // Set by "Mark as unread": leaving the channel must not mark it read again.
+  const markedUnreadRef = useRef(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesEndChannelRef = useRef<HTMLLIElement | null>(null);
@@ -139,6 +143,11 @@ export function useChannelMessages({
   }, [pendingScrollMessageId]);
 
   async function handleSelectChannel(ch: Channel) {
+    // Whatever arrived while the channel was open was read there.
+    const prev = selectedChannelRef.current;
+    if (prev && prev.id !== ch.id && !markedUnreadRef.current) markChannelRead(prev.id).catch(() => {});
+    markedUnreadRef.current = false;
+    setFirstUnreadId(null);
     setSelectedChannel(ch);
     clearConversationSelection();
     clearSelectedAllianceChannel();
@@ -152,13 +161,14 @@ export function useChannelMessages({
     } else {
       setInputText("");
     }
-    markChannelRead(ch.id).catch(() => {});
+    const marker = markChannelRead(ch.id).catch(() => null);
     // Channels created after the WS connected are not in the hub's
     // auto-subscribe set; subscribing is idempotent for the rest.
     subscribeChannel(ch.id).catch(() => {});
     try {
       const msgs = await getMessages(ch.id);
       setMessages(msgs);
+      setFirstUnreadId(findFirstUnread(msgs, await marker, publicKey));
       setStickToBottom(true);
       setNewWhileScrolledUp(0);
     } catch {}
@@ -241,6 +251,16 @@ export function useChannelMessages({
   async function handleMarkUnread(m: Message) {
     await markChannelRead(m.channel_id, m.id);
     if (activeHubId) bumpUnread(activeHubId, m.channel_id);
+    markedUnreadRef.current = true;
+    setFirstUnreadId(m.id);
+  }
+
+  function handleMarkRead() {
+    if (!selectedChannel) return;
+    markChannelRead(selectedChannel.id).catch(() => {});
+    if (activeHubId) clearUnread(activeHubId, selectedChannel.id);
+    markedUnreadRef.current = false;
+    setFirstUnreadId(null);
   }
 
   async function handleDeleteMessage(msgId: string) {
@@ -309,6 +329,8 @@ export function useChannelMessages({
     messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
     handleScrollToMessage,
     handleMarkUnread,
+    handleMarkRead,
+    firstUnreadId,
     handleSelectChannel,
     handleSelectAllianceChannel,
     handleSendAllianceMessage,

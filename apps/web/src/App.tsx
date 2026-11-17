@@ -237,6 +237,7 @@ export default function App({ initialView }: AppProps = {}) {
     clearConversationSelection,
     clearUnread,
     bumpUnread,
+    publicKey,
     selectedAllianceChannel,
     clearSelectedAllianceChannel,
     selectAllianceChannel,
