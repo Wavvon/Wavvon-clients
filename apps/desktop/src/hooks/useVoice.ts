@@ -5,7 +5,7 @@ import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "
 import { useScreenShare } from "./useScreenShare";
 import { useHubStreams } from "./useHubStreams";
 import { listenerScope } from "../utils/listenerScope";
-import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
+import { playSound, playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
 import { voiceTransportFailure, ROOM_MAP_RADIUS } from "@wavvon/ui";
@@ -389,6 +389,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   async function toggleSelfMute() {
     const next = !selfMuted;
     setSelfMuted(next);
+    playSound(next ? "mute" : "unmute");
     try {
       await invoke("voice_set_muted", { muted: next });
     } catch (e) {
@@ -401,6 +402,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     const next = !selfDeafened;
     setSelfDeafened(next);
     if (next && !selfMuted) setSelfMuted(true);
+    playSound(next ? "deafen" : "undeafen");
     try {
       await invoke("voice_set_deafened", { deafened: next });
     } catch (e) {

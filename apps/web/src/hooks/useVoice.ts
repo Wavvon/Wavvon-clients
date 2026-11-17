@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
 import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
-import { playVoiceTone, formatPubkey, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
+import { playSound, playVoiceTone, formatPubkey, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
@@ -493,6 +493,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const next = !selfMuted;
     setSelfMuted(next);
     voiceSessionRef.current?.setMuted(next);
+    if (voiceSoundsOn()) playSound(next ? "mute" : "unmute");
   }
 
   function handleToggleDeafen() {
@@ -500,6 +501,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     setSelfDeafened(next);
     if (next) setSelfMuted(true);
     voiceSessionRef.current?.setDeafened(next);
+    if (voiceSoundsOn()) playSound(next ? "deafen" : "undeafen");
   }
 
   const handleSetVoiceGain = useCallback((pk: string, gainPct: number) => {

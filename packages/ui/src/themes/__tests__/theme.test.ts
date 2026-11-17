@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { strToU8, zipSync } from "fflate";
 import { PackageError } from "../packageFormat";
 import { contrastRatio, contrastWarnings } from "../contrast";
+import { audioDurationSeconds } from "../audioDuration";
 import { translucent } from "../background";
 import { resolveLayout } from "../layout";
 import { ICON_NAMES } from "../iconRegistry";
@@ -146,6 +147,57 @@ describe("preview", () => {
     ["missing file", withPreview("gone.webp")],
     ["non-image", withPreview("a.ogg", { "a.ogg": new Uint8Array([1]) })],
     ["traversal", withPreview("../p.webp")],
+  ])("rejects %s", (_n, bytes) => {
+    expect(() => loadTheme(bytes)).toThrow(PackageError);
+  });
+});
+
+function wavBytes(seconds: number): Uint8Array {
+  const rate = 8000;
+  const data = Math.round(seconds * rate);
+  const b = new Uint8Array(44 + data);
+  const v = new DataView(b.buffer);
+  const tag = (at: number, s: string) => [...s].forEach((c, i) => (b[at + i] = c.charCodeAt(0)));
+  tag(0, "RIFF");
+  v.setUint32(4, 36 + data, true);
+  tag(8, "WAVE");
+  tag(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate, true);
+  v.setUint16(32, 1, true);
+  v.setUint16(34, 8, true);
+  tag(36, "data");
+  v.setUint32(40, data, true);
+  return b;
+}
+
+describe("sounds", () => {
+  const withSound = (sounds: object, files: Record<string, Uint8Array | string>) =>
+    zip({ "theme.json": manifest({ sounds }), ...files });
+
+  it("reads lengths from the file headers", async () => {
+    expect(audioDurationSeconds(wavBytes(2), "a.wav")).toBeCloseTo(2, 2);
+    const fs = await import("node:fs");
+    const ogg = new Uint8Array(fs.readFileSync(new URL("../../../../../apps/web/e2e/fixtures/tone-440.ogg", import.meta.url)));
+    const s = audioDurationSeconds(ogg, "tone.ogg");
+    expect(s).not.toBeNull();
+    expect(s!).toBeGreaterThan(0);
+    expect(s!).toBeLessThan(5);
+  });
+
+  it("loads known sounds and ignores unknown names", () => {
+    const pkg = loadTheme(withSound({ mention: "sounds/m.wav", nonsense: "sounds/x.wav" }, { "sounds/m.wav": wavBytes(1) }));
+    expect(pkg.manifest.sounds).toEqual({ mention: "sounds/m.wav" });
+  });
+
+  it.each([
+    ["over 5 seconds", withSound({ mention: "sounds/m.wav" }, { "sounds/m.wav": wavBytes(6) })],
+    ["unreadable length", withSound({ mention: "sounds/m.wav" }, { "sounds/m.wav": new Uint8Array(200) })],
+    ["missing file", withSound({ mention: "sounds/gone.wav" }, {})],
+    ["not a sound", withSound({ mention: "sounds/m.png" }, { "sounds/m.png": new Uint8Array([1]) })],
   ])("rejects %s", (_n, bytes) => {
     expect(() => loadTheme(bytes)).toThrow(PackageError);
   });

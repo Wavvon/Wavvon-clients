@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { mentionsName, playMentionPing, slowmodeRetryAfter } from "@wavvon/core";
+import { mentionsName, playMentionPing, playSound, slowmodeRetryAfter } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
 import { readFileAsB64, useOlderPages, usePendingFiles, type PendingFilesState, type SelectedAllianceChannel } from "@wavvon/ui";
@@ -279,6 +279,7 @@ export function useChannelMessages({
             const mode = effectiveNotifyMode(hub_id, channel_id);
             const allowBump = mode === "all" || (mode === "mentions" && isMention);
             if (isActiveChannel) {
+              if (message.sender !== publicKeyRef.current) playSound("message");
               setMessages((prev) => {
                 if (prev.some((m) => m.id === message.id)) return prev;
                 return [...prev, message];
