@@ -2530,5 +2530,14 @@
   "hub.admin.theme.preview_alt": "Anteprima del tema dell'hub",
   "hub.admin.theme.upload": "Carica un tema",
   "hub.admin.theme.replace": "Sostituisci",
-  "hub.admin.theme.remove": "Rimuovi"
+  "hub.admin.theme.remove": "Rimuovi",
+  "settings.language.hint": "Installa un pacchetto di lingua (.wavvonlang) per aggiungere una lingua. I testi che mancano al pacchetto restano in inglese, e quelli di recupero, backup, abbinamento e sicurezza vengono sempre dalla traduzione ufficiale.",
+  "settings.language.install": "Installa da file",
+  "settings.language.install_aria": "File del pacchetto di lingua",
+  "settings.language.installed": "Pacchetti di lingua installati",
+  "settings.language.none": "Nessun pacchetto di lingua installato.",
+  "settings.language.remove": "Rimuovi",
+  "settings.language.invalid": "Questo non è un pacchetto di lingua valido.",
+  "settings.language.coverage": "{label} ({percent}%)",
+  "settings.language.hub_coverage": "{label} (questo hub, {percent}%)"
 }

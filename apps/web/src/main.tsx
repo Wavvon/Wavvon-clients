@@ -7,7 +7,7 @@ import { AdoptScreen } from "./components/handover/AdoptScreen";
 import { ChannelBanner } from "./components/ChannelBanner";
 import { MULTI_HUB } from "./constants";
 import { primeServedHubTheme } from "./utils/primeServedHubTheme";
-import { ErrorBoundary } from "@wavvon/ui";
+import { ErrorBoundary, registerInstalledLanguages } from "@wavvon/ui";
 import "@wavvon/ui/styles.css";
 
 const storedLang = localStorage.getItem('wavvon_language');
@@ -18,7 +18,10 @@ const browserLang = navigator.language.slice(0, 2);
 // and so the hub build, which is the sender, never carries it.
 const isAdopt = MULTI_HUB && window.location.pathname === "/adopt";
 
-void Promise.all([initI18n(resolveLanguage(storedLang, browserLang)), primeServedHubTheme()]).then(([i18n]) =>
+// Installed packs register first, so a stored pack choice resolves.
+const i18nReady = registerInstalledLanguages().then(() => initI18n(resolveLanguage(storedLang, browserLang)));
+
+void Promise.all([i18nReady, primeServedHubTheme()]).then(([i18n]) =>
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nextProvider i18n={i18n}>

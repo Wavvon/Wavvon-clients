@@ -3,7 +3,7 @@ import type { SavedHub } from "@platform";
 import { ARCHIVE_KIND, ARCHIVE_DOCUMENT_VERSION, planRestore, type ArchiveDocument, type ExistingAccountSnapshot } from "@wavvon/ui";
 import { buildLocalPrefsSnapshot } from "../dataExport";
 import { readExistingAccountSnapshot, applyRestorePlan } from "../archiveRestore";
-import { createMemoryPackageStore, newTheme, exportTheme, newPackageId, bytesToBase64, type ThemeManifest } from "@wavvon/ui";
+import { createMemoryPackageStore, newTheme, exportTheme, newPackageId, bytesToBase64, type LangManifest, type ThemeManifest } from "@wavvon/ui";
 
 const localStorageData: Record<string, string> = {};
 vi.stubGlobal("localStorage", {
@@ -36,6 +36,7 @@ function emptySnapshot(overrides: Partial<ExistingAccountSnapshot> = {}): Existi
     hubList: [],
     drafts: {},
     themeNames: [],
+    languageNames: [],
     ignoredUsers: [],
     voiceGains: {},
     hasMentionPingSetting: false,
@@ -109,9 +110,10 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
     });
 
     const themeStore = createMemoryPackageStore<ThemeManifest>();
-    const existing = await readExistingAccountSnapshot("target-account", themeStore);
+    const languageStore = createMemoryPackageStore<LangManifest>();
+    const existing = await readExistingAccountSnapshot("target-account", themeStore, languageStore);
     const plan = planRestore(archive, existing, newPackageId);
-    await applyRestorePlan("target-account", plan, themeStore);
+    await applyRestorePlan("target-account", plan, themeStore, languageStore);
 
     const targetHubs = JSON.parse(localStorageData["wavvon:acct:target-account:wavvon:saved_hubs"]);
     expect(targetHubs).toEqual([makeHub({ hub_id: "new-hub" })]);

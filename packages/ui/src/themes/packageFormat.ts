@@ -1,7 +1,7 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
 // The zip container shared by every Wavvon package type (themes today,
-// language packs next): one manifest file at the root plus the files it
+// language packs): one manifest file at the root plus the files it
 // names. Type-specific rules plug in through PackageSpec.
 
 export class PackageError extends Error {}
@@ -29,6 +29,8 @@ export interface PackageSpec<M> {
   manifestFile: string;
   /** Extensions allowed for every other file; anything else rejects the package. */
   allowedExtensions: string[];
+  /** Cap on the unzipped manifest; defaults to 256 KB. */
+  maxManifestBytes?: number;
   validateManifest: (raw: unknown) => M;
   /** Checks the files the manifest names; throw PackageError to reject. */
   validateFiles?: (manifest: M, files: PackageFiles) => void;
@@ -84,7 +86,7 @@ export function loadPackage<M>(bytes: Uint8Array, spec: PackageSpec<M>): LoadedP
           violation = `File "${f.name}" has a type that is not allowed in a package`;
           return false;
         }
-        const limit = isManifest ? MAX_MANIFEST_BYTES : isSoundPath(f.name) ? MAX_SOUND_BYTES : MAX_IMAGE_BYTES;
+        const limit = isManifest ? (spec.maxManifestBytes ?? MAX_MANIFEST_BYTES) : isSoundPath(f.name) ? MAX_SOUND_BYTES : MAX_IMAGE_BYTES;
         if (f.originalSize > limit) {
           violation = `File "${f.name}" is larger than ${Math.round(limit / 1024)} KB`;
           return false;
