@@ -223,6 +223,7 @@ interface Props {
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
   onStartConversation?: (pubkey: string) => void;
   stickerActions?: StickerActions;
+  onSendVoice?: (file: File) => Promise<void>;
   /** Absent on a hub without `channels.markunread`. */
   markUnread?: (message: Message) => Promise<void>;
   savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
@@ -382,6 +383,7 @@ export function ContentArea(props: Props) {
         forumActions={forumActions}
         messageRowActions={messageRowActions}
         stickerActions={props.stickerActions}
+        onSendVoice={props.onSendVoice}
         profileCardActions={profileCardActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={loadChannelPolls}

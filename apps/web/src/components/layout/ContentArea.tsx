@@ -396,6 +396,7 @@ export function ContentArea(props: Props) {
           markUnread: activeHubSupports("channels.markunread") ? channelMessages.handleMarkUnread : undefined,
         }}
         stickerActions={stickerActions}
+        onSendVoice={channelMessages.handleSendVoice}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}
         loadThreadReplies={loadThreadReplies}

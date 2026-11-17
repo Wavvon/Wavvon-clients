@@ -2592,5 +2592,16 @@
   "remind.dismiss": "Verwerfen",
   "remind.cancel": "Erinnerung löschen",
   "remind.toast": "Erinnerung: {excerpt}",
-  "remind.notification_title": "Erinnerung aus {where}"
+  "remind.notification_title": "Erinnerung aus {where}",
+  "voice_message.hold": "Gedrückt halten für eine Sprachnachricht",
+  "voice_message.slide_to_cancel": "loslassen zum Senden, wegziehen zum Abbrechen",
+  "voice_message.release_to_cancel": "loslassen zum Abbrechen",
+  "voice_message.too_short": "Halte die Taste gedrückt, während du sprichst.",
+  "voice_message.no_mic": "Der Zugriff auf das Mikrofon wurde verweigert.",
+  "voice_message.unsupported": "Dieser Browser kann keine Sprachnachrichten aufnehmen.",
+  "voice_message.label": "Sprachnachricht {name}",
+  "voice_message.play": "Abspielen",
+  "voice_message.pause": "Pause",
+  "voice_message.seek": "Position",
+  "voice_message.speed": "Wiedergabegeschwindigkeit {speed}×"
 }

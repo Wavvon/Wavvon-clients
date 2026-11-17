@@ -7,6 +7,7 @@ import { EmojiPicker } from "./EmojiPicker";
 import { PendingFiles } from "../PendingFiles";
 import { CloseIcon } from "../Icons";
 import { StickerPicker } from "../stickers/StickerPicker";
+import { VoiceRecordButton } from "./VoiceRecordButton";
 import type { StickerActions } from "../stickers/stickerActions";
 
 interface SlashCommandEntry {
@@ -43,6 +44,10 @@ interface Props {
   onShowPollComposer: () => void;
   /** Present on a hub advertising `stickers`. */
   stickers?: { channelId: string; actions: StickerActions; onError: (msg: string) => void };
+  /** Hold-to-record voice messages, sent as an attachment. Shown only where
+   *  attachments are (`files`). */
+  onSendVoice?: (file: File) => Promise<void>;
+  onVoiceError?: (msg: string) => void;
 }
 
 export function ChannelComposer({
@@ -69,6 +74,8 @@ export function ChannelComposer({
   onFillSlashCommand,
   onShowPollComposer,
   stickers,
+  onSendVoice,
+  onVoiceError,
 }: Props) {
   const { t } = useTranslation();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -246,6 +253,9 @@ export function ChannelComposer({
                 </>
               )}
             </div>
+            {files && onSendVoice && (
+              <VoiceRecordButton onSend={onSendVoice} onError={onVoiceError ?? (() => {})} />
+            )}
             {stickers && <StickerPicker {...stickers} />}
             <EmojiPicker
               hubUrl={activeHubUrl}

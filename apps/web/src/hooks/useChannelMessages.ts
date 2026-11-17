@@ -233,6 +233,20 @@ export function useChannelMessages({
     }
   }
 
+  // A voice message is one attachment and no text; it answers the reply
+  // target like any message. Throws so the recorder can report it.
+  async function handleSendVoice(file: File) {
+    if (!selectedChannel) return;
+    const channelId = selectedChannel.id;
+    const uploaded = await uploadFile(channelId, file, true);
+    const sent = await sendMessage(channelId, "", [uploaded.id], replyTarget?.id);
+    if (sent && sent.channel_id === selectedChannelIdRef.current) {
+      setMessages((prev) => prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]);
+    }
+    setReplyTarget(null);
+    onMessageSent?.();
+  }
+
   // Throws so the sticker picker can say why: it owns the error wording.
   async function handleSendSticker(channelId: string, stickerId: string) {
     const sent = await sendMessage(channelId, "", undefined, undefined, stickerId);
@@ -354,6 +368,7 @@ export function useChannelMessages({
     handleToggleReaction,
     handleKeyDown,
     handleJumpToBottom,
+    handleSendVoice,
     handleMessagesScroll,
     handleInputTextChange,
     handleCloseSearch,

@@ -170,6 +170,8 @@ interface Props {
   /** Stickers (picker, save, add to a pack). Omitted on a hub that does not
    *  advertise `stickers`, which hides every sticker control. */
   stickerActions?: StickerActions;
+  /** Send a recorded voice message to the selected channel. */
+  onSendVoice?: (file: File) => Promise<void>;
   loadHubEmojis: () => Promise<HubEmoji[]>;
   loadChannelPolls: (channelId: string) => Promise<Poll[]>;
   loadThreadReplies: (channelId: string, messageId: string) => Promise<Message[]>;
@@ -232,7 +234,7 @@ export function ContentArea({
   alliancePeopleActions,
   onShowPinned,
   profileCardActions,
-  forumActions, messageRowActions, stickerActions,
+  forumActions, messageRowActions, stickerActions, onSendVoice,
   loadHubEmojis, loadChannelPolls, loadThreadReplies,
   loadExpandedThreads, saveExpandedThreads,
   onComponentInteract, onCreatePoll,
@@ -718,6 +720,8 @@ export function ContentArea({
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
               stickers={stickerActions ? { channelId: selectedChannel.id, actions: stickerActions, onError } : undefined}
+              onSendVoice={onSendVoice}
+              onVoiceError={onError}
             /></>}
             </>)}
           </div>
