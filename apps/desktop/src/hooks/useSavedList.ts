@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useSavedMessages } from "@wavvon/ui";
+import { useSavedMessages, type SavedMessage } from "@wavvon/ui";
 
 // The settings-map key web syncs the list under (apps/web syncedSettings.ts).
 const SYNCED_KEY = "wavvon.savedMessages";
 
 /** The personal Saved list: per account in local storage, and synced through
  *  the prefs blob under the key web uses, last writer wins. */
-export function useSavedList(accountId: string | null) {
+export function useSavedList(accountId: string | null, onDue?: (due: SavedMessage[]) => void) {
   const localKey = `${SYNCED_KEY}:${accountId ?? ""}`;
   const [raw, setRawState] = useState<string | null>(() => localStorage.getItem(localKey));
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,7 +39,7 @@ export function useSavedList(accountId: string | null) {
     }, 1000);
   }, [localKey]);
 
-  const saved = useSavedMessages(raw, setRaw);
+  const saved = useSavedMessages(raw, setRaw, onDue);
 
   // Any hub's delete, active or not, marks a saved copy as deleted.
   const markDeleted = saved.markDeleted;

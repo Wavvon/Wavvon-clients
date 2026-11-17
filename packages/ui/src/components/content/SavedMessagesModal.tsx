@@ -4,18 +4,22 @@ import { FocusTrap } from "../FocusTrap";
 import { BookmarkIcon, CloseIcon } from "../Icons";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import { savedKey, type SavedMessage } from "../../utils/savedMessages";
+import { formatMuteEnd as formatRemindTime } from "../layout/MuteForItems";
 
 interface Props {
   items: SavedMessage[];
   onJump: (entry: SavedMessage) => void;
   onRemove: (key: string) => void;
+  onDismissReminder?: (key: string) => void;
   onClose: () => void;
 }
 
 /** The personal Saved list, across hubs, newest first. */
-export function SavedMessagesModal({ items, onJump, onRemove, onClose }: Props) {
+export function SavedMessagesModal({ items, onJump, onRemove, onDismissReminder, onClose }: Props) {
   const { t } = useTranslation();
   useCloseOnEscape(onClose);
+  // Reminders that have come due lead the list until dismissed.
+  const ordered = [...items.filter((s) => s.reminded), ...items.filter((s) => !s.reminded)];
 
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={t("saved.title")}>
@@ -36,7 +40,7 @@ export function SavedMessagesModal({ items, onJump, onRemove, onClose }: Props) 
             {items.length === 0 && (
               <p className="muted" style={{ textAlign: "center", padding: 16 }}>{t("saved.empty")}</p>
             )}
-            {items.map((s) => (
+            {ordered.map((s) => (
               <div key={savedKey(s)} className="pinned-message-row">
                 <div className="pinned-message-meta muted">
                   {[s.hub_name, s.channel_name ? `#${s.channel_name}` : null].filter(Boolean).join(" · ")}
@@ -62,9 +66,21 @@ export function SavedMessagesModal({ items, onJump, onRemove, onClose }: Props) 
                     )}
                   </div>
                 )}
-                <button className="btn-small btn-secondary-small" onClick={() => onRemove(savedKey(s))}>
-                  {t("saved.remove")}
-                </button>
+                {s.remind_at !== undefined && (
+                  <div className="pinned-message-meta" style={{ color: s.reminded ? "var(--accent)" : undefined }}>
+                    {s.reminded ? t("remind.due") : t("remind.pending", { time: formatRemindTime(s.remind_at) })}
+                    {onDismissReminder && (
+                      <button className="btn-small btn-secondary-small" style={{ marginLeft: 8 }} onClick={() => onDismissReminder(savedKey(s))}>
+                        {s.reminded ? t("remind.dismiss") : t("remind.cancel")}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {!s.remind_only && (
+                  <button className="btn-small btn-secondary-small" onClick={() => onRemove(savedKey(s))}>
+                    {t("saved.remove")}
+                  </button>
+                )}
               </div>
             ))}
           </div>

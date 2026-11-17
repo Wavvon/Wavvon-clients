@@ -22,7 +22,7 @@ import type {
   LobbyStatus,
   Message,
 } from "./types";
-import { SavedMessagesModal, type SavedMessage } from "@wavvon/ui";
+import { SavedMessagesModal, notifyReminder, type SavedMessage } from "@wavvon/ui";
 import { useSavedList } from "./hooks/useSavedList";
 import { PendingApplication } from "./components/PendingApplication";
 import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
@@ -110,7 +110,13 @@ function App({ accountId }: { accountId: string | null }) {
   } = unreadCounts;
 
   const notifyPrefs = useNotificationPrefs();
-  const saved = useSavedList(accountId);
+  const saved = useSavedList(accountId, (due) => {
+    for (const s of due) {
+      setToast(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
+      notifyReminder(s, t("remind.notification_title", { where: s.channel_name ? `#${s.channel_name}` : s.hub_name ?? "" }), (x) => openSavedRef.current(x));
+    }
+  });
+  const openSavedRef = useRef<(s: SavedMessage) => void>(() => {});
   const [showSaved, setShowSaved] = useState(false);
   const {
     hubNotifyMode,
@@ -683,9 +689,14 @@ function App({ accountId }: { accountId: string | null }) {
   });
 
   function toggleSaveMessage(m: Message) {
+    const e = savedEntryFor(m);
+    if (e) saved.toggle(e);
+  }
+
+  function savedEntryFor(m: Message): SavedMessage | null {
     const hub = hubs.find((h) => h.hub_id === activeHubId);
-    if (!hub) return;
-    saved.toggle({
+    if (!hub) return null;
+    return {
       hub_id: hub.hub_id,
       hub_url: hub.hub_url,
       hub_name: hub.hub_name,
@@ -696,7 +707,7 @@ function App({ accountId }: { accountId: string | null }) {
       excerpt: m.content,
       message_at: m.created_at,
       saved_at: Date.now(),
-    });
+    };
   }
 
   function openSavedMessage(s: SavedMessage) {
@@ -706,6 +717,7 @@ function App({ accountId }: { accountId: string | null }) {
     }
     openTarget({ hubId: s.hub_id, channelId: s.channel_id, messageId: s.message_id });
   }
+  openSavedRef.current = openSavedMessage;
 
   const {
     showFriends,
@@ -1337,6 +1349,7 @@ function App({ accountId }: { accountId: string | null }) {
               onMuteHubUntil={(hubId, until) => setHubMode(hubId, "silent", until)}
               onOpenSearch={() => setShowSearchBar(true)}
               onOpenSaved={() => setShowSaved(true)}
+              savedDueCount={saved.dueCount}
               onAddHub={() => setShowAddHub(true)}
               onDiscover={DISCOVERY_URL ? () => setShowDiscover((v) => !v) : undefined}
               userMenu={userMenu}
@@ -1486,6 +1499,7 @@ function App({ accountId }: { accountId: string | null }) {
                     items={saved.list}
                     onJump={openSavedMessage}
                     onRemove={saved.remove}
+                    onDismissReminder={saved.dismissReminder}
                     onClose={() => setShowSaved(false)}
                   />
                 )}
@@ -1592,6 +1606,7 @@ function App({ accountId }: { accountId: string | null }) {
                   savedActions={{
                     isSaved: (messageId) => !!activeHubId && saved.isSaved(activeHubId, messageId),
                     toggleSaved: toggleSaveMessage,
+                    remind: (m, at) => { const e = savedEntryFor(m); if (e) saved.remind(e, at); },
                   }}
                 />
               </>

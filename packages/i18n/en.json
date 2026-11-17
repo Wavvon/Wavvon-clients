@@ -2577,5 +2577,20 @@
   "saved.saved_at": "saved {when}",
   "saved.deleted": "This message was deleted.",
   "saved.remove": "Remove",
-  "saved.hub_gone": "{hub} is no longer in your hub list."
+  "saved.hub_gone": "{hub} is no longer in your hub list.",
+  "remind.menu": "Remind me",
+  "remind.in_20m": "In 20 minutes",
+  "remind.in_1h": "In 1 hour",
+  "remind.in_3h": "In 3 hours",
+  "remind.tomorrow": "Tomorrow (09:00)",
+  "remind.custom": "Choose a time…",
+  "remind.custom_title": "Remind me at",
+  "remind.set": "Set reminder",
+  "remind.set_toast": "I'll remind you at {time}",
+  "remind.due": "Reminder",
+  "remind.pending": "Reminder at {time}",
+  "remind.dismiss": "Dismiss",
+  "remind.cancel": "Cancel reminder",
+  "remind.toast": "Reminder: {excerpt}",
+  "remind.notification_title": "Reminder from {where}"
 }

@@ -225,7 +225,7 @@ interface Props {
   stickerActions?: StickerActions;
   /** Absent on a hub without `channels.markunread`. */
   markUnread?: (message: Message) => Promise<void>;
-  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved">;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
 }
 
 export function ContentArea(props: Props) {

@@ -43,6 +43,8 @@ export interface HubTopBarProps {
   onOpenSearch: () => void;
   /** Opens the personal Saved list. */
   onOpenSaved?: () => void;
+  /** Reminders that came due and wait in the Saved list. */
+  savedDueCount?: number;
   onAddHub?: () => void;
   onDiscover?: () => void;
   userMenu: UserMenuProps;
@@ -243,6 +245,7 @@ export function HubTopBar(p: HubTopBarProps) {
       {p.onOpenSaved && (
         <button type="button" className="top-bar-btn" onClick={p.onOpenSaved} title={t("saved.title")} aria-label={t("saved.title")}>
           <BookmarkIcon size={18} />
+          <Count count={p.savedDueCount ?? 0} mention={true} />
         </button>
       )}
       <button type="button" className="top-bar-search" onClick={p.onOpenSearch} aria-keyshortcuts="Control+K">

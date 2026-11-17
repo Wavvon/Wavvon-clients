@@ -19,6 +19,8 @@ import { MessageComponents } from "./MessageComponents";
 import { LinkPreviewInMessage } from "./LinkPreviewInMessage";
 import { IgnoredMessagePlaceholder } from "./MessageHelpers";
 import { MessageContextMenu } from "./MessageContextMenu";
+import { RemindAtModal } from "./RemindAtModal";
+import { formatMuteEnd as formatRemindTime } from "../layout/MuteForItems";
 import { Avatar } from "../Avatar";
 import { MessageAttachments } from "../Attachments";
 import { StickerMessage } from "../stickers/StickerMessage";
@@ -55,6 +57,8 @@ export interface MessageRowActions {
   /** The personal Saved list (personal axis, synced through the home hub). */
   isSaved?: (messageId: string) => boolean;
   toggleSaved?: (message: Message) => void;
+  /** "Remind me": kept with the saved messages, due at an absolute time. */
+  remind?: (message: Message, at: number) => void;
 }
 
 interface Props {
@@ -171,6 +175,7 @@ export function MessageRow({
   const [reportDraft, setReportDraft] = useState("");
   const [reported, setReported] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [pickingRemind, setPickingRemind] = useState(false);
 
   const isIgnored = !!ignoredUsers?.has(m.sender) && m.sender !== publicKey;
   if (isIgnored) {
@@ -235,6 +240,11 @@ export function MessageRow({
     }
   }
 
+  function remindAt(at: number) {
+    actions.remind?.(m, at);
+    onToast(t("remind.set_toast", { time: formatRemindTime(at) }));
+  }
+
   async function markUnread() {
     try {
       await actions.markUnread?.(m);
@@ -276,6 +286,8 @@ export function MessageRow({
         actions.toggleSaved!(m);
         onToast(t(was ? "message.action.unsaved" : "message.action.saved"));
       } : undefined}
+      onRemind={actions.remind ? (at) => remindAt(at) : undefined}
+      onRemindCustom={actions.remind ? () => setPickingRemind(true) : undefined}
       onPinToggle={() => void togglePin()}
       onEdit={() => onStartEdit(m)}
       onDelete={() => onDeleteMessage(m.id)}
@@ -337,7 +349,7 @@ export function MessageRow({
           <span className="action-text">
             <MessageContent content={actionText} knownNames={knownDisplayNames} myName={myDisplayName} hubEmojiMap={hubEmojiMap} hubBaseUrl={hubBaseUrl ?? activeHub?.hub_url} />
           </span>
-          {contextMenu}
+          {contextMenu}{pickingRemind && <RemindAtModal onPick={remindAt} onClose={() => setPickingRemind(false)} />}
         </li>
       </React.Fragment>
     );
@@ -606,7 +618,7 @@ export function MessageRow({
             )}
           </span>
         )}
-        {contextMenu}
+        {contextMenu}{pickingRemind && <RemindAtModal onPick={remindAt} onClose={() => setPickingRemind(false)} />}
       </li>
     </React.Fragment>
   );
