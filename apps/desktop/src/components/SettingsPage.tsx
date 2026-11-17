@@ -5,7 +5,10 @@ import type { Hub } from "../types";
 import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
+import { DISCOVERY_URL } from "../constants";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import {
+  ThemesGallery,
   ThemesSection,
   HelpTab,
   AboutTab,
@@ -287,6 +290,12 @@ export function SettingsPage(props: SettingsPageProps) {
               <p className="muted">{t("settings.theme.hint")}</p>
               <ThemesSection controller={props.themes} />
             </SettingRow>
+
+            {/* Not a row: the gallery renders nothing when the directory is
+                unreachable, and a row that opens onto nothing is worse than none. */}
+            {DISCOVERY_URL && (
+              <ThemesGallery controller={props.themes} fetchWithTimeout={fetchWithTimeout} discoveryUrl={DISCOVERY_URL} />
+            )}
 
             {/* About folded in here rather than its own tab (settings-ia.md
                 piece 4) — a static footnote doesn't need a nav slot. */}

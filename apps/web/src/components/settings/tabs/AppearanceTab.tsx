@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, setLanguage } from "@wavvon/i18n";
 import type { ThemesController } from "@wavvon/ui";
-import { SettingRow, ThemesSection } from "@wavvon/ui";
+import { SettingRow, ThemesGallery, ThemesSection } from "@wavvon/ui";
+import { fetchWithTimeout } from "@platform";
+import { DISCOVERY_URL } from "../../../constants";
 
 interface Props {
   themes: ThemesController;
@@ -49,6 +51,12 @@ export function AppearanceTab(props: Props) {
         <p className="muted">{t("settings.theme.hint")}</p>
         <ThemesSection controller={props.themes} />
       </SettingRow>
+
+      {/* Not a row: the gallery renders nothing when the directory is
+          unreachable, and a row that opens onto nothing is worse than none. */}
+      {DISCOVERY_URL && (
+        <ThemesGallery controller={props.themes} fetchWithTimeout={fetchWithTimeout} discoveryUrl={DISCOVERY_URL} />
+      )}
     </section>
   );
 }
