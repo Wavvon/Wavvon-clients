@@ -448,6 +448,7 @@ export default function App({ initialView }: AppProps = {}) {
 
   const [activeApps, setActiveApps] = useState<Map<string, AppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: AppOpenEvent; hubUrl: string } | null>(null);
+  useEffect(() => { if (!activeOpenApp) voice.clearRoomMover(); }, [activeOpenApp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadingHub = useRef(false);
 
@@ -1204,6 +1205,17 @@ export default function App({ initialView }: AppProps = {}) {
           hubUrl={activeOpenApp.hubUrl}
           title={activeApps.get(appSessionKey(activeOpenApp.event.app_id, activeOpenApp.event.channel_id))?.title ?? t("app.default_title")}
           requiresCamera={activeOpenApp.event.requires_camera}
+          voice={{
+            state: {
+              inVoice: voice.voiceChannelId === activeOpenApp.event.channel_id,
+              zones: voice.roomZone ? [{ zone_id: voice.roomZone.zoneId, coordinate_system: "2d" }] : [],
+            },
+            onSetPosition: (zoneId, position) => voice.moveInRoomForApp(
+              activeApps.get(appSessionKey(activeOpenApp.event.app_id, activeOpenApp.event.channel_id))?.title ?? t("app.default_title"),
+              zoneId,
+              position,
+            ),
+          }}
           onClose={() => setActiveOpenApp(null)}
         />
       )}

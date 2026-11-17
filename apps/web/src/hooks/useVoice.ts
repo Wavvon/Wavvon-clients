@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
 import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
-import { playVoiceTone, formatPubkey } from "@wavvon/core";
+import { playVoiceTone, formatPubkey, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
@@ -125,7 +125,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // The room map: the first voice zone in the room we are in, as the UI draws
   // it. VoiceWtSession keeps its own copy for the attenuation.
   const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
-  useEffect(() => { if (!voiceChannelId) setRoomZone(null); }, [voiceChannelId]);
+  const [roomMover, setRoomMover] = useState<string | null>(null);
+  useEffect(() => { if (!voiceChannelId) { setRoomZone(null); setRoomMover(null); } }, [voiceChannelId]);
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
@@ -683,12 +684,28 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     if (roomZone) voiceWs()?.send({ type: "voice_zone_destroy", zone_id: roomZone.zoneId });
   }
 
-  function moveInRoom(position: [number, number]) {
+  // One coalescer for the map and for a mini-app: the hub drops updates closer
+  // than 30 ms, so clicks and arrow keys must not outrun it either.
+  const sendPositionRef = useRef<(zoneId: string, position: number[]) => void>(() => {});
+  sendPositionRef.current = (zoneId, position) => {
+    voiceWs()?.send({ type: "voice_position_update", zone_id: zoneId, position });
+  };
+  const positionCoalescerRef = useRef<PositionCoalescer | null>(null);
+  positionCoalescerRef.current ??= createPositionCoalescer((z, p) => sendPositionRef.current(z, p));
+  useEffect(() => () => positionCoalescerRef.current?.cancel(), []);
+
+  function moveInRoom(position: number[], zoneId?: string) {
     const me = publicKeyRef.current;
-    if (!roomZone || !me) return;
-    voiceWs()?.send({ type: "voice_position_update", zone_id: roomZone.zoneId, position });
-    voiceSessionRef.current?.setMyPosition(roomZone.zoneId, position);
-    setRoomZone({ ...roomZone, positions: { ...roomZone.positions, [me]: position } });
+    const zone = roomZone && (zoneId === undefined || zoneId === roomZone.zoneId) ? roomZone : null;
+    if (!zone || !me) return;
+    positionCoalescerRef.current?.push(zone.zoneId, position);
+    voiceSessionRef.current?.setMyPosition(zone.zoneId, position);
+    setRoomZone((cur) => (cur?.zoneId === zone.zoneId ? { ...cur, positions: { ...cur.positions, [me]: position } } : cur));
+  }
+
+  function moveInRoomForApp(appTitle: string, zoneId: string, position: number[]) {
+    setRoomMover(appTitle);
+    moveInRoom(position, zoneId);
   }
 
   // voice-transport-v2.md "E2E key distribution" — a peer's offer for us.
@@ -736,6 +753,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     enableRoomMap,
     disableRoomMap,
     moveInRoom,
+    moveInRoomForApp,
+    roomMover,
+    clearRoomMover: () => setRoomMover(null),
     voiceActiveUsers,
     myVoicePerms,
     soundboardPlayingClipId,

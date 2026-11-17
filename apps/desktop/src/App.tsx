@@ -31,6 +31,7 @@ import { useWhisperReply } from "./hooks/useWhisperReply";
 import { useCollapsedCategories } from "./hooks/useCollapsedCategories";
 import { useBlockIgnore } from "./hooks/useBlockIgnore";
 import { useActiveApps } from "./hooks/useActiveApps";
+import { useMiniAppVoiceBridge } from "./hooks/useMiniAppVoiceBridge";
 import { useDeepLink } from "./hooks/useDeepLink";
 import { useMeProfile } from "./hooks/useMeProfile";
 import { useChannelDragEnd } from "./hooks/useChannelDragEnd";
@@ -48,7 +49,7 @@ import {
   formatPubkey,
   buildChannelTree,
 } from "@wavvon/core";
-import { classifyHubRefusal, type HubRefusal } from "@wavvon/core";
+import { appSessionKey, classifyHubRefusal, type HubRefusal } from "@wavvon/core";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts, useBatchedAnnouncement } from "@wavvon/ui";
 import { unreadPersistence } from "./unreadPersistence";
@@ -526,6 +527,14 @@ function App({ accountId }: { accountId: string | null }) {
   }, [myDisplayName]);
 
   const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast });
+
+  useMiniAppVoiceBridge({
+    voiceChannelId: voice.voiceChannelId,
+    roomZone: voice.roomZone,
+    titleFor: (appId, channelId) => activeApps.get(appSessionKey(appId, channelId))?.title ?? t("app.default_title"),
+    moveInRoomForApp: voice.moveInRoomForApp,
+    clearRoomMover: voice.clearRoomMover,
+  });
 
   // Registered so switchAccountGuarded can refuse a mid-voice account switch
   // at the source (defense in depth alongside a disabled Switch button in

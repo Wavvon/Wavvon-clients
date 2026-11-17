@@ -114,7 +114,8 @@ export function ContentAreaContainer({
                 canManage: hasPerm("channels.manage"),
                 onEnable: voice.enableRoomMap,
                 onDisable: voice.disableRoomMap,
-                onMove: voice.moveInRoom,
+                onMove: (p) => voice.moveInRoom(p),
+                movedBy: voice.roomMover,
               }
             : undefined,
           live: {

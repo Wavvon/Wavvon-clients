@@ -78,6 +78,7 @@ pub fn run() {
                 http_client: reqwest::Client::new(),
             });
             app.manage(PendingUpdate(std::sync::Mutex::new(None)));
+            app.manage(mini_app::MiniAppRegistry::default());
             deep_link::setup(app);
             let update_handle = app.handle().clone();
             tauri::async_runtime::spawn(updater::check_for_updates(update_handle));
@@ -438,6 +439,8 @@ pub fn run() {
             // Mini-app windows
             mini_app::open_mini_app,
             mini_app::close_mini_app,
+            mini_app::mini_app_voice_position,
+            mini_app::mini_app_post,
             // Certs / audit
             certs::get_cert_settings,
             certs::get_audit_log,
