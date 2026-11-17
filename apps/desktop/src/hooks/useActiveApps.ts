@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { noteAppJoin, takeAppJoin } from "@wavvon/core";
+import { appSessionKey, noteAppJoin, takeAppJoin } from "@wavvon/core";
 import type { AppLaunchEvent, AppOpenEvent, AppCloseEvent } from "../types";
 
 /** Bot mini-app launch cards for the selected channel, and the join/open/close
@@ -10,23 +10,19 @@ export function useActiveApps(activeHubId: string | null) {
 
   function sendAppJoin(appId: string, channelId: string) {
     if (!activeHubId) return;
-    noteAppJoin(appId);
+    noteAppJoin(appId, channelId);
     invoke("send_hub_ws_raw", {
       payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
     }).catch(() => {});
   }
 
   const onBotAppLaunch = (ev: AppLaunchEvent) => {
-    setActiveApps((prev) => {
-      const next = new Map(prev);
-      next.set(ev.app_id, ev);
-      return next;
-    });
+    setActiveApps((prev) => new Map(prev).set(appSessionKey(ev.app_id, ev.channel_id), ev));
   };
 
   const onBotAppOpen = (ev: AppOpenEvent, hubUrl: string) => {
-    if (!takeAppJoin(ev.app_id)) return;
-    const label = `mini-app-${ev.app_id}`;
+    if (!takeAppJoin(ev.app_id, ev.channel_id)) return;
+    const label = `mini-app-${appSessionKey(ev.app_id, ev.channel_id)}`;
     invoke("open_mini_app", {
       label,
       url: ev.mini_app_url,
@@ -41,10 +37,10 @@ export function useActiveApps(activeHubId: string | null) {
   const onBotAppClose = (ev: AppCloseEvent) => {
     setActiveApps((prev) => {
       const next = new Map(prev);
-      next.delete(ev.app_id);
+      next.delete(appSessionKey(ev.app_id, ev.channel_id));
       return next;
     });
-    invoke("close_mini_app", { label: `mini-app-${ev.app_id}` }).catch(() => {});
+    invoke("close_mini_app", { label: `mini-app-${appSessionKey(ev.app_id, ev.channel_id)}` }).catch(() => {});
   };
 
   return { activeApps, sendAppJoin, onBotAppLaunch, onBotAppOpen, onBotAppClose };

@@ -5,9 +5,9 @@ import {
   refreshHubInfo, listHubs, fetchVoiceRoster, fetchAllUsers,
 } from "@platform";
 import type { WsHandlers } from "@platform";
-import { mentionsName, playMentionPing, takeAppJoin } from "@wavvon/core";
+import { mentionsName, playMentionPing, takeAppJoin, appSessionKey } from "@wavvon/core";
 import type { Channel, Message, User, Hub, MeInfo, VoiceParticipant, NotifyMode } from "@shared/types";
-import type { AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
+import type { AppCloseEvent, AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
 
 export interface UseWsHandlersParams {
@@ -341,24 +341,21 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       const type = m.type as string;
       if (type === "app_launch") {
         const ev = m as unknown as AppLaunchEvent;
-        setActiveApps((prev) => {
-          const next = new Map(prev);
-          next.set(ev.app_id, ev);
-          return next;
-        });
+        setActiveApps((prev) => new Map(prev).set(appSessionKey(ev.app_id, ev.channel_id), ev));
       } else if (type === "app_open") {
         const ev = m as unknown as AppOpenEvent;
-        if (!takeAppJoin(ev.app_id)) return;
+        if (!takeAppJoin(ev.app_id, ev.channel_id)) return;
         const hubUrl = hubsRef.current.find((h) => h.hub_id === activeHubIdRef.current)?.hub_url ?? "";
         setActiveOpenApp({ event: ev, hubUrl });
       } else if (type === "app_close") {
-        const appId = m.app_id as string;
+        const ev = m as unknown as AppCloseEvent;
         setActiveApps((prev) => {
           const next = new Map(prev);
-          next.delete(appId);
+          next.delete(appSessionKey(ev.app_id, ev.channel_id));
           return next;
         });
-        setActiveOpenApp((prev) => prev?.event.app_id === appId ? null : prev);
+        setActiveOpenApp((prev) =>
+          prev?.event.app_id === ev.app_id && prev.event.channel_id === ev.channel_id ? null : prev);
       }
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps

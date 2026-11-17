@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseGameLaunchCard, noteAppJoin, takeAppJoin } from "./apps";
+import { parseGameLaunchCard, noteAppJoin, takeAppJoin, appSessionKey } from "./apps";
 
 describe("parseGameLaunchCard", () => {
   it("parses a full card", () => {
@@ -55,11 +55,23 @@ describe("parseGameLaunchCard", () => {
 
 describe("takeAppJoin", () => {
   it("honours an app_open only once, and only for a recent join", () => {
-    expect(takeAppJoin("never-joined", 0)).toBe(false);
-    noteAppJoin("a", 1_000);
-    expect(takeAppJoin("a", 2_000)).toBe(true);
-    expect(takeAppJoin("a", 2_000)).toBe(false);
-    noteAppJoin("b", 1_000);
-    expect(takeAppJoin("b", 1_000 + 61_000)).toBe(false);
+    expect(takeAppJoin("never-joined", "c", 0)).toBe(false);
+    noteAppJoin("a", "c", 1_000);
+    expect(takeAppJoin("a", "c", 2_000)).toBe(true);
+    expect(takeAppJoin("a", "c", 2_000)).toBe(false);
+    noteAppJoin("b", "c", 1_000);
+    expect(takeAppJoin("b", "c", 1_000 + 61_000)).toBe(false);
+  });
+});
+
+describe("app sessions per channel", () => {
+  it("keys by app and channel", () => {
+    expect(appSessionKey("ttt", "A")).not.toBe(appSessionKey("ttt", "B"));
+  });
+
+  it("a join in one channel does not authorise an open in another", () => {
+    noteAppJoin("x", "A", 1_000);
+    expect(takeAppJoin("x", "B", 1_000)).toBe(false);
+    expect(takeAppJoin("x", "A", 1_000)).toBe(true);
   });
 });
