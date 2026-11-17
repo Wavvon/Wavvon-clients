@@ -81,13 +81,19 @@ import { useUserMenu } from "./hooks/useUserMenu";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
 import { fetchWithTimeout } from "./utils/fetchWithTimeout";
-import { WelcomeScreen } from "@wavvon/ui";
+import { WelcomeScreen, HubSuggestions, hubInterestsOrDefault } from "@wavvon/ui";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { setSwitchGuard } from "./accounts/store";
 import { DisplayNamePrompt } from "@wavvon/ui";
 
-function App({ accountId }: { accountId: string | null }) {
-  const { t } = useTranslation();
+/** Where first-run onboarding left off: a suggested hub to join, or the directory. */
+export interface OnboardingExit {
+  join?: { hubUrl: string; inviteCode: string };
+  openDirectory?: boolean;
+}
+
+function App({ accountId, onboardingExit }: { accountId: string | null; onboardingExit?: OnboardingExit }) {
+  const { t, i18n } = useTranslation();
   const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   // Bumped by the pending screen's "check again", so the join application
@@ -1078,6 +1084,13 @@ function App({ accountId }: { accountId: string | null }) {
     setShowDiscover(false);
   }
 
+  useEffect(() => {
+    if (onboardingExit?.join) handleDiscoverJoin(onboardingExit.join.hubUrl, onboardingExit.join.inviteCode);
+    else if (onboardingExit?.openDirectory) setShowDiscover(true);
+    // Once, on the mount that follows onboarding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function closeSettings() {
     if (voice.micTesting) await voice.toggleMicTest();
     setShowSettings(false);
@@ -1373,6 +1386,15 @@ function App({ accountId }: { accountId: string | null }) {
                   onJoin={() => handleAddHub()}
                   onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
                   onDismiss={dismissWelcome}
+                  suggestions={DISCOVERY_URL ? (
+                    <HubSuggestions
+                      directoryUrl={DISCOVERY_URL}
+                      fetchUrl={fetchWithTimeout}
+                      interests={hubInterestsOrDefault(i18n.language)}
+                      onJoinHub={handleDiscoverJoin}
+                      onSeeAll={() => setShowDiscover(true)}
+                    />
+                  ) : undefined}
                 />
               ) : (
                 <div className="empty-state">

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { HubListing } from "../../types";
 import { CloseIcon } from "../Icons";
+import { POPULAR_TAGS } from "../../utils/hubInterests";
 
 interface Props {
   onClose: () => void;
@@ -17,7 +18,6 @@ interface Props {
 // that used to live here (discovery.wavvon.io) does not resolve. The app owns
 // the config and does not render this page without it.
 const PAGE_SIZE = 20;
-const POPULAR_TAGS = ["gaming", "music", "art", "tech", "anime", "sports", "community", "18+", "english", "social"];
 
 export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl }: Props) {
   const { t } = useTranslation();

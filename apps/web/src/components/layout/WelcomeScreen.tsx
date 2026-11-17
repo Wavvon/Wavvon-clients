@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   addHub, previewHubInfo, verifyLanFingerprint,
@@ -24,9 +24,10 @@ interface WelcomeScreenContainerProps {
   onHubAdded: (hub: Hub, target?: HubInputResult["target"]) => void;
   initialHubUrl?: string;
   onBrowse?: () => void;
+  suggestions?: ReactNode;
 }
 
-export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, onBrowse }: WelcomeScreenContainerProps) {
+export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, onBrowse, suggestions }: WelcomeScreenContainerProps) {
   const { t } = useTranslation();
   const [hubUrl, setHubUrl] = useState(initialHubUrl ?? "");
   const [loading, setLoading] = useState(false);
@@ -93,6 +94,7 @@ export function WelcomeScreenContainer({ wsHandlers, onHubAdded, initialHubUrl, 
       error={error}
       onJoin={() => handleJoin()}
       onBrowse={onBrowse}
+      suggestions={suggestions}
       // The hub build already names its hub twice (the locked field and the
       // preview card). Elsewhere, name the hub, not the invite link it came in.
       homeHubHint={MULTI_HUB && initialHubUrl ? (parseHubInput(initialHubUrl)?.hubUrl ?? initialHubUrl) : undefined}

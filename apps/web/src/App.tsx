@@ -80,7 +80,7 @@ import { passkeysUsableWith } from "@platform";
 import { QuickInviteModal } from "@wavvon/ui";
 import { ChannelSettingsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "@wavvon/ui";
-import { AppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard } from "@wavvon/ui";
+import { AppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard, HubSuggestions, hubInterestsOrDefault } from "@wavvon/ui";
 import { createEvent, createPoll } from "@platform";
 import { moveChannelOptions } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate } from "@wavvon/ui";
@@ -121,7 +121,7 @@ import {
 } from "@platform";
 import { getActiveAccountId, loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
 import { useWebPush } from "./hooks/useWebPush";
-import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
+import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
 import type { HubInputResult } from "@wavvon/core";
 
 // ---- Types ----
@@ -137,7 +137,7 @@ export interface AppProps {
 }
 
 export default function App({ initialView }: AppProps = {}) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
   const { hubErrorToast, showHubError } = useHubErrorToast();
 
@@ -501,10 +501,18 @@ export default function App({ initialView }: AppProps = {}) {
     });
   }, []);
 
-  function handleIdentityComplete() {
+  function handleIdentityComplete(result: IdentitySetupCompletion) {
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
+      // Onboarding's suggestions end where the directory's own join does.
+      if (result.join) {
+        setHubUrl(result.join.hubUrl);
+        setInviteCode(result.join.inviteCode);
+        setShowAddHub(true);
+      } else if (result.openDirectory) {
+        setShowDiscover(true);
+      }
     });
   }
 
@@ -1323,6 +1331,15 @@ export default function App({ initialView }: AppProps = {}) {
             }}
             initialHubUrl={homeHubUrl}
             onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
+            suggestions={DISCOVERY_URL ? (
+              <HubSuggestions
+                directoryUrl={DISCOVERY_URL}
+                fetchUrl={fetchWithTimeout}
+                interests={hubInterestsOrDefault(i18n.language)}
+                onJoinHub={(url, code) => { setHubUrl(url); setInviteCode(code); setShowAddHub(true); }}
+                onSeeAll={() => setShowDiscover(true)}
+              />
+            ) : undefined}
           />
         </main>
       ) : activeHubId && refusedHubs.has(activeHubId) ? (
