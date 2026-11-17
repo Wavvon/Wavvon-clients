@@ -1958,6 +1958,7 @@
   "voice.room_map.label": "Room map",
   "voice.room_map.place_yourself": "Click the map to stand somewhere. Until you do, you hear everyone at full volume.",
   "voice.room_map.moved_by": "{app} is moving you",
+  "voice.room_map.refused": "The hub refused that move; you are back where it last placed you.",
   "voice.camera.off": "Turn off camera",
   "voice.camera.on": "Turn on camera",
   "voice.deafen": "Mute all audio",

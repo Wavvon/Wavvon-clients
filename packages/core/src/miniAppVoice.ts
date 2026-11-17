@@ -9,7 +9,10 @@ export interface VoiceBridgeState {
   zones: VoiceBridgeZone[];
 }
 
-export type VoicePositionRefusal = "not_in_voice" | "no_zone" | "ambiguous_zone" | "bad_position";
+/** The first four are the client's own checks; `refused` is the hub turning a
+ *  sent move down (an unknown zone, or a `creator_only` zone not ours), which
+ *  arrives after the fact. */
+export type VoicePositionRefusal = "not_in_voice" | "no_zone" | "ambiguous_zone" | "bad_position" | "refused";
 
 export type VoicePositionRequest =
   | { ok: true; zoneId: string; position: number[] }

@@ -552,7 +552,7 @@ function App({ accountId }: { accountId: string | null }) {
     myDisplayNameRef.current = myDisplayName;
   }, [myDisplayName]);
 
-  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast });
+  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast, publicKey });
 
   useMiniAppVoiceBridge({
     voiceChannelId: voice.voiceChannelId,
@@ -560,6 +560,7 @@ function App({ accountId }: { accountId: string | null }) {
     titleFor: (appId, channelId) => activeApps.get(appSessionKey(appId, channelId))?.title ?? t("app.default_title"),
     moveInRoomForApp: voice.moveInRoomForApp,
     clearRoomMover: voice.clearRoomMover,
+    positionRefusals: voice.positionRefusals,
   });
 
   // Registered so switchAccountGuarded can refuse a mid-voice account switch

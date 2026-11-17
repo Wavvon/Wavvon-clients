@@ -206,6 +206,7 @@ pub fn run() {
             voice_cmd::voice_room_map_enable,
             voice_cmd::voice_room_map_disable,
             voice_cmd::voice_room_map_move,
+            voice_cmd::voice_room_map_restore,
             voice_cmd::voice_set_muted,
             voice_cmd::voice_set_deafened,
             voice_cmd::list_audio_devices,

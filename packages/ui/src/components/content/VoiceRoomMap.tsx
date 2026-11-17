@@ -15,6 +15,8 @@ export interface VoiceRoomMapInfo {
   onMove: (position: [number, number]) => void;
   /** Title of a mini-app that is moving the user; the map takes no input meanwhile. */
   movedBy?: string | null;
+  /** The hub just refused a move; the dot is back where it last accepted one. */
+  refused?: boolean;
 }
 
 /** How far a voice carries on the map, in map units (the zone's `max_radius`). */
@@ -66,6 +68,7 @@ export function VoiceRoomMap({ room, participants, avatars, publicKey }: Props) 
   return (
     <div className="voice-room-map-wrap">
       <div className="voice-room-map-head">
+        {room.refused && <span className="error-text" role="status">{t("voice.room_map.refused")}</span>}
         <span className="muted">
           {room.movedBy
             ? t("voice.room_map.moved_by", { app: room.movedBy })

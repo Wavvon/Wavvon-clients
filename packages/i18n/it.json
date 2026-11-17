@@ -1958,6 +1958,7 @@
   "voice.room_map.label": "Mappa della stanza",
   "voice.room_map.place_yourself": "Clicca sulla mappa per metterti da qualche parte. Finché non lo fai, senti tutti a pieno volume.",
   "voice.room_map.moved_by": "{app} ti sta spostando",
+  "voice.room_map.refused": "L'hub ha rifiutato lo spostamento; sei tornato dove ti aveva messo l'ultima volta.",
   "voice.camera.off": "Disattiva webcam",
   "voice.camera.on": "Attiva webcam",
   "voice.deafen": "Disattiva audio",

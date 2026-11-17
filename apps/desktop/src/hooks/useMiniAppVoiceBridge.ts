@@ -16,6 +16,8 @@ interface Opts {
   titleFor: (appId: string, channelId: string) => string;
   moveInRoomForApp: (appTitle: string, zoneId: string, position: number[]) => void;
   clearRoomMover: () => void;
+  /** Moves the hub has refused; each new one goes to the frame moving the user. */
+  positionRefusals: number;
 }
 
 interface Win {
@@ -72,6 +74,13 @@ export function useMiniAppVoiceBridge(opts: Opts) {
     ));
     return () => scope.close();
   }, []);
+
+  const seenRefusals = useRef(opts.positionRefusals);
+  useEffect(() => {
+    const seen = seenRefusals.current;
+    seenRefusals.current = opts.positionRefusals;
+    if (opts.positionRefusals > seen && mover.current) post(mover.current, voiceRefusedMessage("refused"));
+  }, [opts.positionRefusals]);
 
   const zoneId = opts.roomZone?.zoneId ?? null;
   useEffect(() => {

@@ -53,6 +53,7 @@ export interface UseWsHandlersParams {
   voiceOnVoiceZoneCreated: (raw: unknown) => void;
   voiceOnVoiceZoneDestroyed: (raw: unknown) => void;
   voiceOnVoicePositionUpdated: (raw: unknown) => void;
+  voiceOnVoicePositionRefused: () => void;
   voiceOnVoiceKeyReceived: (raw: unknown) => void;
   voiceOnVoiceKeyRequest: (raw: unknown) => void;
   handleVideoMessage: (raw: Record<string, unknown>) => void;
@@ -77,7 +78,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     onDm, onDmMemberChanged, receiveTyping, onScreenShare, onScreenShareChunk, resubscribeStreams,
     receiveSoundboardPlayed, handleStatusChange, setAssertiveAnnouncement, showHubError, onAnyMessageDeleted,
     loadHubDataRef, voiceOnVoiceState, voiceOnVoiceZoneState, voiceOnVoiceZoneCreated,
-    voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoiceKeyReceived,
+    voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoicePositionRefused, voiceOnVoiceKeyReceived,
     voiceOnVoiceKeyRequest, handleVideoMessage,
     receiveWhisperEvent, onVoiceMovePush, setActiveApps, setActiveOpenApp,
   } = deps;
@@ -206,6 +207,12 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     },
     onError: (raw) => {
       const m = raw as Record<string, unknown>;
+      // From the voice socket, which may be another hub's (an alliance
+      // visit): the room map shows it, not a toast.
+      if (m.context === "voice_position_update") {
+        voiceOnVoicePositionRefused();
+        return;
+      }
       if (m._hub_id !== activeHubIdRef.current) return;
       const message = (m.message as string | undefined) ?? i18n.t("errors.hub_error");
       showHubError(message);

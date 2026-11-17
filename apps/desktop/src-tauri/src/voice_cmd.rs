@@ -774,3 +774,32 @@ pub(crate) fn voice_room_map_move(
         serde_json::json!({ "type": "voice_position_update", "zone_id": zone_id, "position": position }),
     )
 }
+
+/// The hub refused a move: put our own place, for the attenuation, back where
+/// the hub last accepted it (None forgets it), without sending anything.
+#[tauri::command]
+pub(crate) fn voice_room_map_restore(
+    zone_id: String,
+    position: Option<Vec<f64>>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let voice = state.voice.lock().unwrap();
+    let Some(s) = voice.as_ref() else {
+        return Ok(());
+    };
+    {
+        let mut mine = s.my_position.lock().unwrap();
+        match position {
+            Some(p) => mine.insert(zone_id, p),
+            None => mine.remove(&zone_id),
+        };
+    }
+    crate::ws::recompute_proximity_gains(
+        &s.voice_zones,
+        &s.my_position,
+        &s.roster_map,
+        &s.gain_map,
+        &crate::local_store::load_voice_gains(),
+    );
+    Ok(())
+}

@@ -127,6 +127,18 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
   const [roomMover, setRoomMover] = useState<string | null>(null);
   useEffect(() => { if (!voiceChannelId) { setRoomZone(null); setRoomMover(null); } }, [voiceChannelId]);
+  // Our own place as the hub last confirmed it (its broadcast, or the zone
+  // state on join): what a move the hub refuses snaps back to.
+  const confirmedSelfRef = useRef<Record<string, number[]>>({});
+  // Counts refusals, for the mini-app that caused one; the map shows the
+  // latest for a few seconds.
+  const [positionRefusals, setPositionRefusals] = useState(0);
+  const [positionRefused, setPositionRefused] = useState(false);
+  useEffect(() => {
+    if (!positionRefused) return;
+    const timer = setTimeout(() => setPositionRefused(false), 5000);
+    return () => clearTimeout(timer);
+  }, [positionRefused, positionRefusals]);
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
@@ -637,6 +649,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voiceSessionRef.current?.handleZoneState(m.channel_id, m.zones);
     // Only sent on our own voice join, so it is the room we are in.
     const z = m.zones[0];
+    const me = publicKeyRef.current;
+    confirmedSelfRef.current = z && me && z.positions[me] ? { [z.zone_id]: z.positions[me] } : {};
     setRoomZone(z ? { zoneId: z.zone_id, positions: { ...z.positions } } : null);
   }
 
@@ -666,8 +680,28 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const m = raw as { zone_id?: string; pubkey?: string; position?: number[] };
     if (!m.zone_id || !m.pubkey || !m.position) return;
     const { zone_id: zoneId, pubkey, position } = m;
+    if (pubkey === publicKeyRef.current) confirmedSelfRef.current[zoneId] = position;
     voiceSessionRef.current?.handlePositionUpdated(zoneId, pubkey, position);
     setRoomZone((cur) => (cur?.zoneId === zoneId ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
+  }
+
+  // The hub answered a move with an `error` frame (context
+  // voice_position_update): everyone else hears us where we last were, so the
+  // dot and our own attenuation go back there too.
+  function onVoicePositionRefused() {
+    const me = publicKeyRef.current;
+    if (!me) return;
+    setRoomZone((cur) => {
+      if (!cur) return cur;
+      const back = confirmedSelfRef.current[cur.zoneId] ?? null;
+      voiceSessionRef.current?.setMyPosition(cur.zoneId, back);
+      const positions = { ...cur.positions };
+      if (back) positions[me] = back;
+      else delete positions[me];
+      return { ...cur, positions };
+    });
+    setPositionRefused(true);
+    setPositionRefusals((n) => n + 1);
   }
 
   // The hub checks channels.manage for both; this only asks.
@@ -758,6 +792,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     moveInRoomForApp,
     roomMover,
     clearRoomMover: () => setRoomMover(null),
+    positionRefused,
+    positionRefusals,
+    onVoicePositionRefused,
     voiceActiveUsers,
     myVoicePerms,
     soundboardPlayingClipId,

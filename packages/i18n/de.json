@@ -1958,6 +1958,7 @@
   "voice.room_map.label": "Raumkarte",
   "voice.room_map.place_yourself": "Klicke auf die Karte, um dich zu platzieren. Bis dahin hörst du alle in voller Lautstärke.",
   "voice.room_map.moved_by": "{app} bewegt dich",
+  "voice.room_map.refused": "Der Hub hat diese Bewegung abgelehnt; du bist wieder dort, wo er dich zuletzt platziert hat.",
   "voice.camera.off": "Kamera ausschalten",
   "voice.camera.on": "Kamera einschalten",
   "voice.deafen": "Ton deaktivieren",

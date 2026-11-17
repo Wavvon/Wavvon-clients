@@ -574,6 +574,7 @@ export default function App({ initialView }: AppProps = {}) {
     voiceOnVoiceZoneCreated: voice.onVoiceZoneCreated,
     voiceOnVoiceZoneDestroyed: voice.onVoiceZoneDestroyed,
     voiceOnVoicePositionUpdated: voice.onVoicePositionUpdated,
+    voiceOnVoicePositionRefused: voice.onVoicePositionRefused,
     voiceOnVoiceKeyReceived: voice.onVoiceKeyReceived,
     voiceOnVoiceKeyRequest: voice.onVoiceKeyRequest,
     handleVideoMessage: video.handleVideoMessage,
@@ -1293,6 +1294,7 @@ export default function App({ initialView }: AppProps = {}) {
               inVoice: voice.voiceChannelId === activeOpenApp.event.channel_id,
               zones: voice.roomZone ? [{ zone_id: voice.roomZone.zoneId, coordinate_system: "2d" }] : [],
             },
+            refusals: voice.roomMover ? voice.positionRefusals : undefined,
             onSetPosition: (zoneId, position) => voice.moveInRoomForApp(
               activeApps.get(appSessionKey(activeOpenApp.event.app_id, activeOpenApp.event.channel_id))?.title ?? t("app.default_title"),
               zoneId,
