@@ -35,6 +35,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // The Web Push worker the web client serves as a static file.
+    files: ["apps/web/public/push-sw.js"],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },

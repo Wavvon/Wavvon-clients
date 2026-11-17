@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
+import type { WebPush } from "../../hooks/useWebPush";
 import type { ThemesController, SettingsTabDef, TrustRoot } from "@wavvon/ui";
 import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell } from "@wavvon/ui";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
@@ -37,6 +38,7 @@ interface SettingsPageProps {
   onHubProfileSaved?: (hubId: string) => void;
   mentionPingEnabled?: boolean;
   onMentionPingChange?: (v: boolean) => void;
+  webPush?: WebPush;
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
   blocks: BlockEntry[];
@@ -182,6 +184,7 @@ export function SettingsPage(props: SettingsPageProps) {
             hubs={props.hubs}
             mentionPingEnabled={props.mentionPingEnabled}
             onMentionPingChange={props.onMentionPingChange}
+            webPush={props.webPush}
           />
         )}
 

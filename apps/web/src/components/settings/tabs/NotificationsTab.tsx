@@ -4,11 +4,13 @@ import type { Hub, NotifLevel } from "@shared/types";
 import { SettingRow } from "@wavvon/ui";
 import { getNotifPref, setNotifPref } from "@platform";
 import { getScoped, setScoped } from "@shared/utils/accountScope";
+import type { WebPush } from "../../../hooks/useWebPush";
 
 interface Props {
   hubs: Hub[];
   mentionPingEnabled?: boolean;
   onMentionPingChange?: (v: boolean) => void;
+  webPush?: WebPush;
 }
 
 export function NotificationsTab(props: Props) {
@@ -93,6 +95,29 @@ export function NotificationsTab(props: Props) {
           {t("settings.notifications.desktop.request")}
         </button>
       </SettingRow>
+
+      {props.webPush && (
+        <SettingRow
+          title={t("settings.notifications.push.label")}
+          state={!props.webPush.supported
+            ? t("settings.notifications.push.unsupported")
+            : props.webPush.enabled ? t("settings.state.on") : t("settings.state.off")}
+          control={props.webPush.supported ? (
+            <input
+              type="checkbox"
+              checked={props.webPush.enabled}
+              aria-label={t("settings.notifications.push.enable")}
+              onChange={(e) => void props.webPush?.setEnabled(e.target.checked)}
+            />
+          ) : undefined}
+          {...row("push")}
+        >
+          <p className="muted">{t("settings.notifications.push.hint")}</p>
+          {props.webPush.permission === "denied" && (
+            <p className="muted">{t("settings.notifications.push.denied")}</p>
+          )}
+        </SettingRow>
+      )}
 
       {props.hubs.length > 0 && (
         <SettingRow
