@@ -7,6 +7,7 @@ import { composeRgba, splitRgba, THEME_TOKENS, type ThemeTokenType } from "../th
 import { ResetIcon } from "./Icons";
 import { ThemeBackgroundEditor } from "./ThemeBackgroundEditor";
 import { ThemeIconsEditor } from "./ThemeIconsEditor";
+import { ThemeLayoutEditor } from "./ThemeLayoutEditor";
 
 interface Props {
   pkg: StoredPackage<ThemeManifest>;
@@ -86,7 +87,7 @@ function TokenRow({
 export function ThemeEditor({ pkg, onChange }: Props) {
   const { t } = useTranslation();
   const present = SCHEMES.filter((s) => pkg.manifest.colors[s]);
-  const [tab, setTab] = useState<"colors" | "icons" | "background">("colors");
+  const [tab, setTab] = useState<"colors" | "icons" | "background" | "layout">("colors");
   const [picked, setPicked] = useState<Scheme>(present[0] ?? "dark");
   const scheme = present.includes(picked) ? picked : (present[0] ?? "dark");
   const map = pkg.manifest.colors[scheme] ?? {};
@@ -113,7 +114,7 @@ export function ThemeEditor({ pkg, onChange }: Props) {
           />
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 12 }} role="tablist">
-          {(["colors", "icons", "background"] as const).map((id) => (
+          {(["colors", "icons", "background", "layout"] as const).map((id) => (
             <button key={id} role="tab" aria-selected={tab === id} className={`btn-small${tab === id ? "" : " btn-secondary"}`} onClick={() => setTab(id)}>
               {t(`settings.theme.tab.${id}`)}
             </button>
@@ -156,6 +157,7 @@ export function ThemeEditor({ pkg, onChange }: Props) {
       </div>
 
       {tab === "icons" && <ThemeIconsEditor pkg={pkg} onChange={onChange} />}
+      {tab === "layout" && <ThemeLayoutEditor pkg={pkg} onChange={onChange} />}
       {tab === "background" && <ThemeBackgroundEditor pkg={pkg} onChange={onChange} />}
       {tab === "colors" && THEME_TOKENS.map((group) => (
         <div key={group.group} className="settings-section">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyBackground, clearBackground } from "../themes/background";
+import { applyLayout, normalizeLayout, resolveLayout, type LayoutChoice, type LayoutKey } from "../themes/layout";
 import {
   applyThemeTokens,
   loadTheme,
@@ -25,6 +26,8 @@ interface Appearance {
   /** User switches: the theme's background off entirely, or just its blur. */
   bgOff: boolean;
   blurOff: boolean;
+  /** The user's own layout choices; a key left out follows the theme. */
+  layout: LayoutChoice;
 }
 
 function readAppearance(): Appearance {
@@ -35,9 +38,10 @@ function readAppearance(): Appearance {
       themeId: typeof a.themeId === "string" ? a.themeId : null,
       bgOff: a.bgOff === true,
       blurOff: a.blurOff === true,
+      layout: normalizeLayout(a.layout),
     };
   } catch {
-    return { mode: "dark", themeId: null, bgOff: false, blurOff: false };
+    return { mode: "dark", themeId: null, bgOff: false, blurOff: false, layout: {} };
   }
 }
 
@@ -84,6 +88,7 @@ export function useThemes(store: ThemeStore) {
       return;
     }
     const scheme = resolveScheme(manifest, appearance.mode, systemDark);
+    applyLayout(resolveLayout(manifest?.layout, appearance.layout));
     document.documentElement.dataset.theme = scheme;
     applyThemeTokens(manifest?.colors[scheme], { reduceTransparency });
     const bg = manifest?.background;
@@ -107,6 +112,15 @@ export function useThemes(store: ThemeStore) {
   const select = useCallback((themeId: string | null) => persist({ ...appearance, themeId }), [appearance, persist]);
   const setBackgroundOff = useCallback((bgOff: boolean) => persist({ ...appearance, bgOff }), [appearance, persist]);
   const setBlurOff = useCallback((blurOff: boolean) => persist({ ...appearance, blurOff }), [appearance, persist]);
+  const setUserLayout = useCallback(
+    (key: LayoutKey, value: string | null) => {
+      const layout = { ...appearance.layout };
+      if (value === null) delete layout[key];
+      else layout[key] = value;
+      persist({ ...appearance, layout });
+    },
+    [appearance, persist],
+  );
   const setMode = useCallback((mode: SchemeMode) => persist({ ...appearance, mode }), [appearance, persist]);
 
   const save = useCallback(
@@ -159,7 +173,7 @@ export function useThemes(store: ThemeStore) {
     [store, appearance, persist],
   );
 
-  return { themes, active, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, systemDark, select, setMode, setBackgroundOff, setBlurOff, edit, install, create, remove };
+  return { themes, active, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, userLayout: appearance.layout, systemDark, select, setMode, setBackgroundOff, setBlurOff, setUserLayout, edit, install, create, remove };
 }
 
 export type ThemesController = ReturnType<typeof useThemes>;

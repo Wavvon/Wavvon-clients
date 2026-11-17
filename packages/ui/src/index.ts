@@ -283,6 +283,8 @@ export type { ThemeStore, ArchiveTheme, RestoredTheme } from "./themes/themeStor
 export { useThemes } from "./hooks/useThemes";
 export type { ThemesController } from "./hooks/useThemes";
 export { ThemeEditor } from "./components/ThemeEditor";
+export { LAYOUT_OPTIONS, LAYOUT_KEYS, LAYOUT_DEFAULTS, normalizeLayout, resolveLayout } from "./themes/layout";
+export type { LayoutKey, LayoutChoice } from "./themes/layout";
 export { ICON_NAMES, isIconName, OFF_STATE_ICONS } from "./themes/iconRegistry";
 export { ThemesSection } from "./components/ThemesSection";
 export { AddHubModal } from "./components/hubs/AddHubModal";

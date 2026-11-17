@@ -1,5 +1,6 @@
 import { normalizeBackground, type BackgroundFit } from "./background";
 import { isIconName } from "./iconRegistry";
+import { normalizeLayout, type LayoutChoice } from "./layout";
 import {
   buildPackage,
   checkRelativePath,
@@ -27,6 +28,8 @@ export interface ThemeManifest {
   /** Icon name (iconRegistry) to a path inside the package. */
   icons?: Record<string, string>;
   background?: ThemeBackground;
+  /** Defaults for the layout options; the user's own choices win. */
+  layout?: LayoutChoice;
 }
 
 export interface ThemeBackground {
@@ -62,6 +65,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
   if (!colors.dark && !colors.light) throw new Error("colors needs a dark or a light map");
   const icons = validateIcons(s.icons);
   const background = validateBackground(s.background);
+  const layout = normalizeLayout(s.layout);
   return {
     format: "wavvon.theme",
     version: 1,
@@ -71,6 +75,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
     colors,
     ...(icons ? { icons } : {}),
     ...(background ? { background } : {}),
+    ...(Object.keys(layout).length ? { layout } : {}),
   };
 }
 

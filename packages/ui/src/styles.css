@@ -9023,3 +9023,58 @@ details.audit-entry > .audit-entry:last-child {
 html[data-theme-bg] body {
   background-color: transparent;
 }
+
+/* Layout options (themes.md section 1), set on <html> by useThemes. Wide
+   screens only: the narrow layout is a different shell. */
+html[data-layout-density="compact"] {
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 9px;
+  --space-4: 12px;
+  --space-5: 18px;
+  --space-6: 24px;
+}
+
+html[data-layout-avatar-shape="circle"] .avatar-img,
+html[data-layout-avatar-shape="circle"] .avatar-fallback {
+  border-radius: 50%;
+}
+
+html[data-layout-channel-list="compact"] .channel-item {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: var(--text-sm);
+}
+
+html[data-layout-member-list="hidden"] .user-list-sidebar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  html[data-layout-member-list="left"] .mobile-shell-desktop > .top-bar { order: -3; }
+  html[data-layout-member-list="left"] .mobile-shell-desktop > .sidebar { order: -2; }
+  html[data-layout-member-list="left"] .user-list-sidebar {
+    order: -1;
+    border-left: 0;
+    border-right: 1px solid var(--border);
+  }
+
+  html[data-layout-tabs="side"] .main-layout { flex-wrap: nowrap; }
+  html[data-layout-tabs="side"] .main-layout > .mobile-shell-desktop > :not(.top-bar) { height: 100%; }
+  html[data-layout-tabs="side"] .mobile-shell-desktop > .top-bar {
+    flex: 0 0 72px;
+    width: 72px;
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-2);
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  html[data-layout-tabs="side"] .top-bar .hub-tabs { flex-direction: column; overflow: visible; }
+  html[data-layout-tabs="side"] .top-bar .top-bar-spacer { flex: 1; }
+  html[data-layout-tabs="side"] .top-bar .hub-tab-name,
+  html[data-layout-tabs="side"] .top-bar .top-bar-search span,
+  html[data-layout-tabs="side"] .top-bar .top-bar-search kbd { display: none; }
+}
