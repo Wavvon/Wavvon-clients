@@ -1195,6 +1195,8 @@
   "message.action.delete": "Nachricht löschen",
   "message.action.edit": "Nachricht bearbeiten",
   "message.action.link_copied": "Link kopiert",
+  "message.action.mark_unread": "Als ungelesen markieren",
+  "message.action.marked_unread": "Als ungelesen markiert",
   "message.action.pin": "Nachricht anpinnen",
   "message.action.reply": "Antworten",
   "message.action.text_copied": "Text kopiert",

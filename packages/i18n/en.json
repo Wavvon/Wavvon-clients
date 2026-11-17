@@ -1195,6 +1195,8 @@
   "message.action.delete": "Delete message",
   "message.action.edit": "Edit message",
   "message.action.link_copied": "Link copied",
+  "message.action.mark_unread": "Mark as unread",
+  "message.action.marked_unread": "Marked as unread",
   "message.action.pin": "Pin message",
   "message.action.reply": "Reply",
   "message.action.text_copied": "Text copied",

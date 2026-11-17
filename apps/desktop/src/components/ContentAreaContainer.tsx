@@ -218,6 +218,7 @@ export function ContentAreaContainer({
         onMoveMember={handleMoveMember}
         onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
         stickerActions={stickerActions}
+        markUnread={caps.includes("channels.markunread") ? channelMessages.markUnread : undefined}
       />
       {showHubStreams && (
         <HubStreamsPanel

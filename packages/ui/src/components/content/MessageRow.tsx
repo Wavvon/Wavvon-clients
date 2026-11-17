@@ -49,6 +49,9 @@ export interface MessageRowActions {
   kickUser: (pubkey: string) => Promise<void>;
   banUser: (pubkey: string) => Promise<void>;
   reportMessage?: (messageId: string, reason: string) => Promise<void>;
+  /** Move the reader's marker back to just before this message. Absent on a
+   * hub without `channels.markunread`, which would mark the channel read. */
+  markUnread?: (message: Message) => Promise<void>;
 }
 
 interface Props {
@@ -229,6 +232,15 @@ export function MessageRow({
     }
   }
 
+  async function markUnread() {
+    try {
+      await actions.markUnread?.(m);
+      onToast(t("message.action.marked_unread"));
+    } catch (e) {
+      onError(String(e));
+    }
+  }
+
   async function togglePin() {
     const isPinned = pinnedMessageIds.has(m.id);
     try {
@@ -254,6 +266,7 @@ export function MessageRow({
       onReply={() => onSetReplyTarget(m)}
       onCopyText={() => void copyMessageText()}
       onCopyLink={() => void copyMessageLink()}
+      onMarkUnread={actions.markUnread ? () => void markUnread() : undefined}
       onPinToggle={() => void togglePin()}
       onEdit={() => onStartEdit(m)}
       onDelete={() => onDeleteMessage(m.id)}

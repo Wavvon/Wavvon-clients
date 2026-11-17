@@ -27,6 +27,7 @@ export interface UseChannelMessagesParams {
   // way, so one of the two directions has to go through a callback.
   clearConversationSelection: () => void;
   clearUnread: (hubId: string, channelId: string) => void;
+  bumpUnread: (hubId: string, channelId: string) => void;
   selectedAllianceChannel: SelectedAllianceChannel | null;
   clearSelectedAllianceChannel: () => void;
   selectAllianceChannel: (alliance: AllianceInfo, channel: AllianceSharedChannel) => Promise<void>;
@@ -43,7 +44,7 @@ export interface UseChannelMessagesParams {
 // read — same ref objects every consumer already relied on before this hook
 // existed.
 export function useChannelMessages({
-  activeHubId, setView, clearConversationSelection, clearUnread,
+  activeHubId, setView, clearConversationSelection, clearUnread, bumpUnread,
   selectedAllianceChannel, clearSelectedAllianceChannel, selectAllianceChannel, sendAllianceMessage,
   onMessageSent, onError,
 }: UseChannelMessagesParams) {
@@ -237,6 +238,11 @@ export function useChannelMessages({
     setEditingDraft(msg.content);
   }
 
+  async function handleMarkUnread(m: Message) {
+    await markChannelRead(m.channel_id, m.id);
+    if (activeHubId) bumpUnread(activeHubId, m.channel_id);
+  }
+
   async function handleDeleteMessage(msgId: string) {
     if (!selectedChannel) return;
     try {
@@ -302,6 +308,7 @@ export function useChannelMessages({
     pendingScrollMessageId, setPendingScrollMessageId,
     messagesEndRef, messagesEndChannelRef, messagesContainerRef, messageInputRef,
     handleScrollToMessage,
+    handleMarkUnread,
     handleSelectChannel,
     handleSelectAllianceChannel,
     handleSendAllianceMessage,
