@@ -53,7 +53,7 @@ export const USER_CLIENT_URL: string | null = MULTI_HUB ? null : USER_CLIENT_ORI
 export const DESKTOP_DOWNLOAD_URL = "https://github.com/Wavvon/Wavvon-clients/releases/latest";
 
 // The public hub directory (discovery-v2.md). null means every surface that
-// needs it — browse public hubs, the hub-creation wizard link, the skins
+// needs it — browse public hubs, the hub-creation wizard link, the themes
 // gallery, the directory listing form in hub admin — is not rendered at all.
 // Same rule as USER_CLIENT_URL above: don't ship a dead button.
 //

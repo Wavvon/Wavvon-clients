@@ -77,12 +77,16 @@ export function useThemes(store: ThemeStore) {
   }, [refresh]);
 
   const active = themes.find((t) => t.id === appearance.themeId) ?? null;
-  useActiveThemeIcons(active?.manifest.icons, active?.files);
-  const bgPath = active?.manifest.background?.image;
-  const bgUrl = useBlobUrl(bgPath ? active?.files[bgPath] : undefined, bgPath);
+  // A gallery theme is worn before it is kept; `replaces` is the installed
+  // theme an update would overwrite.
+  const [preview, setPreview] = useState<{ pkg: StoredPackage<ThemeManifest>; replaces?: string } | null>(null);
+  const shown = preview?.pkg ?? active;
+  useActiveThemeIcons(shown?.manifest.icons, shown?.files);
+  const bgPath = shown?.manifest.background?.image;
+  const bgUrl = useBlobUrl(bgPath ? shown?.files[bgPath] : undefined, bgPath);
 
   useEffect(() => {
-    const manifest = active?.manifest ?? null;
+    const manifest = shown?.manifest ?? null;
     if (!loaded && appearance.themeId) {
       document.documentElement.dataset.theme = resolveScheme(null, appearance.mode, systemDark);
       return;
@@ -102,7 +106,7 @@ export function useThemes(store: ThemeStore) {
     } else {
       clearBackground();
     }
-  }, [active, loaded, appearance, systemDark, reduceTransparency, bgUrl]);
+  }, [shown, loaded, appearance, systemDark, reduceTransparency, bgUrl]);
 
   const persist = useCallback((next: Appearance) => {
     setAppearance(next);
@@ -142,6 +146,21 @@ export function useThemes(store: ThemeStore) {
     [store],
   );
 
+  const startPreview = useCallback(
+    (bytes: Uint8Array, sha256: string, replaces?: string) => {
+      const pkg = { id: replaces ?? newPackageId(), sha256, ...loadTheme(bytes) };
+      setPreview({ pkg, replaces });
+    },
+    [],
+  );
+  const discardPreview = useCallback(() => setPreview(null), []);
+  const keepPreview = useCallback(async () => {
+    if (!preview) return;
+    await save(preview.pkg);
+    select(preview.pkg.id);
+    setPreview(null);
+  }, [preview, save, select]);
+
   /** Throws PackageError naming the broken rule; nothing is installed then. */
   const install = useCallback(
     async (bytes: Uint8Array) => {
@@ -173,7 +192,7 @@ export function useThemes(store: ThemeStore) {
     [store, appearance, persist],
   );
 
-  return { themes, active, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, userLayout: appearance.layout, systemDark, select, setMode, setBackgroundOff, setBlurOff, setUserLayout, edit, install, create, remove };
+  return { themes, active, preview: preview?.pkg ?? null, startPreview, discardPreview, keepPreview, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, userLayout: appearance.layout, systemDark, select, setMode, setBackgroundOff, setBlurOff, setUserLayout, edit, install, create, remove };
 }
 
 export type ThemesController = ReturnType<typeof useThemes>;

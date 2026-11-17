@@ -2,6 +2,8 @@ import type { PackageFiles } from "./packageFormat";
 
 export interface StoredPackage<M> {
   id: string;
+  /** SHA-256 of the downloaded package, when it came from the gallery; how an update is told from the same publication. */
+  sha256?: string;
   manifest: M;
   files: PackageFiles;
 }

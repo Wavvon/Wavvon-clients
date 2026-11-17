@@ -287,6 +287,8 @@ export { LAYOUT_OPTIONS, LAYOUT_KEYS, LAYOUT_DEFAULTS, normalizeLayout, resolveL
 export type { LayoutKey, LayoutChoice } from "./themes/layout";
 export { ICON_NAMES, isIconName, OFF_STATE_ICONS } from "./themes/iconRegistry";
 export { ThemesSection } from "./components/ThemesSection";
+export { ThemesGallery } from "./components/ThemesGallery";
+export type { ThemeListing } from "./themes/gallery";
 export { AddHubModal } from "./components/hubs/AddHubModal";
 export { QuickInviteModal, type QuickInviteModalActions } from "./components/hubs/QuickInviteModal";
 export { WelcomeScreen } from "./components/layout/WelcomeScreen";
