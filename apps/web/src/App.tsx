@@ -1272,6 +1272,7 @@ export default function App({ initialView }: AppProps = {}) {
         whisperReplyBind={whisperReplyBind}
         onSetWhisperReplyBind={setWhisperReplyBind}
         onOpenQuickInvite={() => setShowQuickInvite(true)}
+        onOpenSetupTemplates={() => setShowHubSetupWizard(true)}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
         onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}

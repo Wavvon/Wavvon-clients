@@ -72,6 +72,7 @@ export interface ChannelSidebarContainerProps {
   whisperReplyBind: WhisperReplyBind;
   onSetWhisperReplyBind: (bind: WhisperReplyBind) => void;
   onOpenQuickInvite: () => void;
+  onOpenSetupTemplates: () => void;
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenFriends: () => void;
   onOpenVoiceSettings: () => void;
@@ -89,7 +90,7 @@ export function ChannelSidebarContainer({
   view, channels, channelTree, users, publicKey, isAdmin, canCreateInvites,
   canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, canScreenShare, canUseCamera, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
-  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenVoiceSettings,
+  onOpenQuickInvite, onOpenSetupTemplates, onChannelContextMenu, onOpenFriends, onOpenVoiceSettings,
   onDragEnd,
 }: ChannelSidebarContainerProps) {
   const { t } = useTranslation();
@@ -162,6 +163,7 @@ export function ChannelSidebarContainer({
       onOpenHubAdmin={() => void hubAdmin.openHubAdmin()}
       onOpenHubAdminInvites={() => { void hubAdmin.openHubAdmin(); hubAdmin.setHubAdminTab("invites"); }}
       onOpenQuickInvite={onOpenQuickInvite}
+      onOpenSetupTemplates={isAdmin ? onOpenSetupTemplates : undefined}
       onOpenCreateChannel={(parentId, isCategory) => {
         channelCrud.setChannelSettingsCtx(null);
         channelCrud.setCreateChannelCtx({ parentId, isCategory });

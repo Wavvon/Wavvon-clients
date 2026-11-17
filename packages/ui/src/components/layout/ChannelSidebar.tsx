@@ -143,6 +143,8 @@ interface Props {
   onClearHubUnread: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
   onOpenHubAdmin: () => void;
+  /** Owner/admin on a hub with no channels: reopen the setup templates. */
+  onOpenSetupTemplates?: () => void;
   onOpenHubAdminInvites: () => void;
   onOpenQuickInvite?: () => void;
   onOpenCreateChannel: (parentId: string | null, isCategory: boolean) => void;
@@ -219,7 +221,7 @@ export function ChannelSidebar({
   conversations, selectedConversation, unreadDms,
   channelTree, effectiveNotifyMode, onToggleCategoryCollapsed,
   onHubDropdownOpenChange, onSetHubMode, onMuteHubUntil, onClearHubUnread, onRemoveHub,
-  onOpenHubAdmin, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
+  onOpenHubAdmin, onOpenSetupTemplates, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
   onVoiceJoin, onVoiceLeave, onParticipantContextMenu, voiceChannelsOnly,
   onSelectAllianceChannel, onJoinAllianceVoice, onSelectConversation,
@@ -663,7 +665,14 @@ export function ChannelSidebar({
                 )}
               </DragOverlay>
             </DndContext>
-            {channels.length === 0 && <p className="muted">{t("channel.no_channels")}</p>}
+            {channels.length === 0 && (onOpenSetupTemplates ? (
+              <div className="muted" style={{ padding: "var(--space-2) var(--space-3)" }}>
+                <p>{t("channel.empty_owner")}</p>
+                <button type="button" className="btn-secondary" onClick={onOpenSetupTemplates}>
+                  {t("channel.empty_owner_templates")}
+                </button>
+              </div>
+            ) : <p className="muted">{t("channel.no_channels")}</p>)}
 
             {userAlliances.length > 0 && (
               <div className="sidebar-alliances">
