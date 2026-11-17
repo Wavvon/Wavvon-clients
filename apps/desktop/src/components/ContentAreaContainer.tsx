@@ -54,7 +54,7 @@ interface Props {
   channelMessages: ReturnType<typeof useChannelMessages>;
   dms: ReturnType<typeof useDms>;
   firstNotify: ReturnType<typeof useFirstNotify>;
-  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved">;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
 }
 
 // Absorbs desktop's ContentArea call site (itself an app-local wrapper

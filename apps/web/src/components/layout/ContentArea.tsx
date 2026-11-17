@@ -191,7 +191,7 @@ interface Props {
   slashCommands?: SlashCommandEntry[];
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
-  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved">;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
 }
 
 export function ContentArea(props: Props) {

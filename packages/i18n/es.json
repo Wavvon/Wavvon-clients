@@ -2577,5 +2577,20 @@
   "saved.saved_at": "guardado {when}",
   "saved.deleted": "Este mensaje fue eliminado.",
   "saved.remove": "Quitar",
-  "saved.hub_gone": "{hub} ya no está en tu lista de hubs."
+  "saved.hub_gone": "{hub} ya no está en tu lista de hubs.",
+  "remind.menu": "Recuérdamelo",
+  "remind.in_20m": "En 20 minutos",
+  "remind.in_1h": "En 1 hora",
+  "remind.in_3h": "En 3 horas",
+  "remind.tomorrow": "Mañana (09:00)",
+  "remind.custom": "Elegir una hora…",
+  "remind.custom_title": "Recuérdamelo a las",
+  "remind.set": "Crear recordatorio",
+  "remind.set_toast": "Te lo recordaré a las {time}",
+  "remind.due": "Recordatorio",
+  "remind.pending": "Recordatorio a las {time}",
+  "remind.dismiss": "Descartar",
+  "remind.cancel": "Cancelar recordatorio",
+  "remind.toast": "Recordatorio: {excerpt}",
+  "remind.notification_title": "Recordatorio de {where}"
 }

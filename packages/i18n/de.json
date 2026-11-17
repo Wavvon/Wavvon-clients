@@ -2577,5 +2577,20 @@
   "saved.saved_at": "gespeichert {when}",
   "saved.deleted": "Diese Nachricht wurde gelöscht.",
   "saved.remove": "Entfernen",
-  "saved.hub_gone": "{hub} ist nicht mehr in deiner Hub-Liste."
+  "saved.hub_gone": "{hub} ist nicht mehr in deiner Hub-Liste.",
+  "remind.menu": "Erinnere mich",
+  "remind.in_20m": "In 20 Minuten",
+  "remind.in_1h": "In 1 Stunde",
+  "remind.in_3h": "In 3 Stunden",
+  "remind.tomorrow": "Morgen (09:00)",
+  "remind.custom": "Zeit wählen…",
+  "remind.custom_title": "Erinnere mich um",
+  "remind.set": "Erinnerung setzen",
+  "remind.set_toast": "Ich erinnere dich um {time}",
+  "remind.due": "Erinnerung",
+  "remind.pending": "Erinnerung um {time}",
+  "remind.dismiss": "Verwerfen",
+  "remind.cancel": "Erinnerung löschen",
+  "remind.toast": "Erinnerung: {excerpt}",
+  "remind.notification_title": "Erinnerung aus {where}"
 }

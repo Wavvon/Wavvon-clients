@@ -45,7 +45,7 @@ import type {
   Conversation,
   Message,
 } from "@shared/types";
-import { SavedMessagesModal, type SavedMessage } from "@wavvon/ui";
+import { SavedMessagesModal, notifyReminder, type SavedMessage } from "@wavvon/ui";
 import { useSavedList } from "./hooks/useSavedList";
 import type { AppLaunchEvent, AppOpenEvent } from "./types";
 import { HubTopBar, useHubLayout } from "@wavvon/ui";
@@ -318,7 +318,13 @@ export default function App({ initialView }: AppProps = {}) {
     onDm, onDmMemberChanged,
   } = dms;
   const notifyPrefs = useNotificationPrefs();
-  const saved = useSavedList();
+  const saved = useSavedList((due) => {
+    for (const s of due) {
+      showHubError(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
+      notifyReminder(s, t("remind.notification_title", { where: s.channel_name ? `#${s.channel_name}` : s.hub_name ?? "" }), (x) => openSavedRef.current(x));
+    }
+  });
+  const openSavedRef = useRef<(s: SavedMessage) => void>(() => {});
   const [showSaved, setShowSaved] = useState(false);
   const webPush = useWebPush({
     accountId: getActiveAccountId(),
@@ -790,9 +796,14 @@ export default function App({ initialView }: AppProps = {}) {
   }
 
   function toggleSaveMessage(m: Message) {
+    const e = savedEntryFor(m);
+    if (e) saved.toggle(e);
+  }
+
+  function savedEntryFor(m: Message): SavedMessage | null {
     const hub = hubs.find((h) => h.hub_id === activeHubId);
-    if (!hub) return;
-    saved.toggle({
+    if (!hub) return null;
+    return {
       hub_id: hub.hub_id,
       hub_url: hub.hub_url,
       hub_name: hub.hub_name,
@@ -803,7 +814,7 @@ export default function App({ initialView }: AppProps = {}) {
       excerpt: m.content,
       message_at: m.created_at,
       saved_at: Date.now(),
-    });
+    };
   }
 
   function openSavedMessage(s: SavedMessage) {
@@ -814,6 +825,7 @@ export default function App({ initialView }: AppProps = {}) {
     setView("channels");
     void applyDeepLinkTarget(s.hub_id, { kind: "message", channelId: s.channel_id, messageId: s.message_id });
   }
+  openSavedRef.current = openSavedMessage;
 
   // addHub only points the session's active hub at the new one when there was
   // none, so for a second hub the React state said "new hub" while every
@@ -1090,6 +1102,7 @@ export default function App({ initialView }: AppProps = {}) {
           items={saved.list}
           onJump={openSavedMessage}
           onRemove={saved.remove}
+          onDismissReminder={saved.dismissReminder}
           onClose={() => setShowSaved(false)}
         />
       )}
@@ -1220,6 +1233,7 @@ export default function App({ initialView }: AppProps = {}) {
         onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
         onOpenSearch={() => setShowSearchBar(true)}
         onOpenSaved={() => setShowSaved(true)}
+        savedDueCount={saved.dueCount}
         onAddHub={MULTI_HUB ? () => setShowAddHub(true) : undefined}
         onDiscover={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
         userMenu={userMenu}
@@ -1371,6 +1385,7 @@ export default function App({ initialView }: AppProps = {}) {
           savedActions={{
             isSaved: (messageId) => !!activeHubId && saved.isSaved(activeHubId, messageId),
             toggleSaved: toggleSaveMessage,
+            remind: (m, at) => { const e = savedEntryFor(m); if (e) saved.remind(e, at); },
           }}
           channelMessages={channelMessages}
           dms={dms}
