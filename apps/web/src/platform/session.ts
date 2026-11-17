@@ -1,5 +1,5 @@
 import type { HubLanding } from "@wavvon/core";
-import type { HubThemeRef } from "@wavvon/ui";
+import type { HubLanguagesInfo, HubThemeRef } from "@wavvon/ui";
 import { loadSavedHubs } from "./storage";
 import type { HubRefusal } from "@wavvon/core";
 import type { HubWebSocket } from "./ws";
@@ -30,6 +30,8 @@ export interface HubSession {
   landing?: HubLanding;
   /** `theme` from `/info` (`hub.theme`): the hub's default theme, while one is set. */
   theme?: HubThemeRef;
+  /** `languages` from `/info` (`hub.languages`): the hub's packs and default. */
+  languages?: HubLanguagesInfo;
   /**
    * The pubkey this hub seated us as. Per hub, not per account: a hub that
    * knew this device before certificates keeps its key, a newer hub (and any

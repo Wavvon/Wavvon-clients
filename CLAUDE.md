@@ -60,8 +60,9 @@ entry points, which is why it is a flag and not a second app.
   alliance voice, which dials the owning hub's relay directly. Defining the
   flag as "one origin only" breaks alliance voice.
 - `scripts/check-hub-build.mjs` asserts three **code-only** markers are in
-  `dist` and absent from `dist-hub`. i18n keys are useless as markers — the
-  catalogs ship whole in both builds. Some marker classes carry no styling
+  `dist` and absent from `dist-hub`. i18n keys are useless as markers — every
+  catalogue is in both builds (English in the entry chunk, the others as
+  chunks loaded on demand). Some marker classes carry no styling
   and exist only to be grepped (`home-hubs-section`); renaming one turns the
   check green and meaningless, and deleting a screen takes its marker with it
   — that is how the check went red once after the create-hub removal.

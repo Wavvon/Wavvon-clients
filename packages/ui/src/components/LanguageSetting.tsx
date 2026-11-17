@@ -1,15 +1,14 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { currentLanguageId, languageOptions, resolveLanguage, setLanguage, type LanguageOption } from "@wavvon/i18n";
+import { LANGUAGE_CHOICE_KEY } from "../languages/hubLanguages";
 import { installLangPack, removeLangPack } from "../languages/langPack";
 import { SettingRow } from "./SettingRow";
-
-const LANGUAGE_KEY = "wavvon_language";
 
 function choose(id: string) {
   void setLanguage(id);
   try {
-    localStorage.setItem(LANGUAGE_KEY, id);
+    localStorage.setItem(LANGUAGE_CHOICE_KEY, id);
   } catch {
     // private mode: the choice lasts for this page
   }
@@ -18,8 +17,14 @@ function choose(id: string) {
 /** The language row of Settings → Appearance, shared by web and desktop:
  *  shipped languages plus installed and hub-offered packs, with coverage. */
 export function LanguageSetting(props: { open?: boolean; onToggle?: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, rerender] = useState(0);
+  // Hub packs come and go with the open hub.
+  useEffect(() => {
+    const h = () => rerender((n) => n + 1);
+    i18n.on("wavvonLanguagesChanged", h);
+    return () => i18n.off("wavvonLanguagesChanged", h);
+  }, [i18n]);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const options = languageOptions();

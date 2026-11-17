@@ -2539,5 +2539,14 @@
   "settings.language.remove": "Remove",
   "settings.language.invalid": "This is not a valid language pack.",
   "settings.language.coverage": "{label} ({percent}%)",
-  "settings.language.hub_coverage": "{label} (this hub, {percent}%)"
+  "settings.language.hub_coverage": "{label} (this hub, {percent}%)",
+  "hub.admin.tabs.languages": "Languages",
+  "hub.admin.languages.title": "Languages",
+  "hub.admin.languages.hint": "Language packs (.wavvonlang) you upload are offered to everyone on this hub. The default language is used by this hub's own web client for anyone who has not picked a language. Security and recovery texts always come from the official translation.",
+  "hub.admin.languages.loading": "Loading languages…",
+  "hub.admin.languages.default": "Default language",
+  "hub.admin.languages.default_none": "None (each browser's own)",
+  "hub.admin.languages.none": "No language packs uploaded.",
+  "hub.admin.languages.remove": "Remove",
+  "hub.admin.languages.upload": "Upload a language pack"
 }

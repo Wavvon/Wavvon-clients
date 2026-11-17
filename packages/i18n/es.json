@@ -2539,5 +2539,14 @@
   "settings.language.remove": "Quitar",
   "settings.language.invalid": "Este no es un paquete de idioma válido.",
   "settings.language.coverage": "{label} ({percent}%)",
-  "settings.language.hub_coverage": "{label} (este hub, {percent}%)"
+  "settings.language.hub_coverage": "{label} (este hub, {percent}%)",
+  "hub.admin.tabs.languages": "Idiomas",
+  "hub.admin.languages.title": "Idiomas",
+  "hub.admin.languages.hint": "Los paquetes de idioma (.wavvonlang) que subas se ofrecen a todos en este hub. El cliente web de este hub usa el idioma predeterminado para quien no haya elegido uno. Los textos de seguridad y recuperación siempre vienen de la traducción oficial.",
+  "hub.admin.languages.loading": "Cargando idiomas…",
+  "hub.admin.languages.default": "Idioma predeterminado",
+  "hub.admin.languages.default_none": "Ninguno (el del navegador)",
+  "hub.admin.languages.none": "No se han subido paquetes de idioma.",
+  "hub.admin.languages.remove": "Quitar",
+  "hub.admin.languages.upload": "Subir un paquete de idioma"
 }

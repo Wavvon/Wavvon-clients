@@ -6,7 +6,7 @@ import AccountRoot from "./AccountRoot";
 import { AdoptScreen } from "./components/handover/AdoptScreen";
 import { ChannelBanner } from "./components/ChannelBanner";
 import { MULTI_HUB } from "./constants";
-import { primeServedHubTheme } from "./utils/primeServedHubTheme";
+import { primeServedHubLanguages, primeServedHubTheme } from "./utils/primeServedHubTheme";
 import { ErrorBoundary, registerInstalledLanguages } from "@wavvon/ui";
 import "@wavvon/ui/styles.css";
 
@@ -18,8 +18,11 @@ const browserLang = navigator.language.slice(0, 2);
 // and so the hub build, which is the sender, never carries it.
 const isAdopt = MULTI_HUB && window.location.pathname === "/adopt";
 
-// Installed packs register first, so a stored pack choice resolves.
-const i18nReady = registerInstalledLanguages().then(() => initI18n(resolveLanguage(storedLang, browserLang)));
+// Packs register first (installed ones, and the hub build's own hub's), so a
+// stored pack choice resolves and the hub default can apply.
+const i18nReady = Promise.all([registerInstalledLanguages(), primeServedHubLanguages()]).then(([, hubDefault]) =>
+  initI18n(resolveLanguage(storedLang, browserLang, hubDefault)),
+);
 
 void Promise.all([i18nReady, primeServedHubTheme()]).then(([i18n]) =>
 createRoot(document.getElementById("root")!).render(

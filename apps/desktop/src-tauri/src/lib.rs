@@ -228,6 +228,7 @@ pub fn run() {
             stickers::sticker_api,
             stickers::sticker_upload,
             stickers::hub_theme_upload,
+            stickers::hub_language_upload,
             prefs_blob::sticker_collection_get,
             prefs_blob::sticker_collection_update,
             dm::add_group_members,

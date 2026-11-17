@@ -2539,5 +2539,14 @@
   "settings.language.remove": "Entfernen",
   "settings.language.invalid": "Das ist kein gültiges Sprachpaket.",
   "settings.language.coverage": "{label} ({percent} %)",
-  "settings.language.hub_coverage": "{label} (dieser Hub, {percent} %)"
+  "settings.language.hub_coverage": "{label} (dieser Hub, {percent} %)",
+  "hub.admin.tabs.languages": "Sprachen",
+  "hub.admin.languages.title": "Sprachen",
+  "hub.admin.languages.hint": "Sprachpakete (.wavvonlang), die du hochlädst, werden allen auf diesem Hub angeboten. Der Web-Client dieses Hubs nutzt die Standardsprache für alle, die keine Sprache gewählt haben. Texte zu Sicherheit und Wiederherstellung stammen immer aus der offiziellen Übersetzung.",
+  "hub.admin.languages.loading": "Sprachen werden geladen…",
+  "hub.admin.languages.default": "Standardsprache",
+  "hub.admin.languages.default_none": "Keine (die des Browsers)",
+  "hub.admin.languages.none": "Keine Sprachpakete hochgeladen.",
+  "hub.admin.languages.remove": "Entfernen",
+  "hub.admin.languages.upload": "Sprachpaket hochladen"
 }

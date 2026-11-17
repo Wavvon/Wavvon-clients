@@ -172,6 +172,7 @@ export { getUserProfile } from "./commands/profiles";
 export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, getFindableByAllies, setFindableByAllies, getWidgetHidden, setWidgetHidden, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
 export { getWidget, putWidget } from "./commands/widget";
 export { fetchCurrentHubTheme, uploadHubTheme, removeHubTheme } from "./commands/hubTheme";
+export { listHubLanguages, uploadHubLanguage, removeHubLanguage, setHubDefaultLanguage } from "./commands/hubLanguages";
 
 export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 
