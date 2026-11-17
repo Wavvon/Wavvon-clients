@@ -9011,3 +9011,15 @@ details.audit-entry > .audit-entry:last-child {
   background: var(--danger);
   transform: rotate(-45deg);
 }
+
+.theme-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-position: center;
+}
+
+html[data-theme-bg] body {
+  background-color: transparent;
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { strToU8, zipSync } from "fflate";
 import { PackageError } from "../packageFormat";
 import { contrastRatio, contrastWarnings } from "../contrast";
+import { translucent } from "../background";
 import { ICON_NAMES } from "../iconRegistry";
 import { exportTheme, loadTheme, newTheme, resolveScheme } from "../theme";
 
@@ -82,5 +83,35 @@ describe("icons", () => {
     ["path traversal", withIcons({ mic: "../m.png" })],
   ])("rejects %s", (_n, bytes) => {
     expect(() => loadTheme(bytes)).toThrow(PackageError);
+  });
+});
+
+describe("background", () => {
+  const png = new Uint8Array([1, 2, 3]);
+  const withBg = (background: object, files: Record<string, Uint8Array | string> = { "bg.png": png }) =>
+    zip({ "theme.json": manifest({ background }), ...files });
+
+  it("clamps out-of-range numbers and falls back on an unknown fit", () => {
+    const bg = loadTheme(withBg({ image: "bg.png", fit: "wild", dim: 5, panel_opacity: 0.1, blur: 99 })).manifest.background;
+    expect(bg).toEqual({ image: "bg.png", fit: "cover", dim: 0.9, panel_opacity: 0.6, blur: 20 });
+  });
+
+  it("defaults to a safe dim", () => {
+    expect(loadTheme(withBg({ image: "bg.png" })).manifest.background?.dim).toBe(0.45);
+  });
+
+  it.each([
+    ["missing file", withBg({ image: "nope.png" })],
+    ["non-image", withBg({ image: "a.ogg" }, { "a.ogg": png })],
+    ["no image field", withBg({ fit: "cover" })],
+    ["traversal", withBg({ image: "../bg.png" })],
+  ])("rejects %s", (_n, bytes) => {
+    expect(() => loadTheme(bytes)).toThrow(PackageError);
+  });
+
+  it("makes a colour translucent", () => {
+    expect(translucent("#102030", 0.8)).toBe("rgba(16, 32, 48, 0.8)");
+    expect(translucent("rgba(1, 2, 3, 0.5)", 0.7)).toBe("rgba(1, 2, 3, 0.7)");
+    expect(translucent("nonsense", 0.7)).toBeNull();
   });
 });
