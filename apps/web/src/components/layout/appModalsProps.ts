@@ -136,7 +136,8 @@ export interface AppModalsProps {
   >["menu"] | null;
   setChannelCtxMenu: (v: null) => void;
   effectiveNotifyMode: NotifyPrefs["effectiveNotifyMode"];
-  setChannelNotifyMode: NotifyPrefs["setChannelNotifyMode"];
+  setChannelMode: NotifyPrefs["setChannelMode"];
+  muteUntil: NotifyPrefs["muteUntil"];
 
   // Shared context
   activeHubId: string | null;

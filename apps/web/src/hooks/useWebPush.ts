@@ -3,6 +3,7 @@ import i18n from "@wavvon/i18n";
 import { disableAllPush, enablePush, getSession, hubSupports, pushSupported, type PushNotifyMode } from "@platform";
 import { getScoped, setScoped } from "../utils/accountScope";
 import type { Hub } from "@shared/types";
+import type { MuteDeadlines } from "@wavvon/ui";
 
 const OPT_IN_KEY = "wavvon.webPush";
 
@@ -17,6 +18,7 @@ interface Params {
   hubs: Hub[];
   hubNotifyMode: Record<string, PushNotifyMode>;
   channelNotifyMode: Record<string, Record<string, PushNotifyMode>>;
+  muteDeadlines: MuteDeadlines;
   /** A notification was clicked: go to its hub and channel or conversation. */
   onOpen: (target: PushOpenTarget) => void;
   /** The app has loaded a hub's data: a cold-start open applied before
@@ -34,7 +36,7 @@ export interface WebPush {
 /** Push for a closed tab, opted into per account and device. While on, every
  *  hub that offers `push.web` holds this browser's subscription and this
  *  account's notify modes for it, refreshed whenever they change. */
-export function useWebPush({ accountId, hubs, hubNotifyMode, channelNotifyMode, onOpen, loaded }: Params): WebPush {
+export function useWebPush({ accountId, hubs, hubNotifyMode, channelNotifyMode, muteDeadlines, onOpen, loaded }: Params): WebPush {
   const supported = pushSupported();
   const [enabled, setEnabledState] = useState(() => getScoped(OPT_IN_KEY) === "1");
   const [permission, setPermission] = useState<NotificationPermission | null>(
@@ -49,7 +51,10 @@ export function useWebPush({ accountId, hubs, hubNotifyMode, channelNotifyMode, 
   const syncKey = JSON.stringify([
     enabled && permission === "granted",
     accountId,
-    ready.map((h) => [h.hub_id, h.hub_name, hubNotifyMode[h.hub_id], channelNotifyMode[h.hub_id]]),
+    ready.map((h) => [
+      h.hub_id, h.hub_name, hubNotifyMode[h.hub_id], channelNotifyMode[h.hub_id],
+      muteDeadlines.hubs[h.hub_id], muteDeadlines.channels[h.hub_id],
+    ]),
   ]);
   useEffect(() => {
     if (!supported || !enabled || permission !== "granted" || !accountId) return;
@@ -60,7 +65,12 @@ export function useWebPush({ accountId, hubs, hubNotifyMode, channelNotifyMode, 
           reply: i18n.t("push.reply", { hub: h.hub_name }),
           dm: i18n.t("push.dm", { hub: h.hub_name }),
         };
-        enablePush(accountId, h.hub_id, { hub: hubNotifyMode[h.hub_id], channels: channelNotifyMode[h.hub_id] ?? {} }, texts)
+        enablePush(accountId, h.hub_id, {
+          hub: hubNotifyMode[h.hub_id],
+          channels: channelNotifyMode[h.hub_id] ?? {},
+          hub_until: muteDeadlines.hubs[h.hub_id],
+          channels_until: muteDeadlines.channels[h.hub_id] ?? {},
+        }, texts)
           .catch((e) => console.warn("web push: subscribe failed", e));
       }
     }, 1000);

@@ -429,6 +429,7 @@ export function ContentArea({
         return;
       }
       if (e.key === "Escape") {
+        e.preventDefault();
         setMentionQuery(null);
         return;
       }
@@ -450,6 +451,7 @@ export function ContentArea({
         return;
       }
       if (e.key === "Escape") {
+        e.preventDefault();
         setSlashSuggestions([]);
         return;
       }

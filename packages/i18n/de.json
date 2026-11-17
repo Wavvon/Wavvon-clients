@@ -2562,5 +2562,10 @@
   "hub.admin.languages.default_none": "Keine (die des Browsers)",
   "hub.admin.languages.none": "Keine Sprachpakete hochgeladen.",
   "hub.admin.languages.remove": "Entfernen",
-  "hub.admin.languages.upload": "Sprachpaket hochladen"
+  "hub.admin.languages.upload": "Sprachpaket hochladen",
+  "hub.mute.for_15m": "15 Minuten stummschalten",
+  "hub.mute.for_1h": "1 Stunde stummschalten",
+  "hub.mute.for_8h": "8 Stunden stummschalten",
+  "hub.mute.for_tomorrow": "Bis morgen stummschalten",
+  "hub.mute.until": "Stumm bis {time}"
 }

@@ -2562,5 +2562,10 @@
   "hub.admin.languages.default_none": "Ninguno (el del navegador)",
   "hub.admin.languages.none": "No se han subido paquetes de idioma.",
   "hub.admin.languages.remove": "Quitar",
-  "hub.admin.languages.upload": "Subir un paquete de idioma"
+  "hub.admin.languages.upload": "Subir un paquete de idioma",
+  "hub.mute.for_15m": "Silenciar 15 minutos",
+  "hub.mute.for_1h": "Silenciar 1 hora",
+  "hub.mute.for_8h": "Silenciar 8 horas",
+  "hub.mute.for_tomorrow": "Silenciar hasta mañana",
+  "hub.mute.until": "Silenciado hasta {time}"
 }

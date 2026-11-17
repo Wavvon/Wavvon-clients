@@ -104,7 +104,8 @@ export interface AppModalsProps {
   contextMenu: { x: number; y: number; channel: Channel } | null;
   setContextMenu: (v: null) => void;
   effectiveNotifyMode: (hubId: string, channelId: string) => NotifyMode;
-  setChannelMode: (hubId: string, channelId: string, mode: NotifyMode) => void;
+  setChannelMode: (hubId: string, channelId: string, mode: NotifyMode, until?: number) => void;
+  muteUntil: (hubId: string, channelId: string) => number | undefined;
 
   // First-run wizard
   showHubSetupWizard: boolean;
@@ -175,6 +176,7 @@ export function AppModals(p: AppModalsProps) {
     setContextMenu,
     effectiveNotifyMode,
     setChannelMode,
+    muteUntil,
     showHubSetupWizard,
     closeHubSetupWizard,
     handleHubSetupWizardComplete,
@@ -318,7 +320,9 @@ export function AppModals(p: AppModalsProps) {
           menu={contextMenu}
           activeHubId={activeHubId}
           effectiveNotifyMode={effectiveNotifyMode}
-          onSetNotifyMode={setChannelMode}
+          onSetNotifyMode={(hubId, channelId, mode) => setChannelMode(hubId, channelId, mode)}
+          muteUntil={muteUntil}
+          onMuteUntil={(hubId, channelId, until) => setChannelMode(hubId, channelId, "silent", until)}
           onClose={() => setContextMenu(null)}
           onCopyLink={async (channel) => {
             const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;

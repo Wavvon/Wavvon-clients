@@ -320,6 +320,7 @@ export default function App({ initialView }: AppProps = {}) {
     hubs,
     hubNotifyMode: notifyPrefs.hubNotifyMode,
     channelNotifyMode: notifyPrefs.channelNotifyMode,
+    muteDeadlines: notifyPrefs.muteDeadlines,
     loaded: channels.length > 0,
     onOpen: ({ hubId, channelId, conversationId }) => {
       if (conversationId) {
@@ -333,7 +334,7 @@ export default function App({ initialView }: AppProps = {}) {
   const {
     hubNotifyMode, channelNotifyMode, pinnedChannels, collapsedCategories, hideSilenced,
     hideBirthdays, toggleHideBirthdays,
-    setHubNotifyMode, setChannelNotifyMode, setCollapsedCategories, toggleHideSilenced, effectiveNotifyMode,
+    setCollapsedCategories, toggleHideSilenced, effectiveNotifyMode,
   } = notifyPrefs;
   const silencedChannelIds = useMemo(() => {
     if (!activeHubId) return new Set<string>();
@@ -1173,9 +1174,9 @@ export default function App({ initialView }: AppProps = {}) {
         onBackToChannels={goToChannelsView}
         onSwitchHub={handleSwitchHub}
         onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
-        onSetHubNotifyMode={(hubId, mode) =>
-          setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
-        }
+        hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+        onSetHubNotifyMode={(hubId, mode) => notifyPrefs.setHubMode(hubId, mode)}
+        onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
         onOpenSearch={() => setShowSearchBar(true)}
         onAddHub={MULTI_HUB ? () => setShowAddHub(true) : undefined}
         onDiscover={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
@@ -1433,7 +1434,8 @@ export default function App({ initialView }: AppProps = {}) {
         renameRoomSaving={renameRoomSaving}
         setAddHubError={setAddHubError}
         setChannelCtxMenu={setChannelCtxMenu}
-        setChannelNotifyMode={setChannelNotifyMode}
+        setChannelMode={notifyPrefs.setChannelMode}
+        muteUntil={notifyPrefs.muteUntil}
         setChannelSettingsCtx={setChannelSettingsCtx}
         setChannelSettingsError={setChannelSettingsError}
         setCreateChannelCtx={setCreateChannelCtx}

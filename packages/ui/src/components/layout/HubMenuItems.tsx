@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { HoverSubmenu } from "../HoverSubmenu";
+import { MuteForItems } from "./MuteForItems";
 import type { NotifyMode } from "../../types";
 
 /** Where these items are being rendered. Only the class names differ — the
@@ -20,6 +21,8 @@ export interface HubMenuItemsProps {
   canCreateInvites?: boolean;
   hideSilenced?: boolean;
   hubNotifyMode: Record<string, NotifyMode>;
+  /** Deadlines of timed hub mutes, by hub id. */
+  hubMuteUntil?: Record<string, number>;
   notifyModeLabels: Record<NotifyMode, string>;
   unreadByChannel: Record<string, Record<string, boolean>>;
 
@@ -28,6 +31,7 @@ export interface HubMenuItemsProps {
   onOpenQuickInvite?: () => void;
   onOpenCreateChannel: (parentId: string | null, isCategory: boolean) => void;
   onSetHubMode: (hubId: string, mode: NotifyMode) => void;
+  onMuteHubUntil?: (hubId: string, until: number) => void;
   onToggleHideSilenced?: () => void;
   onClearHubUnread: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
@@ -51,6 +55,7 @@ export function HubMenuItems({
   canCreateInvites,
   hideSilenced,
   hubNotifyMode,
+  hubMuteUntil,
   notifyModeLabels,
   unreadByChannel,
   onOpenHubAdmin,
@@ -58,6 +63,7 @@ export function HubMenuItems({
   onOpenQuickInvite,
   onOpenCreateChannel,
   onSetHubMode,
+  onMuteHubUntil,
   onToggleHideSilenced,
   onClearHubUnread,
   onRemoveHub,
@@ -115,6 +121,14 @@ export function HubMenuItems({
               </button>
             );
           })}
+        {activeHubId && onMuteHubUntil && (
+          <MuteForItems
+            itemClassName={`${item} ${subitem}`}
+            until={hubNotifyMode[activeHubId] === "silent" ? hubMuteUntil?.[activeHubId] : undefined}
+            onMuteUntil={(until) => onMuteHubUntil(activeHubId, until)}
+            onDone={onDone}
+          />
+        )}
       </HoverSubmenu>
 
       <button className={item} onClick={() => { onDone(); onToggleHideSilenced?.(); }}>

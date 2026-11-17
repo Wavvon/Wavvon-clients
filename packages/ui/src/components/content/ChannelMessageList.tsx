@@ -72,6 +72,13 @@ interface Props {
   onPollDelete?: (pollId: string) => void;
 }
 
+// Anything open over the channel that an Esc would close first.
+const OVERLAY_SELECTOR = [
+  ".modal-overlay", ".context-menu-overlay", ".reaction-picker-overlay", ".settings-modal-overlay",
+  ".screen-share-picker-overlay", ".hub-drawer-overlay", ".hub-folder-backdrop", ".game-modal-overlay",
+  ".camera-preview-overlay", ".hub-dropdown", '[role="dialog"]', '[role="menu"]', '[role="listbox"]',
+].join(", ");
+
 const tipComponents = {
   strong: createElement("strong"),
   kbd: createElement("kbd"),
@@ -167,13 +174,20 @@ export function ChannelMessageList({
     return () => io.disconnect();
   }, [firstUnreadId, hasDivider, messagesContainerRef]);
 
+  // Esc marks read only when nothing else took it. An overlay's own Esc
+  // handler closes it and rarely says so, so two checks: whether an overlay
+  // was open when the key went down (capture phase, before any handler has
+  // removed it), and whether a handler prevented the default by the time
+  // every listener has run.
   useEffect(() => {
     if (!hasDivider || !onMarkRead) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !e.defaultPrevented) onMarkRead?.();
+      if (e.key !== "Escape" || document.querySelector(OVERLAY_SELECTOR)) return;
+      timer = setTimeout(() => { if (!e.defaultPrevented) onMarkRead?.(); });
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => { window.removeEventListener("keydown", onKey, true); clearTimeout(timer); };
   }, [hasDivider, onMarkRead]);
 
   return (

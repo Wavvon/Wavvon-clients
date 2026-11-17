@@ -165,7 +165,9 @@ export function ChannelSidebarContainer({
       effectiveNotifyMode={effectiveNotifyMode}
       onToggleCategoryCollapsed={onToggleCategoryCollapsed}
       onHubDropdownOpenChange={setHubDropdownOpen}
-      onSetHubMode={notifyPrefs.setHubMode}
+      onSetHubMode={(hubId, mode) => notifyPrefs.setHubMode(hubId, mode)}
+      hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+      onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
       onClearHubUnread={(hubId) => { unreadCounts.clearHubUnread(hubId); clearHubFirstNotify(hubId); }}
       onRemoveHub={onRequestRemoveHub}
       onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}

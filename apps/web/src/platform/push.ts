@@ -17,6 +17,10 @@ export type PushNotifyMode = "all" | "mentions" | "silent";
 export interface PushPrefs {
   hub?: PushNotifyMode;
   channels: Record<string, PushNotifyMode>;
+  /** Epoch-ms deadlines of timed mutes, so the hub stops honouring one
+   *  that ended while no tab was open to re-send the modes. */
+  hub_until?: number;
+  channels_until?: Record<string, number>;
 }
 
 /** What the worker shows, already translated: it has no i18n of its own. */

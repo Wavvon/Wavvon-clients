@@ -97,7 +97,8 @@ export function AppModals(p: AppModalsProps) {
     renameRoomSaving,
     setAddHubError,
     setChannelCtxMenu,
-    setChannelNotifyMode,
+    setChannelMode,
+    muteUntil,
     setChannelSettingsCtx,
     setChannelSettingsError,
     setCreateChannelCtx,
@@ -249,13 +250,9 @@ export function AppModals(p: AppModalsProps) {
           menu={channelCtxMenu}
           activeHubId={activeHubId}
           effectiveNotifyMode={effectiveNotifyMode}
-          onSetNotifyMode={(hubId, channelId, mode) => {
-            setChannelNotifyMode((prev) => {
-              const hubMap = { ...(prev[hubId] ?? {}) };
-              if (mode === "all") delete hubMap[channelId]; else hubMap[channelId] = mode;
-              return { ...prev, [hubId]: hubMap };
-            });
-          }}
+          onSetNotifyMode={(hubId, channelId, mode) => setChannelMode(hubId, channelId, mode)}
+          muteUntil={muteUntil}
+          onMuteUntil={(hubId, channelId, until) => setChannelMode(hubId, channelId, "silent", until)}
           onClose={() => setChannelCtxMenu(null)}
           onOpenInDesktop={(channel) => {
             const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;
