@@ -9,7 +9,7 @@ import type { Hub, NotifyMode } from "../../types";
 import type { HubNotice } from "../../hooks/useUnreadCounts";
 import { Avatar } from "../Avatar";
 import { SortableHubIcon } from "../SortableItems";
-import { MessagesIcon, SearchIcon, ClockIcon, BellOffIcon } from "../Icons";
+import { MessagesIcon, SearchIcon, ClockIcon, BellOffIcon, BookmarkIcon } from "../Icons";
 import { UserMenu, type UserMenuProps } from "./UserMenu";
 import { HubDrawer } from "./HubDrawer";
 import { HubContextMenu } from "./HubContextMenu";
@@ -41,6 +41,8 @@ export interface HubTopBarProps {
   onSetHubNotifyMode?: (hubId: string, mode: NotifyMode) => void;
   onMuteHubUntil?: (hubId: string, until: number) => void;
   onOpenSearch: () => void;
+  /** Opens the personal Saved list. */
+  onOpenSaved?: () => void;
   onAddHub?: () => void;
   onDiscover?: () => void;
   userMenu: UserMenuProps;
@@ -238,6 +240,11 @@ export function HubTopBar(p: HubTopBarProps) {
       )}
 
       <div className="top-bar-spacer" />
+      {p.onOpenSaved && (
+        <button type="button" className="top-bar-btn" onClick={p.onOpenSaved} title={t("saved.title")} aria-label={t("saved.title")}>
+          <BookmarkIcon size={18} />
+        </button>
+      )}
       <button type="button" className="top-bar-search" onClick={p.onOpenSearch} aria-keyshortcuts="Control+K">
         <SearchIcon size={14} />
         <span>{t("hubs.search")}</span>

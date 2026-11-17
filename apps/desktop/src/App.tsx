@@ -20,7 +20,10 @@ import type {
   MeInfo,
   Conversation,
   LobbyStatus,
+  Message,
 } from "./types";
+import { SavedMessagesModal, type SavedMessage } from "@wavvon/ui";
+import { useSavedList } from "./hooks/useSavedList";
 import { PendingApplication } from "./components/PendingApplication";
 import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
 import { useConfirm, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions } from "@wavvon/ui";
@@ -107,6 +110,8 @@ function App({ accountId }: { accountId: string | null }) {
   } = unreadCounts;
 
   const notifyPrefs = useNotificationPrefs();
+  const saved = useSavedList(accountId);
+  const [showSaved, setShowSaved] = useState(false);
   const {
     hubNotifyMode,
     channelNotifyMode,
@@ -665,7 +670,7 @@ function App({ accountId }: { accountId: string | null }) {
     handleAddHub,
   } = addHubFlow;
 
-  const { routeDeepLinkRef } = useDeepLink({
+  const { routeDeepLinkRef, openTarget } = useDeepLink({
     hubsRef,
     activeHubId,
     channels,
@@ -676,6 +681,31 @@ function App({ accountId }: { accountId: string | null }) {
     setInviteCode,
     setShowAddHub,
   });
+
+  function toggleSaveMessage(m: Message) {
+    const hub = hubs.find((h) => h.hub_id === activeHubId);
+    if (!hub) return;
+    saved.toggle({
+      hub_id: hub.hub_id,
+      hub_url: hub.hub_url,
+      hub_name: hub.hub_name,
+      channel_id: m.channel_id,
+      channel_name: channels.find((c) => c.id === m.channel_id)?.name,
+      message_id: m.id,
+      author: m.sender_name ?? undefined,
+      excerpt: m.content,
+      message_at: m.created_at,
+      saved_at: Date.now(),
+    });
+  }
+
+  function openSavedMessage(s: SavedMessage) {
+    if (!hubs.some((h) => h.hub_id === s.hub_id)) {
+      setError(t("saved.hub_gone", { hub: s.hub_name ?? s.hub_url }));
+      return;
+    }
+    openTarget({ hubId: s.hub_id, channelId: s.channel_id, messageId: s.message_id });
+  }
 
   const {
     showFriends,
@@ -1306,6 +1336,7 @@ function App({ accountId }: { accountId: string | null }) {
               hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
               onMuteHubUntil={(hubId, until) => setHubMode(hubId, "silent", until)}
               onOpenSearch={() => setShowSearchBar(true)}
+              onOpenSaved={() => setShowSaved(true)}
               onAddHub={() => setShowAddHub(true)}
               onDiscover={DISCOVERY_URL ? () => setShowDiscover((v) => !v) : undefined}
               userMenu={userMenu}
@@ -1450,6 +1481,14 @@ function App({ accountId }: { accountId: string | null }) {
                   unreadCounts={unreadCounts}
                   dms={dms}
                 />
+                {showSaved && (
+                  <SavedMessagesModal
+                    items={saved.list}
+                    onJump={openSavedMessage}
+                    onRemove={saved.remove}
+                    onClose={() => setShowSaved(false)}
+                  />
+                )}
                 {showSearchBar && (
                   <SearchBar
                     onSearch={(q) => invoke<GlobalSearchResult[]>("search_messages_global", { q })}
@@ -1550,6 +1589,10 @@ function App({ accountId }: { accountId: string | null }) {
                   channelMessages={channelMessages}
                   dms={dms}
                   firstNotify={firstNotify}
+                  savedActions={{
+                    isSaved: (messageId) => !!activeHubId && saved.isSaved(activeHubId, messageId),
+                    toggleSaved: toggleSaveMessage,
+                  }}
                 />
               </>
             )}

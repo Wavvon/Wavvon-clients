@@ -191,6 +191,7 @@ interface Props {
   slashCommands?: SlashCommandEntry[];
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved">;
 }
 
 export function ContentArea(props: Props) {
@@ -389,9 +390,11 @@ export function ContentArea(props: Props) {
         alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}
         profileCardActions={profileCardActions}
         forumActions={forumActions}
-        messageRowActions={activeHubSupports("channels.markunread")
-          ? { ...messageRowActions, markUnread: channelMessages.handleMarkUnread }
-          : messageRowActions}
+        messageRowActions={{
+          ...messageRowActions,
+          ...props.savedActions,
+          markUnread: activeHubSupports("channels.markunread") ? channelMessages.handleMarkUnread : undefined,
+        }}
         stickerActions={stickerActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}

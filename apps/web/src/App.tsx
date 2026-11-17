@@ -43,7 +43,10 @@ import type {
   Hub,
   MeInfo,
   Conversation,
+  Message,
 } from "@shared/types";
+import { SavedMessagesModal, type SavedMessage } from "@wavvon/ui";
+import { useSavedList } from "./hooks/useSavedList";
 import type { AppLaunchEvent, AppOpenEvent } from "./types";
 import { HubTopBar, useHubLayout } from "@wavvon/ui";
 import { useUserMenu } from "./hooks/useUserMenu";
@@ -315,6 +318,8 @@ export default function App({ initialView }: AppProps = {}) {
     onDm, onDmMemberChanged,
   } = dms;
   const notifyPrefs = useNotificationPrefs();
+  const saved = useSavedList();
+  const [showSaved, setShowSaved] = useState(false);
   const webPush = useWebPush({
     accountId: getActiveAccountId(),
     hubs,
@@ -556,6 +561,7 @@ export default function App({ initialView }: AppProps = {}) {
     onDm, onDmMemberChanged, receiveTyping,
     onScreenShare, onScreenShareChunk, resubscribeStreams, receiveSoundboardPlayed,
     handleStatusChange, setAssertiveAnnouncement, showHubError,
+    onAnyMessageDeleted: saved.markDeleted,
     loadHubDataRef,
     voiceOnVoiceState: voice.onVoiceState,
     voiceOnVoiceZoneState: voice.onVoiceZoneState,
@@ -781,6 +787,32 @@ export default function App({ initialView }: AppProps = {}) {
     }
     await handleSelectChannel(ch);
     if (target.kind === "message") setPendingScrollMessageId(target.messageId);
+  }
+
+  function toggleSaveMessage(m: Message) {
+    const hub = hubs.find((h) => h.hub_id === activeHubId);
+    if (!hub) return;
+    saved.toggle({
+      hub_id: hub.hub_id,
+      hub_url: hub.hub_url,
+      hub_name: hub.hub_name,
+      channel_id: m.channel_id,
+      channel_name: channels.find((c) => c.id === m.channel_id)?.name,
+      message_id: m.id,
+      author: m.sender_name ?? undefined,
+      excerpt: m.content,
+      message_at: m.created_at,
+      saved_at: Date.now(),
+    });
+  }
+
+  function openSavedMessage(s: SavedMessage) {
+    if (!hubs.some((h) => h.hub_id === s.hub_id)) {
+      showHubError(t("saved.hub_gone", { hub: s.hub_name ?? s.hub_url }));
+      return;
+    }
+    setView("channels");
+    void applyDeepLinkTarget(s.hub_id, { kind: "message", channelId: s.channel_id, messageId: s.message_id });
   }
 
   // addHub only points the session's active hub at the new one when there was
@@ -1053,6 +1085,15 @@ export default function App({ initialView }: AppProps = {}) {
         </div>
       )}
 
+      {showSaved && (
+        <SavedMessagesModal
+          items={saved.list}
+          onJump={openSavedMessage}
+          onRemove={saved.remove}
+          onClose={() => setShowSaved(false)}
+        />
+      )}
+
       {showSearchBar && (
         <SearchBar
           onSearch={(q) => hubFetch(`/search?q=${encodeURIComponent(q)}`).then((r) => r.json())}
@@ -1178,6 +1219,7 @@ export default function App({ initialView }: AppProps = {}) {
         onSetHubNotifyMode={(hubId, mode) => notifyPrefs.setHubMode(hubId, mode)}
         onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
         onOpenSearch={() => setShowSearchBar(true)}
+        onOpenSaved={() => setShowSaved(true)}
         onAddHub={MULTI_HUB ? () => setShowAddHub(true) : undefined}
         onDiscover={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
         userMenu={userMenu}
@@ -1326,6 +1368,10 @@ export default function App({ initialView }: AppProps = {}) {
           );
         })()}
         <ContentArea
+          savedActions={{
+            isSaved: (messageId) => !!activeHubId && saved.isSaved(activeHubId, messageId),
+            toggleSaved: toggleSaveMessage,
+          }}
           channelMessages={channelMessages}
           dms={dms}
           alliances={alliances}

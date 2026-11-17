@@ -1201,6 +1201,10 @@
   "message.action.reply": "Rispondi",
   "message.action.text_copied": "Testo copiato",
   "message.action.unpin": "Togli il messaggio dai fissati",
+  "message.action.save": "Salva messaggio",
+  "message.action.unsave": "Rimuovi dai salvati",
+  "message.action.saved": "Salvato",
+  "message.action.unsaved": "Rimosso dai salvati",
   "message.actions.aria": "Azioni messaggio",
   "message.birthday": "Compleanno oggi",
   "message.component.select": "Scegli…",
@@ -2567,5 +2571,11 @@
   "hub.mute.for_1h": "Silenzia per 1 ora",
   "hub.mute.for_8h": "Silenzia per 8 ore",
   "hub.mute.for_tomorrow": "Silenzia fino a domani",
-  "hub.mute.until": "Silenziato fino alle {time}"
+  "hub.mute.until": "Silenziato fino alle {time}",
+  "saved.title": "Messaggi salvati",
+  "saved.empty": "Ancora niente di salvato. Fai clic destro su un messaggio e scegli Salva messaggio per tenerlo qui, da tutti i tuoi hub.",
+  "saved.saved_at": "salvato {when}",
+  "saved.deleted": "Questo messaggio è stato eliminato.",
+  "saved.remove": "Rimuovi",
+  "saved.hub_gone": "{hub} non è più nella tua lista di hub."
 }

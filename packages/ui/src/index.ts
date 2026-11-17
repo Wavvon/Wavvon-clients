@@ -204,6 +204,11 @@ export type { VoiceStageInfo, VoiceFloor } from "./components/content/VoiceStage
 export type { VoiceLive } from "./components/content/LiveTray";
 export { PinnedMessagesModal } from "./components/content/PinnedMessagesModal";
 export type { PinnedMessageEntry } from "./components/content/PinnedMessagesModal";
+export { SavedMessagesModal } from "./components/content/SavedMessagesModal";
+export { useSavedMessages } from "./hooks/useSavedMessages";
+export type { SavedMessages } from "./hooks/useSavedMessages";
+export { parseSaved, savedKey, toggleSaved, markSavedDeleted } from "./utils/savedMessages";
+export type { SavedMessage } from "./utils/savedMessages";
 export { ErrorBoundary } from "./components/ErrorBoundary";
 export { SortableHubIcon, SortableChannelItem, SortableCategoryItem } from "./components/SortableItems";
 export {
@@ -247,6 +252,7 @@ export {
   MessagesIcon,
   DiscoverIcon,
   MentionIcon,
+  BookmarkIcon,
 } from "./components/Icons";
 export { HubStreamsPanel, liveScreenShares, camerasOn } from "./components/HubStreamsPanel";
 export { ShareDialog, shareVideoConstraints, declaredQuality, estimateKbps } from "./components/voice/ShareDialog";

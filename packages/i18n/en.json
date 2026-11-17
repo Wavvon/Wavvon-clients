@@ -1201,6 +1201,10 @@
   "message.action.reply": "Reply",
   "message.action.text_copied": "Text copied",
   "message.action.unpin": "Unpin message",
+  "message.action.save": "Save message",
+  "message.action.unsave": "Remove from saved",
+  "message.action.saved": "Saved",
+  "message.action.unsaved": "Removed from saved",
   "message.actions.aria": "Message actions",
   "message.birthday": "Birthday today",
   "message.component.select": "Select…",
@@ -2567,5 +2571,11 @@
   "hub.mute.for_1h": "Mute for 1 hour",
   "hub.mute.for_8h": "Mute for 8 hours",
   "hub.mute.for_tomorrow": "Mute until tomorrow",
-  "hub.mute.until": "Muted until {time}"
+  "hub.mute.until": "Muted until {time}",
+  "saved.title": "Saved messages",
+  "saved.empty": "Nothing saved yet. Right-click a message and choose Save message to keep it here, across all your hubs.",
+  "saved.saved_at": "saved {when}",
+  "saved.deleted": "This message was deleted.",
+  "saved.remove": "Remove",
+  "saved.hub_gone": "{hub} is no longer in your hub list."
 }

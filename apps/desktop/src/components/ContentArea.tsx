@@ -225,6 +225,7 @@ interface Props {
   stickerActions?: StickerActions;
   /** Absent on a hub without `channels.markunread`. */
   markUnread?: (message: Message) => Promise<void>;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved">;
 }
 
 export function ContentArea(props: Props) {
@@ -266,6 +267,7 @@ export function ContentArea(props: Props) {
     deletePoll: (pollId) => invoke("delete_poll", { hubUrl: activeHub?.hub_url ?? "", pollId }),
     reportMessage: (messageId, reason) => invoke("report_message", { messageId, reason }),
     markUnread: props.markUnread,
+    ...props.savedActions,
   };
 
   const profileCardActions: UserProfileCardActions = {

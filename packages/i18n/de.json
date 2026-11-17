@@ -1201,6 +1201,10 @@
   "message.action.reply": "Antworten",
   "message.action.text_copied": "Text kopiert",
   "message.action.unpin": "Nachricht lospinnen",
+  "message.action.save": "Nachricht speichern",
+  "message.action.unsave": "Aus Gespeicherten entfernen",
+  "message.action.saved": "Gespeichert",
+  "message.action.unsaved": "Aus Gespeicherten entfernt",
   "message.actions.aria": "Nachrichtenaktionen",
   "message.birthday": "Heute Geburtstag",
   "message.component.select": "Auswählen…",
@@ -2567,5 +2571,11 @@
   "hub.mute.for_1h": "1 Stunde stummschalten",
   "hub.mute.for_8h": "8 Stunden stummschalten",
   "hub.mute.for_tomorrow": "Bis morgen stummschalten",
-  "hub.mute.until": "Stumm bis {time}"
+  "hub.mute.until": "Stumm bis {time}",
+  "saved.title": "Gespeicherte Nachrichten",
+  "saved.empty": "Noch nichts gespeichert. Klicke mit der rechten Maustaste auf eine Nachricht und wähle Nachricht speichern, um sie hier zu behalten, aus all deinen Hubs.",
+  "saved.saved_at": "gespeichert {when}",
+  "saved.deleted": "Diese Nachricht wurde gelöscht.",
+  "saved.remove": "Entfernen",
+  "saved.hub_gone": "{hub} ist nicht mehr in deiner Hub-Liste."
 }

@@ -52,6 +52,9 @@ export interface MessageRowActions {
   /** Move the reader's marker back to just before this message. Absent on a
    * hub without `channels.markunread`, which would mark the channel read. */
   markUnread?: (message: Message) => Promise<void>;
+  /** The personal Saved list (personal axis, synced through the home hub). */
+  isSaved?: (messageId: string) => boolean;
+  toggleSaved?: (message: Message) => void;
 }
 
 interface Props {
@@ -267,6 +270,12 @@ export function MessageRow({
       onCopyText={() => void copyMessageText()}
       onCopyLink={() => void copyMessageLink()}
       onMarkUnread={actions.markUnread ? () => void markUnread() : undefined}
+      isSaved={actions.isSaved?.(m.id) ?? false}
+      onToggleSave={actions.toggleSaved ? () => {
+        const was = actions.isSaved?.(m.id) ?? false;
+        actions.toggleSaved!(m);
+        onToast(t(was ? "message.action.unsaved" : "message.action.saved"));
+      } : undefined}
       onPinToggle={() => void togglePin()}
       onEdit={() => onStartEdit(m)}
       onDelete={() => onDeleteMessage(m.id)}
