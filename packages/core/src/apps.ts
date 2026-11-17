@@ -29,25 +29,6 @@ export function appSessionKey(appId: string, channelId: string): string {
   return `${appId}:${channelId}`;
 }
 
-export function withAppSession<T>(
-  prev: Map<string, T>,
-  ev: { app_id: string; channel_id: string },
-  value: T,
-): Map<string, T> {
-  const next = new Map(prev);
-  next.set(appSessionKey(ev.app_id, ev.channel_id), value);
-  return next;
-}
-
-export function withoutAppSession<T>(
-  prev: Map<string, T>,
-  ev: { app_id: string; channel_id: string },
-): Map<string, T> {
-  const next = new Map(prev);
-  next.delete(appSessionKey(ev.app_id, ev.channel_id));
-  return next;
-}
-
 // A hub answers the user's own `app_join` with `app_open`. An `app_open`
 // nobody asked for would open a page the hub chose, full-window, so it is
 // honoured only for an app this client joined in the last minute.

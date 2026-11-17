@@ -5,7 +5,7 @@ import {
   refreshHubInfo, listHubs, fetchVoiceRoster, fetchAllUsers,
 } from "@platform";
 import type { WsHandlers } from "@platform";
-import { mentionsName, playMentionPing, takeAppJoin, withAppSession, withoutAppSession } from "@wavvon/core";
+import { mentionsName, playMentionPing, takeAppJoin, appSessionKey } from "@wavvon/core";
 import type { Channel, Message, User, Hub, MeInfo, VoiceParticipant, NotifyMode } from "@shared/types";
 import type { AppCloseEvent, AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
@@ -341,7 +341,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       const type = m.type as string;
       if (type === "app_launch") {
         const ev = m as unknown as AppLaunchEvent;
-        setActiveApps((prev) => withAppSession(prev, ev, ev));
+        setActiveApps((prev) => new Map(prev).set(appSessionKey(ev.app_id, ev.channel_id), ev));
       } else if (type === "app_open") {
         const ev = m as unknown as AppOpenEvent;
         if (!takeAppJoin(ev.app_id, ev.channel_id)) return;
@@ -349,7 +349,11 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         setActiveOpenApp({ event: ev, hubUrl });
       } else if (type === "app_close") {
         const ev = m as unknown as AppCloseEvent;
-        setActiveApps((prev) => withoutAppSession(prev, ev));
+        setActiveApps((prev) => {
+          const next = new Map(prev);
+          next.delete(appSessionKey(ev.app_id, ev.channel_id));
+          return next;
+        });
         setActiveOpenApp((prev) =>
           prev?.event.app_id === ev.app_id && prev.event.channel_id === ev.channel_id ? null : prev);
       }

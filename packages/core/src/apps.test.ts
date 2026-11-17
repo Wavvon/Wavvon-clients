@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseGameLaunchCard, noteAppJoin, takeAppJoin, withAppSession, withoutAppSession } from "./apps";
+import { parseGameLaunchCard, noteAppJoin, takeAppJoin, appSessionKey } from "./apps";
 
 describe("parseGameLaunchCard", () => {
   it("parses a full card", () => {
@@ -65,13 +65,8 @@ describe("takeAppJoin", () => {
 });
 
 describe("app sessions per channel", () => {
-  it("keeps one card per app and channel, and closes only the matching one", () => {
-    let m = new Map<string, string>();
-    m = withAppSession(m, { app_id: "ttt", channel_id: "A" }, "a");
-    m = withAppSession(m, { app_id: "ttt", channel_id: "B" }, "b");
-    expect([...m.values()]).toEqual(["a", "b"]);
-    m = withoutAppSession(m, { app_id: "ttt", channel_id: "B" });
-    expect([...m.values()]).toEqual(["a"]);
+  it("keys by app and channel", () => {
+    expect(appSessionKey("ttt", "A")).not.toBe(appSessionKey("ttt", "B"));
   });
 
   it("a join in one channel does not authorise an open in another", () => {

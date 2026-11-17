@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { appSessionKey, noteAppJoin, takeAppJoin, withAppSession, withoutAppSession } from "@wavvon/core";
+import { appSessionKey, noteAppJoin, takeAppJoin } from "@wavvon/core";
 import type { AppLaunchEvent, AppOpenEvent, AppCloseEvent } from "../types";
 
 /** Bot mini-app launch cards for the selected channel, and the join/open/close
@@ -17,7 +17,7 @@ export function useActiveApps(activeHubId: string | null) {
   }
 
   const onBotAppLaunch = (ev: AppLaunchEvent) => {
-    setActiveApps((prev) => withAppSession(prev, ev, ev));
+    setActiveApps((prev) => new Map(prev).set(appSessionKey(ev.app_id, ev.channel_id), ev));
   };
 
   const onBotAppOpen = (ev: AppOpenEvent, hubUrl: string) => {
@@ -35,7 +35,11 @@ export function useActiveApps(activeHubId: string | null) {
   };
 
   const onBotAppClose = (ev: AppCloseEvent) => {
-    setActiveApps((prev) => withoutAppSession(prev, ev));
+    setActiveApps((prev) => {
+      const next = new Map(prev);
+      next.delete(appSessionKey(ev.app_id, ev.channel_id));
+      return next;
+    });
     invoke("close_mini_app", { label: `mini-app-${appSessionKey(ev.app_id, ev.channel_id)}` }).catch(() => {});
   };
 
