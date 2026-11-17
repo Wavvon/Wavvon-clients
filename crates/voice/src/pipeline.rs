@@ -279,6 +279,12 @@ fn resolve_opus_rate(device_rate: u32) -> u32 {
     }
 }
 
+/// Packet `ts` counts 48 kHz units whatever rate the device captured at
+/// (wire spec; the web client reads it that way).
+fn packet_ts_step(frame_size: usize, opus_rate: u32) -> u32 {
+    (frame_size as u64 * 48_000 / opus_rate as u64) as u32
+}
+
 pub struct AudioPipeline {
     _capture: AudioCapture,
     _playback: AudioPlayback,
@@ -488,6 +494,7 @@ impl AudioPipeline {
             let mut read_buf = vec![0.0f32; frame_size];
             let mut interval = tokio::time::interval(Duration::from_millis(10));
             let mut timestamp: u32 = 0;
+            let ts_step = packet_ts_step(frame_size, opus_rate);
 
             let mut is_speaking = false;
             let mut last_active_at: Option<std::time::Instant> = None;
@@ -600,7 +607,7 @@ impl AudioPipeline {
                         }
                         // Else: no sender key yet (still joining) -- drop.
                     }
-                    timestamp = timestamp.wrapping_add(frame_size as u32);
+                    timestamp = timestamp.wrapping_add(ts_step);
                 }
             }
         });
@@ -800,6 +807,18 @@ fn rms_of(samples: &[f32]) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn packet_ts_counts_48khz_units_at_any_opus_rate() {
+        for rate in [8000u32, 16000, 24000, 48000] {
+            let frame = codec::frame_size_for_rate_and_ms(rate, 20);
+            assert_eq!(packet_ts_step(frame, rate), 960, "{rate} Hz");
+        }
+        assert_eq!(
+            packet_ts_step(codec::frame_size_for_rate_and_ms(16000, 60), 16000),
+            2880
+        );
+    }
 
     #[test]
     fn replay_guard_accepts_first_packet_at_ctr_zero() {
