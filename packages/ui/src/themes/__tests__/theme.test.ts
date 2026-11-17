@@ -133,3 +133,20 @@ describe("layout", () => {
     });
   });
 });
+
+describe("preview", () => {
+  const withPreview = (preview: string, files: Record<string, Uint8Array | string> = { "preview.webp": new Uint8Array([1]) }) =>
+    zip({ "theme.json": manifest({ preview }), ...files });
+
+  it("keeps a preview image that is in the package", () => {
+    expect(loadTheme(withPreview("preview.webp")).manifest.preview).toBe("preview.webp");
+  });
+
+  it.each([
+    ["missing file", withPreview("gone.webp")],
+    ["non-image", withPreview("a.ogg", { "a.ogg": new Uint8Array([1]) })],
+    ["traversal", withPreview("../p.webp")],
+  ])("rejects %s", (_n, bytes) => {
+    expect(() => loadTheme(bytes)).toThrow(PackageError);
+  });
+});

@@ -26,7 +26,7 @@ const FAMILIES: { name: string; prefix: string; ids: string[] }[] = [
   { name: "role permissions", prefix: "hub.admin.roles.perm", ids: ALL_PERMISSIONS },
   { name: "channel icons", prefix: "channel.icon", ids: CHANNEL_ICONS.map((d) => d.id) },
   { name: "keyboard shortcuts", prefix: "shortcuts.action", ids: SHORTCUT_IDS },
-  { name: "theme tab", prefix: "settings.theme.tab", ids: ["colors", "icons", "background", "layout"] },
+  { name: "theme tab", prefix: "settings.theme.tab", ids: ["colors", "icons", "background", "layout", "preview"] },
   { name: "theme background fit", prefix: "settings.theme.background.fit", ids: ["cover", "contain", "tile", "center"] },
   { name: "theme layout key", prefix: "settings.theme.layout", ids: Object.keys(LAYOUT_OPTIONS) },
   { name: "theme layout value", prefix: "settings.theme.layout", ids: LAYOUT_OPTIONS_IDS },
