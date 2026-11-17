@@ -1,4 +1,14 @@
-import { buildPackage, loadPackage, THEME_EXTENSIONS, type LoadedPackage, type PackageFiles } from "./packageFormat";
+import { isIconName } from "./iconRegistry";
+import {
+  buildPackage,
+  checkRelativePath,
+  isImagePath,
+  loadPackage,
+  PackageError,
+  THEME_EXTENSIONS,
+  type LoadedPackage,
+  type PackageFiles,
+} from "./packageFormat";
 import { ALL_TOKEN_NAMES, tokenType, validateTokenMap } from "./themeTokens";
 
 export type Scheme = "dark" | "light";
@@ -13,7 +23,11 @@ export interface ThemeManifest {
   author_pubkey?: string;
   description?: string;
   colors: { dark?: Record<string, string>; light?: Record<string, string> };
+  /** Icon name (iconRegistry) to a path inside the package. */
+  icons?: Record<string, string>;
 }
+
+export const MAX_ICON_BYTES = 64 * 1024;
 
 export type ThemePackage = LoadedPackage<ThemeManifest>;
 
@@ -32,6 +46,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
   if (raw2.dark !== undefined) colors.dark = validateTokenMap(raw2.dark, "dark");
   if (raw2.light !== undefined) colors.light = validateTokenMap(raw2.light, "light");
   if (!colors.dark && !colors.light) throw new Error("colors needs a dark or a light map");
+  const icons = validateIcons(s.icons);
   return {
     format: "wavvon.theme",
     version: 1,
@@ -39,7 +54,30 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
     ...(typeof s.author_pubkey === "string" ? { author_pubkey: s.author_pubkey } : {}),
     ...(typeof s.description === "string" ? { description: s.description.slice(0, 500) } : {}),
     colors,
+    ...(icons ? { icons } : {}),
   };
+}
+
+function validateIcons(raw: unknown): Record<string, string> | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new Error("icons must be an object");
+  const out: Record<string, string> = {};
+  for (const [name, path] of Object.entries(raw)) {
+    if (!isIconName(name)) continue;
+    if (typeof path !== "string") throw new Error(`icons.${name}: expected a path`);
+    checkRelativePath(path);
+    out[name] = path;
+  }
+  return out;
+}
+
+function validateThemeFiles(manifest: ThemeManifest, files: PackageFiles): void {
+  for (const [name, path] of Object.entries(manifest.icons ?? {})) {
+    const file = files[path];
+    if (!file) throw new PackageError(`icons.${name}: ${path} is not in the package`);
+    if (!isImagePath(path)) throw new PackageError(`icons.${name}: ${path} is not an image`);
+    if (file.byteLength > MAX_ICON_BYTES) throw new PackageError(`icons.${name}: ${path} is larger than 64 KB`);
+  }
 }
 
 export function loadTheme(bytes: Uint8Array): ThemePackage {
@@ -47,6 +85,7 @@ export function loadTheme(bytes: Uint8Array): ThemePackage {
     manifestFile: THEME_MANIFEST_FILE,
     allowedExtensions: THEME_EXTENSIONS,
     validateManifest: validateThemeManifest,
+    validateFiles: validateThemeFiles,
   });
 }
 

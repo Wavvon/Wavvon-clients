@@ -8,6 +8,7 @@ import {
   type ThemeManifest,
 } from "../themes/theme";
 import { newPackageId, type StoredPackage } from "../themes/packageStore";
+import { useActiveThemeIcons } from "../themes/themeIcons";
 import type { ThemeStore } from "../themes/themeStore";
 
 // Shared by web and desktop. Device-wide: installed packages in IndexedDB,
@@ -64,6 +65,7 @@ export function useThemes(store: ThemeStore) {
   }, [refresh]);
 
   const active = themes.find((t) => t.id === appearance.themeId) ?? null;
+  useActiveThemeIcons(active?.manifest.icons, active?.files);
 
   useEffect(() => {
     const manifest = active?.manifest ?? null;

@@ -30,6 +30,8 @@ export interface PackageSpec<M> {
   /** Extensions allowed for every other file; anything else rejects the package. */
   allowedExtensions: string[];
   validateManifest: (raw: unknown) => M;
+  /** Checks the files the manifest names; throw PackageError to reject. */
+  validateFiles?: (manifest: M, files: PackageFiles) => void;
 }
 
 export function extensionOf(path: string): string {
@@ -45,7 +47,7 @@ export function isSoundPath(path: string): boolean {
   return SOUND_EXT.includes(extensionOf(path));
 }
 
-function checkPath(path: string): void {
+export function checkRelativePath(path: string): void {
   if (
     path.startsWith("/") ||
     path.includes("\\") ||
@@ -72,7 +74,7 @@ export function loadPackage<M>(bytes: Uint8Array, spec: PackageSpec<M>): LoadedP
           return false;
         }
         try {
-          checkPath(f.name);
+          checkRelativePath(f.name);
         } catch (e) {
           violation = (e as Error).message;
           return false;
@@ -111,6 +113,7 @@ export function loadPackage<M>(bytes: Uint8Array, spec: PackageSpec<M>): LoadedP
   }
   const files: PackageFiles = { ...raw };
   delete files[spec.manifestFile];
+  spec.validateFiles?.(manifest, files);
   return { manifest, files };
 }
 
