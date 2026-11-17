@@ -179,6 +179,21 @@ export function ChannelMessageList({
   return (
     <>
       <ol aria-label={t("message.actions.aria")} className="messages" ref={messagesContainerRef} onScroll={onMessagesScroll}>
+        {hasDivider && dividerAbove && (
+          <li className="new-messages-bar" role="status">
+            <div className="new-messages-bar-pill">
+            <span>{t("message.unread.bar", { count: displayedMessages.length - dividerIndex })}</span>
+            <button className="btn-small" onClick={() => dividerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+              {t("message.unread.jump")}
+            </button>
+            {onMarkRead && (
+              <button className="btn-small" onClick={onMarkRead}>
+                {t("message.unread.mark_read")}
+              </button>
+            )}
+            </div>
+          </li>
+        )}
         {displayedMessages.length === 0 && (
           <li className="channel-empty">
             {searchResults !== null ? (
@@ -265,19 +280,6 @@ export function ChannelMessageList({
         ))}
         <li ref={messagesEndChannelRef} aria-hidden="true" />
       </ol>
-      {hasDivider && dividerAbove && (
-        <div className="new-messages-bar" role="status">
-          <span>{t("message.unread.bar", { count: displayedMessages.length - dividerIndex })}</span>
-          <button className="btn-small" onClick={() => dividerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-            {t("message.unread.jump")}
-          </button>
-          {onMarkRead && (
-            <button className="btn-small" onClick={onMarkRead}>
-              {t("message.unread.mark_read")}
-            </button>
-          )}
-        </div>
-      )}
       {firstNotifyingMessageId &&
         messages.some((m) => m.id === firstNotifyingMessageId) && (
         <button

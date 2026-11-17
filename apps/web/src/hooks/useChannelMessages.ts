@@ -80,6 +80,16 @@ export function useChannelMessages({
   const messagesContainerRef = useRef<HTMLOListElement | null>(null);
   const messageInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Follow the newest message while the reader is at the bottom. Keyed on the
+  // newest id, not the count: an older page loaded by scrollback grows the
+  // list without anything new having arrived. Without it a channel opened at
+  // its oldest loaded message.
+  const newestMessageId = messages[messages.length - 1]?.id;
+  useEffect(() => {
+    if (stickToBottom) messagesEndChannelRef.current?.scrollIntoView({ block: "end" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newestMessageId]);
+
   const loadOlderMessages = useOlderPages({
     containerRef: messagesContainerRef,
     items: messages,
@@ -287,6 +297,7 @@ export function useChannelMessages({
   }
 
   function handleJumpToBottom() {
+    messagesEndChannelRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     setStickToBottom(true);
     setNewWhileScrolledUp(0);
   }
