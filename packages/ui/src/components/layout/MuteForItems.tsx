@@ -11,6 +11,12 @@ export function MuteForItems({ itemClassName, until, onMuteUntil, onDone }: {
   onDone: () => void;
 }) {
   const { t } = useTranslation();
+  const labels: Record<(typeof MUTE_FOR)[number], string> = {
+    "15m": t("hub.mute.for_15m"),
+    "1h": t("hub.mute.for_1h"),
+    "8h": t("hub.mute.for_8h"),
+    tomorrow: t("hub.mute.for_tomorrow"),
+  };
   return (
     <>
       {until !== undefined && (
@@ -24,7 +30,7 @@ export function MuteForItems({ itemClassName, until, onMuteUntil, onDone }: {
           className={itemClassName}
           onClick={() => { onDone(); onMuteUntil(muteDeadline(choice)); }}
         >
-          {t(`hub.mute.for_${choice}`)}
+          {labels[choice]}
         </button>
       ))}
     </>
