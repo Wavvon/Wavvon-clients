@@ -276,7 +276,8 @@ export function ContentArea(props: Props) {
                 canManage: isAdmin || myRoles.some((r) => r.permissions.includes("channels.manage")),
                 onEnable: voice.enableRoomMap,
                 onDisable: voice.disableRoomMap,
-                onMove: voice.moveInRoom,
+                onMove: (p) => voice.moveInRoom(p),
+                movedBy: voice.roomMover,
               }
             : undefined,
           live: {

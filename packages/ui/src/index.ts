@@ -93,7 +93,7 @@ export { BannerEditModal } from "./components/channels/BannerEditModal";
 export { ChannelAlliancesTab } from "./components/channels/ChannelAlliancesTab";
 export type { ChannelAlliancesTabActions } from "./components/channels/ChannelAlliancesTab";
 export { GameCard } from "./components/GameCard";
-export { GameModal } from "./components/GameModal";
+export { GameModal, type MiniAppVoiceBridge } from "./components/GameModal";
 export { HoverSubmenu } from "./components/HoverSubmenu";
 export { HubClock } from "./components/HubClock";
 export { ImagePicker } from "./components/ImagePicker";

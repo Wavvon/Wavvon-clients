@@ -13,6 +13,8 @@ export interface VoiceRoomMapInfo {
   onEnable: () => void;
   onDisable: () => void;
   onMove: (position: [number, number]) => void;
+  /** Title of a mini-app that is moving the user; the map takes no input meanwhile. */
+  movedBy?: string | null;
 }
 
 /** How far a voice carries on the map, in map units (the zone's `max_radius`). */
@@ -44,11 +46,13 @@ export function VoiceRoomMap({ room, participants, avatars, publicKey }: Props) 
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (room.movedBy) return;
     const r = e.currentTarget.getBoundingClientRect();
     room.onMove([clamp(((e.clientX - r.left) / r.width) * 100), clamp(((e.clientY - r.top) / r.height) * 100)]);
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (room.movedBy) return;
     const [x, y] = mine ?? [50, 50];
     const delta: Record<string, [number, number]> = {
       ArrowLeft: [-STEP, 0], ArrowRight: [STEP, 0], ArrowUp: [0, -STEP], ArrowDown: [0, STEP],
@@ -62,7 +66,11 @@ export function VoiceRoomMap({ room, participants, avatars, publicKey }: Props) 
   return (
     <div className="voice-room-map-wrap">
       <div className="voice-room-map-head">
-        <span className="muted">{mine ? t("voice.room_map.hint") : t("voice.room_map.place_yourself")}</span>
+        <span className="muted">
+          {room.movedBy
+            ? t("voice.room_map.moved_by", { app: room.movedBy })
+            : mine ? t("voice.room_map.hint") : t("voice.room_map.place_yourself")}
+        </span>
         {room.canManage && (
           <button type="button" className="btn-small btn-secondary" onClick={room.onDisable}>
             {t("voice.room_map.disable")}
