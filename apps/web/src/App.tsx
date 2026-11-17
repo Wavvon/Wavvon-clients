@@ -116,7 +116,8 @@ import {
 import {
   publishDhKey,
 } from "@platform";
-import { loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
+import { getActiveAccountId, loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
+import { useWebPush } from "./hooks/useWebPush";
 import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
 import type { HubInputResult } from "@wavvon/core";
 
@@ -314,6 +315,21 @@ export default function App({ initialView }: AppProps = {}) {
     onDm, onDmMemberChanged,
   } = dms;
   const notifyPrefs = useNotificationPrefs();
+  const webPush = useWebPush({
+    accountId: getActiveAccountId(),
+    hubs,
+    hubNotifyMode: notifyPrefs.hubNotifyMode,
+    channelNotifyMode: notifyPrefs.channelNotifyMode,
+    loaded: channels.length > 0,
+    onOpen: ({ hubId, channelId, conversationId }) => {
+      if (conversationId) {
+        const conv = dms.conversations.find((c) => c.id === conversationId);
+        if (conv) void dms.handleSelectConversation(conv);
+      } else if (hubId && channelId) {
+        void applyDeepLinkTarget(hubId, { kind: "channel", channelId });
+      }
+    },
+  });
   const {
     hubNotifyMode, channelNotifyMode, pinnedChannels, collapsedCategories, hideSilenced,
     hideBirthdays, toggleHideBirthdays,
@@ -1086,6 +1102,7 @@ export default function App({ initialView }: AppProps = {}) {
       )}
 
       <SettingsPageContainer
+        webPush={webPush}
         settingsProfile={settingsProfile}
         notifyPrefs={notifyPrefs}
         hubs={hubs}

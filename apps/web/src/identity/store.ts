@@ -244,6 +244,9 @@ export async function loadOwnDmAttachments(messageId: string): Promise<Attachmen
 }
 
 export async function removeAccount(id: string): Promise<void> {
+  // Unsubscribing in the browser is enough for the hubs to drop it: the
+  // push service answers them 410 from then on.
+  await import("../platform/push").then((m) => m.disableAllPush(id)).catch(() => {});
   const db = await getDb();
   await db.delete("identity", id);
   // ";" sorts right after ":", so this range is exactly this account's keys.

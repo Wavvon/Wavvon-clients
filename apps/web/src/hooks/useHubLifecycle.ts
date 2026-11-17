@@ -1,6 +1,7 @@
 import type { HubRefusal } from "@wavvon/core";
 import { useEffect, useState } from "react";
-import { removeHub, setActiveHub, listHubs } from "@platform";
+import { disablePush, removeHub, setActiveHub, listHubs } from "@platform";
+import { getActiveAccountId } from "@identity/index";
 import type { Hub } from "@shared/types";
 import { useHubPing } from "@wavvon/ui";
 
@@ -53,6 +54,9 @@ export function useHubLifecycle({ loadHubData, resetChannelSelectionState, goToC
   }
 
   async function handleRemoveHub(hubId: string) {
+    // Before the session goes: the hub is told while there is a token to tell it with.
+    const account = getActiveAccountId();
+    if (account) await disablePush(account, hubId).catch(() => {});
     await removeHub(hubId);
     const list = listHubs();
     setHubs(list);
