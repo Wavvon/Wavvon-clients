@@ -617,6 +617,9 @@ export interface HubListing {
   tags: string[];
   language: string;
   nsfw?: boolean;
+  /** Counts the directory last scraped; null when the hub hides them. */
+  member_count?: number | null;
+  online_count?: number | null;
   badges?: { payload: { label: string; issuer_url: string; issuer_pubkey: string }; signature: string }[];
 }
 

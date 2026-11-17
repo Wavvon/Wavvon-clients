@@ -17,4 +17,9 @@ describe("onboardingSteps", () => {
     const { total, stepOf } = onboardingSteps(false, "generated", false);
     expect([stepOf.generated, stepOf.profile, total]).toEqual([2, 3, 3]);
   });
+
+  it("adds interests and suggestions after the profile when there is a directory", () => {
+    const { total, stepOf } = onboardingSteps(false, "interests", false, true);
+    expect([stepOf.profile, stepOf.interests, stepOf.hubs, total]).toEqual([3, 4, 5, 5]);
+  });
 });

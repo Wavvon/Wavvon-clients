@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 type HubPreview =
@@ -26,6 +26,8 @@ interface WelcomeScreenProps {
    *  has a hole — a typed URL would add a second hub with no switcher to
    *  reach it. */
   hubUrlLocked?: boolean;
+  /** Directory suggestions for someone with no hub yet; absent without a directory. */
+  suggestions?: ReactNode;
 }
 
 export function WelcomeScreen({
@@ -40,6 +42,7 @@ export function WelcomeScreen({
   onDismiss,
   homeHubHint,
   hubUrlLocked,
+  suggestions,
 }: WelcomeScreenProps) {
   const { t } = useTranslation();
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -168,6 +171,13 @@ export function WelcomeScreen({
           </button>
         )}
       </div>
+
+      {suggestions && (
+        <section style={{ width: "100%", maxWidth: 880, marginBottom: 24 }}>
+          <h2>{t("onboarding.hubs.title")}</h2>
+          {suggestions}
+        </section>
+      )}
 
       <details
         className="welcome-details"
