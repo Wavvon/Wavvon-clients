@@ -68,6 +68,20 @@ export function ThemesSection({ controller }: { controller: ThemesController }) 
         </div>
       </div>
 
+      {active?.manifest.background && (
+        <div className="settings-section">
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--text-sm)" }}>
+            <input type="checkbox" checked={!controller.bgOff} onChange={(e) => controller.setBackgroundOff(!e.target.checked)} />
+            {t("settings.theme.background.show")}
+          </label>
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--text-sm)" }}>
+            <input type="checkbox" checked={!controller.blurOff} disabled={controller.bgOff} onChange={(e) => controller.setBlurOff(!e.target.checked)} />
+            {t("settings.theme.background.blur_on")}
+          </label>
+          <p className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("settings.theme.background.reduced_hint")}</p>
+        </div>
+      )}
+
       {active && <ThemeEditor key={active.id} pkg={active} onChange={controller.edit} />}
     </div>
   );

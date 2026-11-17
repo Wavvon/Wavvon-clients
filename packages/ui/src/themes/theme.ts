@@ -1,3 +1,4 @@
+import { normalizeBackground, type BackgroundFit } from "./background";
 import { isIconName } from "./iconRegistry";
 import {
   buildPackage,
@@ -25,9 +26,22 @@ export interface ThemeManifest {
   colors: { dark?: Record<string, string>; light?: Record<string, string> };
   /** Icon name (iconRegistry) to a path inside the package. */
   icons?: Record<string, string>;
+  background?: ThemeBackground;
+}
+
+export interface ThemeBackground {
+  image: string;
+  fit: BackgroundFit;
+  /** 0 to 0.9: a dark veil over the image. */
+  dim: number;
+  /** 0.6 to 1: how opaque the panels stay. */
+  panel_opacity: number;
+  /** 0 to 20 px. */
+  blur: number;
 }
 
 export const MAX_ICON_BYTES = 64 * 1024;
+export const MAX_BACKGROUND_BYTES = 2 * 1024 * 1024;
 
 export type ThemePackage = LoadedPackage<ThemeManifest>;
 
@@ -47,6 +61,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
   if (raw2.light !== undefined) colors.light = validateTokenMap(raw2.light, "light");
   if (!colors.dark && !colors.light) throw new Error("colors needs a dark or a light map");
   const icons = validateIcons(s.icons);
+  const background = validateBackground(s.background);
   return {
     format: "wavvon.theme",
     version: 1,
@@ -55,6 +70,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
     ...(typeof s.description === "string" ? { description: s.description.slice(0, 500) } : {}),
     colors,
     ...(icons ? { icons } : {}),
+    ...(background ? { background } : {}),
   };
 }
 
@@ -71,7 +87,23 @@ function validateIcons(raw: unknown): Record<string, string> | undefined {
   return out;
 }
 
+function validateBackground(raw: unknown): ThemeBackground | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new Error("background must be an object");
+  const b = raw as Record<string, unknown>;
+  if (typeof b.image !== "string") throw new Error("background.image: expected a path");
+  checkRelativePath(b.image);
+  return normalizeBackground(b, b.image);
+}
+
 function validateThemeFiles(manifest: ThemeManifest, files: PackageFiles): void {
+  const bg = manifest.background;
+  if (bg) {
+    const file = files[bg.image];
+    if (!file) throw new PackageError(`background: ${bg.image} is not in the package`);
+    if (!isImagePath(bg.image)) throw new PackageError(`background: ${bg.image} is not an image`);
+    if (file.byteLength > MAX_BACKGROUND_BYTES) throw new PackageError(`background: ${bg.image} is larger than 2 MB`);
+  }
   for (const [name, path] of Object.entries(manifest.icons ?? {})) {
     const file = files[path];
     if (!file) throw new PackageError(`icons.${name}: ${path} is not in the package`);

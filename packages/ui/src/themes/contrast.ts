@@ -1,4 +1,4 @@
-function parseColor(v: string): [number, number, number] | null {
+export function parseColor(v: string): [number, number, number] | null {
   const hex = v.trim().match(/^#([0-9a-f]{3,8})$/i);
   if (hex) {
     let h = hex[1];

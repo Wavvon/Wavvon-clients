@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { applyBackground, clearBackground } from "../themes/background";
 import {
   applyThemeTokens,
   loadTheme,
   newTheme,
+  readBaseToken,
   resolveScheme,
   type SchemeMode,
   type ThemeManifest,
 } from "../themes/theme";
 import { newPackageId, type StoredPackage } from "../themes/packageStore";
 import { useActiveThemeIcons } from "../themes/themeIcons";
+import { useBlobUrl } from "../themes/useBlobUrl";
 import type { ThemeStore } from "../themes/themeStore";
 
 // Shared by web and desktop. Device-wide: installed packages in IndexedDB,
@@ -19,6 +22,9 @@ const APPEARANCE_KEY = "wavvon:appearance";
 interface Appearance {
   mode: SchemeMode;
   themeId: string | null;
+  /** User switches: the theme's background off entirely, or just its blur. */
+  bgOff: boolean;
+  blurOff: boolean;
 }
 
 function readAppearance(): Appearance {
@@ -27,9 +33,11 @@ function readAppearance(): Appearance {
     return {
       mode: a.mode === "light" || a.mode === "system" ? a.mode : "dark",
       themeId: typeof a.themeId === "string" ? a.themeId : null,
+      bgOff: a.bgOff === true,
+      blurOff: a.blurOff === true,
     };
   } catch {
-    return { mode: "dark", themeId: null };
+    return { mode: "dark", themeId: null, bgOff: false, blurOff: false };
   }
 }
 
@@ -66,6 +74,8 @@ export function useThemes(store: ThemeStore) {
 
   const active = themes.find((t) => t.id === appearance.themeId) ?? null;
   useActiveThemeIcons(active?.manifest.icons, active?.files);
+  const bgPath = active?.manifest.background?.image;
+  const bgUrl = useBlobUrl(bgPath ? active?.files[bgPath] : undefined, bgPath);
 
   useEffect(() => {
     const manifest = active?.manifest ?? null;
@@ -76,7 +86,18 @@ export function useThemes(store: ThemeStore) {
     const scheme = resolveScheme(manifest, appearance.mode, systemDark);
     document.documentElement.dataset.theme = scheme;
     applyThemeTokens(manifest?.colors[scheme], { reduceTransparency });
-  }, [active, loaded, appearance, systemDark, reduceTransparency]);
+    const bg = manifest?.background;
+    if (manifest && bg && bgUrl && !appearance.bgOff) {
+      applyBackground(bg, {
+        url: bgUrl,
+        reduceTransparency,
+        blurOff: appearance.blurOff,
+        resolve: (t) => manifest.colors[scheme]?.[t] ?? readBaseToken(t, scheme),
+      });
+    } else {
+      clearBackground();
+    }
+  }, [active, loaded, appearance, systemDark, reduceTransparency, bgUrl]);
 
   const persist = useCallback((next: Appearance) => {
     setAppearance(next);
@@ -84,6 +105,8 @@ export function useThemes(store: ThemeStore) {
   }, []);
 
   const select = useCallback((themeId: string | null) => persist({ ...appearance, themeId }), [appearance, persist]);
+  const setBackgroundOff = useCallback((bgOff: boolean) => persist({ ...appearance, bgOff }), [appearance, persist]);
+  const setBlurOff = useCallback((blurOff: boolean) => persist({ ...appearance, blurOff }), [appearance, persist]);
   const setMode = useCallback((mode: SchemeMode) => persist({ ...appearance, mode }), [appearance, persist]);
 
   const save = useCallback(
@@ -136,7 +159,7 @@ export function useThemes(store: ThemeStore) {
     [store, appearance, persist],
   );
 
-  return { themes, active, mode: appearance.mode, systemDark, select, setMode, edit, install, create, remove };
+  return { themes, active, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, systemDark, select, setMode, setBackgroundOff, setBlurOff, edit, install, create, remove };
 }
 
 export type ThemesController = ReturnType<typeof useThemes>;
