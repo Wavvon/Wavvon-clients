@@ -5,7 +5,7 @@ import {
   refreshHubInfo, listHubs, fetchVoiceRoster, fetchAllUsers,
 } from "@platform";
 import type { WsHandlers } from "@platform";
-import { mentionsName, playMentionPing, takeAppJoin, appSessionKey } from "@wavvon/core";
+import { mentionsName, playMentionPing, playSound, takeAppJoin, appSessionKey } from "@wavvon/core";
 import type { Channel, Message, User, Hub, MeInfo, VoiceParticipant, NotifyMode } from "@shared/types";
 import type { AppCloseEvent, AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
@@ -96,6 +96,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         const isActiveHub = msgHubId === activeHub;
         const isActiveChannel = isActiveHub && m.channel_id === selCh?.id;
         if (isActiveChannel) {
+          if (msg.sender !== publicKeyRef.current) playSound("message");
           setMessages((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
           setStickToBottom((stick) => { if (stick) setNewWhileScrolledUp(0); else setNewWhileScrolledUp((n) => n + 1); return stick; });
         }

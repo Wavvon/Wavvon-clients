@@ -1,3 +1,4 @@
+import { setSoundVolume, setThemeSounds, isSoundName, type SoundName } from "@wavvon/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyBackground, clearBackground } from "../themes/background";
 import { applyLayout, normalizeLayout, resolveLayout, type LayoutChoice, type LayoutKey } from "../themes/layout";
@@ -28,6 +29,8 @@ interface Appearance {
   blurOff: boolean;
   /** The user's own layout choices; a key left out follows the theme. */
   layout: LayoutChoice;
+  /** 0 to 1, scales every sound. */
+  soundVolume: number;
 }
 
 function readAppearance(): Appearance {
@@ -39,9 +42,10 @@ function readAppearance(): Appearance {
       bgOff: a.bgOff === true,
       blurOff: a.blurOff === true,
       layout: normalizeLayout(a.layout),
+      soundVolume: typeof a.soundVolume === "number" ? Math.min(1, Math.max(0, a.soundVolume)) : 1,
     };
   } catch {
-    return { mode: "dark", themeId: null, bgOff: false, blurOff: false, layout: {} };
+    return { mode: "dark", themeId: null, bgOff: false, blurOff: false, layout: {}, soundVolume: 1 };
   }
 }
 
@@ -82,6 +86,18 @@ export function useThemes(store: ThemeStore) {
   const [preview, setPreview] = useState<{ pkg: StoredPackage<ThemeManifest>; replaces?: string } | null>(null);
   const shown = preview?.pkg ?? active;
   useActiveThemeIcons(shown?.manifest.icons, shown?.files);
+  const soundMap = shown?.manifest.sounds;
+  const soundFiles = shown?.files;
+  useEffect(() => {
+    const map: Partial<Record<SoundName, Uint8Array>> = {};
+    for (const [name, path] of Object.entries(soundMap ?? {})) {
+      const bytes = soundFiles?.[path];
+      if (bytes && isSoundName(name)) map[name] = bytes;
+    }
+    setThemeSounds(map);
+    return () => setThemeSounds({});
+  }, [soundMap, soundFiles]);
+  useEffect(() => setSoundVolume(appearance.soundVolume), [appearance.soundVolume]);
   const bgPath = shown?.manifest.background?.image;
   const bgUrl = useBlobUrl(bgPath ? shown?.files[bgPath] : undefined, bgPath);
 
@@ -125,6 +141,7 @@ export function useThemes(store: ThemeStore) {
     },
     [appearance, persist],
   );
+  const setSoundVolumeChoice = useCallback((soundVolume: number) => persist({ ...appearance, soundVolume }), [appearance, persist]);
   const setMode = useCallback((mode: SchemeMode) => persist({ ...appearance, mode }), [appearance, persist]);
 
   const save = useCallback(
@@ -192,7 +209,7 @@ export function useThemes(store: ThemeStore) {
     [store, appearance, persist],
   );
 
-  return { themes, active, preview: preview?.pkg ?? null, startPreview, discardPreview, keepPreview, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, userLayout: appearance.layout, systemDark, select, setMode, setBackgroundOff, setBlurOff, setUserLayout, edit, install, create, remove };
+  return { themes, active, preview: preview?.pkg ?? null, startPreview, discardPreview, keepPreview, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, userLayout: appearance.layout, soundVolume: appearance.soundVolume, setSoundVolume: setSoundVolumeChoice, systemDark, select, setMode, setBackgroundOff, setBlurOff, setUserLayout, edit, install, create, remove };
 }
 
 export type ThemesController = ReturnType<typeof useThemes>;

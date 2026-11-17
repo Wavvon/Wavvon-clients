@@ -1,10 +1,13 @@
 import { normalizeBackground, type BackgroundFit } from "./background";
+import { isSoundName } from "@wavvon/core";
+import { audioDurationSeconds, MAX_SOUND_SECONDS } from "./audioDuration";
 import { isIconName } from "./iconRegistry";
 import { normalizeLayout, type LayoutChoice } from "./layout";
 import {
   buildPackage,
   checkRelativePath,
   isImagePath,
+  isSoundPath,
   loadPackage,
   PackageError,
   THEME_EXTENSIONS,
@@ -32,6 +35,8 @@ export interface ThemeManifest {
   layout?: LayoutChoice;
   /** Path of a captured preview image, for the gallery. */
   preview?: string;
+  /** Sound name (core SOUND_NAMES) to a path inside the package. */
+  sounds?: Record<string, string>;
 }
 
 export interface ThemeBackground {
@@ -68,6 +73,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
   const icons = validateIcons(s.icons);
   const background = validateBackground(s.background);
   const layout = normalizeLayout(s.layout);
+  const sounds = validateSounds(s.sounds);
   let preview: string | undefined;
   if (typeof s.preview === "string") {
     checkRelativePath(s.preview);
@@ -84,6 +90,7 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
     ...(background ? { background } : {}),
     ...(Object.keys(layout).length ? { layout } : {}),
     ...(preview ? { preview } : {}),
+    ...(sounds ? { sounds } : {}),
   };
 }
 
@@ -109,7 +116,33 @@ function validateBackground(raw: unknown): ThemeBackground | undefined {
   return normalizeBackground(b, b.image);
 }
 
+function validateSounds(raw: unknown): Record<string, string> | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new Error("sounds must be an object");
+  const out: Record<string, string> = {};
+  for (const [name, path] of Object.entries(raw)) {
+    if (!isSoundName(name)) continue;
+    if (typeof path !== "string") throw new Error(`sounds.${name}: expected a path`);
+    checkRelativePath(path);
+    out[name] = path;
+  }
+  return out;
+}
+
+export function soundProblem(name: string, path: string, file: Uint8Array | undefined): string | null {
+  if (!file) return `sounds.${name}: ${path} is not in the package`;
+  if (!isSoundPath(path)) return `sounds.${name}: ${path} is not an Ogg, MP3 or WAV file`;
+  const seconds = audioDurationSeconds(file, path);
+  if (seconds === null) return `sounds.${name}: could not read the length of ${path}`;
+  if (seconds > MAX_SOUND_SECONDS) return `sounds.${name}: ${path} is longer than ${MAX_SOUND_SECONDS} seconds`;
+  return null;
+}
+
 function validateThemeFiles(manifest: ThemeManifest, files: PackageFiles): void {
+  for (const [name, path] of Object.entries(manifest.sounds ?? {})) {
+    const problem = soundProblem(name, path, files[path]);
+    if (problem) throw new PackageError(problem);
+  }
   if (manifest.preview) {
     const file = files[manifest.preview];
     if (!file) throw new PackageError(`preview: ${manifest.preview} is not in the package`);

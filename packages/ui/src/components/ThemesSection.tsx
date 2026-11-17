@@ -69,6 +69,11 @@ export function ThemesSection({ controller }: { controller: ThemesController }) 
         </div>
       </div>
 
+      <div className="settings-row" style={{ alignItems: "center", marginBottom: 12 }}>
+        <label style={{ flex: 1, fontSize: "var(--text-sm)" }} htmlFor="theme-sound-volume">{t("settings.theme.sounds.volume")}</label>
+        <input id="theme-sound-volume" type="range" min={0} max={1} step={0.05} value={controller.soundVolume} onChange={(e) => controller.setSoundVolume(parseFloat(e.target.value))} style={{ width: 140 }} />
+      </div>
+
       <div className="settings-section">
         <label className="settings-label">{t("settings.theme.layout.yours")}</label>
         <LayoutPicker value={controller.userLayout} unsetLabel={t("settings.theme.layout.follow_theme")} onChange={controller.setUserLayout} />
