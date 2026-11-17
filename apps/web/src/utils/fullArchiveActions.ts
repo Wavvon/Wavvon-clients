@@ -3,7 +3,7 @@ import { parseArchiveDocument, planRestore, type FullArchiveSectionActions } fro
 import { listAccounts, resolveOrCreateAccount, switchAccount, SWITCH_BLOCKED_COOLDOWN } from "@identity/index";
 import { assembleArchive } from "./dataExport";
 import { applyRestorePlan, readExistingAccountSnapshot, type ArchiveIdentityInput } from "./archiveRestore";
-import { newCustomThemeId } from "./customThemes";
+import { newPackageId } from "@wavvon/ui";
 
 function download(text: string, filename: string) {
   const url = URL.createObjectURL(new Blob([text], { type: "application/octet-stream" }));
@@ -46,8 +46,8 @@ export function buildFullArchiveActions(cooldownMessage: string): FullArchiveSec
         subkey_cert: identity.subkey_cert as SubkeyCert | undefined,
         account_label: identity.account_label,
       });
-      const plan = planRestore(archive, readExistingAccountSnapshot(account.id), newCustomThemeId);
-      applyRestorePlan(account.id, plan);
+      const plan = planRestore(archive, await readExistingAccountSnapshot(account.id), newPackageId);
+      await applyRestorePlan(account.id, plan);
       return { accountId: account.id, summary: plan.summary, wasFirstAccount };
     },
     async switchAccount(id) {

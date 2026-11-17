@@ -40,18 +40,7 @@ export function SettingsPageContainer({
         onClose={close}
         hubs={hubs}
         publicKey={publicKey}
-        theme={settingsProfile.theme}
-        onThemeChange={settingsProfile.handleSetTheme}
-        skin={settingsProfile.skin}
-        onSkinChange={settingsProfile.handleSkinChange}
-        customThemes={settingsProfile.customThemes}
-        activeCustomThemeId={settingsProfile.activeCustomThemeId}
-        onApplyCustomTheme={settingsProfile.handleApplyCustomTheme}
-        onNewCustomTheme={settingsProfile.handleNewCustomTheme}
-        onRenameCustomTheme={settingsProfile.handleRenameCustomTheme}
-        onDuplicateCustomTheme={settingsProfile.handleDuplicateCustomTheme}
-        onDeleteCustomTheme={settingsProfile.handleDeleteCustomTheme}
-        onImportSkin={settingsProfile.handleImportCustomTheme}
+        themes={settingsProfile.themes}
         onHubProfileSaved={onHubProfileSaved}
         mentionPingEnabled={settingsProfile.mentionPingEnabled}
         onMentionPingChange={(v) => {

@@ -2,15 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, setLanguage } from "@wavvon/i18n";
 import type { Hub } from "../types";
-import { DISCOVERY_URL } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
-import { ThemePicker } from "./ThemePicker";
 import {
-  SkinEditor,
-  makeSeed,
-  SkinsGallery,
+  ThemesSection,
   HelpTab,
   AboutTab,
   ProfileTab,
@@ -19,13 +15,11 @@ import {
   ActiveAccountOnlyNotice,
   SettingRow,
   resolveManagingAccount,
-  type ThemeId,
-  type WavvonSkin,
+  type ThemesController,
   type SettingsTabDef,
   type PerAccountProps,
   type ProfileAccountRef,
 } from "@wavvon/ui";
-import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { listAccounts, switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
@@ -57,10 +51,7 @@ export interface SettingsPageProps {
   onClose: () => void;
   hubs: Hub[];
 
-  theme: ThemeId;
-  onThemeChange: (t: ThemeId) => void;
-  skin: WavvonSkin | null;
-  onSkinChange: (skin: WavvonSkin) => void;
+  themes: ThemesController;
   activeHubId: string | null;
   activeHubUrl: string;
   isAdmin: boolean;
@@ -112,7 +103,6 @@ export interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
-  onImportSkin: (skin: WavvonSkin) => void;
 }
 
 function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
@@ -291,31 +281,12 @@ export function SettingsPage(props: SettingsPageProps) {
 
             <SettingRow
               title={t("settings.theme.label")}
-              state={props.theme === "custom"
-                ? t("settings.theme.custom")
-                : t(`settings.skin.base.${props.theme}`)}
+              state={props.themes.active?.manifest.name ?? t("settings.theme.builtin")}
               {...settingRow("theme")}
             >
               <p className="muted">{t("settings.theme.hint")}</p>
-              <ThemePicker value={props.theme} skin={props.skin} onChange={props.onThemeChange} />
-              {props.theme === "custom" && (
-                <SkinEditor
-                  skin={props.skin ?? makeSeed("dark")}
-                  onChange={props.onSkinChange}
-                />
-              )}
+              <ThemesSection controller={props.themes} />
             </SettingRow>
-
-            {/* Not a row: the gallery renders nothing when discovery is
-                unreachable, and a row that opens onto nothing is worse than
-                no row at all. */}
-            {DISCOVERY_URL && (
-              <SkinsGallery
-                fetchWithTimeout={fetchWithTimeout}
-                onImport={props.onImportSkin}
-                discoveryUrl={DISCOVERY_URL}
-              />
-            )}
 
             {/* About folded in here rather than its own tab (settings-ia.md
                 piece 4) — a static footnote doesn't need a nav slot. */}

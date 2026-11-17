@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Conversation, DmMessageFull } from "../../types";
-import { assembleArchive, buildThemesSection, type ArchiveFetchers } from "../dataExport";
-import { saveCustomThemeStore } from "../customThemes";
+import { assembleArchive, type ArchiveFetchers } from "../dataExport";
 import { setActiveAccountId } from "../../identity/store";
 
 const localStorageData: Record<string, string> = {};
@@ -51,6 +50,7 @@ function makeFetchers(overrides: Partial<ArchiveFetchers> = {}): ArchiveFetchers
     listConversations: () => Promise.resolve([]),
     getDmMessages: () => Promise.resolve([]),
     loadSavedHubs: () => [],
+    listThemes: () => Promise.resolve([]),
     ...overrides,
   };
 }
@@ -202,20 +202,3 @@ describe("assembleArchive — prefs-blob decrypt", () => {
   });
 });
 
-describe("buildThemesSection", () => {
-  it("only includes the currently active account's custom themes", () => {
-    setActiveAccountId("account-a");
-    saveCustomThemeStore({
-      themes: [{ id: "t1", name: "A's theme", skin: { format: "wavvon.skin", version: 1, name: "A's theme", base: "dark", tokens: {} } }],
-      activeId: "t1",
-    });
-
-    setActiveAccountId("account-b");
-    saveCustomThemeStore({ themes: [], activeId: null });
-
-    expect(buildThemesSection().map((s) => s.name)).toEqual([]);
-
-    setActiveAccountId("account-a");
-    expect(buildThemesSection().map((s) => s.name)).toEqual(["A's theme"]);
-  });
-});

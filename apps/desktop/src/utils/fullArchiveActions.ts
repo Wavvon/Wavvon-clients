@@ -8,7 +8,9 @@ import {
   type DmArchiveConversation,
   type FullArchiveSectionActions,
   type RestorableArchive,
-  type WavvonSkin,
+  deviceThemeStore,
+  restoreThemes,
+  themesForArchive,
 } from "@wavvon/ui";
 import { switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
 import { loadAllDrafts, saveAllDrafts } from "./drafts";
@@ -21,7 +23,6 @@ interface ArchiveStores {
   hub_list: ArchiveHub[];
   ignored_users: string[];
   voice_gains: Record<string, number>;
-  skin: WavvonSkin | null;
 }
 
 interface OpenedArchive {
@@ -29,6 +30,14 @@ interface OpenedArchive {
   was_first_account: boolean;
   archive: RestorableArchive;
   existing: ArchiveStores;
+}
+
+function readThemeMode(): string {
+  try {
+    return (JSON.parse(localStorage.getItem("wavvon:appearance") ?? "{}") as { mode?: string }).mode ?? "dark";
+  } catch {
+    return "dark";
+  }
 }
 
 // The seed never reaches this file: Rust adds the identity on export and
@@ -52,7 +61,13 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
         passphrase,
         suggestedName: suggestArchiveFilename(),
         filterName: fileFilterName,
-        sections: { dms, drafts: loadAllDrafts(), mention_ping_enabled: localStorage.getItem(MENTION_PING_KEY) !== "0" },
+        sections: {
+          dms,
+          drafts: loadAllDrafts(),
+          mention_ping_enabled: localStorage.getItem(MENTION_PING_KEY) !== "0",
+          theme: readThemeMode(),
+          themes: await themesForArchive(deviceThemeStore),
+        },
       });
     },
     async pickArchive() {
@@ -67,29 +82,21 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
         {
           hubList: existing.hub_list,
           drafts: loadAllDrafts(),
-          themeNames: existing.skin ? [existing.skin.name] : [],
+          themeNames: (await deviceThemeStore.list()).map((t) => t.manifest.name),
           ignoredUsers: existing.ignored_users,
           voiceGains: existing.voice_gains,
           hasMentionPingSetting: localStorage.getItem(MENTION_PING_KEY) !== null,
         },
         () => crypto.randomUUID(),
       );
-      // Desktop holds one custom theme per account, so only an account
-      // without one takes a theme from the archive; the rest count as skipped.
-      const skin = existing.skin ? null : (plan.newThemes[0]?.skin ?? null);
-      const kept = skin ? 1 : 0;
       await invoke("apply_full_archive_restore", {
         accountId: account_id,
-        stores: { hub_list: plan.hubList, ignored_users: plan.ignoredUsers, voice_gains: plan.voiceGains, skin },
+        stores: { hub_list: plan.hubList, ignored_users: plan.ignoredUsers, voice_gains: plan.voiceGains },
       });
+      await restoreThemes(deviceThemeStore, plan.newThemes);
       saveAllDrafts(plan.drafts);
       if (plan.mentionPingEnabled !== null) localStorage.setItem(MENTION_PING_KEY, plan.mentionPingEnabled ? "1" : "0");
-      const summary = {
-        ...plan.summary,
-        themesRestored: kept,
-        themesSkipped: plan.summary.themesSkipped + plan.newThemes.length - kept,
-      };
-      return { accountId: account_id, summary, wasFirstAccount: was_first_account };
+      return { accountId: account_id, summary: plan.summary, wasFirstAccount: was_first_account };
     },
     async switchAccount(id) {
       const refused = await switchAccountGuarded(id);

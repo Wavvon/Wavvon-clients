@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
-import type { ThemeId, WavvonSkin, SettingsTabDef, TrustRoot } from "@wavvon/ui";
+import type { ThemesController, SettingsTabDef, TrustRoot } from "@wavvon/ui";
 import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell } from "@wavvon/ui";
-import type { NamedCustomTheme } from "@shared/utils/customThemes";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
 import { profileEditorActions } from "../../utils/profileEditorActions";
 import { addTrustRoot } from "@wavvon/ui";
@@ -34,17 +33,7 @@ interface SettingsPageProps {
   onClose: () => void;
   hubs: Hub[];
   publicKey: string | null;
-  theme: ThemeId;
-  onThemeChange: (t: ThemeId) => void;
-  skin: WavvonSkin | null;
-  onSkinChange: (skin: WavvonSkin) => void;
-  customThemes: NamedCustomTheme[];
-  activeCustomThemeId: string | null;
-  onApplyCustomTheme: (id: string) => void;
-  onNewCustomTheme: () => void;
-  onRenameCustomTheme: (id: string, name: string) => void;
-  onDuplicateCustomTheme: (id: string) => void;
-  onDeleteCustomTheme: (id: string) => void;
+  themes: ThemesController;
   onHubProfileSaved?: (hubId: string) => void;
   mentionPingEnabled?: boolean;
   onMentionPingChange?: (v: boolean) => void;
@@ -57,7 +46,6 @@ interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
-  onImportSkin: (skin: WavvonSkin) => void;
   inVoice: boolean;
 }
 
@@ -198,20 +186,7 @@ export function SettingsPage(props: SettingsPageProps) {
         )}
 
         {props.tab === "appearance" && (
-          <AppearanceTab
-            theme={props.theme}
-            onThemeChange={props.onThemeChange}
-            skin={props.skin}
-            onSkinChange={props.onSkinChange}
-            customThemes={props.customThemes}
-            activeCustomThemeId={props.activeCustomThemeId}
-            onApplyCustomTheme={props.onApplyCustomTheme}
-            onNewCustomTheme={props.onNewCustomTheme}
-            onRenameCustomTheme={props.onRenameCustomTheme}
-            onDuplicateCustomTheme={props.onDuplicateCustomTheme}
-            onDeleteCustomTheme={props.onDeleteCustomTheme}
-            onImportSkin={props.onImportSkin}
-          />
+          <AppearanceTab themes={props.themes} />
         )}
 
         {props.tab === "voice" && <VoiceTab />}
