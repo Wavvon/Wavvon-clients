@@ -176,6 +176,11 @@ export function DiscoverPage({ onClose, onJoinHub, fetchUrl, directoryUrl }: Pro
       {!unavailable && visibleHubs.length === 0 && !loading && !error && (
         <div className="discover-empty">
           <p className="muted">{t("discover.empty")}</p>
+          {hubs.length > 0 ? (
+            <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("discover.empty.nsfw_hidden")}</p>
+          ) : (q || language || tagFilter) && (
+            <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("discover.empty.filtered")}</p>
+          )}
           <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
             {t("discover.empty.hint")}
           </p>

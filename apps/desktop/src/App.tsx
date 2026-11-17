@@ -318,7 +318,7 @@ function App({ accountId }: { accountId: string | null }) {
   // "isAdmin" gate matches the sidebar's own "create channel" entry;
   // loadHubData sets myRoles then channels in the same call, so there's no
   // stale-isAdmin window here.
-  const { showHubSetupWizard, closeHubSetupWizard } = useHubSetupWizardGate({
+  const { showHubSetupWizard, setShowHubSetupWizard, closeHubSetupWizard } = useHubSetupWizardGate({
     storageGet: () => localStorage.getItem("wavvon.hubSetupWizardDone"),
     storageSet: (raw) => { localStorage.setItem("wavvon.hubSetupWizardDone", raw); },
     activeHubId,
@@ -1446,6 +1446,7 @@ function App({ accountId }: { accountId: string | null }) {
               <>
                 <ChannelSidebarContainer
                   onRequestRemoveHub={(hubId) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
+                  onOpenSetupTemplates={() => setShowHubSetupWizard(true)}
                   view={view}
                   soundboardChipsByChannel={soundboardChipsByChannel}
                   whisperReplyBind={whisperReplyBind}
