@@ -2519,5 +2519,16 @@
   "hub.admin.roles.order.drag": "{name} ziehen",
   "hub.admin.roles.order.up": "{name} nach oben",
   "hub.admin.roles.order.down": "{name} nach unten",
-  "voice.stage.sortable": "verschiebbare Kachel"
+  "voice.stage.sortable": "verschiebbare Kachel",
+  "settings.theme.hub_themes": "Das Theme jedes Hubs verwenden",
+  "settings.theme.hub_themes_hint": "Solange ein Hub geöffnet ist, sein vom Besitzer gewähltes Theme zeigen. Ein selbst gewähltes Theme hat immer Vorrang.",
+  "hub.admin.tabs.theme": "Theme",
+  "hub.admin.theme.title": "Hub-Theme",
+  "hub.admin.theme.hint": "Ein .wavvontheme-Paket, das Mitglieder standardmäßig sehen. Ihr eigenes Theme hat immer Vorrang, und sie können Hub-Themes ausschalten.",
+  "hub.admin.theme.loading": "Wird geladen…",
+  "hub.admin.theme.none": "Kein Hub-Theme gesetzt: Mitglieder sehen das eingebaute Theme.",
+  "hub.admin.theme.preview_alt": "Vorschau des Hub-Themes",
+  "hub.admin.theme.upload": "Theme hochladen",
+  "hub.admin.theme.replace": "Ersetzen",
+  "hub.admin.theme.remove": "Entfernen"
 }

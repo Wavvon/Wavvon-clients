@@ -15,10 +15,11 @@ import {
   stickerPacksActions, stickerStorageActions, stickerSettingsActions,
 } from "../../platform/adminActions";
 import { ModerationTab } from "./ModerationTab";
-import { getWidget, putWidget } from "@platform";
+import { getWidget, putWidget, fetchCurrentHubTheme, uploadHubTheme, removeHubTheme } from "@platform";
 
 // Module-level: the section reloads whenever its actions object changes.
 const widgetActions = { getWidget, putWidget };
+const hubThemeActions = { fetchCurrent: fetchCurrentHubTheme, upload: uploadHubTheme, remove: removeHubTheme };
 import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../platform/commands/recoveryPeople";
 import { outgoingWebhookActions } from "./outgoingWebhookActions";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
@@ -152,6 +153,7 @@ export function HubAdminContainer({
           ? { getSettings: getAttachmentSettings, saveSettings: saveAttachmentSettings }
           : undefined}
         widgetActions={activeHubSupports("hub.widget") && canDo("hub.settings") ? widgetActions : undefined}
+        hubThemeActions={activeHubSupports("hub.theme") && canDo("hub.appearance") ? hubThemeActions : undefined}
         onboardingActions={onboardingActions}
         allianceActions={allianceActions}
         hubIconActions={hubIconActions}

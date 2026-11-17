@@ -15,6 +15,7 @@ import {
 } from "@identity/index";
 import { getScoped } from "../utils/accountScope";
 import { markIdentityBackedUp } from "../utils/identityBackup";
+import { MULTI_HUB } from "../constants";
 
 export function useSettingsProfile(setPublicKey: (key: string) => void, initialView?: "settings-account") {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ export function useSettingsProfile(setPublicKey: (key: string) => void, initialV
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(
     effectiveInitialView === "settings-account" ? "accounts" : "profile",
   );
-  const themes = useThemes(deviceThemeStore);
+  const themes = useThemes(deviceThemeStore, { hubThemesDefault: !MULTI_HUB });
 
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [mentionPingEnabled, setMentionPingEnabled] = useState<boolean>(() => {

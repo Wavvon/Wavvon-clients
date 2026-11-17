@@ -23,6 +23,7 @@ import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./On
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
 import { WidgetSection, type WidgetActions } from "./WidgetSection";
+import { HubThemeSection, type HubThemeActions } from "./HubThemeSection";
 import { CloseIcon } from "../Icons";
 
 export type MemberAction = Promise<boolean | void>;
@@ -47,6 +48,7 @@ export type HubAdminTab =
   | "widget"
   | "alliances"
   | "hub-icons"
+  | "hub-theme"
   | "onboarding"
   | "survey"
   | "application"
@@ -190,6 +192,8 @@ export interface HubAdminPageProps {
   attachmentSettingsActions?: AttachmentSettingsActions;
   /** Present only on a hub advertising `hub.widget`, for a viewer holding `hub.settings`. */
   widgetActions?: WidgetActions;
+  /** Present only on a hub advertising `hub.theme`, for a viewer holding `hub.appearance`. */
+  hubThemeActions?: HubThemeActions;
   onboardingActions: OnboardingAdminSectionActions;
   allianceActions: AlliancesSectionActions;
   hubIconActions: HubIconsSectionActions;
@@ -349,6 +353,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
     ...(props.widgetActions ? [{ id: "widget" as HubAdminTab, label: t("hub.admin.tabs.widget"), group: G_CONNECTIONS }] : []),
     ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
+    ...(props.hubThemeActions ? [{ id: "hub-theme" as HubAdminTab, label: t("hub.admin.tabs.theme"), group: G_CUSTOM }] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
     ...(props.stickersAdmin?.packs ? [{ id: "stickers" as HubAdminTab, label: t("hub.admin.tabs.stickers"), group: G_CUSTOM }] : []),
     ...(props.stickersAdmin?.storage ? [{ id: "sticker-storage" as HubAdminTab, label: t("hub.admin.tabs.sticker_storage"), group: G_CUSTOM }] : []),
@@ -893,6 +898,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
         )}
         {props.tab === "hub-icons" && props.isAdmin && (
           <HubIconsSection actions={props.hubIconActions} />
+        )}
+        {props.tab === "hub-theme" && props.hubThemeActions && (
+          <HubThemeSection actions={props.hubThemeActions} />
         )}
         {props.tab === "onboarding" && props.isAdmin && (
           <OnboardingAdminSection actions={props.onboardingActions} />

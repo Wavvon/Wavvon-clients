@@ -15,6 +15,7 @@ import { newPackageId, type StoredPackage } from "../themes/packageStore";
 import { useActiveThemeIcons } from "../themes/themeIcons";
 import { useBlobUrl } from "../themes/useBlobUrl";
 import type { ThemeStore } from "../themes/themeStore";
+import type { HubTheme } from "../themes/hubTheme";
 
 // Shared by web and desktop. Device-wide: installed packages in IndexedDB,
 // the choice (`themeId`, `mode`) in localStorage under the synced
@@ -31,6 +32,9 @@ interface Appearance {
   layout: LayoutChoice;
   /** 0 to 1, scales every sound. */
   soundVolume: number;
+  /** Apply the open hub's theme when the user has none of their own;
+   *  undefined follows the build's default. */
+  hubThemes?: boolean;
 }
 
 function readAppearance(): Appearance {
@@ -43,6 +47,7 @@ function readAppearance(): Appearance {
       blurOff: a.blurOff === true,
       layout: normalizeLayout(a.layout),
       soundVolume: typeof a.soundVolume === "number" ? Math.min(1, Math.max(0, a.soundVolume)) : 1,
+      ...(typeof a.hubThemes === "boolean" ? { hubThemes: a.hubThemes } : {}),
     };
   } catch {
     return { mode: "dark", themeId: null, bgOff: false, blurOff: false, layout: {}, soundVolume: 1 };
@@ -65,7 +70,39 @@ function useMedia(q: string): boolean {
   return on;
 }
 
-export function useThemes(store: ThemeStore) {
+// A hub theme fetched before the app mounted (the hub build), so the first
+// render starts from it instead of flashing the built-in theme.
+let primed: HubTheme | null = null;
+
+/** Whether a hub theme would show right now: the user's own theme wins, and
+ *  the user can turn hub themes off. */
+export function hubThemeWanted(hubThemesDefault: boolean): boolean {
+  const a = readAppearance();
+  return !a.themeId && (a.hubThemes ?? hubThemesDefault);
+}
+
+/** Before the first paint: remember the hub theme and put its colours and
+ *  layout on the page. The background waits for the hook (it needs a blob URL). */
+export function primeHubTheme(pkg: HubTheme): void {
+  primed = pkg;
+  const a = readAppearance();
+  const systemDark = query("(prefers-color-scheme: dark)")?.matches ?? false;
+  const reduceTransparency = query("(prefers-reduced-transparency: reduce)")?.matches ?? false;
+  const scheme = resolveScheme(pkg.manifest, a.mode, systemDark);
+  document.documentElement.dataset.theme = scheme;
+  applyLayout(resolveLayout(pkg.manifest.layout, a.layout));
+  applyThemeTokens(pkg.manifest.colors[scheme], { reduceTransparency });
+}
+
+export interface UseThemesOptions {
+  /** Hub themes on unless the user turns them off: the hub build. The
+   *  multi-hub clients leave them off until the user opts in. */
+  hubThemesDefault?: boolean;
+}
+
+export function useThemes(store: ThemeStore, opts: UseThemesOptions = {}) {
+  const hubThemesDefault = opts.hubThemesDefault ?? false;
+  const [hubTheme, setHubTheme] = useState<HubTheme | null>(primed);
   const [themes, setThemes] = useState<StoredPackage<ThemeManifest>[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
@@ -84,7 +121,9 @@ export function useThemes(store: ThemeStore) {
   // A gallery theme is worn before it is kept; `replaces` is the installed
   // theme an update would overwrite.
   const [preview, setPreview] = useState<{ pkg: StoredPackage<ThemeManifest>; replaces?: string } | null>(null);
-  const shown = preview?.pkg ?? active;
+  const hubThemesOn = appearance.hubThemes ?? hubThemesDefault;
+  // The user's own choice always wins over the hub's default.
+  const shown = preview?.pkg ?? active ?? (hubThemesOn ? hubTheme : null);
   useActiveThemeIcons(shown?.manifest.icons, shown?.files);
   const soundMap = shown?.manifest.sounds;
   const soundFiles = shown?.files;
@@ -143,6 +182,7 @@ export function useThemes(store: ThemeStore) {
   );
   const setSoundVolumeChoice = useCallback((soundVolume: number) => persist({ ...appearance, soundVolume }), [appearance, persist]);
   const setMode = useCallback((mode: SchemeMode) => persist({ ...appearance, mode }), [appearance, persist]);
+  const setHubThemesOn = useCallback((hubThemes: boolean) => persist({ ...appearance, hubThemes }), [appearance, persist]);
 
   const save = useCallback(
     async (pkg: StoredPackage<ThemeManifest>) => {
@@ -209,7 +249,7 @@ export function useThemes(store: ThemeStore) {
     [store, appearance, persist],
   );
 
-  return { themes, active, preview: preview?.pkg ?? null, startPreview, discardPreview, keepPreview, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, userLayout: appearance.layout, soundVolume: appearance.soundVolume, setSoundVolume: setSoundVolumeChoice, systemDark, select, setMode, setBackgroundOff, setBlurOff, setUserLayout, edit, install, create, remove };
+  return { themes, active, preview: preview?.pkg ?? null, startPreview, discardPreview, keepPreview, mode: appearance.mode, bgOff: appearance.bgOff, blurOff: appearance.blurOff, userLayout: appearance.layout, soundVolume: appearance.soundVolume, setSoundVolume: setSoundVolumeChoice, systemDark, select, setMode, hubTheme, setHubTheme, hubThemesOn, setHubThemesOn, setBackgroundOff, setBlurOff, setUserLayout, edit, install, create, remove };
 }
 
 export type ThemesController = ReturnType<typeof useThemes>;

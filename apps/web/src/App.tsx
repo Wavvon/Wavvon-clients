@@ -10,6 +10,7 @@ import { useHubConnection } from "./hooks/useHubConnection";
 import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useAlliances } from "./hooks/useAlliances";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
+import { useActiveHubTheme } from "./hooks/useActiveHubTheme";
 import { useWhisper } from "./hooks/useWhisper";
 import { useScreenShare } from "./hooks/useScreenShare";
 import { useDms } from "./hooks/useDms";
@@ -329,6 +330,8 @@ export default function App({ initialView }: AppProps = {}) {
     return m;
   }, [users]);
   const { blockedUsers, setBlockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore(showHubError);
+  // The hub build applies its hub's theme; the user build will once it offers the opt-in.
+  useActiveHubTheme(MULTI_HUB ? null : activeHubId, settingsProfile.themes.setHubTheme);
   // === Hub admin ===
   const hubAdminState = useHubAdmin({
     activeHubId,

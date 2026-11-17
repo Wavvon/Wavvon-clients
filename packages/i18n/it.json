@@ -2519,5 +2519,16 @@
   "hub.admin.roles.order.drag": "Trascina {name}",
   "hub.admin.roles.order.up": "Sposta {name} su",
   "hub.admin.roles.order.down": "Sposta {name} giù",
-  "voice.stage.sortable": "riquadro trascinabile"
+  "voice.stage.sortable": "riquadro trascinabile",
+  "settings.theme.hub_themes": "Usa il tema di ogni hub",
+  "settings.theme.hub_themes_hint": "Mentre un hub è aperto, mostra il tema scelto dal suo proprietario. Un tema scelto da te vince sempre.",
+  "hub.admin.tabs.theme": "Tema",
+  "hub.admin.theme.title": "Tema dell'hub",
+  "hub.admin.theme.hint": "Un pacchetto .wavvontheme che i membri vedono di default. Il loro tema vince sempre, e possono disattivare i temi degli hub.",
+  "hub.admin.theme.loading": "Caricamento…",
+  "hub.admin.theme.none": "Nessun tema dell'hub: i membri vedono il tema predefinito.",
+  "hub.admin.theme.preview_alt": "Anteprima del tema dell'hub",
+  "hub.admin.theme.upload": "Carica un tema",
+  "hub.admin.theme.replace": "Sostituisci",
+  "hub.admin.theme.remove": "Rimuovi"
 }
