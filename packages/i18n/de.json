@@ -2607,5 +2607,22 @@
   "voice_message.play": "Abspielen",
   "voice_message.pause": "Pause",
   "voice_message.seek": "Position",
-  "voice_message.speed": "Wiedergabegeschwindigkeit {speed}×"
+  "voice_message.speed": "Wiedergabegeschwindigkeit {speed}×",
+  "findable.toggle": "Im Verzeichnis auffindbar sein",
+  "findable.hint": "Diese Identität im öffentlichen Einladungsverzeichnis eintragen, damit Hubs, denen du nicht beigetreten bist, dich finden und einladen können.",
+  "findable.no_home_hub": "Braucht einen Heimat-Hub: Einladungen werden dorthin zugestellt. Lege zuerst unter Heimat-Hubs einen fest.",
+  "findable.no_master": "Nur das Gerät mit deiner Wiederherstellungsphrase kann einen Eintrag veröffentlichen; dieses wurde gekoppelt.",
+  "findable.consent_title": "Diese Identität öffentlich machen?",
+  "findable.consent_body": "Der Eintrag ist öffentlich: Jeder kann ihn lesen und eine Kopie behalten, und er verknüpft deinen öffentlichen Schlüssel mit dem, was du hier schreibst. Er verweist auch auf deinen Heimat-Hub {hub}, dessen Liste von Heimat-Hubs ebenfalls öffentlich ist, sodass die ganze Liste sichtbar wird. Das Entfernen löscht ihn nur aus diesem Verzeichnis; Kopien, die andere gemacht haben, lassen sich nicht zurückholen.",
+  "findable.consent_confirm": "Verstanden",
+  "findable.name": "Name",
+  "findable.tagline": "Kurzbeschreibung",
+  "findable.tags": "Tags",
+  "findable.tags_placeholder": "schach, brettspiele",
+  "findable.languages": "Sprachen",
+  "findable.languages_placeholder": "de, en",
+  "findable.routes_to": "Einladungen werden an deinen Heimat-Hub {hub} zugestellt.",
+  "findable.publish": "Eintrag veröffentlichen",
+  "findable.republish": "Eintrag aktualisieren",
+  "findable.published": "Eintrag veröffentlicht."
 }

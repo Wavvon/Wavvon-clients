@@ -2607,5 +2607,22 @@
   "voice_message.play": "Riproduci",
   "voice_message.pause": "Pausa",
   "voice_message.seek": "Posizione",
-  "voice_message.speed": "Velocità di riproduzione {speed}×"
+  "voice_message.speed": "Velocità di riproduzione {speed}×",
+  "findable.toggle": "Fatti trovare nella directory",
+  "findable.hint": "Elenca questa identità nella directory pubblica degli inviti, così gli hub in cui non sei entrato possono trovarti e invitarti.",
+  "findable.no_home_hub": "Serve un hub principale: gli inviti arrivano lì. Impostane uno prima in Hub principali.",
+  "findable.no_master": "Solo il dispositivo che custodisce la frase di recupero può pubblicare un annuncio; questo è stato associato.",
+  "findable.consent_title": "Rendere pubblica questa identità?",
+  "findable.consent_body": "L'annuncio è pubblico: chiunque può leggerlo e conservarne una copia, e lega la tua chiave pubblica a ciò che scrivi qui. Indica anche il tuo hub principale {hub}, il cui elenco di hub principali è anch'esso pubblico, quindi l'intero elenco diventa visibile. Rimuovere l'annuncio lo toglie solo da questa directory; le copie fatte da altri non si possono richiamare.",
+  "findable.consent_confirm": "Ho capito",
+  "findable.name": "Nome",
+  "findable.tagline": "Frase breve",
+  "findable.tags": "Tag",
+  "findable.tags_placeholder": "scacchi, giochi-da-tavolo",
+  "findable.languages": "Lingue",
+  "findable.languages_placeholder": "it, en",
+  "findable.routes_to": "Gli inviti saranno consegnati al tuo hub principale {hub}.",
+  "findable.publish": "Pubblica annuncio",
+  "findable.republish": "Aggiorna annuncio",
+  "findable.published": "Annuncio pubblicato."
 }

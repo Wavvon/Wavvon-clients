@@ -2607,5 +2607,22 @@
   "voice_message.play": "Play",
   "voice_message.pause": "Pause",
   "voice_message.seek": "Position",
-  "voice_message.speed": "Playback speed {speed}×"
+  "voice_message.speed": "Playback speed {speed}×",
+  "findable.toggle": "Be findable in the directory",
+  "findable.hint": "List this identity in the public invite directory, so hubs you have not joined can find you and send you an invite.",
+  "findable.no_home_hub": "Needs a home hub: invites are delivered there. Set one under Home hubs first.",
+  "findable.no_master": "Only the device holding your recovery phrase can publish a listing; this one was paired.",
+  "findable.consent_title": "Make this identity public?",
+  "findable.consent_body": "The listing is public: anyone can read it and keep a copy, and it ties your public key to what you write here. It also points at your home hub {hub}, whose list of home hubs is public too, so the whole list becomes visible. Removing the listing removes it from this directory only; copies others made are not ours to recall.",
+  "findable.consent_confirm": "I understand",
+  "findable.name": "Name",
+  "findable.tagline": "Tagline",
+  "findable.tags": "Tags",
+  "findable.tags_placeholder": "chess, board-games",
+  "findable.languages": "Languages",
+  "findable.languages_placeholder": "en, it",
+  "findable.routes_to": "Invites will be delivered to your home hub {hub}.",
+  "findable.publish": "Publish listing",
+  "findable.republish": "Update listing",
+  "findable.published": "Listing published."
 }
