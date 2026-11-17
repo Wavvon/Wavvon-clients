@@ -13,6 +13,7 @@ interface Props {
   onReply: () => void;
   onCopyText: () => void;
   onCopyLink: () => void;
+  onMarkUnread?: () => void;
   onPinToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -29,7 +30,7 @@ interface Props {
  * UserContextMenu (the menu the author's name/avatar opens). */
 export function MessageContextMenu({
   position, senderLabel, senderPubkey, isMine, canDelete, isAdmin, isPinned,
-  onClose, onReply, onCopyText, onCopyLink, onPinToggle, onEdit, onDelete,
+  onClose, onReply, onCopyText, onCopyLink, onMarkUnread, onPinToggle, onEdit, onDelete,
   onReport, onViewProfile, onToast, onMute, onKick, onBan,
 }: Props) {
   const { t } = useTranslation();
@@ -100,6 +101,11 @@ export function MessageContextMenu({
         <button className="context-menu-item" onClick={pick(onCopyLink)}>
           {t("message.action.copy_link")}
         </button>
+        {onMarkUnread && (
+          <button className="context-menu-item" onClick={pick(onMarkUnread)}>
+            {t("message.action.mark_unread")}
+          </button>
+        )}
         {isAdmin && (
           <button className="context-menu-item" onClick={pick(onPinToggle)}>
             {isPinned ? t("message.action.unpin") : t("message.action.pin")}

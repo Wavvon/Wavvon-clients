@@ -1195,6 +1195,8 @@
   "message.action.delete": "Eliminar mensaje",
   "message.action.edit": "Editar mensaje",
   "message.action.link_copied": "Enlace copiado",
+  "message.action.mark_unread": "Marcar como no leído",
+  "message.action.marked_unread": "Marcado como no leído",
   "message.action.pin": "Fijar el mensaje",
   "message.action.reply": "Responder",
   "message.action.text_copied": "Texto copiado",

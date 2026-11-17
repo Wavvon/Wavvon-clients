@@ -613,6 +613,35 @@ pub(crate) async fn forum_remove_reply_reaction(
     Ok(())
 }
 
+/// Marks a channel read, or with `message_id` unread from that message.
+/// Answers the marker the hub held before the call (unix ms, 0 = never
+/// read), or `None` from a hub that predates returning it.
+#[tauri::command]
+pub(crate) async fn mark_channel_read(
+    channel_id: String,
+    message_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Option<i64>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let body = match message_id {
+        Some(id) => serde_json::json!({ "message_id": id }),
+        None => serde_json::json!({}),
+    };
+    let resp = state
+        .http_client
+        .post(format!("{hub_url}/channels/{channel_id}/read"))
+        .bearer_auth(&token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(resp.text().await.unwrap_or_default());
+    }
+    let json: Option<serde_json::Value> = resp.json().await.ok();
+    Ok(json.and_then(|v| v["previous_last_read_at"].as_i64()))
+}
+
 #[tauri::command]
 pub(crate) async fn mark_post_read(
     channel_id: String,

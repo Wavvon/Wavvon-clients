@@ -188,6 +188,7 @@ pub fn run() {
             messages::forum_edit_tag,
             messages::forum_delete_tag,
             messages::mark_post_read,
+            messages::mark_channel_read,
             messages::upload_file,
             messages::upload_file_bytes,
             messages::upload_attachment,

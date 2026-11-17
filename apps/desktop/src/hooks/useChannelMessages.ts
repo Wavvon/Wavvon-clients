@@ -81,6 +81,7 @@ export interface ChannelMessagesReturn {
   attachFiles: (files: FileList | null) => Promise<void>;
   handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   scrollToMessage: (id: string) => void;
+  markUnread: (message: Message) => Promise<void>;
   closeSearch: () => void;
   handleMessagesScroll: () => void;
   jumpToBottom: () => void;
@@ -402,6 +403,7 @@ export function useChannelMessages({
     } else {
       setInputText("");
     }
+    invoke("mark_channel_read", { channelId: channel.id }).catch(() => {});
     try {
       const msgs = await invoke<Message[]>("get_messages", { channelId: channel.id });
       setMessages(msgs);
@@ -574,6 +576,12 @@ export function useChannelMessages({
     }
   }
 
+  async function markUnread(m: Message) {
+    await invoke("mark_channel_read", { channelId: m.channel_id, messageId: m.id });
+    const hubId = activeHubIdRef.current;
+    if (hubId) bumpUnread(hubId, m.channel_id);
+  }
+
   function scrollToMessage(id: string) {
     const el = document.getElementById(`msg-${id}`);
     if (!el) return;
@@ -652,6 +660,7 @@ export function useChannelMessages({
     attachFiles,
     handleKeyDown,
     scrollToMessage,
+    markUnread,
     closeSearch,
     handleMessagesScroll,
     jumpToBottom,

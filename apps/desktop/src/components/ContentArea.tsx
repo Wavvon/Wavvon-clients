@@ -221,6 +221,8 @@ interface Props {
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
   onStartConversation?: (pubkey: string) => void;
   stickerActions?: StickerActions;
+  /** Absent on a hub without `channels.markunread`. */
+  markUnread?: (message: Message) => Promise<void>;
 }
 
 export function ContentArea(props: Props) {
@@ -261,6 +263,7 @@ export function ContentArea(props: Props) {
     votePoll: (pollId, optionId) => invoke<Poll>("vote_poll", { pollId, optionIds: [optionId] }),
     deletePoll: (pollId) => invoke("delete_poll", { hubUrl: activeHub?.hub_url ?? "", pollId }),
     reportMessage: (messageId, reason) => invoke("report_message", { messageId, reason }),
+    markUnread: props.markUnread,
   };
 
   const profileCardActions: UserProfileCardActions = {

@@ -387,7 +387,9 @@ export function ContentArea(props: Props) {
         alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}
         profileCardActions={profileCardActions}
         forumActions={forumActions}
-        messageRowActions={messageRowActions}
+        messageRowActions={activeHubSupports("channels.markunread")
+          ? { ...messageRowActions, markUnread: channelMessages.handleMarkUnread }
+          : messageRowActions}
         stickerActions={stickerActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}

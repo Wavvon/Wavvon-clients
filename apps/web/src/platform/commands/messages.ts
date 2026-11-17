@@ -104,8 +104,17 @@ export async function getUnreadCounts(): Promise<UnreadCount[]> {
   return r.json() as Promise<UnreadCount[]>;
 }
 
-export async function markChannelRead(channel_id: string): Promise<void> {
-  await hubFetch(`/channels/${channel_id}/read`, { method: "POST" });
+/** Marks a channel read, or with `message_id` unread from that message.
+ * Answers the marker the hub held before the call (unix ms, 0 = never read),
+ * or null from a hub that predates returning it. */
+export async function markChannelRead(channel_id: string, message_id?: string): Promise<number | null> {
+  const r = await hubFetch(`/channels/${channel_id}/read`, {
+    method: "POST",
+    ...(message_id ? { body: JSON.stringify({ message_id }) } : {}),
+  });
+  if (r.status !== 200) return null;
+  const body = (await r.json()) as { previous_last_read_at?: number };
+  return body.previous_last_read_at ?? null;
 }
 
 export function sendTypingEvent(channel_id: string, typing: boolean): void {
