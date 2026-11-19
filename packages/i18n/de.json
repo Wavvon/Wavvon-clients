@@ -874,7 +874,7 @@
   "hub.admin.roles.perm.apps.register": "Eine App registrieren",
   "hub.admin.roles.perm.audit.read": "Das Aktivitätsprotokoll lesen",
   "hub.admin.roles.perm.badges.manage": "Abzeichen verwalten",
-  "hub.admin.roles.perm.banlist.overrides": "Importierte Sperren übergehen",
+  "hub.admin.roles.perm.banlist.overrides": "Lokale Ausnahmen zur föderierten Sperrliste verwalten",
   "hub.admin.roles.perm.banlist.read": "Föderierte Sperrliste lesen",
   "hub.admin.roles.perm.banlist.settings": "Einstellungen der Sperrliste ändern",
   "hub.admin.roles.perm.banlist.sources.manage": "Quellen der Sperrliste verwalten",

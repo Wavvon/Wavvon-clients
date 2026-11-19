@@ -874,7 +874,7 @@
   "hub.admin.roles.perm.apps.register": "Register an app",
   "hub.admin.roles.perm.audit.read": "Read the audit log",
   "hub.admin.roles.perm.badges.manage": "Manage badges",
-  "hub.admin.roles.perm.banlist.overrides": "Override imported bans",
+  "hub.admin.roles.perm.banlist.overrides": "Manage local overrides to the federated ban list",
   "hub.admin.roles.perm.banlist.read": "Read the federated ban list",
   "hub.admin.roles.perm.banlist.settings": "Change ban list settings",
   "hub.admin.roles.perm.banlist.sources.manage": "Manage ban list sources",
