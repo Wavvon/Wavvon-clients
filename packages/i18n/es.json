@@ -874,7 +874,7 @@
   "hub.admin.roles.perm.apps.register": "Registrar una app",
   "hub.admin.roles.perm.audit.read": "Leer el registro de actividad",
   "hub.admin.roles.perm.badges.manage": "Gestionar insignias",
-  "hub.admin.roles.perm.banlist.overrides": "Anular vetos importados",
+  "hub.admin.roles.perm.banlist.overrides": "Gestionar excepciones locales a la lista de vetos federada",
   "hub.admin.roles.perm.banlist.read": "Leer la lista de vetos federada",
   "hub.admin.roles.perm.banlist.settings": "Cambiar ajustes de la lista de vetos",
   "hub.admin.roles.perm.banlist.sources.manage": "Gestionar fuentes de la lista de vetos",
