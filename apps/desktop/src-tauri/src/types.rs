@@ -603,6 +603,9 @@ pub(crate) enum WsServerMessage {
     },
     #[serde(rename = "error")]
     Error { context: String, message: String },
+    /// The hub's SDP answer to our `voice_rtc_offer` (voice-transport-v3.md).
+    #[serde(rename = "voice_rtc_answer")]
+    VoiceRtcAnswer { sdp: String },
     #[serde(rename = "dm")]
     DirectMessage {
         conversation_id: String,
