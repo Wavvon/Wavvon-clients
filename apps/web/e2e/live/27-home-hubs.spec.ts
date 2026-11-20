@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, HUB_URL } from "./helpers/live";
 
 // P27 — home-hub designation write. The owner publishes a master-signed
@@ -9,7 +10,7 @@ async function openHomeHubs(page: import("@playwright/test").Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.getByRole("button", { name: "Manage accounts", exact: true }).click();
+  await openSettingsSection(page, "Manage accounts");
   // Not exact: the section label gains an account-label suffix ("Home hubs
   // — <label>") now that naming an account is mandatory (identity_setup.label).
   const section = page

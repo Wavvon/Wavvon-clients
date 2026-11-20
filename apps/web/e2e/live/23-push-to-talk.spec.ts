@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, openSettingRow, settingRow } from "./helpers/live";
 
 // P23 — push-to-talk settings (Settings → Voice). The audio gating is a live
@@ -9,7 +10,7 @@ async function openVoiceSettings(page: import("@playwright/test").Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Voice", exact: true }).click();
+  await openSettingsSection(page, "Voice");
 }
 
 test("enable push-to-talk and bind a key; it persists", async ({ page }) => {

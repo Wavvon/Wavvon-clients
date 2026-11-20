@@ -1,9 +1,7 @@
 import { useTranslation } from "react-i18next";
-import type { BlockEntry, Hub, IgnoreEntry } from "@shared/types";
+import type { BlockEntry, IgnoreEntry } from "@shared/types";
 import { AccountBlockIgnoreSection } from "../AccountBlockIgnoreSection";
-import type { PerAccountProps, TrustRoot } from "@wavvon/ui";
-import { TrustedIssuersSection, knownIssuerHubs } from "@wavvon/ui";
-import { lookupIssuerHub } from "../../../platform/adminActions";
+import type { PerAccountProps } from "@wavvon/ui";
 import type { IdentityRecord } from "@identity/index";
 
 interface Props extends PerAccountProps<IdentityRecord> {
@@ -12,13 +10,10 @@ interface Props extends PerAccountProps<IdentityRecord> {
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
-  trustRoots: TrustRoot[];
-  onTrustRootsChange: (roots: TrustRoot[]) => void;
-  hubs: Hub[];
 }
 
 // Who the selected account has blocked or ignored — about other people,
-// unlike Devices (what can access the account), hence its own tab.
+// unlike Devices (what can access the account), hence its own area.
 export function PrivacyTab(props: Props) {
   const { t } = useTranslation();
 
@@ -35,12 +30,6 @@ export function PrivacyTab(props: Props) {
           knownNames={props.knownNames}
         />
       )}
-      <TrustedIssuersSection
-        roots={props.trustRoots}
-        onChange={props.onTrustRootsChange}
-        joinedHubs={knownIssuerHubs(props.hubs, [])}
-        lookupHub={lookupIssuerHub}
-      />
     </section>
   );
 }

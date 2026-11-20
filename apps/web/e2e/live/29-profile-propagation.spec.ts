@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
 
 // P29 — live profile propagation. A member renames themselves; the owner sees
@@ -32,7 +33,7 @@ test("a member's rename propagates live to other clients", async ({ page, browse
     await member.locator(".user-menu-trigger:visible").click();
 
     await member.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-    await member.getByRole("button", { name: "Profile", exact: true }).first().click();
+    await openSettingsSection(member, "Profile");
     await member.locator("#profile-context-select").selectOption({ index: 1 });
     const nameInput = member.locator("#profile-editor-name").first();
     await nameInput.fill(renamed);

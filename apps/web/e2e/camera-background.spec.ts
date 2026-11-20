@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "./helpers/settings";
 import { injectSession, mockJson, HUB_URL } from "./helpers/mockApi";
 
 // Background effects actually engage: with a fake camera, selecting Blur and
@@ -48,7 +49,7 @@ test("blur background engages segmentation and reports active", async ({ page })
   await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();
+  await openSettingsSection(page, "Camera");
 
   // The camera permission is granted here, so the preview starts with the tab.
   await page.getByRole("radiogroup", { name: "Background effect" }).getByRole("radio", { name: "Blur" }).click();

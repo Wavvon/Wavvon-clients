@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, HUB_URL, OWNER_PUBKEY, hubApi, APP_URL, openSettingRow } from "./helpers/live";
 
 // P28 — multi-device pairing. The owner (existing device) enables multi-device,
@@ -17,7 +18,7 @@ test("pair a new device and resolve it to the owner's identity", async ({ page, 
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Devices", exact: true }).click();
+  await openSettingsSection(page, "Devices");
   // Devices is one settings row, and everything below — the master key, the
   // pairing code, the claim to approve — is in the form it opens to. It has
   // to stay open for the rest of this spec, which is also what keeps the

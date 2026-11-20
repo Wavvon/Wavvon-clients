@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub } from "./helpers/live";
 
 // P38 — language switcher (Settings → Appearance). Previously the app read a
@@ -12,7 +13,7 @@ test("switching language updates the UI and persists", async ({ page }) => {
 
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await openSettingsSection(page, "Appearance");
 
   await page.locator("#settings-language").first().selectOption("it");
 

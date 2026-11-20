@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, startCameraPreview } from "./helpers/live";
 
 // P45 — webcam background effects (none/blur/image/video). Actual segmented
@@ -11,7 +12,7 @@ async function openCameraSettings(page: import("@playwright/test").Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();
+  await openSettingsSection(page, "Camera");
 }
 
 test("background picker offers none/blur/image/video and persists the choice", async ({ page }) => {
