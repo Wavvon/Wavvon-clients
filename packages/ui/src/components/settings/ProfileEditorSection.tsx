@@ -437,7 +437,14 @@ export function ProfileEditorSection({ hubs, account, isActive, publicKey, onHub
           {isActive &&
             hubs.map((h) => (
               <option key={h.hub_id} value={h.hub_id}>
-                {contextLabel(h.hub_id, h.hub_name || h.hub_url)}
+                {contextLabel(
+                  h.hub_id,
+                  // Most hubs keep their own copy; saying which ones mirror the
+                  // default is what tells them apart in a long list.
+                  following.has(h.hub_id)
+                    ? t("settings.profile.context.follows_option", { hub: h.hub_name || h.hub_url })
+                    : h.hub_name || h.hub_url,
+                )}
               </option>
             ))}
         </select>

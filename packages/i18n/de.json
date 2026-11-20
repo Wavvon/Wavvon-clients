@@ -1685,6 +1685,7 @@
   "settings.profile.card.no_badges": "Noch keine Abzeichen",
   "settings.profile.context.apply_default": "Standard übernehmen",
   "settings.profile.context.default_option": "Standardprofil",
+  "settings.profile.context.follows_option": "{hub} (folgt dem Standard)",
   "settings.profile.context.following": "Folgt dem Standardprofil — es aktualisiert sich bei jedem Speichern des Standards. Das Bearbeiten eines Felds hier löst die Verknüpfung.",
   "settings.profile.context.label": "Zu bearbeitendes Profil",
   "settings.profile.context.loading": "Wird geladen…",

@@ -1685,6 +1685,7 @@
   "settings.profile.card.no_badges": "Aún no hay insignias",
   "settings.profile.context.apply_default": "Usar el predeterminado",
   "settings.profile.context.default_option": "Perfil predeterminado",
+  "settings.profile.context.follows_option": "{hub} (sigue el predeterminado)",
   "settings.profile.context.following": "Sigue el perfil predeterminado — se actualiza cada vez que se guarda el predeterminado. Editar cualquier campo aquí lo desvincula.",
   "settings.profile.context.label": "Perfil a editar",
   "settings.profile.context.loading": "Cargando…",
