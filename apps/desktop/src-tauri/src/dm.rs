@@ -348,7 +348,7 @@ fn decrypt_dm_inner(
 
 /// Whether the hub takes `plaintext_signer_cert`. A failed lookup answers no:
 /// the message then goes unsigned, which is what it did before the cert.
-async fn hub_capabilities(client: &reqwest::Client, hub_url: &str) -> Vec<String> {
+pub(crate) async fn hub_capabilities(client: &reqwest::Client, hub_url: &str) -> Vec<String> {
     let info: Option<serde_json::Value> = match client.get(format!("{hub_url}/info")).send().await {
         Ok(resp) => resp.json().await.ok(),
         Err(_) => None,

@@ -28,6 +28,10 @@ nnnoiseless = { version = "0.5", default-features = false, features = ["dasp"] }
 # client replacing raw UDP; same version the hub relay is built against.
 wtransport = "0.7.1"
 
+# Voice transport v3 (voice-transport-v3.md): WebRTC data channels, the
+# same sans-IO stack the hub relay runs.
+str0m = "0.25"
+
 # Per-packet AEAD for sealed voice datagrams (already the project cipher).
 aes-gcm = "0.10"
 
