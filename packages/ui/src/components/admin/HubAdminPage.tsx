@@ -349,7 +349,13 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ...(props.hubThemeActions ? [S("hub-theme", t("hub.admin.tabs.theme"), "general")] : []),
     ...(props.hubLanguagesActions ? [S("hub-languages", t("hub.admin.tabs.languages"), "general")] : []),
     S("invites", t("hub.admin.tabs.invites"), "joining"),
-    S("admission", t("hub.admin.section.admission"), "joining"),
+    {
+      ...S("admission", t("hub.admin.section.admission"), "joining"),
+      // Newcomers waiting on approval: the Joining tab carries the marker.
+      attention: props.pendingMembers.length > 0
+        ? t("hub.admin.members.pending.title", { count: props.pendingMembers.length })
+        : undefined,
+    },
     ...(admin ? [
       S("onboarding", t("hub.admin.tabs.onboarding"), "joining"),
       S("survey", t("hub.admin.tabs.survey"), "joining"),
@@ -536,6 +542,61 @@ export function HubAdminPage(props: HubAdminPageProps) {
               title={t("hub.admin.overview.require_approval")}
               control={<input type="checkbox" aria-label={t("hub.admin.overview.require_approval")} checked={props.requireApproval} onChange={(e) => edit(props.onRequireApprovalChange, 0)(e.target.checked)} />}
             />
+            {props.pendingMembers.length > 0 && (
+              <div className="pending-section">
+                <h2>{t("hub.admin.members.pending.title", { count: props.pendingMembers.length })}</h2>
+                <table className="members-table">
+                  <thead><tr>
+                    <th>{t("hub.admin.members.pending.col.user")}</th>
+                    <th>{t("hub.admin.members.pending.col.signed_up")}</th>
+                    <th>{t("hub.admin.members.pending.col.actions")}</th>
+                  </tr></thead>
+                  <tbody>
+                    {props.pendingMembers.map((p) => (
+                      <tr key={p.public_key}>
+                        <td>
+                          <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
+                          <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
+                          {p.ban_evasion_match && (
+                            <div className="muted" style={{ fontSize: "var(--text-xs)" }} title={p.ban_evasion_match}>
+                              {t("hub.admin.members.pending.ban_evasion", { banned: formatPubkey(p.ban_evasion_match) })}
+                            </div>
+                          )}
+                        </td>
+                        <td>{formatRelative(p.first_seen_at)}</td>
+                        <td>
+                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
+                          {p.has_application && props.loadApplication && (
+                            <button
+                              className="btn-small btn-secondary"
+                              aria-expanded={openApplication === p.public_key}
+                              onClick={() => setOpenApplication((cur) => (cur === p.public_key ? null : p.public_key))}
+                            >
+                              {t("hub.admin.members.pending.application")}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )).flatMap((row, i) => {
+                      const p = props.pendingMembers[i];
+                      return openApplication === p.public_key && props.loadApplication
+                        ? [row, (
+                          <tr key={`${p.public_key}-application`}>
+                            <td colSpan={3}>
+                              <PendingApplicationDetails
+                                pubkey={p.public_key}
+                                loadApplication={props.loadApplication}
+                                onReject={props.onRejectMember}
+                              />
+                            </td>
+                          </tr>
+                        )]
+                        : [row];
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <SettingRow
               title={t("hub.admin.overview.antispam")}
               control={<input type="number" aria-label={t("hub.admin.overview.antispam")} min={0} max={9999} style={{ width: 90 }} value={props.minSecurityLevel} onChange={(e) => edit(props.onMinSecurityLevelChange)(Number(e.target.value))} />}
@@ -687,61 +748,6 @@ export function HubAdminPage(props: HubAdminPageProps) {
 
         {section === "members" && (
           <section>
-            {props.pendingMembers.length > 0 && (
-              <div className="pending-section">
-                <h2>{t("hub.admin.members.pending.title", { count: props.pendingMembers.length })}</h2>
-                <table className="members-table">
-                  <thead><tr>
-                    <th>{t("hub.admin.members.pending.col.user")}</th>
-                    <th>{t("hub.admin.members.pending.col.signed_up")}</th>
-                    <th>{t("hub.admin.members.pending.col.actions")}</th>
-                  </tr></thead>
-                  <tbody>
-                    {props.pendingMembers.map((p) => (
-                      <tr key={p.public_key}>
-                        <td>
-                          <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
-                          <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
-                          {p.ban_evasion_match && (
-                            <div className="muted" style={{ fontSize: "var(--text-xs)" }} title={p.ban_evasion_match}>
-                              {t("hub.admin.members.pending.ban_evasion", { banned: formatPubkey(p.ban_evasion_match) })}
-                            </div>
-                          )}
-                        </td>
-                        <td>{formatRelative(p.first_seen_at)}</td>
-                        <td>
-                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
-                          {p.has_application && props.loadApplication && (
-                            <button
-                              className="btn-small btn-secondary"
-                              aria-expanded={openApplication === p.public_key}
-                              onClick={() => setOpenApplication((cur) => (cur === p.public_key ? null : p.public_key))}
-                            >
-                              {t("hub.admin.members.pending.application")}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )).flatMap((row, i) => {
-                      const p = props.pendingMembers[i];
-                      return openApplication === p.public_key && props.loadApplication
-                        ? [row, (
-                          <tr key={`${p.public_key}-application`}>
-                            <td colSpan={3}>
-                              <PendingApplicationDetails
-                                pubkey={p.public_key}
-                                loadApplication={props.loadApplication}
-                                onReject={props.onRejectMember}
-                              />
-                            </td>
-                          </tr>
-                        )]
-                        : [row];
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
             <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
             {memberNotice && (
               <p role="status" className={memberNotice.error ? "error-text" : "muted"} style={{ marginBottom: "var(--space-3)" }}>
