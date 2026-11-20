@@ -32,6 +32,11 @@ export type MemberAction = Promise<boolean | void>;
 
 export type HubAdminTab =
   | "overview"
+  | "behaviour"
+  | "voice-channels"
+  | "admission"
+  | "welcome"
+  | "message-limits"
   | "discovery"
   | "tags"
   | "roles"
@@ -336,17 +341,21 @@ export function HubAdminPage(props: HubAdminPageProps) {
   const showAlliances = props.canManageHubAlliances || props.canManageRoles;
   const S = (id: HubAdminTab, label: string, area: Area): SettingsSectionDef<HubAdminTab, Area> => ({ id, label, area });
   const SECTIONS: SettingsSectionDef<HubAdminTab, Area>[] = [
-    S("overview", t("hub.admin.tabs.overview"), "general"),
+    S("overview", t("hub.admin.overview.identity"), "general"),
+    S("behaviour", t("hub.admin.section.behaviour"), "general"),
+    S("voice-channels", t("hub.admin.section.voice_channels"), "general"),
     ...(props.discoveryUrl ? [S("discovery", t("hub.admin.tabs.discovery"), "general")] : []),
     S("tags", t("hub.admin.tabs.tags"), "general"),
     ...(props.hubThemeActions ? [S("hub-theme", t("hub.admin.tabs.theme"), "general")] : []),
     ...(props.hubLanguagesActions ? [S("hub-languages", t("hub.admin.tabs.languages"), "general")] : []),
     S("invites", t("hub.admin.tabs.invites"), "joining"),
+    S("admission", t("hub.admin.section.admission"), "joining"),
     ...(admin ? [
       S("onboarding", t("hub.admin.tabs.onboarding"), "joining"),
       S("survey", t("hub.admin.tabs.survey"), "joining"),
       ...(props.joinFormsCapable && props.applicationActions ? [S("application", t("hub.admin.tabs.application"), "joining")] : []),
     ] : []),
+    S("welcome", t("hub.admin.overview.welcome"), "joining"),
     S("members", t("hub.admin.tabs.members"), "people"),
     S("roles", t("hub.admin.tabs.roles"), "people"),
     S("certifications", t("hub.admin.tabs.certifications"), "people"),
@@ -359,6 +368,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ...(props.stickersAdmin?.settings ? [S("sticker-settings", t("hub.admin.tabs.sticker_settings"), "content")] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [S("soundboard", t("hub.admin.tabs.soundboard"), "content")] : []),
     ...(props.attachmentSettingsActions ? [S("attachments", t("hub.admin.tabs.attachments"), "content")] : []),
+    S("message-limits", t("hub.admin.section.message_limits"), "content"),
     ...(props.stickersAdmin?.storage ? [S("sticker-storage", t("hub.admin.tabs.sticker_storage"), "content")] : []),
     ...(showAlliances ? [S("alliances", t("hub.admin.tabs.alliances"), "connections")] : []),
     S("integrations", t("hub.admin.tabs.webhooks"), "connections"),
@@ -378,12 +388,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
       <>
         {section === "overview" && (
           <section>
-            <h1>{t("hub.admin.overview.title")}</h1>
-            {/* Every change saves itself: a toggle or a select at once, typing
-                after a short pause. The status sits where the Save button was. */}
-            <p className={props.saveError ? "error-text" : "muted"} role="status" style={{ fontSize: "var(--text-sm)", minHeight: "1.4em" }}>
-              {props.saveError ?? (saveStatus === "saving" ? t("hub.admin.overview.saving") : saveStatus === "saved" ? t("hub.admin.overview.saved") : "")}
-            </p>
+            <h1>{t("hub.admin.overview.identity")}</h1>
             <SettingRow
               title={t("hub.admin.overview.identity")}
               state={props.hubName.trim() || t("hub.admin.overview.state.unnamed")}
@@ -430,16 +435,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   </div>
                 </div>
             </SettingRow>
-
-            <SettingRow
-              title={t("hub.admin.overview.require_approval")}
-              control={<input type="checkbox" aria-label={t("hub.admin.overview.require_approval")} checked={props.requireApproval} onChange={(e) => edit(props.onRequireApprovalChange, 0)(e.target.checked)} />}
-            />
-            <SettingRow
-              title={t("hub.admin.overview.antispam")}
-              control={<input type="number" aria-label={t("hub.admin.overview.antispam")} min={0} max={9999} style={{ width: 90 }} value={props.minSecurityLevel} onChange={(e) => edit(props.onMinSecurityLevelChange)(Number(e.target.value))} />}
-            />
-
+          </section>
+        )}
+        {section === "behaviour" && (
+          <section>
+            <h1>{t("hub.admin.section.behaviour")}</h1>
             <SettingRow
               title={t("hub.admin.overview.timezone")}
               state={t("hub.admin.overview.timezone_hint")}
@@ -484,6 +484,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
               }
             />
 
+          </section>
+        )}
+        {section === "voice-channels" && (
+          <section>
+            <h1>{t("hub.admin.section.voice_channels")}</h1>
             {/* Channel and timeout are one decision, so they share a row; the
                 timeout only appears once a channel is picked. */}
             <SettingRow
@@ -522,26 +527,24 @@ export function HubAdminPage(props: HubAdminPageProps) {
               state={t("hub.admin.overview.max_depth_hint")}
               control={<input type="number" aria-label={t("hub.admin.overview.max_depth")} min={0} max={20} style={{ width: 70 }} value={props.maxChannelDepth} onChange={(e) => edit(props.onMaxChannelDepthChange)(Number(e.target.value))} />}
             />
+          </section>
+        )}
+        {section === "admission" && (
+          <section>
+            <h1>{t("hub.admin.section.admission")}</h1>
             <SettingRow
-              title={t("hub.admin.overview.attachment_cap")}
-              state={t("hub.admin.overview.attachment_cap_hint")}
-              control={
-                <span className="settings-row" style={{ gap: "var(--space-1)" }}>
-                  <input
-                    type="number"
-                    aria-label={t("hub.admin.overview.attachment_cap")}
-                    min={1}
-                    max={8}
-                    step={1}
-                    style={{ width: 60 }}
-                    value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
-                    onChange={(e) => edit(props.onMaxAttachmentBytesChange)(Number(e.target.value) * 1024 * 1024)}
-                  />
-                  <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
-                </span>
-              }
+              title={t("hub.admin.overview.require_approval")}
+              control={<input type="checkbox" aria-label={t("hub.admin.overview.require_approval")} checked={props.requireApproval} onChange={(e) => edit(props.onRequireApprovalChange, 0)(e.target.checked)} />}
             />
-
+            <SettingRow
+              title={t("hub.admin.overview.antispam")}
+              control={<input type="number" aria-label={t("hub.admin.overview.antispam")} min={0} max={9999} style={{ width: 90 }} value={props.minSecurityLevel} onChange={(e) => edit(props.onMinSecurityLevelChange)(Number(e.target.value))} />}
+            />
+          </section>
+        )}
+        {section === "welcome" && (
+          <section>
+            <h1>{t("hub.admin.overview.welcome")}</h1>
             <SettingRow
               title={t("hub.admin.overview.welcome")}
               state={props.welcomeLabel.trim() || t("hub.admin.overview.state.no_welcome")}
@@ -594,18 +597,30 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   )}
                 </div>
             </SettingRow>
-
-            {/* Deliberately not editable here: these come from the environment
-                and need a restart, so a control would imply something this page
-                cannot deliver. Named so an operator knows what to go and change.
-                The env var names stay outside the catalog: a translator must
-                not be able to rename an operator's variable. */}
-            <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-4)" }}>
-              <strong>{t("hub.admin.overview.startup_only")}</strong>{" "}
-              {t("hub.admin.overview.startup_only.db")} — <code>WAVVON_DB_MAX_CONNECTIONS</code>.{" "}
-              {t("hub.admin.overview.startup_only.udp")} — <code>WAVVON_VOICE_UDP_PORT</code>.{" "}
-              {t("hub.admin.overview.startup_only.rest")}
-            </p>
+          </section>
+        )}
+        {section === "message-limits" && (
+          <section>
+            <h1>{t("hub.admin.section.message_limits")}</h1>
+            <SettingRow
+              title={t("hub.admin.overview.attachment_cap")}
+              state={t("hub.admin.overview.attachment_cap_hint")}
+              control={
+                <span className="settings-row" style={{ gap: "var(--space-1)" }}>
+                  <input
+                    type="number"
+                    aria-label={t("hub.admin.overview.attachment_cap")}
+                    min={1}
+                    max={8}
+                    step={1}
+                    style={{ width: 60 }}
+                    value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
+                    onChange={(e) => edit(props.onMaxAttachmentBytesChange)(Number(e.target.value) * 1024 * 1024)}
+                  />
+                  <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
+                </span>
+              }
+            />
           </section>
         )}
 
@@ -937,6 +952,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
       onSection={props.onTab}
       renderSection={renderSection}
       onClose={props.onClose}
+      status={props.saveError ? (
+        <span className="error-text">{props.saveError}</span>
+      ) : saveStatus === "saving" ? t("hub.admin.overview.saving") : saveStatus === "saved" ? t("hub.admin.overview.saved") : undefined}
     />
   );
 }

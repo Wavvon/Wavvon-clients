@@ -9363,3 +9363,19 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
     width: 100%;
   }
 }
+/* One save status for the whole settings page, pinned to its bottom. */
+.settings-status-bar {
+  position: sticky;
+  bottom: 0;
+  width: fit-content;
+  margin: var(--space-5) auto 0;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.settings-status-bar:empty {
+  visibility: hidden;
+}
