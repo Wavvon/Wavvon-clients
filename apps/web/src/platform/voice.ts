@@ -12,6 +12,7 @@ import { downmixChannels } from './soundboardMix';
 import captureWorkletUrl from './captureWorklet?worker&url';
 import type { FromWorker, ToWorker } from './voiceEncodeWorker';
 import { VoiceTransportError } from './voiceErrors';
+import { openRtcVoice, type RtcSignal, type RtcVoiceLink } from './voiceRtc';
 
 export { mixClipIntoFrame, downmixChannels, type ActiveClip } from './soundboardMix';
 
@@ -76,6 +77,9 @@ export interface VoiceJoinInfo {
   wtUrl: string;
   token: string;
   certHash: string | null;
+  /** Set when the hub advertises `voice.webrtc` (voice-transport-v3.md):
+   *  the session then rides a WebRTC data channel instead of WebTransport. */
+  rtcSignal?: RtcSignal;
 }
 
 export interface AudioProfileConfig {
@@ -139,6 +143,7 @@ export class VoiceWtSession {
   private muted = false;
   private deafened = false;
   private closed = false;
+  private rtc: RtcVoiceLink | null = null;
   private gainNodes: Map<number, GainNode> = new Map();
   private senderIdToPubkey: Map<number, string> = new Map();
   /** Per-sender playout clock: when that sender's last scheduled
@@ -210,9 +215,21 @@ export class VoiceWtSession {
     this.captureSource = audioCtx.createMediaStreamSource(this.mediaStream);
     this.captureSource.connect(capture);
 
-    const url = `${this.join.wtUrl}?token=${encodeURIComponent(this.join.token)}`;
-    const certHash = this.join.certHash;
-    await this.startEncodeWorker(opus, url, certHash ? new Uint8Array(hexToBytes(certHash)) : null);
+    if (this.join.rtcSignal) {
+      const started = performance.now();
+      try {
+        this.rtc = await openRtcVoice(this.join.token, this.join.rtcSignal);
+      } catch (e) {
+        throw new VoiceTransportError('webrtc', 'Error', (e as Error).message ?? String(e), Math.round(performance.now() - started));
+      }
+      this.rtc.onPacket = (p) => this.onDatagram(p);
+      this.rtc.onClose = () => { if (!this.closed) this.handlers.onClose(); };
+      await this.startEncodeWorker(opus, null, null);
+    } else {
+      const url = `${this.join.wtUrl}?token=${encodeURIComponent(this.join.token)}`;
+      const certHash = this.join.certHash;
+      await this.startEncodeWorker(opus, url, certHash ? new Uint8Array(hexToBytes(certHash)) : null);
+    }
 
     // Seal outgoing frames with our own key from the moment capture starts —
     // no need to wait on the (async, network-bound) key offer below, since
@@ -329,7 +346,7 @@ export class VoiceWtSession {
    *  never pass through this thread. The worklet gets its port only now: audio
    *  captured before the session exists has nowhere to go and would arrive as
    *  one stale burst. */
-  private startEncodeWorker(opus: ReturnType<typeof resolveOpusConfig>, url: string, certHash: Uint8Array | null): Promise<void> {
+  private startEncodeWorker(opus: ReturnType<typeof resolveOpusConfig>, url: string | null, certHash: Uint8Array | null): Promise<void> {
     return new Promise((resolve, reject) => {
       const worker = new Worker(new URL('./voiceEncodeWorker.ts', import.meta.url), { type: 'module' });
       this.encodeWorker = worker;
@@ -343,14 +360,17 @@ export class VoiceWtSession {
             resolve();
             break;
           case 'failed':
-            if (!ready) reject(new VoiceTransportError(url, msg.name, msg.message, msg.elapsedMs));
+            if (!ready) reject(new VoiceTransportError(url ?? 'webrtc', msg.name, msg.message, msg.elapsedMs));
             break;
           case 'closed':
-            if (!ready) reject(new VoiceTransportError(url, 'closed', '', 0));
+            if (!ready) reject(new VoiceTransportError(url ?? 'webrtc', 'closed', '', 0));
             else if (!this.closed) this.handlers.onClose();
             break;
           case 'datagram':
             this.onDatagram(msg.data);
+            break;
+          case 'packet':
+            this.rtc?.send(msg.data);
             break;
           case 'speaking':
             this.handlers.sendSpeaking(this.channelId, msg.speaking);
@@ -604,6 +624,8 @@ export class VoiceWtSession {
     }
     this.postToWorker({ type: 'stop' });
     this.encodeWorker = null;
+    this.rtc?.close();
+    this.rtc = null;
     for (const track of this.mediaStream?.getTracks() ?? []) track.stop();
     this.mediaStream = null;
     for (const [, gainNode] of this.gainNodes) {
