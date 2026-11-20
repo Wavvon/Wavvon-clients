@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { channelButton, confirmInApp, createChannel, expectInHub, hubApi, newMemberPage, openSettingRow, settingRow, uniqueName } from "./helpers/live";
 
 // P18 — admin features ported from desktop: audit log, hub icon library,
@@ -8,7 +9,7 @@ import { channelButton, confirmInApp, createChannel, expectInHub, hubApi, newMem
 async function openAdminTab(page: Page, tab: string) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: tab, exact: true }).click();
+  await openHubAdminSection(page, tab);
 }
 
 test("audit log opens on the newest event, written as a sentence", async ({ page }) => {
