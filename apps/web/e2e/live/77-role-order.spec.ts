@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, hubApi, uniqueName, openSettingRow } from "./helpers/live";
 
 // P77 — roles reorder in one save (clients#286): the admin moves a role up
@@ -19,7 +20,7 @@ test("reorder roles with the move buttons and save them in one call", async ({ p
 
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Roles", exact: true }).click();
+  await openHubAdminSection(page, "Roles");
   const order = await openSettingRow(page, "Order");
 
   // Low to the top of the three, by keyboard path: up twice.

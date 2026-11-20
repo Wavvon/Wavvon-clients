@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { createChannel, expectInHub, openSettingRow, uniqueName } from "./helpers/live";
 
 // P34 — the Integrations tab (incoming webhooks). Listing used GET
@@ -11,7 +12,7 @@ async function openIntegrations(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Hub settings" }).click();
   // The admin nav tab is labeled "Webhooks" (HubAdminPage.tsx), even though
   // the page it opens is titled "Integrations".
-  await page.getByRole("button", { name: "Webhooks", exact: true }).click();
+  await openHubAdminSection(page, "Webhooks");
   await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible({ timeout: 10000 });
 }
 

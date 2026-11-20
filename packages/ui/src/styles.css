@@ -623,21 +623,7 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
   font-weight: var(--weight-medium);
 }
 
-.settings-nav-close {
-  margin-top: auto;
-  padding: var(--space-2) var(--space-3);
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: var(--text-xs);
-}
 
-.settings-nav-close:hover {
-  background: var(--surface);
-  color: var(--text);
-}
 
 .settings-content {
   flex: 1 1 auto;
@@ -8978,7 +8964,6 @@ details.audit-entry > .audit-entry:last-child {
   .settings-nav h2, .settings-nav > p, .settings-nav-group { display: none; }
   .settings-nav ul { display: flex; gap: var(--space-1); }
   .settings-nav-item { width: auto; white-space: nowrap; }
-  .settings-nav-close { display: none; }
   .settings-content { padding: var(--space-4) !important; }
   .settings-close-x { top: var(--space-3); right: var(--space-3); }
   /* Title keeps a readable width; a wide control drops to its own line. */

@@ -26,7 +26,7 @@ import { WidgetSection, type WidgetActions } from "./WidgetSection";
 import { HubThemeSection, type HubThemeActions } from "./HubThemeSection";
 import { HubLanguagesSection, type HubLanguagesActions } from "./HubLanguagesSection";
 import { InviteLandingSection, type InviteLandingActions } from "./InviteLandingSection";
-import { CloseIcon } from "../Icons";
+import { SettingsShell, type SettingsAreaDef, type SettingsSectionDef } from "../settings/SettingsShell";
 
 export type MemberAction = Promise<boolean | void>;
 
@@ -326,75 +326,57 @@ export function HubAdminPage(props: HubAdminPageProps) {
     }
   }
 
-  // Grouped by the job an admin is doing, most frequent first: members and
-  // moderation before connections and cosmetics, and no group of one.
-  const G_GENERAL = t("hub.admin.group.general");
-  const G_MEMBERS = t("hub.admin.group.members");
-  const G_JOINING = t("hub.admin.group.joining");
-  const G_MODERATION = t("hub.admin.group.moderation");
-  const G_CONNECTIONS = t("hub.admin.group.connections");
-  const G_CUSTOM = t("hub.admin.group.customization");
+  // Six areas, in the order an admin reaches for them (Wavvon-clients#464).
+  // A section appears only when this viewer and this hub can use it; an area
+  // with nothing in it is not shown.
+  type Area = "general" | "joining" | "people" | "moderation" | "content" | "connections";
   const admin = props.isAdmin;
   // The tab holds the hub-scoped acts (alliances.manage) and the per-alliance
   // grant lists (roles.manage edits them); either is reason to reach it.
   const showAlliances = props.canManageHubAlliances || props.canManageRoles;
-  const TABS: { id: HubAdminTab; label: string; group: string }[] = [
-    { id: "overview", label: t("hub.admin.tabs.overview"), group: G_GENERAL },
-    ...(props.discoveryUrl ? [{ id: "discovery" as HubAdminTab, label: t("hub.admin.tabs.discovery"), group: G_GENERAL }] : []),
-    { id: "tags", label: t("hub.admin.tabs.tags"), group: G_GENERAL },
-    { id: "members", label: t("hub.admin.tabs.members"), group: G_MEMBERS },
-    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
-    { id: "invites", label: t("hub.admin.tabs.invites"), group: G_MEMBERS },
-    { id: "certifications", label: t("hub.admin.tabs.certifications"), group: G_MEMBERS },
+  const S = (id: HubAdminTab, label: string, area: Area): SettingsSectionDef<HubAdminTab, Area> => ({ id, label, area });
+  const SECTIONS: SettingsSectionDef<HubAdminTab, Area>[] = [
+    S("overview", t("hub.admin.tabs.overview"), "general"),
+    ...(props.discoveryUrl ? [S("discovery", t("hub.admin.tabs.discovery"), "general")] : []),
+    S("tags", t("hub.admin.tabs.tags"), "general"),
+    ...(props.hubThemeActions ? [S("hub-theme", t("hub.admin.tabs.theme"), "general")] : []),
+    ...(props.hubLanguagesActions ? [S("hub-languages", t("hub.admin.tabs.languages"), "general")] : []),
+    S("invites", t("hub.admin.tabs.invites"), "joining"),
     ...(admin ? [
-      { id: "onboarding" as HubAdminTab, label: t("hub.admin.tabs.onboarding"), group: G_JOINING },
-      { id: "survey" as HubAdminTab, label: t("hub.admin.tabs.survey"), group: G_JOINING },
-      ...(props.joinFormsCapable && props.applicationActions
-        ? [{ id: "application" as HubAdminTab, label: t("hub.admin.tabs.application"), group: G_JOINING }]
-        : []),
+      S("onboarding", t("hub.admin.tabs.onboarding"), "joining"),
+      S("survey", t("hub.admin.tabs.survey"), "joining"),
+      ...(props.joinFormsCapable && props.applicationActions ? [S("application", t("hub.admin.tabs.application"), "joining")] : []),
     ] : []),
-    ...(admin && props.renderModerationTab ? [{ id: "moderation" as HubAdminTab, label: t("hub.admin.tabs.moderation"), group: G_MODERATION }] : []),
-    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MODERATION },
-    ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MODERATION }] : []),
-    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_MODERATION }] : []),
-    ...(showAlliances ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_CONNECTIONS }] : []),
-    { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
-    ...(props.widgetActions ? [{ id: "widget" as HubAdminTab, label: t("hub.admin.tabs.widget"), group: G_CONNECTIONS }] : []),
-    ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
-    ...(props.hubThemeActions ? [{ id: "hub-theme" as HubAdminTab, label: t("hub.admin.tabs.theme"), group: G_CUSTOM }] : []),
-    ...(props.hubLanguagesActions ? [{ id: "hub-languages" as HubAdminTab, label: t("hub.admin.tabs.languages"), group: G_CUSTOM }] : []),
-    ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
-    ...(props.stickersAdmin?.packs ? [{ id: "stickers" as HubAdminTab, label: t("hub.admin.tabs.stickers"), group: G_CUSTOM }] : []),
-    ...(props.stickersAdmin?.storage ? [{ id: "sticker-storage" as HubAdminTab, label: t("hub.admin.tabs.sticker_storage"), group: G_CUSTOM }] : []),
-    ...(props.attachmentSettingsActions ? [{ id: "attachments" as HubAdminTab, label: t("hub.admin.tabs.attachments"), group: G_CUSTOM }] : []),
-    ...(props.stickersAdmin?.settings ? [{ id: "sticker-settings" as HubAdminTab, label: t("hub.admin.tabs.sticker_settings"), group: G_CUSTOM }] : []),
+    S("members", t("hub.admin.tabs.members"), "people"),
+    S("roles", t("hub.admin.tabs.roles"), "people"),
+    S("certifications", t("hub.admin.tabs.certifications"), "people"),
+    ...(admin && props.renderModerationTab ? [S("moderation", t("hub.admin.tabs.moderation"), "moderation")] : []),
+    ...(admin && props.renderRecoveryContacts ? [S("recovery", t("hub.admin.tabs.recovery"), "moderation")] : []),
+    S("bans", t("hub.admin.tabs.bans"), "moderation"),
+    ...(admin ? [S("audit-log", t("hub.admin.tabs.audit_log"), "moderation")] : []),
+    ...(admin ? [S("hub-icons", t("hub.admin.tabs.icons"), "content")] : []),
+    ...(props.stickersAdmin?.packs ? [S("stickers", t("hub.admin.tabs.stickers"), "content")] : []),
+    ...(props.stickersAdmin?.settings ? [S("sticker-settings", t("hub.admin.tabs.sticker_settings"), "content")] : []),
+    ...(props.canManageSoundboard && props.soundboardActions ? [S("soundboard", t("hub.admin.tabs.soundboard"), "content")] : []),
+    ...(props.attachmentSettingsActions ? [S("attachments", t("hub.admin.tabs.attachments"), "content")] : []),
+    ...(props.stickersAdmin?.storage ? [S("sticker-storage", t("hub.admin.tabs.sticker_storage"), "content")] : []),
+    ...(showAlliances ? [S("alliances", t("hub.admin.tabs.alliances"), "connections")] : []),
+    S("integrations", t("hub.admin.tabs.webhooks"), "connections"),
+    ...(props.widgetActions ? [S("widget", t("hub.admin.tabs.widget"), "connections")] : []),
   ];
+  const AREAS: SettingsAreaDef<Area>[] = ([
+    { id: "general", label: t("hub.admin.group.general") },
+    { id: "joining", label: t("hub.admin.group.joining") },
+    { id: "people", label: t("hub.admin.area.people") },
+    { id: "moderation", label: t("hub.admin.group.moderation") },
+    { id: "content", label: t("hub.admin.area.content") },
+    { id: "connections", label: t("hub.admin.group.connections") },
+  ] satisfies SettingsAreaDef<Area>[]).filter((a) => SECTIONS.some((sec) => sec.area === a.id));
 
-  return (
-    <div className="settings-page">
-      <aside className="settings-nav">
-        <h2>{t("hub.admin.nav.title")}</h2>
-        <ul>
-          {TABS.map((tab, i) => (
-            <li key={tab.id}>
-              {(i === 0 || TABS[i - 1].group !== tab.group) && (
-                <div className="settings-nav-group">{tab.group}</div>
-              )}
-              <button
-                className={`settings-nav-item ${props.tab === tab.id ? "active" : ""}`}
-                onClick={() => props.onTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button className="settings-nav-close" onClick={props.onClose}>{t("modal.close")}</button>
-      </aside>
-      <main className="settings-content">
-        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}><CloseIcon size={13} /></button>
-
-        {props.tab === "overview" && (
+  function renderSection(section: HubAdminTab) {
+    return (
+      <>
+        {section === "overview" && (
           <section>
             <h1>{t("hub.admin.overview.title")}</h1>
             {/* Every change saves itself: a toggle or a select at once, typing
@@ -627,7 +609,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "discovery" && (
+        {section === "discovery" && (
           <section>
             <h1>{t("hub.admin.discovery.title")}</h1>
             <div className="settings-section">
@@ -684,11 +666,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "tags" && (
+        {section === "tags" && (
           <ServerTagsSection actions={props.serverTagsActions} />
         )}
 
-        {props.tab === "members" && (
+        {section === "members" && (
           <section>
             {props.pendingMembers.length > 0 && (
               <div className="pending-section">
@@ -821,7 +803,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "bans" && (
+        {section === "bans" && (
           <section>
             <h1>{t("hub.admin.bans.title", { count: props.bans.length })}</h1>
             {props.bans.length === 0 && <p className="muted">{t("hub.admin.bans.empty")}</p>}
@@ -844,7 +826,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "invites" && (
+        {section === "invites" && (
           <InviteManager
             invites={props.invites}
             activeHubUrl={props.activeHubUrl}
@@ -857,9 +839,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
           />
         )}
 
-        {props.tab === "roles" && <RolesSection actions={props.rolesActions} myMaxPriority={props.myMaxPriority} />}
+        {section === "roles" && <RolesSection actions={props.rolesActions} myMaxPriority={props.myMaxPriority} />}
 
-        {props.tab === "integrations" && (
+        {section === "integrations" && (
           <section>
             <h1>{t("webhooks.title")}</h1>
             <WebhooksSection channels={props.channels} actions={props.webhookActions} />
@@ -867,30 +849,30 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "certifications" && (
+        {section === "certifications" && (
           <CertificationsSection actions={props.certActions} />
         )}
 
-        {props.tab === "recovery" && (
+        {section === "recovery" && (
           <section>
             <h1>{t("hub.admin.tabs.recovery")}</h1>
             {props.renderRecoveryContacts?.()}
           </section>
         )}
 
-        {props.tab === "soundboard" && props.canManageSoundboard && props.soundboardActions && (
+        {section === "soundboard" && props.canManageSoundboard && props.soundboardActions && (
           <SoundboardAdminSection actions={props.soundboardActions} />
         )}
 
-        {props.tab === "stickers" && props.stickersAdmin?.packs && (
+        {section === "stickers" && props.stickersAdmin?.packs && (
           <StickerPacksSection actions={props.stickersAdmin.packs} hubUrl={props.stickersAdmin.hubUrl} />
         )}
 
-        {props.tab === "sticker-storage" && props.stickersAdmin?.storage && (
+        {section === "sticker-storage" && props.stickersAdmin?.storage && (
           <StickerStorageSection actions={props.stickersAdmin.storage} hubUrl={props.stickersAdmin.hubUrl} />
         )}
 
-        {props.tab === "sticker-settings" && props.stickersAdmin?.settings && (
+        {section === "sticker-settings" && props.stickersAdmin?.settings && (
           <StickerSettingsSection
             actions={props.stickersAdmin.settings}
             rolesActions={props.rolesActions}
@@ -898,17 +880,17 @@ export function HubAdminPage(props: HubAdminPageProps) {
           />
         )}
 
-        {props.tab === "widget" && props.widgetActions && (
+        {section === "widget" && props.widgetActions && (
           <WidgetSection actions={props.widgetActions} hubUrl={props.activeHubUrl} />
         )}
 
-        {props.tab === "attachments" && props.attachmentSettingsActions && (
+        {section === "attachments" && props.attachmentSettingsActions && (
           <AttachmentSettingsSection actions={props.attachmentSettingsActions} />
         )}
 
-        {props.tab === "moderation" && props.isAdmin && props.renderModerationTab?.()}
+        {section === "moderation" && props.isAdmin && props.renderModerationTab?.()}
 
-        {props.tab === "alliances" && showAlliances && (
+        {section === "alliances" && showAlliances && (
           <AlliancesSection
             activeHubUrl={props.activeHubUrl}
             channels={props.channels}
@@ -921,28 +903,40 @@ export function HubAdminPage(props: HubAdminPageProps) {
             canManageHubAlliances={props.canManageHubAlliances}
           />
         )}
-        {props.tab === "hub-icons" && props.isAdmin && (
+        {section === "hub-icons" && props.isAdmin && (
           <HubIconsSection actions={props.hubIconActions} />
         )}
-        {props.tab === "hub-theme" && props.hubThemeActions && (
+        {section === "hub-theme" && props.hubThemeActions && (
           <HubThemeSection actions={props.hubThemeActions} />
         )}
-        {props.tab === "hub-languages" && props.hubLanguagesActions && (
+        {section === "hub-languages" && props.hubLanguagesActions && (
           <HubLanguagesSection actions={props.hubLanguagesActions} />
         )}
-        {props.tab === "onboarding" && props.isAdmin && (
+        {section === "onboarding" && props.isAdmin && (
           <OnboardingAdminSection actions={props.onboardingActions} />
         )}
-        {props.tab === "survey" && props.isAdmin && (
+        {section === "survey" && props.isAdmin && (
           <SurveyAdminSection actions={props.surveyActions} extendedKinds={props.joinFormsCapable} />
         )}
-        {props.tab === "application" && props.isAdmin && props.joinFormsCapable && props.applicationActions && (
+        {section === "application" && props.isAdmin && props.joinFormsCapable && props.applicationActions && (
           <SurveyAdminSection key="application" actions={props.applicationActions} purpose="application" extendedKinds />
         )}
-        {props.tab === "audit-log" && props.isAdmin && (
+        {section === "audit-log" && props.isAdmin && (
           <AuditLogSection actions={props.auditLogActions} members={props.members} channels={props.channels} />
         )}
-      </main>
-    </div>
+      </>
+    );
+  }
+
+  return (
+    <SettingsShell
+      title={t("hub.admin.nav.title")}
+      areas={AREAS}
+      sections={SECTIONS}
+      activeSection={SECTIONS.some((sec) => sec.id === props.tab) ? props.tab : "overview"}
+      onSection={props.onTab}
+      renderSection={renderSection}
+      onClose={props.onClose}
+    />
   );
 }

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, uniqueName, confirmInApp, openSettingRow, settingRow } from "./helpers/live";
 
 // P7 — soundboard admin UI (soundboard.md): upload a clip, see it listed,
@@ -39,7 +40,7 @@ test("upload, list, and delete a soundboard clip", async ({ page }) => {
 
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Soundboard", exact: true }).click();
+  await openHubAdminSection(page, "Soundboard");
   await expect(page.getByRole("heading", { name: "Soundboard" })).toBeVisible();
 
   const clipName = uniqueName("horn");

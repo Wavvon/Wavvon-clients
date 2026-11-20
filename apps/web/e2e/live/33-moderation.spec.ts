@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, openSettingRow, settingRow, uniqueName } from "./helpers/live";
 
 // P33 — ban a member from the right-click menu. The client used to POST to
@@ -45,7 +46,7 @@ test("owner bans a member via the right-click menu", async ({ page, browser }) =
 async function openAdminTab(page: Page, tab: string) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: tab, exact: true }).click();
+  await openHubAdminSection(page, tab);
 }
 
 // The admin Members tab swallowed every result: kick and ban ended in

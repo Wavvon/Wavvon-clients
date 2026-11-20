@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, hubApi, uniqueName, openSettingRow } from "./helpers/live";
 
 // P4 — role categories + per-role color/icon (role-categories.md §4, §6):
@@ -13,7 +14,7 @@ import { expectInHub, hubApi, uniqueName, openSettingRow } from "./helpers/live"
 async function openRolesAdmin(page: Page) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Roles", exact: true }).click();
+  await openHubAdminSection(page, "Roles");
   await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
 }
 

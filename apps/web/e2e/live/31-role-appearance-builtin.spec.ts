@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
 
 // P31 — appearance controls (color / icon / category) are hidden for built-in
@@ -9,7 +10,7 @@ import { expectInHub, uniqueName, confirmInApp, openSettingRow } from "./helpers
 async function openRolesAdmin(page: import("@playwright/test").Page) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Roles", exact: true }).click();
+  await openHubAdminSection(page, "Roles");
   await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
 }
 
