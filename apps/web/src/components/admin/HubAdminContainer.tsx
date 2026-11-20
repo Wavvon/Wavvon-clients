@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { hubFetch, activeHubSupports, getApplicationResponse, rejectApplication, getAttachmentSettings, saveAttachmentSettings } from "@platform";
 import {
   submitToDirectory,
@@ -6,7 +7,8 @@ import {
   openRotationRequest, getRotationRequestBundle, attestRotationRequest,
 } from "@platform";
 import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection, SettingsModal } from "@wavvon/ui";
-import type { RecoveryContactsSectionActions } from "@wavvon/ui";
+import type { InviteLandingActions, RecoveryContactsSectionActions } from "@wavvon/ui";
+import type { HubLanding } from "@wavvon/core";
 import {
   rolesActions, rolesActionsWithOrder, memberRoleActions, serverTagsActions, inviteActions,
   webhookActions, auditLogActions,
@@ -72,6 +74,24 @@ export function HubAdminContainer({
       }
     : undefined;
 
+  const inviteLandingActions = useMemo<InviteLandingActions | undefined>(() => {
+    if (!activeHubUrl) return undefined;
+    const base = activeHubUrl.replace(/\/+$/, "");
+    const patch = (body: object) => hubFetch("/hub", { method: "PATCH", body: JSON.stringify(body) }).then(() => {});
+    return {
+      load: async () => {
+        const s = (await (await hubFetch("/hub/settings")).json()) as { landing?: HubLanding };
+        return {
+          // The path never changes, so a fresh query keeps a replaced image out of the cache.
+          imageUrl: s.landing?.image ? `${base}${s.landing.image}?v=${Date.now()}` : null,
+          colors: s.landing?.colors ?? null,
+        };
+      },
+      saveImage: (dataUrl) => patch({ landing_image: dataUrl }),
+      saveColors: (colors) => patch({ landing_colors: colors ?? [] }),
+    };
+  }, [activeHubUrl]);
+
   return (
     <SettingsModal onClose={onClose}>
       <HubAdminPage
@@ -84,6 +104,7 @@ export function HubAdminContainer({
         onHubDescriptionChange={hubAdmin.setHubAdminDescription}
         hubIcon={hubAdmin.hubAdminIcon}
         onHubIconChange={hubAdmin.setHubAdminIcon}
+        inviteLandingActions={activeHubSupports("hub.landing") && canDo("hub.settings") ? inviteLandingActions : undefined}
         requireApproval={hubAdmin.hubAdminRequireApproval}
         onRequireApprovalChange={hubAdmin.setHubAdminRequireApproval}
         minSecurityLevel={hubAdmin.hubAdminMinLevel}

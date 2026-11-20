@@ -470,6 +470,8 @@ export { WidgetSection, widgetEmbedCode } from "./components/admin/WidgetSection
 export type { WidgetActions, WidgetSettings } from "./components/admin/WidgetSection";
 export { HubThemeSection } from "./components/admin/HubThemeSection";
 export type { HubThemeActions } from "./components/admin/HubThemeSection";
+export { InviteLandingSection } from "./components/admin/InviteLandingSection";
+export type { InviteLandingActions } from "./components/admin/InviteLandingSection";
 export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
 export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
 export { StickerPicker } from "./components/stickers/StickerPicker";

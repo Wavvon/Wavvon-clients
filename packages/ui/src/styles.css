@@ -9170,3 +9170,92 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
   html[data-layout-tabs="side"] .top-bar .top-bar-search span,
   html[data-layout-tabs="side"] .top-bar .top-bar-search kbd { display: none; }
 }
+/* Hub settings: identity edited on a preview of the invite landing. */
+.invite-landing-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-bottom: var(--space-3);
+}
+.invite-landing-side {
+  min-height: 280px;
+  border-right: 1px solid var(--border);
+}
+.invite-landing-edit-bg {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.invite-landing-name {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semi);
+}
+.invite-landing-description {
+  resize: none;
+  color: var(--text-muted);
+}
+.invite-landing-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--bg);
+  opacity: 0.5;
+}
+.invite-landing-bar {
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.invite-landing-bar.short {
+  width: 60%;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.invite-landing-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* The native swatch carries its own padding; without this it shrinks to a sliver. */
+.invite-landing-controls input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.invite-landing-controls input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+.invite-landing-controls input[type="color"] {
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 0;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: none;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .invite-landing-preview {
+    grid-template-columns: 1fr;
+  }
+  .invite-landing-side {
+    border-right: none;
+  }
+  .invite-landing-next {
+    display: none;
+  }
+}
