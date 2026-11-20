@@ -39,7 +39,7 @@ test("a moderator reads an application and rejects it with a reason", async ({ p
     await expectInHub(page);
     await page.locator(".hub-header-button").click();
     await page.getByRole("button", { name: "Hub settings" }).click();
-    await openHubAdminSection(page, "Members");
+    await openHubAdminSection(page, "Approval and anti-spam");
 
     const row = page.locator("tr", { hasText: name });
     await row.getByRole("button", { name: "Application", exact: true }).click();
