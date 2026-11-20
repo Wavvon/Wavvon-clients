@@ -91,7 +91,7 @@ test("onboarding: save challenge settings", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
   await openAdminTab(page, "Onboarding");
-  await expect(page.getByRole("heading", { name: "Onboarding" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Onboarding", exact: true })).toBeVisible();
 
   // Challenge settings are write-only; saving should report success.
   const challenge = await openSettingRow(page, "Anti-spam challenge");
