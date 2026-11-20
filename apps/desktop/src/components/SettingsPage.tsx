@@ -19,7 +19,10 @@ import {
   LanguageSetting,
   resolveManagingAccount,
   type ThemesController,
-  type SettingsTabDef,
+  TrustedIssuersTab,
+  knownIssuerHubs,
+  userSettingsLayout,
+  type UserSettingsSection,
   type PerAccountProps,
   type ProfileAccountRef,
 } from "@wavvon/ui";
@@ -32,19 +35,10 @@ import { addTrustRoot, CameraTab, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
 import { PrivacyTab } from "./settings/PrivacyTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
+import { lookupIssuerHub } from "../hooks/hubAdminActions";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
-export type SettingsTab =
-  | "profile"
-  | "accounts"
-  | "devices"
-  | "privacy"
-  | "notifications"
-  | "appearance"
-  | "voice"
-  | "camera"
-  | "help"
-  | "about";
+export type SettingsTab = UserSettingsSection;
 
 export interface SettingsPageProps {
   tab: SettingsTab;
@@ -163,38 +157,15 @@ export function SettingsPage(props: SettingsPageProps) {
     saveTrustRoots(activeId, roots);
   }
 
-  const G_ACCOUNTS = t("settings.nav_groups.accounts");
-  const G_APP = t("settings.nav_groups.app");
-  const G_AV = t("settings.nav_groups.audio_video");
-  const G_INFO = t("settings.nav_groups.info");
-  const TABS: SettingsTabDef<SettingsTab>[] = [
-    { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
-    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
-    { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
-    { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
-    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP, deviceWide: true },
-    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP, deviceWide: true },
-    { id: "voice", label: t("settings.tabs.voice"), group: G_AV, deviceWide: true },
-    { id: "camera", label: t("settings.tabs.camera"), group: G_AV, deviceWide: true },
-    { id: "help", label: t("settings.tabs.help"), group: G_INFO, deviceWide: true },
-    { id: "about", label: t("settings.tabs.about"), group: G_INFO, deviceWide: true },
-  ];
+  const { areas, sections } = userSettingsLayout(t, accountsAttention);
 
-  return (
-    <SettingsShell
-      title={t("settings.title")}
-      tabs={TABS}
-      activeTab={props.tab}
-      onTab={props.onTab}
-      onClose={props.onClose}
-      accountPicker={profileAccounts && profileAccounts.length > 1 && managing ? (
-        <SettingsAccountPicker accounts={profileAccounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
-      ) : undefined}
-    >
+  function renderSection(section: SettingsTab) {
+    return (
+      <>
         {/* Desktop's Manage accounts, Devices and Privacy act on the active
             account only (their Tauri commands are scoped to it), so picking
-            another account says so instead of showing the active one's data. */}
-        {managing && managing.id !== activeId && (props.tab === "accounts" || props.tab === "devices" || props.tab === "privacy") && (
+            another account says so, once at the top of each of their pages. */}
+        {managing && managing.id !== activeId && (section === "accounts" || section === "privacy") && (
           <ActiveAccountOnlyNotice
             label={managing.account_label || managing.id.slice(0, 12)}
             onSwitch={() => {
@@ -204,7 +175,7 @@ export function SettingsPage(props: SettingsPageProps) {
             }}
           />
         )}
-        {props.tab === "profile" && (
+        {section === "profile" && (
           <ProfileTab
             hubs={props.hubs}
             publicKey={props.publicKey}
@@ -220,7 +191,16 @@ export function SettingsPage(props: SettingsPageProps) {
           />
         )}
 
-        {props.tab === "accounts" && accounts && (
+        {section === "trusted" && (
+          <TrustedIssuersTab
+            roots={trustRoots}
+            onChange={updateTrustRoots}
+            joinedHubs={knownIssuerHubs(props.hubs, [])}
+            lookupHub={lookupIssuerHub}
+          />
+        )}
+
+        {section === "accounts" && accounts && (
           <ManageAccountsTab
             hubs={props.hubs}
             activeHubUrl={props.activeHubUrl}
@@ -234,31 +214,28 @@ export function SettingsPage(props: SettingsPageProps) {
           />
         )}
 
-        {props.tab === "devices" && (
+        {section === "devices" && (
           <DevicesTab hubs={props.hubs} />
         )}
 
-        {props.tab === "privacy" && (
+        {section === "privacy" && (
           <PrivacyTab
             blocks={props.blocks}
             ignores={props.ignores}
             onUnblock={props.onUnblock}
             onUnignore={props.onUnignore}
             knownNames={props.knownNames}
-            trustRoots={trustRoots}
-            onTrustRootsChange={updateTrustRoots}
-            hubs={props.hubs}
           />
         )}
 
-        {props.tab === "notifications" && (
+        {section === "notifications" && (
           <NotificationsTab
             mentionPingEnabled={props.mentionPingEnabled}
             onMentionPingChange={props.onMentionPingChange}
           />
         )}
 
-        {props.tab === "appearance" && (
+        {section === "appearance" && (
           <section>
             <h1>{t("settings.tabs.appearance")}</h1>
 
@@ -287,7 +264,7 @@ export function SettingsPage(props: SettingsPageProps) {
           </section>
         )}
 
-        {props.tab === "voice" && (
+        {section === "voice" && (
           <section>
             <h1>{t("settings.tabs.voice")}</h1>
 
@@ -425,12 +402,29 @@ export function SettingsPage(props: SettingsPageProps) {
           </section>
         )}
 
-        {props.tab === "help" && <HelpTab />}
-        {props.tab === "about" && (
+        {section === "help" && <HelpTab />}
+        {section === "about" && (
           <AboutTab version={import.meta.env.VITE_APP_VERSION} extraCredits={["Tauri", "Opus", "RNNoise (nnnoiseless)", "cpal", "wtransport"]} />
         )}
 
-        {props.tab === "camera" && <CameraTab />}
-    </SettingsShell>
+        {section === "camera" && <CameraTab />}
+      </>
+    );
+  }
+
+  return (
+    <SettingsShell
+      title={t("settings.title")}
+      areas={areas}
+      sections={sections}
+      activeSection={props.tab}
+      onSection={props.onTab}
+      renderSection={renderSection}
+      helpSection="help"
+      onClose={props.onClose}
+      accountPicker={profileAccounts && profileAccounts.length > 1 && managing ? (
+        <SettingsAccountPicker accounts={profileAccounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
+      ) : undefined}
+    />
   );
 }

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "./helpers/settings";
 import { injectSession, mockJson, HUB_URL } from "./helpers/mockApi";
 
 // Settings nav regression: every user-settings tab must be reachable and the
@@ -29,15 +30,19 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
   });
 }
 
-test("user settings shows every tab in the nav", async ({ page }) => {
+test("user settings shows every area, and every section is reachable", async ({ page }) => {
   await setupBaseRoutes(page);
   await page.goto("/");
   await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  const nav = page.locator(".settings-nav");
-  for (const name of ["Profile", "Manage accounts", "Devices", "Privacy", "Notifications", "Appearance", "Voice", "Camera"]) {
-    await expect(nav.getByRole("button", { name, exact: true })).toBeVisible();
+  const areas = page.locator(".settings-areas");
+  for (const name of ["Profile", "Audio and video", "App", "Account and security", "Blocked and ignored"]) {
+    await expect(areas.getByRole("button", { name, exact: true })).toBeVisible();
+  }
+  for (const name of ["Trusted issuers", "Voice", "Camera", "Appearance", "Notifications", "About & credits", "Manage accounts", "Devices", "Blocked and ignored"]) {
+    await openSettingsSection(page, name);
+    await expect(page.getByRole("heading", { name, exact: true }).first()).toBeVisible();
   }
 });
 
@@ -47,6 +52,6 @@ test("camera tab renders the device picker", async ({ page }) => {
   await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();
+  await openSettingsSection(page, "Camera");
   await expect(page.getByLabel("Camera device").first()).toBeVisible();
 });

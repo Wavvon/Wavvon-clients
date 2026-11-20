@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, hubApi, newMemberPage, openSettingRow, uniqueName } from "./helpers/live";
 
 // P70 — recovery without raw keys or ids (Wavvon-clients#169, with
@@ -15,7 +16,7 @@ async function openManageAccounts(page: Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Manage accounts", exact: true }).click();
+  await openSettingsSection(page, "Manage accounts");
 }
 
 test("a contact is picked by name and finds the request that names them", async ({ page, browser }) => {

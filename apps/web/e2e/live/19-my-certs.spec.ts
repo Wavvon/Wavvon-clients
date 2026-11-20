@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub } from "./helpers/live";
 
 // P19 — a member's own certifications viewer (Settings → Account). Read-only
@@ -13,7 +14,7 @@ test("my certifications section renders", async ({ page }) => {
 
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Profile", exact: true }).click();
+  await openSettingsSection(page, "Profile");
 
   await expect(page.getByText("Badges & certifications")).toBeVisible();
   await expect(page.getByText("No badges or certifications yet.")).toBeVisible({ timeout: 10000 });

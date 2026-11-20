@@ -432,6 +432,9 @@ export { ProfileTab } from "./components/settings/ProfileTab";
 export { ProfileEditorSection } from "./components/settings/ProfileEditorSection";
 export { MyCertificationsSection } from "./components/settings/MyCertificationsSection";
 export { TrustedIssuersSection } from "./components/settings/TrustedIssuersSection";
+export { TrustedIssuersTab } from "./components/settings/TrustedIssuersTab";
+export { userSettingsLayout } from "./components/settings/userSettingsLayout";
+export type { UserSettingsArea, UserSettingsSection } from "./components/settings/userSettingsLayout";
 export { IssuerHubPicker, knownIssuerHubs, type IssuerHub } from "./components/settings/IssuerHubPicker";
 export {
   parseTrustRoots,
@@ -455,7 +458,7 @@ export type {
 export { resolveManagingAccount } from "./utils/resolveManagingAccount";
 export { loadHiddenBadgeSet, saveHiddenBadgeSet } from "./utils/hiddenBadges";
 export { SettingsShell } from "./components/settings/SettingsShell";
-export type { SettingsTabDef } from "./components/settings/SettingsShell";
+export type { SettingsAreaDef, SettingsSectionDef } from "./components/settings/SettingsShell";
 export { HelpTab } from "./components/settings/HelpTab";
 export { AboutTab } from "./components/settings/AboutTab";
 export { SettingsAccountPicker } from "./components/settings/SettingsAccountPicker";

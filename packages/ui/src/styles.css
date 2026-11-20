@@ -9259,3 +9259,122 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
     display: none;
   }
 }
+/* ============================================================
+   SETTINGS SHELL: areas across the top, one scrolling page per area
+   with an index of its sections on the left (Wavvon-clients#464).
+   ============================================================ */
+.settings-shell {
+  flex-direction: column;
+  min-height: 0;
+}
+.settings-header {
+  flex-shrink: 0;
+  padding: var(--space-4) var(--space-6) 0;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+}
+.settings-header-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.settings-header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semi);
+}
+.settings-header .settings-account-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+}
+.settings-header .settings-account-picker .settings-nav-group {
+  padding: 0;
+}
+.settings-header .settings-account-picker select {
+  width: auto !important;
+  max-width: 220px;
+}
+.settings-header .settings-close-x {
+  position: static;
+}
+.settings-help-link {
+  font-size: var(--text-sm);
+}
+.settings-areas {
+  display: flex;
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+  overflow-x: auto;
+}
+.settings-area-tab {
+  padding: var(--space-3) 2px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semi);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.settings-area-tab:hover {
+  color: var(--text);
+}
+.settings-area-tab.active {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent);
+}
+.settings-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.settings-index {
+  width: 200px;
+  flex-shrink: 0;
+  background: none;
+}
+.settings-index .settings-nav-item.active {
+  color: var(--accent-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+  border-radius: 0;
+}
+.settings-anchor {
+  display: block;
+  height: 0;
+}
+.settings-content > .settings-anchor + section {
+  margin-top: var(--space-7);
+}
+.settings-content > .settings-anchor:first-child + section,
+.settings-device-note + .settings-anchor + section {
+  margin-top: 0;
+}
+.settings-device-note {
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-4);
+}
+@media (max-width: 767px) {
+  .settings-header {
+    padding: var(--space-3) var(--space-3) 0;
+  }
+  .settings-header-row {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+  .settings-header .settings-account-picker .settings-nav-group {
+    display: none;
+  }
+  .settings-header .settings-account-picker select {
+    max-width: 130px;
+  }
+  .settings-body {
+    flex-direction: column;
+  }
+  .settings-index {
+    width: 100%;
+  }
+}
