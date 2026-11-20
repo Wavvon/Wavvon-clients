@@ -25,6 +25,7 @@ import { SettingRow } from "../SettingRow";
 import { WidgetSection, type WidgetActions } from "./WidgetSection";
 import { HubThemeSection, type HubThemeActions } from "./HubThemeSection";
 import { HubLanguagesSection, type HubLanguagesActions } from "./HubLanguagesSection";
+import { InviteLandingSection, type InviteLandingActions } from "./InviteLandingSection";
 import { CloseIcon } from "../Icons";
 
 export type MemberAction = Promise<boolean | void>;
@@ -67,6 +68,9 @@ export interface HubAdminPageProps {
   onHubDescriptionChange: (v: string) => void;
   hubIcon: string;
   onHubIconChange: (v: string) => void;
+  /** Present when the hub serves `hub.landing` and the viewer may change its
+   *  settings: identity is then edited on a preview of the invite landing. */
+  inviteLandingActions?: InviteLandingActions;
   requireApproval: boolean;
   onRequireApprovalChange: (v: boolean) => void;
   minSecurityLevel: number;
@@ -403,16 +407,32 @@ export function HubAdminPage(props: HubAdminPageProps) {
               state={props.hubName.trim() || t("hub.admin.overview.state.unnamed")}
               {...adminRow("identity")}
             >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
-                  <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => edit(props.onHubNameChange)(e.target.value)} />
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
-                  <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => edit(props.onHubDescriptionChange)(e.target.value)} />
-                </div>
+                {props.inviteLandingActions ? (
+                  <InviteLandingSection
+                    name={props.hubName}
+                    description={props.hubDescription}
+                    onNameChange={edit(props.onHubNameChange)}
+                    onDescriptionChange={edit(props.onHubDescriptionChange)}
+                    memberCount={props.members.length}
+                    actions={props.inviteLandingActions}
+                  />
+                ) : (
+                  <>
+                    <div className="settings-section">
+                      <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
+                      <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => edit(props.onHubNameChange)(e.target.value)} />
+                    </div>
+                    <div className="settings-section">
+                      <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
+                      <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => edit(props.onHubDescriptionChange)(e.target.value)} />
+                    </div>
+                  </>
+                )}
                 <div className="settings-section">
                   <label className="settings-label">{t("hub.admin.overview.icon")}</label>
+                  {props.inviteLandingActions && (
+                    <p className="muted" style={{ fontSize: "var(--text-sm)", margin: "0 0 var(--space-2)" }}>{t("hub.admin.landing.icon_hint")}</p>
+                  )}
                   <div className="hub-icon-editor">
                     {props.hubIcon ? (
                       <img src={props.hubIcon} alt={t("hub.admin.overview.icon")} className="hub-icon-preview" />

@@ -13,6 +13,18 @@ export interface InvitingHub {
   colors?: [string, string] | null;
 }
 
+/** The invite landing's backdrop: the image when there is one, else the two
+ *  colours, else nothing. Shared with the admin preview so both paint the
+ *  same thing. */
+export function landingBackdrop(
+  imageUrl: string | null | undefined,
+  colors: [string, string] | null | undefined,
+): React.CSSProperties | undefined {
+  if (imageUrl) return { backgroundImage: `url("${imageUrl}")` };
+  if (colors) return { backgroundImage: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` };
+  return undefined;
+}
+
 /**
  * First run, in two halves: the hub you were invited to (or, with no invite,
  * what Wavvon is) on the left, the step on the right with "Step n of N".
@@ -24,11 +36,7 @@ export function OnboardingFrame({ hub, step, total, children }: {
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const backdrop: React.CSSProperties | undefined = hub?.imageUrl
-    ? { backgroundImage: `url("${hub.imageUrl}")` }
-    : hub?.colors
-      ? { backgroundImage: `linear-gradient(135deg, ${hub.colors[0]}, ${hub.colors[1]})` }
-      : undefined;
+  const backdrop = landingBackdrop(hub?.imageUrl, hub?.colors);
   return (
     <div className="onboarding onboarding--split">
       <aside className={`onboarding-side${hub ? " hub" : ""}`} style={backdrop}>
