@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, hubApi, HUB_URL, openSettingRow } from "./helpers/live";
 
 // P42 — a created invite shows a link a human can actually open.
@@ -17,7 +18,7 @@ import { expectInHub, hubApi, HUB_URL, openSettingRow } from "./helpers/live";
 async function openInvites(page: import("@playwright/test").Page) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Invites", exact: true }).click();
+  await openHubAdminSection(page, "Invites");
   await expect(page.getByRole("heading", { name: "Invites" })).toBeVisible({ timeout: 10000 });
 }
 

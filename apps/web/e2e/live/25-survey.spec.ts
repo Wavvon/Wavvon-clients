@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, hubApi, newMemberPage, openSettingRow, uniqueName } from "./helpers/live";
 
 // P25 — onboarding survey: admin builds + enables a survey, a new member
@@ -8,7 +9,7 @@ import { expectInHub, hubApi, newMemberPage, openSettingRow, uniqueName } from "
 async function openSurveyAdmin(page: Page) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Survey", exact: true }).click();
+  await openHubAdminSection(page, "Survey");
   await expect(page.getByRole("heading", { name: "Onboarding survey" })).toBeVisible();
 }
 

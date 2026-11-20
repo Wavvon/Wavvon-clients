@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow, openPermissionSection } from "./helpers/live";
 
 // P13 — create / edit-permissions / delete a role from the web Roles admin
@@ -7,7 +8,7 @@ import { expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow, openPerm
 async function openRolesAdmin(page: import("@playwright/test").Page) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Roles", exact: true }).click();
+  await openHubAdminSection(page, "Roles");
   await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
 }
 

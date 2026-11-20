@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { readFileSync } from "node:fs";
 import { channelButton, createChannel, expectInHub, newMemberPage, openSettingRow, settingRow, uniqueName } from "./helpers/live";
 
@@ -69,7 +70,7 @@ test("a soundboard clip crosses the room that silence never left", async ({ page
   const clipName = uniqueName("tone");
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Soundboard", exact: true }).click();
+  await openHubAdminSection(page, "Soundboard");
   const addRow = await openSettingRow(page, "Add a clip");
   await addRow.getByRole("textbox").first().fill(clipName);
   await addRow.locator('input[type="file"]').setInputFiles({
