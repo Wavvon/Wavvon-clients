@@ -9229,10 +9229,20 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
   align-items: center;
   gap: var(--space-3);
 }
-.invite-landing-controls input[type="color"] {
-  width: 40px;
-  height: 32px;
+/* The native swatch carries its own padding; without this it shrinks to a sliver. */
+.invite-landing-controls input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
+}
+.invite-landing-controls input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+.invite-landing-controls input[type="color"] {
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 0;
+  height: 32px;
+  padding: 2px;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: none;
