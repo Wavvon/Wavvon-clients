@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CloseIcon } from "../Icons";
+import { searchSettings } from "./settingsSearch";
 
 export interface SettingsAreaDef<TArea extends string = string> {
   id: TArea;
@@ -18,6 +19,9 @@ export interface SettingsSectionDef<TSection extends string = string, TArea exte
   area: TArea;
   /** Accessible label for a marker: something here needs the user. */
   attention?: string;
+  /** What else the search should find this section by: the titles of the
+   *  rows inside it, in the viewer's language. */
+  keywords?: string[];
 }
 
 interface Props<TSection extends string, TArea extends string> {
@@ -51,6 +55,12 @@ export function SettingsShell<TSection extends string, TArea extends string>({
   const { t } = useTranslation();
   const mainRef = useRef<HTMLElement>(null);
   const [spied, setSpied] = useState<TSection | null>(null);
+  const [query, setQuery] = useState("");
+  const hits = searchSettings(sections, areas, query);
+  function go(id: TSection) {
+    setQuery("");
+    onSection(id);
+  }
 
   const activeArea = sections.find((s) => s.id === activeSection)?.area ?? sections[0]?.area;
   const areaDef = areas.find((a) => a.id === activeArea);
@@ -92,8 +102,34 @@ export function SettingsShell<TSection extends string, TArea extends string>({
           <h2>{title}</h2>
           {accountPicker}
           <span style={{ flex: 1 }} />
+          <div className="settings-search">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && hits[0]) go(hits[0].id);
+                if (e.key === "Escape") setQuery("");
+              }}
+              placeholder={t("settings.search.placeholder")}
+              aria-label={t("settings.search.placeholder")}
+            />
+            {query.trim() && (
+              <ul className="settings-search-results" aria-label={t("settings.search.results")}>
+                {hits.length === 0 && <li className="muted">{t("settings.search.none")}</li>}
+                {hits.map((h) => (
+                  <li key={h.id}>
+                    <button type="button" onClick={() => go(h.id)}>
+                      <span>{h.label}</span>
+                      <span className="muted">{h.areaLabel}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           {helpSection && (
-            <button type="button" className="btn-ghost settings-help-link" onClick={() => onSection(helpSection)}>
+            <button type="button" className="btn-ghost settings-help-link" onClick={() => go(helpSection)}>
               {t("settings.tabs.help")}
             </button>
           )}
