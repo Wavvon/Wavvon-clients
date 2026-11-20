@@ -9379,3 +9379,55 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
 .settings-status-bar:empty {
   visibility: hidden;
 }
+/* Settings search: finds a section in any area by its name or the rows in it. */
+.settings-search {
+  position: relative;
+  flex: 0 1 260px;
+}
+.settings-search input {
+  width: 100%;
+}
+.settings-search-results {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+}
+.settings-search-results li.muted {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+.settings-search-results button {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.settings-search-results button:hover,
+.settings-search-results button:focus-visible {
+  background: var(--surface-hover);
+}
+@media (max-width: 767px) {
+  .settings-header-row {
+    flex-wrap: wrap;
+  }
+  .settings-search {
+    order: 10;
+    flex: 1 1 100%;
+  }
+}

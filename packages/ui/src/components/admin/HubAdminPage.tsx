@@ -339,18 +339,18 @@ export function HubAdminPage(props: HubAdminPageProps) {
   // The tab holds the hub-scoped acts (alliances.manage) and the per-alliance
   // grant lists (roles.manage edits them); either is reason to reach it.
   const showAlliances = props.canManageHubAlliances || props.canManageRoles;
-  const S = (id: HubAdminTab, label: string, area: Area): SettingsSectionDef<HubAdminTab, Area> => ({ id, label, area });
+  const S = (id: HubAdminTab, label: string, area: Area, keywords?: string[]): SettingsSectionDef<HubAdminTab, Area> => ({ id, label, area, keywords });
   const SECTIONS: SettingsSectionDef<HubAdminTab, Area>[] = [
-    S("overview", t("hub.admin.overview.identity"), "general"),
-    S("behaviour", t("hub.admin.section.behaviour"), "general"),
-    S("voice-channels", t("hub.admin.section.voice_channels"), "general"),
-    ...(props.discoveryUrl ? [S("discovery", t("hub.admin.tabs.discovery"), "general")] : []),
+    S("overview", t("hub.admin.overview.identity"), "general", [t("hub.admin.overview.name"), t("hub.admin.overview.description"), t("hub.admin.overview.icon"), t("hub.admin.landing.background")]),
+    S("behaviour", t("hub.admin.section.behaviour"), "general", [t("hub.admin.overview.timezone"), t("hub.admin.overview.birthdays"), t("hub.admin.overview.name_colors")]),
+    S("voice-channels", t("hub.admin.section.voice_channels"), "general", [t("hub.admin.overview.afk_channel"), t("hub.admin.overview.afk_timeout"), t("hub.admin.overview.max_depth")]),
+    ...(props.discoveryUrl ? [S("discovery", t("hub.admin.tabs.discovery"), "general", [t("hub.admin.discovery.list_publicly"), t("hub.admin.discovery.directory.title")])] : []),
     S("tags", t("hub.admin.tabs.tags"), "general"),
     ...(props.hubThemeActions ? [S("hub-theme", t("hub.admin.tabs.theme"), "general")] : []),
     ...(props.hubLanguagesActions ? [S("hub-languages", t("hub.admin.tabs.languages"), "general")] : []),
     S("invites", t("hub.admin.tabs.invites"), "joining"),
     {
-      ...S("admission", t("hub.admin.section.admission"), "joining"),
+      ...S("admission", t("hub.admin.section.admission"), "joining", [t("hub.admin.overview.require_approval"), t("hub.admin.overview.antispam")]),
       // Newcomers waiting on approval: the Joining tab carries the marker.
       attention: props.pendingMembers.length > 0
         ? t("hub.admin.members.pending.title", { count: props.pendingMembers.length })
@@ -361,7 +361,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
       S("survey", t("hub.admin.tabs.survey"), "joining"),
       ...(props.joinFormsCapable && props.applicationActions ? [S("application", t("hub.admin.tabs.application"), "joining")] : []),
     ] : []),
-    S("welcome", t("hub.admin.overview.welcome"), "joining"),
+    S("welcome", t("hub.admin.overview.welcome"), "joining", [t("hub.admin.overview.welcome_label"), t("hub.admin.overview.farewell_label")]),
     S("members", t("hub.admin.tabs.members"), "people"),
     S("roles", t("hub.admin.tabs.roles"), "people"),
     S("certifications", t("hub.admin.tabs.certifications"), "people"),
@@ -374,7 +374,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ...(props.stickersAdmin?.settings ? [S("sticker-settings", t("hub.admin.tabs.sticker_settings"), "content")] : []),
     ...(props.canManageSoundboard && props.soundboardActions ? [S("soundboard", t("hub.admin.tabs.soundboard"), "content")] : []),
     ...(props.attachmentSettingsActions ? [S("attachments", t("hub.admin.tabs.attachments"), "content")] : []),
-    S("message-limits", t("hub.admin.section.message_limits"), "content"),
+    S("message-limits", t("hub.admin.section.message_limits"), "content", [t("hub.admin.overview.attachment_cap")]),
     ...(props.stickersAdmin?.storage ? [S("sticker-storage", t("hub.admin.tabs.sticker_storage"), "content")] : []),
     ...(showAlliances ? [S("alliances", t("hub.admin.tabs.alliances"), "connections")] : []),
     S("integrations", t("hub.admin.tabs.webhooks"), "connections"),
