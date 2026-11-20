@@ -29,7 +29,9 @@ export async function openSettingsSection(page: Page, section: string) {
 
 // Which area of hub settings holds each section (English labels).
 const HUB_AREA_OF: Record<string, string> = {
-  Overview: "General", Discovery: "General", Tags: "General", Theme: "General", Languages: "General",
+  Identity: "General", Behaviour: "General", "Voice and channels": "General",
+  "Approval and anti-spam": "Joining", "Welcome message": "Joining", "Message limits": "Content",
+  Discovery: "General", Tags: "General", Theme: "General", Languages: "General",
   Invites: "Joining", Onboarding: "Joining", Survey: "Joining", Application: "Joining",
   Members: "People", Roles: "People", Certifications: "People",
   Reports: "Moderation", "Recovery requests": "Moderation", Bans: "Moderation", "Audit log": "Moderation",

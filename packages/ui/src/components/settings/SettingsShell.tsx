@@ -33,6 +33,9 @@ interface Props<TSection extends string, TArea extends string> {
   accountPicker?: ReactNode;
   /** The section the header's help link opens. */
   helpSection?: TSection;
+  /** Save progress or an error for the whole page, shown in one bar at the
+   *  bottom instead of once per section. */
+  status?: ReactNode;
 }
 
 const anchorId = (id: string) => `settings-section-${id}`;
@@ -43,7 +46,7 @@ const anchorId = (id: string) => `settings-section-${id}`;
 // the grouping and the section bodies, which keep their own <section> root so
 // the `.settings-content > section` rhythm still applies.
 export function SettingsShell<TSection extends string, TArea extends string>({
-  title, areas, sections, activeSection, onSection, renderSection, onClose, accountPicker, helpSection,
+  title, areas, sections, activeSection, onSection, renderSection, onClose, accountPicker, helpSection, status,
 }: Props<TSection, TArea>) {
   const { t } = useTranslation();
   const mainRef = useRef<HTMLElement>(null);
@@ -153,6 +156,7 @@ export function SettingsShell<TSection extends string, TArea extends string>({
               {renderSection(s.id)}
             </Fragment>
           ))}
+          <div className="settings-status-bar" role="status">{status}</div>
         </main>
       </div>
     </div>

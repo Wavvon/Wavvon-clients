@@ -181,7 +181,7 @@ test("the moderation tab shows the content report queue", async ({ page }) => {
 test("overview saves a change by itself", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openAdminTab(page, "Overview");
+  await openAdminTab(page, "Identity");
 
   const select = page.getByLabel("Member name colors", { exact: true });
   const before = await select.inputValue();
