@@ -1685,6 +1685,7 @@
   "settings.profile.card.no_badges": "No badges yet",
   "settings.profile.context.apply_default": "Use default",
   "settings.profile.context.default_option": "Default profile",
+  "settings.profile.context.follows_option": "{hub} (follows the default)",
   "settings.profile.context.following": "Following the default profile — it updates whenever the default is saved. Editing any field here detaches it.",
   "settings.profile.context.label": "Profile to edit",
   "settings.profile.context.loading": "Loading…",
