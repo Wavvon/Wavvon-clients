@@ -173,8 +173,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     }
   }
 
-  // Every "bring an identity onto this device" path (recover, passkey
-  // sign-in, pair) funnels through here: a dedupe hit (isNew=false) skips
+  // Every "bring an identity onto this device" path (recover, pair)
+  // funnels through here: a dedupe hit (isNew=false) skips
   // straight to finishing and keeps that account's existing label untouched
   // — only a genuinely new row requires labeling first.
   function proceedAfterResolve(account: IdentityRecord, isNew: boolean) {
@@ -692,9 +692,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         <span className="choice-hint">{t("identity_setup.choose.pair_hint")}</span>
       </button>
       {/* Hub build only (USER_CLIENT_URL is null in the user build). Offered
-          *before* an identity exists on purpose: nothing has to be moved yet,
-          and a passkey made here would be bound to this origin and unusable
-          there — decisions.md 2026-08-25. */}
+          *before* an identity exists on purpose: nothing has to be moved
+          yet — decisions.md 2026-08-25. */}
       {USER_CLIENT_URL && (
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 20 }}>
           {t("identity_setup.choose.use_user_client_hint")}{" "}

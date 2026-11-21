@@ -18,24 +18,18 @@ interface Props {
   error: string | null;
   /** True once the invite's `?fp=`/`#fp=` fingerprint was verified against the hub's /info (lan-mode.md §5). */
   onAdd: () => void;
-  onAddWithPasskey?: () => void;
-  /** Whether the platform can actually complete a WebAuthn ceremony — a
-   *  browser/webview capability check the caller runs (desktop has no
-   *  passkey path at all, so both this and onAddWithPasskey stay unset there). */
-  passkeySupported?: boolean;
   onClose: () => void;
   /** Opens the public hub directory instead of adding by URL. */
   onBrowse?: () => void;
 }
 
-export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, onAdd, onAddWithPasskey, passkeySupported, onClose, onBrowse }: Props) {
+export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, onAdd, onClose, onBrowse }: Props) {
   useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [copiedInvite, setCopiedInvite] = useState(false);
   // The hint asks for an invite link, so it has nothing to say once the
   // address already carries one.
   const carriesInvite = !!parseHubInput(hubUrl)?.inviteCode;
-  const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && !!passkeySupported;
   return (
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
@@ -113,19 +107,6 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error
             {loading ? t("hub.connecting") : t("hub.add_modal.connect")}
           </button>
         </div>
-        {showPasskey && (
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <span className="muted" style={{ fontSize: "var(--text-xs)", display: "block", marginBottom: 6 }}>{t("hub.add_modal.or_divider")}</span>
-            <button
-              className="btn-secondary"
-              style={{ width: "100%" }}
-              onClick={onAddWithPasskey}
-              disabled={loading}
-            >
-              {t("hub.add_modal.passkey_signin")}
-            </button>
-          </div>
-        )}
         {error && <div className="error">{error}</div>}
         {onBrowse && (
           <p style={{ marginTop: "var(--space-3)", textAlign: "center" }}>

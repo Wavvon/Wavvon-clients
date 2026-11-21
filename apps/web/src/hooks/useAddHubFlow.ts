@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import { parseHubInput } from "@wavvon/core";
 import type { HubInputResult } from "@wavvon/core";
 import {
-  addHub, listHubs, previewHubInfo, previewApplication, verifyLanFingerprint, authenticateWithPasskey,
+  addHub, listHubs, previewHubInfo, previewApplication, verifyLanFingerprint,
   publishDhKey, HubApiError, ChallengeRequiredError,
 } from "@platform";
 import type { WsHandlers } from "@platform";
@@ -28,8 +28,7 @@ export interface UseAddHubFlowParams {
 }
 
 // Add-hub flow: URL/invite input parsing (incl. wavvon:// deep links and LAN
-// fingerprint pinning per lan-mode.md §5), preview, and the two join paths
-// (session token, passkey). Shared by AddHubModal's "join" field and the
+// fingerprint pinning per lan-mode.md §5), preview, and the join. Shared by AddHubModal's "join" field and the
 // create-hub self-host panel's "paste your owner invite" field.
 export function useAddHubFlow({
   publicKey, stableHandlers, hubsRef, setHubs, activateJoinedHub, loadHubData,
@@ -146,40 +145,6 @@ export function useAddHubFlow({
     }
   }
 
-  async function handleAddHubWithPasskey() {
-    if (!publicKey) return;
-    setAddingHub(true);
-    setAddHubError(null);
-    try {
-      if (!(await verifyLanFingerprint(hubUrl, expectedFingerprint))) {
-        setAddHubError(t("hub.add_modal.fingerprint_mismatch"));
-        return;
-      }
-      const token = await authenticateWithPasskey(hubUrl, publicKey);
-      const hub = await addHub(hubUrl, stableHandlers, {
-        invite_code: inviteCode || undefined,
-        sessionToken: token,
-      });
-      setHubs(listHubs());
-      activateJoinedHub(hub.hub_id);
-      setShowAddHub(false);
-      setHubUrl("");
-      setInviteCode("");
-      setHubPreview({ state: "idle" });
-      await loadHubData();
-      publishDhKey().catch(() => {});
-      const target = pendingDeepLinkTargetRef.current;
-      if (target) {
-        pendingDeepLinkTargetRef.current = null;
-        await applyDeepLinkTarget(hub.hub_id, target);
-      }
-    } catch (e) {
-      setAddHubError(e instanceof HubApiError ? e.message : String(e));
-    } finally {
-      setAddingHub(false);
-    }
-  }
-
   return {
     hubUrl, setHubUrl,
     inviteCode, setInviteCode,
@@ -194,7 +159,6 @@ export function useAddHubFlow({
     handleHubUrlInput,
     handlePreviewHub,
     handleAddHub,
-    handleAddHubWithPasskey,
     findHubByUrl,
   };
 }

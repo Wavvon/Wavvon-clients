@@ -37,7 +37,7 @@ async function tokenForAccount(account: IdentityRecord, hub_url: string, hub_id:
 // account is being MANAGED rather than the one currently switched into (see
 // AccountTab.tsx's "Managing" selector). This is the mechanism behind
 // "manage any on-device account without switching" for hub-side state that
-// is session-bound (dm-blocks, passkeys, trusted devices) rather than
+// is session-bound (dm-blocks) rather than
 // signature-authoritative (home hubs, device certs — those just get signed
 // locally with the selected account's own master seed and don't need this).
 //

@@ -76,7 +76,6 @@ import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
 import { HubStreamsPanel, ShareDialog } from "@wavvon/ui";
 import { AddHubModal } from "@wavvon/ui";
-import { passkeysUsableWith } from "@platform";
 import { QuickInviteModal } from "@wavvon/ui";
 import { ChannelSettingsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "@wavvon/ui";
@@ -860,7 +859,6 @@ export default function App({ initialView }: AppProps = {}) {
     handleHubUrlInput,
     handlePreviewHub,
     handleAddHub,
-    handleAddHubWithPasskey,
   } = useAddHubFlow({
     publicKey, stableHandlers, hubsRef, setHubs, activateJoinedHub, loadHubData,
     applyDeepLinkTarget, t,
@@ -1491,7 +1489,6 @@ export default function App({ initialView }: AppProps = {}) {
         effectiveNotifyMode={effectiveNotifyMode}
         eventComposerChannelId={eventComposerChannelId}
         handleAddHub={handleAddHub}
-        handleAddHubWithPasskey={handleAddHubWithPasskey}
         handleCreateChannel={handleCreateChannel}
         handleDeleteChannel={handleDeleteChannel}
         handleHubSetupWizardComplete={handleHubSetupWizardComplete}

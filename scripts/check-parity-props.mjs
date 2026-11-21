@@ -18,9 +18,9 @@ const PLATFORM_BOUND = new Set([
   // equivalent for.
   "onOpenOsPipWindow", "onCloseOsPipWindow", "onListenOsPipClose",
   "onOsPipChunk", "onOsPipStop", "onOsPipRestoreCursor",
-  // The user build is a web artefact: adding a hub, its invite field and the
-  // passkey path all exist on the page a hub serves, not in the Tauri shell.
-  "onAddWithPasskey", "onInviteCodeChange",
+  // The user build is a web artefact: adding a hub and its invite field
+  // exist on the page a hub serves, not in the Tauri shell.
+  "onInviteCodeChange",
   // Desktop types a hub address before it has one; the web build is served by
   // the hub it is about to talk to.
   "onCheckHubUrl",

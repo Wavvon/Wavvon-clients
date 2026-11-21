@@ -53,7 +53,6 @@ export interface AppModalsProps {
   addHubError: string | null;
   setAddHubError: (v: string | null) => void;
   handleAddHub: () => void | Promise<void>;
-  handleAddHubWithPasskey: () => void | Promise<void>;
   setShowDiscover: (v: boolean) => void;
 
   // Identity backup — one prompt at the first message an unsaved identity

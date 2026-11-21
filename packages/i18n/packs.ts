@@ -20,7 +20,6 @@ export const LOCKED_KEY_PREFIXES = [
   'settings.account.full_archive.',
   'settings.account.restore.',
   'settings.account.devices.',
-  'settings.account.passkeys.',
   'settings.devices.pairing',
   'settings.pairing.',
   'settings.security.',

@@ -92,7 +92,6 @@ export function MoveToUserClientSection({ account, activeHubUrl }: Props) {
     <div className="settings-section handover-move" style={{ marginTop: 20 }}>
       <label className="settings-label">{t("handover.move.label")}</label>
       <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("handover.move.hint")}</p>
-      <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{t("handover.move.passkey_warning")}</p>
 
       <button className="btn-secondary" onClick={start} disabled={state === "waiting" || state === "offered"}>
         {state === "idle" || state === "failed" ? t("handover.move.button") : t("handover.move.in_progress")}

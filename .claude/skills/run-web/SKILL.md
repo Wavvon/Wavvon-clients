@@ -1,6 +1,6 @@
 ---
 name: run-web
-description: Launch and drive the Wavvon web client (apps/web) in headless Chromium — dev server, Playwright driver, virtual-authenticator passkeys. Use when asked to run, screenshot, or smoke-test the web app.
+description: Launch and drive the Wavvon web client (apps/web) in headless Chromium — dev server, Playwright driver. Use when asked to run, screenshot, or smoke-test the web app.
 ---
 
 # Run the Wavvon web client
@@ -75,21 +75,6 @@ await ctx.addInitScript(() => localStorage.setItem("wavvon_language", "en"));
   `page.waitForEvent("download")`, confirm button is "Save backup file".
 - **confirm()/alert() dialogs** are used (import switch prompt, etc.) —
   register `page.on("dialog", d => d.accept())` before acting.
-- **Passkey flows work headless** via a CDP virtual authenticator with PRF:
-
-```js
-const cdp = await ctx.newCDPSession(page);
-await cdp.send("WebAuthn.enable");
-await cdp.send("WebAuthn.addVirtualAuthenticator", { options: {
-  protocol: "ctap2", transport: "internal",
-  hasResidentKey: true, hasUserVerification: true, isUserVerified: true,
-  hasPrf: true, automaticPresenceSimulation: true,
-}});
-```
-
-  The virtual authenticator dies with the browser session — test
-  create-then-restore in ONE session (wipe app storage in between to
-  simulate a new device).
 - **Tall modals clip below the 900px viewport** (ChannelSettingsModal with
   its icon grid + tags section): Playwright's physical click on a
   below-the-fold footer button can silently hit nothing — the click

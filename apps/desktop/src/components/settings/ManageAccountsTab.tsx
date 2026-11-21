@@ -1,4 +1,3 @@
-import { PasskeySection } from "../PasskeySection";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
@@ -105,7 +104,6 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
       />
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
-      {activeHubId && <PasskeySection hubId={activeHubId} />}
       <FullArchiveSection
         canExport={!!activeHubUrl}
         actions={buildFullArchiveActions(t("settings.account.full_archive.file_filter"), t("settings.account.accounts.switch_cooldown"))}
