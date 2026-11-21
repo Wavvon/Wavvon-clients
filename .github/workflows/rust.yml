@@ -44,7 +44,7 @@ jobs:
           toolchain: 1.99.0
           components: rustfmt, clippy
 
-      - uses: Swatinem/rust-cache@f4371d1ec7179bfbd04a82a81e3b3af7f720750f # v2
+      - uses: Swatinem/rust-cache@eedcf2fb1c22f010a0eb66b92f378c110977f266 # v2
 
       - name: Install Linux deps
         run: |
