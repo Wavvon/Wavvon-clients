@@ -199,13 +199,10 @@ pub(crate) async fn spawn_ws_task(
                                             "auto": auto,
                                         }));
                                     }
-                                    WsServerMessage::VoiceJoined { channel_id, participants, voice_token, voice_wt_url, voice_cert_hash, may_speak } => {
-                                        // Open the WebTransport voice session now that the hub
-                                        // has handed over the URL/token/cert hash
-                                        // (voice-transport-v2.md). Spawned so the WS receive
-                                        // loop is never blocked on the QUIC handshake -- mirrors
-                                        // the old register_udp hand-off via a shared Arc, but the
-                                        // Arc now holds the live connection itself.
+                                    WsServerMessage::VoiceJoined { channel_id, participants, voice_token, may_speak } => {
+                                        // Bind the WebRTC voice session with the token
+                                        // (voice-transport-v3.md). Spawned so the WS receive
+                                        // loop keeps running: it is what delivers the answer.
                                         let session_arcs = {
                                             let app_state = app.state::<AppState>();
                                             let lock = app_state.voice.lock().unwrap();
@@ -214,9 +211,7 @@ pub(crate) async fn spawn_ws_task(
                                                 .map(|s| (s.transport.clone(), s.voice_keys.clone()))
                                         };
                                         if let Some((transport_arc, voice_keys)) = session_arcs {
-                                            let connect_url = voice_wt_url.clone();
                                             let connect_token = voice_token.clone();
-                                            let connect_cert_hash = voice_cert_hash.clone();
                                             let failed_app = app.clone();
                                             let rtc_hub_url = hub_url.clone();
                                             let rtc_cmd_tx = cmd_tx_for_task.clone();
@@ -228,10 +223,12 @@ pub(crate) async fn spawn_ws_task(
                                                     .await
                                                     .iter()
                                                     .any(|c| c == "voice.webrtc");
+                                                // A hub without it predates voice transport v3 and
+                                                // speaks only WebTransport, which we no longer carry.
                                                 let connected = if webrtc {
                                                     connect_webrtc(&rtc_hub_url, &connect_token, &rtc_cmd_tx, &rtc_slot).await
                                                 } else {
-                                                    wavvon_voice::transport::VoiceTransport::connect(&connect_url, &connect_token, connect_cert_hash.as_deref()).await
+                                                    Err(anyhow::anyhow!("the hub does not offer voice.webrtc"))
                                                 };
                                                 match connected {
                                                     Ok(t) => *transport_arc.write().await = Some(std::sync::Arc::new(t)),
@@ -240,7 +237,7 @@ pub(crate) async fn spawn_ws_task(
                                                         // Only logged before, so the room looked joined and stayed
                                                         // silent. The UI words it the same way the web client does.
                                                         let _ = failed_app.emit("voice-transport-failed", serde_json::json!({
-                                                            "url": connect_url,
+                                                            "url": rtc_hub_url,
                                                             "elapsed_ms": started.elapsed().as_millis() as u64,
                                                             "detail": e.to_string(),
                                                         }));

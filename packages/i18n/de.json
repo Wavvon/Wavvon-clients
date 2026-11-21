@@ -2007,7 +2007,7 @@
   "voice.error.join_timeout": "Der Hub hat nicht rechtzeitig auf die Sprachanfrage geantwortet. Versuch es gleich noch einmal.",
   "voice.error.refused": "Der Sprachserver des Hubs hat die Verbindung abgelehnt. Lade die Seite neu und versuch es noch einmal; passiert es wieder, sag dem Betreiber des Hubs Bescheid.",
   "voice.error.unreachable": "Der Sprachserver dieses Hubs ({host}) ist nicht erreichbar. Sein Netzwerk blockiert vielleicht UDP, zum Beispiel ein Proxy wie Cloudflare vor dem Hub. Sag dem Betreiber des Hubs Bescheid.",
-  "voice.error.unsupported_browser": "Für Sprache brauchst du einen neueren Browser. Auf iPhone oder iPad aktualisiere auf iOS 26.4 oder neuer, sonst nutze ein aktuelles Chrome, Edge oder Firefox.",
+  "voice.error.unsupported_browser": "Für Sprache brauchst du einen Browser mit WebRTC. Nutze ein aktuelles Chrome, Edge, Firefox oder Safari.",
   "voice.join": "Sprachkanal beitreten",
   "voice.join.header": "Sprachkanal beitreten",
   "voice.leave": "Sprachkanal verlassen",

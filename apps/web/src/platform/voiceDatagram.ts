@@ -1,6 +1,6 @@
 // Downlink datagram framing + replay guard for voice-transport-v2
 // (docs/docs/voice-transport-v2.md "Datagram wire format" / "AEAD"). Pure
-// and dependency-free so it's unit-testable without a real WebTransport.
+// and dependency-free so it's unit-testable without a real data channel.
 
 export interface DownlinkFrame {
   senderId: number;

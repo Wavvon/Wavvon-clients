@@ -3,9 +3,8 @@
 //! hub offers. Packets are the sealed uplink packets from `crypto.rs`; the
 //! encryption lives one layer up, this module is purely transport.
 //!
-//! Two adapters sit behind it: a WebRTC data channel (str0m) on hubs that
-//! advertise `voice.webrtc`, and the WebTransport session of
-//! voice-transport-v2.md, which goes once every hub has moved.
+//! The adapter behind it is a WebRTC data channel (str0m) to hubs that
+//! advertise `voice.webrtc`.
 
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
@@ -17,90 +16,33 @@ use str0m::net::{Protocol, Receive};
 use str0m::{Candidate, Event, IceConnectionState, Input, Output, Rtc};
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, Mutex};
-use wtransport::tls::Sha256Digest;
-use wtransport::{ClientConfig, Endpoint};
 
 /// The data channel's stream id; both sides create it out of band.
 const VOICE_CHANNEL_ID: u16 = 0;
 
-/// An open voice session against a hub, on either transport.
+/// An open voice session against a hub. Dropping it ends the session.
 pub struct VoiceTransport {
-    link: Link,
-}
-
-enum Link {
-    WebTransport(wtransport::Connection),
-    WebRtc {
-        outbound: mpsc::UnboundedSender<Vec<u8>>,
-        inbound: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>,
-    },
+    outbound: mpsc::UnboundedSender<Vec<u8>>,
+    inbound: Mutex<mpsc::UnboundedReceiver<Vec<u8>>>,
 }
 
 impl VoiceTransport {
-    /// Connects to `voice_wt_url?token=<voice_token>`. When `cert_hash_hex`
-    /// is set (self-signed tier), trusts exactly that certificate by
-    /// SHA-256 digest, matching the browser
-    /// `WebTransportOptions.serverCertificateHashes` trust model; otherwise
-    /// falls back to normal CA validation (operator-supplied cert).
-    pub async fn connect(
-        voice_wt_url: &str,
-        voice_token: &str,
-        cert_hash_hex: Option<&str>,
-    ) -> Result<Self> {
-        let builder = ClientConfig::builder().with_bind_default();
-        let config = match cert_hash_hex {
-            Some(hash_hex) => {
-                let bytes = hex::decode(hash_hex).context("invalid voice_cert_hash hex")?;
-                let digest: [u8; 32] = bytes.try_into().map_err(|_| {
-                    anyhow::anyhow!("voice_cert_hash must be a 32-byte SHA-256 digest")
-                })?;
-                builder
-                    .with_server_certificate_hashes([Sha256Digest::new(digest)])
-                    .build()
-            }
-            None => builder.with_native_certs().build(),
-        };
-
-        let endpoint = Endpoint::client(config).context("wtransport client endpoint")?;
-        let session_url = format!("{voice_wt_url}?token={voice_token}");
-        let connection = endpoint
-            .connect(&session_url)
-            .await
-            .context("wtransport connect")?;
-
-        Ok(Self {
-            link: Link::WebTransport(connection),
-        })
-    }
-
     /// Sends an unreliable, unordered packet -- the sealed uplink packet.
     pub fn send_datagram(&self, payload: &[u8]) -> Result<()> {
-        match &self.link {
-            Link::WebTransport(c) => c.send_datagram(payload).context("wtransport send_datagram"),
-            Link::WebRtc { outbound, .. } => outbound
-                .send(payload.to_vec())
-                .map_err(|_| anyhow::anyhow!("voice WebRTC session closed")),
-        }
+        self.outbound
+            .send(payload.to_vec())
+            .map_err(|_| anyhow::anyhow!("voice WebRTC session closed"))
     }
 
     /// Waits for the next packet from the hub relay (routing prefix +
     /// sealed packet, unparsed).
     pub async fn recv_datagram(&self) -> Result<Vec<u8>> {
-        match &self.link {
-            Link::WebTransport(c) => {
-                let datagram = c
-                    .receive_datagram()
-                    .await
-                    .context("wtransport receive_datagram")?;
-                Ok(datagram.payload().to_vec())
-            }
-            Link::WebRtc { inbound, .. } => inbound
-                .lock()
-                .await
-                .recv()
-                .await
-                .ok_or_else(|| anyhow::anyhow!("voice WebRTC session closed")),
-        }
+        self.inbound
+            .lock()
+            .await
+            .recv()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("voice WebRTC session closed"))
     }
 }
 
@@ -170,10 +112,8 @@ impl RtcOffer {
             in_tx,
         ));
         Ok(VoiceTransport {
-            link: Link::WebRtc {
-                outbound: out_tx,
-                inbound: Mutex::new(in_rx),
-            },
+            outbound: out_tx,
+            inbound: Mutex::new(in_rx),
         })
     }
 }

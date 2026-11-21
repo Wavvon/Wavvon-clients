@@ -1,4 +1,4 @@
-import { hexToBytes, voicePacketOpen } from '@wavvon/core';
+import { voicePacketOpen } from '@wavvon/core';
 import { getScoped, setScoped } from '../utils/accountScope';
 import { VoiceKeyManager, type VoiceKeyBundle } from './voiceKeys';
 import { parseDownlinkDatagram, peekSealedKeyId, ReplayGuard } from './voiceDatagram';
@@ -57,7 +57,7 @@ export interface VoiceSessionHandlers {
   onReady: (senderId: number, participants: unknown[], channelId: string) => void;
   onClose: () => void;
   /** Send a `voice_key_offer` over the MAIN hub WS (voice-transport-v2.md
-   *  "E2E key distribution") — the WebTransport session has no signaling
+   *  "E2E key distribution") — the voice data channel has no signaling
    *  channel of its own, only datagrams. */
   sendKeyOffer: (channelId: string, bundles: VoiceKeyBundle[]) => void;
   /** Called only when speech starts or stops, never per frame. */
@@ -67,19 +67,19 @@ export interface VoiceSessionHandlers {
 }
 
 /** What `voice_join` gets back from the hub (the `voice_joined` reply) —
- *  everything the session needs to open its WebTransport connection and
+ *  everything the session needs to open its WebRTC data channel and
  *  seed the initial key exchange, gathered by the caller (useVoice) before
  *  constructing a session. */
 export interface VoiceJoinInfo {
   channelId: string;
   senderId: number;
   participants: { sender_id: number; public_key: string }[];
-  wtUrl: string;
   token: string;
-  certHash: string | null;
-  /** Set when the hub advertises `voice.webrtc` (voice-transport-v3.md):
-   *  the session then rides a WebRTC data channel instead of WebTransport. */
-  rtcSignal?: RtcSignal;
+  /** The room's hub, named in a transport failure. */
+  hubUrl: string;
+  /** Sends `voice_rtc_offer` and resolves with the hub's answer
+   *  (voice-transport-v3.md). */
+  rtcSignal: RtcSignal;
 }
 
 export interface AudioProfileConfig {
@@ -125,14 +125,14 @@ function sharedCaptureAudio(): Promise<{ ctx: AudioContext; capture: AudioWorkle
   return sharedCapture;
 }
 
-export class VoiceWtSession {
+export class VoiceSession {
   private audioCtx: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private captureNode: AudioWorkletNode | null = null;
   private captureSource: MediaStreamAudioSourceNode | null = null;
   /** This session's claim on the shared capture node's output port. */
   private captureId = 0;
-  /** Owns the WebTransport session, Opus encode, seal, the speaking detector
+  /** Owns the voice data channel, Opus encode, seal, the speaking detector
    *  and soundboard mixing — everything between capture and the wire. Nothing
    *  on the main thread sits in the send path; inbound datagrams are handed
    *  back here for the (unchanged) receive side. */
@@ -218,31 +218,25 @@ export class VoiceWtSession {
     this.captureSource = audioCtx.createMediaStreamSource(this.mediaStream);
     this.captureSource.connect(capture);
 
-    if (this.join.rtcSignal) {
-      const started = performance.now();
-      const { pc, channel } = createRtcPeer();
-      this.rtcPc = pc;
-      pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'failed' && !this.closed) this.handlers.onClose();
-      };
-      // No await between creating the channel and handing it to the worker.
-      const workerReady = this.startEncodeWorker(opus, null, null, channel);
-      workerReady.catch(() => { /* reported through the race below */ });
-      try {
-        await negotiateRtc(pc, this.join.token, this.join.rtcSignal);
-        if (this.rtcRelay) await channelOpen(this.rtcRelay);
-        await Promise.race([
-          workerReady,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('voice data channel did not open')), 10_000)),
-        ]);
-      } catch (e) {
-        if (e instanceof VoiceTransportError) throw e;
-        throw new VoiceTransportError('webrtc', 'Error', (e as Error).message ?? String(e), Math.round(performance.now() - started));
-      }
-    } else {
-      const url = `${this.join.wtUrl}?token=${encodeURIComponent(this.join.token)}`;
-      const certHash = this.join.certHash;
-      await this.startEncodeWorker(opus, url, certHash ? new Uint8Array(hexToBytes(certHash)) : null);
+    const started = performance.now();
+    const { pc, channel } = createRtcPeer();
+    this.rtcPc = pc;
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed' && !this.closed) this.handlers.onClose();
+    };
+    // No await between creating the channel and handing it to the worker.
+    const workerReady = this.startEncodeWorker(opus, channel);
+    workerReady.catch(() => { /* reported through the race below */ });
+    try {
+      await negotiateRtc(pc, this.join.token, this.join.rtcSignal);
+      if (this.rtcRelay) await channelOpen(this.rtcRelay);
+      await Promise.race([
+        workerReady,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('voice data channel did not open')), 10_000)),
+      ]);
+    } catch (e) {
+      if (e instanceof VoiceTransportError) throw e;
+      throw new VoiceTransportError(this.join.hubUrl, 'Error', (e as Error).message ?? String(e), Math.round(performance.now() - started));
     }
 
     // Seal outgoing frames with our own key from the moment capture starts —
@@ -362,9 +356,7 @@ export class VoiceWtSession {
    *  one stale burst. */
   private startEncodeWorker(
     opus: ReturnType<typeof resolveOpusConfig>,
-    url: string | null,
-    certHash: Uint8Array | null,
-    rtcChannel: RTCDataChannel | null = null,
+    rtcChannel: RTCDataChannel,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const worker = new Worker(new URL('./voiceEncodeWorker.ts', import.meta.url), { type: 'module' });
@@ -379,10 +371,10 @@ export class VoiceWtSession {
             resolve();
             break;
           case 'failed':
-            if (!ready) reject(new VoiceTransportError(url ?? 'webrtc', msg.name, msg.message, msg.elapsedMs));
+            if (!ready) reject(new VoiceTransportError(this.join.hubUrl, msg.name, msg.message, msg.elapsedMs));
             break;
           case 'closed':
-            if (!ready) reject(new VoiceTransportError(url ?? 'webrtc', 'closed', '', 0));
+            if (!ready) reject(new VoiceTransportError(this.join.hubUrl, 'closed', '', 0));
             else if (!this.closed) this.handlers.onClose();
             break;
           case 'datagram':
@@ -409,8 +401,6 @@ export class VoiceWtSession {
       const { port1, port2 } = new MessageChannel();
       const init: ToWorker = {
         type: 'init',
-        url,
-        certHash,
         opusApp: opus.app,
         channels: opus.channels,
         vad: effectiveVad(this.audioConfig),
@@ -418,19 +408,15 @@ export class VoiceWtSession {
         key: this.workerKey(),
         pcmPort: port2,
       };
-      let posted = false;
-      if (rtcChannel) {
-        try {
-          worker.postMessage({ ...init, rtcChannel }, [port2, rtcChannel as unknown as Transferable]);
-          posted = true;
-        } catch {
-          // Not transferable here (DataCloneError): drive it from this thread.
-          this.rtcRelay = rtcChannel;
-          rtcChannel.onmessage = (ev: MessageEvent<ArrayBuffer>) => this.onDatagram(new Uint8Array(ev.data));
-          rtcChannel.onclose = () => { if (!this.closed) this.handlers.onClose(); };
-        }
+      try {
+        worker.postMessage({ ...init, rtcChannel }, [port2, rtcChannel as unknown as Transferable]);
+      } catch {
+        // Not transferable here (DataCloneError): drive it from this thread.
+        this.rtcRelay = rtcChannel;
+        rtcChannel.onmessage = (ev: MessageEvent<ArrayBuffer>) => this.onDatagram(new Uint8Array(ev.data));
+        rtcChannel.onclose = () => { if (!this.closed) this.handlers.onClose(); };
+        worker.postMessage(init, [port2]);
       }
-      if (!posted) worker.postMessage(init, [port2]);
     });
   }
 

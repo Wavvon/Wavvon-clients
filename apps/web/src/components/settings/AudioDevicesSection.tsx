@@ -3,7 +3,7 @@ import { SettingRow } from "@wavvon/ui";
 import { useTranslation } from "react-i18next";
 
 // Input/output device selection for voice (Settings → Voice). The choices are
-// persisted to localStorage and read by VoiceWtSession on join
+// persisted to localStorage and read by VoiceSession on join
 // (wavvon.audioInputDevice → getUserMedia, wavvon.audioOutputDevice →
 // AudioContext.setSinkId where supported).
 const INPUT_KEY = "wavvon.audioInputDevice";
