@@ -41,7 +41,7 @@ vi.stubGlobal("localStorage", {
   removeItem: (k: string) => { delete localStorageData[k]; },
 });
 
-import { VoiceWtSession } from "../voice";
+import { VoiceSession } from "../voice";
 
 const STUB_HANDLERS = {
   onReady: vi.fn(),
@@ -53,13 +53,13 @@ const JOIN_INFO = {
   channelId: "ch1",
   senderId: 0,
   participants: [],
-  wtUrl: "https://hub.example/voice",
   token: "token",
-  certHash: null,
+  hubUrl: "https://hub.example",
+  rtcSignal: async () => "",
 };
 
 function makeSession() {
-  return new VoiceWtSession(JOIN_INFO, STUB_HANDLERS);
+  return new VoiceSession(JOIN_INFO, STUB_HANDLERS);
 }
 
 beforeEach(() => {
@@ -68,7 +68,7 @@ beforeEach(() => {
   mockAudioCtx.createGain.mockImplementation(() => makeAudioNode());
 });
 
-describe("VoiceWtSession.playClip rate limit", () => {
+describe("VoiceSession.playClip rate limit", () => {
   it("starts playback and reports the playing clip id", () => {
     const session = makeSession();
     expect(session.getPlayingClipId()).toBeNull();

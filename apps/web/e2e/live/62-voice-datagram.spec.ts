@@ -3,14 +3,11 @@ import { HUB_URL, OWNER_PUBKEY, channelButton, createChannel, expectInHub, newMe
 
 // P62 — audio actually crosses.
 //
-// Every voice spec in this suite except P58 and this one asserts on roster
-// state the hub pushes over the WebSocket, so all of them pass identically
-// whether the transport connected, failed, or was never attempted. P58 closed
-// half of that: Chromium does accept the hub's self-signed cert, so the
-// handshake is real. It stops at the handshake — it opens a session with a
-// token the hub cannot have minted, on purpose.
+// Every other voice spec in this suite asserts on roster state the hub pushes
+// over the WebSocket, so all of them pass identically whether the transport
+// connected, failed, or was never attempted.
 //
-// This is the other half. Two real clients in one voice channel, and the
+// This one does not. Two real clients in one voice channel, and the
 // assertion is the receiving client's *inbound packet loss* readout: it is
 // null — rendered "—" — until `lossBySender` has folded two datagrams from
 // one sender, and a datagram only reaches that map after
@@ -70,12 +67,12 @@ function connValue(page: Page, key: string) {
 
 test("a datagram is received, unsealed and decoded — not just a roster row", async ({ page, browser }) => {
   const info = await (await page.request.get(`${HUB_URL}/info`)).json();
-  // No advertised transport means no datagram can be sent at all, and the
+  // A hub without WebRTC voice cannot carry a packet at all, and the
   // roster-only specs would still pass — which is the whole point of this
   // one. Skipping is honest; asserting here would fail for a hub setting.
   test.skip(
-    !info.voice_wt_url,
-    "hub advertises no voice_wt_url — start it with WAVVON_PUBLIC_URL set",
+    !info.capabilities?.includes("voice.webrtc"),
+    "hub does not advertise voice.webrtc — it predates voice transport v3",
   );
   test.setTimeout(150000);
 

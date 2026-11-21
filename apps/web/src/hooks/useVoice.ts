@@ -11,8 +11,8 @@ import { getScoped, setScoped } from "../utils/accountScope";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadIdentity } from "../identity/store";
 import { resolveDmSendAttribution } from "../platform/commands/dms";
-import { VoiceWtSession, type AudioProfileConfig } from "../platform/voice";
-import { voiceErrorMessage, VOICE_JOIN_TIMEOUT } from "../platform/voiceErrors";
+import { VoiceSession, type AudioProfileConfig } from "../platform/voice";
+import { voiceErrorMessage, VoiceTransportError, VOICE_JOIN_TIMEOUT } from "../platform/voiceErrors";
 import type { HubWebSocket } from "../platform/ws";
 import {
   mintAllianceVoiceGrant,
@@ -22,21 +22,19 @@ import {
 } from "../platform/commands/allianceVoice";
 import type { VoiceZone, VoiceZoneAttenuation } from "../platform/voice";
 
-// The `voice_joined` reply to `voice_join` (voice-transport-v2.md "Join
-// flow") — everything needed to open the WebTransport session.
+// The `voice_joined` reply to `voice_join`: the roster, our relay id and the
+// token that binds our WebRTC session (voice-transport-v3.md).
 interface VoiceJoinedMsg {
   channel_id: string;
   sender_id: number;
   participants: { sender_id: number; public_key: string }[];
   voice_token: string;
-  voice_wt_url: string;
-  voice_cert_hash?: string | null;
 }
 
 const VOICE_JOIN_TIMEOUT_MS = 10_000;
 
 // Tell the hub we are out of the room. The hub treats the WS message as the
-// sole authority for roster membership -- a closed WebTransport session only
+// sole authority for roster membership -- a closed voice data channel only
 // clears the audio handle -- so skipping this left the pubkey in the channel
 // participant list until the whole WS dropped: a ghost member after leaving,
 // and the same identity listed in two rooms at once across two clients.
@@ -102,7 +100,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
   const [micBelowGate, setMicBelowGate] = useState(false);
-  const voiceSessionRef = useRef<VoiceWtSession | null>(null);
+  const voiceSessionRef = useRef<VoiceSession | null>(null);
   // A join in flight, waiting for the main WS to reply with `voice_joined`
   // (resolved from onVoiceState below — see the CRITICAL note on
   // handleVoiceJoin for why this can't be a plain local variable).
@@ -125,7 +123,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   voicePartByChannelRef.current = voicePartByChannel;
   const { announcement: voicePoliteAnnouncement, announce: announceVoice } = useBatchedAnnouncement();
   // The room map: the first voice zone in the room we are in, as the UI draws
-  // it. VoiceWtSession keeps its own copy for the attenuation.
+  // it. VoiceSession keeps its own copy for the attenuation.
   const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
   const [roomMover, setRoomMover] = useState<string | null>(null);
   useEffect(() => { if (!voiceChannelId) { setRoomZone(null); setRoomMover(null); } }, [voiceChannelId]);
@@ -245,7 +243,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   }
 
   // Tear the current room down before opening another. Without this, repeated
-  // joins stack independent VoiceWtSessions (joining several rooms at once)
+  // joins stack independent VoiceSessions (joining several rooms at once)
   // and only the last is tracked, so leaving leaves the earlier ones connected
   // as stale roster entries that block temp-channel cleanup. stop() sets
   // closed=true before closing the transport, so the old session's onClose
@@ -273,19 +271,22 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const identity = await loadIdentity();
     if (!identity) throw new Error("No identity");
     const myPk = publicKeyRef.current ?? "";
-    // The room's hub decides the transport: the owning hub on a visit.
+    // The room's hub: the owning hub on a visit. One without WebRTC voice
+    // predates voice transport v3 and speaks only WebTransport, which this
+    // client no longer carries.
     const visit = voiceVisitRef.current;
     const rtcCapable = visit ? visit.capabilities.includes("voice.webrtc") : activeHubSupports("voice.webrtc");
+    const hubUrl = visit?.hubUrl ?? activeSession().hub_url;
+    if (!rtcCapable) throw new VoiceTransportError(hubUrl, "unsupported", "the hub does not offer voice.webrtc", 0);
 
-    const session = new VoiceWtSession(
+    const session = new VoiceSession(
       {
         channelId: joined.channel_id,
         senderId: joined.sender_id,
         participants: joined.participants,
-        wtUrl: joined.voice_wt_url,
         token: joined.voice_token,
-        certHash: joined.voice_cert_hash ?? null,
-        rtcSignal: rtcCapable ? (token, sdp) => awaitRtcAnswer(ws(), token, sdp) : undefined,
+        hubUrl,
+        rtcSignal: (token, sdp) => awaitRtcAnswer(ws(), token, sdp),
       },
       {
         // `channelId` is where the join actually landed — for a spawner
@@ -363,7 +364,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     );
     // Expose the session BEFORE start(): voice_key_received / roster updates
     // for us arrive over the WS while start() is still connecting
-    // WebTransport, and the handlers deliver them via this ref —
+    // the data channel, and the handlers deliver them via this ref —
     // set-after-start silently dropped every early key.
     voiceSessionRef.current = session;
     try {
@@ -434,8 +435,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     teardownCurrentVoice();
     try {
       // voice-transport-v2.md "Join flow": voice_join travels over the main
-      // WS; the voice_joined reply carries the WebTransport URL/token/cert
-      // hash — no second /info fetch.
+      // WS; the voice_joined reply carries the token for voice_rtc_offer.
       const joined = await awaitVoiceJoined(activeSession().ws, targetChannelId);
       await startVoiceSession(targetChannelId, joined, () => {
         try { return activeSession().ws; } catch { return null; }
@@ -850,11 +850,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   };
 }
 
-/** Voice rides a WebRTC data channel on a hub with `voice.webrtc`, otherwise
- *  WebTransport, which Safari and iOS have only from 26.4. Checked before
- *  voice_join so a browser with neither gets a sentence instead of a worker
- *  that dies on a missing constructor. */
+/** Voice rides a WebRTC data channel. Checked before voice_join so a browser
+ *  without it gets a sentence instead of a session that dies on a missing
+ *  constructor. */
 export function voiceTransportAvailable(): boolean {
-  const g = globalThis as { WebTransport?: unknown; RTCPeerConnection?: unknown };
-  return typeof g.WebTransport === "function" || typeof g.RTCPeerConnection === "function";
+  return typeof (globalThis as { RTCPeerConnection?: unknown }).RTCPeerConnection === "function";
 }

@@ -2007,7 +2007,7 @@
   "voice.error.join_timeout": "The hub didn't answer the voice request in time. Try again in a moment.",
   "voice.error.refused": "The hub's voice server refused the connection. Reload the page and try again; if it keeps happening, tell the hub's operator.",
   "voice.error.unreachable": "Can't reach this hub's voice server ({host}). Its network may be blocking UDP, for example a proxy such as Cloudflare in front of the hub. Tell the hub's operator.",
-  "voice.error.unsupported_browser": "Voice needs a newer browser. On an iPhone or iPad, update to iOS 26.4 or later; elsewhere, use a current Chrome, Edge or Firefox.",
+  "voice.error.unsupported_browser": "Voice needs a browser with WebRTC. Use a current Chrome, Edge, Firefox or Safari.",
   "voice.join": "Join voice",
   "voice.join.header": "Join Voice",
   "voice.leave": "Leave voice",

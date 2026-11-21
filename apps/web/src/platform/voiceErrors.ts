@@ -2,8 +2,8 @@ import i18n from "@wavvon/i18n";
 import { voiceTransportFailure } from "@wavvon/ui";
 import { HubApiError } from "./http";
 
-/** The voice transport never became ready. `elapsedMs` is from `new
- *  WebTransport()` to the failure, which is what tells the cases apart. */
+/** The voice transport never became ready. `elapsedMs` is from the offer to
+ *  the failure, which is what tells a refusal from silence apart. */
 export class VoiceTransportError extends Error {
   constructor(
     readonly url: string,

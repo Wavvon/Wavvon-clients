@@ -27,8 +27,8 @@ pub const DEFAULT_VAD_THRESHOLD: f32 = 0.02;
 const VAD_RELEASE_MS: u64 = 250;
 
 /// How long the receive task sleeps between polls while waiting for the
-/// WebTransport session to come up (set once `voice_joined` delivers the
-/// URL/token and the connect task finishes its QUIC handshake).
+/// WebRTC session to come up (set once `voice_joined` delivers the
+/// token and the connect task has the hub's answer).
 const TRANSPORT_POLL_MS: u64 = 100;
 
 /// Audio quality profile selection.
@@ -304,7 +304,7 @@ pub struct AudioPipeline {
     pub muted: Arc<AtomicBool>,
     /// When set, the receive task drops decoded frames instead of pushing
     /// them into playback. We don't stop reading the transport -- packets
-    /// would otherwise just accumulate in kernel/QUIC buffers either way;
+    /// would otherwise just accumulate in kernel/SCTP buffers either way;
     /// doing it explicitly keeps the rest of the pipeline calm.
     pub deafened: Arc<AtomicBool>,
     /// Per-sender gain map: sender_id → gain multiplier [0.0, 2.0], default 1.0.
@@ -316,8 +316,8 @@ pub struct AudioPipeline {
     /// packet that opened and decoded. Read by the shell for the connection
     /// readout; empty until something has actually been heard.
     pub inbound_loss: Arc<TokioRwLock<HashMap<u16, LossTracker>>>,
-    /// The WebTransport voice session. `None` until the WS layer's
-    /// `voice_joined` handler connects it (voice-transport-v2.md) -- mirrors
+    /// The WebRTC voice session. `None` until the WS layer's
+    /// `voice_joined` handler connects it (voice-transport-v3.md) -- mirrors
     /// the old `udp_reg_token` hand-off point, but here the value itself is
     /// the live, already-connected session rather than a token to poll with.
     pub transport: Arc<TokioRwLock<Option<Arc<VoiceTransport>>>>,
@@ -430,7 +430,7 @@ impl AudioPipeline {
         })
     }
 
-    /// Voice-channel mode: capture → encode → seal → WebTransport datagram
+    /// Voice-channel mode: capture → encode → seal → WebRTC data channel
     /// to the hub relay; hub relay datagram → open → decode → playback.
     /// The transport itself connects later, once the WS layer's
     /// `voice_joined` reply delivers the URL/token (see `Self::transport`).
@@ -474,7 +474,7 @@ impl AudioPipeline {
 
         let active_clip: Arc<Mutex<Option<ActiveClip>>> = Arc::new(Mutex::new(None));
 
-        // Send task: capture → encode → seal → WebTransport, plus RMS-based VAD + level meter.
+        // Send task: capture → encode → seal → data channel, plus RMS-based VAD + level meter.
         let send_transport = transport.clone();
         let send_voice_keys = voice_keys.clone();
         let send_muted = muted.clone();
@@ -612,7 +612,7 @@ impl AudioPipeline {
             }
         });
 
-        // Receive task: WebTransport → deserialize relay prefix → resolve
+        // Receive task: data channel → deserialize relay prefix → resolve
         // sender's current key by key_id → open → decode → playback
         // (per-sender decoder + gain + whisper state). Unknown senders,
         // unknown (sender, key_id) pairs, and replayed counters are dropped
@@ -633,7 +633,7 @@ impl AudioPipeline {
                 let conn = recv_transport.read().await.clone();
                 let Some(conn) = conn else {
                     // Not connected yet (voice_joined hasn't landed, or the
-                    // QUIC handshake is still in flight) -- poll.
+                    // WebRTC handshake is still in flight) -- poll.
                     tokio::time::sleep(Duration::from_millis(TRANSPORT_POLL_MS)).await;
                     continue;
                 };
@@ -768,7 +768,7 @@ impl AudioPipeline {
             }
         });
 
-        tracing::info!("Voice pipeline started (WebTransport pending voice_joined)");
+        tracing::info!("Voice pipeline started (transport pending voice_joined)");
 
         Ok(Self {
             _capture: capture,

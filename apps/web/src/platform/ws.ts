@@ -353,9 +353,9 @@ export class HubWebSocket {
     this.send({ type: "voice_watch", channel_id: channelId });
   }
 
-  // --- voice-transport-v2.md: join now travels over the main WS (the hub
-  // replies with `voice_joined`, carrying the WebTransport URL/token/cert
-  // hash — see useVoice.handleVoiceJoin for the request/response pairing).
+  // --- voice join travels over the main WS (the hub replies with
+  // `voice_joined`, carrying the token for `voice_rtc_offer` — see
+  // useVoice.handleVoiceJoin for the request/response pairing).
   joinVoice(channelId: string): void {
     this.send({ type: "voice_join", channel_id: channelId });
   }
@@ -465,7 +465,7 @@ export class HubWebSocket {
   }
 
   /** Roster removal is WS-authoritative (voice-transport-v2.md): closing the
-   *  WebTransport session only clears the audio handle, so this is what
+   *  voice data channel only clears the audio handle, so this is what
    *  actually takes us out of the channel participant list. */
   leaveVoice(channelId: string): void {
     this.send({ type: "voice_leave", channel_id: channelId });

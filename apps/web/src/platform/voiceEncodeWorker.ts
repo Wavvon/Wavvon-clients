@@ -25,13 +25,9 @@ export type ToWorker =
       vad: EffectiveVad;
       muted: boolean;
       key: WorkerKey;
-      // WebTransport URL, or null when the main thread holds a WebRTC data
-      // channel: sealed packets then go back as `packet` messages.
-      url: string | null;
-      certHash: Uint8Array | null;
       // The WebRTC voice channel, transferred here so packets never wait on
-      // the main thread. Absent with a url (WebTransport) and when the
-      // browser would not transfer it (then `packet` messages relay).
+      // the main thread. Absent when the browser would not transfer it: then
+      // sealed packets go back as `packet` messages and the main thread sends.
       rtcChannel?: RTCDataChannel;
       pcmPort: MessagePort;
     }
@@ -67,8 +63,6 @@ let encoder: AudioEncoder | null = null;
 // callback: WebCodecs encodes asynchronously, so the gate decision and the
 // media clock of a frame have to travel beside it.
 const pending: { gated: boolean; ts: number }[] = [];
-let transport: WebTransport | null = null;
-let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 let send: ((packet: Uint8Array) => void) | null = null;
 let rtcChannel: RTCDataChannel | null = null;
 let key: WorkerKey | null = null;
@@ -187,57 +181,12 @@ function onEncoded(chunk: EncodedAudioChunk): void {
 function teardown(): void {
   if (statsTimer) clearInterval(statsTimer);
   statsTimer = null;
-  try { writer?.close(); } catch { /* transport may already be gone */ }
-  writer = null;
   send = null;
   try { rtcChannel?.close(); } catch { /* already closed */ }
   rtcChannel = null;
-  try { transport?.close(); } catch { /* already closed */ }
-  transport = null;
   if (encoder && encoder.state !== 'closed') encoder.close();
   encoder = null;
   pending.length = 0;
-}
-
-async function openTransport(url: string, certHash: Uint8Array | null): Promise<void> {
-  const options: WebTransportOptions | undefined = certHash
-    // Re-wrap: the declared `Uint8Array` type erases the `ArrayBuffer`
-    // generic BufferSource needs.
-    ? { serverCertificateHashes: [{ algorithm: 'sha-256', value: new Uint8Array(certHash) }] }
-    : undefined;
-  const started = performance.now();
-  const wt = new WebTransport(url, options);
-  transport = wt;
-  let isReady = false;
-  // Before ready, `failed` below reports the outcome; `closed` is only the
-  // end of a session that was up.
-  const onClosed = () => { if (isReady) scope.postMessage({ type: 'closed' }); };
-  wt.closed.then(onClosed, onClosed);
-  try {
-    await wt.ready;
-  } catch (err) {
-    const e = err as { name?: string; message?: string } | null;
-    scope.postMessage({
-      type: 'failed',
-      name: e?.name ?? 'Error',
-      message: e?.message ?? String(err),
-      elapsedMs: Math.round(performance.now() - started),
-    });
-    return;
-  }
-  isReady = true;
-  const w = wt.datagrams.writable.getWriter();
-  writer = w;
-  send = (packet) => { w.write(packet).catch(() => {}); };
-  scope.postMessage({ type: 'ready' });
-  const reader = wt.datagrams.readable.getReader();
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      if (value) scope.postMessage({ type: 'datagram', data: value });
-    }
-  } catch { /* transport closed — `closed` above drives teardown */ }
 }
 
 function adoptChannel(ch: RTCDataChannel): void {
@@ -268,7 +217,7 @@ scope.onmessage = (e) => {
         // leave a connected room that is silently mute.
         error: () => {
           encoder = null;
-          transport?.close();
+          rtcChannel?.close();
         },
       });
       encoder.configure({
@@ -283,9 +232,7 @@ scope.onmessage = (e) => {
       muted = msg.muted;
       setKey(msg.key);
       msg.pcmPort.onmessage = (ev: MessageEvent<CaptureFrame>) => onFrame(ev.data);
-      if (msg.url) {
-        void openTransport(msg.url, msg.certHash);
-      } else if (msg.rtcChannel) {
+      if (msg.rtcChannel) {
         adoptChannel(msg.rtcChannel);
       } else {
         send = (packet) => scope.postMessage({ type: 'packet', data: packet });

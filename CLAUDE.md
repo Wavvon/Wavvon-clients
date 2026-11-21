@@ -179,8 +179,8 @@ Used by the desktop shell. Chain: cpal (capture/playback) -> nnnoiseless
 (RNNoise denoise) -> soundboard clip mixing (`soundboard.rs`: Ogg-Opus demux +
 decode, summed post-denoise so RNNoise can't eat the clip) -> audiopus (Opus
 encode/decode) -> ringbuf (bridges the real-time audio thread and tokio async)
--> per-packet AEAD seal -> `transport.rs` (WebRTC data channel via `str0m` on hubs with
-`voice.webrtc`, WebTransport datagrams via `wtransport` otherwise) -> hub relay.
+-> per-packet AEAD seal -> `transport.rs` (a WebRTC data channel via `str0m`, on hubs
+with `voice.webrtc`) -> hub relay.
 
 ---
 
