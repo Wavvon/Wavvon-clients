@@ -13,7 +13,6 @@ import { DISCOVERY_URL, MULTI_HUB } from "../../../constants";
 import { FindableDirectorySection } from "../FindableDirectorySection";
 import { MoveToUserClientSection } from "../MoveToUserClientSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
-import { PasskeySection } from "../PasskeySection";
 import {
   listAccounts,
   resolveOrCreateAccount,
@@ -149,7 +148,6 @@ export function ManageAccountsTab(props: Props) {
       />
       <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}
-      {props.managing && <PasskeySection publicKey={props.publicKey} account={props.managing} activeHubUrl={activeHubUrl} />}
       {MULTI_HUB && props.managing && <HomeHubsSection activeHubUrl={activeHubUrl} account={props.managing} />}
       {DISCOVERY_URL && props.managing && <FindableDirectorySection account={props.managing} directoryUrl={DISCOVERY_URL} />}
       {!MULTI_HUB && props.managing && <MoveToUserClientSection account={props.managing} activeHubUrl={activeHubUrl} />}

@@ -285,13 +285,3 @@ export {
 } from "./commands/roleCategories";
 export type { RoleCategoryCreateInput, RoleCategoryUpdateInput } from "./commands/roleCategories";
 
-export {
-  isPasskeySupported,
-  passkeysUsableWith,
-  registerPasskey,
-  authenticateWithPasskey,
-  listPasskeys,
-  deletePasskey,
-  renamePasskey,
-} from "./webauthn";
-export type { CredentialInfo } from "./webauthn";

@@ -26,7 +26,7 @@ import {
   listHubIcons,
   listRoles,
 } from "@platform";
-import { passkeysUsableWith, activeHubSupports } from "@platform";
+import { activeHubSupports } from "@platform";
 import { allianceActions } from "../../platform/adminActions";
 import { DESKTOP_DOWNLOAD_URL, DISCOVERY_URL, MULTI_HUB } from "../../constants";
 import { HubAdminContainer } from "../admin/HubAdminContainer";
@@ -74,7 +74,6 @@ export function AppModals(p: AppModalsProps) {
     effectiveNotifyMode,
     eventComposerChannelId,
     handleAddHub,
-    handleAddHubWithPasskey,
     handleCreateChannel,
     handleDeleteChannel,
     handleHubSetupWizardComplete,
@@ -156,8 +155,6 @@ export function AppModals(p: AppModalsProps) {
           loading={addingHub}
           error={addHubError}
           onAdd={() => void handleAddHub()}
-          onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
-          passkeySupported={passkeysUsableWith(hubUrl)}
           onClose={() => {
             setShowAddHub(false);
             setHubPreview({ state: "idle" });

@@ -8,7 +8,7 @@ export class HubApiError extends Error {
   }
 }
 
-// A hub-side per-account list (dm-blocks, passkeys, trusted devices) 404s or
+// A hub-side per-account list (dm-blocks) 404s or
 // 403s when the account being managed (via hubFetchAs — see
 // platform/hubFetchAs.ts) has never joined the active hub. Sections managing
 // a non-active account use this to show a friendly "not a member" notice

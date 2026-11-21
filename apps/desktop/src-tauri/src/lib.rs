@@ -27,7 +27,6 @@ mod messages;
 mod mini_app;
 mod paging;
 mod pairing;
-mod passkey_cmd;
 mod prefs_blob;
 mod recovery;
 mod screen_share;
@@ -487,10 +486,6 @@ pub fn run() {
             pairing::get_paired_identity,
             devices::device_list,
             devices::device_revoke,
-            // Passkeys / trusted devices
-            passkey_cmd::passkey_list,
-            passkey_cmd::passkey_delete,
-            passkey_cmd::passkey_rename,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

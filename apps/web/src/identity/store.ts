@@ -209,7 +209,7 @@ export async function findAccountByPubkey(pubkey: string): Promise<IdentityRecor
 }
 
 // Used by every "bring an identity onto this device" path (recover phrase,
-// sign in with passkey, restore from backup, pair). If that identity is
+// restore from backup, pair). If that identity is
 // already on this device, returns the existing row instead of duplicating it
 // — the caller just switches to it.
 export async function resolveOrCreateAccount(

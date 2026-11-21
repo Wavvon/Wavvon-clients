@@ -17,7 +17,6 @@ personal blocks) make people think they are two things.
 | Push-to-talk | de writes *Push-to-Talk*. |
 | Emoji | |
 | Sticker | Stays *sticker*, de *Sticker*. |
-| Passkey | |
 | App, Bio, Chat | |
 
 ## One rendering per locale
