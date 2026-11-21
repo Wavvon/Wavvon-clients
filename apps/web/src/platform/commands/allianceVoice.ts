@@ -58,6 +58,9 @@ export interface AllianceVoiceVisit {
   hubUrl: string;
   hubPubkey: string;
   hubName: string;
+  /** The owning hub's `/info` capabilities: the visit's voice transport is
+   *  chosen by what that hub offers, not ours. */
+  capabilities: string[];
   token: string;
   ws: HubWebSocket;
   close: () => void;
@@ -133,6 +136,7 @@ export async function openAllianceVoiceVisit(
     hubUrl: minted.owner_hub_url,
     hubPubkey: minted.owner_hub_pubkey,
     hubName: info.name ?? minted.owner_hub_url,
+    capabilities: info.capabilities ?? [],
     token,
     ws,
     close: () => ws.close(),

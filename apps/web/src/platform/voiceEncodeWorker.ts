@@ -25,8 +25,14 @@ export type ToWorker =
       vad: EffectiveVad;
       muted: boolean;
       key: WorkerKey;
-      url: string;
+      // WebTransport URL, or null when the main thread holds a WebRTC data
+      // channel: sealed packets then go back as `packet` messages.
+      url: string | null;
       certHash: Uint8Array | null;
+      // The WebRTC voice channel, transferred here so packets never wait on
+      // the main thread. Absent with a url (WebTransport) and when the
+      // browser would not transfer it (then `packet` messages relay).
+      rtcChannel?: RTCDataChannel;
       pcmPort: MessagePort;
     }
   | { type: 'key'; key: WorkerKey }
@@ -42,6 +48,7 @@ export type FromWorker =
   // separates a handshake that timed out from one that was refused.
   | { type: 'failed'; name: string; message: string; elapsedMs: number }
   | { type: 'datagram'; data: Uint8Array }
+  | { type: 'packet'; data: Uint8Array }
   | { type: 'speaking'; speaking: boolean }
   | { type: 'gate'; warning: boolean }
   | { type: 'clipDone' }
@@ -62,6 +69,8 @@ let encoder: AudioEncoder | null = null;
 const pending: { gated: boolean; ts: number }[] = [];
 let transport: WebTransport | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+let send: ((packet: Uint8Array) => void) | null = null;
+let rtcChannel: RTCDataChannel | null = null;
 let key: WorkerKey | null = null;
 let ctr = 0n;
 let timestamp = 0;
@@ -115,7 +124,7 @@ function onFrame(frame: CaptureFrame): void {
   tracker.observe(frame.startFrame, frame.capturedAt, Date.now());
   // Muted frames are still counted above (the pipeline kept pace) but never
   // touch the detector, the clip or the encoder, as before the split.
-  if (muted || !writer || !encoder || !key) return;
+  if (muted || !send || !encoder || !key) return;
 
   const micFrame = frame.samples;
 
@@ -167,12 +176,12 @@ function onFrame(frame: CaptureFrame): void {
 
 function onEncoded(chunk: EncodedAudioChunk): void {
   const frame = pending.shift();
-  if (!frame || frame.gated || !writer || !key) return;
+  if (!frame || frame.gated || !send || !key) return;
   const opus = new Uint8Array(chunk.byteLength);
   chunk.copyTo(opus);
   const sealed = voicePacketSeal(key.key, key.salt, key.keyId, ctr, frame.ts, opus);
   ctr += 1n;
-  writer.write(sealed).catch(() => {});
+  send(sealed);
 }
 
 function teardown(): void {
@@ -180,6 +189,9 @@ function teardown(): void {
   statsTimer = null;
   try { writer?.close(); } catch { /* transport may already be gone */ }
   writer = null;
+  send = null;
+  try { rtcChannel?.close(); } catch { /* already closed */ }
+  rtcChannel = null;
   try { transport?.close(); } catch { /* already closed */ }
   transport = null;
   if (encoder && encoder.state !== 'closed') encoder.close();
@@ -214,7 +226,9 @@ async function openTransport(url: string, certHash: Uint8Array | null): Promise<
     return;
   }
   isReady = true;
-  writer = wt.datagrams.writable.getWriter();
+  const w = wt.datagrams.writable.getWriter();
+  writer = w;
+  send = (packet) => { w.write(packet).catch(() => {}); };
   scope.postMessage({ type: 'ready' });
   const reader = wt.datagrams.readable.getReader();
   try {
@@ -224,6 +238,24 @@ async function openTransport(url: string, certHash: Uint8Array | null): Promise<
       if (value) scope.postMessage({ type: 'datagram', data: value });
     }
   } catch { /* transport closed — `closed` above drives teardown */ }
+}
+
+function adoptChannel(ch: RTCDataChannel): void {
+  rtcChannel = ch;
+  ch.binaryType = 'arraybuffer';
+  let isReady = false;
+  const ready = () => {
+    isReady = true;
+    send = (packet) => { if (ch.readyState === 'open') ch.send(packet as Uint8Array<ArrayBuffer>); };
+    scope.postMessage({ type: 'ready' });
+  };
+  ch.onmessage = (ev: MessageEvent<ArrayBuffer>) => scope.postMessage({ type: 'datagram', data: new Uint8Array(ev.data) });
+  ch.onclose = () => {
+    if (isReady) scope.postMessage({ type: 'closed' });
+    else scope.postMessage({ type: 'failed', name: 'closed', message: 'voice data channel closed before opening', elapsedMs: 0 });
+  };
+  if (ch.readyState === 'open') ready();
+  else ch.onopen = ready;
 }
 
 scope.onmessage = (e) => {
@@ -251,7 +283,14 @@ scope.onmessage = (e) => {
       muted = msg.muted;
       setKey(msg.key);
       msg.pcmPort.onmessage = (ev: MessageEvent<CaptureFrame>) => onFrame(ev.data);
-      void openTransport(msg.url, msg.certHash);
+      if (msg.url) {
+        void openTransport(msg.url, msg.certHash);
+      } else if (msg.rtcChannel) {
+        adoptChannel(msg.rtcChannel);
+      } else {
+        send = (packet) => scope.postMessage({ type: 'packet', data: packet });
+        scope.postMessage({ type: 'ready' });
+      }
       statsTimer = setInterval(() => scope.postMessage({ type: 'stats', stats: tracker.snapshot() }), STATS_INTERVAL_MS);
       break;
     case 'key':

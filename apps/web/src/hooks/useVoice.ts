@@ -107,6 +107,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // (resolved from onVoiceState below — see the CRITICAL note on
   // handleVoiceJoin for why this can't be a plain local variable).
   const pendingVoiceJoinRef = useRef<{ resolve: (m: VoiceJoinedMsg) => void; reject: (e: Error) => void } | null>(null);
+  // A `voice_rtc_offer` in flight (voice-transport-v3.md), settled the same way.
+  const pendingRtcAnswerRef = useRef<{ resolve: (sdp: string) => void; reject: (e: Error) => void } | null>(null);
   // The channel a join is under way for. Each `voice_join` makes the hub mint
   // a new single-use token and drop the previous one, so a second click while
   // the first join is still waiting cancels it: thirteen clicks after a slow
@@ -271,6 +273,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const identity = await loadIdentity();
     if (!identity) throw new Error("No identity");
     const myPk = publicKeyRef.current ?? "";
+    // The room's hub decides the transport: the owning hub on a visit.
+    const visit = voiceVisitRef.current;
+    const rtcCapable = visit ? visit.capabilities.includes("voice.webrtc") : activeHubSupports("voice.webrtc");
 
     const session = new VoiceWtSession(
       {
@@ -280,6 +285,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
         wtUrl: joined.voice_wt_url,
         token: joined.voice_token,
         certHash: joined.voice_cert_hash ?? null,
+        rtcSignal: rtcCapable ? (token, sdp) => awaitRtcAnswer(ws(), token, sdp) : undefined,
       },
       {
         // `channelId` is where the join actually landed — for a spawner
@@ -366,6 +372,28 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       voiceSessionRef.current = null;
       throw e;
     }
+  }
+
+  // Sends `voice_rtc_offer` and waits for the hub's answer, or its refusal
+  // (an `error` with that context), both settled by onVoiceState.
+  function awaitRtcAnswer(ws: HubWebSocket | null | undefined, token: string, sdp: string) {
+    return new Promise<string>((resolve, reject) => {
+      pendingRtcAnswerRef.current = { resolve, reject };
+      try {
+        if (!ws) throw new Error("hub socket closed");
+        ws.sendVoiceRtcOffer(token, sdp);
+      } catch (e) {
+        pendingRtcAnswerRef.current = null;
+        reject(e as Error);
+        return;
+      }
+      setTimeout(() => {
+        if (pendingRtcAnswerRef.current) {
+          pendingRtcAnswerRef.current = null;
+          reject(new Error("no voice_rtc_answer"));
+        }
+      }, VOICE_JOIN_TIMEOUT_MS);
+    });
   }
 
   // Sends `voice_join` on `ws` and waits for the hub's `voice_joined` reply,
@@ -558,6 +586,14 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     if (joinReply.type === "voice_joined" && pendingVoiceJoinRef.current) {
       pendingVoiceJoinRef.current.resolve(raw as VoiceJoinedMsg);
       pendingVoiceJoinRef.current = null;
+    }
+    const rtcReply = raw as { type?: string; sdp?: string; message?: string };
+    if (rtcReply.type === "voice_rtc_answer" && pendingRtcAnswerRef.current) {
+      pendingRtcAnswerRef.current.resolve(rtcReply.sdp ?? "");
+      pendingRtcAnswerRef.current = null;
+    } else if (rtcReply.type === "error" && pendingRtcAnswerRef.current) {
+      pendingRtcAnswerRef.current.reject(new Error(rtcReply.message ?? "voice_rtc_offer refused"));
+      pendingRtcAnswerRef.current = null;
     }
 
     const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; may_speak?: boolean; public_keys?: string[] };
@@ -814,9 +850,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   };
 }
 
-/** Voice rides WebTransport, which Safari and iOS have only from 26.4. Checked
- *  before voice_join so an older browser gets a sentence instead of a worker
+/** Voice rides a WebRTC data channel on a hub with `voice.webrtc`, otherwise
+ *  WebTransport, which Safari and iOS have only from 26.4. Checked before
+ *  voice_join so a browser with neither gets a sentence instead of a worker
  *  that dies on a missing constructor. */
 export function voiceTransportAvailable(): boolean {
-  return typeof (globalThis as { WebTransport?: unknown }).WebTransport === "function";
+  const g = globalThis as { WebTransport?: unknown; RTCPeerConnection?: unknown };
+  return typeof g.WebTransport === "function" || typeof g.RTCPeerConnection === "function";
 }
