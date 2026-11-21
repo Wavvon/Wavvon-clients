@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub } from "../types";
-import { DISCOVERY_URL } from "../constants";
 import { AudioProfileSection } from "./AudioProfileSection";
 import { MicLevelMeter } from "./MicLevelMeter";
 import { PttKeyBinder } from "./PttKeyBinder";
-import { ThemePicker } from "./ThemePicker";
+import { DISCOVERY_URL } from "../constants";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import {
-  SkinEditor,
-  makeSeed,
-  SkinsGallery,
+  ThemesGallery,
+  ThemesSection,
   HelpTab,
   AboutTab,
   ProfileTab,
@@ -17,14 +16,16 @@ import {
   SettingsAccountPicker,
   ActiveAccountOnlyNotice,
   SettingRow,
+  LanguageSetting,
   resolveManagingAccount,
-  type ThemeId,
-  type WavvonSkin,
-  type SettingsTabDef,
+  type ThemesController,
+  TrustedIssuersTab,
+  knownIssuerHubs,
+  userSettingsLayout,
+  type UserSettingsSection,
   type PerAccountProps,
   type ProfileAccountRef,
 } from "@wavvon/ui";
-import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { listAccounts, switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN, type AccountSummary } from "../accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "../utils/profileEditorActions";
 import { ManageAccountsTab } from "./settings/ManageAccountsTab";
@@ -34,19 +35,10 @@ import { addTrustRoot, CameraTab, type TrustRoot } from "@wavvon/ui";
 import { DevicesTab } from "./settings/DevicesTab";
 import { PrivacyTab } from "./settings/PrivacyTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
+import { lookupIssuerHub } from "../hooks/hubAdminActions";
 import type { BlockEntry, IgnoreEntry } from "../types";
 
-export type SettingsTab =
-  | "profile"
-  | "accounts"
-  | "devices"
-  | "privacy"
-  | "notifications"
-  | "appearance"
-  | "voice"
-  | "camera"
-  | "help"
-  | "about";
+export type SettingsTab = UserSettingsSection;
 
 export interface SettingsPageProps {
   tab: SettingsTab;
@@ -56,10 +48,7 @@ export interface SettingsPageProps {
   onClose: () => void;
   hubs: Hub[];
 
-  theme: ThemeId;
-  onThemeChange: (t: ThemeId) => void;
-  skin: WavvonSkin | null;
-  onSkinChange: (skin: WavvonSkin) => void;
+  themes: ThemesController;
   activeHubId: string | null;
   activeHubUrl: string;
   isAdmin: boolean;
@@ -111,22 +100,14 @@ export interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
-  onImportSkin: (skin: WavvonSkin) => void;
 }
 
 function toProfileAccountRef(a: AccountSummary): ProfileAccountRef {
   return { id: a.id, account_label: a.label ?? undefined };
 }
 
-const LANGUAGES: { id: string; label: string }[] = [
-  { id: "en", label: "English" },
-  { id: "it", label: "Italiano" },
-  { id: "es", label: "Español" },
-  { id: "de", label: "Deutsch" },
-];
-
 export function SettingsPage(props: SettingsPageProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   // Desktop's own multi-account list, for the shared ProfileTab's account
   // scope line — Devices/Privacy stay active-account-only for now (see
@@ -176,38 +157,15 @@ export function SettingsPage(props: SettingsPageProps) {
     saveTrustRoots(activeId, roots);
   }
 
-  const G_ACCOUNTS = t("settings.nav_groups.accounts");
-  const G_APP = t("settings.nav_groups.app");
-  const G_AV = t("settings.nav_groups.audio_video");
-  const G_INFO = t("settings.nav_groups.info");
-  const TABS: SettingsTabDef<SettingsTab>[] = [
-    { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
-    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
-    { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
-    { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
-    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP, deviceWide: true },
-    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP, deviceWide: true },
-    { id: "voice", label: t("settings.tabs.voice"), group: G_AV, deviceWide: true },
-    { id: "camera", label: t("settings.tabs.camera"), group: G_AV, deviceWide: true },
-    { id: "help", label: t("settings.tabs.help"), group: G_INFO, deviceWide: true },
-    { id: "about", label: t("settings.tabs.about"), group: G_INFO, deviceWide: true },
-  ];
+  const { areas, sections } = userSettingsLayout(t, accountsAttention);
 
-  return (
-    <SettingsShell
-      title={t("settings.title")}
-      tabs={TABS}
-      activeTab={props.tab}
-      onTab={props.onTab}
-      onClose={props.onClose}
-      accountPicker={profileAccounts && profileAccounts.length > 1 && managing ? (
-        <SettingsAccountPicker accounts={profileAccounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
-      ) : undefined}
-    >
+  function renderSection(section: SettingsTab) {
+    return (
+      <>
         {/* Desktop's Manage accounts, Devices and Privacy act on the active
             account only (their Tauri commands are scoped to it), so picking
-            another account says so instead of showing the active one's data. */}
-        {managing && managing.id !== activeId && (props.tab === "accounts" || props.tab === "devices" || props.tab === "privacy") && (
+            another account says so, once at the top of each of their pages. */}
+        {managing && managing.id !== activeId && (section === "accounts" || section === "privacy") && (
           <ActiveAccountOnlyNotice
             label={managing.account_label || managing.id.slice(0, 12)}
             onSwitch={() => {
@@ -217,7 +175,7 @@ export function SettingsPage(props: SettingsPageProps) {
             }}
           />
         )}
-        {props.tab === "profile" && (
+        {section === "profile" && (
           <ProfileTab
             hubs={props.hubs}
             publicKey={props.publicKey}
@@ -233,7 +191,16 @@ export function SettingsPage(props: SettingsPageProps) {
           />
         )}
 
-        {props.tab === "accounts" && accounts && (
+        {section === "trusted" && (
+          <TrustedIssuersTab
+            roots={trustRoots}
+            onChange={updateTrustRoots}
+            joinedHubs={knownIssuerHubs(props.hubs, [])}
+            lookupHub={lookupIssuerHub}
+          />
+        )}
+
+        {section === "accounts" && accounts && (
           <ManageAccountsTab
             hubs={props.hubs}
             activeHubUrl={props.activeHubUrl}
@@ -247,80 +214,46 @@ export function SettingsPage(props: SettingsPageProps) {
           />
         )}
 
-        {props.tab === "devices" && (
+        {section === "devices" && (
           <DevicesTab hubs={props.hubs} />
         )}
 
-        {props.tab === "privacy" && (
+        {section === "privacy" && (
           <PrivacyTab
             blocks={props.blocks}
             ignores={props.ignores}
             onUnblock={props.onUnblock}
             onUnignore={props.onUnignore}
             knownNames={props.knownNames}
-            trustRoots={trustRoots}
-            onTrustRootsChange={updateTrustRoots}
-            hubs={props.hubs}
           />
         )}
 
-        {props.tab === "notifications" && (
+        {section === "notifications" && (
           <NotificationsTab
             mentionPingEnabled={props.mentionPingEnabled}
             onMentionPingChange={props.onMentionPingChange}
           />
         )}
 
-        {props.tab === "appearance" && (
+        {section === "appearance" && (
           <section>
             <h1>{t("settings.tabs.appearance")}</h1>
 
-            <SettingRow
-              title={t("settings.language.label")}
-              state={LANGUAGES.find((l) => l.id === i18n.language.slice(0, 2))?.label ?? i18n.language}
-              control={
-                <select
-                  id="settings-language"
-                  aria-label={t("settings.language.label")}
-                  value={i18n.language.slice(0, 2)}
-                  onChange={(e) => {
-                    i18n.changeLanguage(e.target.value);
-                    localStorage.setItem("wavvon_language", e.target.value);
-                  }}
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.id} value={l.id}>{l.label}</option>
-                  ))}
-                </select>
-              }
-            />
+            <LanguageSetting {...settingRow("language")} />
 
             <SettingRow
               title={t("settings.theme.label")}
-              state={props.theme === "custom"
-                ? t("settings.theme.custom")
-                : t(`settings.skin.base.${props.theme}`)}
+              state={props.themes.active?.manifest.name ?? t("settings.theme.builtin")}
               {...settingRow("theme")}
             >
               <p className="muted">{t("settings.theme.hint")}</p>
-              <ThemePicker value={props.theme} skin={props.skin} onChange={props.onThemeChange} />
-              {props.theme === "custom" && (
-                <SkinEditor
-                  skin={props.skin ?? makeSeed("dark")}
-                  onChange={props.onSkinChange}
-                />
-              )}
+              <ThemesSection controller={props.themes} />
             </SettingRow>
 
-            {/* Not a row: the gallery renders nothing when discovery is
-                unreachable, and a row that opens onto nothing is worse than
-                no row at all. */}
+            {/* Not a row: the gallery renders nothing when the directory is
+                unreachable, and a row that opens onto nothing is worse than none. */}
             {DISCOVERY_URL && (
-              <SkinsGallery
-                fetchWithTimeout={fetchWithTimeout}
-                onImport={props.onImportSkin}
-                discoveryUrl={DISCOVERY_URL}
-              />
+              <ThemesGallery controller={props.themes} fetchWithTimeout={fetchWithTimeout} discoveryUrl={DISCOVERY_URL} />
             )}
 
             {/* About folded in here rather than its own tab (settings-ia.md
@@ -331,7 +264,7 @@ export function SettingsPage(props: SettingsPageProps) {
           </section>
         )}
 
-        {props.tab === "voice" && (
+        {section === "voice" && (
           <section>
             <h1>{t("settings.tabs.voice")}</h1>
 
@@ -469,12 +402,29 @@ export function SettingsPage(props: SettingsPageProps) {
           </section>
         )}
 
-        {props.tab === "help" && <HelpTab />}
-        {props.tab === "about" && (
+        {section === "help" && <HelpTab />}
+        {section === "about" && (
           <AboutTab version={import.meta.env.VITE_APP_VERSION} extraCredits={["Tauri", "Opus", "RNNoise (nnnoiseless)", "cpal", "wtransport"]} />
         )}
 
-        {props.tab === "camera" && <CameraTab />}
-    </SettingsShell>
+        {section === "camera" && <CameraTab />}
+      </>
+    );
+  }
+
+  return (
+    <SettingsShell
+      title={t("settings.title")}
+      areas={areas}
+      sections={sections}
+      activeSection={props.tab}
+      onSection={props.onTab}
+      renderSection={renderSection}
+      helpSection="help"
+      onClose={props.onClose}
+      accountPicker={profileAccounts && profileAccounts.length > 1 && managing ? (
+        <SettingsAccountPicker accounts={profileAccounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
+      ) : undefined}
+    />
   );
 }

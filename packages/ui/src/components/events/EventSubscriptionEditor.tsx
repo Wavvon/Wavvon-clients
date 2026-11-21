@@ -52,7 +52,7 @@ export function eventSubscriptionsAreValid(subscriptions: EventSubscription[]): 
 }
 
 export function EventSubscriptionEditor({ channels, value, onChange }: EventSubscriptionEditorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const textChannels = channels.filter((c) => !c.is_category);
   const byEvent = new Map(value.map((s) => [s.event, s]));
 
@@ -88,6 +88,9 @@ export function EventSubscriptionEditor({ channels, value, onChange }: EventSubs
                 onChange={(e) => toggleEvent(event, e.target.checked)}
               />
               <code>{event}</code>
+              {i18n.exists(`events.subscription.desc.${event}`) && (
+                <span className="muted">{t(`events.subscription.desc.${event}`)}</span>
+              )}
             </label>
             {enabled && needsChannels && (
               <div className="event-subscription-channels">

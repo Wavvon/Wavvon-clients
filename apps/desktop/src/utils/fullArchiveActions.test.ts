@@ -11,15 +11,24 @@ vi.stubGlobal("localStorage", {
   removeItem: (k: string) => { delete storage[k]; },
 });
 
+const { memoryStore } = vi.hoisted(() => ({ memoryStore: { current: null as unknown } }));
+vi.mock("@wavvon/ui", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("@wavvon/ui")>();
+  memoryStore.current = orig.createMemoryPackageStore();
+  return { ...orig, deviceThemeStore: memoryStore.current, deviceLanguageStore: orig.createMemoryPackageStore() };
+});
+
+import { bytesToBase64, exportTheme, newTheme, type ThemeStore } from "@wavvon/ui";
 import { buildFullArchiveActions } from "./fullArchiveActions";
 
-const skin = (name: string) => ({ format: "wavvon.skin", version: 1, name, base: "dark", tokens: {} });
+const theme = (name: string) => ({ name, package_b64: bytesToBase64(exportTheme(newTheme(name, "dark"))) });
+const store = () => memoryStore.current as ThemeStore;
 
-function opened(existingSkin: unknown) {
+function opened() {
   return {
     account_id: "acct-1",
     was_first_account: false,
-    existing: { hub_list: [{ hub_id: "kept", hub_name: "Kept", hub_url: "https://kept" }], ignored_users: [], voice_gains: {}, skin: existingSkin },
+    existing: { hub_list: [{ hub_id: "kept", hub_name: "Kept", hub_url: "https://kept" }], ignored_users: [], voice_gains: {} },
     archive: {
       version: 1,
       kind: "full-archive",
@@ -36,21 +45,22 @@ function opened(existingSkin: unknown) {
         gap_note: null,
       },
       dms: [],
-      themes: [skin("A"), skin("B")],
+      themes: [theme("A"), theme("B")],
       drafts: { "hub/chan": "from archive", "hub/other": "also" },
     },
   };
 }
 
 describe("desktop full-archive restore", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     invokeMock.mockReset();
     for (const k of Object.keys(storage)) delete storage[k];
+    for (const t of await store().list()) await store().remove(t.id);
   });
 
   it("hands Rust the merged stores and keeps device-wide drafts and mention ping here", async () => {
     storage["wavvon.drafts"] = JSON.stringify({ "hub/chan": "local wins" });
-    invokeMock.mockImplementation((cmd: string) => Promise.resolve(cmd === "open_full_archive" ? opened(null) : undefined));
+    invokeMock.mockImplementation((cmd: string) => Promise.resolve(cmd === "open_full_archive" ? opened() : undefined));
 
     const result = await buildFullArchiveActions("Wavvon archive", "cooldown").restoreArchive("C:/a.json.enc", "pw");
 
@@ -63,24 +73,22 @@ describe("desktop full-archive restore", () => {
         ],
         ignored_users: ["peer"],
         voice_gains: { peer: 150 },
-        skin: skin("A"),
       },
     });
     expect(JSON.parse(storage["wavvon.drafts"])).toEqual({ "hub/chan": "local wins", "hub/other": "also" });
     expect(storage["wavvon.mentionPing"]).toBe("0");
-    // One theme slot per account: A lands, B is reported as skipped.
-    expect(result.summary.themesRestored).toBe(1);
-    expect(result.summary.themesSkipped).toBe(1);
+    expect(result.summary.themesRestored).toBe(2);
+    expect((await store().list()).map((t) => t.manifest.name).sort()).toEqual(["A", "B"]);
   });
 
-  it("never replaces a custom theme the account already has", async () => {
-    invokeMock.mockImplementation((cmd: string) => Promise.resolve(cmd === "open_full_archive" ? opened(skin("Mine")) : undefined));
+  it("never replaces a theme the device already has", async () => {
+    await store().put({ id: "x", ...(await import("@wavvon/ui")).loadTheme(exportTheme(newTheme("A", "dark"))) });
+    invokeMock.mockImplementation((cmd: string) => Promise.resolve(cmd === "open_full_archive" ? opened() : undefined));
 
     const result = await buildFullArchiveActions("Wavvon archive", "cooldown").restoreArchive("C:/a.json.enc", "pw");
 
-    const apply = invokeMock.mock.calls.find(([cmd]) => cmd === "apply_full_archive_restore");
-    expect(apply?.[1].stores.skin).toBeNull();
-    expect(result.summary.themesRestored).toBe(0);
-    expect(result.summary.themesSkipped).toBe(2);
+    expect(result.summary.themesRestored).toBe(1);
+    expect(result.summary.themesSkipped).toBe(1);
+    expect((await store().list()).map((t) => t.manifest.name).sort()).toEqual(["A", "B"]);
   });
 });

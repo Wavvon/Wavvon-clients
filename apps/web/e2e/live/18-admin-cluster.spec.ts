@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { channelButton, confirmInApp, createChannel, expectInHub, hubApi, newMemberPage, openSettingRow, settingRow, uniqueName } from "./helpers/live";
 
 // P18 — admin features ported from desktop: audit log, hub icon library,
@@ -8,7 +9,7 @@ import { channelButton, confirmInApp, createChannel, expectInHub, hubApi, newMem
 async function openAdminTab(page: Page, tab: string) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: tab, exact: true }).click();
+  await openHubAdminSection(page, tab);
 }
 
 test("audit log opens on the newest event, written as a sentence", async ({ page }) => {
@@ -90,7 +91,7 @@ test("onboarding: save challenge settings", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
   await openAdminTab(page, "Onboarding");
-  await expect(page.getByRole("heading", { name: "Onboarding" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Onboarding", exact: true })).toBeVisible();
 
   // Challenge settings are write-only; saving should report success.
   const challenge = await openSettingRow(page, "Anti-spam challenge");
@@ -180,7 +181,7 @@ test("the moderation tab shows the content report queue", async ({ page }) => {
 test("overview saves a change by itself", async ({ page }) => {
   await page.goto("/");
   await expectInHub(page);
-  await openAdminTab(page, "Overview");
+  await openAdminTab(page, "Identity");
 
   const select = page.getByLabel("Member name colors", { exact: true });
   const before = await select.inputValue();

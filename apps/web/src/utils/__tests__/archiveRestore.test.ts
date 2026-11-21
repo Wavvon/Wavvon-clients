@@ -3,7 +3,7 @@ import type { SavedHub } from "@platform";
 import { ARCHIVE_KIND, ARCHIVE_DOCUMENT_VERSION, planRestore, type ArchiveDocument, type ExistingAccountSnapshot } from "@wavvon/ui";
 import { buildLocalPrefsSnapshot } from "../dataExport";
 import { readExistingAccountSnapshot, applyRestorePlan } from "../archiveRestore";
-import { newCustomThemeId } from "../customThemes";
+import { createMemoryPackageStore, newTheme, exportTheme, newPackageId, bytesToBase64, type LangManifest, type ThemeManifest } from "@wavvon/ui";
 
 const localStorageData: Record<string, string> = {};
 vi.stubGlobal("localStorage", {
@@ -36,6 +36,7 @@ function emptySnapshot(overrides: Partial<ExistingAccountSnapshot> = {}): Existi
     hubList: [],
     drafts: {},
     themeNames: [],
+    languageNames: [],
     ignoredUsers: [],
     voiceGains: {},
     hasMentionPingSetting: false,
@@ -73,7 +74,7 @@ describe("planRestore — round trip against buildLocalPrefsSnapshot's shape", (
     const prefs = buildLocalPrefsSnapshot(() => hubs);
     const archive = makeArchive({ prefs, drafts: { "conv-1": "hello draft" } });
 
-    const plan = planRestore(archive, emptySnapshot(), newCustomThemeId);
+    const plan = planRestore(archive, emptySnapshot(), newPackageId);
 
     expect(plan.hubList).toEqual(hubs);
     expect(plan.drafts).toEqual({ "conv-1": "hello draft" });
@@ -92,7 +93,7 @@ describe("planRestore — round trip against buildLocalPrefsSnapshot's shape", (
 });
 
 describe("readExistingAccountSnapshot / applyRestorePlan", () => {
-  it("writes the plan under the given account id without touching another account's data", () => {
+  it("writes the plan under the given account id without touching another account's data", async () => {
     localStorageData["wavvon:acct:other-account:wavvon:saved_hubs"] = JSON.stringify([makeHub({ hub_id: "untouched" })]);
 
     const archive = makeArchive({
@@ -105,12 +106,14 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
         hub_synced: null,
         gap_note: "gap",
       },
-      themes: [{ format: "wavvon.skin", version: 1, name: "Restored", base: "dark", tokens: {} }],
+      themes: [{ name: "Restored", package_b64: bytesToBase64(exportTheme(newTheme("Restored", "dark"))) }],
     });
 
-    const existing = readExistingAccountSnapshot("target-account");
-    const plan = planRestore(archive, existing, newCustomThemeId);
-    applyRestorePlan("target-account", plan);
+    const themeStore = createMemoryPackageStore<ThemeManifest>();
+    const languageStore = createMemoryPackageStore<LangManifest>();
+    const existing = await readExistingAccountSnapshot("target-account", themeStore, languageStore);
+    const plan = planRestore(archive, existing, newPackageId);
+    await applyRestorePlan("target-account", plan, themeStore, languageStore);
 
     const targetHubs = JSON.parse(localStorageData["wavvon:acct:target-account:wavvon:saved_hubs"]);
     expect(targetHubs).toEqual([makeHub({ hub_id: "new-hub" })]);
@@ -118,8 +121,6 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
     const otherHubs = JSON.parse(localStorageData["wavvon:acct:other-account:wavvon:saved_hubs"]);
     expect(otherHubs).toEqual([makeHub({ hub_id: "untouched" })]);
 
-    const targetThemes = JSON.parse(localStorageData["wavvon:acct:target-account:wavvon.customThemes"]);
-    expect(targetThemes.themes.map((t: { name: string }) => t.name)).toEqual(["Restored"]);
-    expect(localStorageData["wavvon:acct:other-account:wavvon.customThemes"]).toBeUndefined();
+    expect((await themeStore.list()).map((t) => t.manifest.name)).toEqual(["Restored"]);
   });
 });

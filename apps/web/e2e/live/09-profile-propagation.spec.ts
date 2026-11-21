@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } from "./helpers/live";
 
 // P9 — profile edit propagation (reported bug: member list + message
@@ -12,7 +13,7 @@ async function openProfileSettings(page: import("@playwright/test").Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Profile", exact: true }).click();
+  await openSettingsSection(page, "Profile");
   await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
 }
 

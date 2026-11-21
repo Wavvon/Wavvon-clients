@@ -1,7 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { postPairingClaim, getPairingStatus, previewHubInfo, previewInvite } from "@platform";
+import { postPairingClaim, getPairingStatus, previewHubInfo, previewInvite, fetchWithTimeout } from "@platform";
 import {
   generateSubkeySeed,
   publicKeyHex,
@@ -22,14 +22,18 @@ import { ProfileEditorSection } from "@wavvon/ui";
 import { profileEditorActions } from "../../utils/profileEditorActions";
 import { decryptBackup, encryptBackup, suggestBackupFilename } from "@wavvon/core";
 import { deviceFingerprint, inviteCodeFromPath, verifySubkeyCert } from "@wavvon/core";
-import { DESKTOP_DOWNLOAD_URL, MULTI_HUB, USER_CLIENT_URL } from "../../constants";
+import { DESKTOP_DOWNLOAD_URL, DISCOVERY_URL, MULTI_HUB, USER_CLIENT_URL } from "../../constants";
 import { clearMigrated, migratedPubkey } from "../../utils/migrated";
 import { markIdentityBackedUp } from "../../utils/identityBackup";
-import { passphraseStrength, OnboardingFrame, type InvitingHub } from "@wavvon/ui";
+import { passphraseStrength, OnboardingFrame, InterestsStep, HubSuggestions, hubInterestsOrDefault, saveHubInterests, type InvitingHub, type HubInterests } from "@wavvon/ui";
 import { onboardingSteps, type SetupStep } from "./onboardingSteps";
 
 export interface IdentitySetupCompletion {
   accountId: string;
+  /** A hub picked from the suggestions, to open in the add-hub flow. */
+  join?: { hubUrl: string; inviteCode: string };
+  /** "See all results in the directory". */
+  openDirectory?: boolean;
 }
 
 interface Props {
@@ -64,8 +68,9 @@ function desktopDeepLink(): string {
 // device that already has one (variant="add", typically shown in an overlay
 // by AccountsSwitcherSection).
 export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState<SetupStep>("choose");
+  const [interests, setInterests] = useState<HubInterests>(() => hubInterestsOrDefault(i18n.language));
   const [generatedPhrase, setGeneratedPhrase] = useState("");
   const [generatedSeed, setGeneratedSeed] = useState("");
   const [generatedAccountId, setGeneratedAccountId] = useState("");
@@ -129,7 +134,12 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     listAccounts().then((accts) => setExistingAccountCount(accts.length));
   }, []);
 
-  const { total: totalSteps, stepOf } = onboardingSteps(!!(invitingHub || invitedToHub), step, skippedPhrase);
+  // Someone who came with an invite (a path code, or a hub build handing off
+  // with ?hub=) already has a place to go; the rest get directory suggestions.
+  const arrivedInvited = !!(invitingHub || invitedToHub || inviteCodeFromPath(window.location.pathname)
+    || new URLSearchParams(window.location.search).has("hub"));
+  const withDirectory = !!DISCOVERY_URL && variant === "initial" && !arrivedInvited;
+  const { total: totalSteps, stepOf } = onboardingSteps(!!(invitingHub || invitedToHub), step, skippedPhrase, withDirectory);
   const frame = (children: React.ReactNode) => (
     <OnboardingFrame hub={invitingHub} step={variant === "add" ? undefined : stepOf[step]} total={totalSteps}>
       {children}
@@ -163,8 +173,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     }
   }
 
-  // Every "bring an identity onto this device" path (recover, passkey
-  // sign-in, pair) funnels through here: a dedupe hit (isNew=false) skips
+  // Every "bring an identity onto this device" path (recover, pair)
+  // funnels through here: a dedupe hit (isNew=false) skips
   // straight to finishing and keeps that account's existing label untouched
   // — only a genuinely new row requires labeling first.
   function proceedAfterResolve(account: IdentityRecord, isNew: boolean) {
@@ -520,6 +530,39 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
     );
   }
 
+  function afterProfile() {
+    if (withDirectory) setStep("interests");
+    else onComplete({ accountId: generatedAccountId });
+  }
+
+  if (step === "interests") {
+    return frame(
+      <InterestsStep
+        initial={interests}
+        onDone={(v) => { saveHubInterests(v); setInterests(v); setStep("hubs"); }}
+        onSkip={() => onComplete({ accountId: generatedAccountId })}
+      />,
+    );
+  }
+
+  if (step === "hubs" && DISCOVERY_URL) {
+    return frame(
+      <>
+        <h2>{t("onboarding.hubs.title")}</h2>
+        <p className="onboarding-lede">{t("onboarding.hubs.hint")}</p>
+        <HubSuggestions
+          directoryUrl={DISCOVERY_URL}
+          fetchUrl={fetchWithTimeout}
+          interests={interests}
+          onJoinHub={(hubUrl, inviteCode) => onComplete({ accountId: generatedAccountId, join: { hubUrl, inviteCode } })}
+          onEditInterests={() => setStep("interests")}
+          onSeeAll={() => onComplete({ accountId: generatedAccountId, openDirectory: true })}
+        />
+        <button className="btn-ghost" onClick={() => onComplete({ accountId: generatedAccountId })}>{t("onboarding.later")}</button>
+      </>,
+    );
+  }
+
   if (step === "profile") {
     return (
       frame(
@@ -535,8 +578,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
             publicKey={null}
             actions={profileEditorActions}
             onboarding={{
-              onSaved: () => onComplete({ accountId: generatedAccountId }),
-              onSkip: () => onComplete({ accountId: generatedAccountId }),
+              onSaved: afterProfile,
+              onSkip: afterProfile,
             }}
           />
         </>,
@@ -649,9 +692,8 @@ export function IdentitySetupScreen({ variant = "initial", onComplete, onCancel 
         <span className="choice-hint">{t("identity_setup.choose.pair_hint")}</span>
       </button>
       {/* Hub build only (USER_CLIENT_URL is null in the user build). Offered
-          *before* an identity exists on purpose: nothing has to be moved yet,
-          and a passkey made here would be bound to this origin and unusable
-          there — decisions.md 2026-08-25. */}
+          *before* an identity exists on purpose: nothing has to be moved
+          yet — decisions.md 2026-08-25. */}
       {USER_CLIENT_URL && (
         <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: 20 }}>
           {t("identity_setup.choose.use_user_client_hint")}{" "}

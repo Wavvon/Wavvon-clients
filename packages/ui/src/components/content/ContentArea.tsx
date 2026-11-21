@@ -127,6 +127,10 @@ interface Props {
   onOpenEditDescription: (channel: Channel) => void;
   firstNotifyingMessageId: string | null;
   onClearFirstNotify: () => void;
+  /** Where the new-messages divider goes; fixed while the channel is open. */
+  firstUnreadId?: string | null;
+  /** Mark the open channel read and drop the divider (Esc, or the bar's button). */
+  onMarkRead?: () => void;
   onScrollToMessage: (id: string) => void;
   onSetMemberSidebarHidden: (v: boolean) => void;
   onSetSearchOpen: (v: boolean) => void;
@@ -166,6 +170,8 @@ interface Props {
   /** Stickers (picker, save, add to a pack). Omitted on a hub that does not
    *  advertise `stickers`, which hides every sticker control. */
   stickerActions?: StickerActions;
+  /** Send a recorded voice message to the selected channel. */
+  onSendVoice?: (file: File) => Promise<void>;
   loadHubEmojis: () => Promise<HubEmoji[]>;
   loadChannelPolls: (channelId: string) => Promise<Poll[]>;
   loadThreadReplies: (channelId: string, messageId: string) => Promise<Message[]>;
@@ -212,7 +218,7 @@ export function ContentArea({
   onSend, onSendDm, dmKeyChangedPeer, onAcceptDmKeyChange, onDmAddPeople, onDmLeaveGroup, onSendAllianceMessage,
   onPingTyping, onPingDmTyping,
   onSetPendingAttachments, onAttachFiles,
-  onOpenEditDescription, firstNotifyingMessageId, onClearFirstNotify, onScrollToMessage,
+  onOpenEditDescription, firstNotifyingMessageId, onClearFirstNotify, firstUnreadId, onMarkRead, onScrollToMessage,
   onSetMemberSidebarHidden, onSetSearchOpen, onSetSearchQuery, onCloseSearch,
   onJumpToBottom, onMessagesScroll,
   onSetUserContextMenu, onSetEditingDraft, onInputTextChange, onKeyDown,
@@ -228,7 +234,7 @@ export function ContentArea({
   alliancePeopleActions,
   onShowPinned,
   profileCardActions,
-  forumActions, messageRowActions, stickerActions,
+  forumActions, messageRowActions, stickerActions, onSendVoice,
   loadHubEmojis, loadChannelPolls, loadThreadReplies,
   loadExpandedThreads, saveExpandedThreads,
   onComponentInteract, onCreatePoll,
@@ -425,6 +431,7 @@ export function ContentArea({
         return;
       }
       if (e.key === "Escape") {
+        e.preventDefault();
         setMentionQuery(null);
         return;
       }
@@ -446,6 +453,7 @@ export function ContentArea({
         return;
       }
       if (e.key === "Escape") {
+        e.preventDefault();
         setSlashSuggestions([]);
         return;
       }
@@ -683,6 +691,8 @@ export function ContentArea({
               onMessagesScroll={onMessagesScroll}
               onJumpToBottom={onJumpToBottom}
               onClearFirstNotify={onClearFirstNotify}
+              firstUnreadId={firstUnreadId}
+              onMarkRead={onMarkRead}
               onMessageKeyDown={handleMessageKeyDown}
               onComponentInteract={onComponentInteract}
             />
@@ -710,6 +720,8 @@ export function ContentArea({
               onFillSlashCommand={fillSlashCommand}
               onShowPollComposer={() => setShowPollComposer(true)}
               stickers={stickerActions ? { channelId: selectedChannel.id, actions: stickerActions, onError } : undefined}
+              onSendVoice={onSendVoice}
+              onVoiceError={onError}
             /></>}
             </>)}
           </div>

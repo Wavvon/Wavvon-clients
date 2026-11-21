@@ -193,7 +193,7 @@ export class HubWebSocket {
     } else if (
       type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" ||
       type === "voice_participant_speaking" || type === "voice_roster_update" ||
-      type === "voice_hands" || type === "voice_talk_granted"
+      type === "voice_hands" || type === "voice_talk_granted" || type === "voice_rtc_answer"
     ) {
       this.handlers.onVoiceState?.(tagged);
     } else if (type === "screen_share_chunk") {
@@ -223,6 +223,8 @@ export class HubWebSocket {
     } else if (type === "soundboard_played") {
       this.handlers.onSoundboardPlayed?.(tagged);
     } else if (type === "error") {
+      // A refused `voice_rtc_offer` settles the voice connect waiting on it.
+      if ((tagged as { context?: string }).context === "voice_rtc_offer") this.handlers.onVoiceState?.(tagged);
       this.handlers.onError?.(tagged);
     } else if (type === "lagged") {
       // The hub dropped an unknown number of events of ANY kind for this
@@ -351,15 +353,21 @@ export class HubWebSocket {
     this.send({ type: "voice_watch", channel_id: channelId });
   }
 
-  // --- voice-transport-v2.md: join now travels over the main WS (the hub
-  // replies with `voice_joined`, carrying the WebTransport URL/token/cert
-  // hash — see useVoice.handleVoiceJoin for the request/response pairing).
+  // --- voice join travels over the main WS (the hub replies with
+  // `voice_joined`, carrying the token for `voice_rtc_offer` — see
+  // useVoice.handleVoiceJoin for the request/response pairing).
   joinVoice(channelId: string): void {
     this.send({ type: "voice_join", channel_id: channelId });
   }
 
   sendVoiceKeyOffer(channelId: string, bundles: VoiceKeyBundle[]): void {
     this.send({ type: "voice_key_offer", channel_id: channelId, bundles });
+  }
+
+  // voice-transport-v3.md: bind a WebRTC data channel with the voice token;
+  // the hub answers with `voice_rtc_answer`.
+  sendVoiceRtcOffer(token: string, sdp: string) {
+    this.send({ type: "voice_rtc_offer", token, sdp });
   }
 
   /** Reports a speech on/off edge. The hub fans it out as
@@ -457,7 +465,7 @@ export class HubWebSocket {
   }
 
   /** Roster removal is WS-authoritative (voice-transport-v2.md): closing the
-   *  WebTransport session only clears the audio handle, so this is what
+   *  voice data channel only clears the audio handle, so this is what
    *  actually takes us out of the channel participant list. */
   leaveVoice(channelId: string): void {
     this.send({ type: "voice_leave", channel_id: channelId });

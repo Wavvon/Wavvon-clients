@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "./helpers/settings";
 import { injectTwoAccountSession, mockJson, HUB_URL, ACCOUNT1, ACCOUNT2 } from "./helpers/mockApi";
 
 // Account switching is an in-place key-remount, not a page reload (see
@@ -41,7 +42,7 @@ async function openAccountTab(page: import("@playwright/test").Page) {
   await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Manage accounts", exact: true }).click();
+  await openSettingsSection(page, "Manage accounts");
 }
 
 test("switching accounts happens in place — no overlay, no reload, lands back on Settings → Manage accounts", async ({ page }) => {
@@ -67,7 +68,7 @@ test("switching accounts happens in place — no overlay, no reload, lands back 
   await expect(page.locator("#account-switch-overlay")).toHaveCount(0);
 
   // Settings → Account for the new account, account 2 now shows as active.
-  await expect(page.locator(".settings-nav")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator(".settings-areas")).toBeVisible({ timeout: 15000 });
   const tableAfter = page.locator(".members-table");
   await expect(tableAfter).toBeVisible();
   const row2After = tableAfter.locator("tr", { hasText: ACCOUNT2.label });

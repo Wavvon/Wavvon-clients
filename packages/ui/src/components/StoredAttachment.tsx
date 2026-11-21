@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import type { AttachmentRef } from "../types";
 import { needsDownloadWarning, sameOriginAttachmentUrl } from "../utils/attachments";
 import { useConfirm } from "./ConfirmDialog";
+import { VoiceMessagePlayer } from "./VoiceMessagePlayer";
+import { isVoiceMessage } from "../utils/voiceMessage";
 
 export function StoredAttachment({
   a,
@@ -44,6 +46,7 @@ export function StoredAttachment({
       </button>
     );
   }
+  if (isVoiceMessage(a.name)) return <VoiceMessagePlayer url={url} name={a.name} />;
   return <DownloadLink href={url} name={a.name} newTab />;
 }
 

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub } from "./helpers/live";
 import { readFileSync } from "node:fs";
 
@@ -14,7 +15,7 @@ test("full archive export downloads an encrypted file", async ({ page }) => {
 
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Manage accounts", exact: true }).click();
+  await openSettingsSection(page, "Manage accounts");
   await page.getByRole("button", { name: "Export full archive…" }).click();
 
   const passphrase = page.getByPlaceholder("Passphrase", { exact: true });

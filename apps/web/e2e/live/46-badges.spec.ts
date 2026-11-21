@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection, openHubAdminSection } from "../helpers/settings";
 import { expectInHub, hubApi, newMemberPage, openSettingRow, scopedLocalStorageItem, uniqueName } from "./helpers/live";
 
 // P46 — achievement badges. A hub grants a named badge (a labelled cert); it
@@ -22,7 +23,7 @@ test("owner grants a badge via the admin UI; it lands in the member's portfolio"
     await expectInHub(page);
     await page.locator(".hub-header-button").click();
     await page.getByRole("button", { name: "Hub settings" }).click();
-    await page.getByRole("button", { name: "Certifications", exact: true }).click();
+    await openHubAdminSection(page, "Certifications");
 
     const grant = await openSettingRow(page, "Grant a badge");
     await grant.getByPlaceholder("Member pubkey (hex)").fill(me.public_key);
@@ -61,7 +62,7 @@ test("a granted badge shows in the member's portfolio and can be hidden", async 
 
 
     await member.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-    await member.getByRole("button", { name: "Profile", exact: true }).click();
+    await openSettingsSection(member, "Profile");
     const section = member
       .locator(".settings-section", { has: member.getByText("Badges & certifications") })
       .first();

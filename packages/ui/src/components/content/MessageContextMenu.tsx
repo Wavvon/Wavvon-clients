@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { HoverSubmenu } from "../HoverSubmenu";
+import { REMIND_IN, remindDeadline } from "../../utils/savedMessages";
 
 interface Props {
   position: { x: number; y: number };
@@ -13,6 +15,11 @@ interface Props {
   onReply: () => void;
   onCopyText: () => void;
   onCopyLink: () => void;
+  onMarkUnread?: () => void;
+  isSaved?: boolean;
+  onToggleSave?: () => void;
+  onRemind?: (at: number) => void;
+  onRemindCustom?: () => void;
   onPinToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -29,11 +36,17 @@ interface Props {
  * UserContextMenu (the menu the author's name/avatar opens). */
 export function MessageContextMenu({
   position, senderLabel, senderPubkey, isMine, canDelete, isAdmin, isPinned,
-  onClose, onReply, onCopyText, onCopyLink, onPinToggle, onEdit, onDelete,
+  onClose, onReply, onCopyText, onCopyLink, onMarkUnread, isSaved, onToggleSave, onRemind, onRemindCustom, onPinToggle, onEdit, onDelete,
   onReport, onViewProfile, onToast, onMute, onKick, onBan,
 }: Props) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
+  const remindLabels: Record<(typeof REMIND_IN)[number], string> = {
+    "20m": t("remind.in_20m"),
+    "1h": t("remind.in_1h"),
+    "3h": t("remind.in_3h"),
+    tomorrow: t("remind.tomorrow"),
+  };
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -100,6 +113,37 @@ export function MessageContextMenu({
         <button className="context-menu-item" onClick={pick(onCopyLink)}>
           {t("message.action.copy_link")}
         </button>
+        {onToggleSave && (
+          <button className="context-menu-item" onClick={pick(onToggleSave)}>
+            {isSaved ? t("message.action.unsave") : t("message.action.save")}
+          </button>
+        )}
+        {onRemind && (
+          <HoverSubmenu
+            trigger={<button className="context-menu-item context-menu-submenu-trigger">{t("remind.menu")} ▸</button>}
+            triggerClassName="context-menu-submenu-wrap"
+          >
+            {REMIND_IN.map((choice) => (
+              <button
+                key={choice}
+                className="context-menu-item context-menu-subitem"
+                onClick={pick(() => onRemind(remindDeadline(choice)))}
+              >
+                {remindLabels[choice]}
+              </button>
+            ))}
+            {onRemindCustom && (
+              <button className="context-menu-item context-menu-subitem" onClick={pick(onRemindCustom)}>
+                {t("remind.custom")}
+              </button>
+            )}
+          </HoverSubmenu>
+        )}
+        {onMarkUnread && (
+          <button className="context-menu-item" onClick={pick(onMarkUnread)}>
+            {t("message.action.mark_unread")}
+          </button>
+        )}
         {isAdmin && (
           <button className="context-menu-item" onClick={pick(onPinToggle)}>
             {isPinned ? t("message.action.unpin") : t("message.action.pin")}

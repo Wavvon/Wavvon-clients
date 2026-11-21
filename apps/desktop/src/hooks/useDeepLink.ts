@@ -37,19 +37,24 @@ export function useDeepLink({
   const [pendingLinkTarget, setPendingLinkTarget] = useState<
     { hubId: string; channelId: string; messageId?: string } | null
   >(null);
+  /** Open a channel, or a message in it, on a hub already joined. */
+  function openTarget(target: { hubId: string; channelId: string; messageId?: string }) {
+    setPendingLinkTarget(target);
+    setView("channels");
+    void handleSwitchHub(target.hubId);
+  }
+
   function routeDeepLink(url: string, joined: Hub[]) {
     const parsed = parseHubInput(url);
     if (!parsed) return;
     const host = (u: string) => { try { return new URL(u).host.toLowerCase(); } catch { return ""; } };
     const hub = parsed.target ? joined.find((h) => host(h.hub_url) === host(parsed.hubUrl)) : undefined;
     if (hub && parsed.target) {
-      setPendingLinkTarget({
+      openTarget({
         hubId: hub.hub_id,
         channelId: parsed.target.channelId,
         messageId: parsed.target.kind === "message" ? parsed.target.messageId : undefined,
       });
-      setView("channels");
-      void handleSwitchHub(hub.hub_id);
       return;
     }
     setHubUrl(parsed.hubUrl);
@@ -89,5 +94,5 @@ export function useDeepLink({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingLinkTarget, activeHubId, channels, channelMessages.selectedChannel, channelMessages.messages]);
 
-  return { routeDeepLinkRef };
+  return { routeDeepLinkRef, openTarget };
 }

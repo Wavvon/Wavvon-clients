@@ -26,7 +26,7 @@ import {
   listHubIcons,
   listRoles,
 } from "@platform";
-import { passkeysUsableWith, activeHubSupports } from "@platform";
+import { activeHubSupports } from "@platform";
 import { allianceActions } from "../../platform/adminActions";
 import { DESKTOP_DOWNLOAD_URL, DISCOVERY_URL, MULTI_HUB } from "../../constants";
 import { HubAdminContainer } from "../admin/HubAdminContainer";
@@ -74,7 +74,6 @@ export function AppModals(p: AppModalsProps) {
     effectiveNotifyMode,
     eventComposerChannelId,
     handleAddHub,
-    handleAddHubWithPasskey,
     handleCreateChannel,
     handleDeleteChannel,
     handleHubSetupWizardComplete,
@@ -97,7 +96,8 @@ export function AppModals(p: AppModalsProps) {
     renameRoomSaving,
     setAddHubError,
     setChannelCtxMenu,
-    setChannelNotifyMode,
+    setChannelMode,
+    muteUntil,
     setChannelSettingsCtx,
     setChannelSettingsError,
     setCreateChannelCtx,
@@ -155,8 +155,6 @@ export function AppModals(p: AppModalsProps) {
           loading={addingHub}
           error={addHubError}
           onAdd={() => void handleAddHub()}
-          onAddWithPasskey={publicKey ? handleAddHubWithPasskey : undefined}
-          passkeySupported={passkeysUsableWith(hubUrl)}
           onClose={() => {
             setShowAddHub(false);
             setHubPreview({ state: "idle" });
@@ -249,13 +247,9 @@ export function AppModals(p: AppModalsProps) {
           menu={channelCtxMenu}
           activeHubId={activeHubId}
           effectiveNotifyMode={effectiveNotifyMode}
-          onSetNotifyMode={(hubId, channelId, mode) => {
-            setChannelNotifyMode((prev) => {
-              const hubMap = { ...(prev[hubId] ?? {}) };
-              if (mode === "all") delete hubMap[channelId]; else hubMap[channelId] = mode;
-              return { ...prev, [hubId]: hubMap };
-            });
-          }}
+          onSetNotifyMode={(hubId, channelId, mode) => setChannelMode(hubId, channelId, mode)}
+          muteUntil={muteUntil}
+          onMuteUntil={(hubId, channelId, until) => setChannelMode(hubId, channelId, "silent", until)}
           onClose={() => setChannelCtxMenu(null)}
           onOpenInDesktop={(channel) => {
             const hubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url;

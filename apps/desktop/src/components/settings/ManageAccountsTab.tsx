@@ -1,4 +1,3 @@
-import { PasskeySection } from "../PasskeySection";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
@@ -20,6 +19,8 @@ import { buildFullArchiveActions } from "../../utils/fullArchiveActions";
 import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
+import { FindableDirectorySection } from "../FindableDirectorySection";
+import { DISCOVERY_URL } from "../../constants";
 import { RestoreIdentitySection } from "../RestoreIdentitySection";
 import type { Hub } from "../../types";
 
@@ -103,12 +104,12 @@ export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recov
       />
       <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
-      {activeHubId && <PasskeySection hubId={activeHubId} />}
       <FullArchiveSection
         canExport={!!activeHubUrl}
         actions={buildFullArchiveActions(t("settings.account.full_archive.file_filter"), t("settings.account.accounts.switch_cooldown"))}
       />
       <HomeHubSection hubs={hubs} />
+      {DISCOVERY_URL && <FindableDirectorySection directoryUrl={DISCOVERY_URL} />}
       <SettingRow
         title={t("settings.account.local_data.label")}
         state={t("settings.account.local_data.state")}

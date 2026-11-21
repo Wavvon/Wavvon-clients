@@ -199,6 +199,8 @@ interface Props {
   onOpenEditDescription: (channel: Channel) => void;
   firstNotifyingMessageId: string | null;
   onClearFirstNotify: () => void;
+  firstUnreadId: string | null;
+  onMarkRead: () => void;
   onScrollToMessage: (id: string) => void;
   onSetMemberSidebarHidden: (v: boolean) => void;
   onSetSearchOpen: (v: boolean) => void;
@@ -221,6 +223,10 @@ interface Props {
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
   onStartConversation?: (pubkey: string) => void;
   stickerActions?: StickerActions;
+  onSendVoice?: (file: File) => Promise<void>;
+  /** Absent on a hub without `channels.markunread`. */
+  markUnread?: (message: Message) => Promise<void>;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
 }
 
 export function ContentArea(props: Props) {
@@ -249,7 +255,7 @@ export function ContentArea(props: Props) {
     pinMessage: (channelId, messageId) => invoke("pin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
     unpinMessage: (channelId, messageId) => invoke("unpin_message", { hubUrl: activeHub?.hub_url ?? "", channelId, messageId }),
     sendAppJoin: (appId, channelId) => {
-      noteAppJoin(appId);
+      noteAppJoin(appId, channelId);
       invoke("send_hub_ws_raw", {
         payload: JSON.stringify({ type: "app_join", app_id: appId, channel_id: channelId }),
       }).catch(() => {});
@@ -261,6 +267,8 @@ export function ContentArea(props: Props) {
     votePoll: (pollId, optionId) => invoke<Poll>("vote_poll", { pollId, optionIds: [optionId] }),
     deletePoll: (pollId) => invoke("delete_poll", { hubUrl: activeHub?.hub_url ?? "", pollId }),
     reportMessage: (messageId, reason) => invoke("report_message", { messageId, reason }),
+    markUnread: props.markUnread,
+    ...props.savedActions,
   };
 
   const profileCardActions: UserProfileCardActions = {
@@ -375,6 +383,7 @@ export function ContentArea(props: Props) {
         forumActions={forumActions}
         messageRowActions={messageRowActions}
         stickerActions={props.stickerActions}
+        onSendVoice={props.onSendVoice}
         profileCardActions={profileCardActions}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={loadChannelPolls}

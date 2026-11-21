@@ -88,8 +88,6 @@ pub(crate) struct AppState {
     pub http_client: reqwest::Client,
 }
 
-pub(crate) struct PendingUpdate(pub std::sync::Mutex<Option<tauri_plugin_updater::Update>>);
-
 pub(crate) struct HubSession {
     pub hub_id: String,
     pub hub_name: String,
@@ -168,9 +166,9 @@ pub(crate) struct VoiceSession {
     pub voice_zones: std::sync::Arc<std::sync::Mutex<HashMap<String, ZoneInfo>>>,
     /// My own position per zone: zone_id → Vec<f64>
     pub my_position: std::sync::Arc<std::sync::Mutex<HashMap<String, Vec<f64>>>>,
-    /// The WebTransport voice session. Set by the ws task's `voice_joined`
-    /// handler, which spawns the QUIC connect against `voice_wt_url` once
-    /// the hub hands over the URL/token (voice-transport-v2.md).
+    /// The voice data channel. Set by the ws task's `voice_joined` handler,
+    /// which offers a WebRTC session with the token once the hub hands it
+    /// over (voice-transport-v3.md).
     pub transport: std::sync::Arc<
         tokio::sync::RwLock<Option<std::sync::Arc<wavvon_voice::transport::VoiceTransport>>>,
     >,

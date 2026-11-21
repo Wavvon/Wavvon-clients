@@ -3,7 +3,7 @@ import type { RefObject } from "react";
 import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
 import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
-import { playVoiceTone, formatPubkey } from "@wavvon/core";
+import { playSound, playVoiceTone, formatPubkey, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
@@ -11,8 +11,8 @@ import { getScoped, setScoped } from "../utils/accountScope";
 import { loadPttConfig } from "@components/settings/PushToTalkSection";
 import { loadIdentity } from "../identity/store";
 import { resolveDmSendAttribution } from "../platform/commands/dms";
-import { VoiceWtSession, type AudioProfileConfig } from "../platform/voice";
-import { voiceErrorMessage, VOICE_JOIN_TIMEOUT } from "../platform/voiceErrors";
+import { VoiceSession, type AudioProfileConfig } from "../platform/voice";
+import { voiceErrorMessage, VoiceTransportError, VOICE_JOIN_TIMEOUT } from "../platform/voiceErrors";
 import type { HubWebSocket } from "../platform/ws";
 import {
   mintAllianceVoiceGrant,
@@ -22,21 +22,19 @@ import {
 } from "../platform/commands/allianceVoice";
 import type { VoiceZone, VoiceZoneAttenuation } from "../platform/voice";
 
-// The `voice_joined` reply to `voice_join` (voice-transport-v2.md "Join
-// flow") — everything needed to open the WebTransport session.
+// The `voice_joined` reply to `voice_join`: the roster, our relay id and the
+// token that binds our WebRTC session (voice-transport-v3.md).
 interface VoiceJoinedMsg {
   channel_id: string;
   sender_id: number;
   participants: { sender_id: number; public_key: string }[];
   voice_token: string;
-  voice_wt_url: string;
-  voice_cert_hash?: string | null;
 }
 
 const VOICE_JOIN_TIMEOUT_MS = 10_000;
 
 // Tell the hub we are out of the room. The hub treats the WS message as the
-// sole authority for roster membership -- a closed WebTransport session only
+// sole authority for roster membership -- a closed voice data channel only
 // clears the audio handle -- so skipping this left the pubkey in the channel
 // participant list until the whole WS dropped: a ghost member after leaving,
 // and the same identity listed in two rooms at once across two clients.
@@ -102,11 +100,13 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
   const [micBelowGate, setMicBelowGate] = useState(false);
-  const voiceSessionRef = useRef<VoiceWtSession | null>(null);
+  const voiceSessionRef = useRef<VoiceSession | null>(null);
   // A join in flight, waiting for the main WS to reply with `voice_joined`
   // (resolved from onVoiceState below — see the CRITICAL note on
   // handleVoiceJoin for why this can't be a plain local variable).
   const pendingVoiceJoinRef = useRef<{ resolve: (m: VoiceJoinedMsg) => void; reject: (e: Error) => void } | null>(null);
+  // A `voice_rtc_offer` in flight (voice-transport-v3.md), settled the same way.
+  const pendingRtcAnswerRef = useRef<{ resolve: (sdp: string) => void; reject: (e: Error) => void } | null>(null);
   // The channel a join is under way for. Each `voice_join` makes the hub mint
   // a new single-use token and drop the previous one, so a second click while
   // the first join is still waiting cancels it: thirteen clicks after a slow
@@ -123,9 +123,22 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   voicePartByChannelRef.current = voicePartByChannel;
   const { announcement: voicePoliteAnnouncement, announce: announceVoice } = useBatchedAnnouncement();
   // The room map: the first voice zone in the room we are in, as the UI draws
-  // it. VoiceWtSession keeps its own copy for the attenuation.
+  // it. VoiceSession keeps its own copy for the attenuation.
   const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
-  useEffect(() => { if (!voiceChannelId) setRoomZone(null); }, [voiceChannelId]);
+  const [roomMover, setRoomMover] = useState<string | null>(null);
+  useEffect(() => { if (!voiceChannelId) { setRoomZone(null); setRoomMover(null); } }, [voiceChannelId]);
+  // Our own place as the hub last confirmed it (its broadcast, or the zone
+  // state on join): what a move the hub refuses snaps back to.
+  const confirmedSelfRef = useRef<Record<string, number[]>>({});
+  // Counts refusals, for the mini-app that caused one; the map shows the
+  // latest for a few seconds.
+  const [positionRefusals, setPositionRefusals] = useState(0);
+  const [positionRefused, setPositionRefused] = useState(false);
+  useEffect(() => {
+    if (!positionRefused) return;
+    const timer = setTimeout(() => setPositionRefused(false), 5000);
+    return () => clearTimeout(timer);
+  }, [positionRefused, positionRefusals]);
   const [voiceActiveUsers, setVoiceActiveUsers] = useState<Set<string>>(new Set());
   const [soundboardPlayingClipId, setSoundboardPlayingClipId] = useState<string | null>(null);
   const [pttConfig, setPttConfig] = useState(loadPttConfig);
@@ -230,7 +243,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   }
 
   // Tear the current room down before opening another. Without this, repeated
-  // joins stack independent VoiceWtSessions (joining several rooms at once)
+  // joins stack independent VoiceSessions (joining several rooms at once)
   // and only the last is tracked, so leaving leaves the earlier ones connected
   // as stale roster entries that block temp-channel cleanup. stop() sets
   // closed=true before closing the transport, so the old session's onClose
@@ -258,15 +271,22 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const identity = await loadIdentity();
     if (!identity) throw new Error("No identity");
     const myPk = publicKeyRef.current ?? "";
+    // The room's hub: the owning hub on a visit. One without WebRTC voice
+    // predates voice transport v3 and speaks only WebTransport, which this
+    // client no longer carries.
+    const visit = voiceVisitRef.current;
+    const rtcCapable = visit ? visit.capabilities.includes("voice.webrtc") : activeHubSupports("voice.webrtc");
+    const hubUrl = visit?.hubUrl ?? activeSession().hub_url;
+    if (!rtcCapable) throw new VoiceTransportError(hubUrl, "unsupported", "the hub does not offer voice.webrtc", 0);
 
-    const session = new VoiceWtSession(
+    const session = new VoiceSession(
       {
         channelId: joined.channel_id,
         senderId: joined.sender_id,
         participants: joined.participants,
-        wtUrl: joined.voice_wt_url,
         token: joined.voice_token,
-        certHash: joined.voice_cert_hash ?? null,
+        hubUrl,
+        rtcSignal: (token, sdp) => awaitRtcAnswer(ws(), token, sdp),
       },
       {
         // `channelId` is where the join actually landed — for a spawner
@@ -344,7 +364,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     );
     // Expose the session BEFORE start(): voice_key_received / roster updates
     // for us arrive over the WS while start() is still connecting
-    // WebTransport, and the handlers deliver them via this ref —
+    // the data channel, and the handlers deliver them via this ref —
     // set-after-start silently dropped every early key.
     voiceSessionRef.current = session;
     try {
@@ -353,6 +373,28 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       voiceSessionRef.current = null;
       throw e;
     }
+  }
+
+  // Sends `voice_rtc_offer` and waits for the hub's answer, or its refusal
+  // (an `error` with that context), both settled by onVoiceState.
+  function awaitRtcAnswer(ws: HubWebSocket | null | undefined, token: string, sdp: string) {
+    return new Promise<string>((resolve, reject) => {
+      pendingRtcAnswerRef.current = { resolve, reject };
+      try {
+        if (!ws) throw new Error("hub socket closed");
+        ws.sendVoiceRtcOffer(token, sdp);
+      } catch (e) {
+        pendingRtcAnswerRef.current = null;
+        reject(e as Error);
+        return;
+      }
+      setTimeout(() => {
+        if (pendingRtcAnswerRef.current) {
+          pendingRtcAnswerRef.current = null;
+          reject(new Error("no voice_rtc_answer"));
+        }
+      }, VOICE_JOIN_TIMEOUT_MS);
+    });
   }
 
   // Sends `voice_join` on `ws` and waits for the hub's `voice_joined` reply,
@@ -393,8 +435,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     teardownCurrentVoice();
     try {
       // voice-transport-v2.md "Join flow": voice_join travels over the main
-      // WS; the voice_joined reply carries the WebTransport URL/token/cert
-      // hash — no second /info fetch.
+      // WS; the voice_joined reply carries the token for voice_rtc_offer.
       const joined = await awaitVoiceJoined(activeSession().ws, targetChannelId);
       await startVoiceSession(targetChannelId, joined, () => {
         try { return activeSession().ws; } catch { return null; }
@@ -492,6 +533,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const next = !selfMuted;
     setSelfMuted(next);
     voiceSessionRef.current?.setMuted(next);
+    if (voiceSoundsOn()) playSound(next ? "mute" : "unmute");
   }
 
   function handleToggleDeafen() {
@@ -499,6 +541,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     setSelfDeafened(next);
     if (next) setSelfMuted(true);
     voiceSessionRef.current?.setDeafened(next);
+    if (voiceSoundsOn()) playSound(next ? "deafen" : "undeafen");
   }
 
   const handleSetVoiceGain = useCallback((pk: string, gainPct: number) => {
@@ -543,6 +586,14 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     if (joinReply.type === "voice_joined" && pendingVoiceJoinRef.current) {
       pendingVoiceJoinRef.current.resolve(raw as VoiceJoinedMsg);
       pendingVoiceJoinRef.current = null;
+    }
+    const rtcReply = raw as { type?: string; sdp?: string; message?: string };
+    if (rtcReply.type === "voice_rtc_answer" && pendingRtcAnswerRef.current) {
+      pendingRtcAnswerRef.current.resolve(rtcReply.sdp ?? "");
+      pendingRtcAnswerRef.current = null;
+    } else if (rtcReply.type === "error" && pendingRtcAnswerRef.current) {
+      pendingRtcAnswerRef.current.reject(new Error(rtcReply.message ?? "voice_rtc_offer refused"));
+      pendingRtcAnswerRef.current = null;
     }
 
     const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; may_speak?: boolean; public_keys?: string[] };
@@ -634,6 +685,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voiceSessionRef.current?.handleZoneState(m.channel_id, m.zones);
     // Only sent on our own voice join, so it is the room we are in.
     const z = m.zones[0];
+    const me = publicKeyRef.current;
+    confirmedSelfRef.current = z && me && z.positions[me] ? { [z.zone_id]: z.positions[me] } : {};
     setRoomZone(z ? { zoneId: z.zone_id, positions: { ...z.positions } } : null);
   }
 
@@ -663,8 +716,28 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     const m = raw as { zone_id?: string; pubkey?: string; position?: number[] };
     if (!m.zone_id || !m.pubkey || !m.position) return;
     const { zone_id: zoneId, pubkey, position } = m;
+    if (pubkey === publicKeyRef.current) confirmedSelfRef.current[zoneId] = position;
     voiceSessionRef.current?.handlePositionUpdated(zoneId, pubkey, position);
     setRoomZone((cur) => (cur?.zoneId === zoneId ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
+  }
+
+  // The hub answered a move with an `error` frame (context
+  // voice_position_update): everyone else hears us where we last were, so the
+  // dot and our own attenuation go back there too.
+  function onVoicePositionRefused() {
+    const me = publicKeyRef.current;
+    if (!me) return;
+    setRoomZone((cur) => {
+      if (!cur) return cur;
+      const back = confirmedSelfRef.current[cur.zoneId] ?? null;
+      voiceSessionRef.current?.setMyPosition(cur.zoneId, back);
+      const positions = { ...cur.positions };
+      if (back) positions[me] = back;
+      else delete positions[me];
+      return { ...cur, positions };
+    });
+    setPositionRefused(true);
+    setPositionRefusals((n) => n + 1);
   }
 
   // The hub checks channels.manage for both; this only asks.
@@ -683,12 +756,28 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     if (roomZone) voiceWs()?.send({ type: "voice_zone_destroy", zone_id: roomZone.zoneId });
   }
 
-  function moveInRoom(position: [number, number]) {
+  // One coalescer for the map and for a mini-app: the hub drops updates closer
+  // than 30 ms, so clicks and arrow keys must not outrun it either.
+  const sendPositionRef = useRef<(zoneId: string, position: number[]) => void>(() => {});
+  sendPositionRef.current = (zoneId, position) => {
+    voiceWs()?.send({ type: "voice_position_update", zone_id: zoneId, position });
+  };
+  const positionCoalescerRef = useRef<PositionCoalescer | null>(null);
+  positionCoalescerRef.current ??= createPositionCoalescer((z, p) => sendPositionRef.current(z, p));
+  useEffect(() => () => positionCoalescerRef.current?.cancel(), []);
+
+  function moveInRoom(position: number[], zoneId?: string) {
     const me = publicKeyRef.current;
-    if (!roomZone || !me) return;
-    voiceWs()?.send({ type: "voice_position_update", zone_id: roomZone.zoneId, position });
-    voiceSessionRef.current?.setMyPosition(roomZone.zoneId, position);
-    setRoomZone({ ...roomZone, positions: { ...roomZone.positions, [me]: position } });
+    const zone = roomZone && (zoneId === undefined || zoneId === roomZone.zoneId) ? roomZone : null;
+    if (!zone || !me) return;
+    positionCoalescerRef.current?.push(zone.zoneId, position);
+    voiceSessionRef.current?.setMyPosition(zone.zoneId, position);
+    setRoomZone((cur) => (cur?.zoneId === zone.zoneId ? { ...cur, positions: { ...cur.positions, [me]: position } } : cur));
+  }
+
+  function moveInRoomForApp(appTitle: string, zoneId: string, position: number[]) {
+    setRoomMover(appTitle);
+    moveInRoom(position, zoneId);
   }
 
   // voice-transport-v2.md "E2E key distribution" — a peer's offer for us.
@@ -736,6 +825,12 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     enableRoomMap,
     disableRoomMap,
     moveInRoom,
+    moveInRoomForApp,
+    roomMover,
+    clearRoomMover: () => setRoomMover(null),
+    positionRefused,
+    positionRefusals,
+    onVoicePositionRefused,
     voiceActiveUsers,
     myVoicePerms,
     soundboardPlayingClipId,
@@ -755,9 +850,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   };
 }
 
-/** Voice rides WebTransport, which Safari and iOS have only from 26.4. Checked
- *  before voice_join so an older browser gets a sentence instead of a worker
- *  that dies on a missing constructor. */
+/** Voice rides a WebRTC data channel. Checked before voice_join so a browser
+ *  without it gets a sentence instead of a session that dies on a missing
+ *  constructor. */
 export function voiceTransportAvailable(): boolean {
-  return typeof (globalThis as { WebTransport?: unknown }).WebTransport === "function";
+  return typeof (globalThis as { RTCPeerConnection?: unknown }).RTCPeerConnection === "function";
 }

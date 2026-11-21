@@ -296,6 +296,22 @@ pub(crate) async fn get_dm_messages(
     Ok(result)
 }
 
+/// Key of a static v1 DM (`dm-ciphertext/v1`), pinned by the `dm_key_v1` vector.
+fn dm_key_v1(
+    my_dh_sec: &x25519_dalek::StaticSecret,
+    peer_dh_pub: &x25519_dalek::PublicKey,
+    conv_id: &str,
+) -> Result<[u8; 32], String> {
+    use hkdf::Hkdf;
+    use sha2::Sha256;
+    let shared = my_dh_sec.diffie_hellman(peer_dh_pub);
+    let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
+    let mut key_bytes = [0u8; 32];
+    hk.expand(b"wavvon/dm-key/v1", &mut key_bytes)
+        .map_err(|e| e.to_string())?;
+    Ok(key_bytes)
+}
+
 fn decrypt_dm_inner(
     conv_id: &str,
     envelope: &serde_json::Value,
@@ -303,8 +319,6 @@ fn decrypt_dm_inner(
 ) -> Result<DmPlaintext, String> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Key, Nonce};
-    use hkdf::Hkdf;
-    use sha2::Sha256;
 
     let my_dh_sec = identity.e2e_dh_secret();
     let sender_dh_hex = envelope["dh_pubkey_hex"]
@@ -320,12 +334,7 @@ fn decrypt_dm_inner(
         .try_into()
         .map_err(|_| "bad DH key".to_string())?;
     let sender_pub = x25519_dalek::PublicKey::from(sender_arr);
-    let shared = my_dh_sec.diffie_hellman(&sender_pub);
-
-    let hk = Hkdf::<Sha256>::new(Some(conv_id.as_bytes()), shared.as_bytes());
-    let mut key_bytes = [0u8; 32];
-    hk.expand(b"wavvon/dm-key/v1", &mut key_bytes)
-        .map_err(|e| e.to_string())?;
+    let key_bytes = dm_key_v1(&my_dh_sec, &sender_pub, conv_id)?;
 
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key_bytes));
     let nonce_bytes = hex::decode(nonce_hex).map_err(|e| e.to_string())?;
@@ -339,7 +348,7 @@ fn decrypt_dm_inner(
 
 /// Whether the hub takes `plaintext_signer_cert`. A failed lookup answers no:
 /// the message then goes unsigned, which is what it did before the cert.
-async fn hub_capabilities(client: &reqwest::Client, hub_url: &str) -> Vec<String> {
+pub(crate) async fn hub_capabilities(client: &reqwest::Client, hub_url: &str) -> Vec<String> {
     let info: Option<serde_json::Value> = match client.get(format!("{hub_url}/info")).send().await {
         Ok(resp) => resp.json().await.ok(),
         Err(_) => None,
@@ -2198,42 +2207,6 @@ fn decrypt_group_dm_inner(
 mod tests {
     use super::{dist_recipients_json, dist_signing_pairs, WrappedForRecipient};
 
-    // The same vector as packages/core's crypto.test.ts "group ratchet", so
-    // web and desktop cannot drift: chain key 0x11 x32 at iteration 2, and a
-    // wrap from the master fixture's DH key to the subkey fixture's.
-    #[test]
-    fn group_ratchet_matches_the_web_vector() {
-        let ck = [0x11u8; 32];
-        assert_eq!(
-            hex::encode(super::group_msg_key(&ck, 2)),
-            "7de5c477aadff1d7633bce5fc6d6974b908b9d05a3897cd5aba30c6490eba427"
-        );
-        assert_eq!(
-            hex::encode(super::group_next_chain_key(&ck, 2)),
-            "fd8b5df061c574c9c5ecdb3d87c37f54bb6c48585a6253b7914a1144d75939dc"
-        );
-        // dh_keypair, not e2e_dh_secret: the latter reads this machine's
-        // pairing state.
-        let dh = |seed: &str| {
-            crate::identity::Identity::from_secret_key_hex(seed)
-                .unwrap()
-                .dh_keypair()
-        };
-        let (a_sec, _) = dh("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20");
-        let (_, b_pub) = dh("2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40");
-        let (wrapped, nonce) = super::wrap_chain_key_with_nonce(
-            &a_sec,
-            &b_pub,
-            "conv123",
-            &ck,
-            2,
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        )
-        .unwrap();
-        assert_eq!(wrapped, "354ebd62de34d85fbd7179d96abf4202938c5609e18bc6015926550c48ec21bd5702ae96b979f0bf45ab36a7158bc5d204e173e7");
-        assert_eq!(nonce, "0102030405060708090a0b0c");
-    }
-
     fn wrapped() -> Vec<WrappedForRecipient> {
         vec![
             WrappedForRecipient {
@@ -2583,5 +2556,147 @@ mod dh_pin_tests {
             Some("k1"),
             "a change never overwrites the pin"
         );
+    }
+}
+
+#[cfg(test)]
+mod dm_crypto_vector_tests {
+    use super::*;
+    use crate::wire_vectors::{n, out, s, vector};
+    use aes_gcm::aead::{Aead, KeyInit};
+    use aes_gcm::{Aes256Gcm, Key, Nonce};
+    use x25519_dalek::{PublicKey, StaticSecret};
+
+    // dh_keypair, not e2e_dh_secret: the latter reads this machine's pairing state.
+    fn dh(seed_hex: &str) -> (StaticSecret, PublicKey) {
+        crate::identity::Identity::from_secret_key_hex(seed_hex)
+            .unwrap()
+            .dh_keypair()
+    }
+
+    fn b32(h: &str) -> [u8; 32] {
+        hex::decode(h).unwrap().try_into().unwrap()
+    }
+
+    fn pubkey(sec: &StaticSecret) -> PublicKey {
+        PublicKey::from(sec)
+    }
+
+    fn seal(key: &[u8; 32], nonce: &[u8; 12], pt: &str) -> String {
+        let c = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+        hex::encode(c.encrypt(Nonce::from_slice(nonce), pt.as_bytes()).unwrap())
+    }
+
+    #[test]
+    fn dm_key_v1_matches_the_shared_vector() {
+        let v = vector("dm_key_v1");
+        let (a_sec, a_pub) = dh(&s(v, "alice_seed"));
+        let (b_sec, b_pub) = dh(&s(v, "bob_seed"));
+        let conv = s(v, "conversation_id");
+        let key = dm_key_v1(&a_sec, &b_pub, &conv).unwrap();
+        assert_eq!(key, dm_key_v1(&b_sec, &a_pub, &conv).unwrap());
+        assert_eq!(hex::encode(key), out(v, "key"));
+        let nonce: [u8; 12] = hex::decode(s(v, "nonce")).unwrap().try_into().unwrap();
+        assert_eq!(seal(&key, &nonce, &s(v, "plaintext")), out(v, "ciphertext"));
+    }
+
+    #[test]
+    fn dr_session_matches_the_shared_vector() {
+        let v = vector("dr_session");
+        let (a_sec, a_pub) = dh(&s(v, "alice_seed"));
+        let (b_sec, b_pub) = dh(&s(v, "bob_seed"));
+        let conv = s(v, "conversation_id");
+        let a_eph = StaticSecret::from(b32(&s(v, "alice_eph_secret")));
+        let b_eph = StaticSecret::from(b32(&s(v, "bob_eph_secret")));
+        let (a_eph_pub, b_eph_pub) = (pubkey(&a_eph), pubkey(&b_eph));
+
+        let rk0 = dr_root_key(&conv, &a_sec, &b_pub).unwrap();
+        assert_eq!(rk0, dr_root_key(&conv, &b_sec, &a_pub).unwrap());
+        assert_eq!(hex::encode(rk0), out(v, "rk0"));
+
+        // The initiator step, with the vector's ratchet key in place of a random one.
+        let (rk, cks) = kdf_rk(&rk0, a_eph.diffie_hellman(&b_pub).as_bytes());
+        assert_eq!(hex::encode(a_eph_pub.as_bytes()), out(v, "alice_eph_pub"));
+        assert_eq!(hex::encode(rk), out(v, "alice_rk"));
+        assert_eq!(hex::encode(cks), out(v, "alice_cks"));
+
+        let (mk, next) = kdf_ck(&cks);
+        assert_eq!(hex::encode(mk), out(v, "message_key"));
+        assert_eq!(hex::encode(derive_nonce_dr(&mk)), out(v, "nonce"));
+        assert_eq!(hex::encode(next), out(v, "next_cks"));
+        assert_eq!(
+            seal(&mk, &derive_nonce_dr(&mk), &s(v, "plaintext")),
+            out(v, "ciphertext")
+        );
+
+        // responder_init_session picks its own random ratchet key, so only the
+        // receiving chain is pinned through it.
+        let session = responder_init_session(
+            &conv,
+            &b_sec,
+            &hex::encode(a_pub.as_bytes()),
+            &hex::encode(a_eph_pub.as_bytes()),
+        )
+        .unwrap();
+        assert_eq!(session.ckr.as_deref(), Some(out(v, "bob_ckr").as_str()));
+        // Its sending chain, with the vector's ratchet key.
+        let (rk1, _) = kdf_rk(&rk0, b_sec.diffie_hellman(&a_eph_pub).as_bytes());
+        let (bob_rk, bob_cks) = kdf_rk(&rk1, b_eph.diffie_hellman(&a_eph_pub).as_bytes());
+        assert_eq!(hex::encode(bob_rk), out(v, "bob_rk"));
+        assert_eq!(hex::encode(bob_cks), out(v, "bob_cks"));
+        assert_eq!(hex::encode(b_eph_pub.as_bytes()), out(v, "bob_eph_pub"));
+
+        let (reply_mk, _) = kdf_ck(&bob_cks);
+        assert_eq!(hex::encode(reply_mk), out(v, "reply_message_key"));
+        assert_eq!(
+            seal(
+                &reply_mk,
+                &derive_nonce_dr(&reply_mk),
+                &s(v, "reply_plaintext")
+            ),
+            out(v, "reply_ciphertext")
+        );
+
+        let (step_rk, step_ckr) = kdf_rk(&rk, a_eph.diffie_hellman(&b_eph_pub).as_bytes());
+        assert_eq!(hex::encode(step_rk), out(v, "reply_step_rk"));
+        assert_eq!(hex::encode(step_ckr), out(v, "reply_step_ckr"));
+    }
+
+    #[test]
+    fn group_ratchet_matches_the_shared_vector() {
+        let v = vector("group_ratchet");
+        let ck = b32(&s(v, "chain_key"));
+        let it = n(v, "iteration") as u32;
+        assert_eq!(hex::encode(group_msg_key(&ck, it)), out(v, "message_key"));
+        assert_eq!(
+            hex::encode(group_next_chain_key(&ck, it)),
+            out(v, "next_chain_key")
+        );
+        let mut nonce = [0u8; 12];
+        nonce[8..].copy_from_slice(&it.to_be_bytes());
+        assert_eq!(hex::encode(nonce), out(v, "nonce"));
+        assert_eq!(
+            seal(&group_msg_key(&ck, it), &nonce, &s(v, "plaintext")),
+            out(v, "ciphertext")
+        );
+    }
+
+    #[test]
+    fn group_key_wrap_matches_the_shared_vector() {
+        let v = vector("group_key_wrap");
+        let (a_sec, _) = dh(&s(v, "sender_seed"));
+        let (_, b_pub) = dh(&s(v, "recipient_seed"));
+        let nonce: [u8; 12] = hex::decode(s(v, "nonce")).unwrap().try_into().unwrap();
+        let (wrapped, nonce_hex) = wrap_chain_key_with_nonce(
+            &a_sec,
+            &b_pub,
+            &s(v, "conversation_id"),
+            &b32(&s(v, "chain_key")),
+            n(v, "iteration") as u32,
+            nonce,
+        )
+        .unwrap();
+        assert_eq!(wrapped, out(v, "ciphertext"));
+        assert_eq!(nonce_hex, s(v, "nonce"));
     }
 }

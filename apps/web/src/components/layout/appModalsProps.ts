@@ -53,7 +53,6 @@ export interface AppModalsProps {
   addHubError: string | null;
   setAddHubError: (v: string | null) => void;
   handleAddHub: () => void | Promise<void>;
-  handleAddHubWithPasskey: () => void | Promise<void>;
   setShowDiscover: (v: boolean) => void;
 
   // Identity backup — one prompt at the first message an unsaved identity
@@ -136,7 +135,8 @@ export interface AppModalsProps {
   >["menu"] | null;
   setChannelCtxMenu: (v: null) => void;
   effectiveNotifyMode: NotifyPrefs["effectiveNotifyMode"];
-  setChannelNotifyMode: NotifyPrefs["setChannelNotifyMode"];
+  setChannelMode: NotifyPrefs["setChannelMode"];
+  muteUntil: NotifyPrefs["muteUntil"];
 
   // Shared context
   activeHubId: string | null;

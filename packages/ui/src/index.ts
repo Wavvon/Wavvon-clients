@@ -50,6 +50,7 @@ export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
 export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export type { IdentityBackupAccount, IdentityBackupSectionActions } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
+export { firstUnreadId } from "./utils/unreadCounts";
 export { readFileAsB64 } from "./utils/attachments";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
 export { FullArchiveSection } from "./components/FullArchiveSection";
@@ -72,7 +73,6 @@ export type {
   ExistingAccountSnapshot,
   LocalPrefsSnapshot,
   RestorableArchive,
-  RestoredTheme,
   RestorePlan,
   RestoreSummary,
   UnrestorableNote,
@@ -93,7 +93,7 @@ export { BannerEditModal } from "./components/channels/BannerEditModal";
 export { ChannelAlliancesTab } from "./components/channels/ChannelAlliancesTab";
 export type { ChannelAlliancesTabActions } from "./components/channels/ChannelAlliancesTab";
 export { GameCard } from "./components/GameCard";
-export { GameModal } from "./components/GameModal";
+export { GameModal, type MiniAppVoiceBridge } from "./components/GameModal";
 export { HoverSubmenu } from "./components/HoverSubmenu";
 export { HubClock } from "./components/HubClock";
 export { ImagePicker } from "./components/ImagePicker";
@@ -164,6 +164,10 @@ export { SearchBar } from "./components/layout/SearchBar";
 export type { GlobalSearchResult } from "./types";
 export type { Report, ReportAction, ModerationSettings, BanlistSource, FederatedBanEntry, BanlistOverride } from "./types";
 export { DiscoverPage } from "./components/hubs/DiscoverPage";
+export { InterestsStep } from "./components/hubs/InterestsStep";
+export { HubSuggestions } from "./components/hubs/HubSuggestions";
+export { hubInterestsOrDefault, saveHubInterests } from "./utils/hubInterests";
+export type { HubInterests } from "./utils/hubInterests";
 export type { HubListing } from "./types";
 export { HubSetupWizard } from "./components/hubs/HubSetupWizard";
 export type { HubSetupWizardActions, HubSetupWizardCreateChannelFields } from "./components/hubs/HubSetupWizard";
@@ -204,6 +208,14 @@ export type { VoiceStageInfo, VoiceFloor } from "./components/content/VoiceStage
 export type { VoiceLive } from "./components/content/LiveTray";
 export { PinnedMessagesModal } from "./components/content/PinnedMessagesModal";
 export type { PinnedMessageEntry } from "./components/content/PinnedMessagesModal";
+export { SavedMessagesModal } from "./components/content/SavedMessagesModal";
+export { FindableSection } from "./components/settings/FindableSection";
+export type { FindableActions } from "./components/settings/FindableSection";
+export { useSavedMessages } from "./hooks/useSavedMessages";
+export type { SavedMessages } from "./hooks/useSavedMessages";
+export { parseSaved, savedKey, toggleSaved, markSavedDeleted, remindDeadline, REMIND_IN, notifyReminder } from "./utils/savedMessages";
+export { RemindAtModal } from "./components/content/RemindAtModal";
+export type { SavedMessage } from "./utils/savedMessages";
 export { ErrorBoundary } from "./components/ErrorBoundary";
 export { SortableHubIcon, SortableChannelItem, SortableCategoryItem } from "./components/SortableItems";
 export {
@@ -247,6 +259,7 @@ export {
   MessagesIcon,
   DiscoverIcon,
   MentionIcon,
+  BookmarkIcon,
 } from "./components/Icons";
 export { HubStreamsPanel, liveScreenShares, camerasOn } from "./components/HubStreamsPanel";
 export { ShareDialog, shareVideoConstraints, declaredQuality, estimateKbps } from "./components/voice/ShareDialog";
@@ -257,18 +270,55 @@ export type { ScreenShareViewerRef } from "./components/ScreenShareViewer";
 export type { ActiveStream } from "./types";
 export { MobileShell } from "./components/MobileShell";
 export {
-  SKINNABLE_TOKENS,
-  validateSkin,
-  readBaseToken,
-  applySkinTokens,
-  clearSkinTokens,
-  downloadSkin,
-  parseSkinFromRgba,
+  THEME_TOKENS,
+  composeRgba,
   splitRgba,
-} from "./skinValidation";
-export type { SkinBase, ThemeId, WavvonSkin, AppearanceState } from "./skinValidation";
-export { SkinEditor, makeSeed } from "./components/SkinEditor";
-export { SkinsGallery } from "./components/SkinsGallery";
+} from "./themes/themeTokens";
+export {
+  THEME_MANIFEST_FILE,
+  validateThemeManifest,
+  loadTheme,
+  exportTheme,
+  newTheme,
+  resolveScheme,
+  applyThemeTokens,
+  clearThemeTokens,
+  readBaseToken,
+  downloadTheme,
+} from "./themes/theme";
+export type { Scheme, SchemeMode, ThemeManifest, ThemePackage } from "./themes/theme";
+export { PackageError, loadPackage, buildPackage } from "./themes/packageFormat";
+export type { PackageSpec, LoadedPackage, PackageFiles } from "./themes/packageFormat";
+export { contrastRatio, contrastWarnings, WCAG_AA } from "./themes/contrast";
+export { createIdbPackageStore, createMemoryPackageStore, newPackageId, bytesToBase64, base64ToBytes } from "./themes/packageStore";
+export type { PackageStore, StoredPackage } from "./themes/packageStore";
+export { deviceThemeStore, themesForArchive, restoreThemes } from "./themes/themeStore";
+export type { ThemeStore, ArchiveTheme, RestoredTheme } from "./themes/themeStore";
+export { useThemes, primeHubTheme, hubThemeWanted } from "./hooks/useThemes";
+export type { ThemesController, UseThemesOptions } from "./hooks/useThemes";
+export {
+  deviceLanguageStore,
+  loadLangPack,
+  exportLangPack,
+  registerLangPack,
+  registerInstalledLanguages,
+  installLangPack,
+  removeLangPack,
+  languagesForArchive,
+  restoreLanguages,
+  MAX_LANG_BYTES,
+} from "./languages/langPack";
+export type { LangManifest, LangPackage, StoredLangPack, LanguageStore, ArchiveLanguage, RestoredLanguage } from "./languages/langPack";
+export { loadHubTheme, hubThemeUrl } from "./themes/hubTheme";
+export type { HubThemeRef, HubTheme } from "./themes/hubTheme";
+export { ThemeEditor } from "./components/ThemeEditor";
+export { LAYOUT_OPTIONS, LAYOUT_KEYS, LAYOUT_DEFAULTS, normalizeLayout, resolveLayout } from "./themes/layout";
+export type { LayoutKey, LayoutChoice } from "./themes/layout";
+export { ICON_NAMES, isIconName, OFF_STATE_ICONS } from "./themes/iconRegistry";
+export { ThemesSection } from "./components/ThemesSection";
+export { ThemesGallery } from "./components/ThemesGallery";
+export { ThemePreviewDemo } from "./components/ThemePreviewDemo";
+export type { ThemeListing } from "./themes/gallery";
 export { AddHubModal } from "./components/hubs/AddHubModal";
 export { QuickInviteModal, type QuickInviteModalActions } from "./components/hubs/QuickInviteModal";
 export { WelcomeScreen } from "./components/layout/WelcomeScreen";
@@ -382,6 +432,9 @@ export { ProfileTab } from "./components/settings/ProfileTab";
 export { ProfileEditorSection } from "./components/settings/ProfileEditorSection";
 export { MyCertificationsSection } from "./components/settings/MyCertificationsSection";
 export { TrustedIssuersSection } from "./components/settings/TrustedIssuersSection";
+export { TrustedIssuersTab } from "./components/settings/TrustedIssuersTab";
+export { userSettingsLayout } from "./components/settings/userSettingsLayout";
+export type { UserSettingsArea, UserSettingsSection } from "./components/settings/userSettingsLayout";
 export { IssuerHubPicker, knownIssuerHubs, type IssuerHub } from "./components/settings/IssuerHubPicker";
 export {
   parseTrustRoots,
@@ -405,7 +458,7 @@ export type {
 export { resolveManagingAccount } from "./utils/resolveManagingAccount";
 export { loadHiddenBadgeSet, saveHiddenBadgeSet } from "./utils/hiddenBadges";
 export { SettingsShell } from "./components/settings/SettingsShell";
-export type { SettingsTabDef } from "./components/settings/SettingsShell";
+export type { SettingsAreaDef, SettingsSectionDef } from "./components/settings/SettingsShell";
 export { HelpTab } from "./components/settings/HelpTab";
 export { AboutTab } from "./components/settings/AboutTab";
 export { SettingsAccountPicker } from "./components/settings/SettingsAccountPicker";
@@ -418,6 +471,10 @@ export { AttachmentSettingsSection } from "./components/admin/AttachmentSettings
 export type { AttachmentSettingsActions } from "./components/admin/AttachmentSettingsSection";
 export { WidgetSection, widgetEmbedCode } from "./components/admin/WidgetSection";
 export type { WidgetActions, WidgetSettings } from "./components/admin/WidgetSection";
+export { HubThemeSection } from "./components/admin/HubThemeSection";
+export type { HubThemeActions } from "./components/admin/HubThemeSection";
+export { InviteLandingSection } from "./components/admin/InviteLandingSection";
+export type { InviteLandingActions } from "./components/admin/InviteLandingSection";
 export { StickerSettingsSection } from "./components/admin/StickerSettingsSection";
 export type { StickerSettingsActions } from "./components/admin/StickerSettingsSection";
 export { StickerPicker } from "./components/stickers/StickerPicker";
@@ -487,6 +544,9 @@ export type { EncryptionWarning } from "./components/EncryptionWarningModal";
 export { homeHubStatus } from "./utils/homeHubStatus";
 export { resolveStoredPresence, storedPresenceFor } from "./utils/presenceExpiry";
 export type { StoredPresence } from "./utils/presenceExpiry";
+export { MUTE_FOR, muteDeadline, expiredMutes, withoutDeadlines } from "./utils/muteExpiry";
+export type { MuteDeadlines, MuteFor, ExpiredMutes } from "./utils/muteExpiry";
+export { useMuteExpiry } from "./hooks/useMuteExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
 export { useBatchedAnnouncement } from "./hooks/useBatchedAnnouncement";
@@ -496,6 +556,11 @@ export { useOlderPages, mergeOlderPage, MESSAGE_PAGE_SIZE } from "./hooks/useOld
 export type { AllianceScrollback } from "./hooks/useAlliances";
 export { useConfirm } from "./components/ConfirmDialog";
 export { SettingRow } from "./components/SettingRow";
+export { LanguageSetting } from "./components/LanguageSetting";
+export { HubLanguagesSection } from "./components/admin/HubLanguagesSection";
+export type { HubLanguagesActions } from "./components/admin/HubLanguagesSection";
+export { applyHubLanguages, registerHubLanguages, loadHubLangPack, hubLanguageUrl, LANGUAGE_CHOICE_KEY } from "./languages/hubLanguages";
+export type { HubLanguagesInfo } from "./languages/hubLanguages";
 export type { SettingRowProps } from "./components/SettingRow";
 export { CameraTab } from "./components/CameraTab";
 export type { ConfirmRequest } from "./components/ConfirmDialog";

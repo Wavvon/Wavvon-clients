@@ -32,6 +32,37 @@ async fn ws_credential(app: &AppHandle, hub_url: &str, token: &str) -> String {
     }
 }
 
+type RtcAnswerSlot =
+    std::sync::Arc<std::sync::Mutex<Option<tokio::sync::oneshot::Sender<Result<String, String>>>>>;
+
+/// Voice over WebRTC (voice-transport-v3.md): offer on this hub's socket with
+/// the `voice_token`, wait for the receive loop to hand over the answer.
+async fn connect_webrtc(
+    hub_url: &str,
+    voice_token: &str,
+    cmd_tx: &mpsc::UnboundedSender<WsCommand>,
+    slot: &RtcAnswerSlot,
+) -> anyhow::Result<wavvon_voice::transport::VoiceTransport> {
+    let host = url::Url::parse(hub_url)?
+        .host_str()
+        .map(str::to_string)
+        .ok_or_else(|| anyhow::anyhow!("hub URL has no host"))?;
+    let (offer, sdp) = wavvon_voice::transport::RtcOffer::new(&host).await?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    *slot.lock().unwrap() = Some(tx);
+    let message =
+        serde_json::json!({ "type": "voice_rtc_offer", "token": voice_token, "sdp": sdp });
+    cmd_tx
+        .send(WsCommand::Raw(message.to_string()))
+        .map_err(|_| anyhow::anyhow!("hub socket closed"))?;
+    let answer = tokio::time::timeout(std::time::Duration::from_secs(10), rx)
+        .await
+        .map_err(|_| anyhow::anyhow!("no voice_rtc_answer within 10s"))?
+        .map_err(|_| anyhow::anyhow!("hub socket closed"))?
+        .map_err(|e| anyhow::anyhow!("voice_rtc_offer refused: {e}"))?;
+    offer.accept(&answer)
+}
+
 pub(crate) async fn spawn_ws_task(
     hub_id: String,
     hub_url: String,
@@ -58,6 +89,9 @@ pub(crate) async fn spawn_ws_task(
     // other WsCommand, without threading a second channel through.
     let cmd_tx_for_task = cmd_tx.clone();
     let hub_id_for_task = hub_id.clone();
+    // Where the receive loop hands the hub's `voice_rtc_answer` (or its
+    // refusal) to the voice connect waiting for it.
+    let rtc_answer: RtcAnswerSlot = Default::default();
 
     let _ = app.emit(
         "hub-ws-status",
@@ -165,13 +199,10 @@ pub(crate) async fn spawn_ws_task(
                                             "auto": auto,
                                         }));
                                     }
-                                    WsServerMessage::VoiceJoined { channel_id, participants, voice_token, voice_wt_url, voice_cert_hash, may_speak } => {
-                                        // Open the WebTransport voice session now that the hub
-                                        // has handed over the URL/token/cert hash
-                                        // (voice-transport-v2.md). Spawned so the WS receive
-                                        // loop is never blocked on the QUIC handshake -- mirrors
-                                        // the old register_udp hand-off via a shared Arc, but the
-                                        // Arc now holds the live connection itself.
+                                    WsServerMessage::VoiceJoined { channel_id, participants, voice_token, may_speak } => {
+                                        // Bind the WebRTC voice session with the token
+                                        // (voice-transport-v3.md). Spawned so the WS receive
+                                        // loop keeps running: it is what delivers the answer.
                                         let session_arcs = {
                                             let app_state = app.state::<AppState>();
                                             let lock = app_state.voice.lock().unwrap();
@@ -180,20 +211,33 @@ pub(crate) async fn spawn_ws_task(
                                                 .map(|s| (s.transport.clone(), s.voice_keys.clone()))
                                         };
                                         if let Some((transport_arc, voice_keys)) = session_arcs {
-                                            let connect_url = voice_wt_url.clone();
                                             let connect_token = voice_token.clone();
-                                            let connect_cert_hash = voice_cert_hash.clone();
                                             let failed_app = app.clone();
+                                            let rtc_hub_url = hub_url.clone();
+                                            let rtc_cmd_tx = cmd_tx_for_task.clone();
+                                            let rtc_slot = rtc_answer.clone();
+                                            let rtc_client = app.state::<AppState>().http_client.clone();
                                             tokio::spawn(async move {
                                                 let started = std::time::Instant::now();
-                                                match wavvon_voice::transport::VoiceTransport::connect(&connect_url, &connect_token, connect_cert_hash.as_deref()).await {
+                                                let webrtc = crate::dm::hub_capabilities(&rtc_client, &rtc_hub_url)
+                                                    .await
+                                                    .iter()
+                                                    .any(|c| c == "voice.webrtc");
+                                                // A hub without it predates voice transport v3 and
+                                                // speaks only WebTransport, which we no longer carry.
+                                                let connected = if webrtc {
+                                                    connect_webrtc(&rtc_hub_url, &connect_token, &rtc_cmd_tx, &rtc_slot).await
+                                                } else {
+                                                    Err(anyhow::anyhow!("the hub does not offer voice.webrtc"))
+                                                };
+                                                match connected {
                                                     Ok(t) => *transport_arc.write().await = Some(std::sync::Arc::new(t)),
                                                     Err(e) => {
-                                                        tracing::error!("voice WT connect failed: {e}");
+                                                        tracing::error!("voice transport connect failed: {e}");
                                                         // Only logged before, so the room looked joined and stayed
                                                         // silent. The UI words it the same way the web client does.
                                                         let _ = failed_app.emit("voice-transport-failed", serde_json::json!({
-                                                            "url": connect_url,
+                                                            "url": rtc_hub_url,
                                                             "elapsed_ms": started.elapsed().as_millis() as u64,
                                                             "detail": e.to_string(),
                                                         }));
@@ -378,7 +422,17 @@ pub(crate) async fn spawn_ws_task(
                                             });
                                         }
                                     }
+                                    WsServerMessage::VoiceRtcAnswer { sdp } => {
+                                        if let Some(tx) = rtc_answer.lock().unwrap().take() {
+                                            let _ = tx.send(Ok(sdp));
+                                        }
+                                    }
                                     WsServerMessage::Error { context, message } => {
+                                        if context == "voice_rtc_offer" {
+                                            if let Some(tx) = rtc_answer.lock().unwrap().take() {
+                                                let _ = tx.send(Err(message.clone()));
+                                            }
+                                        }
                                         let _ = app.emit("hub-error", serde_json::json!({
                                             "hub_id": hub_id_for_task,
                                             "context": context,

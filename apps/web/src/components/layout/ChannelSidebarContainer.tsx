@@ -72,6 +72,7 @@ export interface ChannelSidebarContainerProps {
   whisperReplyBind: WhisperReplyBind;
   onSetWhisperReplyBind: (bind: WhisperReplyBind) => void;
   onOpenQuickInvite: () => void;
+  onOpenSetupTemplates: () => void;
   onChannelContextMenu: (e: React.MouseEvent, channel: Channel) => void;
   onOpenFriends: () => void;
   onOpenVoiceSettings: () => void;
@@ -89,7 +90,7 @@ export function ChannelSidebarContainer({
   view, channels, channelTree, users, publicKey, isAdmin, canCreateInvites,
   canManageRoles, canEditChannelPermissions, canMoveMembers, canUseSoundboard, canScreenShare, canUseCamera, silencedChannelIds,
   soundboardChipsByChannel, whisperReplyBind, onSetWhisperReplyBind,
-  onOpenQuickInvite, onChannelContextMenu, onOpenFriends, onOpenVoiceSettings,
+  onOpenQuickInvite, onOpenSetupTemplates, onChannelContextMenu, onOpenFriends, onOpenVoiceSettings,
   onDragEnd,
 }: ChannelSidebarContainerProps) {
   const { t } = useTranslation();
@@ -153,15 +154,16 @@ export function ChannelSidebarContainer({
         })
       }
       onHubDropdownOpenChange={setHubDropdownOpen}
-      onSetHubMode={(hubId, mode) =>
-        notifyPrefs.setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
-      }
+      onSetHubMode={(hubId, mode) => notifyPrefs.setHubMode(hubId, mode)}
+      hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+      onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
       onToggleHideSilenced={notifyPrefs.toggleHideSilenced}
       onClearHubUnread={unreadCounts.clearHubUnread}
       onRemoveHub={onRequestRemoveHub}
       onOpenHubAdmin={() => void hubAdmin.openHubAdmin()}
       onOpenHubAdminInvites={() => { void hubAdmin.openHubAdmin(); hubAdmin.setHubAdminTab("invites"); }}
       onOpenQuickInvite={onOpenQuickInvite}
+      onOpenSetupTemplates={isAdmin ? onOpenSetupTemplates : undefined}
       onOpenCreateChannel={(parentId, isCategory) => {
         channelCrud.setChannelSettingsCtx(null);
         channelCrud.setCreateChannelCtx({ parentId, isCategory });

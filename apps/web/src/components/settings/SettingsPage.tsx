@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
-import type { ThemeId, WavvonSkin, SettingsTabDef, TrustRoot } from "@wavvon/ui";
-import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell } from "@wavvon/ui";
-import type { NamedCustomTheme } from "@shared/utils/customThemes";
+import type { WebPush } from "../../hooks/useWebPush";
+import type { ThemesController, TrustRoot, UserSettingsSection } from "@wavvon/ui";
+import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell, TrustedIssuersTab, knownIssuerHubs, userSettingsLayout } from "@wavvon/ui";
+import { lookupIssuerHub } from "../../platform/adminActions";
 import { listAccountsOrdered, getActiveAccountId, onAccountsChanged, type IdentityRecord } from "@identity/index";
 import { profileEditorActions } from "../../utils/profileEditorActions";
 import { addTrustRoot } from "@wavvon/ui";
@@ -16,17 +17,7 @@ import { ManageAccountsTab } from "./tabs/ManageAccountsTab";
 import { DevicesTab } from "./tabs/DevicesTab";
 import { PrivacyTab } from "./tabs/PrivacyTab";
 
-export type SettingsTab =
-  | "profile"
-  | "accounts"
-  | "devices"
-  | "privacy"
-  | "notifications"
-  | "appearance"
-  | "voice"
-  | "camera"
-  | "help"
-  | "about";
+export type SettingsTab = UserSettingsSection;
 
 interface SettingsPageProps {
   tab: SettingsTab;
@@ -34,20 +25,11 @@ interface SettingsPageProps {
   onClose: () => void;
   hubs: Hub[];
   publicKey: string | null;
-  theme: ThemeId;
-  onThemeChange: (t: ThemeId) => void;
-  skin: WavvonSkin | null;
-  onSkinChange: (skin: WavvonSkin) => void;
-  customThemes: NamedCustomTheme[];
-  activeCustomThemeId: string | null;
-  onApplyCustomTheme: (id: string) => void;
-  onNewCustomTheme: () => void;
-  onRenameCustomTheme: (id: string, name: string) => void;
-  onDuplicateCustomTheme: (id: string) => void;
-  onDeleteCustomTheme: (id: string) => void;
+  themes: ThemesController;
   onHubProfileSaved?: (hubId: string) => void;
   mentionPingEnabled?: boolean;
   onMentionPingChange?: (v: boolean) => void;
+  webPush?: WebPush;
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
   blocks: BlockEntry[];
@@ -57,7 +39,6 @@ interface SettingsPageProps {
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
-  onImportSkin: (skin: WavvonSkin) => void;
   inVoice: boolean;
 }
 
@@ -111,39 +92,12 @@ export function SettingsPage(props: SettingsPageProps) {
   const managing = resolveManagingAccount(accounts, managingId, activeId);
   const perAccount = { accounts, activeId, managing, onManagingChange: setManagingId };
 
-  // Grouped into contiguous sections so the nav reads clearly, mirroring the
-  // HubAdminPage nav pattern. "Accounts" holds everything identity-shaped:
-  // who you are (profile), which accounts live on this device, what can act
-  // as them (devices), and who they've blocked (privacy).
-  const G_ACCOUNTS = t("settings.nav_groups.accounts");
-  const G_APP = t("settings.nav_groups.app");
-  const G_AV = t("settings.nav_groups.audio_video");
-  const G_INFO = t("settings.nav_groups.info");
-  const TABS: SettingsTabDef<SettingsTab>[] = [
-    { id: "profile", label: t("settings.tabs.profile"), group: G_ACCOUNTS },
-    { id: "accounts", label: t("settings.tabs.accounts"), group: G_ACCOUNTS, attention: accountsAttention },
-    { id: "devices", label: t("settings.tabs.devices"), group: G_ACCOUNTS },
-    { id: "privacy", label: t("settings.tabs.privacy"), group: G_ACCOUNTS },
-    { id: "notifications", label: t("settings.tabs.notifications"), group: G_APP, deviceWide: true },
-    { id: "appearance", label: t("settings.tabs.appearance"), group: G_APP, deviceWide: true },
-    { id: "voice", label: t("settings.tabs.voice"), group: G_AV, deviceWide: true },
-    { id: "camera", label: t("settings.tabs.camera"), group: G_AV, deviceWide: true },
-    { id: "help", label: t("settings.tabs.help"), group: G_INFO, deviceWide: true },
-    { id: "about", label: t("settings.tabs.about"), group: G_INFO, deviceWide: true },
-  ];
+  const { areas, sections } = userSettingsLayout(t, accountsAttention);
 
-  return (
-    <SettingsShell
-      title={t("settings.title")}
-      tabs={TABS}
-      activeTab={props.tab}
-      onTab={props.onTab}
-      onClose={props.onClose}
-      accountPicker={accounts && accounts.length > 1 && managing ? (
-        <SettingsAccountPicker accounts={accounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
-      ) : undefined}
-    >
-        {props.tab === "profile" && (
+  function renderSection(section: SettingsTab) {
+    return (
+      <>
+        {section === "profile" && (
           <ProfileTab
             hubs={props.hubs}
             publicKey={props.publicKey}
@@ -159,7 +113,16 @@ export function SettingsPage(props: SettingsPageProps) {
           />
         )}
 
-        {props.tab === "accounts" && (
+        {section === "trusted" && (
+          <TrustedIssuersTab
+            roots={trustRoots}
+            onChange={updateTrustRoots}
+            joinedHubs={knownIssuerHubs(props.hubs, [])}
+            lookupHub={lookupIssuerHub}
+          />
+        )}
+
+        {section === "accounts" && (
           <ManageAccountsTab
             hubs={props.hubs}
             publicKey={props.publicKey}
@@ -171,55 +134,57 @@ export function SettingsPage(props: SettingsPageProps) {
           />
         )}
 
-        {props.tab === "devices" && (
+        {section === "devices" && (
           <DevicesTab hubs={props.hubs} publicKey={props.publicKey} {...perAccount} />
         )}
 
-        {props.tab === "privacy" && (
+        {section === "privacy" && (
           <PrivacyTab
             blocks={props.blocks}
             ignores={props.ignores}
             onUnblock={props.onUnblock}
             onUnignore={props.onUnignore}
             knownNames={props.knownNames}
-            trustRoots={trustRoots}
-            onTrustRootsChange={updateTrustRoots}
-            hubs={props.hubs}
             {...perAccount}
           />
         )}
 
-        {props.tab === "notifications" && (
+        {section === "notifications" && (
           <NotificationsTab
             hubs={props.hubs}
             mentionPingEnabled={props.mentionPingEnabled}
             onMentionPingChange={props.onMentionPingChange}
+            webPush={props.webPush}
           />
         )}
 
-        {props.tab === "appearance" && (
-          <AppearanceTab
-            theme={props.theme}
-            onThemeChange={props.onThemeChange}
-            skin={props.skin}
-            onSkinChange={props.onSkinChange}
-            customThemes={props.customThemes}
-            activeCustomThemeId={props.activeCustomThemeId}
-            onApplyCustomTheme={props.onApplyCustomTheme}
-            onNewCustomTheme={props.onNewCustomTheme}
-            onRenameCustomTheme={props.onRenameCustomTheme}
-            onDuplicateCustomTheme={props.onDuplicateCustomTheme}
-            onDeleteCustomTheme={props.onDeleteCustomTheme}
-            onImportSkin={props.onImportSkin}
-          />
+        {section === "appearance" && (
+          <AppearanceTab themes={props.themes} />
         )}
 
-        {props.tab === "voice" && <VoiceTab />}
+        {section === "voice" && <VoiceTab />}
 
-        {props.tab === "camera" && <CameraTab />}
+        {section === "camera" && <CameraTab />}
 
-        {props.tab === "help" && <HelpTab />}
-        {props.tab === "about" && <AboutTab version={import.meta.env.VITE_APP_VERSION} />}
-    </SettingsShell>
+        {section === "help" && <HelpTab />}
+        {section === "about" && <AboutTab version={import.meta.env.VITE_APP_VERSION} />}
+      </>
+    );
+  }
+
+  return (
+    <SettingsShell
+      title={t("settings.title")}
+      areas={areas}
+      sections={sections}
+      activeSection={props.tab}
+      onSection={props.onTab}
+      renderSection={renderSection}
+      helpSection="help"
+      onClose={props.onClose}
+      accountPicker={accounts && accounts.length > 1 && managing ? (
+        <SettingsAccountPicker accounts={accounts} activeId={activeId} selectedId={managing.id} onChange={setManagingId} />
+      ) : undefined}
+    />
   );
 }

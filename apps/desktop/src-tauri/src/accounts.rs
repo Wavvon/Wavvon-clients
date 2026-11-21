@@ -23,14 +23,12 @@
 //     notification_mutes.json  — per-hub/channel notify mode
 //     unread.json           — unread counts, keyed by hub/channel id
 //     default_profile.json  — the local default profile card
-//     skin.json             — the active custom-theme skin, if any
 //
 // settings-ia.md §7 records which of local_store.rs's files stayed
-// device-global on purpose (voice device/profile settings, and the theme
-// *slot* itself) vs moved here — matched item-by-item against which
+// device-global on purpose (voice device/profile settings) vs moved here — matched item-by-item against which
 // localStorage keys web scopes under `wavvon:acct:<pubkey>:*` vs leaves
-// unscoped. See local_store.rs's load_appearance/load_profile for the
-// slot-vs-skin and theme-vs-default_profile splits.
+// unscoped. See local_store.rs's load_profile for the
+// theme-vs-default_profile split.
 //
 // Every existing per-identity path helper (Identity::default_path(),
 // pairing.rs/auth_creds.rs's paired_identity_path(), home_hub.rs's
@@ -434,17 +432,15 @@ pub(crate) fn active_own_dm_plaintexts_path() -> Result<PathBuf, String> {
 
 // local_store.rs's per-user files (settings-ia.md §7 fix): everything below
 // backs a local_store.rs path helper of the same data. Voice device/profile
-// settings and the theme *slot* deliberately stay out of this list — they
-// stay device-global in local_store.rs's own path helpers, matching web's
-// unscoped `wavvon.audio_profile`/PTT/device-id keys and unscoped
-// `wavvon:appearance` slot.
+// settings deliberately stay out of this list — they stay device-global in
+// local_store.rs's own path helpers, matching web's unscoped
+// `wavvon.audio_profile`/PTT/device-id keys.
 
 // Named because the archive restore writes them into an account that may
 // not be the active one.
 pub(crate) const SAVED_HUBS_FILE: &str = "hubs.json";
 pub(crate) const VOICE_GAINS_FILE: &str = "voice_gains.json";
 pub(crate) const IGNORED_USERS_FILE: &str = "ignored_users.json";
-pub(crate) const SKIN_FILE: &str = "skin.json";
 
 pub(crate) fn active_saved_hubs_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join(SAVED_HUBS_FILE))
@@ -488,10 +484,6 @@ pub(crate) fn active_whisper_optout_path() -> Result<PathBuf, String> {
 
 pub(crate) fn active_default_profile_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("default_profile.json"))
-}
-
-pub(crate) fn active_skin_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join(SKIN_FILE))
 }
 
 /// identity.json path for an arbitrary (not necessarily active) registered

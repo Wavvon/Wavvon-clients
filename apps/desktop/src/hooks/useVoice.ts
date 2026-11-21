@@ -5,7 +5,7 @@ import type { Channel, VoiceParticipant, VoiceMuteInfo, ScreenShareOpts } from "
 import { useScreenShare } from "./useScreenShare";
 import { useHubStreams } from "./useHubStreams";
 import { listenerScope } from "../utils/listenerScope";
-import { playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState } from "@wavvon/core";
+import { playSound, playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
 import { voiceTransportFailure, ROOM_MAP_RADIUS } from "@wavvon/ui";
@@ -15,9 +15,13 @@ interface UseVoiceParams {
   selectedChannel: Channel | null;
   setError: (msg: string) => void;
   setToast: (msg: string) => void;
+  /** Our key in the room's positions, to find where the hub last placed us. */
+  publicKey: string | null;
 }
 
-export function useVoice({ activeHubId, selectedChannel, setError, setToast }: UseVoiceParams) {
+export function useVoice({ activeHubId, selectedChannel, setError, setToast, publicKey }: UseVoiceParams) {
+  const publicKeyRef = useRef(publicKey);
+  publicKeyRef.current = publicKey;
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
@@ -162,7 +166,15 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   // The room map: the first voice zone in the room we are in. The shell
   // keeps its own copy for the attenuation; this one is for drawing.
   const [roomZone, setRoomZone] = useState<{ zoneId: string; positions: Record<string, number[]> } | null>(null);
-  useEffect(() => { if (voiceChannelId === null) setRoomZone(null); }, [voiceChannelId]);
+  const [roomMover, setRoomMover] = useState<string | null>(null);
+  const [positionRefusals, setPositionRefusals] = useState(0);
+  const [positionRefused, setPositionRefused] = useState(false);
+  useEffect(() => {
+    if (!positionRefused) return;
+    const timer = setTimeout(() => setPositionRefused(false), 5000);
+    return () => clearTimeout(timer);
+  }, [positionRefused, positionRefusals]);
+  useEffect(() => { if (voiceChannelId === null) { setRoomZone(null); setRoomMover(null); } }, [voiceChannelId]);
   // Always listening: the zone state arrives with the join, before
   // voiceChannelId is set.
   useEffect(() => {
@@ -181,6 +193,22 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
       const { zone_id, pubkey, position } = e.payload;
       setRoomZone((cur) => (cur?.zoneId === zone_id ? { ...cur, positions: { ...cur.positions, [pubkey]: position } } : cur));
     }));
+    // The hub refused a move (an `error` frame, context voice_position_update).
+    // The drawn dot only ever moves on the hub's broadcast, so it is already
+    // where everyone else hears us; the shell's own attenuation moved ahead
+    // and goes back to it.
+    scope.add(listen<{ context: string }>("hub-error", (e) => {
+      if (e.payload.context !== "voice_position_update") return;
+      setRoomZone((cur) => {
+        const me = publicKeyRef.current;
+        if (cur && me) {
+          invoke("voice_room_map_restore", { zoneId: cur.zoneId, position: cur.positions[me] ?? null }).catch(() => {});
+        }
+        return cur;
+      });
+      setPositionRefused(true);
+      setPositionRefusals((n) => n + 1);
+    }));
     return () => scope.close();
   }, []);
 
@@ -190,9 +218,24 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   function disableRoomMap() {
     if (roomZone) invoke("voice_room_map_disable", { zoneId: roomZone.zoneId }).catch((e) => setError(String(e)));
   }
-  function moveInRoom(position: [number, number]) {
-    if (!roomZone) return;
-    invoke("voice_room_map_move", { zoneId: roomZone.zoneId, position }).catch((e) => setError(String(e)));
+  // One coalescer for the map and for a mini-app: the hub drops updates closer
+  // than 30 ms, so clicks and arrow keys must not outrun it either.
+  const sendPositionRef = useRef<(zoneId: string, position: number[]) => void>(() => {});
+  sendPositionRef.current = (zoneId, position) => {
+    invoke("voice_room_map_move", { zoneId, position }).catch((e) => setError(String(e)));
+  };
+  const positionCoalescerRef = useRef<PositionCoalescer | null>(null);
+  positionCoalescerRef.current ??= createPositionCoalescer((z, p) => sendPositionRef.current(z, p));
+  useEffect(() => () => positionCoalescerRef.current?.cancel(), []);
+
+  function moveInRoom(position: number[], zoneId?: string) {
+    if (!roomZone || (zoneId !== undefined && zoneId !== roomZone.zoneId)) return;
+    positionCoalescerRef.current?.push(roomZone.zoneId, position);
+  }
+
+  function moveInRoomForApp(appTitle: string, zoneId: string, position: number[]) {
+    setRoomMover(appTitle);
+    moveInRoom(position, zoneId);
   }
 
   useEffect(() => {
@@ -373,6 +416,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
   async function toggleSelfMute() {
     const next = !selfMuted;
     setSelfMuted(next);
+    playSound(next ? "mute" : "unmute");
     try {
       await invoke("voice_set_muted", { muted: next });
     } catch (e) {
@@ -385,6 +429,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     const next = !selfDeafened;
     setSelfDeafened(next);
     if (next && !selfMuted) setSelfMuted(true);
+    playSound(next ? "deafen" : "undeafen");
     try {
       await invoke("voice_set_deafened", { deafened: next });
     } catch (e) {
@@ -577,6 +622,11 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast }: U
     enableRoomMap,
     disableRoomMap,
     moveInRoom,
+    moveInRoomForApp,
+    roomMover,
+    clearRoomMover: () => setRoomMover(null),
+    positionRefused,
+    positionRefusals,
     isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,

@@ -1,5 +1,6 @@
 import type { HomeHubList, PrefsBlobContents, RevocationEntry, SubkeyCert } from "@wavvon/core";
-import type { WavvonSkin } from "../skinValidation";
+import type { ArchiveLanguage, RestoredLanguage } from "../languages/langPack";
+import type { ArchiveTheme, RestoredTheme } from "../themes/themeStore";
 
 // The full personal-data archive document (docs wiki data-export.md §2-5) and
 // the merge rule a restore applies. Both clients read and write this shape —
@@ -60,7 +61,9 @@ export interface ArchiveDocument {
   devices: { subkey_certs: SubkeyCert[]; revocations: RevocationEntry[] };
   prefs: LocalPrefsSnapshot;
   dms: DmArchiveConversation[];
-  themes: WavvonSkin[];
+  themes: ArchiveTheme[];
+  /** Installed language packs; absent in archives made before they existed. */
+  languages?: ArchiveLanguage[];
   drafts: Record<string, string>;
 }
 
@@ -122,15 +125,10 @@ export interface ExistingAccountSnapshot {
   hubList: ArchiveHub[];
   drafts: Record<string, string>;
   themeNames: string[];
+  languageNames: string[];
   ignoredUsers: string[];
   voiceGains: Record<string, number>;
   hasMentionPingSetting: boolean;
-}
-
-export interface RestoredTheme {
-  id: string;
-  name: string;
-  skin: WavvonSkin;
 }
 
 /** Things the archive holds that a restore cannot write anywhere — reported,
@@ -147,6 +145,8 @@ export interface RestoreSummary {
   draftsSkipped: number;
   themesRestored: number;
   themesSkipped: number;
+  languagesRestored: number;
+  languagesSkipped: number;
   ignoredUsersRestored: number;
   ignoredUsersSkipped: number;
   voiceGainsRestored: number;
@@ -162,6 +162,7 @@ export interface RestorePlan {
   hubList: ArchiveHub[];
   drafts: Record<string, string>;
   newThemes: RestoredTheme[];
+  newLanguages: RestoredLanguage[];
   ignoredUsers: string[];
   voiceGains: Record<string, number>;
   mentionPingEnabled: boolean | null;
@@ -181,14 +182,9 @@ export function planRestore(
   const drafts = mergeRecord(existing.drafts, archive.drafts);
   const voiceGains = mergeRecord(existing.voiceGains, archive.prefs.voice_gains);
 
-  const themeNames = new Set(existing.themeNames);
-  const newThemes: RestoredTheme[] = [];
-  for (const skin of archive.themes) {
-    const name = skin.name?.trim() || "Restored theme";
-    if (themeNames.has(name)) continue;
-    themeNames.add(name);
-    newThemes.push({ id: idFactory(), name, skin: { ...skin, name } });
-  }
+  const newThemes = newPackages(archive.themes, existing.themeNames, idFactory, "Restored theme");
+  const archivedLanguages = archive.languages ?? [];
+  const newLanguages = newPackages(archivedLanguages, existing.languageNames, idFactory, "Restored language");
 
   const ignored = new Set(existing.ignoredUsers);
   const newIgnored = archive.prefs.ignored_users.filter((u) => !ignored.has(u) && ignored.add(u));
@@ -212,6 +208,7 @@ export function planRestore(
     hubList: [...existing.hubList, ...newHubs],
     drafts: drafts.merged,
     newThemes,
+    newLanguages,
     ignoredUsers: [...existing.ignoredUsers, ...newIgnored],
     voiceGains: voiceGains.merged,
     mentionPingEnabled: mentionPingRestored ? archive.prefs.mention_ping_enabled : null,
@@ -222,6 +219,8 @@ export function planRestore(
       draftsSkipped: drafts.skipped,
       themesRestored: newThemes.length,
       themesSkipped: archive.themes.length - newThemes.length,
+      languagesRestored: newLanguages.length,
+      languagesSkipped: archivedLanguages.length - newLanguages.length,
       ignoredUsersRestored: newIgnored.length,
       ignoredUsersSkipped: archive.prefs.ignored_users.length - newIgnored.length,
       voiceGainsRestored: voiceGains.added,
@@ -233,6 +232,24 @@ export function planRestore(
       unrestorable,
     },
   };
+}
+
+// Packages are matched by name: one already installed under that name wins.
+function newPackages(
+  items: { name: string; package_b64: string }[],
+  existingNames: string[],
+  idFactory: () => string,
+  fallbackName: string,
+): { id: string; name: string; package_b64: string }[] {
+  const names = new Set(existingNames);
+  const out: { id: string; name: string; package_b64: string }[] = [];
+  for (const item of items) {
+    const name = item.name?.trim() || fallbackName;
+    if (names.has(name)) continue;
+    names.add(name);
+    out.push({ id: idFactory(), name, package_b64: item.package_b64 });
+  }
+  return out;
 }
 
 function mergeRecord<T>(existing: { [key: string]: T }, incoming: { [key: string]: T }) {
@@ -251,9 +268,9 @@ function mergeRecord<T>(existing: { [key: string]: T }, incoming: { [key: string
 }
 
 export function totalRestored(s: RestoreSummary): number {
-  return s.hubsRestored + s.draftsRestored + s.themesRestored + s.ignoredUsersRestored + s.voiceGainsRestored + (s.mentionPingRestored ? 1 : 0);
+  return s.hubsRestored + s.draftsRestored + s.themesRestored + s.languagesRestored + s.ignoredUsersRestored + s.voiceGainsRestored + (s.mentionPingRestored ? 1 : 0);
 }
 
 export function totalSkipped(s: RestoreSummary): number {
-  return s.hubsSkipped + s.draftsSkipped + s.themesSkipped + s.ignoredUsersSkipped + s.voiceGainsSkipped + (s.mentionPingSkipped ? 1 : 0);
+  return s.hubsSkipped + s.draftsSkipped + s.themesSkipped + s.languagesSkipped + s.ignoredUsersSkipped + s.voiceGainsSkipped + (s.mentionPingSkipped ? 1 : 0);
 }

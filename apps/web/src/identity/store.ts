@@ -209,7 +209,7 @@ export async function findAccountByPubkey(pubkey: string): Promise<IdentityRecor
 }
 
 // Used by every "bring an identity onto this device" path (recover phrase,
-// sign in with passkey, restore from backup, pair). If that identity is
+// restore from backup, pair). If that identity is
 // already on this device, returns the existing row instead of duplicating it
 // — the caller just switches to it.
 export async function resolveOrCreateAccount(
@@ -244,6 +244,9 @@ export async function loadOwnDmAttachments(messageId: string): Promise<Attachmen
 }
 
 export async function removeAccount(id: string): Promise<void> {
+  // Unsubscribing in the browser is enough for the hubs to drop it: the
+  // push service answers them 410 from then on.
+  await import("../platform/push").then((m) => m.disableAllPush(id)).catch(() => {});
   const db = await getDb();
   await db.delete("identity", id);
   // ";" sorts right after ":", so this range is exactly this account's keys.

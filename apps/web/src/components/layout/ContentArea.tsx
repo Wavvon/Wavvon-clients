@@ -191,6 +191,7 @@ interface Props {
   slashCommands?: SlashCommandEntry[];
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
 }
 
 export function ContentArea(props: Props) {
@@ -276,7 +277,9 @@ export function ContentArea(props: Props) {
                 canManage: isAdmin || myRoles.some((r) => r.permissions.includes("channels.manage")),
                 onEnable: voice.enableRoomMap,
                 onDisable: voice.disableRoomMap,
-                onMove: voice.moveInRoom,
+                onMove: (p) => voice.moveInRoom(p),
+                movedBy: voice.roomMover,
+                refused: voice.positionRefused,
               }
             : undefined,
           live: {
@@ -362,6 +365,8 @@ export function ContentArea(props: Props) {
         onOpenEditDescription={(ch) => { channelCrud.setEditDescChannel(ch); channelCrud.setEditDescValue(ch.description ?? ""); }}
         firstNotifyingMessageId={channelMessages.firstNotifyingMessageId}
         onClearFirstNotify={() => channelMessages.setFirstNotifyingMessageId(null)}
+        firstUnreadId={channelMessages.firstUnreadId}
+        onMarkRead={channelMessages.handleMarkRead}
         onScrollToMessage={channelMessages.handleScrollToMessage}
         onSetMemberSidebarHidden={onSetMemberSidebarHidden}
         onSetSearchOpen={channelMessages.setSearchOpen}
@@ -386,8 +391,13 @@ export function ContentArea(props: Props) {
         alliancePeopleActions={activeHubSupports("alliance.people") ? alliancePeopleActions : undefined}
         profileCardActions={profileCardActions}
         forumActions={forumActions}
-        messageRowActions={messageRowActions}
+        messageRowActions={{
+          ...messageRowActions,
+          ...props.savedActions,
+          markUnread: activeHubSupports("channels.markunread") ? channelMessages.handleMarkUnread : undefined,
+        }}
         stickerActions={stickerActions}
+        onSendVoice={channelMessages.handleSendVoice}
         loadHubEmojis={loadHubEmojis}
         loadChannelPolls={getPolls}
         loadThreadReplies={loadThreadReplies}

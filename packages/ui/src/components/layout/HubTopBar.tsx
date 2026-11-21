@@ -9,10 +9,11 @@ import type { Hub, NotifyMode } from "../../types";
 import type { HubNotice } from "../../hooks/useUnreadCounts";
 import { Avatar } from "../Avatar";
 import { SortableHubIcon } from "../SortableItems";
-import { MessagesIcon, SearchIcon, ClockIcon, BellOffIcon } from "../Icons";
+import { MessagesIcon, SearchIcon, ClockIcon, BellOffIcon, BookmarkIcon } from "../Icons";
 import { UserMenu, type UserMenuProps } from "./UserMenu";
 import { HubDrawer } from "./HubDrawer";
 import { HubContextMenu } from "./HubContextMenu";
+import { formatMuteEnd } from "./MuteForItems";
 import {
   type HubLayout, badgeHome, moveHubToFolder, movePinned, tabBadges,
 } from "../../utils/hubLayout";
@@ -30,6 +31,7 @@ export interface HubTopBarProps {
   unreadDmCount: number;
   pingByHub: Record<string, number | null>;
   hubNotifyMode: Record<string, NotifyMode>;
+  hubMuteUntil?: Record<string, number>;
   lobbyHubIds?: Set<string>;
   onSwitchToDms: () => void;
   /** Leaves the DM view for the active hub's channels, keeping the selected channel. */
@@ -37,7 +39,12 @@ export interface HubTopBarProps {
   onSwitchHub: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
   onSetHubNotifyMode?: (hubId: string, mode: NotifyMode) => void;
+  onMuteHubUntil?: (hubId: string, until: number) => void;
   onOpenSearch: () => void;
+  /** Opens the personal Saved list. */
+  onOpenSaved?: () => void;
+  /** Reminders that came due and wait in the Saved list. */
+  savedDueCount?: number;
   onAddHub?: () => void;
   onDiscover?: () => void;
   userMenu: UserMenuProps;
@@ -110,7 +117,7 @@ export function HubTopBar(p: HubTopBarProps) {
           <Avatar src={h.hub_icon} name={h.hub_name} pubkey={h.hub_id} size={24} />
           {active && <span className="hub-tab-name">{h.hub_name}</span>}
           {p.lobbyHubIds?.has(h.hub_id) && <span className="hub-tab-mark" title={t("lobby.sidebar_hint")}><ClockIcon size={10} /></span>}
-          {p.hubNotifyMode[h.hub_id] === "silent" && <span className="hub-tab-mark" title={t("hub.notifications.silent")}><BellOffIcon size={10} /></span>}
+          {p.hubNotifyMode[h.hub_id] === "silent" && <span className="hub-tab-mark" title={p.hubMuteUntil?.[h.hub_id] ? t("hub.mute.until", { time: formatMuteEnd(p.hubMuteUntil[h.hub_id]) }) : t("hub.notifications.silent")}><BellOffIcon size={10} /></span>}
           {b && p.hubNotifyMode[h.hub_id] !== "silent" && <Count {...b} />}
         </button>
       </SortableHubIcon>
@@ -235,6 +242,12 @@ export function HubTopBar(p: HubTopBarProps) {
       )}
 
       <div className="top-bar-spacer" />
+      {p.onOpenSaved && (
+        <button type="button" className="top-bar-btn" onClick={p.onOpenSaved} title={t("saved.title")} aria-label={t("saved.title")}>
+          <BookmarkIcon size={18} />
+          <Count count={p.savedDueCount ?? 0} mention={true} />
+        </button>
+      )}
       <button type="button" className="top-bar-search" onClick={p.onOpenSearch} aria-keyshortcuts="Control+K">
         <SearchIcon size={14} />
         <span>{t("hubs.search")}</span>
@@ -263,7 +276,9 @@ export function HubTopBar(p: HubTopBarProps) {
           x={ctx.x}
           y={ctx.y}
           mode={p.hubNotifyMode[ctx.hub.hub_id] ?? "all"}
+          muteUntil={p.hubMuteUntil?.[ctx.hub.hub_id]}
           onSetMode={p.onSetHubNotifyMode}
+          onMuteUntil={p.onMuteHubUntil}
           onRemove={p.onRemoveHub}
           onClose={() => setCtx(null)}
         />

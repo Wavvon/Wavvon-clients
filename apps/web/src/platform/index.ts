@@ -171,6 +171,8 @@ export { getUserProfile } from "./commands/profiles";
 
 export { getMyProfileOnHub, updateMyProfileOnHub, patchMyProfileOnHub, getFindableByAllies, setFindableByAllies, getWidgetHidden, setWidgetHidden, NO_HUB_SESSION, type MyHubProfile } from "./commands/myProfile";
 export { getWidget, putWidget } from "./commands/widget";
+export { fetchCurrentHubTheme, uploadHubTheme, removeHubTheme } from "./commands/hubTheme";
+export { listHubLanguages, uploadHubLanguage, removeHubLanguage, setHubDefaultLanguage } from "./commands/hubLanguages";
 
 export { createPoll, getPolls, votePoll, deletePoll } from "./commands/polls";
 
@@ -187,6 +189,8 @@ export {
 export type { CreateEventSlotInput } from "./commands/events";
 
 export { getNotifPref, setNotifPref } from "./notifPrefs";
+export { pushSupported, enablePush, disablePush, disableAllPush } from "./push";
+export type { PushNotifyMode, PushPrefs, PushTexts } from "./push";
 
 export { fetchVoiceRoster } from "./commands/voice";
 
@@ -281,13 +285,3 @@ export {
 } from "./commands/roleCategories";
 export type { RoleCategoryCreateInput, RoleCategoryUpdateInput } from "./commands/roleCategories";
 
-export {
-  isPasskeySupported,
-  passkeysUsableWith,
-  registerPasskey,
-  authenticateWithPasskey,
-  listPasskeys,
-  deletePasskey,
-  renamePasskey,
-} from "./webauthn";
-export type { CredentialInfo } from "./webauthn";

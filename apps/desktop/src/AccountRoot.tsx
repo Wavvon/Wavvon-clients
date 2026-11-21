@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import App from "./App";
-import { OnboardingFrame, ProfileEditorSection } from "@wavvon/ui";
+import App, { type OnboardingExit } from "./App";
+import { OnboardingFrame, ProfileEditorSection, InterestsStep, HubSuggestions, hubInterestsOrDefault, saveHubInterests, type HubInterests } from "@wavvon/ui";
+import { DISCOVERY_URL } from "./constants";
+import { fetchWithTimeout } from "./utils/fetchWithTimeout";
 import { PairingSection } from "./components/PairingSection";
 import { listAccounts, createAccount, setInPlaceSwitchHandler, type AccountSummary } from "./accounts/store";
 import { buildProfileEditorActions, loadDefaultProfileAsync } from "./utils/profileEditorActions";
@@ -23,7 +25,7 @@ import { buildProfileEditorActions, loadDefaultProfileAsync } from "./utils/prof
 // (ManageAccountsTab) is a later pass — see the AccountSwitcherSection in
 // SettingsPage's Account tab for the equivalent of web's trigger meanwhile.
 export default function AccountRoot() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,6 +36,10 @@ export default function AccountRoot() {
   const [pairing, setPairing] = useState(false);
   // The first account on this device goes through the profile step, as on web.
   const [profileStep, setProfileStep] = useState(false);
+  // With a directory, the first account then picks interests and sees suggestions.
+  const [directoryStep, setDirectoryStep] = useState<"interests" | "hubs" | null>(null);
+  const [interests, setInterests] = useState<HubInterests>(() => hubInterestsOrDefault(i18n.language));
+  const [onboardingExit, setOnboardingExit] = useState<OnboardingExit | undefined>(undefined);
 
   async function refresh() {
     const list = await listAccounts();
@@ -42,7 +48,7 @@ export default function AccountRoot() {
   }
 
   useEffect(() => {
-    setInPlaceSwitchHandler(({ id }) => setActiveAccountId(id));
+    setInPlaceSwitchHandler(({ id }) => { setOnboardingExit(undefined); setActiveAccountId(id); });
     refresh().catch((e) => setError(String(e)));
     return () => setInPlaceSwitchHandler(null);
   }, []);
@@ -157,6 +163,46 @@ export default function AccountRoot() {
     );
   }
 
+  function afterProfile() {
+    setProfileStep(false);
+    if (DISCOVERY_URL) setDirectoryStep("interests");
+  }
+
+  function finishOnboarding(exit?: OnboardingExit) {
+    setOnboardingExit(exit);
+    setDirectoryStep(null);
+  }
+
+  if (directoryStep === "interests") {
+    return (
+      <OnboardingFrame>
+        <InterestsStep
+          initial={interests}
+          onDone={(v) => { saveHubInterests(v); setInterests(v); setDirectoryStep("hubs"); }}
+          onSkip={() => finishOnboarding()}
+        />
+      </OnboardingFrame>
+    );
+  }
+
+  if (directoryStep === "hubs" && DISCOVERY_URL) {
+    return (
+      <OnboardingFrame>
+        <h2>{t("onboarding.hubs.title")}</h2>
+        <p className="onboarding-lede">{t("onboarding.hubs.hint")}</p>
+        <HubSuggestions
+          directoryUrl={DISCOVERY_URL}
+          fetchUrl={fetchWithTimeout}
+          interests={interests}
+          onJoinHub={(hubUrl, inviteCode) => finishOnboarding({ join: { hubUrl, inviteCode } })}
+          onEditInterests={() => setDirectoryStep("interests")}
+          onSeeAll={() => finishOnboarding({ openDirectory: true })}
+        />
+        <button className="btn-ghost" onClick={() => finishOnboarding()}>{t("onboarding.later")}</button>
+      </OnboardingFrame>
+    );
+  }
+
   if (profileStep && activeAccountId) {
     return (
       <OnboardingFrame>
@@ -168,11 +214,11 @@ export default function AccountRoot() {
           isActive={false}
           publicKey={null}
           actions={buildProfileEditorActions([])}
-          onboarding={{ onSaved: () => setProfileStep(false), onSkip: () => setProfileStep(false) }}
+          onboarding={{ onSaved: afterProfile, onSkip: afterProfile }}
         />
       </OnboardingFrame>
     );
   }
 
-  return <App key={activeAccountId ?? "no-account"} accountId={activeAccountId} />;
+  return <App key={activeAccountId ?? "no-account"} accountId={activeAccountId} onboardingExit={onboardingExit} />;
 }

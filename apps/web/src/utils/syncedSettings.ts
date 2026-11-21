@@ -40,13 +40,14 @@ export const SYNCED_KEYS: SyncedKey[] = [
   { key: "wavvon.voice_gains", scoped: true },
   { key: "wavvon.notifyMode.hub", scoped: true },
   { key: "wavvon.notifyMode.channel", scoped: true },
+  { key: "wavvon.notifyMuteUntil", scoped: true },
   { key: "wavvon.pinnedChannels", scoped: true },
   { key: "wavvon.collapsedCategories", scoped: true },
   { key: "wavvon.hideSilenced", scoped: true },
   { key: "wavvon.hideBirthdays", scoped: true },
-  { key: "wavvon.customThemes", scoped: true },
   { key: "wavvon.trustedIssuers", scoped: true },
   { key: "wavvon.hubLayout", scoped: true },
+  { key: "wavvon.savedMessages", scoped: true },
 ];
 
 function read(k: SyncedKey): string | null {

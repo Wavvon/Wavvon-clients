@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, hubApi, uniqueName } from "./helpers/live";
 
 // P24 — the profile editor's context dropdown (Discord server-profiles
@@ -10,7 +11,7 @@ async function openProfileEditor(page: import("@playwright/test").Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.getByRole("button", { name: "Profile", exact: true }).click();
+  await openSettingsSection(page, "Profile");
   const section = page
     .locator(".settings-section", { has: page.getByText("Profile to edit", { exact: true }) })
     .first();

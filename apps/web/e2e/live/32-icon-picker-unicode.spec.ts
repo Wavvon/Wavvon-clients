@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { channelButton, createChannel, expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
 
 // P32 — icon pickers (role/channel/category/soundboard) are unicode-only.
@@ -12,7 +13,7 @@ const PNG_1x1_B64 =
 async function openRolesAdmin(page: import("@playwright/test").Page) {
   await page.locator(".hub-header-button").click();
   await page.getByRole("button", { name: "Hub settings" }).click();
-  await page.getByRole("button", { name: "Roles", exact: true }).click();
+  await openHubAdminSection(page, "Roles");
   await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
 }
 

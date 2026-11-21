@@ -43,11 +43,7 @@ export function SettingsPageContainer({
       onClose={onClose}
       onHubProfileSaved={onHubProfileSaved}
       hubs={hubs}
-      theme={settingsProfile.theme}
-      onThemeChange={settingsProfile.handleSetTheme}
-      skin={settingsProfile.skin}
-      onSkinChange={settingsProfile.handleSkinChange}
-      onImportSkin={(s) => { settingsProfile.handleSkinChange(s); settingsProfile.handleSetTheme("custom"); }}
+      themes={settingsProfile.themes}
       activeHubId={activeHubId}
       activeHubUrl={hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? ""}
       isAdmin={isAdmin}

@@ -57,3 +57,15 @@ export function totalUnread(byHub: Record<string, number>): number {
 export function unreadDocumentTitle(total: number): string {
   return total > 0 ? `(${total > 99 ? "99+" : total}) Wavvon` : "Wavvon";
 }
+
+/** Where the new-messages divider goes: the first message after the reader's
+ *  marker that someone else wrote. A marker of 0 (never read) or null (a hub
+ *  too old to say) draws none — a whole history is not "new". */
+export function firstUnreadId(
+  messages: { id: string; sender: string; created_at: number }[],
+  marker: number | null,
+  me: string | null,
+): string | null {
+  if (!marker) return null;
+  return messages.find((m) => m.created_at > marker && m.sender !== me)?.id ?? null;
+}

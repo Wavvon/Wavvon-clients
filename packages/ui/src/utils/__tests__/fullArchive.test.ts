@@ -19,7 +19,7 @@ function makeHub(overrides: Partial<ArchiveHub> = {}): ArchiveHub {
 }
 
 function emptySnapshot(overrides: Partial<ExistingAccountSnapshot> = {}): ExistingAccountSnapshot {
-  return { hubList: [], drafts: {}, themeNames: [], ignoredUsers: [], voiceGains: {}, hasMentionPingSetting: false, ...overrides };
+  return { hubList: [], drafts: {}, themeNames: [], languageNames: [], ignoredUsers: [], voiceGains: {}, hasMentionPingSetting: false, ...overrides };
 }
 
 function makeArchive(overrides: Partial<ArchiveDocument> = {}): ArchiveDocument {
@@ -117,13 +117,13 @@ describe("planRestore", () => {
   it("skips a custom theme whose name already exists and restores the rest", () => {
     const archive = makeArchive({
       themes: [
-        { format: "wavvon.skin", version: 1, name: "Existing", base: "dark", tokens: {} },
-        { format: "wavvon.skin", version: 1, name: "New Theme", base: "dark", tokens: {} },
+        { name: "Existing", package_b64: "AA==" },
+        { name: "New Theme", package_b64: "AQ==" },
       ],
     });
     const plan = planRestore(archive, emptySnapshot({ themeNames: ["Existing"] }), fixedId);
     expect(plan.summary.themesSkipped).toBe(1);
-    expect(plan.newThemes).toEqual([{ id: "fixed-id", name: "New Theme", skin: archive.themes[1] }]);
+    expect(plan.newThemes).toEqual([{ id: "fixed-id", name: "New Theme", package_b64: "AQ==" }]);
   });
 
   it("reports what it cannot write instead of dropping it", () => {

@@ -3,6 +3,7 @@ import { SettingsModal } from "@wavvon/ui";
 import { SettingsPage } from "./SettingsPage";
 import type { useSettingsProfile } from "../../hooks/useSettingsProfile";
 import type { useNotificationPrefs } from "../../hooks/useNotificationPrefs";
+import type { WebPush } from "../../hooks/useWebPush";
 import { setScoped } from "../../utils/accountScope";
 
 type SettingsProfileState = ReturnType<typeof useSettingsProfile>;
@@ -20,6 +21,7 @@ export interface SettingsPageContainerProps {
   onHubProfileSaved: (hubId: string) => void;
   onUnblock: (pubkey: string) => void;
   onUnignore: (pubkey: string) => void;
+  webPush: WebPush;
 }
 
 // Wraps App's Settings overlay + the useSettingsProfile/useNotificationPrefs
@@ -27,7 +29,7 @@ export interface SettingsPageContainerProps {
 // gate App used to own inline.
 export function SettingsPageContainer({
   settingsProfile, notifyPrefs, hubs, publicKey, blockedUsers, ignoredUsers,
-  knownNames, inVoice, onHubProfileSaved, onUnblock, onUnignore,
+  knownNames, inVoice, onHubProfileSaved, onUnblock, onUnignore, webPush,
 }: SettingsPageContainerProps) {
   if (!settingsProfile.showSettings) return null;
   const close = () => settingsProfile.setShowSettings(false);
@@ -40,19 +42,9 @@ export function SettingsPageContainer({
         onClose={close}
         hubs={hubs}
         publicKey={publicKey}
-        theme={settingsProfile.theme}
-        onThemeChange={settingsProfile.handleSetTheme}
-        skin={settingsProfile.skin}
-        onSkinChange={settingsProfile.handleSkinChange}
-        customThemes={settingsProfile.customThemes}
-        activeCustomThemeId={settingsProfile.activeCustomThemeId}
-        onApplyCustomTheme={settingsProfile.handleApplyCustomTheme}
-        onNewCustomTheme={settingsProfile.handleNewCustomTheme}
-        onRenameCustomTheme={settingsProfile.handleRenameCustomTheme}
-        onDuplicateCustomTheme={settingsProfile.handleDuplicateCustomTheme}
-        onDeleteCustomTheme={settingsProfile.handleDeleteCustomTheme}
-        onImportSkin={settingsProfile.handleImportCustomTheme}
+        themes={settingsProfile.themes}
         onHubProfileSaved={onHubProfileSaved}
+        webPush={webPush}
         mentionPingEnabled={settingsProfile.mentionPingEnabled}
         onMentionPingChange={(v) => {
           settingsProfile.setMentionPingEnabled(v);

@@ -70,7 +70,7 @@ export async function listAppCommands(): Promise<
 export function sendAppJoin(appId: string, channelId: string): void {
   const { ws } = activeSession();
   if (ws) {
-    noteAppJoin(appId);
+    noteAppJoin(appId, channelId);
     ws.send({ type: "app_join", app_id: appId, channel_id: channelId });
   }
 }

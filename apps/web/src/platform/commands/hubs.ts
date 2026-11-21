@@ -1,4 +1,5 @@
 import { rawFetch, hubFetch, HubApiError } from "../http";
+import type { HubLanguagesInfo, HubThemeRef } from "@wavvon/ui";
 import {
   getSession,
   setSession,
@@ -45,6 +46,8 @@ interface InfoResponse {
   canonical_url?: string | null;
   farm_url?: string | null;
   landing?: HubLanding;
+  theme?: HubThemeRef;
+  languages?: HubLanguagesInfo;
   /** "off", "click", "puzzle" or "both": a join needs a solved challenge first. */
   challenge_mode?: string | null;
   welcome_label?: string | null;
@@ -194,67 +197,54 @@ export async function submitAdmissionChallenge(
 export async function addHub(
   hub_url: string,
   handlers: WsHandlers,
-  opts?: { invite_code?: string; rememberMe?: boolean; sessionToken?: string; challenge_token?: string },
+  opts?: { invite_code?: string; rememberMe?: boolean; challenge_token?: string },
 ): Promise<Hub> {
   const url = hub_url.replace(/\/$/, "");
 
   const info: InfoResponse = await rawFetch(`${url}/info`).then(
     (r) => r.json() as Promise<InfoResponse>,
   );
-  let token: string;
-  // "member" is the safe default for the sessionToken (webauthn) path below,
-  // where we don't get a scope back directly — a wrong "member" guess just
-  // means the WS handshake gets rejected once and self-corrects via
-  // onReauthNeeded, which re-authenticates through the full identity flow
-  // and does learn the real scope.
-  let scope: "member" | "lobby" = "member";
-  let canonical: string | undefined;
-  if (opts?.sessionToken) {
-    token = opts.sessionToken;
-    scope = await probeSessionScope(url, token);
-  } else {
-    const identity = await loadIdentity();
-    if (!identity) throw new Error("No identity — generate one first");
+  const identity = await loadIdentity();
+  if (!identity) throw new Error("No identity — generate one first");
 
-    const authBase = authBaseUrl(info, url, identity.subkey_cert);
-    // Whether this join needs the admission challenge is the hub's call — it
-    // waives it for a member and for a named invite — so ask by trying, and
-    // offer the challenge only when it says so. The refusal comes before the
-    // hub writes anything, so the retry starts clean.
-    const res = await authenticate(
-      authBase,
-      publicKeyHex(identity.seed_hex),
-      identity.seed_hex,
-      identity.security_nonce,
-      identity.security_level,
-      opts?.invite_code,
-      identity.subkey_cert,
-      undefined,
-      opts?.challenge_token,
-    ).catch((e: unknown) => {
-      if (!opts?.challenge_token && isChallengeRequired(e)) {
-        // The hub binds the token to the key /auth/verify presents, which is
-        // this device's own — not the canonical identity a paired device shows.
-        throw new ChallengeRequiredError(url, publicKeyHex(identity.seed_hex));
-      }
-      throw e;
-    });
-    token = res.token;
-    scope = res.scope;
-    canonical = res.canonicalPubkey || undefined;
-    if (authBase !== url) await admitFarmToken(url, token, opts?.invite_code);
-
-    // Paired device: persist the canonical identity the hub attributes our
-    // actions to, so the UI self-identifies as the shared user rather than
-    // this device's own subkey pubkey.
-    if (
-      identity.subkey_cert &&
-      res.canonicalPubkey &&
-      res.canonicalPubkey !== publicKeyHex(identity.seed_hex) &&
-      identity.canonical_pubkey !== res.canonicalPubkey
-    ) {
-      await saveIdentity({ ...identity, canonical_pubkey: res.canonicalPubkey });
+  const authBase = authBaseUrl(info, url, identity.subkey_cert);
+  // Whether this join needs the admission challenge is the hub's call — it
+  // waives it for a member and for a named invite — so ask by trying, and
+  // offer the challenge only when it says so. The refusal comes before the
+  // hub writes anything, so the retry starts clean.
+  const res = await authenticate(
+    authBase,
+    publicKeyHex(identity.seed_hex),
+    identity.seed_hex,
+    identity.security_nonce,
+    identity.security_level,
+    opts?.invite_code,
+    identity.subkey_cert,
+    undefined,
+    opts?.challenge_token,
+  ).catch((e: unknown) => {
+    if (!opts?.challenge_token && isChallengeRequired(e)) {
+      // The hub binds the token to the key /auth/verify presents, which is
+      // this device's own — not the canonical identity a paired device shows.
+      throw new ChallengeRequiredError(url, publicKeyHex(identity.seed_hex));
     }
+    throw e;
+  });
+  const token = res.token;
+  const scope = res.scope;
+  const canonical = res.canonicalPubkey || undefined;
+  if (authBase !== url) await admitFarmToken(url, token, opts?.invite_code);
+
+  // Paired device: persist the canonical identity the hub attributes our
+  // actions to, so the UI self-identifies as the shared user rather than
+  // this device's own subkey pubkey.
+  if (
+    identity.subkey_cert &&
+    res.canonicalPubkey &&
+    res.canonicalPubkey !== publicKeyHex(identity.seed_hex) &&
+    identity.canonical_pubkey !== res.canonicalPubkey
+  ) {
+    await saveIdentity({ ...identity, canonical_pubkey: res.canonicalPubkey });
   }
 
   const rememberMe = opts?.rememberMe ?? false;
@@ -278,6 +268,8 @@ export async function addHub(
     capabilities: info.capabilities ?? [],
     hub_version: info.version,
     landing: info.landing,
+    theme: info.theme,
+    languages: info.languages,
     canonical_pubkey: canonical,
   };
   setSession(info.public_key, session);
@@ -409,6 +401,8 @@ export async function refreshHubInfo(
       capabilities,
       hub_version: info.version,
       landing: info.landing,
+      theme: info.theme,
+      languages: info.languages,
     });
     updateSavedHub(hub_id, info.name, info.icon);
     saveHubCapabilities(hub_id, capabilities, info.version);
@@ -538,9 +532,8 @@ export async function reauthorizeHub(
   );
 
   s.ws?.close();
-  // A fresh handshake landing back in "lobby" (e.g. the previous session
-  // was wrongly assumed "member" via the sessionToken path in addHub, or
-  // min_security_level was raised after the original join) must not reopen
+  // A fresh handshake landing back in "lobby" (e.g. min_security_level was
+  // raised after the original join) must not reopen
   // the WS — that's exactly the reconnect storm this scope check prevents.
   const ws = scope === "lobby" ? null : new HubWebSocket(s.hub_url, token, hub_id, handlers);
   setSession(hub_id, { ...s, token, ws, scope, canonical_pubkey: canonicalPubkey || s.canonical_pubkey });

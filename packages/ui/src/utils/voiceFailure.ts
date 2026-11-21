@@ -1,5 +1,5 @@
-/** A QUIC handshake that gets no answer gives up after a few seconds (about
- *  4 s in Chromium and in wtransport); a refused one fails well under a
+/** A voice session that gets no answer gives up after the 10 s open timeout;
+ *  a refused one (the hub answering with an error) fails well under a
  *  second. A client cannot tell "UDP blocked" from "server down", so the
  *  slow case is worded as likely causes, not a diagnosis. */
 export const VOICE_UNREACHABLE_AFTER_MS = 3000;

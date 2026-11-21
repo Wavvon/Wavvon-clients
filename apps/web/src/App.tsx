@@ -10,6 +10,8 @@ import { useHubConnection } from "./hooks/useHubConnection";
 import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useAlliances } from "./hooks/useAlliances";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
+import { useActiveHubTheme } from "./hooks/useActiveHubTheme";
+import { useActiveHubLanguages } from "./hooks/useActiveHubLanguages";
 import { useWhisper } from "./hooks/useWhisper";
 import { useScreenShare } from "./hooks/useScreenShare";
 import { useDms } from "./hooks/useDms";
@@ -31,7 +33,7 @@ import { usePathInviteHandoff } from "./hooks/usePathInviteHandoff";
 import { usePermissions } from "./hooks/usePermissions";
 import { useWhisperReply } from "./hooks/useWhisperReply";
 import { useChannelDragEnd } from "./hooks/useChannelDragEnd";
-import { channelPath, classifyHubRefusal } from "@wavvon/core";
+import { appSessionKey, channelPath, classifyHubRefusal } from "@wavvon/core";
 import { getScoped, setScoped } from "./utils/accountScope";
 import { DISCOVERY_URL, MULTI_HUB } from "./constants";
 import type {
@@ -41,7 +43,10 @@ import type {
   Hub,
   MeInfo,
   Conversation,
+  Message,
 } from "@shared/types";
+import { SavedMessagesModal, notifyReminder, type SavedMessage } from "@wavvon/ui";
+import { useSavedList } from "./hooks/useSavedList";
 import type { AppLaunchEvent, AppOpenEvent } from "./types";
 import { HubTopBar, useHubLayout } from "@wavvon/ui";
 import { useUserMenu } from "./hooks/useUserMenu";
@@ -71,11 +76,10 @@ import { fetchMemberHistory } from "@platform";
 import { SurveyModal } from "@components/polls/SurveyModal";
 import { HubStreamsPanel, ShareDialog } from "@wavvon/ui";
 import { AddHubModal } from "@wavvon/ui";
-import { passkeysUsableWith } from "@platform";
 import { QuickInviteModal } from "@wavvon/ui";
 import { ChannelSettingsModal } from "@wavvon/ui";
 import { EditDescriptionModal } from "@wavvon/ui";
-import { AppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard } from "@wavvon/ui";
+import { AppLaunchCard, EventComposer, PollComposer, FocusTrap, GameModal, KeyboardShortcuts, ChannelContextMenu, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, DiscoverPage, Lobby, HubSetupWizard, HubSuggestions, hubInterestsOrDefault } from "@wavvon/ui";
 import { createEvent, createPoll } from "@platform";
 import { moveChannelOptions } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate } from "@wavvon/ui";
@@ -114,8 +118,9 @@ import {
 import {
   publishDhKey,
 } from "@platform";
-import { loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
-import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
+import { getActiveAccountId, loadIdentity, publicKeyHex, setSwitchGuard } from "@identity/index";
+import { useWebPush } from "./hooks/useWebPush";
+import { IdentitySetupScreen, type IdentitySetupCompletion } from "@components/identity/IdentitySetupScreen";
 import type { HubInputResult } from "@wavvon/core";
 
 // ---- Types ----
@@ -131,7 +136,7 @@ export interface AppProps {
 }
 
 export default function App({ initialView }: AppProps = {}) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
   const { hubErrorToast, showHubError } = useHubErrorToast();
 
@@ -234,6 +239,8 @@ export default function App({ initialView }: AppProps = {}) {
     setView,
     clearConversationSelection,
     clearUnread,
+    bumpUnread,
+    publicKey,
     selectedAllianceChannel,
     clearSelectedAllianceChannel,
     selectAllianceChannel,
@@ -310,10 +317,34 @@ export default function App({ initialView }: AppProps = {}) {
     onDm, onDmMemberChanged,
   } = dms;
   const notifyPrefs = useNotificationPrefs();
+  const saved = useSavedList((due) => {
+    for (const s of due) {
+      showHubError(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
+      notifyReminder(s, t("remind.notification_title", { where: s.channel_name ? `#${s.channel_name}` : s.hub_name ?? "" }), (x) => openSavedRef.current(x));
+    }
+  });
+  const openSavedRef = useRef<(s: SavedMessage) => void>(() => {});
+  const [showSaved, setShowSaved] = useState(false);
+  const webPush = useWebPush({
+    accountId: getActiveAccountId(),
+    hubs,
+    hubNotifyMode: notifyPrefs.hubNotifyMode,
+    channelNotifyMode: notifyPrefs.channelNotifyMode,
+    muteDeadlines: notifyPrefs.muteDeadlines,
+    loaded: channels.length > 0,
+    onOpen: ({ hubId, channelId, conversationId }) => {
+      if (conversationId) {
+        const conv = dms.conversations.find((c) => c.id === conversationId);
+        if (conv) void dms.handleSelectConversation(conv);
+      } else if (hubId && channelId) {
+        void applyDeepLinkTarget(hubId, { kind: "channel", channelId });
+      }
+    },
+  });
   const {
     hubNotifyMode, channelNotifyMode, pinnedChannels, collapsedCategories, hideSilenced,
     hideBirthdays, toggleHideBirthdays,
-    setHubNotifyMode, setChannelNotifyMode, setCollapsedCategories, toggleHideSilenced, effectiveNotifyMode,
+    setCollapsedCategories, toggleHideSilenced, effectiveNotifyMode,
   } = notifyPrefs;
   const silencedChannelIds = useMemo(() => {
     if (!activeHubId) return new Set<string>();
@@ -329,6 +360,10 @@ export default function App({ initialView }: AppProps = {}) {
     return m;
   }, [users]);
   const { blockedUsers, setBlockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore(showHubError);
+  // Applied while that hub is open: by default in the hub build, after the
+  // user opts in on the user build and desktop (useThemes hubThemesDefault).
+  useActiveHubTheme(activeHubId, settingsProfile.themes.setHubTheme);
+  useActiveHubLanguages(activeHubId);
   // === Hub admin ===
   const hubAdminState = useHubAdmin({
     activeHubId,
@@ -448,6 +483,7 @@ export default function App({ initialView }: AppProps = {}) {
 
   const [activeApps, setActiveApps] = useState<Map<string, AppLaunchEvent>>(new Map());
   const [activeOpenApp, setActiveOpenApp] = useState<{ event: AppOpenEvent; hubUrl: string } | null>(null);
+  useEffect(() => { if (!activeOpenApp) voice.clearRoomMover(); }, [activeOpenApp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadingHub = useRef(false);
 
@@ -464,10 +500,18 @@ export default function App({ initialView }: AppProps = {}) {
     });
   }, []);
 
-  function handleIdentityComplete() {
+  function handleIdentityComplete(result: IdentitySetupCompletion) {
     loadIdentity().then((rec) => {
       if (rec) setPublicKey(rec.canonical_pubkey ?? publicKeyHex(rec.seed_hex));
       setReady("ok");
+      // Onboarding's suggestions end where the directory's own join does.
+      if (result.join) {
+        setHubUrl(result.join.hubUrl);
+        setInviteCode(result.join.inviteCode);
+        setShowAddHub(true);
+      } else if (result.openDirectory) {
+        setShowDiscover(true);
+      }
     });
   }
 
@@ -530,12 +574,14 @@ export default function App({ initialView }: AppProps = {}) {
     onDm, onDmMemberChanged, receiveTyping,
     onScreenShare, onScreenShareChunk, resubscribeStreams, receiveSoundboardPlayed,
     handleStatusChange, setAssertiveAnnouncement, showHubError,
+    onAnyMessageDeleted: saved.markDeleted,
     loadHubDataRef,
     voiceOnVoiceState: voice.onVoiceState,
     voiceOnVoiceZoneState: voice.onVoiceZoneState,
     voiceOnVoiceZoneCreated: voice.onVoiceZoneCreated,
     voiceOnVoiceZoneDestroyed: voice.onVoiceZoneDestroyed,
     voiceOnVoicePositionUpdated: voice.onVoicePositionUpdated,
+    voiceOnVoicePositionRefused: voice.onVoicePositionRefused,
     voiceOnVoiceKeyReceived: voice.onVoiceKeyReceived,
     voiceOnVoiceKeyRequest: voice.onVoiceKeyRequest,
     handleVideoMessage: video.handleVideoMessage,
@@ -757,6 +803,38 @@ export default function App({ initialView }: AppProps = {}) {
     if (target.kind === "message") setPendingScrollMessageId(target.messageId);
   }
 
+  function toggleSaveMessage(m: Message) {
+    const e = savedEntryFor(m);
+    if (e) saved.toggle(e);
+  }
+
+  function savedEntryFor(m: Message): SavedMessage | null {
+    const hub = hubs.find((h) => h.hub_id === activeHubId);
+    if (!hub) return null;
+    return {
+      hub_id: hub.hub_id,
+      hub_url: hub.hub_url,
+      hub_name: hub.hub_name,
+      channel_id: m.channel_id,
+      channel_name: channels.find((c) => c.id === m.channel_id)?.name,
+      message_id: m.id,
+      author: m.sender_name ?? undefined,
+      excerpt: m.content,
+      message_at: m.created_at,
+      saved_at: Date.now(),
+    };
+  }
+
+  function openSavedMessage(s: SavedMessage) {
+    if (!hubs.some((h) => h.hub_id === s.hub_id)) {
+      showHubError(t("saved.hub_gone", { hub: s.hub_name ?? s.hub_url }));
+      return;
+    }
+    setView("channels");
+    void applyDeepLinkTarget(s.hub_id, { kind: "message", channelId: s.channel_id, messageId: s.message_id });
+  }
+  openSavedRef.current = openSavedMessage;
+
   // addHub only points the session's active hub at the new one when there was
   // none, so for a second hub the React state said "new hub" while every
   // hubFetch kept answering from the old one (the new header over the old
@@ -781,7 +859,6 @@ export default function App({ initialView }: AppProps = {}) {
     handleHubUrlInput,
     handlePreviewHub,
     handleAddHub,
-    handleAddHubWithPasskey,
   } = useAddHubFlow({
     publicKey, stableHandlers, hubsRef, setHubs, activateJoinedHub, loadHubData,
     applyDeepLinkTarget, t,
@@ -1027,6 +1104,16 @@ export default function App({ initialView }: AppProps = {}) {
         </div>
       )}
 
+      {showSaved && (
+        <SavedMessagesModal
+          items={saved.list}
+          onJump={openSavedMessage}
+          onRemove={saved.remove}
+          onDismissReminder={saved.dismissReminder}
+          onClose={() => setShowSaved(false)}
+        />
+      )}
+
       {showSearchBar && (
         <SearchBar
           onSearch={(q) => hubFetch(`/search?q=${encodeURIComponent(q)}`).then((r) => r.json())}
@@ -1077,6 +1164,7 @@ export default function App({ initialView }: AppProps = {}) {
       )}
 
       <SettingsPageContainer
+        webPush={webPush}
         settingsProfile={settingsProfile}
         notifyPrefs={notifyPrefs}
         hubs={hubs}
@@ -1147,10 +1235,12 @@ export default function App({ initialView }: AppProps = {}) {
         onBackToChannels={goToChannelsView}
         onSwitchHub={handleSwitchHub}
         onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
-        onSetHubNotifyMode={(hubId, mode) =>
-          setHubNotifyMode((prev) => { const n = { ...prev }; if (mode === "all") delete n[hubId]; else n[hubId] = mode; return n; })
-        }
+        hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+        onSetHubNotifyMode={(hubId, mode) => notifyPrefs.setHubMode(hubId, mode)}
+        onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
         onOpenSearch={() => setShowSearchBar(true)}
+        onOpenSaved={() => setShowSaved(true)}
+        savedDueCount={saved.dueCount}
         onAddHub={MULTI_HUB ? () => setShowAddHub(true) : undefined}
         onDiscover={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
         userMenu={userMenu}
@@ -1189,6 +1279,7 @@ export default function App({ initialView }: AppProps = {}) {
         whisperReplyBind={whisperReplyBind}
         onSetWhisperReplyBind={setWhisperReplyBind}
         onOpenQuickInvite={() => setShowQuickInvite(true)}
+        onOpenSetupTemplates={() => setShowHubSetupWizard(true)}
         onChannelContextMenu={(e, channel) => { e.preventDefault(); setChannelCtxMenu({ channel, x: e.clientX, y: e.clientY }); }}
         onOpenFriends={() => setShowFriends(true)}
         onOpenVoiceSettings={() => { settingsProfile.setSettingsTab("voice"); setShowSettings(true); }}
@@ -1202,8 +1293,20 @@ export default function App({ initialView }: AppProps = {}) {
           channelId={activeOpenApp.event.channel_id}
           appId={activeOpenApp.event.app_id}
           hubUrl={activeOpenApp.hubUrl}
-          title={activeApps.get(activeOpenApp.event.app_id)?.title ?? t("app.default_title")}
+          title={activeApps.get(appSessionKey(activeOpenApp.event.app_id, activeOpenApp.event.channel_id))?.title ?? t("app.default_title")}
           requiresCamera={activeOpenApp.event.requires_camera}
+          voice={{
+            state: {
+              inVoice: voice.voiceChannelId === activeOpenApp.event.channel_id,
+              zones: voice.roomZone ? [{ zone_id: voice.roomZone.zoneId, coordinate_system: "2d" }] : [],
+            },
+            refusals: voice.roomMover ? voice.positionRefusals : undefined,
+            onSetPosition: (zoneId, position) => voice.moveInRoomForApp(
+              activeApps.get(appSessionKey(activeOpenApp.event.app_id, activeOpenApp.event.channel_id))?.title ?? t("app.default_title"),
+              zoneId,
+              position,
+            ),
+          }}
           onClose={() => setActiveOpenApp(null)}
         />
       )}
@@ -1226,6 +1329,15 @@ export default function App({ initialView }: AppProps = {}) {
             }}
             initialHubUrl={homeHubUrl}
             onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
+            suggestions={DISCOVERY_URL ? (
+              <HubSuggestions
+                directoryUrl={DISCOVERY_URL}
+                fetchUrl={fetchWithTimeout}
+                interests={hubInterestsOrDefault(i18n.language)}
+                onJoinHub={(url, code) => { setHubUrl(url); setInviteCode(code); setShowAddHub(true); }}
+                onSeeAll={() => setShowDiscover(true)}
+              />
+            ) : undefined}
           />
         </main>
       ) : activeHubId && refusedHubs.has(activeHubId) ? (
@@ -1288,6 +1400,11 @@ export default function App({ initialView }: AppProps = {}) {
           );
         })()}
         <ContentArea
+          savedActions={{
+            isSaved: (messageId) => !!activeHubId && saved.isSaved(activeHubId, messageId),
+            toggleSaved: toggleSaveMessage,
+            remind: (m, at) => { const e = savedEntryFor(m); if (e) saved.remind(e, at); },
+          }}
           channelMessages={channelMessages}
           dms={dms}
           alliances={alliances}
@@ -1372,7 +1489,6 @@ export default function App({ initialView }: AppProps = {}) {
         effectiveNotifyMode={effectiveNotifyMode}
         eventComposerChannelId={eventComposerChannelId}
         handleAddHub={handleAddHub}
-        handleAddHubWithPasskey={handleAddHubWithPasskey}
         handleCreateChannel={handleCreateChannel}
         handleDeleteChannel={handleDeleteChannel}
         handleHubSetupWizardComplete={handleHubSetupWizardComplete}
@@ -1396,7 +1512,8 @@ export default function App({ initialView }: AppProps = {}) {
         renameRoomSaving={renameRoomSaving}
         setAddHubError={setAddHubError}
         setChannelCtxMenu={setChannelCtxMenu}
-        setChannelNotifyMode={setChannelNotifyMode}
+        setChannelMode={notifyPrefs.setChannelMode}
+        muteUntil={notifyPrefs.muteUntil}
         setChannelSettingsCtx={setChannelSettingsCtx}
         setChannelSettingsError={setChannelSettingsError}
         setCreateChannelCtx={setCreateChannelCtx}

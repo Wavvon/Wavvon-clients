@@ -53,11 +53,6 @@ pub fn frame_size_for_rate_and_ms(sample_rate: u32, frame_ms: u32) -> usize {
     (sample_rate as usize) * frame_ms as usize / 1000
 }
 
-/// Calculate frame size for 20ms at the given sample rate (backward compat).
-pub fn frame_size_for_rate(sample_rate: u32) -> usize {
-    frame_size_for_rate_and_ms(sample_rate, 20)
-}
-
 pub struct VoiceEncoder {
     encoder: OpusEncoder,
     pub frame_size: usize,
@@ -121,7 +116,8 @@ impl VoiceDecoder {
         let opus_rate = to_opus_rate(sample_rate)?;
         let decoder =
             OpusDecoder::new(opus_rate, Channels::Mono).context("Failed to create Opus decoder")?;
-        let frame_size = frame_size_for_rate(sample_rate);
+        // 120 ms is the longest packet Opus can carry; a sender may use any duration.
+        let frame_size = frame_size_for_rate_and_ms(sample_rate, 120);
 
         Ok(Self {
             decoder,
@@ -136,5 +132,30 @@ impl VoiceDecoder {
             .context("Opus decode error")?;
 
         Ok(&self.decode_buf[..len])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decoder_accepts_every_frame_duration_the_encoder_allows() {
+        for rate in [48000u32, 16000] {
+            for ms in [20u32, 40, 60] {
+                let cfg = EffectiveVoiceConfig {
+                    frame_duration_ms: ms,
+                    ..Default::default()
+                };
+                let mut enc = VoiceEncoder::new(rate, &cfg).unwrap();
+                let n = frame_size_for_rate_and_ms(rate, ms);
+                let pcm: Vec<f32> = (0..n).map(|i| (i as f32 * 0.05).sin() * 0.3).collect();
+                let packets = enc.encode(&pcm);
+                assert_eq!(packets.len(), 1);
+                let mut dec = VoiceDecoder::new(rate).unwrap();
+                let out = dec.decode(&packets[0]).unwrap();
+                assert_eq!(out.len(), n, "{ms} ms at {rate} Hz");
+            }
+        }
     }
 }

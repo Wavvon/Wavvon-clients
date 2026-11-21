@@ -35,6 +35,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // The Web Push worker the web client serves as a static file.
+    files: ["apps/web/public/push-sw.js"],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
@@ -52,6 +57,16 @@ export default tseslint.config(
       // its markup comes from, so the next one has to answer the same
       // question before it can land.
       "react/no-danger": "error",
+      // A translation is text, not markup: a catalogue may come from a
+      // language pack, and a disable comment on react/no-danger must not be
+      // able to let one through. Use <Trans components={...}> instead.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML'] CallExpression[callee.name='t']",
+          message: "Do not render a translated string as HTML; use <Trans components={...}>.",
+        },
+      ],
       "react-hooks/rules-of-hooks": "error",
 
       // Both initializers it flags are deliberate and documented: a `let`

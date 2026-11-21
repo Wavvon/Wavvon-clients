@@ -45,7 +45,7 @@ vi.stubGlobal("localStorage", {
   removeItem: (k: string) => { delete localStorageData[k]; },
 });
 
-import { VoiceWtSession } from "../voice";
+import { VoiceSession } from "../voice";
 
 const STUB_HANDLERS = {
   onReady: vi.fn(),
@@ -57,13 +57,13 @@ const JOIN_INFO = {
   channelId: "ch1",
   senderId: 0,
   participants: [],
-  wtUrl: "https://hub.example/voice",
   token: "token",
-  certHash: null,
+  hubUrl: "https://hub.example",
+  rtcSignal: async () => "",
 };
 
 function makeSession() {
-  return new VoiceWtSession(JOIN_INFO, STUB_HANDLERS);
+  return new VoiceSession(JOIN_INFO, STUB_HANDLERS);
 }
 
 beforeEach(() => {
@@ -72,7 +72,7 @@ beforeEach(() => {
   mockAudioCtx.createGain.mockImplementation(() => makeAudioNode());
 });
 
-describe("VoiceWtSession gains", () => {
+describe("VoiceSession gains", () => {
   it("loads gains from localStorage on construction", () => {
     localStorageData[GAINS_KEY] = JSON.stringify({ abc123: 150 });
     const session = makeSession();

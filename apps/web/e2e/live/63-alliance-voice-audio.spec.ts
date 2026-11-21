@@ -3,7 +3,7 @@ import { channelButton, expectInHub, newMemberPage, uniqueName, confirmInApp } f
 
 // P63 — audio crosses a hub boundary.
 //
-// P60 proves the visitor's WebTransport session to the *allied* hub's relay
+// P60 proves the visitor's WebRTC session to the *allied* hub's relay
 // comes up. That is admission, and admission is where every alliance-voice
 // assertion stopped: a room whose transport is open and whose roster is right
 // can still be completely silent, and was.

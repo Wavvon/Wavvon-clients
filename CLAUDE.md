@@ -60,8 +60,9 @@ entry points, which is why it is a flag and not a second app.
   alliance voice, which dials the owning hub's relay directly. Defining the
   flag as "one origin only" breaks alliance voice.
 - `scripts/check-hub-build.mjs` asserts three **code-only** markers are in
-  `dist` and absent from `dist-hub`. i18n keys are useless as markers — the
-  catalogs ship whole in both builds. Some marker classes carry no styling
+  `dist` and absent from `dist-hub`. i18n keys are useless as markers — every
+  catalogue is in both builds (English in the entry chunk, the others as
+  chunks loaded on demand). Some marker classes carry no styling
   and exist only to be grepped (`home-hubs-section`); renaming one turns the
   check green and meaningless, and deleting a screen takes its marker with it
   — that is how the check went red once after the create-hub removal.
@@ -178,7 +179,8 @@ Used by the desktop shell. Chain: cpal (capture/playback) -> nnnoiseless
 (RNNoise denoise) -> soundboard clip mixing (`soundboard.rs`: Ogg-Opus demux +
 decode, summed post-denoise so RNNoise can't eat the clip) -> audiopus (Opus
 encode/decode) -> ringbuf (bridges the real-time audio thread and tokio async)
--> per-packet AEAD seal -> WebTransport datagrams (`wtransport`, QUIC) -> hub relay.
+-> per-packet AEAD seal -> `transport.rs` (a WebRTC data channel via `str0m`, on hubs
+with `voice.webrtc`) -> hub relay.
 
 ---
 
@@ -368,16 +370,15 @@ it", the spec is about admission and the feature has no coverage.
   Terms that stay English in every locale (Soundboard, Hub, Ban, Push-to-talk…)
   and the one rendering each concept gets per locale are in
   `packages/i18n/GLOSSARY.md`.
-- **Four languages, all four in the bundle, and that is on purpose.** Measured
-  2026-08-29 with two real builds of `apps/web`: the three unused catalogues
-  cost **44.7 KB brotli out of 541 KB — 8%**, about 15 KB brotli per language
-  (much less than the ~25 KB each weighs alone, since the 1,336 keys are
-  identical across catalogues and compress away). Don't split them into
-  per-language chunks yet and don't re-measure: the trigger is the **fifth**
-  language, and at that point it is one line in `initI18n`, which already
-  receives the language before the app mounts. Downloadable packs are a
-  separate, larger thing gated on desktop delivery — see the docs wiki's
-  `future-features.md`.
+- **English is bundled; every other catalogue is a chunk loaded on demand.**
+  `initI18n` (async, awaited before the app mounts) `import()`s the chosen
+  language, and the Settings pickers go through `setLanguage`, which loads the
+  catalogue before switching. Measured with two builds of `apps/web`
+  (2026-11-17): the entry chunk drops from 469 KB to 379 KB brotli, and a
+  non-English user fetches one ~38 KB brotli chunk. `LANGUAGES` and
+  `resolveLanguage` in `@wavvon/i18n` are the one list of languages — add a
+  language there (and a loader beside it), not in the apps. Language packs: see
+  the docs wiki's `language-packs.md`.
 - **Two i18n checks, and they catch different things.** `check-i18n` proves
   three things about the catalogs: every key in `en.json` exists in it/es/de,
   every message parses as ICU, and every translation carries the same

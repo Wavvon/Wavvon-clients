@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, openSettingRow } from "./helpers/live";
 
 // P17 — mic level meter in Settings → Voice (client-only; getUserMedia +
@@ -14,7 +15,7 @@ test("mic test meter renders and toggles", async ({ page }) => {
 
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Voice", exact: true }).click();
+  await openSettingsSection(page, "Voice");
 
   await openSettingRow(page, "Sensitivity");
   await expect(page.getByText("Microphone test")).toBeVisible();

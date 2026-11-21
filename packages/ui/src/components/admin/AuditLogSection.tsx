@@ -34,6 +34,8 @@ const EVENT_TYPES = [
   "member.left",
   "member.kicked",
   "member.banned",
+  "voice.joined",
+  "voice.left",
   "message.created",
   "role.appearance_updated",
   "role_category.created",

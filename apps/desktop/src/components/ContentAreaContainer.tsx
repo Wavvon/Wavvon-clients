@@ -1,5 +1,5 @@
 import { memberActivity } from "@wavvon/ui";
-import type { AllianceScrollback } from "@wavvon/ui";
+import type { AllianceScrollback, MessageRowActions } from "@wavvon/ui";
 import { HubStreamsPanel, liveScreenShares, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
@@ -54,6 +54,7 @@ interface Props {
   channelMessages: ReturnType<typeof useChannelMessages>;
   dms: ReturnType<typeof useDms>;
   firstNotify: ReturnType<typeof useFirstNotify>;
+  savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
 }
 
 // Absorbs desktop's ContentArea call site (itself an app-local wrapper
@@ -69,7 +70,7 @@ export function ContentAreaContainer({
   openEditDescription, setUserContextMenu, slashCommands, openImage,
   setToast, setError, showHubStreams, setShowHubStreams,
   canMoveMembers, handleMoveMember,
-  voice, hubLifecycle, hubConnections, typing, channelMessages, dms, firstNotify,
+  voice, hubLifecycle, hubConnections, typing, channelMessages, dms, firstNotify, savedActions,
 }: Props) {
   const { activeHubId } = hubLifecycle;
   const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
@@ -114,7 +115,9 @@ export function ContentAreaContainer({
                 canManage: hasPerm("channels.manage"),
                 onEnable: voice.enableRoomMap,
                 onDisable: voice.disableRoomMap,
-                onMove: voice.moveInRoom,
+                onMove: (p) => voice.moveInRoom(p),
+                movedBy: voice.roomMover,
+                refused: voice.positionRefused,
               }
             : undefined,
           live: {
@@ -192,6 +195,8 @@ export function ContentAreaContainer({
         onClearFirstNotify={() => {
           if (activeHubId && selectedChannel) firstNotify.clearFirstNotify(activeHubId, selectedChannel.id);
         }}
+        firstUnreadId={channelMessages.firstUnreadId}
+        onMarkRead={channelMessages.markRead}
         onScrollToMessage={channelMessages.scrollToMessage}
         onSetMemberSidebarHidden={setMemberSidebarHidden}
         onSetSearchOpen={channelMessages.setSearchOpen}
@@ -217,6 +222,9 @@ export function ContentAreaContainer({
         onMoveMember={handleMoveMember}
         onStartConversation={(pubkey) => void dms.startDmWith(pubkey)}
         stickerActions={stickerActions}
+        onSendVoice={channelMessages.handleSendVoice}
+        savedActions={savedActions}
+        markUnread={caps.includes("channels.markunread") ? channelMessages.markUnread : undefined}
       />
       {showHubStreams && (
         <HubStreamsPanel

@@ -121,6 +121,7 @@ interface Props {
    * Falls back to isAdmin when omitted. */
   canOpenChannelSettings?: boolean;
   hubNotifyMode: Record<string, NotifyMode>;
+  hubMuteUntil?: Record<string, number>;
   hubDropdownOpen: boolean;
   /** Active hub's IANA timezone, for the ambient hub-local clock — absent/null
    *  when the hub hasn't set one. */
@@ -138,9 +139,12 @@ interface Props {
   onToggleCategoryCollapsed: (hubId: string, categoryId: string) => void;
   onHubDropdownOpenChange: (v: boolean) => void;
   onSetHubMode: (hubId: string, mode: NotifyMode) => void;
+  onMuteHubUntil?: (hubId: string, until: number) => void;
   onClearHubUnread: (hubId: string) => void;
   onRemoveHub: (hubId: string) => void;
   onOpenHubAdmin: () => void;
+  /** Owner/admin on a hub with no channels: reopen the setup templates. */
+  onOpenSetupTemplates?: () => void;
   onOpenHubAdminInvites: () => void;
   onOpenQuickInvite?: () => void;
   onOpenCreateChannel: (parentId: string | null, isCategory: boolean) => void;
@@ -210,14 +214,14 @@ export function ChannelSidebar({
   view, activeHubId, hubs, channels, selectedChannel,
   unreadByChannel, collapsedCategories,
   voicePartByChannel, voiceChannelId, voiceChannelNameHint, selfMuted, selfDeafened, micBelowGate, onOpenVoiceSettings,
-  users, dmPeerNames, publicKey, pingByHub, hubBannerUrl, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubDropdownOpen,
+  users, dmPeerNames, publicKey, pingByHub, hubBannerUrl, isAdmin, canCreateInvites, canOpenChannelSettings, hubNotifyMode, hubMuteUntil, hubDropdownOpen,
   hubTimezone,
   hideSilenced, silencedChannelIds,
   userAlliances, allianceChannels, selectedAllianceChannel,
   conversations, selectedConversation, unreadDms,
   channelTree, effectiveNotifyMode, onToggleCategoryCollapsed,
-  onHubDropdownOpenChange, onSetHubMode, onClearHubUnread, onRemoveHub,
-  onOpenHubAdmin, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
+  onHubDropdownOpenChange, onSetHubMode, onMuteHubUntil, onClearHubUnread, onRemoveHub,
+  onOpenHubAdmin, onOpenSetupTemplates, onOpenHubAdminInvites, onOpenQuickInvite, onOpenCreateChannel,
   onSelectChannel, onChannelContextMenu, onOpenChannelSettings,
   onVoiceJoin, onVoiceLeave, onParticipantContextMenu, voiceChannelsOnly,
   onSelectAllianceChannel, onJoinAllianceVoice, onSelectConversation,
@@ -504,6 +508,7 @@ export function ChannelSidebar({
                 canCreateInvites={canCreateInvites}
                 hideSilenced={hideSilenced}
                 hubNotifyMode={hubNotifyMode}
+                hubMuteUntil={hubMuteUntil}
                 notifyModeLabels={notifyModeLabels}
                 unreadByChannel={unreadByChannel}
                 onOpenHubAdmin={onOpenHubAdmin}
@@ -511,6 +516,7 @@ export function ChannelSidebar({
                 onOpenQuickInvite={onOpenQuickInvite}
                 onOpenCreateChannel={onOpenCreateChannel}
                 onSetHubMode={onSetHubMode}
+                onMuteHubUntil={onMuteHubUntil}
                 onToggleHideSilenced={onToggleHideSilenced}
                 onClearHubUnread={onClearHubUnread}
                 onRemoveHub={onRemoveHub}
@@ -659,7 +665,14 @@ export function ChannelSidebar({
                 )}
               </DragOverlay>
             </DndContext>
-            {channels.length === 0 && <p className="muted">{t("channel.no_channels")}</p>}
+            {channels.length === 0 && (onOpenSetupTemplates ? (
+              <div className="muted" style={{ padding: "var(--space-2) var(--space-3)" }}>
+                <p>{t("channel.empty_owner")}</p>
+                <button type="button" className="btn-secondary" onClick={onOpenSetupTemplates}>
+                  {t("channel.empty_owner_templates")}
+                </button>
+              </div>
+            ) : <p className="muted">{t("channel.no_channels")}</p>)}
 
             {userAlliances.length > 0 && (
               <div className="sidebar-alliances">
@@ -786,6 +799,7 @@ export function ChannelSidebar({
               canCreateInvites={canCreateInvites}
               hideSilenced={hideSilenced}
               hubNotifyMode={hubNotifyMode}
+              hubMuteUntil={hubMuteUntil}
               notifyModeLabels={notifyModeLabels}
               unreadByChannel={unreadByChannel}
               onOpenHubAdmin={onOpenHubAdmin}
@@ -793,6 +807,7 @@ export function ChannelSidebar({
               onOpenQuickInvite={onOpenQuickInvite}
               onOpenCreateChannel={onOpenCreateChannel}
               onSetHubMode={onSetHubMode}
+              onMuteHubUntil={onMuteHubUntil}
               onToggleHideSilenced={onToggleHideSilenced}
               onClearHubUnread={onClearHubUnread}
               onRemoveHub={onRemoveHub}

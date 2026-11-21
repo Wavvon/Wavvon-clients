@@ -5,8 +5,8 @@ import { expectInHub, confirmInApp } from "./helpers/live";
 //
 // This is the one alliance path where the client talks to a hub it never
 // joined: its own hub signs a grant, the other hub redeems it, and the client
-// then dials that hub's WebTransport relay direct — a datagram carries no path
-// to route on, so nothing proxies it (alliances.md, voice-transport-v2.md).
+// then binds a WebRTC session to that hub's relay direct — a datagram carries
+// no path to route on, so nothing proxies it (alliances.md, voice-transport-v3.md).
 //
 // It is also the only voice assertion in this suite that cannot pass on a
 // broken transport. Every other one reads roster state the hub pushes over the

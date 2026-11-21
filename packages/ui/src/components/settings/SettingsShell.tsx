@@ -1,82 +1,200 @@
-import type { ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CloseIcon } from "../Icons";
+import { searchSettings } from "./settingsSearch";
 
-export interface SettingsTabDef<TTab extends string = string> {
-  id: TTab;
+export interface SettingsAreaDef<TArea extends string = string> {
+  id: TArea;
   label: string;
-  group: string;
-  /** Accessible label for a marker on the tab: something there needs the
-   *  user. Absent means no marker. */
-  attention?: string;
-  /** The tab applies to this device whatever account is picked. */
+  /** Applies to this device whatever account is picked; said once at the
+   *  top of the page when there is an account picker. */
   deviceWide?: boolean;
+  /** Reached from the header link, not from the area tabs. */
+  hidden?: boolean;
 }
 
-interface Props<TTab extends string> {
+export interface SettingsSectionDef<TSection extends string = string, TArea extends string = string> {
+  id: TSection;
+  label: string;
+  area: TArea;
+  /** Accessible label for a marker: something here needs the user. */
+  attention?: string;
+  /** What else the search should find this section by: the titles of the
+   *  rows inside it, in the viewer's language. */
+  keywords?: string[];
+}
+
+interface Props<TSection extends string, TArea extends string> {
   title: string;
-  tabs: SettingsTabDef<TTab>[];
-  activeTab: TTab;
-  onTab: (t: TTab) => void;
+  areas: SettingsAreaDef<TArea>[];
+  /** In page order: an area's sections stack in the order listed here. */
+  sections: SettingsSectionDef<TSection, TArea>[];
+  activeSection: TSection;
+  onSection: (s: TSection) => void;
+  renderSection: (s: TSection) => ReactNode;
   onClose: () => void;
-  /** Whose settings the account-scoped tabs show; rendered under the title. */
+  /** Whose settings the account-scoped areas show; sits in the header. */
   accountPicker?: ReactNode;
-  children: ReactNode;
+  /** The section the header's help link opens. */
+  helpSection?: TSection;
+  /** Save progress or an error for the whole page, shown in one bar at the
+   *  bottom instead of once per section. */
+  status?: ReactNode;
 }
 
-// The grouped-nav settings skeleton (Accounts / App / Audio & video —
-// settings-ia.md §2), shared by both apps. Callers own their own TAB id
-// union and tab bodies; this only owns the sidebar layout and the
-// contiguous-group-header rendering.
-export function SettingsShell<TTab extends string>({ title, tabs, activeTab, onTab, onClose, accountPicker, children }: Props<TTab>) {
+const anchorId = (id: string) => `settings-section-${id}`;
+
+// Settings as a few areas across the top, each one scrolling page whose
+// sections stack in order, with an index of them on the left (settings
+// redesign, Wavvon-clients#464). Shared by both apps; callers own the ids,
+// the grouping and the section bodies, which keep their own <section> root so
+// the `.settings-content > section` rhythm still applies.
+export function SettingsShell<TSection extends string, TArea extends string>({
+  title, areas, sections, activeSection, onSection, renderSection, onClose, accountPicker, helpSection, status,
+}: Props<TSection, TArea>) {
   const { t } = useTranslation();
+  const mainRef = useRef<HTMLElement>(null);
+  const [spied, setSpied] = useState<TSection | null>(null);
+  const [query, setQuery] = useState("");
+  const hits = searchSettings(sections, areas, query);
+  function go(id: TSection) {
+    setQuery("");
+    onSection(id);
+  }
+
+  const activeArea = sections.find((s) => s.id === activeSection)?.area ?? sections[0]?.area;
+  const areaDef = areas.find((a) => a.id === activeArea);
+  const pageSections = sections.filter((s) => s.area === activeArea);
+
+  // Land on the asked-for section, whether it came from a tab, the index or a
+  // deep link from elsewhere in the app.
+  useEffect(() => {
+    setSpied(null);
+    const main = mainRef.current;
+    const anchor = document.getElementById(anchorId(activeSection));
+    if (!main || !anchor) return;
+    const first = pageSections[0]?.id === activeSection;
+    main.scrollTop = first ? 0 : anchor.offsetTop - main.offsetTop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection]);
+
+  // The index follows the scroll: the current section is the last one whose
+  // anchor has passed the top of the page.
+  function onScroll() {
+    const main = mainRef.current;
+    if (!main || pageSections.length < 2) return;
+    let current = pageSections[0].id;
+    for (const s of pageSections) {
+      const a = document.getElementById(anchorId(s.id));
+      if (a && a.offsetTop - main.offsetTop <= main.scrollTop + 24) current = s.id;
+    }
+    setSpied(current);
+  }
+
+  const highlighted = spied ?? activeSection;
+  const firstOf = (area: TArea) => sections.find((s) => s.area === area)?.id;
+  const areaAttention = (area: TArea) => sections.find((s) => s.area === area && s.attention)?.attention;
 
   return (
-    <div className="settings-page" style={{ display: "flex", height: "100%", minHeight: 0 }}>
-      <aside className="settings-nav" style={{ width: 180, flexShrink: 0, borderRight: "1px solid var(--border)", padding: "16px 8px", display: "flex", flexDirection: "column" }}>
-        <h2>{title}</h2>
-        {accountPicker}
-        {accountPicker && tabs.find((tab) => tab.id === activeTab)?.deviceWide && (
-          <p className="muted" style={{ fontSize: "var(--text-xs)", margin: "var(--space-1) var(--space-3) 0" }}>
-            {t("settings.device_wide")}
-          </p>
-        )}
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
-          {tabs.map((tab, i) => (
-            <li key={tab.id}>
-              {(i === 0 || tabs[i - 1].group !== tab.group) && (
-                <div className="settings-nav-group">{tab.group}</div>
-              )}
+    <div className="settings-page settings-shell">
+      <header className="settings-header">
+        <div className="settings-header-row">
+          <h2>{title}</h2>
+          {accountPicker}
+          <span style={{ flex: 1 }} />
+          <div className="settings-search">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && hits[0]) go(hits[0].id);
+                if (e.key === "Escape") setQuery("");
+              }}
+              placeholder={t("settings.search.placeholder")}
+              aria-label={t("settings.search.placeholder")}
+            />
+            {query.trim() && (
+              <ul className="settings-search-results" aria-label={t("settings.search.results")}>
+                {hits.length === 0 && <li className="muted">{t("settings.search.none")}</li>}
+                {hits.map((h) => (
+                  <li key={h.id}>
+                    <button type="button" onClick={() => go(h.id)}>
+                      <span>{h.label}</span>
+                      <span className="muted">{h.areaLabel}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {helpSection && (
+            <button type="button" className="btn-ghost settings-help-link" onClick={() => go(helpSection)}>
+              {t("settings.tabs.help")}
+            </button>
+          )}
+          <button type="button" className="settings-close-x" onClick={onClose} title={t("modal.close")} aria-label={t("modal.close")}>
+            <CloseIcon size={13} />
+          </button>
+        </div>
+        <nav className="settings-areas" aria-label={title}>
+          {areas.filter((a) => !a.hidden).map((a) => {
+            const attention = areaAttention(a.id);
+            return (
               <button
-                className={`settings-nav-item${activeTab === tab.id ? " active" : ""}`}
-                onClick={() => onTab(tab.id)}
-                title={tab.attention}
-                style={{ width: "100%", textAlign: "left", padding: "6px 10px", borderRadius: "var(--r-sm)" }}
+                key={a.id}
+                type="button"
+                className={`settings-area-tab${a.id === activeArea ? " active" : ""}`}
+                aria-current={a.id === activeArea ? "page" : undefined}
+                title={attention}
+                onClick={() => {
+                  const first = firstOf(a.id);
+                  if (first) onSection(first);
+                }}
               >
-                {tab.label}
-                {/* A description, not part of the name: the tab is still
-                    called what it says, for people and for lookups by name. */}
-                {tab.attention && <span className="settings-nav-dot" aria-hidden="true" />}
+                {a.label}
+                {attention && <span className="settings-nav-dot" aria-hidden="true" />}
               </button>
-            </li>
-          ))}
-        </ul>
-        <button className="settings-nav-close btn-ghost" onClick={onClose} style={{ marginTop: 8 }}>
-          {t("modal.close")}
-        </button>
-      </aside>
+            );
+          })}
+        </nav>
+      </header>
 
-      <main className="settings-content" style={{ flex: 1, overflow: "auto", padding: 24, position: "relative" }}>
-        <button
-          className="settings-close-x"
-          onClick={onClose}
-          title={t("modal.close")}
-          style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--text-muted)" }}
-        >
-          <CloseIcon size={13} />
-        </button>
-        {children}
-      </main>
+      <div className="settings-body">
+        {pageSections.length > 1 && (
+          <nav className="settings-nav settings-index" aria-label={areaDef?.label}>
+            <ul>
+              {pageSections.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    className={`settings-nav-item${s.id === highlighted ? " active" : ""}`}
+                    aria-current={s.id === highlighted ? "location" : undefined}
+                    title={s.attention}
+                    onClick={() => onSection(s.id)}
+                  >
+                    {s.label}
+                    {s.attention && <span className="settings-nav-dot" aria-hidden="true" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+
+        <main ref={mainRef} className="settings-content" onScroll={onScroll}>
+          {accountPicker && areaDef?.deviceWide && (
+            <p className="muted settings-device-note">{t("settings.device_wide")}</p>
+          )}
+          {pageSections.map((s) => (
+            <Fragment key={s.id}>
+              <span id={anchorId(s.id)} className="settings-anchor" />
+              {renderSection(s.id)}
+            </Fragment>
+          ))}
+          <div className="settings-status-bar" role="status">{status}</div>
+        </main>
+      </div>
     </div>
   );
 }

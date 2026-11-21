@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, hubApi } from "./helpers/live";
 
 // P14 — avatar image upload (parity with desktop's ImagePicker). Picking a
@@ -18,7 +19,7 @@ test("upload an avatar image; it saves as a data URL", async ({ page }) => {
 
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Profile", exact: true }).click();
+  await openSettingsSection(page, "Profile");
   await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
   // The default profile context is local-only (P24) — editing the hub's own
   // context is what actually PATCHes /me. Index 0 is the default profile;

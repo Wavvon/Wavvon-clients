@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, startCameraPreview } from "./helpers/live";
 
 // P43 — Settings → Camera leads with a live preview, and the device and
@@ -10,7 +11,7 @@ async function openCameraSettings(page: Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.locator(".settings-nav").getByRole("button", { name: "Camera", exact: true }).click();
+  await openSettingsSection(page, "Camera");
 }
 
 test("camera tab shows the preview and its controls without opening anything", async ({ page }) => {

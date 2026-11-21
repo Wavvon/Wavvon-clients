@@ -215,17 +215,17 @@ export function decryptDm(
 
 // --- Double Ratchet v2 ---
 
-function kdfRk(rk: Uint8Array, dhOutput: Uint8Array): [Uint8Array, Uint8Array] {
+export function kdfRk(rk: Uint8Array, dhOutput: Uint8Array): [Uint8Array, Uint8Array] {
   const out = hkdf(sha256, dhOutput, rk, new TextEncoder().encode("wavvon/dr-rk/v2"), 64);
   return [out.slice(0, 32), out.slice(32, 64)];
 }
 
-function kdfCk(ck: Uint8Array): [Uint8Array, Uint8Array] {
+export function kdfCk(ck: Uint8Array): [Uint8Array, Uint8Array] {
   const out = hkdf(sha256, ck, new Uint8Array(0), new TextEncoder().encode("wavvon/dr-ck-step/v2"), 64);
   return [out.slice(0, 32), out.slice(32, 64)];
 }
 
-function deriveNonce(msgKey: Uint8Array): Uint8Array {
+export function deriveNonce(msgKey: Uint8Array): Uint8Array {
   return hkdf(sha256, msgKey, new Uint8Array(0), new TextEncoder().encode("wavvon/dr-nonce/v2"), 12);
 }
 

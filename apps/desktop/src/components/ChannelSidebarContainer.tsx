@@ -27,6 +27,7 @@ import type { useDms } from "../hooks/useDms";
 
 interface Props {
   onRequestRemoveHub: (hubId: string) => void;
+  onOpenSetupTemplates: () => void;
   view: "channels" | "dms";
   channels: Channel[];
   users: User[];
@@ -85,7 +86,7 @@ interface Props {
 // singular props here) move in with them. ChannelSidebar's own prop surface
 // is untouched.
 export function ChannelSidebarContainer({
-  view, channels, users, publicKey, isAdmin, myRoles,
+  view, channels, users, publicKey, isAdmin, myRoles, onOpenSetupTemplates,
   collapsedCategories, onToggleCategoryCollapsed,
   voiceChannelNameHint, setVoiceChannelNameHint, setVoiceMoveMenu,
   hubDropdownOpen, setHubDropdownOpen,
@@ -165,12 +166,15 @@ export function ChannelSidebarContainer({
       effectiveNotifyMode={effectiveNotifyMode}
       onToggleCategoryCollapsed={onToggleCategoryCollapsed}
       onHubDropdownOpenChange={setHubDropdownOpen}
-      onSetHubMode={notifyPrefs.setHubMode}
+      onSetHubMode={(hubId, mode) => notifyPrefs.setHubMode(hubId, mode)}
+      hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+      onMuteHubUntil={(hubId, until) => notifyPrefs.setHubMode(hubId, "silent", until)}
       onClearHubUnread={(hubId) => { unreadCounts.clearHubUnread(hubId); clearHubFirstNotify(hubId); }}
       onRemoveHub={onRequestRemoveHub}
       onOpenHubAdmin={() => { setHubDropdownOpen(false); openHubAdmin(); }}
       onOpenHubAdminInvites={() => { setHubDropdownOpen(false); openHubAdminInvites(); }}
       onOpenQuickInvite={() => setShowQuickInvite(true)}
+      onOpenSetupTemplates={isAdmin ? onOpenSetupTemplates : undefined}
       onOpenCreateChannel={openCreateChannelUnder}
       onSelectChannel={channelMessages.selectChannel}
       onChannelContextMenu={onChannelContextMenu}

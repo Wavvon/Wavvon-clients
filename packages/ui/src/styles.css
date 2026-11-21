@@ -623,21 +623,7 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
   font-weight: var(--weight-medium);
 }
 
-.settings-nav-close {
-  margin-top: auto;
-  padding: var(--space-2) var(--space-3);
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: var(--text-xs);
-}
 
-.settings-nav-close:hover {
-  background: var(--surface);
-  color: var(--text);
-}
 
 .settings-content {
   flex: 1 1 auto;
@@ -676,74 +662,6 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
   background: var(--surface);
   color: var(--text);
 }/* ============================================================
-   THEME SWITCHER (Settings → Appearance)
-   ============================================================ */
-.theme-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-
-.theme-card {
-  position: relative;
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: var(--r-md);
-  padding: var(--space-4);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  text-align: left;
-  color: var(--text);
-}
-
-.theme-card:hover {
-  border-color: var(--text-faint);
-}
-
-.theme-card.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--ring);
-}
-
-.theme-card-name {
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-}
-
-.theme-card-default {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  background: var(--accent);
-  color: var(--accent-text);
-  font-size: 9px;
-  font-weight: var(--weight-bold);
-  padding: 2px 6px;
-  border-radius: var(--r-pill);
-}
-
-.theme-card-swatches {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.theme-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border);
-}
-
-.theme-card-tagline {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  line-height: var(--leading-normal);
-}
-
-/* ============================================================
    AVATAR
    ============================================================ */
 /* A squared tile, not a disc: it lines up with the 4px grid everything else
@@ -1315,6 +1233,12 @@ body:has(.channel-banner) #root {
 .update-banner-error {
   color: var(--danger);
   font-size: var(--text-xs);
+}
+
+.update-banner-progress {
+  width: 160px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
 }
 
 .update-banner-installing {
@@ -4095,6 +4019,54 @@ select:focus-visible {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* Voice message player (VoiceMessagePlayer) and recorder (VoiceRecordButton). */
+.voice-message {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  max-width: 100%;
+}
+.voice-message-play,
+.voice-message-speed {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  min-width: 28px;
+}
+.voice-message-speed { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.voice-message-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  width: 200px;
+  cursor: pointer;
+}
+.voice-message-bar {
+  flex: 1;
+  background: var(--text-muted);
+  border-radius: 1px;
+  opacity: 0.5;
+}
+.voice-message-bar.played { background: var(--accent); opacity: 1; }
+.voice-message-time { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.voice-record-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.voice-record-status.cancel { color: var(--danger); }
+.voice-record-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+
 .message-attachment-file {
   display: inline-flex;
   align-items: center;
@@ -4530,6 +4502,44 @@ select:focus-visible {
 
 .day-separator-label {
   white-space: nowrap;
+}
+
+.new-messages-divider {
+  color: var(--accent);
+}
+
+.new-messages-divider::before,
+.new-messages-divider::after {
+  background: var(--accent);
+}
+
+/* Sticky inside the message list, so it stays over the messages and clear
+   of the channel header. Zero height (and the list gap taken back): showing
+   or hiding it must not move the messages, or a jump that hides it lands
+   one bar short of the divider and brings it straight back. */
+.new-messages-bar {
+  position: sticky;
+  top: 0;
+  height: 0;
+  margin-bottom: calc(-1 * var(--space-2));
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: var(--space-2);
+  z-index: 6;
+}
+
+.new-messages-bar-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: var(--r-pill);
+  font-size: var(--text-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .message-reactions {
@@ -8707,44 +8717,6 @@ input[type="range"] {
 .setting-row-control select {
   min-width: 140px;
 }
-.theme-picker {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-3);
-}
-
-.theme-choice {
-  padding: 8px 16px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.theme-choice.active {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-  font-weight: var(--weight-medium);
-}
-.device-list {
-  list-style: none;
-  margin: var(--space-2) 0 0;
-  padding: 0;
-}
-
-.device-list-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.device-list-item:last-child {
-  border-bottom: none;
-}
 .setting-row {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -8975,7 +8947,6 @@ details.audit-entry > .audit-entry:last-child {
   .settings-nav h2, .settings-nav > p, .settings-nav-group { display: none; }
   .settings-nav ul { display: flex; gap: var(--space-1); }
   .settings-nav-item { width: auto; white-space: nowrap; }
-  .settings-nav-close { display: none; }
   .settings-content { padding: var(--space-4) !important; }
   .settings-close-x { top: var(--space-3); right: var(--space-3); }
   /* Title keeps a readable width; a wide control drops to its own line. */
@@ -8983,7 +8954,6 @@ details.audit-entry > .audit-entry:last-child {
   .setting-row-id { flex: 1 1 12rem; }
   .setting-row-control select { min-width: 0; max-width: 100%; }
   .modal { min-width: 0; max-width: calc(100vw - 2 * var(--space-2)); }
-  .theme-cards { grid-template-columns: 1fr; }
   .mobile-shell-header {
     display: flex;
     align-items: center;
@@ -9072,4 +9042,375 @@ details.audit-entry > .audit-entry:last-child {
 
 .voice-room-map-off {
   margin-top: var(--space-3);
+}
+
+.themed-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.themed-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.themed-icon-off .themed-icon {
+  opacity: 0.55;
+}
+
+.themed-icon-off::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 2px;
+  background: var(--danger);
+  transform: rotate(-45deg);
+}
+
+.theme-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-position: center;
+}
+
+html[data-theme-bg] body {
+  background-color: transparent;
+}
+
+/* Layout options (themes.md section 1), set on <html> by useThemes. Wide
+   screens only: the narrow layout is a different shell. */
+html[data-layout-density="compact"] {
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 9px;
+  --space-4: 12px;
+  --space-5: 18px;
+  --space-6: 24px;
+}
+
+html[data-layout-avatar-shape="circle"] .avatar-img,
+html[data-layout-avatar-shape="circle"] .avatar-fallback {
+  border-radius: 50%;
+}
+
+html[data-layout-channel-list="compact"] .channel-item {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: var(--text-sm);
+}
+
+html[data-layout-member-list="hidden"] .user-list-sidebar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  html[data-layout-member-list="left"] .mobile-shell-desktop > .top-bar { order: -3; }
+  html[data-layout-member-list="left"] .mobile-shell-desktop > .sidebar { order: -2; }
+  html[data-layout-member-list="left"] .user-list-sidebar {
+    order: -1;
+    border-left: 0;
+    border-right: 1px solid var(--border);
+  }
+
+  html[data-layout-tabs="side"] .main-layout { flex-wrap: nowrap; }
+  html[data-layout-tabs="side"] .main-layout > .mobile-shell-desktop > :not(.top-bar) { height: 100%; }
+  html[data-layout-tabs="side"] .mobile-shell-desktop > .top-bar {
+    flex: 0 0 72px;
+    width: 72px;
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-2);
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  html[data-layout-tabs="side"] .top-bar .hub-tabs { flex-direction: column; overflow: visible; }
+  html[data-layout-tabs="side"] .top-bar .top-bar-spacer { flex: 1; }
+  html[data-layout-tabs="side"] .top-bar .hub-tab-name,
+  html[data-layout-tabs="side"] .top-bar .top-bar-search span,
+  html[data-layout-tabs="side"] .top-bar .top-bar-search kbd { display: none; }
+}
+/* Hub settings: identity edited on a preview of the invite landing. */
+.invite-landing-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-bottom: var(--space-3);
+}
+.invite-landing-side {
+  min-height: 280px;
+  border-right: 1px solid var(--border);
+}
+.invite-landing-edit-bg {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.invite-landing-name {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semi);
+}
+.invite-landing-description {
+  resize: none;
+  color: var(--text-muted);
+}
+.invite-landing-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--bg);
+  opacity: 0.5;
+}
+.invite-landing-bar {
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.invite-landing-bar.short {
+  width: 60%;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.invite-landing-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* The native swatch carries its own padding; without this it shrinks to a sliver. */
+.invite-landing-controls input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.invite-landing-controls input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+.invite-landing-controls input[type="color"] {
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 0;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: none;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .invite-landing-preview {
+    grid-template-columns: 1fr;
+  }
+  .invite-landing-side {
+    border-right: none;
+  }
+  .invite-landing-next {
+    display: none;
+  }
+}
+/* ============================================================
+   SETTINGS SHELL: areas across the top, one scrolling page per area
+   with an index of its sections on the left (Wavvon-clients#464).
+   ============================================================ */
+.settings-shell {
+  flex-direction: column;
+  min-height: 0;
+}
+.settings-header {
+  flex-shrink: 0;
+  padding: var(--space-4) var(--space-6) 0;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+}
+.settings-header-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.settings-header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semi);
+}
+.settings-header .settings-account-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+}
+.settings-header .settings-account-picker .settings-nav-group {
+  padding: 0;
+}
+.settings-header .settings-account-picker select {
+  width: auto !important;
+  max-width: 220px;
+}
+.settings-header .settings-close-x {
+  position: static;
+}
+.settings-help-link {
+  font-size: var(--text-sm);
+}
+.settings-areas {
+  display: flex;
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+  overflow-x: auto;
+}
+.settings-area-tab {
+  padding: var(--space-3) 2px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semi);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.settings-area-tab:hover {
+  color: var(--text);
+}
+.settings-area-tab.active {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent);
+}
+.settings-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.settings-index {
+  width: 200px;
+  flex-shrink: 0;
+  background: none;
+}
+.settings-index .settings-nav-item.active {
+  color: var(--accent-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+  border-radius: 0;
+}
+.settings-anchor {
+  display: block;
+  height: 0;
+}
+.settings-content > .settings-anchor + section {
+  margin-top: var(--space-7);
+}
+.settings-content > .settings-anchor:first-child + section,
+.settings-device-note + .settings-anchor + section {
+  margin-top: 0;
+}
+.settings-device-note {
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-4);
+}
+@media (max-width: 767px) {
+  .settings-header {
+    padding: var(--space-3) var(--space-3) 0;
+  }
+  .settings-header-row {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+  .settings-header .settings-account-picker .settings-nav-group {
+    display: none;
+  }
+  .settings-header .settings-account-picker select {
+    max-width: 130px;
+  }
+  .settings-body {
+    flex-direction: column;
+  }
+  .settings-index {
+    width: 100%;
+  }
+}
+/* One save status for the whole settings page, pinned to its bottom. */
+.settings-status-bar {
+  position: sticky;
+  bottom: 0;
+  width: fit-content;
+  margin: var(--space-5) auto 0;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.settings-status-bar:empty {
+  visibility: hidden;
+}
+/* Settings search: finds a section in any area by its name or the rows in it. */
+.settings-search {
+  position: relative;
+  flex: 0 1 260px;
+}
+.settings-search input {
+  width: 100%;
+}
+.settings-search-results {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+}
+.settings-search-results li.muted {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+.settings-search-results button {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.settings-search-results button:hover,
+.settings-search-results button:focus-visible {
+  background: var(--surface-hover);
+}
+@media (max-width: 767px) {
+  .settings-header-row {
+    flex-wrap: wrap;
+  }
+  .settings-search {
+    order: 10;
+    flex: 1 1 100%;
+  }
 }

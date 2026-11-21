@@ -20,7 +20,10 @@ import type {
   MeInfo,
   Conversation,
   LobbyStatus,
+  Message,
 } from "./types";
+import { SavedMessagesModal, notifyReminder, type SavedMessage } from "@wavvon/ui";
+import { useSavedList } from "./hooks/useSavedList";
 import { PendingApplication } from "./components/PendingApplication";
 import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
 import { useConfirm, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions } from "@wavvon/ui";
@@ -31,6 +34,7 @@ import { useWhisperReply } from "./hooks/useWhisperReply";
 import { useCollapsedCategories } from "./hooks/useCollapsedCategories";
 import { useBlockIgnore } from "./hooks/useBlockIgnore";
 import { useActiveApps } from "./hooks/useActiveApps";
+import { useMiniAppVoiceBridge } from "./hooks/useMiniAppVoiceBridge";
 import { useDeepLink } from "./hooks/useDeepLink";
 import { useMeProfile } from "./hooks/useMeProfile";
 import { useChannelDragEnd } from "./hooks/useChannelDragEnd";
@@ -43,12 +47,11 @@ import { useWhisper } from "./hooks/useWhisper";
 import { useAddHubFlow } from "./hooks/useAddHubFlow";
 import { useChannelCrud } from "./hooks/useChannelCrud";
 import { VideoGrid } from "./components/VideoGrid";
-import { type ThemeId, type WavvonSkin, applySkinTokens } from "@wavvon/ui";
 import {
   formatPubkey,
   buildChannelTree,
 } from "@wavvon/core";
-import { classifyHubRefusal, type HubRefusal } from "@wavvon/core";
+import { appSessionKey, classifyHubRefusal, type HubRefusal } from "@wavvon/core";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useUnreadCounts, useBatchedAnnouncement } from "@wavvon/ui";
 import { unreadPersistence } from "./unreadPersistence";
@@ -58,6 +61,8 @@ import { useHubLifecycle } from "./hooks/useHubLifecycle";
 import { useHubAdmin } from "./hooks/useHubAdmin";
 import { useFriends } from "./hooks/useFriends";
 import { useSettingsProfile } from "./hooks/useSettingsProfile";
+import { useActiveHubTheme } from "./hooks/useActiveHubTheme";
+import { useActiveHubLanguages } from "./hooks/useActiveHubLanguages";
 import { useDms } from "./hooks/useDms";
 import { useChannelMessages } from "./hooks/useChannelMessages";
 import { useAlliances } from "./hooks/useAlliances";
@@ -76,13 +81,19 @@ import { useUserMenu } from "./hooks/useUserMenu";
 import { ChannelSidebarContainer } from "./components/ChannelSidebarContainer";
 import { ContentAreaContainer } from "./components/ContentAreaContainer";
 import { fetchWithTimeout } from "./utils/fetchWithTimeout";
-import { WelcomeScreen } from "@wavvon/ui";
+import { WelcomeScreen, HubSuggestions, hubInterestsOrDefault } from "@wavvon/ui";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { setSwitchGuard } from "./accounts/store";
 import { DisplayNamePrompt } from "@wavvon/ui";
 
-function App({ accountId }: { accountId: string | null }) {
-  const { t } = useTranslation();
+/** Where first-run onboarding left off: a suggested hub to join, or the directory. */
+export interface OnboardingExit {
+  join?: { hubUrl: string; inviteCode: string };
+  openDirectory?: boolean;
+}
+
+function App({ accountId, onboardingExit }: { accountId: string | null; onboardingExit?: OnboardingExit }) {
+  const { t, i18n } = useTranslation();
   const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
   const [showQuickInvite, setShowQuickInvite] = useState(false);
   // Bumped by the pending screen's "check again", so the join application
@@ -105,6 +116,14 @@ function App({ accountId }: { accountId: string | null }) {
   } = unreadCounts;
 
   const notifyPrefs = useNotificationPrefs();
+  const saved = useSavedList(accountId, (due) => {
+    for (const s of due) {
+      setToast(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
+      notifyReminder(s, t("remind.notification_title", { where: s.channel_name ? `#${s.channel_name}` : s.hub_name ?? "" }), (x) => openSavedRef.current(x));
+    }
+  });
+  const openSavedRef = useRef<(s: SavedMessage) => void>(() => {});
+  const [showSaved, setShowSaved] = useState(false);
   const {
     hubNotifyMode,
     channelNotifyMode,
@@ -160,6 +179,20 @@ function App({ accountId }: { accountId: string | null }) {
       id = ch?.parent_id ?? null;
     }
     return hubNotifyMode[hubId] ?? "all";
+  }
+
+  /** Deadline of the timed mute deciding this channel's mode, if any: the
+   *  level effectiveNotifyMode stopped at. */
+  function muteUntil(hubId: string, channelId: string): number | undefined {
+    const { muteDeadlines } = notifyPrefs;
+    let id: string | null = channelId;
+    while (id !== null) {
+      const mode = channelNotifyMode[hubId]?.[id];
+      if (mode !== undefined) return mode === "silent" ? muteDeadlines.channels[hubId]?.[id] : undefined;
+      const ch = channels.find((c) => c.id === id);
+      id = ch?.parent_id ?? null;
+    }
+    return hubNotifyMode[hubId] === "silent" ? muteDeadlines.hubs[hubId] : undefined;
   }
 
   const { collapsedCategories, toggleCategoryCollapsed } = useCollapsedCategories();
@@ -291,7 +324,7 @@ function App({ accountId }: { accountId: string | null }) {
   // "isAdmin" gate matches the sidebar's own "create channel" entry;
   // loadHubData sets myRoles then channels in the same call, so there's no
   // stale-isAdmin window here.
-  const { showHubSetupWizard, closeHubSetupWizard } = useHubSetupWizardGate({
+  const { showHubSetupWizard, setShowHubSetupWizard, closeHubSetupWizard } = useHubSetupWizardGate({
     storageGet: () => localStorage.getItem("wavvon.hubSetupWizardDone"),
     storageSet: (raw) => { localStorage.setItem("wavvon.hubSetupWizardDone", raw); },
     activeHubId,
@@ -525,7 +558,16 @@ function App({ accountId }: { accountId: string | null }) {
     myDisplayNameRef.current = myDisplayName;
   }, [myDisplayName]);
 
-  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast });
+  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast, publicKey });
+
+  useMiniAppVoiceBridge({
+    voiceChannelId: voice.voiceChannelId,
+    roomZone: voice.roomZone,
+    titleFor: (appId, channelId) => activeApps.get(appSessionKey(appId, channelId))?.title ?? t("app.default_title"),
+    moveInRoomForApp: voice.moveInRoomForApp,
+    clearRoomMover: voice.clearRoomMover,
+    positionRefusals: voice.positionRefusals,
+  });
 
   // Registered so switchAccountGuarded can refuse a mid-voice account switch
   // at the source (defense in depth alongside a disabled Switch button in
@@ -604,10 +646,10 @@ function App({ accountId }: { accountId: string | null }) {
   const {
     showSettings,
     setShowSettings,
-    setTheme,
-    setSkin,
     setRecoveryPhrase,
   } = settingsProfile;
+  useActiveHubTheme(hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null, settingsProfile.themes.setHubTheme);
+  useActiveHubLanguages(hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
 
   const [showDiscover, setShowDiscover] = useState(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
@@ -641,7 +683,7 @@ function App({ accountId }: { accountId: string | null }) {
     handleAddHub,
   } = addHubFlow;
 
-  const { routeDeepLinkRef } = useDeepLink({
+  const { routeDeepLinkRef, openTarget } = useDeepLink({
     hubsRef,
     activeHubId,
     channels,
@@ -652,6 +694,37 @@ function App({ accountId }: { accountId: string | null }) {
     setInviteCode,
     setShowAddHub,
   });
+
+  function toggleSaveMessage(m: Message) {
+    const e = savedEntryFor(m);
+    if (e) saved.toggle(e);
+  }
+
+  function savedEntryFor(m: Message): SavedMessage | null {
+    const hub = hubs.find((h) => h.hub_id === activeHubId);
+    if (!hub) return null;
+    return {
+      hub_id: hub.hub_id,
+      hub_url: hub.hub_url,
+      hub_name: hub.hub_name,
+      channel_id: m.channel_id,
+      channel_name: channels.find((c) => c.id === m.channel_id)?.name,
+      message_id: m.id,
+      author: m.sender_name ?? undefined,
+      excerpt: m.content,
+      message_at: m.created_at,
+      saved_at: Date.now(),
+    };
+  }
+
+  function openSavedMessage(s: SavedMessage) {
+    if (!hubs.some((h) => h.hub_id === s.hub_id)) {
+      setError(t("saved.hub_gone", { hub: s.hub_name ?? s.hub_url }));
+      return;
+    }
+    openTarget({ hubId: s.hub_id, channelId: s.channel_id, messageId: s.message_id });
+  }
+  openSavedRef.current = openSavedMessage;
 
   const {
     showFriends,
@@ -851,39 +924,11 @@ function App({ accountId }: { accountId: string | null }) {
     }
   }
 
-  const { updateInfo, dismissUpdateInfo } = useUpdateBanner();
+  const { updateStatus, dismissUpdate } = useUpdateBanner();
 
   // Auto-connect saved hubs on app start + load our own public key once
   useEffect(() => {
     (async () => {
-      // Apply persisted theme/skin as early as possible to avoid a flash.
-      try {
-        const appearance = await invoke<{ slot: string; skin?: WavvonSkin | null }>("load_appearance");
-        if (appearance.slot === "custom" && appearance.skin) {
-          const s = appearance.skin;
-          setSkin(s);
-          setTheme("custom");
-          document.documentElement.dataset.theme = s.base;
-          applySkinTokens(s);
-        } else {
-          const valid =
-            appearance.slot === "dark" || appearance.slot === "light"
-              ? (appearance.slot as ThemeId)
-              : "dark";
-          setTheme(valid);
-          document.documentElement.dataset.theme = valid;
-        }
-      } catch {
-        try {
-          const profile = await invoke<{ theme?: string | null }>("get_profile");
-          const t = (profile.theme ?? "dark") as ThemeId;
-          const valid = t === "dark" || t === "light" ? t : "dark";
-          setTheme(valid);
-          document.documentElement.dataset.theme = valid;
-        } catch {
-          document.documentElement.dataset.theme = "dark";
-        }
-      }
       try {
         const key = await invoke<string>("get_my_public_key");
         setPublicKey(key);
@@ -1029,14 +1074,6 @@ function App({ accountId }: { accountId: string | null }) {
   async function openSettings() {
     setShowSettings(true);
     setRecoveryPhrase(null);
-    try {
-      const profile = await invoke<{ theme?: string | null }>("get_profile");
-      const t = profile.theme;
-      if (t === "dark" || t === "light") {
-        setTheme(t);
-      }
-    } catch {}
-
     await voice.loadVoiceSettings();
   }
 
@@ -1046,6 +1083,13 @@ function App({ accountId }: { accountId: string | null }) {
     setShowAddHub(true);
     setShowDiscover(false);
   }
+
+  useEffect(() => {
+    if (onboardingExit?.join) handleDiscoverJoin(onboardingExit.join.hubUrl, onboardingExit.join.inviteCode);
+    else if (onboardingExit?.openDirectory) setShowDiscover(true);
+    // Once, on the mount that follows onboarding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function closeSettings() {
     if (voice.micTesting) await voice.toggleMicTest();
@@ -1191,11 +1235,11 @@ function App({ accountId }: { accountId: string | null }) {
           {toast}
         </div>
       )}
-      {updateInfo && (
+      {updateStatus && (
         <UpdateBanner
-          version={updateInfo.version}
-          notes={updateInfo.notes}
-          onDismiss={dismissUpdateInfo}
+          status={updateStatus}
+          isInVoice={voice.isInOrJoiningVoice}
+          onDismiss={dismissUpdate}
         />
       )}
       <>
@@ -1315,7 +1359,11 @@ function App({ accountId }: { accountId: string | null }) {
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}
               onRemoveHub={(hubId: string) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
               onSetHubNotifyMode={setHubMode}
+              hubMuteUntil={notifyPrefs.muteDeadlines.hubs}
+              onMuteHubUntil={(hubId, until) => setHubMode(hubId, "silent", until)}
               onOpenSearch={() => setShowSearchBar(true)}
+              onOpenSaved={() => setShowSaved(true)}
+              savedDueCount={saved.dueCount}
               onAddHub={() => setShowAddHub(true)}
               onDiscover={DISCOVERY_URL ? () => setShowDiscover((v) => !v) : undefined}
               userMenu={userMenu}
@@ -1338,6 +1386,15 @@ function App({ accountId }: { accountId: string | null }) {
                   onJoin={() => handleAddHub()}
                   onBrowse={DISCOVERY_URL ? () => setShowDiscover(true) : undefined}
                   onDismiss={dismissWelcome}
+                  suggestions={DISCOVERY_URL ? (
+                    <HubSuggestions
+                      directoryUrl={DISCOVERY_URL}
+                      fetchUrl={fetchWithTimeout}
+                      interests={hubInterestsOrDefault(i18n.language)}
+                      onJoinHub={handleDiscoverJoin}
+                      onSeeAll={() => setShowDiscover(true)}
+                    />
+                  ) : undefined}
                 />
               ) : (
                 <div className="empty-state">
@@ -1412,6 +1469,7 @@ function App({ accountId }: { accountId: string | null }) {
               <>
                 <ChannelSidebarContainer
                   onRequestRemoveHub={(hubId) => removeHubConfirm.requestRemoveHub(hubId, hubs)}
+                  onOpenSetupTemplates={() => setShowHubSetupWizard(true)}
                   view={view}
                   soundboardChipsByChannel={soundboardChipsByChannel}
                   whisperReplyBind={whisperReplyBind}
@@ -1460,6 +1518,15 @@ function App({ accountId }: { accountId: string | null }) {
                   unreadCounts={unreadCounts}
                   dms={dms}
                 />
+                {showSaved && (
+                  <SavedMessagesModal
+                    items={saved.list}
+                    onJump={openSavedMessage}
+                    onRemove={saved.remove}
+                    onDismissReminder={saved.dismissReminder}
+                    onClose={() => setShowSaved(false)}
+                  />
+                )}
                 {showSearchBar && (
                   <SearchBar
                     onSearch={(q) => invoke<GlobalSearchResult[]>("search_messages_global", { q })}
@@ -1560,6 +1627,11 @@ function App({ accountId }: { accountId: string | null }) {
                   channelMessages={channelMessages}
                   dms={dms}
                   firstNotify={firstNotify}
+                  savedActions={{
+                    isSaved: (messageId) => !!activeHubId && saved.isSaved(activeHubId, messageId),
+                    toggleSaved: toggleSaveMessage,
+                    remind: (m, at) => { const e = savedEntryFor(m); if (e) saved.remind(e, at); },
+                  }}
                 />
               </>
             )}
@@ -1613,6 +1685,7 @@ function App({ accountId }: { accountId: string | null }) {
           setContextMenu={setContextMenu}
           effectiveNotifyMode={effectiveNotifyMode}
           setChannelMode={setChannelMode}
+          muteUntil={muteUntil}
           showHubSetupWizard={showHubSetupWizard}
           closeHubSetupWizard={closeHubSetupWizard}
           handleHubSetupWizardComplete={handleHubSetupWizardComplete}

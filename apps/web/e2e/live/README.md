@@ -59,7 +59,7 @@ $env:WAVVON_DATABASE_URL='postgres://postgres:postgres@localhost:5432/wavvon_e2e
 The suite normally runs the **user** build behind Vite, which is a different
 origin from the hub. Anything that only exists when the hub serves the client
 itself — an invite link at `/join/<code>`, the locked hub address on the
-welcome screen, passkeys — cannot be reached that way. Point both overrides at
+welcome screen — cannot be reached that way. Point both overrides at
 a hub that serves `dist-hub` instead:
 
 ```powershell

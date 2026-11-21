@@ -570,16 +570,9 @@ pub(crate) enum WsServerMessage {
     VoiceJoined {
         channel_id: String,
         participants: Vec<VoiceParticipantInfo>,
-        /// Single-use token presented when opening the WebTransport session
-        /// (`voice_wt_url?token=<hex>`); renamed from `udp_register_token`
-        /// (voice-transport-v2.md, alpha -- no compat).
+        /// Single-use token that binds our WebRTC session, sent in
+        /// `voice_rtc_offer` (voice-transport-v3.md).
         voice_token: String,
-        /// Absolute `https://host:port/voice` WebTransport voice endpoint.
-        voice_wt_url: String,
-        /// Hex SHA-256 digest of the WT endpoint's certificate, when the
-        /// hub is on the self-signed tier; `None` for a CA-issued cert.
-        #[serde(default)]
-        voice_cert_hash: Option<String>,
         /// False when the room's talk-power threshold is above ours and nobody
         /// has given us the floor. An older hub omits it, which is not "muted".
         #[serde(default)]
@@ -603,6 +596,9 @@ pub(crate) enum WsServerMessage {
     },
     #[serde(rename = "error")]
     Error { context: String, message: String },
+    /// The hub's SDP answer to our `voice_rtc_offer` (voice-transport-v3.md).
+    #[serde(rename = "voice_rtc_answer")]
+    VoiceRtcAnswer { sdp: String },
     #[serde(rename = "dm")]
     DirectMessage {
         conversation_id: String,

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "../helpers/settings";
 import { expectInHub, scopedLocalStorageItem } from "./helpers/live";
 
 // P41 — voice join/leave sound cues (#9) have a Settings toggle. Actual audio
@@ -9,7 +10,7 @@ async function openNotifications(page: import("@playwright/test").Page) {
   await page.locator(".user-menu-trigger:visible").click();
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await page.getByRole("button", { name: "Notifications", exact: true }).click();
+  await openSettingsSection(page, "Notifications");
 }
 
 test("voice sounds default on and the toggle is present", async ({ page }) => {

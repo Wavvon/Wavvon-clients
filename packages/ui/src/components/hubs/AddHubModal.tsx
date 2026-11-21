@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { parseHubInput } from "@wavvon/core";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
@@ -18,31 +18,24 @@ interface Props {
   error: string | null;
   /** True once the invite's `?fp=`/`#fp=` fingerprint was verified against the hub's /info (lan-mode.md §5). */
   onAdd: () => void;
-  onAddWithPasskey?: () => void;
-  /** Whether the platform can actually complete a WebAuthn ceremony — a
-   *  browser/webview capability check the caller runs (desktop has no
-   *  passkey path at all, so both this and onAddWithPasskey stay unset there). */
-  passkeySupported?: boolean;
   onClose: () => void;
   /** Opens the public hub directory instead of adding by URL. */
   onBrowse?: () => void;
 }
 
-export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, onAdd, onAddWithPasskey, passkeySupported, onClose, onBrowse }: Props) {
+export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error, onAdd, onClose, onBrowse }: Props) {
   useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const [copiedInvite, setCopiedInvite] = useState(false);
   // The hint asks for an invite link, so it has nothing to say once the
   // address already carries one.
   const carriesInvite = !!parseHubInput(hubUrl)?.inviteCode;
-  const showPasskey = !!onAddWithPasskey && hubPreview.state === "ok" && !!passkeySupported;
   return (
     <div className="modal-overlay" onClick={onClose}>
       <FocusTrap>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-hub-title" onClick={(e) => e.stopPropagation()}>
         <h3 id="add-hub-title">{t("hub.add_modal.title")}</h3>
-        {/* eslint-disable-next-line react/no-danger -- our own i18n catalog, not hub input. */}
-        <p className="muted" style={{ marginBottom: "var(--space-3)" }} dangerouslySetInnerHTML={{ __html: t("hub.add_modal.intro") }} />
+        <p className="muted" style={{ marginBottom: "var(--space-3)" }}><Trans i18nKey="hub.add_modal.intro" components={{ code: <code /> }} /></p>
         <input
           type="text"
           value={hubUrl}
@@ -114,19 +107,6 @@ export function AddHubModal({ hubUrl, onHubUrlChange, hubPreview, loading, error
             {loading ? t("hub.connecting") : t("hub.add_modal.connect")}
           </button>
         </div>
-        {showPasskey && (
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <span className="muted" style={{ fontSize: "var(--text-xs)", display: "block", marginBottom: 6 }}>{t("hub.add_modal.or_divider")}</span>
-            <button
-              className="btn-secondary"
-              style={{ width: "100%" }}
-              onClick={onAddWithPasskey}
-              disabled={loading}
-            >
-              {t("hub.add_modal.passkey_signin")}
-            </button>
-          </div>
-        )}
         {error && <div className="error">{error}</div>}
         {onBrowse && (
           <p style={{ marginTop: "var(--space-3)", textAlign: "center" }}>

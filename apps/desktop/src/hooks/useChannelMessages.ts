@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { mentionsName, playMentionPing, slowmodeRetryAfter } from "@wavvon/core";
+import { mentionsName, playMentionPing, playSound, slowmodeRetryAfter } from "@wavvon/core";
 import { saveDraft, loadDraft, clearDraft } from "../utils/drafts";
 import { MAX_ATTACHMENT_BYTES } from "../constants";
-import { readFileAsB64, useOlderPages, usePendingFiles, type PendingFilesState, type SelectedAllianceChannel } from "@wavvon/ui";
+import { firstUnreadId as findFirstUnread, readFileAsB64, useOlderPages, usePendingFiles, type PendingFilesState, type SelectedAllianceChannel } from "@wavvon/ui";
 import { uploadAttachment } from "../utils/uploadAttachment";
 import { listenerScope } from "../utils/listenerScope";
 import type { Channel, Message, Attachment, AllianceInfo, AllianceSharedChannel, NotifyMode, PresenceStatus } from "../types";
@@ -72,6 +72,7 @@ export interface ChannelMessagesReturn {
   setAllianceMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   handleSend: () => Promise<void>;
   handleSendSticker: (channelId: string, stickerId: string) => Promise<void>;
+  handleSendVoice: (file: File) => Promise<void>;
   handleSendAllianceMessage: () => Promise<void>;
   startEditingMessage: (m: Message) => void;
   cancelEditingMessage: () => void;
@@ -81,6 +82,9 @@ export interface ChannelMessagesReturn {
   attachFiles: (files: FileList | null) => Promise<void>;
   handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   scrollToMessage: (id: string) => void;
+  markUnread: (message: Message) => Promise<void>;
+  markRead: () => void;
+  firstUnreadId: string | null;
   closeSearch: () => void;
   handleMessagesScroll: () => void;
   jumpToBottom: () => void;
@@ -136,6 +140,9 @@ export function useChannelMessages({
   const [searchResults, setSearchResults] = useState<Message[] | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
+  // Set by "Mark as unread": leaving the channel must not mark it read again.
+  const markedUnreadRef = useRef(false);
 
   const [mentionPingEnabled, setMentionPingEnabledState] = useState<boolean>(() => {
     try { return localStorage.getItem("wavvon.mentionPing") !== "0"; } catch { return true; }
@@ -279,6 +286,7 @@ export function useChannelMessages({
             const mode = effectiveNotifyMode(hub_id, channel_id);
             const allowBump = mode === "all" || (mode === "mentions" && isMention);
             if (isActiveChannel) {
+              if (message.sender !== publicKeyRef.current) playSound("message");
               setMessages((prev) => {
                 if (prev.some((m) => m.id === message.id)) return prev;
                 return [...prev, message];
@@ -387,8 +395,14 @@ export function useChannelMessages({
 
   async function selectChannel(channel: Channel) {
     if (selectedChannel && selectedChannel.id !== channel.id) {
+      // Whatever arrived while the channel was open was read there.
+      if (!markedUnreadRef.current) {
+        invoke("mark_channel_read", { channelId: selectedChannel.id }).catch(() => {});
+      }
       await invoke("unsubscribe_channel", { channelId: selectedChannel.id });
     }
+    markedUnreadRef.current = false;
+    setFirstUnreadId(null);
     clearSelectedAllianceChannel();
     closeSearch();
     setSelectedChannel(channel);
@@ -401,9 +415,11 @@ export function useChannelMessages({
     } else {
       setInputText("");
     }
+    const marker = invoke<number | null>("mark_channel_read", { channelId: channel.id }).catch(() => null);
     try {
       const msgs = await invoke<Message[]>("get_messages", { channelId: channel.id });
       setMessages(msgs);
+      setFirstUnreadId(findFirstUnread(msgs, await marker, publicKeyRef.current));
       await invoke("subscribe_channel", { channelId: channel.id });
     } catch (e) {
       setError(String(e));
@@ -465,6 +481,22 @@ export function useChannelMessages({
       setInputText(content);
       setReplyTarget(reply);
     }
+  }
+
+  // A voice message is one attachment and no text; it answers the reply
+  // target like any message. Throws so the recorder can report it.
+  async function handleSendVoice(file: File) {
+    if (!selectedChannel) return;
+    const reply = replyTarget;
+    const uploaded = await uploadAttachment(selectedChannel.id, file, true);
+    const msg = await invoke<Message>("send_message", {
+      channelId: selectedChannel.id,
+      content: "",
+      attachmentIds: [uploaded.id],
+      replyTo: reply?.id ?? null,
+    });
+    setReplyTarget(null);
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
   }
 
   async function handleSendAllianceMessage() {
@@ -573,6 +605,23 @@ export function useChannelMessages({
     }
   }
 
+  async function markUnread(m: Message) {
+    await invoke("mark_channel_read", { channelId: m.channel_id, messageId: m.id });
+    const hubId = activeHubIdRef.current;
+    if (hubId) bumpUnread(hubId, m.channel_id);
+    markedUnreadRef.current = true;
+    setFirstUnreadId(m.id);
+  }
+
+  function markRead() {
+    if (!selectedChannel) return;
+    invoke("mark_channel_read", { channelId: selectedChannel.id }).catch(() => {});
+    const hubId = activeHubIdRef.current;
+    if (hubId) clearUnread(hubId, selectedChannel.id);
+    markedUnreadRef.current = false;
+    setFirstUnreadId(null);
+  }
+
   function scrollToMessage(id: string) {
     const el = document.getElementById(`msg-${id}`);
     if (!el) return;
@@ -642,6 +691,7 @@ export function useChannelMessages({
     selectAllianceChannel,
     handleSend,
     handleSendSticker,
+    handleSendVoice,
     handleSendAllianceMessage,
     startEditingMessage,
     cancelEditingMessage,
@@ -651,6 +701,9 @@ export function useChannelMessages({
     attachFiles,
     handleKeyDown,
     scrollToMessage,
+    markUnread,
+    markRead,
+    firstUnreadId,
     closeSearch,
     handleMessagesScroll,
     jumpToBottom,

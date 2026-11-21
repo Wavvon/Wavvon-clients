@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::State;
 
-use crate::accounts::{self, IGNORED_USERS_FILE, SAVED_HUBS_FILE, SKIN_FILE, VOICE_GAINS_FILE};
+use crate::accounts::{self, IGNORED_USERS_FILE, SAVED_HUBS_FILE, VOICE_GAINS_FILE};
 use crate::backup::{derive_key, BACKUP_M, BACKUP_P, BACKUP_T};
 use crate::identity::{Identity, SignedPrefsBlob};
 use crate::state::{active_session, AppState};
@@ -175,7 +175,6 @@ pub(crate) struct ArchiveStores {
     /// Percent, as the archive and web store it; desktop's file holds a
     /// 0.0–2.0 multiplier.
     voice_gains: HashMap<String, f64>,
-    skin: Option<Value>,
 }
 
 fn read_json<T: serde::de::DeserializeOwned + Default>(path: &Path) -> T {
@@ -199,7 +198,6 @@ fn read_stores(dir: &Path) -> ArchiveStores {
             .into_iter()
             .map(|(k, g)| (k, (f64::from(g) * 100.0).round()))
             .collect(),
-        skin: read_json::<Option<Value>>(&dir.join(SKIN_FILE)),
     }
 }
 
@@ -214,9 +212,6 @@ fn write_stores(dir: &Path, stores: &ArchiveStores) -> Result<(), String> {
         .filter(|(_, g)| (g - 1.0).abs() >= 0.001)
         .collect();
     write_json(&dir.join(VOICE_GAINS_FILE), &gains)?;
-    if let Some(skin) = &stores.skin {
-        write_json(&dir.join(SKIN_FILE), skin)?;
-    }
     Ok(())
 }
 
@@ -225,13 +220,17 @@ fn write_stores(dir: &Path, stores: &ArchiveStores) -> Result<(), String> {
 // ---------------------------------------------------------------------------
 
 /// What only the renderer holds: DM plaintext comes through the existing
-/// get_dm_messages command, drafts and the mention-ping switch live in its
-/// localStorage.
+/// get_dm_messages command; drafts, the mention-ping switch, the theme mode
+/// and the installed theme and language packages live in its localStorage /
+/// IndexedDB.
 #[derive(Deserialize)]
 pub(crate) struct RendererSections {
     dms: Value,
     drafts: Value,
     mention_ping_enabled: bool,
+    theme: String,
+    themes: Value,
+    languages: Value,
 }
 
 /// GET against the active hub, where 404 is the one answer that means "none":
@@ -370,7 +369,7 @@ pub(crate) async fn export_full_archive(
         "devices": { "subkey_certs": subkey_certs, "revocations": revocations },
         "prefs": {
             "hub_list": hub_list,
-            "theme": crate::local_store::load_appearance().slot,
+            "theme": sections.theme,
             "ignored_users": stores.ignored_users,
             "voice_gains": stores.voice_gains,
             "mention_ping_enabled": sections.mention_ping_enabled,
@@ -378,7 +377,8 @@ pub(crate) async fn export_full_archive(
             "gap_note": gap_note,
         },
         "dms": sections.dms,
-        "themes": stores.skin.into_iter().collect::<Vec<_>>(),
+        "themes": sections.themes,
+        "languages": sections.languages,
         "drafts": sections.drafts,
     });
     validate_document(&document)?;
@@ -568,7 +568,6 @@ mod tests {
             }],
             ignored_users: vec!["peer".into()],
             voice_gains: HashMap::from([("loud".to_string(), 150.0), ("same".to_string(), 100.0)]),
-            skin: Some(json!({ "name": "Mine" })),
         };
         write_stores(&dir, &stores).unwrap();
         let back = read_stores(&dir);
@@ -581,6 +580,5 @@ mod tests {
             back.voice_gains,
             HashMap::from([("loud".to_string(), 150.0)])
         );
-        assert_eq!(back.skin, Some(json!({ "name": "Mine" })));
     }
 }

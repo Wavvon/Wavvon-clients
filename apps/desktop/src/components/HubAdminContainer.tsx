@@ -30,6 +30,9 @@ import {
 import { stickerPacksActions, stickerStorageActions, stickerSettingsActions } from "../hooks/stickerActions";
 import { attachmentSettingsActions } from "../hooks/attachmentActions";
 import { widgetActions } from "../hooks/widgetActions";
+import { makeHubThemeActions } from "../hooks/hubThemeActions";
+import { makeHubLanguagesActions } from "../hooks/hubLanguagesActions";
+import { makeInviteLandingActions } from "../hooks/inviteLandingActions";
 
 type PassthroughProps = Omit<
   HubAdminPageProps,
@@ -72,6 +75,9 @@ export function HubAdminContainer({
   const onboardingActions = useMemo(() => makeOnboardingActions(getActiveHubUrl), [activeHubUrl]);
   const surveyActions = useMemo(() => makeSurveyActions(getActiveHubUrl), [activeHubUrl]);
   const applicationActions = useMemo(() => makeApplicationActions(() => activeHubUrl), [activeHubUrl]);
+  const hubThemeActions = useMemo(() => (activeHubUrl ? makeHubThemeActions(activeHubUrl) : null), [activeHubUrl]);
+  const hubLanguagesActions = useMemo(() => (activeHubUrl ? makeHubLanguagesActions(activeHubUrl) : null), [activeHubUrl]);
+  const inviteLandingActions = useMemo(() => (activeHubUrl ? makeInviteLandingActions(activeHubUrl) : null), [activeHubUrl]);
   const hubCaps = useHubCapabilities(activeHubUrl || null);
   const joinFormsCapable = hubCaps.includes("admission.application");
   const can = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));
@@ -113,6 +119,9 @@ export function HubAdminContainer({
       stickersAdmin={stickersAdmin}
       attachmentSettingsActions={hubCaps.includes("attachments.stored") && can("hub.settings") ? attachmentSettingsActions : undefined}
       widgetActions={hubCaps.includes("hub.widget") && can("hub.settings") ? widgetActions : undefined}
+      hubThemeActions={hubCaps.includes("hub.theme") && can("hub.appearance") && hubThemeActions ? hubThemeActions : undefined}
+      inviteLandingActions={hubCaps.includes("hub.landing") && can("hub.settings") && inviteLandingActions ? inviteLandingActions : undefined}
+      hubLanguagesActions={hubCaps.includes("hub.languages") && isAdmin && hubLanguagesActions ? hubLanguagesActions : undefined}
       canManageHubAlliances={canManageHubAlliances}
       rolesActions={hubCaps.includes("roles.order") ? rolesActionsWithOrder : rolesActions}
       memberRoleActions={memberRoleActions}

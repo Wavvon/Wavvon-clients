@@ -1,7 +1,25 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { miniAppHost } from "@wavvon/core";
+import {
+  checkSetVoicePosition,
+  isFromFrame,
+  isSetVoicePosition,
+  miniAppHost,
+  voiceRefusedMessage,
+  voiceStateMessage,
+  type VoiceBridgeState,
+} from "@wavvon/core";
 import { useCloseOnEscape } from "../hooks/useCloseOnEscape";
+
+/** Lets the frame move its own user in voice; omitted where the client has no
+ *  proximity voice to move. */
+export interface MiniAppVoiceBridge {
+  state: VoiceBridgeState;
+  onSetPosition: (zoneId: string, position: number[]) => void;
+  /** How many moves the hub has refused while this frame was moving the
+   *  user; each new one is forwarded as `wavvon:voicePositionRefused`. */
+  refusals?: number;
+}
 
 interface Props {
   miniAppUrl: string;
@@ -11,6 +29,7 @@ interface Props {
   hubUrl: string;
   title: string;
   requiresCamera?: boolean;
+  voice?: MiniAppVoiceBridge;
   onClose: () => void;
 }
 
@@ -26,11 +45,15 @@ export function GameModal({
   hubUrl,
   title,
   requiresCamera,
+  voice,
   onClose,
 }: Props) {
   useCloseOnEscape(onClose);
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
+  const frameLoadedRef = useRef(false);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -44,7 +67,27 @@ export function GameModal({
     } catch {
       return;
     }
+    const focusFrame = () => iframe.focus();
+    focusFrame();
+    window.addEventListener("focus", focusFrame);
+    const postToFrame = (message: object) => iframe.contentWindow?.postMessage(message, appOrigin);
+    const onMessage = (event: MessageEvent) => {
+      if (!isFromFrame(event, iframe.contentWindow, appOrigin)) return;
+      const bridge = voiceRef.current;
+      if (!bridge) return;
+      if (isSetVoicePosition(event.data)) {
+        const r = checkSetVoicePosition(event.data, bridge.state);
+        if (r.ok) bridge.onSetPosition(r.zoneId, r.position);
+        else postToFrame(voiceRefusedMessage(r.reason));
+      } else if (typeof (event.data as { type?: unknown } | null)?.type === "string"
+        && (event.data as { type: string }).type.startsWith("wavvon:")) {
+        console.warn(event.data);
+      }
+    };
+    window.addEventListener("message", onMessage);
     const onLoad = () => {
+      focusFrame();
+      frameLoadedRef.current = true;
       iframe.contentWindow?.postMessage(
         {
           type: "wavvon_context",
@@ -55,10 +98,44 @@ export function GameModal({
         },
         appOrigin,
       );
+      if (voiceRef.current) postToFrame(voiceStateMessage(voiceRef.current.state));
     };
     iframe.addEventListener("load", onLoad);
-    return () => iframe.removeEventListener("load", onLoad);
+    return () => {
+      iframe.removeEventListener("load", onLoad);
+      window.removeEventListener("message", onMessage);
+      frameLoadedRef.current = false;
+      window.removeEventListener("focus", focusFrame);
+    };
   }, [miniAppUrl, sessionToken, channelId, appId, hubUrl]);
+
+  const stateKey = voice ? JSON.stringify(voice.state) : "";
+  useEffect(() => {
+    if (!voiceRef.current || !frameLoadedRef.current) return;
+    let appOrigin: string;
+    try {
+      appOrigin = new URL(miniAppUrl, window.location.href).origin;
+    } catch {
+      return;
+    }
+    iframeRef.current?.contentWindow?.postMessage(voiceStateMessage(voiceRef.current.state), appOrigin);
+  }, [stateKey, miniAppUrl]);
+
+  // A refusal arrives from the hub after the move was sent, so it is
+  // forwarded here rather than answered where the request was checked.
+  const refusals = voice?.refusals;
+  const seenRefusals = useRef(refusals);
+  useEffect(() => {
+    const seen = seenRefusals.current;
+    seenRefusals.current = refusals;
+    if (refusals === undefined || seen === undefined || refusals <= seen || !frameLoadedRef.current) return;
+    try {
+      const appOrigin = new URL(miniAppUrl, window.location.href).origin;
+      iframeRef.current?.contentWindow?.postMessage(voiceRefusedMessage("refused"), appOrigin);
+    } catch {
+      // An unparseable app URL has no frame to tell.
+    }
+  }, [refusals, miniAppUrl]);
 
   return (
     <div className="game-modal-overlay" role="dialog" aria-modal="true" aria-label={title}>

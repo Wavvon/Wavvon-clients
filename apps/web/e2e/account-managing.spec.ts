@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openSettingsSection } from "./helpers/settings";
 import { injectTwoAccountSession, mockJson, HUB_URL, HUB_ID, ACCOUNT1, ACCOUNT2 } from "./helpers/mockApi";
 
 // "Manage any account without switching" (the account picker in the settings
@@ -73,7 +74,7 @@ async function setupBaseRoutes(page: import("@playwright/test").Page) {
 }
 
 async function openSettingsTab(page: import("@playwright/test").Page, name: string) {
-  await page.locator(".settings-nav").getByRole("button", { name, exact: true }).click();
+  await openSettingsSection(page, name);
 }
 
 test("selecting a non-active account in the Managing dropdown re-scopes sections without switching", async ({ page }) => {
@@ -89,7 +90,7 @@ test("selecting a non-active account in the Managing dropdown re-scopes sections
   await page.locator(".user-menu-trigger:visible").click({ timeout: 10000 });
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
-  await openSettingsTab(page, "Privacy");
+  await openSettingsTab(page, "Blocked and ignored");
 
   const managingSelect = page.locator("#managing-account-select");
   await expect(managingSelect).toBeVisible();

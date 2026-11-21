@@ -12,6 +12,7 @@ mod certs;
 mod channels;
 mod deep_link;
 mod devices;
+mod directory_identity;
 mod discovery;
 mod dm;
 mod events_polls;
@@ -26,7 +27,6 @@ mod messages;
 mod mini_app;
 mod paging;
 mod pairing;
-mod passkey_cmd;
 mod prefs_blob;
 mod recovery;
 mod screen_share;
@@ -43,7 +43,7 @@ mod ws;
 
 use tauri::Manager;
 
-use state::{AppState, PendingUpdate};
+use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -77,10 +77,11 @@ pub fn run() {
                 voice: Default::default(),
                 http_client: reqwest::Client::new(),
             });
-            app.manage(PendingUpdate(std::sync::Mutex::new(None)));
+            app.manage(updater::UpdaterState::default());
+            app.manage(mini_app::MiniAppRegistry::default());
             deep_link::setup(app);
             let update_handle = app.handle().clone();
-            tauri::async_runtime::spawn(updater::check_for_updates(update_handle));
+            tauri::async_runtime::spawn(updater::run_update_checks(update_handle));
 
             let show = MenuItem::with_id(app, "show", "Show Wavvon", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -187,6 +188,7 @@ pub fn run() {
             messages::forum_edit_tag,
             messages::forum_delete_tag,
             messages::mark_post_read,
+            messages::mark_channel_read,
             messages::upload_file,
             messages::upload_file_bytes,
             messages::upload_attachment,
@@ -203,6 +205,7 @@ pub fn run() {
             voice_cmd::voice_room_map_enable,
             voice_cmd::voice_room_map_disable,
             voice_cmd::voice_room_map_move,
+            voice_cmd::voice_room_map_restore,
             voice_cmd::voice_set_muted,
             voice_cmd::voice_set_deafened,
             voice_cmd::list_audio_devices,
@@ -226,6 +229,8 @@ pub fn run() {
             soundboard::soundboard_play_clip,
             stickers::sticker_api,
             stickers::sticker_upload,
+            stickers::hub_theme_upload,
+            stickers::hub_language_upload,
             prefs_blob::sticker_collection_get,
             prefs_blob::sticker_collection_update,
             dm::add_group_members,
@@ -233,8 +238,6 @@ pub fn run() {
             prefs_blob::synced_setting_get,
             prefs_blob::synced_setting_set,
             // Local store
-            local_store::load_appearance,
-            local_store::save_appearance,
             local_store::clear_local_data,
             local_store::load_unread_state,
             local_store::save_unread_state,
@@ -355,6 +358,9 @@ pub fn run() {
             identity_cmd::get_my_pubkey,
             identity_cmd::fetch_public_profile,
             identity_cmd::submit_to_directory,
+            directory_identity::directory_identity_get,
+            directory_identity::directory_identity_publish,
+            directory_identity::directory_identity_unpublish,
             // DM / friends / E2E crypto
             dm::list_friends,
             dm::list_pending_friends,
@@ -438,6 +444,8 @@ pub fn run() {
             // Mini-app windows
             mini_app::open_mini_app,
             mini_app::close_mini_app,
+            mini_app::mini_app_voice_position,
+            mini_app::mini_app_post,
             // Certs / audit
             certs::get_cert_settings,
             certs::get_audit_log,
@@ -459,7 +467,9 @@ pub fn run() {
             discovery::remove_badge,
             discovery::grant_badge,
             // Updater / tray
-            updater::install_pending_update,
+            updater::get_update_status,
+            updater::retry_update_download,
+            updater::install_update,
             updater::set_tray_unread,
             // Deep links
             deep_link::get_pending_deep_link,
@@ -476,13 +486,14 @@ pub fn run() {
             pairing::get_paired_identity,
             devices::device_list,
             devices::device_revoke,
-            // Passkeys / trusted devices
-            passkey_cmd::passkey_list,
-            passkey_cmd::passkey_delete,
-            passkey_cmd::passkey_rename,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                updater::install_on_quit(app);
+            }
+        });
 }
 
 // ---------------------------------------------------------------------------

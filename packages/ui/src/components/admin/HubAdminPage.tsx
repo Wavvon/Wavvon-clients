@@ -23,12 +23,20 @@ import { OnboardingAdminSection, type OnboardingAdminSectionActions } from "./On
 import { moveChannelOptions } from "../../utils/voiceMove";
 import { SettingRow } from "../SettingRow";
 import { WidgetSection, type WidgetActions } from "./WidgetSection";
-import { CloseIcon } from "../Icons";
+import { HubThemeSection, type HubThemeActions } from "./HubThemeSection";
+import { HubLanguagesSection, type HubLanguagesActions } from "./HubLanguagesSection";
+import { InviteLandingSection, type InviteLandingActions } from "./InviteLandingSection";
+import { SettingsShell, type SettingsAreaDef, type SettingsSectionDef } from "../settings/SettingsShell";
 
 export type MemberAction = Promise<boolean | void>;
 
 export type HubAdminTab =
   | "overview"
+  | "behaviour"
+  | "voice-channels"
+  | "admission"
+  | "welcome"
+  | "message-limits"
   | "discovery"
   | "tags"
   | "roles"
@@ -47,6 +55,8 @@ export type HubAdminTab =
   | "widget"
   | "alliances"
   | "hub-icons"
+  | "hub-theme"
+  | "hub-languages"
   | "onboarding"
   | "survey"
   | "application"
@@ -63,6 +73,9 @@ export interface HubAdminPageProps {
   onHubDescriptionChange: (v: string) => void;
   hubIcon: string;
   onHubIconChange: (v: string) => void;
+  /** Present when the hub serves `hub.landing` and the viewer may change its
+   *  settings: identity is then edited on a preview of the invite landing. */
+  inviteLandingActions?: InviteLandingActions;
   requireApproval: boolean;
   onRequireApprovalChange: (v: boolean) => void;
   minSecurityLevel: number;
@@ -190,6 +203,10 @@ export interface HubAdminPageProps {
   attachmentSettingsActions?: AttachmentSettingsActions;
   /** Present only on a hub advertising `hub.widget`, for a viewer holding `hub.settings`. */
   widgetActions?: WidgetActions;
+  /** Present only on a hub advertising `hub.theme`, for a viewer holding `hub.appearance`. */
+  hubThemeActions?: HubThemeActions;
+  /** Present only on a hub advertising `hub.languages`, for its owner. */
+  hubLanguagesActions?: HubLanguagesActions;
   onboardingActions: OnboardingAdminSectionActions;
   allianceActions: AlliancesSectionActions;
   hubIconActions: HubIconsSectionActions;
@@ -314,95 +331,101 @@ export function HubAdminPage(props: HubAdminPageProps) {
     }
   }
 
-  // Grouped by the job an admin is doing, most frequent first: members and
-  // moderation before connections and cosmetics, and no group of one.
-  const G_GENERAL = t("hub.admin.group.general");
-  const G_MEMBERS = t("hub.admin.group.members");
-  const G_JOINING = t("hub.admin.group.joining");
-  const G_MODERATION = t("hub.admin.group.moderation");
-  const G_CONNECTIONS = t("hub.admin.group.connections");
-  const G_CUSTOM = t("hub.admin.group.customization");
+  // Six areas, in the order an admin reaches for them (Wavvon-clients#464).
+  // A section appears only when this viewer and this hub can use it; an area
+  // with nothing in it is not shown.
+  type Area = "general" | "joining" | "people" | "moderation" | "content" | "connections";
   const admin = props.isAdmin;
   // The tab holds the hub-scoped acts (alliances.manage) and the per-alliance
   // grant lists (roles.manage edits them); either is reason to reach it.
   const showAlliances = props.canManageHubAlliances || props.canManageRoles;
-  const TABS: { id: HubAdminTab; label: string; group: string }[] = [
-    { id: "overview", label: t("hub.admin.tabs.overview"), group: G_GENERAL },
-    ...(props.discoveryUrl ? [{ id: "discovery" as HubAdminTab, label: t("hub.admin.tabs.discovery"), group: G_GENERAL }] : []),
-    { id: "tags", label: t("hub.admin.tabs.tags"), group: G_GENERAL },
-    { id: "members", label: t("hub.admin.tabs.members"), group: G_MEMBERS },
-    { id: "roles", label: t("hub.admin.tabs.roles"), group: G_MEMBERS },
-    { id: "invites", label: t("hub.admin.tabs.invites"), group: G_MEMBERS },
-    { id: "certifications", label: t("hub.admin.tabs.certifications"), group: G_MEMBERS },
+  const S = (id: HubAdminTab, label: string, area: Area, keywords?: string[]): SettingsSectionDef<HubAdminTab, Area> => ({ id, label, area, keywords });
+  const SECTIONS: SettingsSectionDef<HubAdminTab, Area>[] = [
+    S("overview", t("hub.admin.overview.identity"), "general", [t("hub.admin.overview.name"), t("hub.admin.overview.description"), t("hub.admin.overview.icon"), t("hub.admin.landing.background")]),
+    S("behaviour", t("hub.admin.section.behaviour"), "general", [t("hub.admin.overview.timezone"), t("hub.admin.overview.birthdays"), t("hub.admin.overview.name_colors")]),
+    S("voice-channels", t("hub.admin.section.voice_channels"), "general", [t("hub.admin.overview.afk_channel"), t("hub.admin.overview.afk_timeout"), t("hub.admin.overview.max_depth")]),
+    ...(props.discoveryUrl ? [S("discovery", t("hub.admin.tabs.discovery"), "general", [t("hub.admin.discovery.list_publicly"), t("hub.admin.discovery.directory.title")])] : []),
+    S("tags", t("hub.admin.tabs.tags"), "general"),
+    ...(props.hubThemeActions ? [S("hub-theme", t("hub.admin.tabs.theme"), "general")] : []),
+    ...(props.hubLanguagesActions ? [S("hub-languages", t("hub.admin.tabs.languages"), "general")] : []),
+    S("invites", t("hub.admin.tabs.invites"), "joining"),
+    {
+      ...S("admission", t("hub.admin.section.admission"), "joining", [t("hub.admin.overview.require_approval"), t("hub.admin.overview.antispam")]),
+      // Newcomers waiting on approval: the Joining tab carries the marker.
+      attention: props.pendingMembers.length > 0
+        ? t("hub.admin.members.pending.title", { count: props.pendingMembers.length })
+        : undefined,
+    },
     ...(admin ? [
-      { id: "onboarding" as HubAdminTab, label: t("hub.admin.tabs.onboarding"), group: G_JOINING },
-      { id: "survey" as HubAdminTab, label: t("hub.admin.tabs.survey"), group: G_JOINING },
-      ...(props.joinFormsCapable && props.applicationActions
-        ? [{ id: "application" as HubAdminTab, label: t("hub.admin.tabs.application"), group: G_JOINING }]
-        : []),
+      S("onboarding", t("hub.admin.tabs.onboarding"), "joining"),
+      S("survey", t("hub.admin.tabs.survey"), "joining"),
+      ...(props.joinFormsCapable && props.applicationActions ? [S("application", t("hub.admin.tabs.application"), "joining")] : []),
     ] : []),
-    ...(admin && props.renderModerationTab ? [{ id: "moderation" as HubAdminTab, label: t("hub.admin.tabs.moderation"), group: G_MODERATION }] : []),
-    { id: "bans", label: t("hub.admin.tabs.bans"), group: G_MODERATION },
-    ...(admin && props.renderRecoveryContacts ? [{ id: "recovery" as HubAdminTab, label: t("hub.admin.tabs.recovery"), group: G_MODERATION }] : []),
-    ...(admin ? [{ id: "audit-log" as HubAdminTab, label: t("hub.admin.tabs.audit_log"), group: G_MODERATION }] : []),
-    ...(showAlliances ? [{ id: "alliances" as HubAdminTab, label: t("hub.admin.tabs.alliances"), group: G_CONNECTIONS }] : []),
-    { id: "integrations", label: t("hub.admin.tabs.webhooks"), group: G_CONNECTIONS },
-    ...(props.widgetActions ? [{ id: "widget" as HubAdminTab, label: t("hub.admin.tabs.widget"), group: G_CONNECTIONS }] : []),
-    ...(admin ? [{ id: "hub-icons" as HubAdminTab, label: t("hub.admin.tabs.icons"), group: G_CUSTOM }] : []),
-    ...(props.canManageSoundboard && props.soundboardActions ? [{ id: "soundboard" as HubAdminTab, label: t("hub.admin.tabs.soundboard"), group: G_CUSTOM }] : []),
-    ...(props.stickersAdmin?.packs ? [{ id: "stickers" as HubAdminTab, label: t("hub.admin.tabs.stickers"), group: G_CUSTOM }] : []),
-    ...(props.stickersAdmin?.storage ? [{ id: "sticker-storage" as HubAdminTab, label: t("hub.admin.tabs.sticker_storage"), group: G_CUSTOM }] : []),
-    ...(props.attachmentSettingsActions ? [{ id: "attachments" as HubAdminTab, label: t("hub.admin.tabs.attachments"), group: G_CUSTOM }] : []),
-    ...(props.stickersAdmin?.settings ? [{ id: "sticker-settings" as HubAdminTab, label: t("hub.admin.tabs.sticker_settings"), group: G_CUSTOM }] : []),
+    S("welcome", t("hub.admin.overview.welcome"), "joining", [t("hub.admin.overview.welcome_label"), t("hub.admin.overview.farewell_label")]),
+    S("members", t("hub.admin.tabs.members"), "people"),
+    S("roles", t("hub.admin.tabs.roles"), "people"),
+    S("certifications", t("hub.admin.tabs.certifications"), "people"),
+    ...(admin && props.renderModerationTab ? [S("moderation", t("hub.admin.tabs.moderation"), "moderation")] : []),
+    ...(admin && props.renderRecoveryContacts ? [S("recovery", t("hub.admin.tabs.recovery"), "moderation")] : []),
+    S("bans", t("hub.admin.tabs.bans"), "moderation"),
+    ...(admin ? [S("audit-log", t("hub.admin.tabs.audit_log"), "moderation")] : []),
+    ...(admin ? [S("hub-icons", t("hub.admin.tabs.icons"), "content")] : []),
+    ...(props.stickersAdmin?.packs ? [S("stickers", t("hub.admin.tabs.stickers"), "content")] : []),
+    ...(props.stickersAdmin?.settings ? [S("sticker-settings", t("hub.admin.tabs.sticker_settings"), "content")] : []),
+    ...(props.canManageSoundboard && props.soundboardActions ? [S("soundboard", t("hub.admin.tabs.soundboard"), "content")] : []),
+    ...(props.attachmentSettingsActions ? [S("attachments", t("hub.admin.tabs.attachments"), "content")] : []),
+    S("message-limits", t("hub.admin.section.message_limits"), "content", [t("hub.admin.overview.attachment_cap")]),
+    ...(props.stickersAdmin?.storage ? [S("sticker-storage", t("hub.admin.tabs.sticker_storage"), "content")] : []),
+    ...(showAlliances ? [S("alliances", t("hub.admin.tabs.alliances"), "connections")] : []),
+    S("integrations", t("hub.admin.tabs.webhooks"), "connections"),
+    ...(props.widgetActions ? [S("widget", t("hub.admin.tabs.widget"), "connections")] : []),
   ];
+  const AREAS: SettingsAreaDef<Area>[] = ([
+    { id: "general", label: t("hub.admin.group.general") },
+    { id: "joining", label: t("hub.admin.group.joining") },
+    { id: "people", label: t("hub.admin.area.people") },
+    { id: "moderation", label: t("hub.admin.group.moderation") },
+    { id: "content", label: t("hub.admin.area.content") },
+    { id: "connections", label: t("hub.admin.group.connections") },
+  ] satisfies SettingsAreaDef<Area>[]).filter((a) => SECTIONS.some((sec) => sec.area === a.id));
 
-  return (
-    <div className="settings-page">
-      <aside className="settings-nav">
-        <h2>{t("hub.admin.nav.title")}</h2>
-        <ul>
-          {TABS.map((tab, i) => (
-            <li key={tab.id}>
-              {(i === 0 || TABS[i - 1].group !== tab.group) && (
-                <div className="settings-nav-group">{tab.group}</div>
-              )}
-              <button
-                className={`settings-nav-item ${props.tab === tab.id ? "active" : ""}`}
-                onClick={() => props.onTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button className="settings-nav-close" onClick={props.onClose}>{t("modal.close")}</button>
-      </aside>
-      <main className="settings-content">
-        <button className="settings-close-x" onClick={props.onClose} title={t("modal.close")}><CloseIcon size={13} /></button>
-
-        {props.tab === "overview" && (
+  function renderSection(section: HubAdminTab) {
+    return (
+      <>
+        {section === "overview" && (
           <section>
-            <h1>{t("hub.admin.overview.title")}</h1>
-            {/* Every change saves itself: a toggle or a select at once, typing
-                after a short pause. The status sits where the Save button was. */}
-            <p className={props.saveError ? "error-text" : "muted"} role="status" style={{ fontSize: "var(--text-sm)", minHeight: "1.4em" }}>
-              {props.saveError ?? (saveStatus === "saving" ? t("hub.admin.overview.saving") : saveStatus === "saved" ? t("hub.admin.overview.saved") : "")}
-            </p>
+            <h1>{t("hub.admin.overview.identity")}</h1>
             <SettingRow
               title={t("hub.admin.overview.identity")}
               state={props.hubName.trim() || t("hub.admin.overview.state.unnamed")}
               {...adminRow("identity")}
             >
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
-                  <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => edit(props.onHubNameChange)(e.target.value)} />
-                </div>
-                <div className="settings-section">
-                  <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
-                  <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => edit(props.onHubDescriptionChange)(e.target.value)} />
-                </div>
+                {props.inviteLandingActions ? (
+                  <InviteLandingSection
+                    name={props.hubName}
+                    description={props.hubDescription}
+                    onNameChange={edit(props.onHubNameChange)}
+                    onDescriptionChange={edit(props.onHubDescriptionChange)}
+                    memberCount={props.members.length}
+                    actions={props.inviteLandingActions}
+                  />
+                ) : (
+                  <>
+                    <div className="settings-section">
+                      <label className="settings-label" htmlFor="admin-hub-name">{t("hub.admin.overview.name")}</label>
+                      <input id="admin-hub-name" type="text" value={props.hubName} onChange={(e) => edit(props.onHubNameChange)(e.target.value)} />
+                    </div>
+                    <div className="settings-section">
+                      <label className="settings-label" htmlFor="admin-hub-desc">{t("hub.admin.overview.description")}</label>
+                      <textarea id="admin-hub-desc" rows={2} value={props.hubDescription} onChange={(e) => edit(props.onHubDescriptionChange)(e.target.value)} />
+                    </div>
+                  </>
+                )}
                 <div className="settings-section">
                   <label className="settings-label">{t("hub.admin.overview.icon")}</label>
+                  {props.inviteLandingActions && (
+                    <p className="muted" style={{ fontSize: "var(--text-sm)", margin: "0 0 var(--space-2)" }}>{t("hub.admin.landing.icon_hint")}</p>
+                  )}
                   <div className="hub-icon-editor">
                     {props.hubIcon ? (
                       <img src={props.hubIcon} alt={t("hub.admin.overview.icon")} className="hub-icon-preview" />
@@ -418,16 +441,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   </div>
                 </div>
             </SettingRow>
-
-            <SettingRow
-              title={t("hub.admin.overview.require_approval")}
-              control={<input type="checkbox" aria-label={t("hub.admin.overview.require_approval")} checked={props.requireApproval} onChange={(e) => edit(props.onRequireApprovalChange, 0)(e.target.checked)} />}
-            />
-            <SettingRow
-              title={t("hub.admin.overview.antispam")}
-              control={<input type="number" aria-label={t("hub.admin.overview.antispam")} min={0} max={9999} style={{ width: 90 }} value={props.minSecurityLevel} onChange={(e) => edit(props.onMinSecurityLevelChange)(Number(e.target.value))} />}
-            />
-
+          </section>
+        )}
+        {section === "behaviour" && (
+          <section>
+            <h1>{t("hub.admin.section.behaviour")}</h1>
             <SettingRow
               title={t("hub.admin.overview.timezone")}
               state={t("hub.admin.overview.timezone_hint")}
@@ -472,6 +490,11 @@ export function HubAdminPage(props: HubAdminPageProps) {
               }
             />
 
+          </section>
+        )}
+        {section === "voice-channels" && (
+          <section>
+            <h1>{t("hub.admin.section.voice_channels")}</h1>
             {/* Channel and timeout are one decision, so they share a row; the
                 timeout only appears once a channel is picked. */}
             <SettingRow
@@ -510,26 +533,79 @@ export function HubAdminPage(props: HubAdminPageProps) {
               state={t("hub.admin.overview.max_depth_hint")}
               control={<input type="number" aria-label={t("hub.admin.overview.max_depth")} min={0} max={20} style={{ width: 70 }} value={props.maxChannelDepth} onChange={(e) => edit(props.onMaxChannelDepthChange)(Number(e.target.value))} />}
             />
+          </section>
+        )}
+        {section === "admission" && (
+          <section>
+            <h1>{t("hub.admin.section.admission")}</h1>
             <SettingRow
-              title={t("hub.admin.overview.attachment_cap")}
-              state={t("hub.admin.overview.attachment_cap_hint")}
-              control={
-                <span className="settings-row" style={{ gap: "var(--space-1)" }}>
-                  <input
-                    type="number"
-                    aria-label={t("hub.admin.overview.attachment_cap")}
-                    min={1}
-                    max={8}
-                    step={1}
-                    style={{ width: 60 }}
-                    value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
-                    onChange={(e) => edit(props.onMaxAttachmentBytesChange)(Number(e.target.value) * 1024 * 1024)}
-                  />
-                  <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
-                </span>
-              }
+              title={t("hub.admin.overview.require_approval")}
+              control={<input type="checkbox" aria-label={t("hub.admin.overview.require_approval")} checked={props.requireApproval} onChange={(e) => edit(props.onRequireApprovalChange, 0)(e.target.checked)} />}
             />
-
+            {props.pendingMembers.length > 0 && (
+              <div className="pending-section">
+                <h2>{t("hub.admin.members.pending.title", { count: props.pendingMembers.length })}</h2>
+                <table className="members-table">
+                  <thead><tr>
+                    <th>{t("hub.admin.members.pending.col.user")}</th>
+                    <th>{t("hub.admin.members.pending.col.signed_up")}</th>
+                    <th>{t("hub.admin.members.pending.col.actions")}</th>
+                  </tr></thead>
+                  <tbody>
+                    {props.pendingMembers.map((p) => (
+                      <tr key={p.public_key}>
+                        <td>
+                          <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
+                          <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
+                          {p.ban_evasion_match && (
+                            <div className="muted" style={{ fontSize: "var(--text-xs)" }} title={p.ban_evasion_match}>
+                              {t("hub.admin.members.pending.ban_evasion", { banned: formatPubkey(p.ban_evasion_match) })}
+                            </div>
+                          )}
+                        </td>
+                        <td>{formatRelative(p.first_seen_at)}</td>
+                        <td>
+                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
+                          {p.has_application && props.loadApplication && (
+                            <button
+                              className="btn-small btn-secondary"
+                              aria-expanded={openApplication === p.public_key}
+                              onClick={() => setOpenApplication((cur) => (cur === p.public_key ? null : p.public_key))}
+                            >
+                              {t("hub.admin.members.pending.application")}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )).flatMap((row, i) => {
+                      const p = props.pendingMembers[i];
+                      return openApplication === p.public_key && props.loadApplication
+                        ? [row, (
+                          <tr key={`${p.public_key}-application`}>
+                            <td colSpan={3}>
+                              <PendingApplicationDetails
+                                pubkey={p.public_key}
+                                loadApplication={props.loadApplication}
+                                onReject={props.onRejectMember}
+                              />
+                            </td>
+                          </tr>
+                        )]
+                        : [row];
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <SettingRow
+              title={t("hub.admin.overview.antispam")}
+              control={<input type="number" aria-label={t("hub.admin.overview.antispam")} min={0} max={9999} style={{ width: 90 }} value={props.minSecurityLevel} onChange={(e) => edit(props.onMinSecurityLevelChange)(Number(e.target.value))} />}
+            />
+          </section>
+        )}
+        {section === "welcome" && (
+          <section>
+            <h1>{t("hub.admin.overview.welcome")}</h1>
             <SettingRow
               title={t("hub.admin.overview.welcome")}
               state={props.welcomeLabel.trim() || t("hub.admin.overview.state.no_welcome")}
@@ -582,22 +658,34 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   )}
                 </div>
             </SettingRow>
-
-            {/* Deliberately not editable here: these come from the environment
-                and need a restart, so a control would imply something this page
-                cannot deliver. Named so an operator knows what to go and change.
-                The env var names stay outside the catalog: a translator must
-                not be able to rename an operator's variable. */}
-            <p className="muted" style={{ fontSize: "var(--text-sm)", marginTop: "var(--space-4)" }}>
-              <strong>{t("hub.admin.overview.startup_only")}</strong>{" "}
-              {t("hub.admin.overview.startup_only.db")} — <code>WAVVON_DB_MAX_CONNECTIONS</code>.{" "}
-              {t("hub.admin.overview.startup_only.udp")} — <code>WAVVON_VOICE_UDP_PORT</code>.{" "}
-              {t("hub.admin.overview.startup_only.rest")}
-            </p>
+          </section>
+        )}
+        {section === "message-limits" && (
+          <section>
+            <h1>{t("hub.admin.section.message_limits")}</h1>
+            <SettingRow
+              title={t("hub.admin.overview.attachment_cap")}
+              state={t("hub.admin.overview.attachment_cap_hint")}
+              control={
+                <span className="settings-row" style={{ gap: "var(--space-1)" }}>
+                  <input
+                    type="number"
+                    aria-label={t("hub.admin.overview.attachment_cap")}
+                    min={1}
+                    max={8}
+                    step={1}
+                    style={{ width: 60 }}
+                    value={Math.max(1, Math.round(props.maxAttachmentBytes / 1024 / 1024))}
+                    onChange={(e) => edit(props.onMaxAttachmentBytesChange)(Number(e.target.value) * 1024 * 1024)}
+                  />
+                  <span className="muted">{t("hub.admin.overview.attachment_cap_unit")}</span>
+                </span>
+              }
+            />
           </section>
         )}
 
-        {props.tab === "discovery" && (
+        {section === "discovery" && (
           <section>
             <h1>{t("hub.admin.discovery.title")}</h1>
             <div className="settings-section">
@@ -654,67 +742,12 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "tags" && (
+        {section === "tags" && (
           <ServerTagsSection actions={props.serverTagsActions} />
         )}
 
-        {props.tab === "members" && (
+        {section === "members" && (
           <section>
-            {props.pendingMembers.length > 0 && (
-              <div className="pending-section">
-                <h2>{t("hub.admin.members.pending.title", { count: props.pendingMembers.length })}</h2>
-                <table className="members-table">
-                  <thead><tr>
-                    <th>{t("hub.admin.members.pending.col.user")}</th>
-                    <th>{t("hub.admin.members.pending.col.signed_up")}</th>
-                    <th>{t("hub.admin.members.pending.col.actions")}</th>
-                  </tr></thead>
-                  <tbody>
-                    {props.pendingMembers.map((p) => (
-                      <tr key={p.public_key}>
-                        <td>
-                          <div>{p.display_name || t("hub.admin.members.pending.no_name")}</div>
-                          <div className="member-pk" title={p.public_key}>{formatPubkey(p.public_key)}</div>
-                          {p.ban_evasion_match && (
-                            <div className="muted" style={{ fontSize: "var(--text-xs)" }} title={p.ban_evasion_match}>
-                              {t("hub.admin.members.pending.ban_evasion", { banned: formatPubkey(p.ban_evasion_match) })}
-                            </div>
-                          )}
-                        </td>
-                        <td>{formatRelative(p.first_seen_at)}</td>
-                        <td>
-                          <button className="btn-small" onClick={() => props.onApproveMember(p.public_key)}>{t("hub.admin.members.pending.approve")}</button>
-                          {p.has_application && props.loadApplication && (
-                            <button
-                              className="btn-small btn-secondary"
-                              aria-expanded={openApplication === p.public_key}
-                              onClick={() => setOpenApplication((cur) => (cur === p.public_key ? null : p.public_key))}
-                            >
-                              {t("hub.admin.members.pending.application")}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )).flatMap((row, i) => {
-                      const p = props.pendingMembers[i];
-                      return openApplication === p.public_key && props.loadApplication
-                        ? [row, (
-                          <tr key={`${p.public_key}-application`}>
-                            <td colSpan={3}>
-                              <PendingApplicationDetails
-                                pubkey={p.public_key}
-                                loadApplication={props.loadApplication}
-                                onReject={props.onRejectMember}
-                              />
-                            </td>
-                          </tr>
-                        )]
-                        : [row];
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
             <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
             {memberNotice && (
               <p role="status" className={memberNotice.error ? "error-text" : "muted"} style={{ marginBottom: "var(--space-3)" }}>
@@ -791,7 +824,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "bans" && (
+        {section === "bans" && (
           <section>
             <h1>{t("hub.admin.bans.title", { count: props.bans.length })}</h1>
             {props.bans.length === 0 && <p className="muted">{t("hub.admin.bans.empty")}</p>}
@@ -814,7 +847,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "invites" && (
+        {section === "invites" && (
           <InviteManager
             invites={props.invites}
             activeHubUrl={props.activeHubUrl}
@@ -827,9 +860,9 @@ export function HubAdminPage(props: HubAdminPageProps) {
           />
         )}
 
-        {props.tab === "roles" && <RolesSection actions={props.rolesActions} myMaxPriority={props.myMaxPriority} />}
+        {section === "roles" && <RolesSection actions={props.rolesActions} myMaxPriority={props.myMaxPriority} />}
 
-        {props.tab === "integrations" && (
+        {section === "integrations" && (
           <section>
             <h1>{t("webhooks.title")}</h1>
             <WebhooksSection channels={props.channels} actions={props.webhookActions} />
@@ -837,30 +870,30 @@ export function HubAdminPage(props: HubAdminPageProps) {
           </section>
         )}
 
-        {props.tab === "certifications" && (
+        {section === "certifications" && (
           <CertificationsSection actions={props.certActions} />
         )}
 
-        {props.tab === "recovery" && (
+        {section === "recovery" && (
           <section>
             <h1>{t("hub.admin.tabs.recovery")}</h1>
             {props.renderRecoveryContacts?.()}
           </section>
         )}
 
-        {props.tab === "soundboard" && props.canManageSoundboard && props.soundboardActions && (
+        {section === "soundboard" && props.canManageSoundboard && props.soundboardActions && (
           <SoundboardAdminSection actions={props.soundboardActions} />
         )}
 
-        {props.tab === "stickers" && props.stickersAdmin?.packs && (
+        {section === "stickers" && props.stickersAdmin?.packs && (
           <StickerPacksSection actions={props.stickersAdmin.packs} hubUrl={props.stickersAdmin.hubUrl} />
         )}
 
-        {props.tab === "sticker-storage" && props.stickersAdmin?.storage && (
+        {section === "sticker-storage" && props.stickersAdmin?.storage && (
           <StickerStorageSection actions={props.stickersAdmin.storage} hubUrl={props.stickersAdmin.hubUrl} />
         )}
 
-        {props.tab === "sticker-settings" && props.stickersAdmin?.settings && (
+        {section === "sticker-settings" && props.stickersAdmin?.settings && (
           <StickerSettingsSection
             actions={props.stickersAdmin.settings}
             rolesActions={props.rolesActions}
@@ -868,17 +901,17 @@ export function HubAdminPage(props: HubAdminPageProps) {
           />
         )}
 
-        {props.tab === "widget" && props.widgetActions && (
+        {section === "widget" && props.widgetActions && (
           <WidgetSection actions={props.widgetActions} hubUrl={props.activeHubUrl} />
         )}
 
-        {props.tab === "attachments" && props.attachmentSettingsActions && (
+        {section === "attachments" && props.attachmentSettingsActions && (
           <AttachmentSettingsSection actions={props.attachmentSettingsActions} />
         )}
 
-        {props.tab === "moderation" && props.isAdmin && props.renderModerationTab?.()}
+        {section === "moderation" && props.isAdmin && props.renderModerationTab?.()}
 
-        {props.tab === "alliances" && showAlliances && (
+        {section === "alliances" && showAlliances && (
           <AlliancesSection
             activeHubUrl={props.activeHubUrl}
             channels={props.channels}
@@ -891,22 +924,43 @@ export function HubAdminPage(props: HubAdminPageProps) {
             canManageHubAlliances={props.canManageHubAlliances}
           />
         )}
-        {props.tab === "hub-icons" && props.isAdmin && (
+        {section === "hub-icons" && props.isAdmin && (
           <HubIconsSection actions={props.hubIconActions} />
         )}
-        {props.tab === "onboarding" && props.isAdmin && (
+        {section === "hub-theme" && props.hubThemeActions && (
+          <HubThemeSection actions={props.hubThemeActions} />
+        )}
+        {section === "hub-languages" && props.hubLanguagesActions && (
+          <HubLanguagesSection actions={props.hubLanguagesActions} />
+        )}
+        {section === "onboarding" && props.isAdmin && (
           <OnboardingAdminSection actions={props.onboardingActions} />
         )}
-        {props.tab === "survey" && props.isAdmin && (
+        {section === "survey" && props.isAdmin && (
           <SurveyAdminSection actions={props.surveyActions} extendedKinds={props.joinFormsCapable} />
         )}
-        {props.tab === "application" && props.isAdmin && props.joinFormsCapable && props.applicationActions && (
+        {section === "application" && props.isAdmin && props.joinFormsCapable && props.applicationActions && (
           <SurveyAdminSection key="application" actions={props.applicationActions} purpose="application" extendedKinds />
         )}
-        {props.tab === "audit-log" && props.isAdmin && (
+        {section === "audit-log" && props.isAdmin && (
           <AuditLogSection actions={props.auditLogActions} members={props.members} channels={props.channels} />
         )}
-      </main>
-    </div>
+      </>
+    );
+  }
+
+  return (
+    <SettingsShell
+      title={t("hub.admin.nav.title")}
+      areas={AREAS}
+      sections={SECTIONS}
+      activeSection={SECTIONS.some((sec) => sec.id === props.tab) ? props.tab : "overview"}
+      onSection={props.onTab}
+      renderSection={renderSection}
+      onClose={props.onClose}
+      status={props.saveError ? (
+        <span className="error-text">{props.saveError}</span>
+      ) : saveStatus === "saving" ? t("hub.admin.overview.saving") : saveStatus === "saved" ? t("hub.admin.overview.saved") : undefined}
+    />
   );
 }

@@ -25,8 +25,10 @@ export type ToWorker =
       vad: EffectiveVad;
       muted: boolean;
       key: WorkerKey;
-      url: string;
-      certHash: Uint8Array | null;
+      // The WebRTC voice channel, transferred here so packets never wait on
+      // the main thread. Absent when the browser would not transfer it: then
+      // sealed packets go back as `packet` messages and the main thread sends.
+      rtcChannel?: RTCDataChannel;
       pcmPort: MessagePort;
     }
   | { type: 'key'; key: WorkerKey }
@@ -42,6 +44,7 @@ export type FromWorker =
   // separates a handshake that timed out from one that was refused.
   | { type: 'failed'; name: string; message: string; elapsedMs: number }
   | { type: 'datagram'; data: Uint8Array }
+  | { type: 'packet'; data: Uint8Array }
   | { type: 'speaking'; speaking: boolean }
   | { type: 'gate'; warning: boolean }
   | { type: 'clipDone' }
@@ -60,8 +63,8 @@ let encoder: AudioEncoder | null = null;
 // callback: WebCodecs encodes asynchronously, so the gate decision and the
 // media clock of a frame have to travel beside it.
 const pending: { gated: boolean; ts: number }[] = [];
-let transport: WebTransport | null = null;
-let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+let send: ((packet: Uint8Array) => void) | null = null;
+let rtcChannel: RTCDataChannel | null = null;
 let key: WorkerKey | null = null;
 let ctr = 0n;
 let timestamp = 0;
@@ -115,7 +118,7 @@ function onFrame(frame: CaptureFrame): void {
   tracker.observe(frame.startFrame, frame.capturedAt, Date.now());
   // Muted frames are still counted above (the pipeline kept pace) but never
   // touch the detector, the clip or the encoder, as before the split.
-  if (muted || !writer || !encoder || !key) return;
+  if (muted || !send || !encoder || !key) return;
 
   const micFrame = frame.samples;
 
@@ -167,63 +170,41 @@ function onFrame(frame: CaptureFrame): void {
 
 function onEncoded(chunk: EncodedAudioChunk): void {
   const frame = pending.shift();
-  if (!frame || frame.gated || !writer || !key) return;
+  if (!frame || frame.gated || !send || !key) return;
   const opus = new Uint8Array(chunk.byteLength);
   chunk.copyTo(opus);
   const sealed = voicePacketSeal(key.key, key.salt, key.keyId, ctr, frame.ts, opus);
   ctr += 1n;
-  writer.write(sealed).catch(() => {});
+  send(sealed);
 }
 
 function teardown(): void {
   if (statsTimer) clearInterval(statsTimer);
   statsTimer = null;
-  try { writer?.close(); } catch { /* transport may already be gone */ }
-  writer = null;
-  try { transport?.close(); } catch { /* already closed */ }
-  transport = null;
+  send = null;
+  try { rtcChannel?.close(); } catch { /* already closed */ }
+  rtcChannel = null;
   if (encoder && encoder.state !== 'closed') encoder.close();
   encoder = null;
   pending.length = 0;
 }
 
-async function openTransport(url: string, certHash: Uint8Array | null): Promise<void> {
-  const options: WebTransportOptions | undefined = certHash
-    // Re-wrap: the declared `Uint8Array` type erases the `ArrayBuffer`
-    // generic BufferSource needs.
-    ? { serverCertificateHashes: [{ algorithm: 'sha-256', value: new Uint8Array(certHash) }] }
-    : undefined;
-  const started = performance.now();
-  const wt = new WebTransport(url, options);
-  transport = wt;
+function adoptChannel(ch: RTCDataChannel): void {
+  rtcChannel = ch;
+  ch.binaryType = 'arraybuffer';
   let isReady = false;
-  // Before ready, `failed` below reports the outcome; `closed` is only the
-  // end of a session that was up.
-  const onClosed = () => { if (isReady) scope.postMessage({ type: 'closed' }); };
-  wt.closed.then(onClosed, onClosed);
-  try {
-    await wt.ready;
-  } catch (err) {
-    const e = err as { name?: string; message?: string } | null;
-    scope.postMessage({
-      type: 'failed',
-      name: e?.name ?? 'Error',
-      message: e?.message ?? String(err),
-      elapsedMs: Math.round(performance.now() - started),
-    });
-    return;
-  }
-  isReady = true;
-  writer = wt.datagrams.writable.getWriter();
-  scope.postMessage({ type: 'ready' });
-  const reader = wt.datagrams.readable.getReader();
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      if (value) scope.postMessage({ type: 'datagram', data: value });
-    }
-  } catch { /* transport closed — `closed` above drives teardown */ }
+  const ready = () => {
+    isReady = true;
+    send = (packet) => { if (ch.readyState === 'open') ch.send(packet as Uint8Array<ArrayBuffer>); };
+    scope.postMessage({ type: 'ready' });
+  };
+  ch.onmessage = (ev: MessageEvent<ArrayBuffer>) => scope.postMessage({ type: 'datagram', data: new Uint8Array(ev.data) });
+  ch.onclose = () => {
+    if (isReady) scope.postMessage({ type: 'closed' });
+    else scope.postMessage({ type: 'failed', name: 'closed', message: 'voice data channel closed before opening', elapsedMs: 0 });
+  };
+  if (ch.readyState === 'open') ready();
+  else ch.onopen = ready;
 }
 
 scope.onmessage = (e) => {
@@ -236,7 +217,7 @@ scope.onmessage = (e) => {
         // leave a connected room that is silently mute.
         error: () => {
           encoder = null;
-          transport?.close();
+          rtcChannel?.close();
         },
       });
       encoder.configure({
@@ -251,7 +232,12 @@ scope.onmessage = (e) => {
       muted = msg.muted;
       setKey(msg.key);
       msg.pcmPort.onmessage = (ev: MessageEvent<CaptureFrame>) => onFrame(ev.data);
-      void openTransport(msg.url, msg.certHash);
+      if (msg.rtcChannel) {
+        adoptChannel(msg.rtcChannel);
+      } else {
+        send = (packet) => scope.postMessage({ type: 'packet', data: packet });
+        scope.postMessage({ type: 'ready' });
+      }
       statsTimer = setInterval(() => scope.postMessage({ type: 'stats', stats: tracker.snapshot() }), STATS_INTERVAL_MS);
       break;
     case 'key':

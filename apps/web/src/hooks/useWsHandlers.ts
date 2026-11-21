@@ -5,9 +5,9 @@ import {
   refreshHubInfo, listHubs, fetchVoiceRoster, fetchAllUsers,
 } from "@platform";
 import type { WsHandlers } from "@platform";
-import { mentionsName, playMentionPing, takeAppJoin } from "@wavvon/core";
+import { mentionsName, playMentionPing, playSound, takeAppJoin, appSessionKey } from "@wavvon/core";
 import type { Channel, Message, User, Hub, MeInfo, VoiceParticipant, NotifyMode } from "@shared/types";
-import type { AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
+import type { AppCloseEvent, AppLaunchEvent, AppOpenEvent, PresenceStatus } from "../types";
 import i18n from "@wavvon/i18n";
 
 export interface UseWsHandlersParams {
@@ -39,6 +39,8 @@ export interface UseWsHandlersParams {
   handleStatusChange: (hubId: string, hubName: string, connected: boolean, setAssertive: (msg: string) => void) => void;
   setAssertiveAnnouncement: (msg: string) => void;
   showHubError: (msg: string) => void;
+  /** Any hub's message delete, active or not (the Saved list marks it). */
+  onAnyMessageDeleted: (hubId: string, messageId: string) => void;
   // Function declarations are hoisted, so the frozen memo below could close
   // over loadHubData directly like the original App did — but loadHubData is
   // now a prop passed in fresh on every render, and the memo (deps []) only
@@ -51,6 +53,7 @@ export interface UseWsHandlersParams {
   voiceOnVoiceZoneCreated: (raw: unknown) => void;
   voiceOnVoiceZoneDestroyed: (raw: unknown) => void;
   voiceOnVoicePositionUpdated: (raw: unknown) => void;
+  voiceOnVoicePositionRefused: () => void;
   voiceOnVoiceKeyReceived: (raw: unknown) => void;
   voiceOnVoiceKeyRequest: (raw: unknown) => void;
   handleVideoMessage: (raw: Record<string, unknown>) => void;
@@ -73,9 +76,9 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     setMessages, setStickToBottom, setNewWhileScrolledUp, bumpUnread,
     setUsers, setChannels, setHubs, setActiveHubTimezone, setVoicePartByChannel,
     onDm, onDmMemberChanged, receiveTyping, onScreenShare, onScreenShareChunk, resubscribeStreams,
-    receiveSoundboardPlayed, handleStatusChange, setAssertiveAnnouncement, showHubError,
+    receiveSoundboardPlayed, handleStatusChange, setAssertiveAnnouncement, showHubError, onAnyMessageDeleted,
     loadHubDataRef, voiceOnVoiceState, voiceOnVoiceZoneState, voiceOnVoiceZoneCreated,
-    voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoiceKeyReceived,
+    voiceOnVoiceZoneDestroyed, voiceOnVoicePositionUpdated, voiceOnVoicePositionRefused, voiceOnVoiceKeyReceived,
     voiceOnVoiceKeyRequest, handleVideoMessage,
     receiveWhisperEvent, onVoiceMovePush, setActiveApps, setActiveOpenApp,
   } = deps;
@@ -96,6 +99,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         const isActiveHub = msgHubId === activeHub;
         const isActiveChannel = isActiveHub && m.channel_id === selCh?.id;
         if (isActiveChannel) {
+          if (msg.sender !== publicKeyRef.current) playSound("message");
           setMessages((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
           setStickToBottom((stick) => { if (stick) setNewWhileScrolledUp(0); else setNewWhileScrolledUp((n) => n + 1); return stick; });
         }
@@ -129,6 +133,7 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
         const msg = m.message as Message | undefined;
         if (msg) setMessages((prev) => prev.map((x) => x.id === msg.id ? msg : x));
       } else if (type === "message_deleted") {
+        if (msgHubId && typeof m.message_id === "string") onAnyMessageDeleted(msgHubId, m.message_id);
         if (msgHubId !== activeHub) return;
         if (m.channel_id !== selectedChannelRef.current?.id) return;
         const id = m.message_id as string;
@@ -202,6 +207,12 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
     },
     onError: (raw) => {
       const m = raw as Record<string, unknown>;
+      // From the voice socket, which may be another hub's (an alliance
+      // visit): the room map shows it, not a toast.
+      if (m.context === "voice_position_update") {
+        voiceOnVoicePositionRefused();
+        return;
+      }
       if (m._hub_id !== activeHubIdRef.current) return;
       const message = (m.message as string | undefined) ?? i18n.t("errors.hub_error");
       showHubError(message);
@@ -341,24 +352,21 @@ export function useWsHandlers(deps: UseWsHandlersParams) {
       const type = m.type as string;
       if (type === "app_launch") {
         const ev = m as unknown as AppLaunchEvent;
-        setActiveApps((prev) => {
-          const next = new Map(prev);
-          next.set(ev.app_id, ev);
-          return next;
-        });
+        setActiveApps((prev) => new Map(prev).set(appSessionKey(ev.app_id, ev.channel_id), ev));
       } else if (type === "app_open") {
         const ev = m as unknown as AppOpenEvent;
-        if (!takeAppJoin(ev.app_id)) return;
+        if (!takeAppJoin(ev.app_id, ev.channel_id)) return;
         const hubUrl = hubsRef.current.find((h) => h.hub_id === activeHubIdRef.current)?.hub_url ?? "";
         setActiveOpenApp({ event: ev, hubUrl });
       } else if (type === "app_close") {
-        const appId = m.app_id as string;
+        const ev = m as unknown as AppCloseEvent;
         setActiveApps((prev) => {
           const next = new Map(prev);
-          next.delete(appId);
+          next.delete(appSessionKey(ev.app_id, ev.channel_id));
           return next;
         });
-        setActiveOpenApp((prev) => prev?.event.app_id === appId ? null : prev);
+        setActiveOpenApp((prev) =>
+          prev?.event.app_id === ev.app_id && prev.event.channel_id === ev.channel_id ? null : prev);
       }
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps

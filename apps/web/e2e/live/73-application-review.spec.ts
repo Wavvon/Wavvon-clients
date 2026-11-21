@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openHubAdminSection } from "../helpers/settings";
 import { expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
 // P73 — reviewing a join application (join-forms.md): the owner opens a
@@ -38,7 +39,7 @@ test("a moderator reads an application and rejects it with a reason", async ({ p
     await expectInHub(page);
     await page.locator(".hub-header-button").click();
     await page.getByRole("button", { name: "Hub settings" }).click();
-    await page.getByRole("button", { name: "Members", exact: true }).click();
+    await openHubAdminSection(page, "Approval and anti-spam");
 
     const row = page.locator("tr", { hasText: name });
     await row.getByRole("button", { name: "Application", exact: true }).click();
