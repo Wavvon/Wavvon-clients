@@ -240,7 +240,7 @@ async function openTransport(url: string, certHash: Uint8Array | null): Promise<
   } catch { /* transport closed — `closed` above drives teardown */ }
 }
 
-function useChannel(ch: RTCDataChannel): void {
+function adoptChannel(ch: RTCDataChannel): void {
   rtcChannel = ch;
   ch.binaryType = 'arraybuffer';
   let isReady = false;
@@ -286,7 +286,7 @@ scope.onmessage = (e) => {
       if (msg.url) {
         void openTransport(msg.url, msg.certHash);
       } else if (msg.rtcChannel) {
-        useChannel(msg.rtcChannel);
+        adoptChannel(msg.rtcChannel);
       } else {
         send = (packet) => scope.postMessage({ type: 'packet', data: packet });
         scope.postMessage({ type: 'ready' });
