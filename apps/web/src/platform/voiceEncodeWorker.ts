@@ -29,6 +29,10 @@ export type ToWorker =
       // channel: sealed packets then go back as `packet` messages.
       url: string | null;
       certHash: Uint8Array | null;
+      // The WebRTC voice channel, transferred here so packets never wait on
+      // the main thread. Absent with a url (WebTransport) and when the
+      // browser would not transfer it (then `packet` messages relay).
+      rtcChannel?: RTCDataChannel;
       pcmPort: MessagePort;
     }
   | { type: 'key'; key: WorkerKey }
@@ -66,6 +70,7 @@ const pending: { gated: boolean; ts: number }[] = [];
 let transport: WebTransport | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 let send: ((packet: Uint8Array) => void) | null = null;
+let rtcChannel: RTCDataChannel | null = null;
 let key: WorkerKey | null = null;
 let ctr = 0n;
 let timestamp = 0;
@@ -185,6 +190,8 @@ function teardown(): void {
   try { writer?.close(); } catch { /* transport may already be gone */ }
   writer = null;
   send = null;
+  try { rtcChannel?.close(); } catch { /* already closed */ }
+  rtcChannel = null;
   try { transport?.close(); } catch { /* already closed */ }
   transport = null;
   if (encoder && encoder.state !== 'closed') encoder.close();
@@ -233,6 +240,24 @@ async function openTransport(url: string, certHash: Uint8Array | null): Promise<
   } catch { /* transport closed — `closed` above drives teardown */ }
 }
 
+function useChannel(ch: RTCDataChannel): void {
+  rtcChannel = ch;
+  ch.binaryType = 'arraybuffer';
+  let isReady = false;
+  const ready = () => {
+    isReady = true;
+    send = (packet) => { if (ch.readyState === 'open') ch.send(packet as Uint8Array<ArrayBuffer>); };
+    scope.postMessage({ type: 'ready' });
+  };
+  ch.onmessage = (ev: MessageEvent<ArrayBuffer>) => scope.postMessage({ type: 'datagram', data: new Uint8Array(ev.data) });
+  ch.onclose = () => {
+    if (isReady) scope.postMessage({ type: 'closed' });
+    else scope.postMessage({ type: 'failed', name: 'closed', message: 'voice data channel closed before opening', elapsedMs: 0 });
+  };
+  if (ch.readyState === 'open') ready();
+  else ch.onopen = ready;
+}
+
 scope.onmessage = (e) => {
   const msg = e.data;
   switch (msg.type) {
@@ -260,6 +285,8 @@ scope.onmessage = (e) => {
       msg.pcmPort.onmessage = (ev: MessageEvent<CaptureFrame>) => onFrame(ev.data);
       if (msg.url) {
         void openTransport(msg.url, msg.certHash);
+      } else if (msg.rtcChannel) {
+        useChannel(msg.rtcChannel);
       } else {
         send = (packet) => scope.postMessage({ type: 'packet', data: packet });
         scope.postMessage({ type: 'ready' });

@@ -12,7 +12,7 @@ import { downmixChannels } from './soundboardMix';
 import captureWorkletUrl from './captureWorklet?worker&url';
 import type { FromWorker, ToWorker } from './voiceEncodeWorker';
 import { VoiceTransportError } from './voiceErrors';
-import { openRtcVoice, type RtcSignal, type RtcVoiceLink } from './voiceRtc';
+import { channelOpen, createRtcPeer, negotiateRtc, type RtcSignal } from './voiceRtc';
 
 export { mixClipIntoFrame, downmixChannels, type ActiveClip } from './soundboardMix';
 
@@ -143,7 +143,10 @@ export class VoiceWtSession {
   private muted = false;
   private deafened = false;
   private closed = false;
-  private rtc: RtcVoiceLink | null = null;
+  private rtcPc: RTCPeerConnection | null = null;
+  /** The voice channel when the browser would not transfer it to the worker:
+   *  then it is driven from this thread instead. */
+  private rtcRelay: RTCDataChannel | null = null;
   private gainNodes: Map<number, GainNode> = new Map();
   private senderIdToPubkey: Map<number, string> = new Map();
   /** Per-sender playout clock: when that sender's last scheduled
@@ -217,14 +220,25 @@ export class VoiceWtSession {
 
     if (this.join.rtcSignal) {
       const started = performance.now();
+      const { pc, channel } = createRtcPeer();
+      this.rtcPc = pc;
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' && !this.closed) this.handlers.onClose();
+      };
+      // No await between creating the channel and handing it to the worker.
+      const workerReady = this.startEncodeWorker(opus, null, null, channel);
+      workerReady.catch(() => { /* reported through the race below */ });
       try {
-        this.rtc = await openRtcVoice(this.join.token, this.join.rtcSignal);
+        await negotiateRtc(pc, this.join.token, this.join.rtcSignal);
+        if (this.rtcRelay) await channelOpen(this.rtcRelay);
+        await Promise.race([
+          workerReady,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('voice data channel did not open')), 10_000)),
+        ]);
       } catch (e) {
+        if (e instanceof VoiceTransportError) throw e;
         throw new VoiceTransportError('webrtc', 'Error', (e as Error).message ?? String(e), Math.round(performance.now() - started));
       }
-      this.rtc.onPacket = (p) => this.onDatagram(p);
-      this.rtc.onClose = () => { if (!this.closed) this.handlers.onClose(); };
-      await this.startEncodeWorker(opus, null, null);
     } else {
       const url = `${this.join.wtUrl}?token=${encodeURIComponent(this.join.token)}`;
       const certHash = this.join.certHash;
@@ -346,7 +360,12 @@ export class VoiceWtSession {
    *  never pass through this thread. The worklet gets its port only now: audio
    *  captured before the session exists has nowhere to go and would arrive as
    *  one stale burst. */
-  private startEncodeWorker(opus: ReturnType<typeof resolveOpusConfig>, url: string | null, certHash: Uint8Array | null): Promise<void> {
+  private startEncodeWorker(
+    opus: ReturnType<typeof resolveOpusConfig>,
+    url: string | null,
+    certHash: Uint8Array | null,
+    rtcChannel: RTCDataChannel | null = null,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const worker = new Worker(new URL('./voiceEncodeWorker.ts', import.meta.url), { type: 'module' });
       this.encodeWorker = worker;
@@ -370,7 +389,7 @@ export class VoiceWtSession {
             this.onDatagram(msg.data);
             break;
           case 'packet':
-            this.rtc?.send(msg.data);
+            if (this.rtcRelay?.readyState === 'open') this.rtcRelay.send(msg.data as Uint8Array<ArrayBuffer>);
             break;
           case 'speaking':
             this.handlers.sendSpeaking(this.channelId, msg.speaking);
@@ -399,7 +418,19 @@ export class VoiceWtSession {
         key: this.workerKey(),
         pcmPort: port2,
       };
-      worker.postMessage(init, [port2]);
+      let posted = false;
+      if (rtcChannel) {
+        try {
+          worker.postMessage({ ...init, rtcChannel }, [port2, rtcChannel as unknown as Transferable]);
+          posted = true;
+        } catch {
+          // Not transferable here (DataCloneError): drive it from this thread.
+          this.rtcRelay = rtcChannel;
+          rtcChannel.onmessage = (ev: MessageEvent<ArrayBuffer>) => this.onDatagram(new Uint8Array(ev.data));
+          rtcChannel.onclose = () => { if (!this.closed) this.handlers.onClose(); };
+        }
+      }
+      if (!posted) worker.postMessage(init, [port2]);
     });
   }
 
@@ -624,8 +655,9 @@ export class VoiceWtSession {
     }
     this.postToWorker({ type: 'stop' });
     this.encodeWorker = null;
-    this.rtc?.close();
-    this.rtc = null;
+    this.rtcPc?.close();
+    this.rtcPc = null;
+    this.rtcRelay = null;
     for (const track of this.mediaStream?.getTracks() ?? []) track.stop();
     this.mediaStream = null;
     for (const [, gainNode] of this.gainNodes) {
