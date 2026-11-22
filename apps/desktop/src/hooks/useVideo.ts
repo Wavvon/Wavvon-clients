@@ -1,12 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { BackgroundProcessor, loadBgMode, loadBgSource } from "@wavvon/ui";
 import { listenerScope } from "../utils/listenerScope";
 
 const CAMERA_DEVICE_KEY = "wavvon.videoInputDevice";
-const MAX_ACTIVE = 3;
-const LINGER_MS = 3000;
 const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
 
 interface PeerEntry {
@@ -18,57 +16,16 @@ interface UseVideoParams {
   activeHubId: string | null;
   voiceChannelId: string | null;
   publicKey: string | null;
-  voiceSpeakingPubkeys: Set<string>;
 }
 
-export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeakingPubkeys }: UseVideoParams) {
+export function useVideo({ activeHubId, voiceChannelId, publicKey }: UseVideoParams) {
   const [videoEnabled, setVideoEnabled] = useState(false);
   const [rawStream, setRawStream] = useState<MediaStream | null>(null);
   const [processedStream, setProcessedStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [videoPubkeys, setVideoPubkeys] = useState<Set<string>>(new Set());
-  const [pinnedPubkey, setPinnedPubkey] = useState<string | null>(null);
   const peers = useRef<Map<string, PeerEntry>>(new Map());
-  const speakerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const activeSpeakers = useRef<Set<string>>(new Set());
   const bgProcessor = useRef<BackgroundProcessor | null>(null);
-
-  const pinnedPubkeyRef = useRef<string | null>(null);
-  pinnedPubkeyRef.current = pinnedPubkey;
-
-  const updateActiveVideo = useCallback(() => {
-    const active = new Set<string>();
-    if (pinnedPubkeyRef.current) active.add(pinnedPubkeyRef.current);
-    for (const pk of activeSpeakers.current) {
-      if (active.size >= MAX_ACTIVE) break;
-      active.add(pk);
-    }
-    for (const [pk, entry] of peers.current) {
-      const remote = entry.conn.getReceivers().find(r => r.track.kind === "video");
-      if (remote) remote.track.enabled = active.has(pk);
-    }
-  }, []);
-
-  useEffect(() => {
-    for (const pk of voiceSpeakingPubkeys) {
-      const existing = speakerTimers.current.get(pk);
-      if (existing) clearTimeout(existing);
-      speakerTimers.current.delete(pk);
-      activeSpeakers.current.add(pk);
-    }
-    updateActiveVideo();
-
-    for (const pk of activeSpeakers.current) {
-      if (!voiceSpeakingPubkeys.has(pk) && !speakerTimers.current.has(pk)) {
-        const t = setTimeout(() => {
-          activeSpeakers.current.delete(pk);
-          speakerTimers.current.delete(pk);
-          updateActiveVideo();
-        }, LINGER_MS);
-        speakerTimers.current.set(pk, t);
-      }
-    }
-  }, [voiceSpeakingPubkeys, updateActiveVideo]);
 
   function sendWs(payload: object) {
     invoke("send_hub_ws_raw", { payload: JSON.stringify(payload) }).catch(console.warn);
@@ -96,7 +53,6 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
 
     conn.ontrack = (e) => {
       setRemoteStreams(prev => new Map(prev).set(remotePubkey, e.streams[0]));
-      updateActiveVideo();
     };
 
     conn.onconnectionstatechange = () => {
@@ -270,8 +226,6 @@ export function useVideo({ activeHubId, voiceChannelId, publicKey, voiceSpeaking
     processedStream,
     remoteStreams,
     videoPubkeys,
-    pinnedPubkey,
-    setPinnedPubkey,
     enableVideo,
     disableVideo,
   };

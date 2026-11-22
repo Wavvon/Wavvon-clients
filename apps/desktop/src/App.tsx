@@ -46,7 +46,6 @@ import { useVideo } from "./hooks/useVideo";
 import { useWhisper } from "./hooks/useWhisper";
 import { useAddHubFlow } from "./hooks/useAddHubFlow";
 import { useChannelCrud } from "./hooks/useChannelCrud";
-import { VideoGrid } from "./components/VideoGrid";
 import {
   formatPubkey,
   buildChannelTree,
@@ -70,7 +69,6 @@ import { useWsHandlers } from "./hooks/useWsHandlers";
 import { useUpdateBanner } from "./hooks/useUpdateBanner";
 import { useFirstNotify } from "./hooks/useFirstNotify";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
-import { buildVideoTiles } from "./utils/buildVideoTiles";
 import { useSlashCommands } from "./hooks/useSlashCommands";
 import { SettingsPageContainer } from "./components/SettingsPageContainer";
 import { HubAdminContainer } from "./components/HubAdminContainer";
@@ -586,12 +584,17 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
     activeHubId,
     voiceChannelId: voice.voiceChannelId,
     publicKey,
-    voiceSpeakingPubkeys: voice.speakingPubkeys,
   });
 
   const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
   const soundboard = useSoundboard(voice.voiceChannelId);
   const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips();
+  const cameras = useMemo(() => {
+    const m = new Map<string, MediaStream>();
+    for (const [pk, stream] of video.remoteStreams) if (video.videoPubkeys.has(pk)) m.set(pk, stream);
+    if (publicKey && video.processedStream) m.set(publicKey, video.processedStream);
+    return m;
+  }, [video.remoteStreams, video.videoPubkeys, video.processedStream, publicKey]);
   const whisperOptoutRef = useRef(whisper.whisperOptout);
   whisperOptoutRef.current = whisper.whisperOptout;
   const { whisperReplyBind, setWhisperReplyBind } = useWhisperReply(whisper, voice.voiceChannelId, users);
@@ -1562,23 +1565,6 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
                     onClose={() => setVoiceMoveMenu(null)}
                   />
                 )}
-                {(video.videoEnabled || video.remoteStreams.size > 0) && (
-                  <VideoGrid
-                    tiles={buildVideoTiles(
-                      video.remoteStreams,
-                      video.videoPubkeys,
-                      users,
-                      voice.speakingPubkeys,
-                      video.pinnedPubkey,
-                    )}
-                    selfStream={video.processedStream}
-                    selfName={myDisplayName ?? t("voice.pip.you")}
-                    selfPubkey={publicKey ?? ""}
-                    soundboardChips={voice.voiceChannelId ? soundboardChipsByChannel[voice.voiceChannelId] : undefined}
-                    onPin={video.setPinnedPubkey}
-                    onUnpin={() => video.setPinnedPubkey(null)}
-                  />
-                )}
                 {channelMessages.selectedChannel && (() => {
                   const channelId = channelMessages.selectedChannel.id;
                   const cards = Array.from(activeApps.values()).filter(
@@ -1598,6 +1584,8 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
                   );
                 })()}
                 <ContentAreaContainer
+                  cameras={cameras}
+                  soundboardChipsByChannel={soundboardChipsByChannel}
                   allianceScrollback={alliances.allianceScrollback}
                   view={view}
                   channels={channels}
