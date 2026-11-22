@@ -131,6 +131,18 @@ export function VoiceStage({
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
   const [stageHeight, setStageHeight] = useState<number | null>(null);
   const roomRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  // Opening a live puts it on the stage; bring the stage into view, or the
+  // member has to go looking for what they just opened (#492).
+  const openedCount = live?.opened.size ?? 0;
+  const prevOpened = useRef(openedCount);
+  useEffect(() => {
+    if (openedCount > prevOpened.current) {
+      stageRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    }
+    prevOpened.current = openedCount;
+  }, [openedCount]);
 
   const barRef = useCallback((el: HTMLDivElement | null) => setVoiceBarSlot(el), []);
 
@@ -292,7 +304,7 @@ export function VoiceStage({
           <span className="voice-section-label">
             {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) + (selfShare ? 1 : 0) })}
           </span>
-          <div className="voice-stage-area" style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
+          <div className="voice-stage-area" ref={stageRef} style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
             {selfShare && (
               <SelfShareTile
                 stream={selfShare.stream}
