@@ -2005,7 +2005,6 @@
   "voice.mute": "Mute microphone",
   "voice.mute.short": "Mute mic",
   "voice.participant.visiting_from": "Visiting from {hub}",
-  "voice.pip.you": "You",
   "voice.screen_share": "Share screen",
   "voice.screen_share.overlay.expand": "Expand",
   "voice.screen_share.overlay.minimize": "Minimize",
@@ -2036,9 +2035,6 @@
   "voice.undeafen": "Unmute all audio",
   "voice.unmute": "Unmute microphone",
   "voice.unmute.short": "Unmute mic",
-  "voice.video.pin": "Pin",
-  "voice.video.self_label": "{name} (you)",
-  "voice.video.unpin": "Unpin",
   "voice.whisper": "Whisper",
   "voice.whisper.active": "Whispering to: {targets}",
   "voice.whisper.bind": "Bind key",
@@ -2646,5 +2642,8 @@
   "findable.published": "Listing published.",
   "settings.soundboard_bursts.label": "Soundboard animations",
   "settings.soundboard_bursts.hint": "Show the clip emoji over whoever plays it",
+  "voice.soundboard_deafened": "Undeafen to use the soundboard",
+  "voice.stage.camera_badge": "CAM",
+  "voice.stage.camera_on": "Camera on",
   "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · built into the hub"
 }

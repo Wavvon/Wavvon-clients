@@ -42,3 +42,31 @@ describe("VoiceStage floor", () => {
     expect(render(undefined)).not.toContain("voice.stage.raise_hand");
   });
 });
+
+describe("VoiceStage cameras", () => {
+  const people = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ public_key: i === 0 ? "cam" : `p${i}`, display_name: `P${i}` }));
+  function withCamera(roomSize: number) {
+    return renderToStaticMarkup(
+      <VoiceStage
+        participants={people(roomSize)}
+        speaking={new Set()}
+        avatars={new Map()}
+        inThisRoom
+        onJoin={noop}
+        publicKey="me"
+        cameras={new Map([["cam", {} as MediaStream]])}
+      />,
+    );
+  }
+  it("shows a camera in its owner's tile while the room is small", () => {
+    const html = withCamera(3);
+    expect(html).toContain("voice-tile-camera");
+    expect(html).not.toContain("cam-badge");
+  });
+  it("shows only a badge in a big room's audience", () => {
+    const html = withCamera(13);
+    expect(html).not.toContain("voice-tile-camera");
+    expect(html).toContain("cam-badge");
+  });
+});

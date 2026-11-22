@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { VoiceParticipant } from "../../types";
+import type { SoundboardChip, VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
+import { SoundboardBurst } from "../SoundboardBurst";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
@@ -47,6 +48,10 @@ export interface VoiceStageInfo {
   selfShare?: { stream: MediaStream; kbps: number; onStop: () => void };
   /** The room map; absent when you are not in the room. */
   room?: VoiceRoomMapInfo;
+  /** Cameras on in this call, by pubkey, yours included. */
+  cameras?: Map<string, MediaStream>;
+  /** Recent soundboard plays in this room, for the burst on the player. */
+  soundboardChips?: SoundboardChip[];
 }
 
 // Pins are the member's own, on this device, for every room.
@@ -75,6 +80,14 @@ export function camerasToOpen(
     .map((s) => s.stream_id);
 }
 
+function CameraVideo({ stream, mirrored }: { stream: MediaStream; mirrored: boolean }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+  return <video ref={ref} className={`voice-tile-camera${mirrored ? " mirrored" : ""}`} autoPlay muted playsInline />;
+}
+
 function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: MediaStream; onStop: () => void; label: string; stopLabel: string; sent: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -99,7 +112,7 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: Med
  * the room. `children` is the viewer of the opened streams.
  */
 export function VoiceStage({
-  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, children,
+  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, cameras, soundboardChips, children,
 }: VoiceStageInfo & { children?: React.ReactNode }) {
   const { t } = useTranslation();
   const [pins, setPins] = useState<string[]>(loadPins);
@@ -107,6 +120,18 @@ export function VoiceStage({
   const [query, setQuery] = useState("");
   const [stageHeight, setStageHeight] = useState<number | null>(null);
   const roomRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  // Opening a live puts it on the stage; bring the stage into view, or the
+  // member has to go looking for what they just opened (#492).
+  const openedCount = live?.opened.size ?? 0;
+  const prevOpened = useRef(openedCount);
+  useEffect(() => {
+    if (openedCount > prevOpened.current) {
+      stageRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    }
+    prevOpened.current = openedCount;
+  }, [openedCount]);
 
   const barRef = useCallback((el: HTMLDivElement | null) => setVoiceBarSlot(el), []);
 
@@ -172,10 +197,14 @@ export function VoiceStage({
     const name = p.display_name || p.public_key.slice(0, 12);
     const handUp = !!floor?.hands.includes(p.public_key);
     const pinned = pins.includes(p.public_key);
+    // A camera shows in its owner's tile on the stage, and everywhere while
+    // the room is small; in a big room's audience it is only a badge.
+    const camera = cameras?.get(p.public_key);
+    const showCamera = !!camera && (pinned || participants.length <= SMALL_ROOM);
     return (
       <li
         key={p.public_key}
-        className={`voice-tile${speaking.has(p.public_key) ? " speaking" : ""}${big === p.public_key ? " big" : ""}`}
+        className={`voice-tile${speaking.has(p.public_key) ? " speaking" : ""}${big === p.public_key ? " big" : ""}${showCamera ? " has-camera" : ""}`}
         title={p.public_key}
         ref={sortable?.setNodeRef}
         style={sortable?.style}
@@ -183,9 +212,13 @@ export function VoiceStage({
         {...sortable?.listeners}
         aria-roledescription={sortable ? t("voice.stage.sortable") : undefined}
       >
-        <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={size} />
+        {showCamera && camera
+          ? <CameraVideo stream={camera} mirrored={p.public_key === publicKey} />
+          : <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={size} />}
+        <SoundboardBurst chips={soundboardChips} pubkey={p.public_key} />
         <span className="voice-tile-name">
           {sharing.has(p.public_key) && <span className="live-badge">LIVE</span>}{" "}
+          {camera && !showCamera && <span className="cam-badge" title={t("voice.stage.camera_on")}>{t("voice.stage.camera_badge")}</span>}{" "}
           {handUp && <span className="voice-stage-hand" role="img" aria-label={t("voice.stage.hand_raised")}>✋ </span>}
           {name}
         </span>
@@ -232,7 +265,7 @@ export function VoiceStage({
 
       {hasStage && (
         <>
-          <div className="voice-stage-area" style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
+          <div className="voice-stage-area" ref={stageRef} style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
             {selfShare && (
               <SelfShareTile
                 stream={selfShare.stream}

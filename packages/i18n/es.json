@@ -2005,7 +2005,6 @@
   "voice.mute": "Silenciar micrófono",
   "voice.mute.short": "Silenciar micro",
   "voice.participant.visiting_from": "De visita desde {hub}",
-  "voice.pip.you": "Tú",
   "voice.screen_share": "Compartir pantalla",
   "voice.screen_share.overlay.expand": "Expandir",
   "voice.screen_share.overlay.minimize": "Minimizar",
@@ -2036,9 +2035,6 @@
   "voice.undeafen": "Reactivar todo el audio",
   "voice.unmute": "Activar micrófono",
   "voice.unmute.short": "Activar micro",
-  "voice.video.pin": "Fijar",
-  "voice.video.self_label": "{name} (tú)",
-  "voice.video.unpin": "Dejar de fijar",
   "voice.whisper": "Susurro",
   "voice.whisper.active": "Susurrando a: {targets}",
   "voice.whisper.bind": "Asignar tecla",
@@ -2646,5 +2642,8 @@
   "findable.published": "Anuncio publicado.",
   "settings.soundboard_bursts.label": "Animaciones de la soundboard",
   "settings.soundboard_bursts.hint": "Muestra el emoji del sonido sobre quien lo reproduce",
+  "voice.soundboard_deafened": "Reactiva todo el audio para usar la soundboard",
+  "voice.stage.camera_badge": "CAM",
+  "voice.stage.camera_on": "Cámara encendida",
   "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · incluido en el hub"
 }
