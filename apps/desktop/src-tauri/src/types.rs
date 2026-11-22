@@ -749,6 +749,8 @@ pub(crate) enum WsServerMessage {
         channel_id: String,
         clip_id: String,
         clip_name: String,
+        #[serde(default)]
+        emoji: Option<String>,
         public_key: String,
     },
     /// Echo of our own `ping`. The nonce is the millisecond we sent it, so

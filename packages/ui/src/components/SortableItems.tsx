@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel } from "@wavvon/core";
-import type { VoiceParticipant } from "../types";
+import type { SoundboardChip, VoiceParticipant } from "../types";
 import { ChannelIcon, VolumeIcon, GearIcon, PlusIcon, CloseIcon, ChevronIcon, ExpandIcon, BellOffIcon, CameraOnIcon } from "./Icons";
 import { Avatar } from "./Avatar";
+import { SoundboardBurst } from "./SoundboardBurst";
 import { safeRoleColor } from "../utils/roleAppearance";
 
 /** Hub icon wrapped in dnd-kit's useSortable so the user can drag-reorder
@@ -44,10 +45,12 @@ function VoiceParticipantRow({
   cameraOn,
   gain,
   isWhisperingToMe,
+  soundboardChips,
   onSetGain,
   onContextMenu,
 }: {
   participant: VoiceParticipant;
+  soundboardChips?: SoundboardChip[];
   avatar?: string | null;
   speaking?: boolean;
   cameraOn?: boolean;
@@ -78,6 +81,7 @@ function VoiceParticipantRow({
       {/* A face, at the same size as a channel name. Who is in a room is the
           reason anyone walks into it, so the roster is not a footnote. */}
       <Avatar src={avatar} name={label} pubkey={participant.public_key} size={22} />
+      <SoundboardBurst chips={soundboardChips} pubkey={participant.public_key} />
       <span className="channel-participant-name">{label}</span>
       {cameraOn && (
         <span className="muted" title={t("voice.participant.camera_on")} aria-label={t("voice.participant.camera_on")}>
@@ -167,6 +171,7 @@ export function SortableChannelItem({
   avatars,
   speaking,
   cameraOn,
+  soundboardChips,
   hasDraft,
   joinable = true,
   onClick,
@@ -209,6 +214,8 @@ export function SortableChannelItem({
   /** Pubkeys with their camera on; a camera is seen only inside its room,
    *  so this is how the sidebar says who has one on. */
   cameraOn?: Set<string>;
+  /** Recent soundboard plays in this room, for the burst on the player. */
+  soundboardChips?: SoundboardChip[];
   /** Unsent-draft lookup, keyed by `${hubId}/${channelId}`. Omit to hide the badge. */
   hasDraft?: (draftKey: string) => boolean;
   /** A double click joins voice here; false on a hub where only voice
@@ -282,7 +289,7 @@ export function SortableChannelItem({
               onClick={(e) => { e.stopPropagation(); onSettings(e); }}
               title={t("channel.sidebar.channel_settings")}
               aria-label={t("channel.sidebar.channel_settings")}
-            >
+            >
               <GearIcon size={14} />
             </button>
           </div>
@@ -373,7 +380,7 @@ export function SortableChannelItem({
             onClick={(e) => { e.stopPropagation(); onSettings(e); }}
             title={t("channel.sidebar.channel_settings")}
             aria-label={t("channel.sidebar.channel_settings")}
-          >
+          >
             <GearIcon size={14} />
           </button>
         )}
@@ -399,6 +406,7 @@ export function SortableChannelItem({
               cameraOn={cameraOn?.has(p.public_key)}
               gain={voiceGains?.[p.public_key] ?? 100}
               isWhisperingToMe={inboundWhispers?.has(p.public_key)}
+              soundboardChips={soundboardChips}
               onSetGain={onSetVoiceGain}
               onContextMenu={onParticipantContextMenu ? (e) => onParticipantContextMenu(e, p) : undefined}
             />
@@ -514,7 +522,7 @@ export function SortableCategoryItem({
             onClick={(e) => { e.stopPropagation(); onFocusSubtree(); }}
             title={focusSubtreeLabel}
             aria-label={focusSubtreeLabel}
-          >
+          >
             <ExpandIcon size={13} />
           </button>
         )}
@@ -522,7 +530,7 @@ export function SortableCategoryItem({
           className="btn-icon-small"
           onClick={(e) => { e.stopPropagation(); onAdd(); }}
           title={t("channel.sidebar.add")}
-        >
+        >
           <PlusIcon size={13} />
         </button>
         {onSettings && (
@@ -530,7 +538,7 @@ export function SortableCategoryItem({
             className="btn-icon-small category-settings-btn"
             onClick={(e) => { e.stopPropagation(); onSettings(e); }}
             title={t("channel.sidebar.category_settings")}
-          >
+          >
             <GearIcon size={14} />
           </button>
         )}

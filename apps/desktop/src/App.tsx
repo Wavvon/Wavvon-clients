@@ -1573,6 +1573,8 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
                     )}
                     selfStream={video.processedStream}
                     selfName={myDisplayName ?? t("voice.pip.you")}
+                    selfPubkey={publicKey ?? ""}
+                    soundboardChips={voice.voiceChannelId ? soundboardChipsByChannel[voice.voiceChannelId] : undefined}
                     onPin={video.setPinnedPubkey}
                     onUnpin={() => video.setPinnedPubkey(null)}
                   />

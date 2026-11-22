@@ -557,6 +557,7 @@ export type { AllianceScrollback } from "./hooks/useAlliances";
 export { useConfirm } from "./components/ConfirmDialog";
 export { SettingRow } from "./components/SettingRow";
 export { LanguageSetting } from "./components/LanguageSetting";
+export { SoundboardBurst, SoundboardBurstSetting } from "./components/SoundboardBurst";
 export { HubLanguagesSection } from "./components/admin/HubLanguagesSection";
 export type { HubLanguagesActions } from "./components/admin/HubLanguagesSection";
 export { applyHubLanguages, registerHubLanguages, loadHubLangPack, hubLanguageUrl, LANGUAGE_CHOICE_KEY } from "./languages/hubLanguages";

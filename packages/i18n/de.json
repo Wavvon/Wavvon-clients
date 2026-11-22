@@ -2643,5 +2643,7 @@
   "findable.routes_to": "Einladungen werden an deinen Heimat-Hub {hub} zugestellt.",
   "findable.publish": "Eintrag veröffentlichen",
   "findable.republish": "Eintrag aktualisieren",
-  "findable.published": "Eintrag veröffentlicht."
+  "findable.published": "Eintrag veröffentlicht.",
+  "settings.soundboard_bursts.label": "Soundboard-Animationen",
+  "settings.soundboard_bursts.hint": "Zeigt das Emoji des Clips über der Person, die ihn abspielt"
 }

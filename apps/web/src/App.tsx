@@ -1203,6 +1203,8 @@ export default function App({ initialView }: AppProps = {}) {
           localStream={video.localVideoStream}
           remoteStreams={video.remoteVideoStreams}
           nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
+          selfPubkey={publicKey ?? ""}
+          soundboardChips={soundboardChipsByChannel[voice.voiceChannelId]}
         />
       )}
 

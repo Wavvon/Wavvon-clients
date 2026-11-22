@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SoundboardBurst, type SoundboardChip } from "@wavvon/ui";
 
-function VideoTile({ stream, label, muted }: { stream: MediaStream; label: string; muted?: boolean }) {
+function VideoTile({ stream, label, muted, pubkey, chips }: { stream: MediaStream; label: string; muted?: boolean; pubkey: string; chips?: SoundboardChip[] }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream;
@@ -18,6 +19,7 @@ function VideoTile({ stream, label, muted }: { stream: MediaStream; label: strin
       <span style={{ position: "absolute", left: 6, bottom: 4, fontSize: "var(--text-xs)", background: "rgba(0,0,0,.5)", color: "#fff", padding: "1px 6px", borderRadius: 4 }}>
         {label}
       </span>
+      <SoundboardBurst chips={chips} pubkey={pubkey} />
     </div>
   );
 }
@@ -45,11 +47,15 @@ export function VideoPipWindow({
   localStream,
   remoteStreams,
   nameFor,
+  selfPubkey,
+  soundboardChips,
 }: {
   title: string;
   localStream: MediaStream | null;
   remoteStreams: Map<string, MediaStream>;
   nameFor: (pubkey: string) => string;
+  selfPubkey: string;
+  soundboardChips?: SoundboardChip[];
 }) {
   const { t } = useTranslation();
   const boxRef = useRef<HTMLDivElement>(null);
@@ -130,9 +136,9 @@ export function VideoPipWindow({
         <span className="video-pip-title">📷 {title}</span>
       </div>
       <div className="video-pip-body">
-        {localStream && <VideoTile stream={localStream} label={t("voice.pip.you")} muted />}
+        {localStream && <VideoTile stream={localStream} label={t("voice.pip.you")} muted pubkey={selfPubkey} chips={soundboardChips} />}
         {remotes.map(([pk, s]) => (
-          <VideoTile key={pk} stream={s} label={nameFor(pk)} />
+          <VideoTile key={pk} stream={s} label={nameFor(pk)} pubkey={pk} chips={soundboardChips} />
         ))}
       </div>
     </div>
