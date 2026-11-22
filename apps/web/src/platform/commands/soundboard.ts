@@ -1,10 +1,22 @@
 import { hubFetch, HubApiError } from "../http";
-import { activeSession } from "../session";
+import { activeHubCapabilities, activeSession } from "../session";
+import { fetchAllPages } from "./paged";
 import type { SoundboardClip } from "../../types";
 
+/** The whole clip library. A hub has no cap on clips, so `/soundboard` pages
+ *  (Wavvon-server#448); a hub from before that answers with every clip, at
+ *  most 50, which is a short first page and ends the walk. */
 export async function listSoundboardClips(): Promise<SoundboardClip[]> {
-  const res = await hubFetch("/soundboard");
-  return res.json() as Promise<SoundboardClip[]>;
+  return fetchAllPages<SoundboardClip>({
+    capabilities: activeHubCapabilities(),
+    capability: "list.cursor",
+    pageSize: 100,
+    maxPages: 100,
+    cursorOf: (c) => c.id,
+    fetchPage: async (params) =>
+      (await (await hubFetch(params ? `/soundboard?${params}` : "/soundboard")).json()) as SoundboardClip[],
+    label: "listSoundboardClips",
+  });
 }
 
 export async function uploadSoundboardClip(

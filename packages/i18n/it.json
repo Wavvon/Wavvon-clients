@@ -935,13 +935,13 @@
   "hub.admin.soundboard.delete_confirm": "Eliminare questa clip della soundboard?",
   "hub.admin.soundboard.emoji_label": "Emoji (opzionale)",
   "hub.admin.soundboard.file_label": "File audio (Opus-in-Ogg)",
-  "hub.admin.soundboard.hint": "Clip Opus-in-Ogg brevi (fino a 10s, 512KB) che i membri possono riprodurre in voce — fino a 50 per hub.",
+  "hub.admin.soundboard.hint": "Clip Opus-in-Ogg brevi (fino a 10s, 512KB) che i membri possono riprodurre in voce.",
   "hub.admin.soundboard.loading": "Caricamento…",
   "hub.admin.soundboard.name_label": "Nome",
   "hub.admin.soundboard.play": "Riproduci",
   "hub.admin.soundboard.playing": "In riproduzione…",
   "hub.admin.soundboard.state.clip": "{duration} · {size} · da {who}",
-  "hub.admin.soundboard.state.count": "{count} su {max} usati",
+  "hub.admin.soundboard.state.count": "{count, plural, one {# clip} other {# clip}}",
   "hub.admin.soundboard.title": "Soundboard",
   "hub.admin.soundboard.upload_button": "Carica clip",
   "hub.admin.soundboard.uploading": "Caricamento…",
@@ -2644,5 +2644,6 @@
   "settings.soundboard_bursts.hint": "Mostra l’emoji del suono sopra chi lo fa partire",
   "voice.soundboard_deafened": "Riattiva l’audio per usare la soundboard",
   "voice.stage.camera_badge": "CAM",
-  "voice.stage.camera_on": "Webcam accesa"
+  "voice.stage.camera_on": "Webcam accesa",
+  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · incluso nell’hub"
 }

@@ -935,13 +935,13 @@
   "hub.admin.soundboard.delete_confirm": "Delete this soundboard clip?",
   "hub.admin.soundboard.emoji_label": "Emoji (optional)",
   "hub.admin.soundboard.file_label": "Audio file (Opus-in-Ogg)",
-  "hub.admin.soundboard.hint": "Short Opus-in-Ogg clips (up to 10s, 512KB) members can trigger in voice — up to 50 per hub.",
+  "hub.admin.soundboard.hint": "Short Opus-in-Ogg clips (up to 10s, 512KB) members can trigger in voice.",
   "hub.admin.soundboard.loading": "Loading…",
   "hub.admin.soundboard.name_label": "Name",
   "hub.admin.soundboard.play": "Play",
   "hub.admin.soundboard.playing": "Playing…",
   "hub.admin.soundboard.state.clip": "{duration} · {size} · from {who}",
-  "hub.admin.soundboard.state.count": "{count} of {max} used",
+  "hub.admin.soundboard.state.count": "{count, plural, one {# clip} other {# clips}}",
   "hub.admin.soundboard.title": "Soundboard",
   "hub.admin.soundboard.upload_button": "Upload clip",
   "hub.admin.soundboard.uploading": "Uploading…",
@@ -2644,5 +2644,6 @@
   "settings.soundboard_bursts.hint": "Show the clip emoji over whoever plays it",
   "voice.soundboard_deafened": "Undeafen to use the soundboard",
   "voice.stage.camera_badge": "CAM",
-  "voice.stage.camera_on": "Camera on"
+  "voice.stage.camera_on": "Camera on",
+  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · built into the hub"
 }

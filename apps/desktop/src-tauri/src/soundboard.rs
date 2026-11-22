@@ -24,12 +24,15 @@ pub(crate) struct SoundboardClipInfo {
 pub(crate) async fn soundboard_list_clips(
     state: State<'_, AppState>,
 ) -> Result<Vec<SoundboardClipInfo>, String> {
+    // No cap on clips, so the library pages (Wavvon-server#448); a hub from
+    // before that answers with all of them in one short page.
     let (hub_url, token) = crate::state::active_session(&state)?;
-    crate::http::send_json(
-        state
-            .http_client
-            .get(format!("{hub_url}/soundboard"))
-            .bearer_auth(&token),
+    crate::paging::fetch_all_pages_as(
+        &state.http_client,
+        &token,
+        &format!("{hub_url}/soundboard"),
+        "id",
+        "soundboard_list_clips",
     )
     .await
 }
