@@ -1,5 +1,5 @@
 import { memberActivity } from "@wavvon/ui";
-import type { AllianceScrollback, MessageRowActions } from "@wavvon/ui";
+import type { AllianceScrollback, MessageRowActions, SoundboardChip } from "@wavvon/ui";
 import { HubStreamsPanel, liveScreenShares, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
@@ -22,6 +22,9 @@ interface SlashCommandEntry {
 }
 
 interface Props {
+  /** Cameras on in the call, by pubkey, yours included. */
+  cameras: Map<string, MediaStream>;
+  soundboardChipsByChannel: Record<string, SoundboardChip[]>;
   allianceScrollback: AllianceScrollback;
   view: "channels" | "dms";
   channels: Channel[];
@@ -64,6 +67,8 @@ interface Props {
 // it and reads the same groups, so App no longer threads voice/channels/users
 // through a second call site for it.
 export function ContentAreaContainer({
+  cameras,
+  soundboardChipsByChannel,
   allianceScrollback, view, channels, users, publicKey, blockedUsers, ignoredUsers,
   knownDisplayNames, myDisplayName, isAdmin, myRoles,
   memberSidebarHidden, setMemberSidebarHidden, hideBirthdays,
@@ -130,6 +135,8 @@ export function ContentAreaContainer({
           selfShare: voice.sharing && voice.shareLocalStream && voice.voiceChannelId === selectedChannel.id
             ? { stream: voice.shareLocalStream, kbps: voice.shareKbps, onStop: voice.stopShare }
             : undefined,
+          cameras: voice.voiceChannelId === selectedChannel.id ? cameras : undefined,
+          soundboardChips: soundboardChipsByChannel[selectedChannel.id],
         } : undefined}
         selectedConversation={dms.selectedConversation}
         selectedAllianceChannel={channelMessages.selectedAllianceChannel}

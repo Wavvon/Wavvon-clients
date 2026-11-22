@@ -19,8 +19,8 @@ async function joinVoiceAndEnableCamera(page: Page, channel: string) {
   const cam = page.getByRole("button", { name: "Turn on camera" });
   await expect(cam).toBeVisible({ timeout: 15000 });
   await cam.click();
-  // Local preview tile ("You") shows immediately.
-  await expect(page.locator(".video-tile").filter({ hasText: "You" }).first()).toBeVisible({ timeout: 10000 });
+  // Your own camera shows in your tile (mirrored) immediately.
+  await expect(page.locator(".voice-tile-camera.mirrored").first()).toBeVisible({ timeout: 10000 });
 }
 
 test("two members see each other's camera over WebRTC", async ({ page, browser }) => {
@@ -37,18 +37,17 @@ test("two members see each other's camera over WebRTC", async ({ page, browser }
   try {
     await joinVoiceAndEnableCamera(member, channel);
 
-    // Each side receives the other's remote video track → a tile that is NOT
-    // the local "You" tile appears (the peer's label may be a name or a
-    // pubkey prefix depending on the roster, so match by "not You").
-    await expect(page.locator(".video-tile").filter({ hasNotText: "You" }).first())
+    // Each side receives the other's remote video track, which shows in the
+    // peer's own tile; yours is the mirrored one.
+    await expect(page.locator(".voice-tile-camera:not(.mirrored)").first())
       .toBeVisible({ timeout: 30000 });
-    await expect(member.locator(".video-tile").filter({ hasNotText: "You" }).first())
+    await expect(member.locator(".voice-tile-camera:not(.mirrored)").first())
       .toBeVisible({ timeout: 30000 });
 
     // Owner turns camera off → the member's remote tile for the owner goes away
-    // (the member keeps only their own "You" tile).
+    // (the member keeps only their own, mirrored, camera).
     await page.getByRole("button", { name: "Turn off camera" }).click();
-    await expect(member.locator(".video-tile").filter({ hasNotText: "You" }).first())
+    await expect(member.locator(".voice-tile-camera:not(.mirrored)").first())
       .toBeHidden({ timeout: 15000 });
   } finally {
     await context.close();

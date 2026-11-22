@@ -27,6 +27,7 @@ import {
   type HubEvent,
   type RsvpStatus,
   type HubEmoji,
+  type SoundboardChip,
   PinnedMessagesModal,
   ConnectionStatus,
   typingForScope,
@@ -192,6 +193,9 @@ interface Props {
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
   savedActions: Pick<MessageRowActions, "isSaved" | "toggleSaved" | "remind">;
+  /** Cameras on in the call, by pubkey, yours included. */
+  cameras: Map<string, MediaStream>;
+  soundboardChipsByChannel: Record<string, SoundboardChip[]>;
 }
 
 export function ContentArea(props: Props) {
@@ -292,6 +296,8 @@ export function ContentArea(props: Props) {
           selfShare: screenShare.sharing && screenShare.shareLocalStream && voice.voiceChannelId === selectedChannel.id
             ? { stream: screenShare.shareLocalStream, kbps: screenShare.shareKbps, onStop: screenShare.handleStopShare }
             : undefined,
+          cameras: voice.voiceChannelId === selectedChannel.id ? props.cameras : undefined,
+          soundboardChips: props.soundboardChipsByChannel[selectedChannel.id],
         } : undefined}
         selectedConversation={selectedConversation}
         selectedAllianceChannel={alliances.selectedAllianceChannel}

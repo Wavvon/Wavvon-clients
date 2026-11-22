@@ -90,7 +90,6 @@ import {
 import { WelcomeScreenContainer } from "@components/layout/WelcomeScreen";
 import { SettingsPageContainer } from "@components/settings/SettingsPageContainer";
 import { UserContextMenu } from "@wavvon/ui";
-import { VideoPipWindow } from "@components/voice/VideoPipWindow";
 import { FriendsModal } from "@wavvon/ui";
 import { listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriendRequest, removeFriend } from "@platform";
 import { MobileShell } from "@wavvon/ui";
@@ -524,6 +523,11 @@ export default function App({ initialView }: AppProps = {}) {
   );
   const { receiveTyping, pingTyping, pingDmTyping } = typingIndicators;
   const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips();
+  const cameras = useMemo(() => {
+    const m = new Map(video.remoteVideoStreams);
+    if (publicKey && video.localVideoStream) m.set(publicKey, video.localVideoStream);
+    return m;
+  }, [video.remoteVideoStreams, video.localVideoStream, publicKey]);
 
   // === Refs ===
   const [showFriends, setShowFriends] = useState(false);
@@ -1197,17 +1201,6 @@ export default function App({ initialView }: AppProps = {}) {
         />
       )}
 
-      {voice.voiceChannelId && (video.videoEnabled || video.remoteVideoStreams.size > 0) && (
-        <VideoPipWindow
-          title={`#${channels.find((c) => c.id === voice.voiceChannelId)?.name ?? "voice"}`}
-          localStream={video.localVideoStream}
-          remoteStreams={video.remoteVideoStreams}
-          nameFor={(pk) => users.find((u) => u.public_key === pk)?.display_name || pk.slice(0, 8)}
-          selfPubkey={publicKey ?? ""}
-          soundboardChips={soundboardChipsByChannel[voice.voiceChannelId]}
-        />
-      )}
-
       <MobileShell
         showHubSidebar
         showChannelSidebar
@@ -1402,6 +1395,8 @@ export default function App({ initialView }: AppProps = {}) {
           );
         })()}
         <ContentArea
+          cameras={cameras}
+          soundboardChipsByChannel={soundboardChipsByChannel}
           savedActions={{
             isSaved: (messageId) => !!activeHubId && saved.isSaved(activeHubId, messageId),
             toggleSaved: toggleSaveMessage,
