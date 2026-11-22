@@ -2005,7 +2005,6 @@
   "voice.mute": "Mikrofon stummschalten",
   "voice.mute.short": "Mikro stumm",
   "voice.participant.visiting_from": "Zu Gast von {hub}",
-  "voice.pip.you": "Du",
   "voice.screen_share": "Bildschirm teilen",
   "voice.screen_share.overlay.expand": "Ausklappen",
   "voice.screen_share.overlay.minimize": "Minimieren",
@@ -2036,9 +2035,6 @@
   "voice.undeafen": "Ton aktivieren",
   "voice.unmute": "Mikrofon aktivieren",
   "voice.unmute.short": "Mikro an",
-  "voice.video.pin": "Anheften",
-  "voice.video.self_label": "{name} (du)",
-  "voice.video.unpin": "Lösen",
   "voice.whisper": "Flüstern",
   "voice.whisper.active": "Flüstern an: {targets}",
   "voice.whisper.bind": "Taste zuweisen",
@@ -2648,5 +2644,10 @@
   "settings.soundboard_bursts.hint": "Zeigt das Emoji des Clips über der Person, die ihn abspielt",
   "voice.soundboard_deafened": "Aktiviere den Ton, um das Soundboard zu nutzen",
   "voice.stage.camera_badge": "CAM",
-  "voice.stage.camera_on": "Kamera an"
+  "voice.stage.camera_on": "Kamera an",
+  "voice.stage.in_voice": "{count} im Sprachkanal",
+  "voice.stage.cameras": "{count, plural, one {# Kamera} other {# Kameras}}",
+  "voice.stage.stage_label": "Bühne · {count}",
+  "voice.stage.collapse": "Einklappen",
+  "voice.stage.expand": "Ausklappen"
 }
