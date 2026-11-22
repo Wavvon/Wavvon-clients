@@ -2644,10 +2644,5 @@
   "settings.soundboard_bursts.hint": "Zeigt das Emoji des Clips über der Person, die ihn abspielt",
   "voice.soundboard_deafened": "Aktiviere den Ton, um das Soundboard zu nutzen",
   "voice.stage.camera_badge": "CAM",
-  "voice.stage.camera_on": "Kamera an",
-  "voice.stage.in_voice": "{count} im Sprachkanal",
-  "voice.stage.cameras": "{count, plural, one {# Kamera} other {# Kameras}}",
-  "voice.stage.stage_label": "Bühne · {count}",
-  "voice.stage.collapse": "Einklappen",
-  "voice.stage.expand": "Ausklappen"
+  "voice.stage.camera_on": "Kamera an"
 }

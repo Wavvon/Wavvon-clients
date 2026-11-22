@@ -2466,8 +2466,8 @@
   "voice.stage.pin": "Fissa {name}",
   "voice.stage.unpin": "Sgancia {name}",
   "voice.stage.enlarge": "Ingrandisci {name}",
-  "voice.stage.audience": "Platea · {count}",
-  "voice.stage.search": "Cerca in platea",
+  "voice.stage.audience": "Pubblico · {count}",
+  "voice.stage.search": "Cerca nel pubblico",
   "voice.stage.resize": "Ridimensiona il palco",
   "voice.stage.you_share": "Tu",
   "voice.stage.sending": "invii {mbps} Mbps",
@@ -2644,10 +2644,5 @@
   "settings.soundboard_bursts.hint": "Mostra l’emoji del suono sopra chi lo fa partire",
   "voice.soundboard_deafened": "Riattiva l’audio per usare la soundboard",
   "voice.stage.camera_badge": "CAM",
-  "voice.stage.camera_on": "Webcam accesa",
-  "voice.stage.in_voice": "{count} in voce",
-  "voice.stage.cameras": "{count, plural, one {# webcam} other {# webcam}}",
-  "voice.stage.stage_label": "Palco · {count}",
-  "voice.stage.collapse": "Riduci",
-  "voice.stage.expand": "Espandi"
+  "voice.stage.camera_on": "Webcam accesa"
 }
