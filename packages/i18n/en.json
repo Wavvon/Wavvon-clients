@@ -2645,5 +2645,7 @@
   "findable.republish": "Update listing",
   "findable.published": "Listing published.",
   "settings.soundboard_bursts.label": "Soundboard animations",
-  "settings.soundboard_bursts.hint": "Show the clip emoji over whoever plays it"
+  "settings.soundboard_bursts.hint": "Show the clip emoji over whoever plays it",
+  "voice.stage.camera_badge": "CAM",
+  "voice.stage.camera_on": "Camera on"
 }

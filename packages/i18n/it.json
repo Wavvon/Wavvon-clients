@@ -2645,5 +2645,7 @@
   "findable.republish": "Aggiorna annuncio",
   "findable.published": "Annuncio pubblicato.",
   "settings.soundboard_bursts.label": "Animazioni della soundboard",
-  "settings.soundboard_bursts.hint": "Mostra l’emoji del suono sopra chi lo fa partire"
+  "settings.soundboard_bursts.hint": "Mostra l’emoji del suono sopra chi lo fa partire",
+  "voice.stage.camera_badge": "CAM",
+  "voice.stage.camera_on": "Webcam accesa"
 }

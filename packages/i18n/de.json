@@ -2645,5 +2645,7 @@
   "findable.republish": "Eintrag aktualisieren",
   "findable.published": "Eintrag veröffentlicht.",
   "settings.soundboard_bursts.label": "Soundboard-Animationen",
-  "settings.soundboard_bursts.hint": "Zeigt das Emoji des Clips über der Person, die ihn abspielt"
+  "settings.soundboard_bursts.hint": "Zeigt das Emoji des Clips über der Person, die ihn abspielt",
+  "voice.stage.camera_badge": "CAM",
+  "voice.stage.camera_on": "Kamera an"
 }
