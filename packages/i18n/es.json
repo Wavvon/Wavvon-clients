@@ -2653,5 +2653,10 @@
   "voice.participant.deafened": "Todo el audio silenciado",
   "voice.stage.pop_out": "Separar la sala",
   "voice.stage.pop_in": "Volver a la página",
-  "voice.stage.pop_out_unsupported": "Para separar la sala hace falta Chrome, Edge o Firefox en un ordenador"
+  "voice.stage.pop_out_unsupported": "Para separar la sala hace falta Chrome, Edge o Firefox en un ordenador",
+  "voice.stage.layout_free": "Disposición libre",
+  "voice.stage.layout_grid": "Cuadrícula",
+  "voice.stage.top_lives": "Directos encima",
+  "voice.stage.top_people": "Personas encima",
+  "voice.stage.free_no_room": "{count, plural, one {# recuadro no tiene} other {# recuadros no tienen}} sitio en el escenario: mueve o reduce uno para hacer hueco"
 }

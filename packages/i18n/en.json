@@ -2653,5 +2653,10 @@
   "voice.participant.deafened": "Deafened",
   "voice.stage.pop_out": "Pop the room out",
   "voice.stage.pop_in": "Back to the page",
-  "voice.stage.pop_out_unsupported": "Popping out needs Chrome, Edge or Firefox on a computer"
+  "voice.stage.pop_out_unsupported": "Popping out needs Chrome, Edge or Firefox on a computer",
+  "voice.stage.layout_free": "Free layout",
+  "voice.stage.layout_grid": "Grid",
+  "voice.stage.top_lives": "Lives on top",
+  "voice.stage.top_people": "People on top",
+  "voice.stage.free_no_room": "{count, plural, one {# tile has} other {# tiles have}} no room on the stage: move or shrink one to make space"
 }

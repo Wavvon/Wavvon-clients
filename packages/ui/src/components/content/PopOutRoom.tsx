@@ -3,7 +3,19 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
+import { ExpandIcon } from "../Icons";
 import { adoptPageStyles, documentPictureInPicture, type CapturableVideo } from "../../utils/documentPip";
+import { LIVES_ITEM, type FreeLayout } from "../../utils/freeLayout";
+
+interface RoomPipProps {
+  people: VoiceParticipant[];
+  cameras?: Map<string, MediaStream>;
+  avatars: Map<string, string | null>;
+  publicKey?: string | null;
+  livesKey: string;
+  /** The stage in free layout, mirrored as arranged; absent for the grid. */
+  free?: FreeLayout;
+}
 
 function StreamVideo({ stream, mirrored }: { stream: MediaStream; mirrored?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -30,32 +42,53 @@ function useCapturedLives(key: string): MediaStream[] {
   return streams;
 }
 
-function RoomPipView({ people, cameras, avatars, publicKey, livesKey }: {
-  people: VoiceParticipant[];
-  cameras?: Map<string, MediaStream>;
-  avatars: Map<string, string | null>;
-  publicKey?: string | null;
-  livesKey: string;
-}) {
+type TileSource = Pick<RoomPipProps, "cameras" | "avatars" | "publicKey">;
+
+function personTile(p: VoiceParticipant, { cameras, avatars, publicKey }: TileSource) {
+  const name = p.display_name || p.public_key.slice(0, 12);
+  const camera = cameras?.get(p.public_key);
+  return (
+    <li key={p.public_key} className={`voice-tile${camera ? " has-camera" : ""}`}>
+      {camera
+        ? <StreamVideo stream={camera} mirrored={p.public_key === publicKey} />
+        : <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={48} />}
+      <span className="voice-tile-name">{name}</span>
+    </li>
+  );
+}
+
+function RoomPipView({ people, cameras, avatars, publicKey, livesKey, free }: RoomPipProps) {
   const lives = useCapturedLives(livesKey);
+  // The stage in free layout: the same rectangles and layer order, scaled to
+  // the window.
+  if (free) {
+    const liveRect = free.rects[LIVES_ITEM];
+    return (
+      <div className="room-pip room-pip--free">
+        {liveRect && lives.length > 0 && (
+          <div className="free-item" style={{ left: `${liveRect.x}%`, top: `${liveRect.y}%`, width: `${liveRect.w}%`, height: `${liveRect.h}%`, zIndex: free.top === "lives" ? 2 : 1 }}>
+            <div className="room-pip-live">{lives.map((ms, i) => <StreamVideo key={i} stream={ms} />)}</div>
+          </div>
+        )}
+        {people.map((p) => {
+          const r = free.rects[p.public_key];
+          if (!r) return null;
+          return (
+            <div key={p.public_key} className="free-item" style={{ left: `${r.x}%`, top: `${r.y}%`, width: `${r.w}%`, height: `${r.h}%`, zIndex: free.top === "people" ? 2 : 1 }}>
+              <ul className="voice-tiles free-tile">{personTile(p, { cameras, avatars, publicKey })}</ul>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div className="room-pip">
       {lives.map((ms, i) => (
         <div key={`live-${i}`} className="room-pip-live"><StreamVideo stream={ms} /></div>
       ))}
       <ul className="voice-tiles room-pip-people">
-        {people.map((p) => {
-          const name = p.display_name || p.public_key.slice(0, 12);
-          const camera = cameras?.get(p.public_key);
-          return (
-            <li key={p.public_key} className={`voice-tile${camera ? " has-camera" : ""}`}>
-              {camera
-                ? <StreamVideo stream={camera} mirrored={p.public_key === publicKey} />
-                : <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={48} />}
-              <span className="voice-tile-name">{name}</span>
-            </li>
-          );
-        })}
+        {people.map((p) => personTile(p, { cameras, avatars, publicKey }))}
       </ul>
     </div>
   );
@@ -69,13 +102,7 @@ function RoomPipView({ people, cameras, avatars, publicKey, livesKey }: {
  * picture-in-picture window"). Only on request; where the browser lacks the
  * API the button stays, disabled, and says why.
  */
-export function PopOutRoom(props: {
-  people: VoiceParticipant[];
-  cameras?: Map<string, MediaStream>;
-  avatars: Map<string, string | null>;
-  publicKey?: string | null;
-  livesKey: string;
-}) {
+export function PopOutRoom(props: RoomPipProps) {
   const { t } = useTranslation();
   const docPip = documentPictureInPicture();
   const [win, setWin] = useState<Window | null>(null);
@@ -113,7 +140,7 @@ export function PopOutRoom(props: {
         aria-label={label}
         onClick={() => void toggle()}
       >
-        ⧉
+        <ExpandIcon size={14} />
       </button>
       {win && createPortal(<RoomPipView {...props} />, win.document.body)}
     </>

@@ -5,6 +5,8 @@ import { Avatar } from "../Avatar";
 import { SoundboardBurst } from "../SoundboardBurst";
 import { SelfStateIcon } from "../SortableItems";
 import { PopOutRoom } from "./PopOutRoom";
+import { FreeStage } from "./FreeStage";
+import { LIVES_ITEM, loadFreeLayout, saveFreeLayout, type FreeLayout } from "../../utils/freeLayout";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
@@ -131,6 +133,11 @@ export function VoiceStage({
   const [big, setBig] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
+  const [freeLayout, setFreeLayoutState] = useState<FreeLayout>(loadFreeLayout);
+  function setFreeLayout(next: FreeLayout) {
+    setFreeLayoutState(next);
+    saveFreeLayout(next);
+  }
   const [stageHeight, setStageHeight] = useState<number | null>(null);
   const roomRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -302,6 +309,7 @@ export function VoiceStage({
             avatars={avatars}
             publicKey={publicKey}
             livesKey={[...(live?.opened ?? [])].join(",")}
+            free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
           />
         )}
         {onOpenHubStreams && (
@@ -324,10 +332,53 @@ export function VoiceStage({
 
       {hasStage && (
         <>
-          <span className="voice-section-label">
-            {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) + (selfShare ? 1 : 0) })}
-          </span>
+          <div className="voice-stage-head">
+            <span className="voice-section-label">
+              {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) + (selfShare ? 1 : 0) })}
+            </span>
+            <button type="button" className="btn-small btn-secondary" aria-pressed={freeLayout.mode === "free"} onClick={() => setFreeLayout({ ...freeLayout, mode: freeLayout.mode === "free" ? "grid" : "free" })}>
+              {t(freeLayout.mode === "free" ? "voice.stage.layout_grid" : "voice.stage.layout_free")}
+            </button>
+            {freeLayout.mode === "free" && (
+              <button type="button" className="btn-small btn-secondary" onClick={() => setFreeLayout({ ...freeLayout, top: freeLayout.top === "people" ? "lives" : "people" })}>
+                {t(freeLayout.top === "people" ? "voice.stage.top_lives" : "voice.stage.top_people")}
+              </button>
+            )}
+          </div>
           <div className="voice-stage-area" ref={stageRef} style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
+            {freeLayout.mode === "free" ? (
+              <FreeStage
+                layout={freeLayout}
+                onChange={setFreeLayout}
+                items={[
+                  ...(selfShare || opened
+                    ? [{
+                        id: LIVES_ITEM,
+                        layer: "lives" as const,
+                        node: (
+                          <div className="free-lives">
+                            {selfShare && (
+                              <SelfShareTile
+                                stream={selfShare.stream}
+                                onStop={selfShare.onStop}
+                                label={t("voice.stage.you_share")}
+                                stopLabel={t("voice.screen_share.stop")}
+                                sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
+                              />
+                            )}
+                            {children}
+                          </div>
+                        ),
+                      }]
+                    : []),
+                  ...onStage.map((p) => ({
+                    id: p.public_key,
+                    layer: "people" as const,
+                    node: <ul className="voice-tiles free-tile">{personTile(p, 96)}</ul>,
+                  })),
+                ]}
+              />
+            ) : (<>
             {selfShare && (
               <SelfShareTile
                 stream={selfShare.stream}
@@ -351,6 +402,7 @@ export function VoiceStage({
                 </SortableContext>
               </DndContext>
             )}
+            </>)}
           </div>
           <div
             className="voice-room-sep"

@@ -2653,5 +2653,10 @@
   "voice.participant.deafened": "Audio disattivato",
   "voice.stage.pop_out": "Stacca la stanza",
   "voice.stage.pop_in": "Riporta nella pagina",
-  "voice.stage.pop_out_unsupported": "Per staccare la stanza serve Chrome, Edge o Firefox su computer"
+  "voice.stage.pop_out_unsupported": "Per staccare la stanza serve Chrome, Edge o Firefox su computer",
+  "voice.stage.layout_free": "Disposizione libera",
+  "voice.stage.layout_grid": "Griglia",
+  "voice.stage.top_lives": "Live sopra",
+  "voice.stage.top_people": "Persone sopra",
+  "voice.stage.free_no_room": "{count, plural, one {# riquadro non ha} other {# riquadri non hanno}} spazio sul palco: sposta o rimpicciolisci un riquadro per fargli posto"
 }

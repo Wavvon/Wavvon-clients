@@ -2656,6 +2656,57 @@ tr.account-drop-target td {
 .room-pip-people {
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
 }
+.voice-stage-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Free layout (#496): items sit at percent rectangles of the stage. */
+.free-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+}
+.free-item {
+  position: absolute;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  cursor: grab;
+  touch-action: none;
+}
+.free-item-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: var(--border);
+  border-top-left-radius: var(--r-sm);
+}
+.free-tile {
+  height: 100%;
+  grid-template-columns: 1fr;
+}
+.free-tile > .voice-tile {
+  height: 100%;
+}
+.free-lives {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.free-lives .screen-share-panel,
+.free-lives .screen-share-main-wrap {
+  max-height: none;
+  height: 100%;
+}
+.room-pip--free {
+  position: relative;
+  height: 100vh;
+  padding: 0;
+}
 .voice-tiles.audience.roomy {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   align-content: center;
