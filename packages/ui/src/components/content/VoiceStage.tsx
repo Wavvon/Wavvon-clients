@@ -6,7 +6,7 @@ import { SoundboardBurst } from "../SoundboardBurst";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
-import { PinIcon, ExpandIcon } from "../Icons";
+import { PinIcon, ExpandIcon, CalendarIcon } from "../Icons";
 import { friendsFirst } from "../../utils/friendsFirst";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -112,12 +112,20 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: Med
  * the room. `children` is the viewer of the opened streams.
  */
 export function VoiceStage({
-  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, cameras, soundboardChips, children,
-}: VoiceStageInfo & { children?: React.ReactNode }) {
+  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, cameras, soundboardChips,
+  roomName, connectionStatus, onOpenEvents, children,
+}: VoiceStageInfo & {
+  children?: React.ReactNode;
+  roomName?: string;
+  /** The latency chip, shown beside the room name. */
+  connectionStatus?: React.ReactNode;
+  onOpenEvents?: () => void;
+}) {
   const { t } = useTranslation();
   const [pins, setPins] = useState<string[]>(loadPins);
   const [big, setBig] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [audienceCollapsed, setAudienceCollapsed] = useState(false);
   const [stageHeight, setStageHeight] = useState<number | null>(null);
   const roomRef = useRef<HTMLElement>(null);
 
@@ -247,12 +255,29 @@ export function VoiceStage({
   return (
     <section className="voice-room" ref={roomRef} aria-label={t("voice.stage.label")}>
       <div className="voice-room-bar">
+        {roomName !== undefined && (
+          <span className="voice-room-title">
+            <span className="voice-room-name">{roomName}</span>
+            <span className="muted">
+              {" · "}{t("voice.stage.in_voice", { count: participants.length })}
+              {cameras && cameras.size > 0 && <>{" · "}{t("voice.stage.cameras", { count: cameras.size })}</>}
+            </span>
+          </span>
+        )}
+        {connectionStatus}
         {live && <LiveTray {...live} />}
-        {inThisRoom && <div className="voice-room-controls" ref={barRef} />}
+        {onOpenEvents && (
+          <button type="button" className="btn-icon-header voice-room-events" onClick={onOpenEvents} title={t("events.open_panel")} aria-label={t("events.open_panel")}>
+            <CalendarIcon size={14} />
+          </button>
+        )}
       </div>
 
       {hasStage && (
         <>
+          <span className="voice-section-label">
+            {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) + (selfShare ? 1 : 0) })}
+          </span>
           <div className="voice-stage-area" style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
             {selfShare && (
               <SelfShareTile
@@ -304,8 +329,13 @@ export function VoiceStage({
                   onChange={(e) => setQuery(e.target.value)}
                 />
               )}
+              {hasStage && (
+                <button type="button" className="btn-small btn-secondary" aria-expanded={!audienceCollapsed} onClick={() => setAudienceCollapsed((v) => !v)}>
+                  {t(audienceCollapsed ? "voice.stage.expand" : "voice.stage.collapse")}
+                </button>
+              )}
             </div>
-            <ul className="voice-tiles audience">{shown.map((p) => personTile(p, 56))}</ul>
+            <ul className={`voice-tiles audience${audienceCollapsed ? " collapsed" : ""}`}>{shown.map((p) => personTile(p, 56))}</ul>
           </>
         )}
       </div>
@@ -329,6 +359,9 @@ export function VoiceStage({
       {inThisRoom && room && (
         <VoiceRoomMap room={room} participants={participants} avatars={avatars} publicKey={publicKey} />
       )}
+      {/* One floating dock for the room's media controls (share, camera,
+          whisper, soundboard); mic, deafen and leave live in the sidebar. */}
+      {inThisRoom && <div className="voice-room-controls voice-dock" ref={barRef} />}
     </section>
   );
 }

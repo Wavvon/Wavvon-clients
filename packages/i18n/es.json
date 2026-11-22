@@ -2648,5 +2648,10 @@
   "settings.soundboard_bursts.hint": "Muestra el emoji del sonido sobre quien lo reproduce",
   "voice.soundboard_deafened": "Reactiva todo el audio para usar la soundboard",
   "voice.stage.camera_badge": "CAM",
-  "voice.stage.camera_on": "Cámara encendida"
+  "voice.stage.camera_on": "Cámara encendida",
+  "voice.stage.in_voice": "{count} en voz",
+  "voice.stage.cameras": "{count, plural, one {# cámara} other {# cámaras}}",
+  "voice.stage.stage_label": "Escenario · {count}",
+  "voice.stage.collapse": "Reducir",
+  "voice.stage.expand": "Expandir"
 }

@@ -2648,5 +2648,10 @@
   "settings.soundboard_bursts.hint": "Show the clip emoji over whoever plays it",
   "voice.soundboard_deafened": "Undeafen to use the soundboard",
   "voice.stage.camera_badge": "CAM",
-  "voice.stage.camera_on": "Camera on"
+  "voice.stage.camera_on": "Camera on",
+  "voice.stage.in_voice": "{count} in voice",
+  "voice.stage.cameras": "{count, plural, one {# camera} other {# cameras}}",
+  "voice.stage.stage_label": "Stage · {count}",
+  "voice.stage.collapse": "Collapse",
+  "voice.stage.expand": "Expand"
 }
