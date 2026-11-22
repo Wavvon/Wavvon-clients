@@ -6,7 +6,7 @@ import { SoundboardBurst } from "../SoundboardBurst";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
-import { PinIcon, ExpandIcon, CalendarIcon } from "../Icons";
+import { PinIcon, ExpandIcon, CalendarIcon, ScreenShareIcon } from "../Icons";
 import { friendsFirst } from "../../utils/friendsFirst";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -113,13 +113,16 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: Med
  */
 export function VoiceStage({
   participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, cameras, soundboardChips,
-  roomName, connectionStatus, onOpenEvents, children,
+  roomName, connectionStatus, onOpenEvents, onOpenHubStreams, liveShareCount = 0, children,
 }: VoiceStageInfo & {
   children?: React.ReactNode;
   roomName?: string;
   /** The latency chip, shown beside the room name. */
   connectionStatus?: React.ReactNode;
   onOpenEvents?: () => void;
+  /** The hub-wide list of lives, from any channel. */
+  onOpenHubStreams?: () => void;
+  liveShareCount?: number;
 }) {
   const { t } = useTranslation();
   const [pins, setPins] = useState<string[]>(loadPins);
@@ -266,8 +269,19 @@ export function VoiceStage({
         )}
         {connectionStatus}
         {live && <LiveTray {...live} />}
+        {onOpenHubStreams && (
+          <button
+            type="button"
+            className="btn-icon-header voice-room-events"
+            onClick={onOpenHubStreams}
+            title={t("content.streams.title")}
+            aria-label={liveShareCount > 0 ? t("content.streams.title_live", { count: liveShareCount }) : t("content.streams.title")}
+          >
+            <ScreenShareIcon size={14} />
+          </button>
+        )}
         {onOpenEvents && (
-          <button type="button" className="btn-icon-header voice-room-events" onClick={onOpenEvents} title={t("events.open_panel")} aria-label={t("events.open_panel")}>
+          <button type="button" className="btn-icon-header" onClick={onOpenEvents} title={t("events.open_panel")} aria-label={t("events.open_panel")}>
             <CalendarIcon size={14} />
           </button>
         )}

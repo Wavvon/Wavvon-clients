@@ -585,6 +585,8 @@ export function ContentArea({
                 roomName={selectedChannel.name}
                 connectionStatus={connectionStatus}
                 onOpenEvents={() => setShowEventsModal(true)}
+                onOpenHubStreams={onOpenHubStreams}
+                liveShareCount={liveShareCount}
               >
                 {activeScreenShares.length > 0 && screenShareViewerRef && (
                   <ErrorBoundary fallback={<p className="muted">{t("error.generic")}</p>}>
