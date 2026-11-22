@@ -4,6 +4,7 @@ import type { SoundboardChip, VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
 import { SoundboardBurst } from "../SoundboardBurst";
 import { SelfStateIcon } from "../SortableItems";
+import { PopOutRoom } from "./PopOutRoom";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
@@ -294,6 +295,15 @@ export function VoiceStage({
         )}
         {connectionStatus}
         {live && <LiveTray {...live} />}
+        {inThisRoom && (
+          <PopOutRoom
+            people={onStage.length > 0 ? onStage : participants}
+            cameras={cameras}
+            avatars={avatars}
+            publicKey={publicKey}
+            livesKey={[...(live?.opened ?? [])].join(",")}
+          />
+        )}
         {onOpenHubStreams && (
           <button
             type="button"

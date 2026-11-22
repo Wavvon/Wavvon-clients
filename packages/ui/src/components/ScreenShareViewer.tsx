@@ -46,20 +46,6 @@ export function pickMediaSource(scope: object = globalThis): MediaSourceCtor | n
   return g.MediaSource ?? g.ManagedMediaSource ?? null;
 }
 
-type CapturableVideo = HTMLVideoElement & {
-  captureStream?: () => MediaStream;
-  mozCaptureStream?: () => MediaStream;
-};
-
-interface DocumentPictureInPicture {
-  requestWindow: (options: { width: number; height: number }) => Promise<Window>;
-}
-
-/** The Document Picture-in-Picture entry point, where the browser has one. */
-export function documentPictureInPicture(scope: object = globalThis): DocumentPictureInPicture | null {
-  return (scope as { documentPictureInPicture?: DocumentPictureInPicture }).documentPictureInPicture ?? null;
-}
-
 interface StreamState {
   mediaSource: MediaSource;
   sourceBuffer: SourceBuffer | null;
@@ -88,7 +74,6 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     const videoRefs = useRef<Map<string, HTMLVideoElement | null>>(new Map());
     const webrtcStreams = useRef<Map<string, MediaStream>>(new Map());
     const [volumes, setVolumes] = useState<Record<string, number>>({});
-    const [pipStreamId, setPipStreamId] = useState<string | null>(null);
     // Stream ids with a pop-out window open; the ref is what the chunk path
     // reads, the state what renders.
     const [osPipOpen, setOsPipOpen] = useState<ReadonlySet<string>>(new Set());
@@ -97,87 +82,12 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
     // A window opened mid-stream needs the init segment before any chunk
     // after it will decode.
     const initChunks = useRef<Map<string, ArrayBuffer>>(new Map());
-    const [docPipOpen, setDocPipOpen] = useState(false);
     const MediaSourceImpl = pickMediaSource();
     // attachStream fills a ref; this re-renders so a WebRTC stream replaces
     // the "can't play" notice on a browser without MSE.
     const [, setRtcVersion] = useState(0);
 
     const osPipSupported = !!onOpenOsPipWindow && !!onCloseOsPipWindow;
-    const pipSupported =
-      typeof document !== "undefined" && "pictureInPictureEnabled" in document;
-
-    const docPipWindow = useRef<Window | null>(null);
-    const docPip = documentPictureInPicture();
-
-    // Document Picture-in-Picture (Chrome/Edge 116+, Firefox 151+): one
-    // floating window holding every watched screen share, where `<video>`
-    // PiP allows a single stream per page. The window shows copies captured
-    // from the players here, so the page's own players stay where React put
-    // them.
-    const toggleFloatAll = useCallback(async () => {
-      if (!docPip) return;
-      if (docPipWindow.current) {
-        docPipWindow.current.close();
-        return;
-      }
-      const captured: MediaStream[] = [];
-      for (const s of streams) {
-        if (s.kind === "webcam") continue;
-        const el = videoRefs.current.get(s.stream_id) as CapturableVideo | null | undefined;
-        const ms = el?.captureStream?.() ?? el?.mozCaptureStream?.();
-        if (ms) captured.push(ms);
-      }
-      if (captured.length === 0) return;
-      let win: Window;
-      try {
-        win = await docPip.requestWindow({ width: 480, height: 270 });
-      } catch {
-        return;
-      }
-      docPipWindow.current = win;
-      const doc = win.document;
-      doc.body.style.cssText =
-        "margin:0;background:#000;height:100vh;display:grid;gap:2px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))";
-      for (const ms of captured) {
-        const v = doc.createElement("video");
-        v.autoplay = true;
-        v.muted = true;
-        v.playsInline = true;
-        v.srcObject = ms;
-        v.style.cssText = "width:100%;height:100%;min-height:0;object-fit:contain";
-        doc.body.appendChild(v);
-      }
-      setDocPipOpen(true);
-      win.addEventListener("pagehide", () => {
-        for (const ms of captured) ms.getTracks().forEach((tr) => tr.stop());
-        docPipWindow.current = null;
-        setDocPipOpen(false);
-      }, { once: true });
-    }, [docPip, streams]);
-
-    useEffect(() => () => { docPipWindow.current?.close(); }, []);
-
-    const enterPip = useCallback(async (streamId: string) => {
-      if (docPip) {
-        await toggleFloatAll();
-        return;
-      }
-      const el = videoRefs.current.get(streamId);
-      if (!el || !pipSupported) return;
-      try {
-        if (document.pictureInPictureElement === el) {
-          await document.exitPictureInPicture();
-        } else {
-          await el.requestPictureInPicture();
-          setPipStreamId(streamId);
-          el.addEventListener("leavepictureinpicture", () => setPipStreamId(null), { once: true });
-        }
-      } catch {
-        // Browser denied PiP (not playing yet, or feature not available) — ignore
-      }
-    }, [pipSupported, docPip, toggleFloatAll]);
-
     const markOsPipClosed = useCallback((streamId: string) => {
       osPipOpenRef.current.delete(streamId);
       setOsPipOpen(new Set(osPipOpenRef.current));
@@ -424,24 +334,11 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
               </div>
               {renderVideo(mainStream, "main-stream")}
               {webcamStream && renderVideo(webcamStream, "webcam-overlay")}
-              {(pipSupported || docPip) && (MediaSourceImpl || webrtcStreams.current.has(mainStream.stream_id)) && (
-                <button
-                  className="pip-btn"
-                  title={
-                    docPip
-                      ? (docPipOpen ? t("voice.share.pip_exit") : t("voice.share.pip_all"))
-                      : (pipStreamId === mainStream.stream_id ? t("voice.share.pip_exit") : t("voice.share.pip_enter"))
-                  }
-                  onClick={() => enterPip(mainStream.stream_id)}
-                >
-                  {(docPip ? docPipOpen : pipStreamId === mainStream.stream_id) ? "⊞" : "⧉"}
-                </button>
-              )}
               {osPipSupported && (
                 <button
                   className="pip-btn pip-btn--os"
                   style={{
-                    right: pipSupported ? "calc(var(--space-2) + 34px)" : "var(--space-2)",
+                    right: "var(--space-2)",
                     opacity: osPipOpen.has(mainStream.stream_id) ? 1 : undefined,
                   }}
                   title={osPipOpen.has(mainStream.stream_id) ? t("voice.share.window_exit") : t("voice.share.window_enter")}
@@ -453,7 +350,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
               {onOsPipRestoreCursor && osPipOpen.has(mainStream.stream_id) && (
                 <button
                   className="pip-btn pip-btn--os"
-                  style={{ right: pipSupported ? "calc(var(--space-2) + 68px)" : "calc(var(--space-2) + 34px)" }}
+                  style={{ right: "calc(var(--space-2) + 34px)" }}
                   title={t("voice.share.window_restore_cursor")}
                   aria-label={t("voice.share.window_restore_cursor")}
                   onClick={() => onOsPipRestoreCursor(mainStream.stream_id)}

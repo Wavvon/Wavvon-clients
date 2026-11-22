@@ -2016,8 +2016,6 @@
   "voice.screen_share.picker.share_webcam": "Condividi la webcam",
   "voice.screen_share.picker.title": "Condividi lo schermo",
   "voice.screen_share.stop": "Interrompi condivisione",
-  "voice.share.pip_enter": "Apri in picture-in-picture",
-  "voice.share.pip_exit": "Esci dal picture-in-picture",
   "voice.share.unsupported": "Questo browser non riesce a riprodurre le condivisioni schermo.",
   "voice.share.volume": "Volume",
   "voice.share.window_enter": "Apri in una finestra",
@@ -2530,7 +2528,6 @@
   "settings.profile.widget_hidden.hint": "Il widget mostra chi è online sul sito della community. Con questa opzione non compari e non vieni contato.",
   "settings.profile.widget_hidden.failed": "Impossibile cambiare questa impostazione.",
   "voice.participant.camera_on": "Videocamera accesa",
-  "voice.share.pip_all": "Metti tutte le condivisioni in una finestra mobile",
   "voice.share.window_restore_cursor": "Rendi di nuovo cliccabile la finestra separata",
   "dm.key_changed.body": "La chiave di cifratura di {name} è cambiata. Succede quando una chiave d'identità finisce in mani altrui, o dopo un reset. Verifica con {name} per un altro canale prima di continuare; fino ad allora non viene inviato nulla.",
   "dm.key_changed.accept": "Accetta la nuova chiave",
@@ -2653,5 +2650,8 @@
   "voice.stage.expand": "Espandi",
   "voice.stage.camera_fullscreen": "Webcam di {name} a schermo intero",
   "voice.participant.muted": "Microfono disattivato",
-  "voice.participant.deafened": "Audio disattivato"
+  "voice.participant.deafened": "Audio disattivato",
+  "voice.stage.pop_out": "Stacca la stanza",
+  "voice.stage.pop_in": "Riporta nella pagina",
+  "voice.stage.pop_out_unsupported": "Per staccare la stanza serve Chrome, Edge o Firefox su computer"
 }

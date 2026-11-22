@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { documentPictureInPicture, pickMediaSource } from "../ScreenShareViewer";
+import { pickMediaSource } from "../ScreenShareViewer";
+import { documentPictureInPicture } from "../../utils/documentPip";
 
 class FakeMse {}
 class FakeManaged {}

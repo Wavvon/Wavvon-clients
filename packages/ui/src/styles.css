@@ -2637,6 +2637,25 @@ tr.account-drop-target td {
   display: inline-flex;
   color: var(--danger);
 }
+/* The room popped out (#495): lives on top, then the people. */
+.room-pip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: var(--bg);
+}
+.room-pip-live video {
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  background: #000;
+}
+.room-pip-people {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
 .voice-tiles.audience.roomy {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   align-content: center;
