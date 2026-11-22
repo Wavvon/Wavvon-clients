@@ -41,6 +41,8 @@ export function CameraTab() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const rawRef = useRef<MediaStream | null>(null);
   const procRef = useRef<BackgroundProcessor | null>(null);
+  const outRef = useRef<MediaStream | null>(null);
+  const effectQueue = useRef<Promise<void>>(Promise.resolve());
   // Bumped by every stop: a getUserMedia that resolves after a newer start or
   // after unmount (React's dev double-mount does both) must release its
   // camera instead of leaving it on with nothing showing it.
@@ -50,6 +52,7 @@ export function CameraTab() {
     genRef.current++;
     procRef.current?.stop();
     procRef.current = null;
+    outRef.current = null;
     rawRef.current?.getTracks().forEach((t) => t.stop());
     rawRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -108,33 +111,55 @@ export function CameraTab() {
       rawRef.current = raw;
       // Show the raw camera at once: the segmentation model is ~5 MB of WASM,
       // and waiting for it left the preview blank for seconds.
-      if (videoRef.current) {
-        videoRef.current.srcObject = raw;
-        void videoRef.current.play().catch(() => {});
-      }
+      show(raw);
       setPreviewing(true);
       void refresh();
-      if (m !== "none") {
-        const proc = new BackgroundProcessor(raw);
-        const out = await proc.start(m, src);
-        if (gen !== genRef.current) {
-          proc.stop();
-          return;
-        }
-        procRef.current = proc;
-        // The processor falls back to raw video when segmentation can't
-        // load — tell the user instead of pretending the effect is on.
-        setBgActive(proc.activeMode !== "none");
-        if (videoRef.current) {
-          videoRef.current.srcObject = out;
-          void videoRef.current.play().catch(() => {});
-        }
-      } else {
-        setBgActive(null);
-      }
+      applyEffect(m, src);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  function show(stream: MediaStream | null) {
+    if (!videoRef.current) return;
+    videoRef.current.srcObject = stream;
+    void videoRef.current.play().catch(() => {});
+  }
+
+  // Switches the effect on the running camera: no new getUserMedia, and the
+  // model loads once per preview. Queued so rapid clicks land in order.
+  function applyEffect(m: BackgroundMode, src: string | null) {
+    const gen = genRef.current;
+    effectQueue.current = effectQueue.current
+      .then(async () => {
+        const raw = rawRef.current;
+        if (gen !== genRef.current || !raw) return;
+        let proc = procRef.current;
+        if (m === "none") {
+          await proc?.setMode("none");
+          show(raw);
+          setBgActive(null);
+          return;
+        }
+        if (!proc) {
+          proc = new BackgroundProcessor(raw);
+          const out = await proc.start(m, src);
+          if (gen !== genRef.current) {
+            proc.stop();
+            return;
+          }
+          procRef.current = proc;
+          outRef.current = out;
+        } else {
+          await proc.setMode(m, src);
+          if (gen !== genRef.current) return;
+        }
+        // The processor falls back to raw video when segmentation can't
+        // load — tell the user instead of pretending the effect is on.
+        setBgActive(proc.activeMode !== "none");
+        show(outRef.current);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }
 
   function applyMode(m: BackgroundMode, src: string | null) {
@@ -143,7 +168,7 @@ export function CameraTab() {
     saveBg(m, src);
     // Tell App to re-apply to the live voice camera, if on.
     window.dispatchEvent(new Event("wavvon:bgchange"));
-    if (previewing) void startPreview(device, m, src);
+    if (previewing) applyEffect(m, src);
   }
 
   function pickDevice(v: string) {
