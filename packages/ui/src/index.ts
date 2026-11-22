@@ -262,7 +262,7 @@ export {
   BookmarkIcon,
 } from "./components/Icons";
 export { HubStreamsPanel, liveScreenShares, camerasOn } from "./components/HubStreamsPanel";
-export { ShareDialog, shareVideoConstraints, declaredQuality, estimateKbps } from "./components/voice/ShareDialog";
+export { ShareDialog, shareVideoConstraints, shareRecorderOptions, declaredQuality, estimateKbps } from "./components/voice/ShareDialog";
 export type { ShareQuality, StreamLimits } from "./components/voice/ShareDialog";
 export type { HubStreamInfo } from "./types";
 export { ScreenShareViewer } from "./components/ScreenShareViewer";
