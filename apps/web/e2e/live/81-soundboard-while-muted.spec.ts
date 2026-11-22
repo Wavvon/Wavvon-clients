@@ -9,14 +9,32 @@ import { channelButton, createChannel, expectInHub, newMemberPage, openSettingRo
 // return before mixing anything while muted, so the room heard nothing and
 // the player got no sign of it. Same proof as P66: inbound packet loss reads
 // "—" until a datagram has been parsed, unsealed and Opus-decoded. Here the
-// microphone is shut by self-mute rather than by the VAD gate, and the fake
-// capture device would otherwise be heard, so "—" before the clip proves the
-// mute holds and a number after proves the clip crossed it.
+// player is self-muted on top of P66's shut gate: the clip has to cross the
+// mute, which the send path used to refuse.
 
 // A real Ogg Opus file, not the synthetic 4-byte one P7 builds to satisfy the
 // hub's container check: this one has to survive `decodeAudioData` in the
 // browser, or there is no `activeClip` and nothing to hear.
 const CLIP = readFileSync(new URL("../fixtures/tone-440.ogg", import.meta.url));
+
+const GATE_SHUT = JSON.stringify({
+  profile: "standard",
+  customBitrate: null,
+  customApp: "voip",
+  customNoiseSuppress: true,
+  customVad: true,
+  vadThreshold: 1.0,
+  customVadThreshold: 1.0,
+  customChannels: 1,
+  customFrameMs: 20,
+  customComplexity: 9,
+});
+
+async function shutTheMicGate(page: Page) {
+  await page.evaluate((cfg) => {
+    localStorage.setItem("wavvon.audio_profile", cfg);
+  }, GATE_SHUT);
+}
 
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
@@ -53,12 +71,17 @@ test("a muted player's soundboard clip still reaches the room", async ({ page, b
   await expect(settingRow(page, clipName)).toBeVisible({ timeout: 20000 });
   await page.keyboard.press("Escape");
 
+  // The microphone gate is shut as in P66 before anyone joins, so nothing of
+  // the fake capture device can cross before the mute lands; the mute is what
+  // this spec is about, the gate only removes that race.
+  await shutTheMicGate(page);
   const channel = uniqueName("clip");
   await createChannel(page, channel, "Voice channel");
   await joinVoice(page, channel);
 
   const { context, page: listener } = await newMemberPage(browser, uniqueName("Listener"));
   try {
+    await shutTheMicGate(listener);
     await joinVoice(listener, channel);
 
     await listener.locator(".conn-chip").click({ timeout: 15000 });
