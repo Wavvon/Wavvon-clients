@@ -2649,5 +2649,6 @@
   "voice.stage.cameras": "{count, plural, one {# Kamera} other {# Kameras}}",
   "voice.stage.stage_label": "Bühne · {count}",
   "voice.stage.collapse": "Einklappen",
-  "voice.stage.expand": "Ausklappen"
+  "voice.stage.expand": "Ausklappen",
+  "voice.stage.camera_fullscreen": "Kamera von {name} im Vollbild"
 }

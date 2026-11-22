@@ -11,7 +11,7 @@ const CHANNEL_GLYPHS = [
 export const ICON_NAMES: readonly string[] = [
   "phone-off", "mic", "mic-off", "deafen", "screen-share", "camera", "camera-off",
   "pin", "search", "members", "link", "flag", "reply", "edit", "trash", "settings",
-  "plus", "close", "chevron", "expand", "reset", "forum", "bell-off", "lock",
+  "plus", "close", "chevron", "expand", "fullscreen", "reset", "forum", "bell-off", "lock",
   "paperclip", "speaker", "clock", "whisper", "cake", "calendar", "wave",
   "reaction-add", "messages", "discover", "mention", "bookmark",
   "channel-text", "channel-voice", "channel-forum", "channel-spawner",

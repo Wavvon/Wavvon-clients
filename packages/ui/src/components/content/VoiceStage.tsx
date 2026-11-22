@@ -6,7 +6,7 @@ import { SoundboardBurst } from "../SoundboardBurst";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
-import { PinIcon, ExpandIcon, CalendarIcon, ScreenShareIcon } from "../Icons";
+import { PinIcon, ExpandIcon, CalendarIcon, ScreenShareIcon, FullscreenIcon } from "../Icons";
 import { friendsFirst } from "../../utils/friendsFirst";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -254,6 +254,17 @@ export function VoiceStage({
               onClick={() => setBig((b) => (b === p.public_key ? null : p.public_key))}
             >
               <ExpandIcon size={13} />
+            </button>
+          )}
+          {showCamera && (
+            <button
+              type="button"
+              className="btn-icon"
+              aria-label={t("voice.stage.camera_fullscreen", { name })}
+              title={t("voice.stage.camera_fullscreen", { name })}
+              onClick={(e) => { void e.currentTarget.closest(".voice-tile")?.querySelector("video")?.requestFullscreen?.(); }}
+            >
+              <FullscreenIcon size={13} />
             </button>
           )}
         </div>
