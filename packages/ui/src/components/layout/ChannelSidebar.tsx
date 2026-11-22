@@ -929,6 +929,7 @@ export function ChannelSidebar({
                         onListClips={onListSoundboardClips}
                         onTrigger={onTriggerSoundboardClip}
                         playingClipId={soundboardPlayingClipId ?? null}
+                        disabledReason={selfDeafened ? t("voice.soundboard_deafened") : null}
                       />
                     )}
                   </div>,

@@ -10,9 +10,11 @@ interface Props {
   onListClips: () => Promise<SoundboardClip[]>;
   onTrigger: (clip: SoundboardClip) => void;
   playingClipId: string | null;
+  /** Why the soundboard cannot be used right now; the button is disabled and says so. */
+  disabledReason?: string | null;
 }
 
-export function SoundboardPopover({ onListClips, onTrigger, playingClipId }: Props) {
+export function SoundboardPopover({ onListClips, onTrigger, playingClipId, disabledReason }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [popupStyle, setPopupStyle] = useState<CSSProperties>({});
@@ -80,8 +82,9 @@ export function SoundboardPopover({ onListClips, onTrigger, playingClipId }: Pro
         ref={btnRef}
         className="btn-icon-gear"
         onClick={handleOpen}
-        title={t("voice.soundboard")}
-        aria-label={t("voice.soundboard")}
+        disabled={!!disabledReason}
+        title={disabledReason ?? t("voice.soundboard")}
+        aria-label={disabledReason ?? t("voice.soundboard")}
       >
         <SpeakerIcon size={14} />
       </button>
