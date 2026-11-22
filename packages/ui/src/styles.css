@@ -2689,6 +2689,24 @@ tr.account-drop-target td {
   grid-column: span 2;
   grid-row: span 2;
 }
+/* A camera takes the place of the avatar in its owner's tile. */
+.voice-tile-camera {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: #000;
+}
+.voice-tile-camera.mirrored { transform: scaleX(-1); }
+.cam-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+  background: var(--text-muted);
+  color: var(--surface);
+}
 .voice-tile .avatar-img, .voice-tile .avatar-fallback {
   transition: box-shadow 120ms ease-out;
 }
@@ -6101,6 +6119,20 @@ select:focus-visible {
   display: block;
 }
 
+/* Fullscreen is the whole screen: the in-page caps above would keep the
+   video at the size it had in the page (#491). */
+.screen-share-main-wrap:fullscreen {
+  max-height: none;
+  width: 100%;
+  height: 100%;
+}
+.screen-share-main-wrap:fullscreen video.main-stream {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
 .screen-share-panel video.webcam-overlay {
   position: absolute;
   bottom: var(--space-3);
@@ -7436,34 +7468,6 @@ a.embed-title:hover {
   min-width: 56px;
   text-align: right;
 }/* ============================================================
-   VIDEO GRID
-   ============================================================ */
-/* The grid sits above the message list in the content column, so it is
-   capped rather than letting 4:3 tiles push the chat off screen. */
-.video-grid { display: grid; gap: 4px; padding: 4px; background: var(--bg); max-height: 50vh; overflow-y: auto; }
-.video-grid-1 .video-tile { aspect-ratio: auto; height: 45vh; }
-.video-grid-4 .video-tile { aspect-ratio: auto; height: calc((50vh - 12px) / 2); }
-.video-grid-main .video-tile { aspect-ratio: auto; height: 40vh; }
-.video-grid-1 { grid-template-columns: 1fr; }
-.video-grid-4 { grid-template-columns: repeat(2, 1fr); }
-.video-grid-speaker { display: flex; flex-direction: column; }
-.video-grid-main { flex: 1; }
-.video-grid-thumbnails { display: flex; gap: 4px; overflow-x: auto; height: 100px; }
-.video-grid-thumbnails .video-tile { width: 140px; flex-shrink: 0; }
-.video-tile { position: relative; background: #000; border-radius: 6px; overflow: hidden; border: 2px solid transparent; aspect-ratio: 4/3; }
-.video-tile.speaking { border-color: var(--accent); }
-/* Speaking already owns the accent; a pinned tile is told apart by its
-   persistent pin button and a neutral border, not a second amber. */
-.video-tile.pinned { border-color: var(--text-muted); }
-.video-tile.pinned .video-tile-pin { opacity: 1; }
-.video-tile-video { width: 100%; height: 100%; object-fit: cover; }
-.video-tile-name { position: absolute; bottom: 4px; left: 6px; font-size: 11px; color: #fff; background: rgba(0,0,0,0.6); border-radius: 3px; padding: 1px 4px; }
-.video-tile-pin { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border: none; border-radius: 3px; cursor: pointer; color: #fff; display: flex; opacity: 0; transition: opacity 0.15s; padding: 2px 4px; }
-.video-tile:hover .video-tile-pin { opacity: 1; }
-.video-self-view { position: fixed; bottom: 80px; right: 12px; width: 120px; border-radius: 6px; overflow: hidden; border: 2px solid var(--border); cursor: grab; z-index: 100; user-select: none; }
-.video-self-view .video-tile-video { width: 100%; aspect-ratio: 4/3; object-fit: cover; transform: scaleX(-1); }
-.video-self-view .video-tile-name { font-size: 10px; }
-.video-self-resize-handle { position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; background: rgba(255,255,255,0.25); border-radius: 3px 0 0 0; }/* ============================================================
    GLOBAL MESSAGE SEARCH (Task #28)
    ============================================================ */
 .global-search-wrap {
@@ -8009,65 +8013,6 @@ a.embed-title:hover {
 .app-launch-card {
   max-width: 480px;
 }/* ============================================================
-   FLOATING CAMERA WINDOW (picture-in-picture)
-   Follows the user's voice session, not the selected channel.
-   Dragged by its title bar; resized via the native corner handle.
-   ============================================================ */
-.video-pip {
-  position: fixed;
-  z-index: 700; /* above content, below context menus (9998) and modals */
-  display: flex;
-  flex-direction: column;
-  min-width: 200px;
-  min-height: 150px;
-  max-width: 90vw;
-  max-height: 90vh;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
-  resize: both;
-}
-
-.video-pip-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-bottom: 1px solid var(--border);
-  cursor: grab;
-  user-select: none;
-  touch-action: none; /* pointer-drag, not scroll, on touch devices */
-  flex-shrink: 0;
-}
-
-.video-pip-header:active {
-  cursor: grabbing;
-}
-
-.video-pip-title {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.video-pip-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: var(--space-2);
-  padding: var(--space-2);
-  align-content: start;
-}
-
-/* ============================================================
    CONNECTION STATUS — live latency chip + detail panel
    ============================================================ */
 .conn-status {
@@ -9436,9 +9381,8 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
   animation: soundboard-burst-rise 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
 }
 
-.video-tile .soundboard-burst,
-.video-self-view .soundboard-burst { left: 50%; bottom: 20%; }
-.video-tile .soundboard-burst > span { font-size: 28px; --k: 2; }
+.voice-tile.has-camera .soundboard-burst { left: 50%; bottom: 30%; }
+.voice-tile.has-camera .soundboard-burst > span { font-size: 28px; --k: 2; }
 
 /* Particles take their path from --dx, --dist, --rot and --s (set inline);
    --k scales the whole fountain to the tile it rises from. */

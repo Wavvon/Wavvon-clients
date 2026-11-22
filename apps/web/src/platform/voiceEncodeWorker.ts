@@ -116,15 +116,17 @@ function updateSpeaking(micFrame: Float32Array): void {
 
 function onFrame(frame: CaptureFrame): void {
   tracker.observe(frame.startFrame, frame.capturedAt, Date.now());
-  // Muted frames are still counted above (the pipeline kept pace) but never
-  // touch the detector, the clip or the encoder, as before the split.
-  if (muted || !send || !encoder || !key) return;
+  // Muted frames are still counted above (the pipeline kept pace). Mute is
+  // about the microphone, not the soundboard: a playing clip still goes out,
+  // mixed over silence instead of the mic (#487).
+  if (!send || !encoder || !key) return;
+  if (muted && !activeClip) return;
 
-  const micFrame = frame.samples;
+  const micFrame = muted ? new Float32Array(frame.samples.length) : frame.samples;
 
   // Speech detection runs on the raw mic frame, before the soundboard mix:
   // a clip playing through our own stream is not us talking.
-  updateSpeaking(micFrame);
+  if (!muted) updateSpeaking(micFrame);
 
   const { output, nextClip } = mixClipIntoFrame(micFrame, activeClip);
   if (activeClip && !nextClip) scope.postMessage({ type: 'clipDone' });
