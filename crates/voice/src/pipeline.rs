@@ -518,6 +518,8 @@ impl AudioPipeline {
                 }
 
                 let mut denoised = denoiser.process(&read_buf[..count]);
+                let muted_now = send_muted.load(Ordering::Relaxed);
+                let mut clip_playing = false;
 
                 // Mix in a playing soundboard clip *after* denoise (mixing
                 // before would feed RNNoise a burst of clean synthetic audio
@@ -528,6 +530,12 @@ impl AudioPipeline {
                 {
                     let mut clip_slot = send_active_clip.lock().unwrap();
                     if let Some(clip) = clip_slot.as_mut() {
+                        // Mute is about the microphone, not the soundboard:
+                        // a clip still goes out, over silence (#487).
+                        if muted_now {
+                            denoised.fill(0.0);
+                        }
+                        clip_playing = true;
                         if crate::soundboard::mix_clip_into_frame(&mut denoised, clip) {
                             *clip_slot = None;
                         }
@@ -580,7 +588,7 @@ impl AudioPipeline {
                 // regardless. The clip mix is summed into `denoised` before the
                 // VAD above, so a playing soundboard clip holds `is_speaking`
                 // and is not gated.
-                let suppress = send_muted.load(Ordering::Relaxed) || (vad_enabled && !is_speaking);
+                let suppress = (muted_now && !clip_playing) || (vad_enabled && !is_speaking);
 
                 for opus_data in packets {
                     if !suppress {
