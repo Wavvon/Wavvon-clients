@@ -1,5 +1,5 @@
 import type { HubWebSocket } from "./ws";
-import { shareVideoConstraints, declaredQuality, type ShareQuality } from "@wavvon/ui";
+import { shareVideoConstraints, shareRecorderOptions, declaredQuality, type ShareQuality } from "@wavvon/ui";
 
 // Outbound screen share over the hub's chunk-relay protocol — the same wire
 // messages the desktop client sends (useScreenShare.ts) and the existing web
@@ -82,7 +82,7 @@ export class WebScreenShareSession {
     // If the user stops sharing via the browser's native control, end cleanly.
     stream.getVideoTracks()[0]?.addEventListener("ended", () => this.stop());
 
-    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: quality.kbps * 1000 });
+    const recorder = new MediaRecorder(stream, shareRecorderOptions(mime, quality.kbps * 1000));
     this.recorder = recorder;
     this.windowStart = performance.now();
     recorder.ondataavailable = async (e) => {

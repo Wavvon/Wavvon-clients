@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { shareVideoConstraints, declaredQuality, type StreamLimits } from "@wavvon/ui";
+import { shareVideoConstraints, shareRecorderOptions, declaredQuality, type StreamLimits } from "@wavvon/ui";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { invoke } from "@tauri-apps/api/core";
 import type { ScreenShareOpts } from "../types";
@@ -155,10 +155,7 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
     mime: string,
     bitsPerSecond: number
   ) {
-    const recorder = new MediaRecorder(stream, {
-      mimeType: mime,
-      videoBitsPerSecond: bitsPerSecond,
-    });
+    const recorder = new MediaRecorder(stream, shareRecorderOptions(mime, bitsPerSecond));
 
     let seq = 0;
     let isFirstChunk = true;
