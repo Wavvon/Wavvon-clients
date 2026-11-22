@@ -9433,22 +9433,20 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
   bottom: 0;
   font-size: 16px;
   opacity: 0;
-  animation: soundboard-burst-rise 1.4s ease-out forwards;
+  animation: soundboard-burst-rise 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
 }
-
-.soundboard-burst > span:nth-child(2) { left: -8px; animation-delay: 0.12s; }
-.soundboard-burst > span:nth-child(3) { left: 10px; animation-delay: 0.24s; }
-.soundboard-burst > span:nth-child(4) { left: -2px; animation-delay: 0.36s; font-size: 13px; }
-.soundboard-burst > span:nth-child(5) { left: 6px; animation-delay: 0.48s; font-size: 13px; }
 
 .video-tile .soundboard-burst,
 .video-self-view .soundboard-burst { left: 50%; bottom: 20%; }
-.video-tile .soundboard-burst > span { font-size: 28px; }
+.video-tile .soundboard-burst > span { font-size: 28px; --k: 2; }
 
+/* Particles take their path from --dx, --dist, --rot and --s (set inline);
+   --k scales the whole fountain to the tile it rises from. */
 @keyframes soundboard-burst-rise {
-  0%   { opacity: 0; transform: translateY(0) scale(0.6); }
-  15%  { opacity: 1; transform: translateY(-6px) scale(1); }
-  100% { opacity: 0; transform: translateY(-44px) scale(1.1); }
+  0%   { opacity: 0; transform: translate(0, 0) rotate(0) scale(0.3); }
+  12%  { opacity: 1; transform: translate(calc(var(--dx) * 0.3 * var(--k, 1)), calc(var(--dist) * -0.4 * var(--k, 1))) rotate(calc(var(--rot) * 0.3)) scale(var(--s)); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * var(--k, 1)), calc(var(--dist) * -1 * var(--k, 1))) rotate(var(--rot)) scale(calc(var(--s) * 0.8)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
