@@ -212,6 +212,19 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
       return () => { for (const u of listeners.values()) u(); };
     }, []);
 
+    // A late viewer holds the first chunk and then a gap up to the next
+    // keyframe; the player stalls at the gap. Jump to the newest buffered
+    // range, and stay near its end so a live does not drift behind.
+    function catchUpToLive(el: HTMLVideoElement | null | undefined) {
+      if (!el || el.buffered.length === 0) return;
+      const last = el.buffered.length - 1;
+      const start = el.buffered.start(last);
+      const end = el.buffered.end(last);
+      if (el.currentTime < start || end - el.currentTime > 3) {
+        el.currentTime = Math.max(start, end - 0.5);
+      }
+    }
+
     function drainQueue(streamId: string) {
       const s = streamStates.current.get(streamId);
       if (!s || !s.sourceBuffer || s.busy || s.queue.length === 0) return;
@@ -309,6 +322,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
             state.sourceBuffer = sb;
             sb.addEventListener("updateend", () => {
               state.busy = false;
+              catchUpToLive(videoRefs.current.get(stream.stream_id));
               drainQueue(stream.stream_id);
             });
           } catch {}

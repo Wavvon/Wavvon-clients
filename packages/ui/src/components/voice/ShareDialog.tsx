@@ -48,6 +48,14 @@ export function shareVideoConstraints(q: ShareQuality): MediaTrackConstraints {
   return { frameRate: { ideal: q.fps, max: q.fps }, ...size };
 }
 
+/** MediaRecorder options for a share. A viewer who opens a live late gets the
+ *  first chunk (the only keyframe a recorder writes by default) and then
+ *  chunks from much later, which cannot decode without the frames between:
+ *  a keyframe every couple of seconds is what lets them join. */
+export function shareRecorderOptions(mimeType: string, bitsPerSecond: number): MediaRecorderOptions {
+  return { mimeType, videoBitsPerSecond: bitsPerSecond, videoKeyFrameIntervalDuration: 2000 } as MediaRecorderOptions;
+}
+
 /** The fields `screen_share_start` declares, read back from the captured track. */
 export function declaredQuality(q: ShareQuality, track: MediaStreamTrack | undefined) {
   const s = track?.getSettings();
