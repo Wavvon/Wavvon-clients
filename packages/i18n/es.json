@@ -2650,5 +2650,7 @@
   "voice.stage.stage_label": "Escenario · {count}",
   "voice.stage.collapse": "Reducir",
   "voice.stage.expand": "Expandir",
-  "voice.stage.camera_fullscreen": "Cámara de {name} a pantalla completa"
+  "voice.stage.camera_fullscreen": "Cámara de {name} a pantalla completa",
+  "voice.participant.muted": "Micrófono silenciado",
+  "voice.participant.deafened": "Todo el audio silenciado"
 }

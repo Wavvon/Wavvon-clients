@@ -2,6 +2,8 @@ import { memberActivity } from "@wavvon/ui";
 import type { AllianceScrollback, MessageRowActions, SoundboardChip } from "@wavvon/ui";
 import { HubStreamsPanel, liveScreenShares, typingForScope } from "@wavvon/ui";
 import { ContentArea } from "./ContentArea";
+import { useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useHubCapabilities } from "../hooks/useHubCapabilities";
 import { useStickers } from "../hooks/useStickers";
 import { useFriendKeys } from "../hooks/useFriendKeys";
@@ -79,6 +81,22 @@ export function ContentAreaContainer({
 }: Props) {
   const { activeHubId } = hubLifecycle;
   const caps = useHubCapabilities(hubLifecycle.hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? null);
+
+  // Tell the room our mute and deafen state (hubs with voice.mute.state).
+  // Push-to-talk mutes between key presses, which is not being muted, so a
+  // push-to-talk member reports only a deafen.
+  const supportsSelfState = caps.includes("voice.mute.state");
+  useEffect(() => {
+    if (!voice.voiceChannelId || !supportsSelfState) return;
+    invoke("send_hub_ws_raw", {
+      payload: JSON.stringify({
+        type: "voice_self_state",
+        channel_id: voice.voiceChannelId,
+        muted: voice.voiceMode !== "ptt" && voice.selfMuted,
+        deafened: voice.selfDeafened,
+      }),
+    }).catch(() => { /* the next change resends */ });
+  }, [voice.voiceChannelId, voice.selfMuted, voice.selfDeafened, voice.voiceMode, supportsSelfState]);
   const { selectedChannel } = channelMessages;
   const friendKeys = useFriendKeys(selectedChannel?.id);
   const hasPerm = (p: string) => isAdmin || myRoles.some((r) => r.permissions?.includes(p));

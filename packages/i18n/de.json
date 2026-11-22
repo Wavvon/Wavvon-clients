@@ -2650,5 +2650,7 @@
   "voice.stage.stage_label": "Bühne · {count}",
   "voice.stage.collapse": "Einklappen",
   "voice.stage.expand": "Ausklappen",
-  "voice.stage.camera_fullscreen": "Kamera von {name} im Vollbild"
+  "voice.stage.camera_fullscreen": "Kamera von {name} im Vollbild",
+  "voice.participant.muted": "Stummgeschaltet",
+  "voice.participant.deafened": "Ton deaktiviert"
 }

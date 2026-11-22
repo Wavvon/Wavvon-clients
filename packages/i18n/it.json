@@ -2650,5 +2650,7 @@
   "voice.stage.stage_label": "Palco · {count}",
   "voice.stage.collapse": "Riduci",
   "voice.stage.expand": "Espandi",
-  "voice.stage.camera_fullscreen": "Webcam di {name} a schermo intero"
+  "voice.stage.camera_fullscreen": "Webcam di {name} a schermo intero",
+  "voice.participant.muted": "Microfono disattivato",
+  "voice.participant.deafened": "Audio disattivato"
 }

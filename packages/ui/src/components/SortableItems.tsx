@@ -4,7 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel } from "@wavvon/core";
 import type { SoundboardChip, VoiceParticipant } from "../types";
-import { ChannelIcon, VolumeIcon, GearIcon, PlusIcon, CloseIcon, ChevronIcon, ExpandIcon, BellOffIcon, CameraOnIcon } from "./Icons";
+import { ChannelIcon, VolumeIcon, GearIcon, PlusIcon, CloseIcon, ChevronIcon, ExpandIcon, BellOffIcon, CameraOnIcon, MicOffIcon, DeafenIcon } from "./Icons";
 import { Avatar } from "./Avatar";
 import { SoundboardBurst } from "./SoundboardBurst";
 import { safeRoleColor } from "../utils/roleAppearance";
@@ -38,6 +38,26 @@ export function SortableHubIcon({
 /** A single voice-roster row. Right-click opens the caller's move-to-channel
  *  menu when provided (desktop has none — it never grew that feature);
  *  otherwise it falls back to desktop's own per-participant gain popover. */
+/** A participant's own mute or deafen, as they reported it. */
+export function SelfStateIcon({ participant }: { participant: VoiceParticipant }) {
+  const { t } = useTranslation();
+  if (participant.deafened) {
+    return (
+      <span className="voice-self-state" title={t("voice.participant.deafened")} aria-label={t("voice.participant.deafened")}>
+        <DeafenIcon size={13} muted />
+      </span>
+    );
+  }
+  if (participant.muted) {
+    return (
+      <span className="voice-self-state" title={t("voice.participant.muted")} aria-label={t("voice.participant.muted")}>
+        <MicOffIcon size={13} />
+      </span>
+    );
+  }
+  return null;
+}
+
 function VoiceParticipantRow({
   participant,
   avatar,
@@ -88,6 +108,7 @@ function VoiceParticipantRow({
           <CameraOnIcon />
         </span>
       )}
+      <SelfStateIcon participant={participant} />
       {participant.visiting_from && (
         <span className="participant-visiting-from" title={t("voice.participant.visiting_from", { hub: participant.visiting_from })}>
           {participant.visiting_from}

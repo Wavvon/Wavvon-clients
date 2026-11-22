@@ -2626,6 +2626,17 @@ tr.account-drop-target td {
   background: var(--surface);
   box-shadow: var(--shadow-md);
 }
+/* A participant's own mute or deafen, in the tile's corner. */
+.voice-tile-state {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  color: var(--danger);
+}
+.voice-self-state {
+  display: inline-flex;
+  color: var(--danger);
+}
 .voice-tiles.audience.roomy {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   align-content: center;

@@ -2650,5 +2650,7 @@
   "voice.stage.stage_label": "Stage · {count}",
   "voice.stage.collapse": "Collapse",
   "voice.stage.expand": "Expand",
-  "voice.stage.camera_fullscreen": "Fullscreen camera: {name}"
+  "voice.stage.camera_fullscreen": "Fullscreen camera: {name}",
+  "voice.participant.muted": "Muted",
+  "voice.participant.deafened": "Deafened"
 }

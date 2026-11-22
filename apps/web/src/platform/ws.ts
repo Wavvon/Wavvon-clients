@@ -192,7 +192,7 @@ export class HubWebSocket {
       this.handlers.onVideo?.(tagged);
     } else if (
       type === "voice_joined" || type === "voice_participant_joined" || type === "voice_participant_left" ||
-      type === "voice_participant_speaking" || type === "voice_roster_update" ||
+      type === "voice_participant_speaking" || type === "voice_participant_self_state" || type === "voice_roster_update" ||
       type === "voice_hands" || type === "voice_talk_granted" || type === "voice_rtc_answer"
     ) {
       this.handlers.onVoiceState?.(tagged);
@@ -375,6 +375,10 @@ export class HubWebSocket {
    *  what the AFK sweep reads — so this is not only the indicator. */
   sendVoiceSpeaking(channelId: string, speaking: boolean): void {
     this.send({ type: "voice_speaking", channel_id: channelId, speaking });
+  }
+
+  sendVoiceSelfState(channelId: string, muted: boolean, deafened: boolean): void {
+    this.send({ type: "voice_self_state", channel_id: channelId, muted, deafened });
   }
 
   /** Round-trip probe. The hub echoes `nonce` untouched, so the caller times

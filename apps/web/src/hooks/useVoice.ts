@@ -529,6 +529,15 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     }
   }
 
+  // Tell the room our mute and deafen state (hubs with voice.mute.state).
+  // Push-to-talk mutes between key presses, which is not being muted, so a
+  // push-to-talk member reports only a deafen.
+  useEffect(() => {
+    // An alliance visit talks to a hub whose capabilities we have not read.
+    if (!voiceChannelId || voiceVisitRef.current || !activeHubSupports("voice.mute.state")) return;
+    try { voiceWs()?.sendVoiceSelfState(voiceChannelId, !pttConfig.enabled && selfMuted, selfDeafened); } catch { /* ws not ready */ }
+  }, [voiceChannelId, selfMuted, selfDeafened, pttConfig.enabled]);
+
   function handleToggleMute() {
     const next = !selfMuted;
     setSelfMuted(next);
@@ -596,7 +605,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       pendingRtcAnswerRef.current = null;
     }
 
-    const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; may_speak?: boolean; public_keys?: string[] };
+    const m = raw as { type?: string; channel_id?: string; participants?: VoiceParticipant[]; participant?: VoiceParticipant; public_key?: string; speaking?: boolean; may_speak?: boolean; public_keys?: string[]; muted?: boolean; deafened?: boolean };
     if (!m.channel_id) return;
     const channelId = m.channel_id;
 
@@ -662,6 +671,16 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
         const existing = prev[channelId] ?? [];
         if (existing.some((p) => p.public_key === joined.public_key)) return prev;
         return { ...prev, [channelId]: [...existing, joined] };
+      });
+    } else if (m.type === "voice_participant_self_state") {
+      const pk = m.public_key;
+      if (!pk) return;
+      const muted = !!m.muted;
+      const deafened = !!m.deafened;
+      setVoicePartByChannel((prev) => {
+        const list = prev[channelId];
+        if (!list) return prev;
+        return { ...prev, [channelId]: list.map((p) => (p.public_key === pk ? { ...p, muted, deafened } : p)) };
       });
     } else if (m.type === "voice_participant_speaking") {
       if (!m.public_key) return;

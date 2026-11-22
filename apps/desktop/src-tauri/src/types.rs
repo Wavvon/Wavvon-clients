@@ -443,6 +443,10 @@ pub(crate) struct VoiceZoneSnapshotInfo {
 pub(crate) struct VoiceParticipantInfo {
     pub public_key: String,
     pub display_name: Option<String>,
+    #[serde(default)]
+    pub muted: bool,
+    #[serde(default)]
+    pub deafened: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -593,6 +597,13 @@ pub(crate) enum WsServerMessage {
         channel_id: String,
         public_key: String,
         speaking: bool,
+    },
+    #[serde(rename = "voice_participant_self_state")]
+    VoiceParticipantSelfState {
+        channel_id: String,
+        public_key: String,
+        muted: bool,
+        deafened: bool,
     },
     #[serde(rename = "error")]
     Error { context: String, message: String },

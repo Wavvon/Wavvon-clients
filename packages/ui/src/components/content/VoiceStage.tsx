@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { SoundboardChip, VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
 import { SoundboardBurst } from "../SoundboardBurst";
+import { SelfStateIcon } from "../SortableItems";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
@@ -227,6 +228,7 @@ export function VoiceStage({
           ? <CameraVideo stream={camera} mirrored={p.public_key === publicKey} />
           : <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={size} />}
         <SoundboardBurst chips={soundboardChips} pubkey={p.public_key} />
+        <span className="voice-tile-state"><SelfStateIcon participant={p} /></span>
         <span className="voice-tile-name">
           {sharing.has(p.public_key) && <span className="live-badge">LIVE</span>}{" "}
           {camera && !showCamera && <span className="cam-badge" title={t("voice.stage.camera_on")}>{t("voice.stage.camera_badge")}</span>}{" "}
