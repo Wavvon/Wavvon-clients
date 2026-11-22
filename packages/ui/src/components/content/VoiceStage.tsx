@@ -335,7 +335,8 @@ export function VoiceStage({
                 </button>
               )}
             </div>
-            <ul className={`voice-tiles audience${audienceCollapsed ? " collapsed" : ""}`}>{shown.map((p) => personTile(p, 56))}</ul>
+            {/* With no stage the room is everyone, so the tiles take the room. */}
+            <ul className={`voice-tiles audience${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>{shown.map((p) => personTile(p, hasStage ? 56 : 96))}</ul>
           </>
         )}
       </div>
