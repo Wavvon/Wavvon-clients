@@ -72,12 +72,26 @@ test("a live opened 20 s after it started still plays", async ({ page, browser }
     // sharer's MediaRecorder emits on an interval, and MSE needs the init
     // segment plus a media segment before the first frame, so this is given
     // room.
-    await expect
-      .poll(async () => (await decodedState(viewer))?.videoWidth ?? 0, {
-        timeout: 60000,
-        message: "the viewer's video must decode a frame from the relayed stream",
-      })
-      .toBeGreaterThan(0);
+    // When this goes red, say what the viewer had: buffered ranges, ready
+    // state and any media error separate "nothing arrived" from "arrived and
+    // did not decode".
+    try {
+      await expect
+        .poll(async () => (await decodedState(viewer))?.videoWidth ?? 0, {
+          timeout: 60000,
+          message: "the viewer's video must decode a frame from the relayed stream",
+        })
+        .toBeGreaterThan(0);
+    } catch (e) {
+      const seen = await viewer.evaluate(() => {
+        const el = document.querySelector<HTMLVideoElement>(".screen-share-panel video.main-stream");
+        if (!el) return null;
+        const ranges: string[] = [];
+        for (let i = 0; i < el.buffered.length; i++) ranges.push(`${el.buffered.start(i).toFixed(2)}-${el.buffered.end(i).toFixed(2)}`);
+        return { ranges, currentTime: el.currentTime, readyState: el.readyState, networkState: el.networkState, paused: el.paused, error: el.error?.message ?? null };
+      });
+      throw new Error(`${(e as Error).message}\nviewer: ${JSON.stringify(seen)}`, { cause: e });
+    }
 
     // And it keeps arriving rather than stopping at the first segment: a
     // paused clock means one decoded frame and then nothing.
