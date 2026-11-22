@@ -106,28 +106,32 @@ export function CameraTab() {
         return;
       }
       rawRef.current = raw;
-      let out = raw;
+      // Show the raw camera at once: the segmentation model is ~5 MB of WASM,
+      // and waiting for it left the preview blank for seconds.
+      if (videoRef.current) {
+        videoRef.current.srcObject = raw;
+        void videoRef.current.play().catch(() => {});
+      }
+      setPreviewing(true);
+      void refresh();
       if (m !== "none") {
         const proc = new BackgroundProcessor(raw);
-        out = await proc.start(m, src);
+        const out = await proc.start(m, src);
         if (gen !== genRef.current) {
           proc.stop();
-          raw.getTracks().forEach((t) => t.stop());
           return;
         }
         procRef.current = proc;
         // The processor falls back to raw video when segmentation can't
         // load — tell the user instead of pretending the effect is on.
         setBgActive(proc.activeMode !== "none");
+        if (videoRef.current) {
+          videoRef.current.srcObject = out;
+          void videoRef.current.play().catch(() => {});
+        }
       } else {
         setBgActive(null);
       }
-      if (videoRef.current) {
-        videoRef.current.srcObject = out;
-        await videoRef.current.play().catch(() => {});
-      }
-      setPreviewing(true);
-      await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
