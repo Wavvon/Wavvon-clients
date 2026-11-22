@@ -2643,5 +2643,7 @@
   "findable.routes_to": "Las invitaciones se entregarán a tu hub principal {hub}.",
   "findable.publish": "Publicar anuncio",
   "findable.republish": "Actualizar anuncio",
-  "findable.published": "Anuncio publicado."
+  "findable.published": "Anuncio publicado.",
+  "settings.soundboard_bursts.label": "Animaciones de la soundboard",
+  "settings.soundboard_bursts.hint": "Muestra el emoji del sonido sobre quien lo reproduce"
 }

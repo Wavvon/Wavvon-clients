@@ -9414,3 +9414,43 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
     flex: 1 1 100%;
   }
 }
+
+/* Soundboard burst: the clip emoji rises over whoever played it. Anchored to
+   the nearest positioned ancestor (roster row, video tile). */
+.soundboard-burst {
+  position: absolute;
+  left: var(--space-2);
+  bottom: 50%;
+  width: 22px;
+  height: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.soundboard-burst > span {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  font-size: 16px;
+  opacity: 0;
+  animation: soundboard-burst-rise 1.4s ease-out forwards;
+}
+
+.soundboard-burst > span:nth-child(2) { left: -8px; animation-delay: 0.12s; }
+.soundboard-burst > span:nth-child(3) { left: 10px; animation-delay: 0.24s; }
+.soundboard-burst > span:nth-child(4) { left: -2px; animation-delay: 0.36s; font-size: 13px; }
+.soundboard-burst > span:nth-child(5) { left: 6px; animation-delay: 0.48s; font-size: 13px; }
+
+.video-tile .soundboard-burst,
+.video-self-view .soundboard-burst { left: 50%; bottom: 20%; }
+.video-tile .soundboard-burst > span { font-size: 28px; }
+
+@keyframes soundboard-burst-rise {
+  0%   { opacity: 0; transform: translateY(0) scale(0.6); }
+  15%  { opacity: 1; transform: translateY(-6px) scale(1); }
+  100% { opacity: 0; transform: translateY(-44px) scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soundboard-burst { display: none; }
+}

@@ -628,6 +628,7 @@ export function ChannelSidebar({
                         avatars={avatarByKey}
                         speaking={speaking}
                         cameraOn={cameraOn}
+                        soundboardChips={voiceChannelId === n.node.id ? soundboardChips : undefined}
                         hasDraft={hasDraft}
                         onClick={() => {
                           setChannelFocusIndex(index);

@@ -6,6 +6,8 @@ export interface SoundboardPlayedEvent {
   channel_id: string;
   clip_id: string;
   clip_name: string;
+  /** Absent on hubs older than the burst; null when the clip has no emoji. */
+  emoji?: string | null;
   public_key: string;
 }
 
@@ -26,7 +28,8 @@ export function parseSoundboardPlayedEvent(raw: unknown): SoundboardPlayedEvent 
   ) {
     return null;
   }
-  return { channel_id, clip_id, clip_name, public_key };
+  const emoji = typeof m.emoji === "string" && m.emoji ? m.emoji : null;
+  return { channel_id, clip_id, clip_name, emoji, public_key };
 }
 
 /** Per-channel transient "🔊 X played *name*" chips, self-expiring after
@@ -40,7 +43,7 @@ export function useSoundboardChips() {
     const ev = parseSoundboardPlayedEvent(raw);
     if (!ev) return;
     const id = `${ev.channel_id}:${ev.clip_id}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-    const chip: SoundboardChip = { id, public_key: ev.public_key, clip_name: ev.clip_name };
+    const chip: SoundboardChip = { id, public_key: ev.public_key, clip_name: ev.clip_name, emoji: ev.emoji };
     setChipsByChannel((prev) => ({
       ...prev,
       [ev.channel_id]: [...(prev[ev.channel_id] ?? []), chip],

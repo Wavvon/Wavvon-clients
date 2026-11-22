@@ -341,6 +341,7 @@ export interface SoundboardChip {
   id: string;
   public_key: string;
   clip_name: string;
+  emoji?: string | null;
 }
 
 export interface PollOption {

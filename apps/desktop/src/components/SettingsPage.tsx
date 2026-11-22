@@ -17,6 +17,7 @@ import {
   ActiveAccountOnlyNotice,
   SettingRow,
   LanguageSetting,
+  SoundboardBurstSetting,
   resolveManagingAccount,
   type ThemesController,
   TrustedIssuersTab,
@@ -249,6 +250,8 @@ export function SettingsPage(props: SettingsPageProps) {
               <p className="muted">{t("settings.theme.hint")}</p>
               <ThemesSection controller={props.themes} />
             </SettingRow>
+
+            <SoundboardBurstSetting />
 
             {/* Not a row: the gallery renders nothing when the directory is
                 unreachable, and a row that opens onto nothing is worse than none. */}

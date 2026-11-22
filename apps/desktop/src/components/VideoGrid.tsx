@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PinIcon } from "@wavvon/ui";
+import { PinIcon, SoundboardBurst, type SoundboardChip } from "@wavvon/ui";
 
 interface VideoTile {
   pubkey: string;
@@ -14,6 +14,8 @@ interface Props {
   tiles: VideoTile[];
   selfStream: MediaStream | null;
   selfName: string;
+  selfPubkey: string;
+  soundboardChips?: SoundboardChip[];
   onPin: (pubkey: string) => void;
   onUnpin: () => void;
 }
@@ -30,10 +32,12 @@ function VideoElement({ stream, muted = false }: { stream: MediaStream; muted?: 
 
 function Tile({
   tile,
+  chips,
   onPin,
   onUnpin,
 }: {
   tile: VideoTile;
+  chips?: SoundboardChip[];
   onPin: (pk: string) => void;
   onUnpin: () => void;
 }) {
@@ -53,11 +57,12 @@ function Tile({
       >
         <PinIcon size={14} />
       </button>
+      <SoundboardBurst chips={chips} pubkey={tile.pubkey} />
     </div>
   );
 }
 
-export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props) {
+export function VideoGrid({ tiles, selfStream, selfName, selfPubkey, soundboardChips, onPin, onUnpin }: Props) {
   const { t } = useTranslation();
   const [pipLeft, setPipLeft] = useState<number | null>(null);
   const [pipTop, setPipTop] = useState<number | null>(null);
@@ -116,17 +121,17 @@ export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props
         <>
           {tiles[0] && (
             <div className="video-grid-main">
-              <Tile tile={tiles[0]} onPin={onPin} onUnpin={onUnpin} />
+              <Tile tile={tiles[0]} chips={soundboardChips} onPin={onPin} onUnpin={onUnpin} />
             </div>
           )}
           <div className="video-grid-thumbnails">
             {tiles.slice(1).map((tile) => (
-              <Tile key={tile.pubkey} tile={tile} onPin={onPin} onUnpin={onUnpin} />
+              <Tile key={tile.pubkey} tile={tile} chips={soundboardChips} onPin={onPin} onUnpin={onUnpin} />
             ))}
           </div>
         </>
       ) : (
-        tiles.map((tile) => <Tile key={tile.pubkey} tile={tile} onPin={onPin} onUnpin={onUnpin} />)
+        tiles.map((tile) => <Tile key={tile.pubkey} tile={tile} chips={soundboardChips} onPin={onPin} onUnpin={onUnpin} />)
       )}
       {selfStream && (
         <div
@@ -142,6 +147,7 @@ export function VideoGrid({ tiles, selfStream, selfName, onPin, onUnpin }: Props
         >
           <VideoElement stream={selfStream} muted />
           <div className="video-tile-name">{t("voice.video.self_label", { name: selfName })}</div>
+          <SoundboardBurst chips={soundboardChips} pubkey={selfPubkey} />
           <div className="video-self-resize-handle" onMouseDown={startResize} />
         </div>
       )}

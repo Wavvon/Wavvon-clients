@@ -696,12 +696,13 @@ pub(crate) async fn spawn_ws_task(
                                             "name_color": name_color,
                                         }));
                                     }
-                                    WsServerMessage::SoundboardPlayed { channel_id, clip_id, clip_name, public_key } => {
+                                    WsServerMessage::SoundboardPlayed { channel_id, clip_id, clip_name, emoji, public_key } => {
                                         let _ = app.emit("soundboard-played", serde_json::json!({
                                             "hub_id": hub_id_for_task,
                                             "channel_id": channel_id,
                                             "clip_id": clip_id,
                                             "clip_name": clip_name,
+                                            "emoji": emoji,
                                             "public_key": public_key,
                                         }));
                                     }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ThemesController } from "@wavvon/ui";
-import { LanguageSetting, SettingRow, ThemesGallery, ThemesSection } from "@wavvon/ui";
+import { LanguageSetting, SettingRow, SoundboardBurstSetting, ThemesGallery, ThemesSection } from "@wavvon/ui";
 import { fetchWithTimeout } from "@platform";
 import { DISCOVERY_URL } from "../../../constants";
 
@@ -29,6 +29,8 @@ export function AppearanceTab(props: Props) {
         <p className="muted">{t("settings.theme.hint")}</p>
         <ThemesSection controller={props.themes} />
       </SettingRow>
+
+      <SoundboardBurstSetting />
 
       {/* Not a row: the gallery renders nothing when the directory is
           unreachable, and a row that opens onto nothing is worse than none. */}

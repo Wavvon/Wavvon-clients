@@ -15,8 +15,14 @@ describe("parseSoundboardPlayedEvent", () => {
       channel_id: "ch1",
       clip_id: "clip1",
       clip_name: "airhorn",
+      emoji: null,
       public_key: "abc123",
     });
+  });
+
+  it("carries the clip emoji when the hub sends one", () => {
+    const raw = { channel_id: "ch1", clip_id: "c", clip_name: "n", emoji: "📯", public_key: "p" };
+    expect(parseSoundboardPlayedEvent(raw)?.emoji).toBe("📯");
   });
 
   it.each([
