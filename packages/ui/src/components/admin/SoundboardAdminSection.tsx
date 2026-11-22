@@ -126,7 +126,7 @@ export function SoundboardAdminSection({ actions }: Props) {
         title={t("hub.admin.soundboard.add.title")}
         state={clips === null
           ? t("hub.admin.soundboard.loading")
-          : t("hub.admin.soundboard.state.count", { count: clips.length, max: 50 })}
+          : t("hub.admin.soundboard.state.count", { count: clips.length })}
         {...row("add")}
       >
       <div className="settings-section">
@@ -171,11 +171,17 @@ export function SoundboardAdminSection({ actions }: Props) {
             <SettingRow
               key={clip.id}
               title={clip.name}
-              state={t("hub.admin.soundboard.state.clip", {
-                duration: formatDuration(clip.duration_ms),
-                size: formatSize(clip.size_bytes),
-                who: formatPubkey(clip.uploader),
-              })}
+              // A clip the hub ships with has no uploader (reported as "").
+              state={clip.uploader
+                ? t("hub.admin.soundboard.state.clip", {
+                    duration: formatDuration(clip.duration_ms),
+                    size: formatSize(clip.size_bytes),
+                    who: formatPubkey(clip.uploader),
+                  })
+                : t("hub.admin.soundboard.state.clip_builtin", {
+                    duration: formatDuration(clip.duration_ms),
+                    size: formatSize(clip.size_bytes),
+                  })}
               meta={clip.emoji ?? undefined}
               {...row(clip.id)}
             >
