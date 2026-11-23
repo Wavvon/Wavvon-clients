@@ -358,6 +358,15 @@ pub(crate) async fn spawn_ws_task(
                                             "public_key": public_key,
                                         }));
                                     }
+                                    WsServerMessage::VoiceParticipantSelfState { channel_id, public_key, muted, deafened } => {
+                                        let _ = app.emit("voice-participant-self-state", serde_json::json!({
+                                            "hub_id": hub_id_for_task,
+                                            "channel_id": channel_id,
+                                            "public_key": public_key,
+                                            "muted": muted,
+                                            "deafened": deafened,
+                                        }));
+                                    }
                                     WsServerMessage::VoiceParticipantSpeaking { channel_id, public_key, speaking } => {
                                         let _ = app.emit("voice-participant-speaking", serde_json::json!({
                                             "hub_id": hub_id_for_task,

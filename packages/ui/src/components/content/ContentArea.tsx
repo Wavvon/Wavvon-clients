@@ -555,8 +555,8 @@ export function ContentArea({
             canAttach={!!channelFiles}
           />
         ) : selectedChannel ? (
-          <div className="chat-column">
-            <ChannelHeader
+          <div className={`chat-column${selectedChannel.channel_type === "voice" && voiceStage ? " voice" : ""}`}>
+            {!(selectedChannel.channel_type === "voice" && voiceStage) && <ChannelHeader
               connectionStatus={connectionStatus}
               selectedChannel={selectedChannel}
               channels={channels}
@@ -574,22 +574,20 @@ export function ContentArea({
               onOpenHubStreams={onOpenHubStreams}
               liveShareCount={liveShareCount}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
-            />
+            />}
             {selectedChannel.channel_type === "voice" && voiceStage ? (
-              // A voice room is people and media only: no messages or composer. Its
-              // events (raids anchor their squad rooms here) open in a dialog.
+              // A voice room is people and media only: no messages, composer or
+              // text-channel header. Its events (raids anchor their squad rooms
+              // here) open in a dialog from the room bar.
               <>
-              <div className="voice-room-events">
-                <button
-                  onClick={() => setShowEventsModal(true)}
-                  className="btn-icon-header"
-                  title={t("events.open_panel")}
-                  aria-label={t("events.open_panel")}
-                >
-                  <CalendarIcon size={14} />
-                </button>
-              </div>
-              <VoiceStage {...voiceStage}>
+              <VoiceStage
+                {...voiceStage}
+                roomName={selectedChannel.name}
+                connectionStatus={connectionStatus}
+                onOpenEvents={() => setShowEventsModal(true)}
+                onOpenHubStreams={onOpenHubStreams}
+                liveShareCount={liveShareCount}
+              >
                 {activeScreenShares.length > 0 && screenShareViewerRef && (
                   <ErrorBoundary fallback={<p className="muted">{t("error.generic")}</p>}>
                     <ScreenShareViewer ref={screenShareViewerRef} streams={activeScreenShares} onStopWatch={voiceStage.live?.onClose} />

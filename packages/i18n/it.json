@@ -2466,8 +2466,8 @@
   "voice.stage.pin": "Fissa {name}",
   "voice.stage.unpin": "Sgancia {name}",
   "voice.stage.enlarge": "Ingrandisci {name}",
-  "voice.stage.audience": "Pubblico · {count}",
-  "voice.stage.search": "Cerca nel pubblico",
+  "voice.stage.audience": "Platea · {count}",
+  "voice.stage.search": "Cerca in platea",
   "voice.stage.resize": "Ridimensiona il palco",
   "voice.stage.you_share": "Tu",
   "voice.stage.sending": "invii {mbps} Mbps",
@@ -2645,5 +2645,13 @@
   "voice.soundboard_deafened": "Riattiva l’audio per usare la soundboard",
   "voice.stage.camera_badge": "CAM",
   "voice.stage.camera_on": "Webcam accesa",
-  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · incluso nell’hub"
+  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · incluso nell’hub",
+  "voice.stage.in_voice": "{count} in voce",
+  "voice.stage.cameras": "{count, plural, one {# webcam} other {# webcam}}",
+  "voice.stage.stage_label": "Palco · {count}",
+  "voice.stage.collapse": "Riduci",
+  "voice.stage.expand": "Espandi",
+  "voice.stage.camera_fullscreen": "Webcam di {name} a schermo intero",
+  "voice.participant.muted": "Microfono disattivato",
+  "voice.participant.deafened": "Audio disattivato"
 }

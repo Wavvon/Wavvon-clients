@@ -266,7 +266,7 @@ export function ChannelSidebar({
   const [drillAnnouncement, setDrillAnnouncement] = useState("");
   const whisperBtnRef = useRef<HTMLButtonElement>(null);
   const voiceBarSlot = useVoiceBarSlot();
-  const [whisperPanelPos, setWhisperPanelPos] = useState<{ top: number; left: number } | null>(null);
+  const [whisperPanelPos, setWhisperPanelPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   // Drill-in focus is per-hub session state (not persisted): clear it when
   // the user switches hubs.
@@ -288,8 +288,12 @@ export function ChannelSidebar({
   useEffect(() => {
     if (!showWhisperPanel || !whisperBtnRef.current) return;
     const rect = whisperBtnRef.current.getBoundingClientRect();
-    // The button sits in the voice view's bar at the top: the panel opens below it.
-    setWhisperPanelPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 340) });
+    // The button sits in the voice room's dock at the foot of the room, so the
+    // panel opens toward whichever side has the room.
+    const left = Math.min(rect.left, window.innerWidth - 340);
+    setWhisperPanelPos(rect.top > window.innerHeight / 2
+      ? { bottom: window.innerHeight - rect.top + 4, left }
+      : { top: rect.bottom + 4, left });
   }, [showWhisperPanel]);
 
   const dndSensors = useSensors(
@@ -897,7 +901,7 @@ export function ChannelSidebar({
                       </button>
                     )}
                     {showWhisperPanel && whisperPanelPos && onCloseWhisperPanel && createPortal(
-                      <div style={{ position: "fixed", top: whisperPanelPos.top, left: Math.max(8, whisperPanelPos.left), zIndex: 9999 }}>
+                      <div style={{ position: "fixed", top: whisperPanelPos.top, bottom: whisperPanelPos.bottom, left: Math.max(8, whisperPanelPos.left), zIndex: 9999 }}>
                         <WhisperPanel
                           voiceParticipants={
                             voiceChannelId

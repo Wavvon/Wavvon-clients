@@ -142,6 +142,15 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
         return next;
       });
     };
+    scope.add(listen<{ channel_id: string; public_key: string; muted: boolean; deafened: boolean }>("voice-participant-self-state", (e) => {
+      if (cancelled) return;
+      const { channel_id, public_key, muted, deafened } = e.payload;
+      setVoicePartByChannel((prev) => {
+        const list = prev[channel_id];
+        if (!list) return prev;
+        return { ...prev, [channel_id]: list.map((p) => (p.public_key === public_key ? { ...p, muted, deafened } : p)) };
+      });
+    }));
     scope.add(listen<{ public_key: string; speaking: boolean }>("voice-participant-speaking", (e) => {
       if (cancelled) return;
       setSpeaking(e.payload.public_key, e.payload.speaking);

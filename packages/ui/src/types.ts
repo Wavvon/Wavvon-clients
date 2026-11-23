@@ -311,6 +311,10 @@ export interface VoiceParticipant {
    *  (alliances.md). Their name is hub-asserted, not proven, so it is
    *  rendered as mediated — never as a plain member name. */
   visiting_from?: string | null;
+  /** Self-mute and deafen as the participant reported them; only hubs with
+   *  `voice.mute.state` send these, and absent means unknown, not unmuted. */
+  muted?: boolean;
+  deafened?: boolean;
 }
 
 export interface WhisperTarget {

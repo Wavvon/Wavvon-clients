@@ -2645,5 +2645,13 @@
   "voice.soundboard_deafened": "Reactiva todo el audio para usar la soundboard",
   "voice.stage.camera_badge": "CAM",
   "voice.stage.camera_on": "Cámara encendida",
-  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · incluido en el hub"
+  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · incluido en el hub",
+  "voice.stage.in_voice": "{count} en voz",
+  "voice.stage.cameras": "{count, plural, one {# cámara} other {# cámaras}}",
+  "voice.stage.stage_label": "Escenario · {count}",
+  "voice.stage.collapse": "Reducir",
+  "voice.stage.expand": "Expandir",
+  "voice.stage.camera_fullscreen": "Cámara de {name} a pantalla completa",
+  "voice.participant.muted": "Micrófono silenciado",
+  "voice.participant.deafened": "Todo el audio silenciado"
 }

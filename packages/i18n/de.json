@@ -2645,5 +2645,13 @@
   "voice.soundboard_deafened": "Aktiviere den Ton, um das Soundboard zu nutzen",
   "voice.stage.camera_badge": "CAM",
   "voice.stage.camera_on": "Kamera an",
-  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · im Hub enthalten"
+  "hub.admin.soundboard.state.clip_builtin": "{duration} · {size} · im Hub enthalten",
+  "voice.stage.in_voice": "{count} im Sprachkanal",
+  "voice.stage.cameras": "{count, plural, one {# Kamera} other {# Kameras}}",
+  "voice.stage.stage_label": "Bühne · {count}",
+  "voice.stage.collapse": "Einklappen",
+  "voice.stage.expand": "Ausklappen",
+  "voice.stage.camera_fullscreen": "Kamera von {name} im Vollbild",
+  "voice.participant.muted": "Stummgeschaltet",
+  "voice.participant.deafened": "Ton deaktiviert"
 }
