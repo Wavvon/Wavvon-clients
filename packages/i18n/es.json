@@ -2016,8 +2016,6 @@
   "voice.screen_share.picker.share_webcam": "Compartir la cámara",
   "voice.screen_share.picker.title": "Comparte tu pantalla",
   "voice.screen_share.stop": "Dejar de compartir",
-  "voice.share.pip_enter": "Abrir en imagen sobre imagen",
-  "voice.share.pip_exit": "Salir de imagen sobre imagen",
   "voice.share.unsupported": "Este navegador no puede reproducir la pantalla compartida.",
   "voice.share.volume": "Volumen",
   "voice.share.window_enter": "Abrir en una ventana",
@@ -2530,7 +2528,6 @@
   "settings.profile.widget_hidden.hint": "El widget muestra quién está en línea en el sitio de la comunidad. Con esto activado, no apareces ni se te cuenta.",
   "settings.profile.widget_hidden.failed": "No se pudo cambiar este ajuste.",
   "voice.participant.camera_on": "Cámara encendida",
-  "voice.share.pip_all": "Flotar todas las pantallas compartidas en una ventana",
   "voice.share.window_restore_cursor": "Hacer que la ventana emergente vuelva a ser clicable",
   "dm.key_changed.body": "La clave de cifrado de {name} ha cambiado. Ocurre cuando una clave de identidad cae en otras manos, o tras un restablecimiento. Comprueba con {name} por otra vía antes de continuar; hasta entonces no se envía nada.",
   "dm.key_changed.accept": "Aceptar la nueva clave",
@@ -2653,5 +2650,13 @@
   "voice.stage.expand": "Expandir",
   "voice.stage.camera_fullscreen": "Cámara de {name} a pantalla completa",
   "voice.participant.muted": "Micrófono silenciado",
-  "voice.participant.deafened": "Todo el audio silenciado"
+  "voice.participant.deafened": "Todo el audio silenciado",
+  "voice.stage.pop_out": "Separar la sala",
+  "voice.stage.pop_in": "Volver a la página",
+  "voice.stage.pop_out_unsupported": "Para separar la sala hace falta Chrome, Edge o Firefox en un ordenador",
+  "voice.stage.layout_free": "Disposición libre",
+  "voice.stage.layout_grid": "Cuadrícula",
+  "voice.stage.top_lives": "Directos encima",
+  "voice.stage.top_people": "Personas encima",
+  "voice.stage.free_no_room": "{count, plural, one {# recuadro no tiene} other {# recuadros no tienen}} sitio en el escenario: mueve o reduce uno para hacer hueco"
 }

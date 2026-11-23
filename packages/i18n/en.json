@@ -2016,8 +2016,6 @@
   "voice.screen_share.picker.share_webcam": "Share webcam",
   "voice.screen_share.picker.title": "Share your screen",
   "voice.screen_share.stop": "Stop sharing",
-  "voice.share.pip_enter": "Pop out (picture-in-picture)",
-  "voice.share.pip_exit": "Exit picture-in-picture",
   "voice.share.unsupported": "This browser can't play screen shares.",
   "voice.share.volume": "Volume",
   "voice.share.window_enter": "Pop out (window)",
@@ -2530,7 +2528,6 @@
   "settings.profile.widget_hidden.hint": "The widget shows who is online on the community's website. With this on, you are not listed or counted there.",
   "settings.profile.widget_hidden.failed": "Could not change this setting.",
   "voice.participant.camera_on": "Camera on",
-  "voice.share.pip_all": "Float every share in one window",
   "voice.share.window_restore_cursor": "Make the pop-out window clickable again",
   "dm.key_changed.body": "{name}'s encryption key has changed. It happens when an identity key falls into someone else's hands, or after a reset. Check with {name} another way before you continue; until then nothing is sent.",
   "dm.key_changed.accept": "Accept the new key",
@@ -2653,5 +2650,13 @@
   "voice.stage.expand": "Expand",
   "voice.stage.camera_fullscreen": "Fullscreen camera: {name}",
   "voice.participant.muted": "Muted",
-  "voice.participant.deafened": "Deafened"
+  "voice.participant.deafened": "Deafened",
+  "voice.stage.pop_out": "Pop the room out",
+  "voice.stage.pop_in": "Back to the page",
+  "voice.stage.pop_out_unsupported": "Popping out needs Chrome, Edge or Firefox on a computer",
+  "voice.stage.layout_free": "Free layout",
+  "voice.stage.layout_grid": "Grid",
+  "voice.stage.top_lives": "Lives on top",
+  "voice.stage.top_people": "People on top",
+  "voice.stage.free_no_room": "{count, plural, one {# tile has} other {# tiles have}} no room on the stage: move or shrink one to make space"
 }
