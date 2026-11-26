@@ -2685,5 +2685,7 @@
   "forum.list.replies_word": "{count, plural, one {respuesta} other {respuestas}}",
   "voice.screen_share.picker.quality": "Calidad",
   "voice.screen_share.picker.bitrate_note": "Unos {mbps} Mbit/s de subida. Si la pantalla o la red no dan abasto, quien mira recibe menos fotogramas.",
-  "voice.screen_share.picker.footer": "{resolution} · {fps} fps"
+  "voice.screen_share.picker.footer": "{resolution} · {fps} fps",
+  "voice.stage.share_fullscreen": "Ver tu pantalla compartida a pantalla completa",
+  "settings.account.identity_backup.error_other": "No se pudo restaurar la copia: {error}"
 }

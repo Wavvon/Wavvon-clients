@@ -2685,5 +2685,7 @@
   "forum.list.replies_word": "{count, plural, one {reply} other {replies}}",
   "voice.screen_share.picker.quality": "Quality",
   "voice.screen_share.picker.bitrate_note": "About {mbps} Mbit/s going out. If your screen or network cannot keep up, viewers get fewer frames.",
-  "voice.screen_share.picker.footer": "{resolution} · {fps} fps"
+  "voice.screen_share.picker.footer": "{resolution} · {fps} fps",
+  "voice.stage.share_fullscreen": "Watch your share full screen",
+  "settings.account.identity_backup.error_other": "Could not restore the backup: {error}"
 }

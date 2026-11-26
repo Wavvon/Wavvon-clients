@@ -153,7 +153,11 @@ export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase
       setError(
         message === "unsupported_backup_format"
           ? t("settings.account.identity_backup.error_unsupported")
-          : t("settings.account.identity_backup.error_decrypt"),
+          : message === "decrypt_failed"
+            ? t("settings.account.identity_backup.error_decrypt")
+            // Anything else is not the passphrase: say what it was, or the
+            // member retypes a right passphrase forever.
+            : t("settings.account.identity_backup.error_other", { error: message }),
       );
     } finally {
       setWorking(false);

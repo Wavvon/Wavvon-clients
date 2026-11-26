@@ -81,7 +81,7 @@ function CameraVideo({ stream, mirrored }: { stream: MediaStream; mirrored: bool
   return <video ref={ref} className={`voice-tile-camera${mirrored ? " mirrored" : ""}`} autoPlay muted playsInline />;
 }
 
-function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: MediaStream; onStop: () => void; label: string; stopLabel: string; sent: string }) {
+function SelfShareTile({ stream, onStop, label, stopLabel, sent, fullscreenLabel }: { stream: MediaStream; onStop: () => void; label: string; stopLabel: string; sent: string; fullscreenLabel: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream;
@@ -91,6 +91,9 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: Med
       <video ref={ref} autoPlay muted playsInline />
       <span className="voice-tile-name"><span className="live-badge">LIVE</span> {label} · {sent}</span>
       <div className="voice-tile-actions">
+        <button type="button" className="btn-icon" title={fullscreenLabel} aria-label={fullscreenLabel} onClick={() => { void ref.current?.requestFullscreen?.(); }}>
+          <FullscreenIcon size={13} />
+        </button>
         <button type="button" className="btn-small" onClick={onStop}>{stopLabel}</button>
       </div>
     </li>
@@ -190,6 +193,19 @@ export function VoiceStage({
   // Stage and audience exist only once someone is pinned: the stage is who
   // you pinned, the audience everyone else.
   const showLabels = onStage.length > 0;
+  // Your share travels with your tile: beside it in the room, on the stage
+  // when you are pinned.
+  const myPinned = !!publicKey && pins.includes(publicKey);
+  const myShare = selfShare ? (
+    <SelfShareTile
+      stream={selfShare.stream}
+      onStop={selfShare.onStop}
+      label={t("voice.stage.you_share")}
+      stopLabel={t("voice.screen_share.stop")}
+      sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
+      fullscreenLabel={t("voice.stage.share_fullscreen")}
+    />
+  ) : null;
   const hasStage = onStage.length > 0 || liveOnStage;
   const q = query.trim().toLowerCase();
   const shown = q
@@ -378,9 +394,12 @@ export function VoiceStage({
                 <SortableContext items={onStage.map((p) => p.public_key)} strategy={rectSortingStrategy}>
                   <ul className="voice-tiles stage">
                     {onStage.map((p) => (
-                      <SortableStageTile key={p.public_key} id={p.public_key}>
-                        {(handle) => personTile(p, 96, handle)}
-                      </SortableStageTile>
+                      <React.Fragment key={p.public_key}>
+                        <SortableStageTile id={p.public_key}>
+                          {(handle) => personTile(p, 96, handle)}
+                        </SortableStageTile>
+                        {p.public_key === publicKey && myShare}
+                      </React.Fragment>
                     ))}
                   </ul>
                 </SortableContext>
@@ -429,16 +448,14 @@ export function VoiceStage({
             </div>
             {/* With no stage the room is everyone, so the tiles take the room. */}
             <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>
-              {shown.map((p) => personTile(p, tileAvatar))}
-              {selfShare && (
-                <SelfShareTile
-                  stream={selfShare.stream}
-                  onStop={selfShare.onStop}
-                  label={t("voice.stage.you_share")}
-                  stopLabel={t("voice.screen_share.stop")}
-                  sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
-                />
-              )}
+              {shown.map((p) => (
+                <React.Fragment key={p.public_key}>
+                  {personTile(p, tileAvatar)}
+                  {p.public_key === publicKey && myShare}
+                </React.Fragment>
+              ))}
+              {/* In the free layout the stage has no slot for it: it stays here. */}
+              {freeLayout.mode === "free" && myPinned && myShare}
             </ul>
           </>
         )}

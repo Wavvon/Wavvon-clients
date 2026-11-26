@@ -90,9 +90,12 @@ export default function AccountRoot() {
       await loadDefaultProfileAsync().catch(() => null);
       setProfileStep(true);
     } catch (e) {
-      setError(t(String(e) === "unsupported_backup_format"
-        ? "settings.account.identity_backup.error_unsupported"
-        : "settings.account.identity_backup.error_decrypt"));
+      const msg = String(e);
+      setError(msg === "unsupported_backup_format"
+        ? t("settings.account.identity_backup.error_unsupported")
+        : msg === "decrypt_failed"
+          ? t("settings.account.identity_backup.error_decrypt")
+          : t("settings.account.identity_backup.error_other", { error: msg }));
     } finally {
       setBusy(false);
     }
