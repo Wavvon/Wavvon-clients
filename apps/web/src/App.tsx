@@ -1226,6 +1226,7 @@ export default function App({ initialView }: AppProps = {}) {
         pingByHub={pingByHub}
         hubNotifyMode={hubNotifyMode}
         lobbyHubIds={lobbyHubs}
+        voiceHubId={hubs.find((h) => h.hub_url === voice.voiceHubUrl)?.hub_id ?? null}
         onSwitchToDms={() => { if (activeHubId) setView("dms"); }}
         onBackToChannels={goToChannelsView}
         onSwitchHub={handleSwitchHub}

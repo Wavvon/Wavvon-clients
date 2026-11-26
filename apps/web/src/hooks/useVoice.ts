@@ -97,6 +97,8 @@ export interface UseVoiceParams {
 // see the CRITICAL correctness constraint on handleVoiceJoin below.
 export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef }: UseVoiceParams) {
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
+  // The hub carrying the call: the owning hub on an alliance visit.
+  const [voiceHubUrl, setVoiceHubUrl] = useState<string | null>(null);
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
   const [micBelowGate, setMicBelowGate] = useState(false);
@@ -294,6 +296,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
         // lands there instead, never in the spawner itself.
         onReady: (_senderId, _participants, channelId) => {
           setVoiceChannelId(channelId);
+          setVoiceHubUrl(hubUrl);
           if (voiceSoundsOn()) { try { playVoiceTone("up"); } catch { /* audio not ready */ } }
           setSelfMuted(false);
           setSelfDeafened(false);
@@ -317,6 +320,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
           voiceSessionRef.current = null;
           extRef.current.disposeVideo();
           setVoiceChannelId(null);
+          setVoiceHubUrl(null);
           setMaySpeak(true);
           setVoiceHands(null);
           setMicBelowGate(false);
@@ -506,6 +510,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     voiceSessionRef.current?.stop();
     voiceSessionRef.current = null;
     setVoiceChannelId(null);
+    setVoiceHubUrl(null);
     setMaySpeak(true);
     setVoiceHands(null);
     setMicBelowGate(false);
@@ -829,6 +834,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
 
   return {
     voiceChannelId,
+    voiceHubUrl,
     isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
     selfMuted,

@@ -23,6 +23,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
   const publicKeyRef = useRef(publicKey);
   publicKeyRef.current = publicKey;
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
+  // The hub carrying the call; unknown here on an alliance visit, whose
+  // owning hub need not be one of ours.
+  const [voiceHubId, setVoiceHubId] = useState<string | null>(null);
   const [selfMuted, setSelfMuted] = useState(false);
   const [selfDeafened, setSelfDeafened] = useState(false);
   const [speakingPubkeys, setSpeakingPubkeys] = useState<Set<string>>(new Set());
@@ -452,6 +455,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
       await invoke("voice_leave");
       voiceVisitIdRef.current = null;
       setVoiceChannelId(null);
+      setVoiceHubId(null);
       setSelfMuted(false);
       setSelfDeafened(false);
       playVoiceTone("down");
@@ -556,6 +560,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
 
   function onVoiceJoined(channelId: string, participants: VoiceParticipant[], maySpeak: boolean) {
     setVoiceChannelId(channelId);
+    setVoiceHubId(voiceVisitIdRef.current ? null : activeHubId);
     setVoicePartByChannel((prev) => ({ ...prev, [channelId]: participants }));
     setMaySpeak(maySpeak);
     // Hands raised before we arrived: the push only covers what changes.
@@ -609,6 +614,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
       await invoke("voice_leave");
     } catch {}
     setVoiceChannelId(null);
+    setVoiceHubId(null);
   }
 
   // Errors surface and change nothing locally: the hub's next voice-hands is
@@ -627,6 +633,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
 
   return {
     voiceChannelId,
+    voiceHubId,
     roomZone,
     enableRoomMap,
     disableRoomMap,
