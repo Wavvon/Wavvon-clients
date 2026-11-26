@@ -73,7 +73,7 @@ test.describe("desktop in an alliance voice room", () => {
     try {
       await host.evaluate((cfg) => localStorage.setItem("wavvon.audio_profile", cfg), MUSIC_PROFILE);
       await channelButton(host, CHANNEL!).dblclick();
-      await expect(host.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`, {
+      await expect(host.locator(".voice-status-room").first()).toHaveText(`${CHANNEL}`, {
         timeout: 30_000,
       });
 
@@ -84,7 +84,7 @@ test.describe("desktop in an alliance voice room", () => {
       await channel.click({ position: { x: 4, y: 4 } });
       await channel.getByRole("button", { name: /Join voice on/ }).click();
       await confirmInApp(d);
-      await expect(d.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`, {
+      await expect(d.locator(".voice-status-room").first()).toHaveText(`${CHANNEL}`, {
         timeout: 60_000,
       });
 

@@ -31,9 +31,9 @@ test("voice join/leave cycles do not accumulate AudioContexts", async ({ page })
 
   const cycle = async () => {
     await channelButton(page, channel).dblclick();
-    await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 30000 });
+    await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 30000 });
     await page.getByRole("button", { name: "Leave voice" }).first().click();
-    await expect(page.locator(".voice-status-label")).toHaveCount(0, { timeout: 15000 });
+    await expect(page.locator(".voice-status-room")).toHaveCount(0, { timeout: 15000 });
   };
 
   await cycle();

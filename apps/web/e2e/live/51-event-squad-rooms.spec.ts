@@ -17,7 +17,7 @@ async function openEventsTab(page: Page, channel: string) {
 // row is joined by double-click.
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 15000 });
 }
 
 test("staging panel spawns squad rooms; they're move destinations listed first", async ({ page, browser }) => {
@@ -77,7 +77,7 @@ test("staging panel spawns squad rooms; they're move destinations listed first",
 
     await destSelect.selectOption({ label: room1 });
     await raiderGroup.getByRole("button", { name: "Move to…", exact: true }).click();
-    await expect(claimant.locator(".voice-status-label").first()).toHaveText(`#${room1}`, { timeout: 15000 });
+    await expect(claimant.locator(".voice-status-room").first()).toHaveText(`${room1}`, { timeout: 15000 });
   } finally {
     await context.close();
   }

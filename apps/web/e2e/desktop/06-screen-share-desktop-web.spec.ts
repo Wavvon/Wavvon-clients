@@ -44,10 +44,10 @@ test.describe("desktop screen share", () => {
     await joinHub(d, name, inviteLink(HUB_URL, invite.code));
 
     await channelButton(page, channel).dblclick();
-    await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 30_000 });
+    await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 30_000 });
 
     await channelButton(d, channel).dblclick({ timeout: 60_000 });
-    await expect(d.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 60_000 });
+    await expect(d.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 60_000 });
     // Desktop plays voice through its own audio stack, which no browser switch
     // mutes, and the web side is sending the fake microphone's beep.
     await d.getByRole("button", { name: "Mute all audio" }).click();

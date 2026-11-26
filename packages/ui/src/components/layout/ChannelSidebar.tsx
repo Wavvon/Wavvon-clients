@@ -31,7 +31,7 @@ import type {
   WhisperList,
   WhisperReplyBind,
 } from "../../types";
-import { PhoneOffIcon, ChannelIcon, PingIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
+import { PhoneOffIcon, ChannelIcon, MicOnIcon, MicOffIcon, DeafenIcon, ScreenShareIcon, CameraOnIcon, CameraOffIcon, SpeakerIcon, WhisperIcon, ChevronIcon } from "../Icons";
 import { HubClock } from "../HubClock";
 import { SortableCategoryItem, SortableChannelItem } from "../SortableItems";
 import { HubMenuItems } from "./HubMenuItems";
@@ -823,12 +823,13 @@ export function ChannelSidebar({
       <div className="user-info">
         {voiceChannelId && (
           <>
-            <div className="voice-status-bar">
-              {activePing !== undefined && <PingIcon ping={activePing} />}
-              <span className="voice-status-label">#{voiceChannelName}</span>
-            </div>
             {micBelowGate && onOpenVoiceSettings && <MicBelowGateWarning onOpenSensitivity={onOpenVoiceSettings} />}
             <div className="user-actions">
+              <span className="voice-footer-dot" aria-hidden="true" />
+              <span className="voice-status-label">
+                <strong className="voice-status-room">{voiceChannelName}</strong>
+                {typeof activePing === "number" && <span className="muted"> · {t("voice.footer.ping", { ms: activePing })}</span>}
+              </span>
               <div className="user-actions-icons">
                 <button
                   onClick={onToggleSelfMute}

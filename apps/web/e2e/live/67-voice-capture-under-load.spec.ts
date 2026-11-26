@@ -22,7 +22,7 @@ async function transmitContinuously(page: Page) {
 
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 30000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 30000 });
 }
 
 const probe = () => {

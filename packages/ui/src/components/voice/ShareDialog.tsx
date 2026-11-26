@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FocusTrap } from "../FocusTrap";
+import { CloseIcon } from "../Icons";
 
 /** A hub's caps on a declared stream (`/info.stream_limits`); absent = no cap. */
 export interface StreamLimits {
@@ -132,75 +133,94 @@ export function ShareDialog({ loadLimits, onStart, onCancel, children }: Props) 
     <div className="screen-share-picker-overlay" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
       <FocusTrap>
         <div className="screen-share-picker" role="dialog" aria-modal="true" aria-labelledby="screen-share-title">
-          <h2 id="screen-share-title">{t("voice.screen_share.picker.title")}</h2>
-
-          <div className="share-choice" role="group" aria-label={t("voice.screen_share.picker.resolution")}>
-            <span className="share-choice-label">{t("voice.screen_share.picker.resolution")}</span>
-            <div className="share-choice-options">
-              {RESOLUTIONS.map((r, i) => (
-                <button
-                  key={r.label}
-                  type="button"
-                  className="share-option"
-                  aria-pressed={res === i}
-                  aria-disabled={!resAllowed(i)}
-                  title={resAllowed(i) ? undefined : t("voice.screen_share.picker.hub_limit")}
-                  onClick={() => { if (resAllowed(i)) setRes(i); }}
-                >
-                  {resLabel(r.label)}
-                </button>
-              ))}
-            </div>
+          <div className="share-head">
+            <h2 id="screen-share-title">{t("voice.screen_share.picker.title")}</h2>
+            <button type="button" className="btn-icon-header share-close" aria-label={t("modal.close")} title={t("modal.close")} onClick={onCancel}>
+              <CloseIcon size={18} />
+            </button>
           </div>
 
-          <div className="share-choice" role="group" aria-label={t("voice.screen_share.picker.frame_rate")}>
-            <span className="share-choice-label">{t("voice.screen_share.picker.frame_rate")}</span>
-            <div className="share-choice-options">
-              {FRAME_RATES.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  className="share-option"
-                  aria-pressed={fps === f}
-                  aria-disabled={!fpsAllowed(f)}
-                  title={fpsAllowed(f) ? undefined : t("voice.screen_share.picker.hub_limit")}
-                  onClick={() => { if (fpsAllowed(f)) setFps(f); }}
-                >
-                  {f}
-                </button>
-              ))}
+          <div className="share-body">
+            <span className="share-section-label">{t("voice.screen_share.picker.quality")}</span>
+            <div className="share-choice">
+              <span className="share-choice-label" id="share-res-label">{t("voice.screen_share.picker.resolution")}</span>
+              <div className="share-choice-options" role="radiogroup" aria-labelledby="share-res-label">
+                {RESOLUTIONS.map((r, i) => (
+                  <button
+                    key={r.label}
+                    type="button"
+                    role="radio"
+                    className="share-option"
+                    aria-checked={res === i}
+                    aria-disabled={!resAllowed(i)}
+                    title={resAllowed(i) ? undefined : t("voice.screen_share.picker.hub_limit")}
+                    onClick={() => { if (resAllowed(i)) setRes(i); }}
+                  >
+                    {resLabel(r.label)}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="settings-section">
-            <label className="settings-row">
+            <div className="share-choice">
+              <span className="share-choice-label" id="share-fps-label">{t("voice.screen_share.picker.frame_rate")}</span>
+              <div className="share-choice-options" role="radiogroup" aria-labelledby="share-fps-label">
+                {FRAME_RATES.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    role="radio"
+                    className="share-option"
+                    aria-checked={fps === f}
+                    aria-disabled={!fpsAllowed(f)}
+                    title={fpsAllowed(f) ? undefined : t("voice.screen_share.picker.hub_limit")}
+                    onClick={() => { if (fpsAllowed(f)) setFps(f); }}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {ready && (
+              <p className="share-note">
+                <InfoGlyph />
+                {t("voice.screen_share.picker.bitrate_note", { mbps: (kbps / 1000).toFixed(1) })}
+              </p>
+            )}
+
+            <label className="share-audio">
               <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} />
-              <span>{t("voice.screen_share.picker.include_audio")}</span>
+              {t("voice.screen_share.picker.include_audio")}
             </label>
             {audio && <p className="screen-share-macos-notice">{t("voice.screen_share.picker.macos_notice")}</p>}
             {children}
           </div>
 
-          {ready && (
-            <p className="share-summary">
-              {t("voice.screen_share.picker.summary", {
-                resolution: resLabel(chosen.label),
-                fps,
-                mbps: (kbps / 1000).toFixed(1),
-              })}
-              {" · "}
-              {t(audio ? "voice.screen_share.picker.with_audio" : "voice.screen_share.picker.without_audio")}
-            </p>
-          )}
-
-          <div className="picker-actions">
-            <button className="btn-secondary" onClick={onCancel}>{t("modal.cancel")}</button>
-            <button className="primary" onClick={share} disabled={!ready}>
+          <div className="share-foot">
+            {ready && (
+              <span className="share-summary">
+                {t("voice.screen_share.picker.footer", { resolution: resLabel(chosen.label), fps })}
+                {" · "}
+                {t(audio ? "voice.screen_share.picker.with_audio" : "voice.screen_share.picker.without_audio")}
+              </span>
+            )}
+            <button type="button" className="share-cancel" onClick={onCancel}>{t("modal.cancel")}</button>
+            <button type="button" className="share-go" onClick={share} disabled={!ready}>
               {t("voice.screen_share.picker.share_button")}
             </button>
           </div>
         </div>
       </FocusTrap>
     </div>
+  );
+}
+
+function InfoGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8h.01M11 12h1v4h1" />
+    </svg>
   );
 }

@@ -33,7 +33,7 @@ async function openEventsTab(page: Page, channel: string) {
 
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 15000 });
 }
 
 function channelRow(page: Page, name: string) {
@@ -116,7 +116,7 @@ test("a member moved into a channel they can't read gets voice-only presence, ne
     // client switches immediately, with the rejoin-escape-hatch toast — the
     // same live-move UX P49 exercises, but this time crossing into a channel
     // the member has no read access to (§7.4's voice-only presence).
-    await expect(member.locator(".voice-status-label").first()).toHaveText(`#${hidden}`, { timeout: 15000 });
+    await expect(member.locator(".voice-status-room").first()).toHaveText(`${hidden}`, { timeout: 15000 });
     await expect(member.getByText(`Moved to ${hidden}`)).toBeVisible({ timeout: 15000 });
     await expect(member.getByRole("button", { name: "Rejoin previous channel?" })).toBeVisible();
 

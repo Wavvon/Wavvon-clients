@@ -538,6 +538,8 @@ export function ContentArea({
         ) : selectedChannel && selectedChannel.channel_type === "forum" ? (
           <ForumView
             channelId={selectedChannel.id}
+            channelName={selectedChannel.name}
+            channelDescription={selectedChannel.description}
             myRoles={myRoles}
             myPubkey={publicKey}
             isAdmin={isAdmin}
@@ -692,6 +694,7 @@ export function ContentArea({
         ) : selectedAllianceChannel && selectedAllianceChannel.channel.channel_type === "forum" ? (
           <ForumView
             channelId={selectedAllianceChannel.channel.channel_id}
+            channelName={selectedAllianceChannel.channel.channel_name}
             myRoles={myRoles}
             myPubkey={publicKey}
             isAdmin={isAdmin}

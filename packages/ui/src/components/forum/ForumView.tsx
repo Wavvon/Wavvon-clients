@@ -90,6 +90,9 @@ export interface ForumActions {
 
 interface Props {
   channelId: string;
+  /** Shown in the forum's header, as a text channel shows its own. */
+  channelName?: string;
+  channelDescription?: string | null;
   myRoles: Array<{ permissions: string[] }>;
   myPubkey: string | null;
   isAdmin: boolean;
@@ -110,7 +113,7 @@ interface Props {
   canAttach?: boolean;
 }
 
-export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, allianceContext, forumRequireTag, users, hubUrl, canAttach }: Props) {
+export function ForumView({ channelId, channelName, channelDescription, myRoles, myPubkey, isAdmin, actions, allianceContext, forumRequireTag, users, hubUrl, canAttach }: Props) {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   // `alliance` gates moderation/edit/delete, which never have a write-proxy.
@@ -162,6 +165,8 @@ export function ForumView({ channelId, myRoles, myPubkey, isAdmin, actions, alli
       ) : (
         <ForumPostList
           channelId={channelId}
+          channelName={channelName}
+          channelDescription={channelDescription}
           canCreatePost={canCreatePost}
           publicKey={myPubkey}
           allianceId={allianceContext?.allianceId}

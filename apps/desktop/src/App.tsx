@@ -1357,6 +1357,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
               pingByHub={pingByHub}
               hubNotifyMode={hubNotifyMode}
               lobbyHubIds={lobbyHubIds}
+              voiceHubId={voice.voiceHubId}
               onSwitchToDms={() => { if (!hasActiveHub) return; setView("dms"); loadConversations(); }}
               onBackToChannels={() => setView("channels")}
               onSwitchHub={(hubId) => { handleSwitchHub(hubId); setView("channels"); setShowDiscover(false); }}

@@ -15,7 +15,7 @@ async function openEventsTab(page: Page, channel: string) {
 // row is joined by double-click.
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 15000 });
 }
 
 function slotGroup(dialog: Locator, slotName: string) {
@@ -81,7 +81,7 @@ test("staging panel: live move (auto-accept + rejoin toast) and queued assignmen
     // client actually switches; a rejoin-escape-hatch toast appears.
     await tankGroup.getByRole("combobox", { name: "Move to…" }).selectOption({ label: destA });
     await tankGroup.getByRole("button", { name: "Move to…", exact: true }).click();
-    await expect(b.locator(".voice-status-label").first()).toHaveText(`#${destA}`, { timeout: 15000 });
+    await expect(b.locator(".voice-status-room").first()).toHaveText(`${destA}`, { timeout: 15000 });
     await expect(b.getByText(`Moved to ${destA}`)).toBeVisible({ timeout: 15000 });
     await expect(b.getByRole("button", { name: "Rejoin previous channel?" })).toBeVisible();
 
@@ -108,5 +108,5 @@ test("staging panel: live move (auto-accept + rejoin toast) and queued assignmen
 
 async function joinVoiceExpectRedirect(page: Page, joinedChannel: string, finalChannel: string) {
   await channelButton(page, joinedChannel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${finalChannel}`, { timeout: 20000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${finalChannel}`, { timeout: 20000 });
 }

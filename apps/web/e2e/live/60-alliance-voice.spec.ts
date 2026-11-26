@@ -47,7 +47,7 @@ test("voice joins the allied hub's relay from a hub that only has the grant", as
   const asked = await modal.innerText();
   await confirmInApp(page);
 
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`, {
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${CHANNEL}`, {
     timeout: 30000,
   });
 
