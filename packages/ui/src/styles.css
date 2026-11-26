@@ -3297,6 +3297,72 @@ tr.account-drop-target td {
   border-radius: var(--r-sm);
   object-fit: contain;
 }
+/* A live on the stage takes the middle; pinned people stack beside it. */
+.voice-stage-area.has-live {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 12px;
+}
+.voice-stage-lives {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.voice-stage-lives > .voice-self-share,
+.voice-stage-lives > .screen-share-panel {
+  flex: 1;
+  min-height: 0;
+}
+.voice-stage-lives .voice-tile--stream video {
+  height: 100%;
+  max-height: none;
+}
+.voice-stage-area.has-live .voice-tiles.stage {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 330px;
+}
+.voice-stage-area.has-live .voice-tiles.stage > .voice-tile {
+  width: 330px;
+  height: 186px;
+  min-height: 0;
+}
+/* The audience as a strip of faces while a live has the stage. */
+.voice-room.has-live .voice-audience {
+  flex: none;
+  max-height: none;
+  flex-direction: row;
+  align-items: center;
+  height: 60px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.voice-tiles.audience.size-strip {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  overflow: hidden;
+}
+.voice-tiles.audience.size-strip > .voice-tile {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 12px;
+  background: transparent;
+}
+.voice-tiles.audience.size-strip .voice-tile-name,
+.voice-tiles.audience.size-strip .voice-tile-actions,
+.voice-tiles.audience.size-strip .voice-tile-badges,
+.voice-tiles.audience.size-strip .voice-tile-state {
+  display: none;
+}
+.voice-room.has-live .voice-audience-head input[type="search"] {
+  display: none;
+}
 .voice-stage-floor-actions {
   display: flex;
   gap: var(--space-1);
@@ -7347,7 +7413,7 @@ select:focus-visible {
 .screen-share-picker-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(5, 6, 9, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7355,60 +7421,91 @@ select:focus-visible {
 }
 
 .screen-share-picker {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--space-6);
-  width: 560px;
-  max-width: 90vw;
+  width: 760px;
+  max-width: calc(100vw - 32px);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
   overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
 }
 
-.screen-share-picker h2 {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
-}
-
-.screen-share-picker .picker-actions {
+.share-head {
   display: flex;
-  gap: var(--space-3);
-  justify-content: flex-end;
+  align-items: center;
+  padding: 20px 24px 0;
+}
+
+.share-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--weight-semi);
+}
+
+.share-close {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+}
+
+.share-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 24px 0;
+  overflow-y: auto;
+}
+
+.share-section-label {
+  font-size: 12px;
+  font-weight: var(--weight-semi);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .share-choice {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 6px;
 }
 
 .share-choice-label {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
+  font-size: 13px;
+  color: color-mix(in srgb, var(--text) 82%, var(--text-muted));
 }
 
+/* A segmented control: one sunken track, the chosen value filled. */
 .share-choice-options {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-sunken);
 }
 
 .share-option {
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--text);
+  flex: 1;
+  height: 32px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 82%, var(--text-muted));
+  font-size: 13px;
+  font-weight: var(--weight-semi);
   cursor: pointer;
 }
 
-.share-option[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
+.share-option:hover {
+  background: var(--surface);
+}
+
+.share-option[aria-checked="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
 }
 
 .share-option[aria-disabled="true"] {
@@ -7416,10 +7513,76 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
-.share-summary {
+.share-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  font-size: var(--text-sm);
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--bg);
+  font-size: 12px;
   color: var(--text-muted);
+}
+
+.share-note svg {
+  flex-shrink: 0;
+}
+
+.share-audio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.share-audio input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.share-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.share-summary {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.share-cancel,
+.share-go {
+  padding: 10px 18px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.share-cancel {
+  margin-left: auto;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+}
+
+.share-go {
+  border: none;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: var(--weight-semi);
+}
+
+.share-go:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .screen-share-macos-notice {

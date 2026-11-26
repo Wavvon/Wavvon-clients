@@ -194,7 +194,8 @@ export function VoiceStage({
   }
   const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
   const opened = !!live && live.opened.size > 0;
-  const hasStage = onStage.length > 0 || opened || !!selfShare;
+  const liveOnStage = opened || !!selfShare;
+  const hasStage = onStage.length > 0 || liveOnStage;
   const q = query.trim().toLowerCase();
   const shown = q
     ? audience.filter((p) => (p.display_name ?? p.public_key).toLowerCase().includes(q))
@@ -215,8 +216,9 @@ export function VoiceStage({
 
   // With nothing on the stage the tiles fill the room, as large as the
   // headcount allows; under a stage the audience is a strip of small tiles.
-  const tileSize = hasStage ? "s" : participants.length <= 6 ? "l" : participants.length <= 12 ? "m" : "s";
-  const tileAvatar = { l: 100, m: 72, s: 48 }[tileSize];
+  // A live on the stage shrinks the audience to a strip of faces.
+  const tileSize = liveOnStage ? "strip" : hasStage ? "s" : participants.length <= 6 ? "l" : participants.length <= 12 ? "m" : "s";
+  const tileAvatar = { l: 100, m: 72, s: 48, strip: 40 }[tileSize];
 
   function personTile(p: VoiceParticipant, size: number, sortable?: SortableHandle) {
     const name = p.display_name || p.public_key.slice(0, 12);
@@ -302,7 +304,7 @@ export function VoiceStage({
   }
 
   return (
-    <section className="voice-room" ref={roomRef} aria-label={t("voice.stage.label")}>
+    <section className={`voice-room${liveOnStage ? " has-live" : ""}`} ref={roomRef} aria-label={t("voice.stage.label")}>
       <div className="voice-room-bar">
         {roomName !== undefined && (
           <span className="voice-room-title">
@@ -360,7 +362,7 @@ export function VoiceStage({
               </button>
             )}
           </div>
-          <div className="voice-stage-area" ref={stageRef} style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
+          <div className={`voice-stage-area${liveOnStage ? " has-live" : ""}`} ref={stageRef} style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
             {freeLayout.mode === "free" ? (
               <FreeStage
                 layout={freeLayout}
@@ -394,16 +396,20 @@ export function VoiceStage({
                 ]}
               />
             ) : (<>
-            {selfShare && (
-              <SelfShareTile
-                stream={selfShare.stream}
-                onStop={selfShare.onStop}
-                label={t("voice.stage.you_share")}
-                stopLabel={t("voice.screen_share.stop")}
-                sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
-              />
+            {liveOnStage && (
+              <div className="voice-stage-lives">
+                {selfShare && (
+                  <SelfShareTile
+                    stream={selfShare.stream}
+                    onStop={selfShare.onStop}
+                    label={t("voice.stage.you_share")}
+                    stopLabel={t("voice.screen_share.stop")}
+                    sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
+                  />
+                )}
+                {children}
+              </div>
             )}
-            {children}
             {onStage.length > 0 && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>
                 <SortableContext items={onStage.map((p) => p.public_key)} strategy={rectSortingStrategy}>

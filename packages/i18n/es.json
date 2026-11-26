@@ -2012,7 +2012,7 @@
   "voice.screen_share.picker.macos_notice": "En macOS, el audio del sistema requiere un controlador de audio virtual (p. ej. BlackHole).",
   "voice.screen_share.picker.share_button": "Compartir",
   "voice.screen_share.picker.share_webcam": "Compartir la cámara",
-  "voice.screen_share.picker.title": "Comparte tu pantalla",
+  "voice.screen_share.picker.title": "Compartir pantalla",
   "voice.screen_share.stop": "Dejar de compartir",
   "voice.share.unsupported": "Este navegador no puede reproducir la pantalla compartida.",
   "voice.share.volume": "Volumen",
@@ -2404,10 +2404,9 @@
   "voice.live.search": "Buscar directos",
   "voice.live.camera": "{name} · cámara",
   "voice.screen_share.picker.resolution": "Resolución",
-  "voice.screen_share.picker.frame_rate": "Fotogramas por segundo (fps)",
+  "voice.screen_share.picker.frame_rate": "Fotogramas por segundo",
   "voice.screen_share.picker.native": "Nativa",
   "voice.screen_share.picker.hub_limit": "Límite del hub",
-  "voice.screen_share.picker.summary": "{resolution} · {fps} fps · unos {mbps} Mbps de subida",
   "voice.screen_share.picker.with_audio": "con audio",
   "voice.screen_share.picker.without_audio": "sin audio",
   "forum.list.layout": "Vista",
@@ -2684,5 +2683,8 @@
   "forum.list.search": "Buscar en los posts",
   "forum.list.pinned_mark": "Fijado",
   "forum.list.new_replies": "{count, plural, one {# nueva} other {# nuevas}}",
-  "forum.list.replies_word": "{count, plural, one {respuesta} other {respuestas}}"
+  "forum.list.replies_word": "{count, plural, one {respuesta} other {respuestas}}",
+  "voice.screen_share.picker.quality": "Calidad",
+  "voice.screen_share.picker.bitrate_note": "Unos {mbps} Mbit/s de subida. Si la pantalla o la red no dan abasto, quien mira recibe menos fotogramas.",
+  "voice.screen_share.picker.footer": "{resolution} · {fps} fps"
 }
