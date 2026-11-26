@@ -2920,35 +2920,29 @@ tr.account-drop-target td {
   margin: 0 auto;
   z-index: 5;
   display: flex;
-  padding: 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 95%, transparent);
-  box-shadow: var(--shadow-md);
-}
-.voice-room-controls.voice-dock:empty {
-  display: none;
-}
-.voice-dock .voice-media-bar {
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
 }
 .voice-dock .btn-icon-gear {
-  width: 44px;
+  width: 52px;
   height: 44px;
-  border-radius: 50%;
-  background: var(--surface-hover);
+  border-radius: 9px;
+  background: transparent;
   color: var(--text);
 }
 .voice-dock .btn-icon-gear:hover {
-  background: color-mix(in srgb, var(--surface-hover) 70%, var(--text-faint));
+  background: var(--surface-hover);
+}
+.voice-dock .btn-icon-gear.on {
+  background: var(--surface-hover);
 }
 .voice-dock .btn-icon-gear.active {
   background: var(--danger);
-  color: var(--accent-text);
+  color: #fff;
 }
 .voice-dock .btn-icon-gear svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 /* A participant's own mute or deafen, in the tile's corner. */
 .voice-tile-state {
@@ -3105,11 +3099,42 @@ tr.account-drop-target td {
   width: fit-content;
   margin: 0 auto;
 }
-.voice-media-bar .voice-media-bar-narrow { display: none; }
-
-.voice-media-bar {
+/* The dock's groups are its direct flex items: the slot the sidebar fills and
+   its toolbar step aside so "you", media, the room's extras and leave line up
+   as siblings, each group its own pill, leave last and red. */
+.voice-dock-slot,
+.voice-dock .voice-media-bar {
+  display: contents;
+}
+.voice-dock-group {
   display: flex;
-  gap: var(--space-1);
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.voice-dock-group.self { order: 1; }
+.voice-dock-group.media { order: 2; }
+.voice-dock-group.extra { order: 3; }
+.voice-dock-leave {
+  order: 4;
+  width: 64px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 70%, #000);
+  color: #fff;
+  cursor: pointer;
+}
+.voice-dock-leave:hover {
+  background: var(--danger);
+}
+.voice-dock-leave svg {
+  width: 20px;
+  height: 20px;
 }
 .voice-stage-area {
   flex: 1;
@@ -3397,8 +3422,63 @@ tr.account-drop-target td {
   display: flex;
   gap: var(--space-1);
 }
+/* The way into a room with people in it: one button where the dock goes. */
 .voice-room-join {
-  gap: var(--space-2);
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin: 0 auto;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 12px;
+}
+.voice-room-join.floor {
+  bottom: 92px;
+  background: var(--surface);
+}
+.voice-room-join-btn {
+  height: 44px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 15px;
+  font-weight: var(--weight-semi);
+  cursor: pointer;
+}
+.voice-room-join-btn:hover {
+  background: #fff;
+}
+.voice-room-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.voice-room-empty h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 30px;
+  font-weight: var(--weight-semi);
+}
+.voice-room-empty h2 svg {
+  color: var(--text-muted);
+}
+.voice-room-empty p {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 15px;
 }
 .screen-share-tile-actions {
   position: absolute;
@@ -10119,7 +10199,7 @@ details.audit-entry > .audit-entry:last-child {
   .mobile-shell-mobile { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow: hidden; }
   .mobile-shell-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
   .mobile-shell-panel[hidden] { display: none; }
-  .voice-media-bar .voice-media-bar-narrow { display: inline-flex; }
+
   /* In a panel the top bar is a header; its desktop flex-basis of 100% made
      it fill the whole column with its buttons floating in the middle. */
   .mobile-shell-panel .top-bar { flex: 0 0 auto; }
@@ -10242,9 +10322,6 @@ details.audit-entry > .audit-entry:last-child {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-.voice-room-map-off {
-  margin-top: var(--space-3);
-}
 
 .themed-icon {
   display: inline-block;

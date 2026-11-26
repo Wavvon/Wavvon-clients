@@ -437,7 +437,14 @@ export function VoiceStage({
 
       <div className="voice-audience">
         {participants.length === 0 ? (
-          <p className="muted">{t("voice.stage.empty")}</p>
+          // An empty room is a doorway: its name, that nobody is in, and the way in.
+          <div className="voice-room-empty">
+            <h2><SpeakerIcon size={26} /> {roomName}</h2>
+            <p>{t("voice.stage.empty")}</p>
+            {!inThisRoom && (
+              <button type="button" className="voice-room-join-btn" onClick={onJoin}>{t("voice.stage.join")}</button>
+            )}
+          </div>
         ) : (
           <>
             <div className="voice-audience-head">
@@ -463,14 +470,14 @@ export function VoiceStage({
         )}
       </div>
 
-      {!inThisRoom && (
-        <div className="settings-row voice-room-join">
-          <button className="btn-primary" onClick={onJoin}>{t("voice.stage.join")}</button>
-          <span className="muted hint-fine">{t("voice.stage.join_hint")}</span>
+      {/* With people in the room the way in sits where the dock will be. */}
+      {!inThisRoom && participants.length > 0 && (
+        <div className="voice-room-join">
+          <button type="button" className="voice-room-join-btn" onClick={onJoin}>{t("voice.stage.join")}</button>
         </div>
       )}
       {inThisRoom && floor && !floor.maySpeak && (
-        <div className="settings-row voice-room-join">
+        <div className="voice-room-join floor">
           <span className="muted">{myHandUp ? t("voice.stage.waiting") : t("voice.stage.listening")}</span>
           {myHandUp ? (
             <button className="btn-secondary" onClick={floor.onLower}>{t("voice.stage.lower_hand")}</button>
@@ -482,9 +489,20 @@ export function VoiceStage({
       {inThisRoom && room && (
         <VoiceRoomMap room={room} participants={participants} avatars={avatars} publicKey={publicKey} />
       )}
-      {/* One floating dock for the room's media controls (share, camera,
-          whisper, soundboard); mic, deafen and leave live in the sidebar. */}
-      {inThisRoom && <div className="voice-room-controls voice-dock" ref={barRef} />}
+      {/* One floating dock for the room's controls. The sidebar fills the slot
+          (you, media, leave); the room adds its own extras beside them. */}
+      {inThisRoom && (
+        <div className="voice-room-controls voice-dock">
+          <div className="voice-dock-slot" ref={barRef} />
+          {room && room.canManage && !room.zone && (
+            <div className="voice-dock-group extra">
+              <button type="button" className="btn-icon-gear" onClick={room.onEnable} title={t("voice.room_map.enable")} aria-label={t("voice.room_map.enable")}>
+                <MapGlyph />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -511,4 +529,12 @@ function SortableStageTile({ id, children }: { id: string; children: (handle: So
       onKeyDown: (e: React.KeyboardEvent) => { if (e.target === e.currentTarget) listeners.onKeyDown?.(e); },
     },
   })}</>;
+}
+
+function MapGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
+    </svg>
+  );
 }

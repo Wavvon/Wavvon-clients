@@ -34,15 +34,8 @@ export function VoiceRoomMap({ room, participants, avatars, publicKey }: Props) 
   const { t } = useTranslation();
   const { zone } = room;
 
-  if (!zone) {
-    return room.canManage ? (
-      <div className="voice-room-map-off">
-        <button type="button" className="btn-small btn-secondary" onClick={room.onEnable}>
-          {t("voice.room_map.enable")}
-        </button>
-      </div>
-    ) : null;
-  }
+  // Off, the map is one button in the room's dock (VoiceStage).
+  if (!zone) return null;
 
   const mine = publicKey ? zone.positions[publicKey] : undefined;
   const clamp = (v: number) => Math.max(0, Math.min(100, v));

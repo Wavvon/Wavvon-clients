@@ -50,7 +50,7 @@ test.describe("desktop screen share", () => {
     await expect(d.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 60_000 });
     // Desktop plays voice through its own audio stack, which no browser switch
     // mutes, and the web side is sending the fake microphone's beep.
-    await d.getByRole("button", { name: "Mute all audio" }).click();
+    await d.getByRole("button", { name: "Mute all audio" }).first().click();
 
     await d.getByTitle("Share screen").click();
     await d.getByRole("button", { name: "Share", exact: true }).click({ timeout: 30_000 });
