@@ -168,6 +168,10 @@ export function voiceSummary(
   return t("channel.voice.summary", { names: names.join(", "), count: participants.length - names.length });
 }
 
+// Up to this many people a room lists them in full; past it, a face stack
+// and one line sum it up and the roster opens on demand.
+const SUMMARY_AFTER = 3;
+
 export function SortableChannelItem({
   channel,
   activeHubId,
@@ -252,9 +256,9 @@ export function SortableChannelItem({
   selfPubkey?: string | null;
 }) {
   const { t } = useTranslation();
-  // An occupied room is summed up in one line; the roster opens on demand.
+  // A busy room is summed up in one line; the roster opens on demand.
   const [rosterOpen, setRosterOpen] = useState(false);
-  const busy = participants.length > 0;
+  const busy = participants.length > SUMMARY_AFTER;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
   const setRefs = (el: HTMLLIElement | null) => {
@@ -422,7 +426,7 @@ export function SortableChannelItem({
           <span className="channel-voice-names">{voiceSummary(participants, selfPubkey, t)}</span>
         </button>
       )}
-      {!isSpawner && rosterOpen && participants.length > 0 && (
+      {!isSpawner && participants.length > 0 && (!busy || rosterOpen) && (
         <ul className="channel-participants">
           {participants.map((p) => (
             <VoiceParticipantRow

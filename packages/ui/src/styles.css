@@ -2796,12 +2796,8 @@ tr.account-drop-target td {
    badge. Empty rooms stay plain rows and take no weight. */
 .channel-participants {
   list-style: none;
-  margin: 0 var(--space-2) var(--space-2);
-  padding: 0 var(--space-2) var(--space-2);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 var(--r-md) var(--r-md);
+  margin: 0 0 4px;
+  padding: 0 0 0 24px;
 }
 
 .channel-participant {
