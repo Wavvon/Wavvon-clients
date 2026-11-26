@@ -9,10 +9,8 @@ describe("IdentityBackupSection on a paired device", () => {
   const render = (phraseHeldElsewhere: boolean) =>
     renderToStaticMarkup(
       <IdentityBackupSection
-        accounts={[]}
         recoveryPhrase={null}
         onRevealPhrase={() => {}}
-        actions={{}}
         phraseHeldElsewhere={phraseHeldElsewhere}
       />,
     );

@@ -1,8 +1,7 @@
 import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../../platform/commands/recoveryPeople";
 import { useTranslation } from "react-i18next";
 import type { Hub } from "@shared/types";
-import type { BackupAccount } from "@wavvon/core";
-import { ActiveAccountOnlyNotice, FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type IdentityBackupSectionActions, type RecoveryContactsSectionActions } from "@wavvon/ui";
+import { ActiveAccountOnlyNotice, FullArchiveSection, IdentityBackupSection, RecoveryContactsSection, type RecoveryContactsSectionActions } from "@wavvon/ui";
 import { formatPubkey } from "@wavvon/core";
 import {
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -14,15 +13,13 @@ import { FindableDirectorySection } from "../FindableDirectorySection";
 import { MoveToUserClientSection } from "../MoveToUserClientSection";
 import { AccountsSwitcherSection } from "../AccountsSwitcherSection";
 import {
-  listAccounts,
-  resolveOrCreateAccount,
   switchAccount,
   SWITCH_BLOCKED_COOLDOWN,
   holdsMasterSeed,
   type IdentityRecord,
 } from "@identity/index";
 import type { PerAccountProps } from "@wavvon/ui";
-import { identityNeedsBackup, markIdentityBackedUp } from "../../../utils/identityBackup";
+import { identityNeedsBackup } from "../../../utils/identityBackup";
 import { buildFullArchiveActions } from "../../../utils/fullArchiveActions";
 
 interface Props extends PerAccountProps<IdentityRecord> {
@@ -32,33 +29,6 @@ interface Props extends PerAccountProps<IdentityRecord> {
   onShowRecovery: () => void;
   inVoice: boolean;
   onBackedUp: () => void;
-}
-
-function downloadBytes(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes as BlobPart], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function pickBackupFile(): Promise<Uint8Array | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".wavvon-backup,application/json";
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) { resolve(null); return; }
-      const reader = new FileReader();
-      reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
-      reader.onerror = () => resolve(null);
-      reader.readAsArrayBuffer(file);
-    };
-    input.click();
-  });
 }
 
 // Everything about getting accounts on/off this device: the switcher table
@@ -81,34 +51,6 @@ export function ManageAccountsTab(props: Props) {
       alert(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
     }
   }
-
-  async function importAccount(account: BackupAccount): Promise<{ isNew: boolean }> {
-    const priorAccounts = await listAccounts();
-    const hadAnyAccountBefore = priorAccounts.length > 0;
-    const { account: record, isNew } = await resolveOrCreateAccount(account.secret_key_hex, {
-      account_label: account.label,
-    });
-    if (!isNew) return { isNew: false };
-    if (!hadAnyAccountBefore) {
-      switchOrAlert(record.id);
-    } else if (confirm(t("settings.account.identity_backup.import_switch_confirm", { label: account.label }))) {
-      switchOrAlert(record.id);
-    }
-    return { isNew: true };
-  }
-
-  const backupActions: IdentityBackupSectionActions = {
-    saveFile: downloadBytes,
-    pickFile: pickBackupFile,
-    importAccount,
-  };
-  // A paired device's seed is its subkey: exported, it would restore as a
-  // different identity, so only accounts holding their master seed are offered.
-  const backupAccounts = (props.accounts ?? []).filter(holdsMasterSeed).map((a) => ({
-    id: a.id,
-    label: a.account_label || formatPubkey(a.id),
-    secretKeyHex: a.seed_hex,
-  }));
 
   // Member-facing cards only (designate/request/vouch) — the admin queue
   // lives exclusively in HubAdminPage's Recovery requests tab, so no
@@ -135,16 +77,10 @@ export function ManageAccountsTab(props: Props) {
         />
       )}
       <IdentityBackupSection
-        accounts={backupAccounts}
         recoveryPhrase={props.recoveryPhrase}
         onRevealPhrase={props.onShowRecovery}
-        actions={backupActions}
         needsBackup={identityNeedsBackup(activeRecord)}
         phraseHeldElsewhere={activeIsPaired}
-        onSavedOffDevice={(id) => {
-          markIdentityBackedUp(id);
-          props.onBackedUp();
-        }}
       />
       <FullArchiveSection canExport={!!props.publicKey} actions={buildFullArchiveActions(t("settings.account.accounts.switch_cooldown"))} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={false} actions={recoveryActions} />}

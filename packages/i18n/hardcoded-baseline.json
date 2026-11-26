@@ -1,8 +1,7 @@
 {
-  "total": 17,
+  "total": 16,
   "files": {
     "apps/web/src/components/identity/IdentitySetupScreen.tsx": 1,
-    "apps/web/src/components/settings/tabs/ManageAccountsTab.tsx": 1,
     "apps/web/src/components/voice/MicLevelMeter.tsx": 1,
     "packages/ui/src/components/admin/ColorSwatchPicker.tsx": 1,
     "packages/ui/src/components/admin/SoundboardAdminSection.tsx": 1,

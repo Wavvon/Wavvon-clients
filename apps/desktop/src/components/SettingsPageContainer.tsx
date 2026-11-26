@@ -125,7 +125,6 @@ export function SettingsPageContainer({
       onToggleMicTest={voice.toggleMicTest}
       recoveryPhrase={settingsProfile.recoveryPhrase}
       onShowRecovery={settingsProfile.handleShowRecovery}
-      onRecoverIdentity={settingsProfile.handleRecoverIdentity}
       onClearLocalData={settingsProfile.handleClearLocalData}
       blocks={Array.from(blockedUsers).map((p) => ({ pubkey: p, since: 0 }))}
       ignores={Array.from(ignoredUsers).map((p) => ({ pubkey: p, since: 0 }))}

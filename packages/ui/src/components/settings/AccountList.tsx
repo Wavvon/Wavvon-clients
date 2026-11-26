@@ -10,6 +10,9 @@ export interface AccountListItem {
   /** The key to show and copy: the identity hubs know this account by. */
   publicKey: string;
   active: boolean;
+  /** Holds its master seed, so an exported file restores this identity (a
+   *  paired device holds a subkey, which would restore a different one). */
+  exportable: boolean;
 }
 
 export interface AccountListProps {
@@ -17,6 +20,8 @@ export interface AccountListProps {
   /** Why switching is refused right now (in voice, cooling down), or null. */
   switchBlockedReason?: string | null;
   onSwitch: (id: string) => void;
+  /** Opens the export to an encrypted backup file. */
+  onExport: (id: string) => void;
   onRename: (id: string, label: string) => void;
   /** Asks the app to remove the account; the app owns the confirmation. */
   onRemove: (id: string) => void;
@@ -29,7 +34,7 @@ export interface AccountListProps {
  * key hubs know it by), whether it is the active one, and what can be done
  * with it. Rows drag to reorder, or move with Alt+Up/Down.
  */
-export function AccountList({ accounts, switchBlockedReason, onSwitch, onRename, onRemove, onReorder }: AccountListProps) {
+export function AccountList({ accounts, switchBlockedReason, onSwitch, onExport, onRename, onRemove, onReorder }: AccountListProps) {
   const { t } = useTranslation();
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -128,6 +133,16 @@ export function AccountList({ accounts, switchBlockedReason, onSwitch, onRename,
                   onClick={() => onSwitch(a.id)}
                 >
                   {t("settings.account.accounts.switch")}
+                </button>
+              )}
+              {a.exportable && (
+                <button
+                  type="button"
+                  className="account-list-switch"
+                  title={t("settings.account.identity_backup.export_hint")}
+                  onClick={() => onExport(a.id)}
+                >
+                  {t("settings.account.identity_backup.export_button")}
                 </button>
               )}
               <button

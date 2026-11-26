@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPubkey } from "@wavvon/core";
+import { encryptBackup, formatPubkey, suggestBackupFilename } from "@wavvon/core";
 import {
   listAccountsOrdered,
   getActiveAccountId,
@@ -15,8 +15,9 @@ import {
   type IdentityRecord,
 } from "@identity/index";
 import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
+import { downloadFile } from "../../utils/downloadFile";
 import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
-import { AccountList, IdentityModal } from "@wavvon/ui";
+import { AccountList, ExportIdentityModal, IdentityModal } from "@wavvon/ui";
 
 // Short, typeable identifier for the "type to confirm" removal guard — the
 // formatted fingerprint (formatPubkey) contains an ellipsis and dashes that
@@ -51,6 +52,7 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
   const [pendingRemoval, setPendingRemoval] = useState<IdentityRecord | null>(null);
   const pendingRef = useRef<{ id: string; wasActive: boolean; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   // No countdown UI — this just re-renders often enough that the Switch
   // buttons re-enable themselves once the cooldown (switchCooldownRemainingMs)
@@ -84,6 +86,15 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
     if (refused) {
       setSwitchError(refused === SWITCH_BLOCKED_COOLDOWN ? t("settings.account.accounts.switch_cooldown") : refused);
     }
+  }
+
+  // One account, encrypted in the browser and downloaded as a .wavvon-backup.
+  async function exportBackup(account: IdentityRecord, passphrase: string) {
+    const label = account.account_label || formatPubkey(account.id);
+    const envelope = await encryptBackup({ label, secret_key_hex: account.seed_hex }, passphrase);
+    downloadFile(JSON.stringify(envelope), suggestBackupFilename(label));
+    markIdentityBackedUp(account.id);
+    onBackedUp?.();
   }
 
   async function renameTo(account: IdentityRecord, label: string) {
@@ -149,6 +160,7 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
   }
 
   const removingAccount = accounts?.find((a) => a.id === removingId) ?? null;
+  const exportingAccount = accounts?.find((a) => a.id === exportingId) ?? null;
 
   return (
     <div className="settings-section">
@@ -175,9 +187,11 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
           label: a.account_label || null,
           publicKey: a.canonical_pubkey ?? a.id,
           active: a.id === activeId,
+          exportable: holdsMasterSeed(a),
         }))}
         switchBlockedReason={inVoice ? t("settings.account.accounts.switch_blocked_voice") : cooldownActive ? t("settings.account.accounts.switch_cooldown") : null}
         onSwitch={handleSwitchClick}
+        onExport={setExportingId}
         onRename={(id, label) => { const acc = accounts?.find((x) => x.id === id); if (acc) void renameTo(acc, label); }}
         onRemove={startRemove}
         onReorder={(ids) => void persistOrder(ids)}
@@ -242,6 +256,13 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
         );
       })()}
 
+      {exportingAccount && (
+        <ExportIdentityModal
+          label={exportingAccount.account_label || formatPubkey(exportingAccount.id)}
+          onClose={() => setExportingId(null)}
+          onExport={(passphrase) => exportBackup(exportingAccount, passphrase)}
+        />
+      )}
       {showAdd && (
         <IdentityModal label={t("identity_setup.add.title")} onClose={() => setShowAdd(false)}>
           <IdentitySetupScreen

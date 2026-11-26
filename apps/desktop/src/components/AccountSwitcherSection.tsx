@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { AccountList, IdentityModal, SettingRow, useConfirm } from "@wavvon/ui";
+import { invoke } from "@tauri-apps/api/core";
+import { suggestBackupFilename } from "@wavvon/core";
+import { AccountList, ExportIdentityModal, IdentityModal, SettingRow, useConfirm } from "@wavvon/ui";
 import { AddIdentityFlow } from "./AddIdentityFlow";
-import { identityNeedsBackup } from "../utils/identityBackup";
+import { identityNeedsBackup, markIdentityBackedUp } from "../utils/identityBackup";
 import { useTranslation } from "react-i18next";
 import {
   listAccounts,
@@ -15,7 +17,7 @@ import {
 
 // The accounts on this device, drawn by the shared AccountList and wired
 // straight into the Rust accounts.rs commands.
-export function AccountSwitcherSection() {
+export function AccountSwitcherSection({ onBackedUp }: { onBackedUp?: () => void }) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,20 @@ export function AccountSwitcherSection() {
   const { confirm, dialog } = useConfirm();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const exporting = accounts.find((a) => a.id === exportingId);
+
+  // Rust opens the save dialog and encrypts: the key never enters the renderer.
+  async function exportBackup(account: AccountSummary, passphrase: string) {
+    await invoke("export_account_backup", {
+      id: account.id,
+      passphrase,
+      suggestedName: suggestBackupFilename(account.label || account.id),
+      filterName: t("settings.account.identity_backup.file_filter"),
+    });
+    markIdentityBackedUp(account.id);
+    onBackedUp?.();
+  }
 
   async function refresh() {
     try {
@@ -105,8 +121,9 @@ export function AccountSwitcherSection() {
         <p className="muted">{t("modal.loading")}</p>
       ) : (
         <AccountList
-          accounts={accounts.map((a) => ({ id: a.id, label: a.label ?? null, publicKey: a.id, active: a.is_active }))}
+          accounts={accounts.map((a) => ({ id: a.id, label: a.label ?? null, publicKey: a.id, active: a.is_active, exportable: a.kind === "owned" }))}
           onSwitch={(id) => void handleSwitch(id)}
+          onExport={setExportingId}
           onRename={(id, label) => { const acc = accounts.find((x) => x.id === id); if (acc) void handleRename(acc, label); }}
           onRemove={(id) => { const acc = accounts.find((x) => x.id === id); if (acc) void handleRemove(acc); }}
           onReorder={(ids) => { void reorderAccounts(ids).then(setAccounts).catch((e) => setError(String(e))); }}
@@ -117,6 +134,13 @@ export function AccountSwitcherSection() {
           {t("settings.account.accounts.add")}
         </button>
       </div>
+      {exporting && (
+        <ExportIdentityModal
+          label={exporting.label || exporting.id.slice(0, 12)}
+          onClose={() => setExportingId(null)}
+          onExport={(passphrase) => exportBackup(exporting, passphrase)}
+        />
+      )}
       {adding && (
         <IdentityModal label={t("identity_setup.add.title")} onClose={() => setAdding(false)}>
           <AddIdentityFlow variant="add" onCancel={() => setAdding(false)} onDone={() => { setAdding(false); void refresh(); }} />

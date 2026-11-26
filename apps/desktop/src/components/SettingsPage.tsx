@@ -92,7 +92,6 @@ export interface SettingsPageProps {
   onToggleMicTest: () => void;
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
-  onRecoverIdentity: (phrase: string) => Promise<void>;
   onClearLocalData: () => void;
   blocks: BlockEntry[];
   ignores: IgnoreEntry[];
@@ -209,7 +208,6 @@ export function SettingsPage(props: SettingsPageProps) {
             accounts={accounts}
             recoveryPhrase={props.recoveryPhrase}
             onShowRecovery={props.onShowRecovery}
-            onRecoverIdentity={props.onRecoverIdentity}
             onClearLocalData={props.onClearLocalData}
             onBackedUp={() => setBackupTick((n) => n + 1)}
           />
