@@ -70,7 +70,6 @@ function loadPins(): string[] {
 }
 
 const MIN_STAGE = 120;
-const LABELS_AFTER = 6;
 /** Up to this many people, every camera opens by itself. */
 export const SMALL_ROOM = 12;
 
@@ -198,9 +197,9 @@ export function VoiceStage({
   // Your own share is a tile beside yours, not the stage: you know what you
   // are sharing, and on the stage it only mirrors itself.
   const liveOnStage = opened;
-  // Stage and audience are named only in a crowded room; with a few people
-  // the labels name nothing the eye cannot already count.
-  const showLabels = participants.length > LABELS_AFTER;
+  // Stage and audience exist only once someone is pinned: the stage is who
+  // you pinned, the audience everyone else.
+  const showLabels = onStage.length > 0;
   const hasStage = onStage.length > 0 || liveOnStage;
   const q = query.trim().toLowerCase();
   const shown = q
