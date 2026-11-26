@@ -202,8 +202,6 @@ export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase
           {t("settings.account.identity_backup.hint")}
         </p>
 
-        {notice && <p className="muted" style={{ fontSize: "var(--text-sm)" }}>{notice}</p>}
-
         {accounts.map((account) => (
           <div key={account.id} className="settings-row">
             <span>{account.label}</span>
@@ -261,6 +259,9 @@ export function IdentityBackupSection({ accounts, recoveryPhrase, onRevealPhrase
             <button className="btn-secondary" onClick={startImport}>
               {t("settings.account.identity_backup.restore_button")}
             </button>
+            {/* Beside the button that caused it: up at the top of the section
+                the result went unseen, and a restore looked like it did nothing. */}
+            {notice && <span className="backup-notice" role="status">{notice}</span>}
           </div>
         )}
 
