@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-soundboard-delete-clip"
+description = "Enables the soundboard_delete_clip command without any pre-configured scope."
+commands.allow = ["soundboard_delete_clip"]
+
+[[permission]]
+identifier = "deny-soundboard-delete-clip"
+description = "Denies the soundboard_delete_clip command without any pre-configured scope."
+commands.deny = ["soundboard_delete_clip"]

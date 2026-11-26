@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-delete-hub-icon"
+description = "Enables the delete_hub_icon command without any pre-configured scope."
+commands.allow = ["delete_hub_icon"]
+
+[[permission]]
+identifier = "deny-delete-hub-icon"
+description = "Denies the delete_hub_icon command without any pre-configured scope."
+commands.deny = ["delete_hub_icon"]

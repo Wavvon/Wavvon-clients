@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-add-group-members"
+description = "Enables the add_group_members command without any pre-configured scope."
+commands.allow = ["add_group_members"]
+
+[[permission]]
+identifier = "deny-add-group-members"
+description = "Denies the add_group_members command without any pre-configured scope."
+commands.deny = ["add_group_members"]

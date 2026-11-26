@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mini-app-post"
+description = "Enables the mini_app_post command without any pre-configured scope."
+commands.allow = ["mini_app_post"]
+
+[[permission]]
+identifier = "deny-mini-app-post"
+description = "Denies the mini_app_post command without any pre-configured scope."
+commands.deny = ["mini_app_post"]

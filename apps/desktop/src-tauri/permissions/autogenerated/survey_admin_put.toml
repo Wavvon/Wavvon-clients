@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-survey-admin-put"
+description = "Enables the survey_admin_put command without any pre-configured scope."
+commands.allow = ["survey_admin_put"]
+
+[[permission]]
+identifier = "deny-survey-admin-put"
+description = "Denies the survey_admin_put command without any pre-configured scope."
+commands.deny = ["survey_admin_put"]

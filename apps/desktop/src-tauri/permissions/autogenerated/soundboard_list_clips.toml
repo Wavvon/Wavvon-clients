@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-soundboard-list-clips"
+description = "Enables the soundboard_list_clips command without any pre-configured scope."
+commands.allow = ["soundboard_list_clips"]
+
+[[permission]]
+identifier = "deny-soundboard-list-clips"
+description = "Denies the soundboard_list_clips command without any pre-configured scope."
+commands.deny = ["soundboard_list_clips"]

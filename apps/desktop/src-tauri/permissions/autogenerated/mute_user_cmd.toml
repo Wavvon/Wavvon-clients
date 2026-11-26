@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mute-user-cmd"
+description = "Enables the mute_user_cmd command without any pre-configured scope."
+commands.allow = ["mute_user_cmd"]
+
+[[permission]]
+identifier = "deny-mute-user-cmd"
+description = "Denies the mute_user_cmd command without any pre-configured scope."
+commands.deny = ["mute_user_cmd"]

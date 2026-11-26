@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-talk-power-cmd"
+description = "Enables the set_talk_power_cmd command without any pre-configured scope."
+commands.allow = ["set_talk_power_cmd"]
+
+[[permission]]
+identifier = "deny-set-talk-power-cmd"
+description = "Denies the set_talk_power_cmd command without any pre-configured scope."
+commands.deny = ["set_talk_power_cmd"]

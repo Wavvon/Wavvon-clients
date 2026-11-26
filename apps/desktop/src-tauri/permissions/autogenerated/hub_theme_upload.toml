@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hub-theme-upload"
+description = "Enables the hub_theme_upload command without any pre-configured scope."
+commands.allow = ["hub_theme_upload"]
+
+[[permission]]
+identifier = "deny-hub-theme-upload"
+description = "Denies the hub_theme_upload command without any pre-configured scope."
+commands.deny = ["hub_theme_upload"]

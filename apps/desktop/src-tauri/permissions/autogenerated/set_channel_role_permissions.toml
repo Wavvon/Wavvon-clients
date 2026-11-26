@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-channel-role-permissions"
+description = "Enables the set_channel_role_permissions command without any pre-configured scope."
+commands.allow = ["set_channel_role_permissions"]
+
+[[permission]]
+identifier = "deny-set-channel-role-permissions"
+description = "Denies the set_channel_role_permissions command without any pre-configured scope."
+commands.deny = ["set_channel_role_permissions"]

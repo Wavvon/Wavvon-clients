@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-lobby-get-welcome"
+description = "Enables the lobby_get_welcome command without any pre-configured scope."
+commands.allow = ["lobby_get_welcome"]
+
+[[permission]]
+identifier = "deny-lobby-get-welcome"
+description = "Denies the lobby_get_welcome command without any pre-configured scope."
+commands.deny = ["lobby_get_welcome"]

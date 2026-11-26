@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-mini-app"
+description = "Enables the open_mini_app command without any pre-configured scope."
+commands.allow = ["open_mini_app"]
+
+[[permission]]
+identifier = "deny-open-mini-app"
+description = "Denies the open_mini_app command without any pre-configured scope."
+commands.deny = ["open_mini_app"]

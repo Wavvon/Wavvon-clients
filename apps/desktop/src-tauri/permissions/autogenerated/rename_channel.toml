@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-rename-channel"
+description = "Enables the rename_channel command without any pre-configured scope."
+commands.allow = ["rename_channel"]
+
+[[permission]]
+identifier = "deny-rename-channel"
+description = "Denies the rename_channel command without any pre-configured scope."
+commands.deny = ["rename_channel"]

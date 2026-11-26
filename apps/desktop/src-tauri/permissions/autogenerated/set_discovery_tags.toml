@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-discovery-tags"
+description = "Enables the set_discovery_tags command without any pre-configured scope."
+commands.allow = ["set_discovery_tags"]
+
+[[permission]]
+identifier = "deny-set-discovery-tags"
+description = "Denies the set_discovery_tags command without any pre-configured scope."
+commands.deny = ["set_discovery_tags"]

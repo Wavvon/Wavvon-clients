@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-banlist-override"
+description = "Enables the remove_banlist_override command without any pre-configured scope."
+commands.allow = ["remove_banlist_override"]
+
+[[permission]]
+identifier = "deny-remove-banlist-override"
+description = "Denies the remove_banlist_override command without any pre-configured scope."
+commands.deny = ["remove_banlist_override"]

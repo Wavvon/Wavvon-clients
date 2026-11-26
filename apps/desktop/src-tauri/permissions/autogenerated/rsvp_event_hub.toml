@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-rsvp-event-hub"
+description = "Enables the rsvp_event_hub command without any pre-configured scope."
+commands.allow = ["rsvp_event_hub"]
+
+[[permission]]
+identifier = "deny-rsvp-event-hub"
+description = "Denies the rsvp_event_hub command without any pre-configured scope."
+commands.deny = ["rsvp_event_hub"]

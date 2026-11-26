@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-voice-floor"
+description = "Enables the voice_floor command without any pre-configured scope."
+commands.allow = ["voice_floor"]
+
+[[permission]]
+identifier = "deny-voice-floor"
+description = "Denies the voice_floor command without any pre-configured scope."
+commands.deny = ["voice_floor"]

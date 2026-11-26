@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-me"
+description = "Enables the get_me command without any pre-configured scope."
+commands.allow = ["get_me"]
+
+[[permission]]
+identifier = "deny-get-me"
+description = "Denies the get_me command without any pre-configured scope."
+commands.deny = ["get_me"]

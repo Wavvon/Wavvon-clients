@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reconnect-hub"
+description = "Enables the reconnect_hub command without any pre-configured scope."
+commands.allow = ["reconnect_hub"]
+
+[[permission]]
+identifier = "deny-reconnect-hub"
+description = "Denies the reconnect_hub command without any pre-configured scope."
+commands.deny = ["reconnect_hub"]

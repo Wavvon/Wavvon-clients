@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-banlist-publish"
+description = "Enables the set_banlist_publish command without any pre-configured scope."
+commands.allow = ["set_banlist_publish"]
+
+[[permission]]
+identifier = "deny-set-banlist-publish"
+description = "Denies the set_banlist_publish command without any pre-configured scope."
+commands.deny = ["set_banlist_publish"]

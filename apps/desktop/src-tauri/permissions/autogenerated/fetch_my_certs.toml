@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fetch-my-certs"
+description = "Enables the fetch_my_certs command without any pre-configured scope."
+commands.allow = ["fetch_my_certs"]
+
+[[permission]]
+identifier = "deny-fetch-my-certs"
+description = "Denies the fetch_my_certs command without any pre-configured scope."
+commands.deny = ["fetch_my_certs"]

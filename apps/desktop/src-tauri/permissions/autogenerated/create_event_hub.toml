@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-event-hub"
+description = "Enables the create_event_hub command without any pre-configured scope."
+commands.allow = ["create_event_hub"]
+
+[[permission]]
+identifier = "deny-create-event-hub"
+description = "Denies the create_event_hub command without any pre-configured scope."
+commands.deny = ["create_event_hub"]

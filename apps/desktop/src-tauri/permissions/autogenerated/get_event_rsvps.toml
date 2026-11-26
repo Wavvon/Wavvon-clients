@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-event-rsvps"
+description = "Enables the get_event_rsvps command without any pre-configured scope."
+commands.allow = ["get_event_rsvps"]
+
+[[permission]]
+identifier = "deny-get-event-rsvps"
+description = "Denies the get_event_rsvps command without any pre-configured scope."
+commands.deny = ["get_event_rsvps"]

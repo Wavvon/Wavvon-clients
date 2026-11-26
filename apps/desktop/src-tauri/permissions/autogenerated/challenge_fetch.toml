@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-challenge-fetch"
+description = "Enables the challenge_fetch command without any pre-configured scope."
+commands.allow = ["challenge_fetch"]
+
+[[permission]]
+identifier = "deny-challenge-fetch"
+description = "Denies the challenge_fetch command without any pre-configured scope."
+commands.deny = ["challenge_fetch"]

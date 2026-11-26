@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-channel-unban-user"
+description = "Enables the channel_unban_user command without any pre-configured scope."
+commands.allow = ["channel_unban_user"]
+
+[[permission]]
+identifier = "deny-channel-unban-user"
+description = "Denies the channel_unban_user command without any pre-configured scope."
+commands.deny = ["channel_unban_user"]

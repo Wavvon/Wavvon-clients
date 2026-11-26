@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-share-channel-with-alliance"
+description = "Enables the share_channel_with_alliance command without any pre-configured scope."
+commands.allow = ["share_channel_with_alliance"]
+
+[[permission]]
+identifier = "deny-share-channel-with-alliance"
+description = "Denies the share_channel_with_alliance command without any pre-configured scope."
+commands.deny = ["share_channel_with_alliance"]

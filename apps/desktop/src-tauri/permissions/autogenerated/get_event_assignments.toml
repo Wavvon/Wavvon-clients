@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-event-assignments"
+description = "Enables the get_event_assignments command without any pre-configured scope."
+commands.allow = ["get_event_assignments"]
+
+[[permission]]
+identifier = "deny-get-event-assignments"
+description = "Denies the get_event_assignments command without any pre-configured scope."
+commands.deny = ["get_event_assignments"]

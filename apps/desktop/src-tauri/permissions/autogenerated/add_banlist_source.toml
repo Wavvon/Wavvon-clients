@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-add-banlist-source"
+description = "Enables the add_banlist_source command without any pre-configured scope."
+commands.allow = ["add_banlist_source"]
+
+[[permission]]
+identifier = "deny-add-banlist-source"
+description = "Denies the add_banlist_source command without any pre-configured scope."
+commands.deny = ["add_banlist_source"]

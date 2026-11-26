@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-admin-get-outgoing-webhook-subscriptions"
+description = "Enables the admin_get_outgoing_webhook_subscriptions command without any pre-configured scope."
+commands.allow = ["admin_get_outgoing_webhook_subscriptions"]
+
+[[permission]]
+identifier = "deny-admin-get-outgoing-webhook-subscriptions"
+description = "Denies the admin_get_outgoing_webhook_subscriptions command without any pre-configured scope."
+commands.deny = ["admin_get_outgoing_webhook_subscriptions"]

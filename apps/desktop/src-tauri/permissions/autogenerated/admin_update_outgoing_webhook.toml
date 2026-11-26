@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-admin-update-outgoing-webhook"
+description = "Enables the admin_update_outgoing_webhook command without any pre-configured scope."
+commands.allow = ["admin_update_outgoing_webhook"]
+
+[[permission]]
+identifier = "deny-admin-update-outgoing-webhook"
+description = "Denies the admin_update_outgoing_webhook command without any pre-configured scope."
+commands.deny = ["admin_update_outgoing_webhook"]

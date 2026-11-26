@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-hub-emojis"
+description = "Enables the list_hub_emojis command without any pre-configured scope."
+commands.allow = ["list_hub_emojis"]
+
+[[permission]]
+identifier = "deny-list-hub-emojis"
+description = "Denies the list_hub_emojis command without any pre-configured scope."
+commands.deny = ["list_hub_emojis"]

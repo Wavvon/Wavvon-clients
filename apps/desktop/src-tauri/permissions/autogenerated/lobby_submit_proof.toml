@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-lobby-submit-proof"
+description = "Enables the lobby_submit_proof command without any pre-configured scope."
+commands.allow = ["lobby_submit_proof"]
+
+[[permission]]
+identifier = "deny-lobby-submit-proof"
+description = "Denies the lobby_submit_proof command without any pre-configured scope."
+commands.deny = ["lobby_submit_proof"]

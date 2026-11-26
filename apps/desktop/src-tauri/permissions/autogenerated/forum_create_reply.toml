@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forum-create-reply"
+description = "Enables the forum_create_reply command without any pre-configured scope."
+commands.allow = ["forum_create_reply"]
+
+[[permission]]
+identifier = "deny-forum-create-reply"
+description = "Denies the forum_create_reply command without any pre-configured scope."
+commands.deny = ["forum_create_reply"]

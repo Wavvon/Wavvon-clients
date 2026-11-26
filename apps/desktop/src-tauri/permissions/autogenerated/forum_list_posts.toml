@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forum-list-posts"
+description = "Enables the forum_list_posts command without any pre-configured scope."
+commands.allow = ["forum_list_posts"]
+
+[[permission]]
+identifier = "deny-forum-list-posts"
+description = "Denies the forum_list_posts command without any pre-configured scope."
+commands.deny = ["forum_list_posts"]

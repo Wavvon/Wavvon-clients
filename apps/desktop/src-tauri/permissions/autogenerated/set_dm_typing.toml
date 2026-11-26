@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-dm-typing"
+description = "Enables the set_dm_typing command without any pre-configured scope."
+commands.allow = ["set_dm_typing"]
+
+[[permission]]
+identifier = "deny-set-dm-typing"
+description = "Denies the set_dm_typing command without any pre-configured scope."
+commands.deny = ["set_dm_typing"]

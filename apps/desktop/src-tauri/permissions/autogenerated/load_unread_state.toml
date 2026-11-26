@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-load-unread-state"
+description = "Enables the load_unread_state command without any pre-configured scope."
+commands.allow = ["load_unread_state"]
+
+[[permission]]
+identifier = "deny-load-unread-state"
+description = "Denies the load_unread_state command without any pre-configured scope."
+commands.deny = ["load_unread_state"]

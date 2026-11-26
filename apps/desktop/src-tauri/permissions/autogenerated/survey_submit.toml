@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-survey-submit"
+description = "Enables the survey_submit command without any pre-configured scope."
+commands.allow = ["survey_submit"]
+
+[[permission]]
+identifier = "deny-survey-submit"
+description = "Denies the survey_submit command without any pre-configured scope."
+commands.deny = ["survey_submit"]

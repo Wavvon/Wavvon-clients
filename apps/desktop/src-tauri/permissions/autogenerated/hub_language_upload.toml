@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hub-language-upload"
+description = "Enables the hub_language_upload command without any pre-configured scope."
+commands.allow = ["hub_language_upload"]
+
+[[permission]]
+identifier = "deny-hub-language-upload"
+description = "Denies the hub_language_upload command without any pre-configured scope."
+commands.deny = ["hub_language_upload"]

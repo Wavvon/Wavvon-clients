@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-voice-room-map-disable"
+description = "Enables the voice_room_map_disable command without any pre-configured scope."
+commands.allow = ["voice_room_map_disable"]
+
+[[permission]]
+identifier = "deny-voice-room-map-disable"
+description = "Denies the voice_room_map_disable command without any pre-configured scope."
+commands.deny = ["voice_room_map_disable"]

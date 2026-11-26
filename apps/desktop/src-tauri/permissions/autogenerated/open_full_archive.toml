@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-full-archive"
+description = "Enables the open_full_archive command without any pre-configured scope."
+commands.allow = ["open_full_archive"]
+
+[[permission]]
+identifier = "deny-open-full-archive"
+description = "Denies the open_full_archive command without any pre-configured scope."
+commands.deny = ["open_full_archive"]

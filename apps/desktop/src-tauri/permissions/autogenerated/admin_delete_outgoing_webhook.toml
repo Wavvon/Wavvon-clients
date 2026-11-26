@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-admin-delete-outgoing-webhook"
+description = "Enables the admin_delete_outgoing_webhook command without any pre-configured scope."
+commands.allow = ["admin_delete_outgoing_webhook"]
+
+[[permission]]
+identifier = "deny-admin-delete-outgoing-webhook"
+description = "Denies the admin_delete_outgoing_webhook command without any pre-configured scope."
+commands.deny = ["admin_delete_outgoing_webhook"]

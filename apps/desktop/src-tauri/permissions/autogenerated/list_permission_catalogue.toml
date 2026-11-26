@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-permission-catalogue"
+description = "Enables the list_permission_catalogue command without any pre-configured scope."
+commands.allow = ["list_permission_catalogue"]
+
+[[permission]]
+identifier = "deny-list-permission-catalogue"
+description = "Denies the list_permission_catalogue command without any pre-configured scope."
+commands.deny = ["list_permission_catalogue"]

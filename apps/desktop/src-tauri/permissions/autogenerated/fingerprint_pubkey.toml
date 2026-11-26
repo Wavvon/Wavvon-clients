@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fingerprint-pubkey"
+description = "Enables the fingerprint_pubkey command without any pre-configured scope."
+commands.allow = ["fingerprint_pubkey"]
+
+[[permission]]
+identifier = "deny-fingerprint-pubkey"
+description = "Denies the fingerprint_pubkey command without any pre-configured scope."
+commands.deny = ["fingerprint_pubkey"]

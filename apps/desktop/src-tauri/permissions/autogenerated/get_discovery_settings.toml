@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-discovery-settings"
+description = "Enables the get_discovery_settings command without any pre-configured scope."
+commands.allow = ["get_discovery_settings"]
+
+[[permission]]
+identifier = "deny-get-discovery-settings"
+description = "Denies the get_discovery_settings command without any pre-configured scope."
+commands.deny = ["get_discovery_settings"]

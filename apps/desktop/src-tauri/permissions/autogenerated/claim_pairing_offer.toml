@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-claim-pairing-offer"
+description = "Enables the claim_pairing_offer command without any pre-configured scope."
+commands.allow = ["claim_pairing_offer"]
+
+[[permission]]
+identifier = "deny-claim-pairing-offer"
+description = "Denies the claim_pairing_offer command without any pre-configured scope."
+commands.deny = ["claim_pairing_offer"]

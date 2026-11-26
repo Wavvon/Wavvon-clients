@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-forum-require-tag"
+description = "Enables the set_forum_require_tag command without any pre-configured scope."
+commands.allow = ["set_forum_require_tag"]
+
+[[permission]]
+identifier = "deny-set-forum-require-tag"
+description = "Denies the set_forum_require_tag command without any pre-configured scope."
+commands.deny = ["set_forum_require_tag"]

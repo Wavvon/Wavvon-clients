@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-send-component-interaction"
+description = "Enables the send_component_interaction command without any pre-configured scope."
+commands.allow = ["send_component_interaction"]
+
+[[permission]]
+identifier = "deny-send-component-interaction"
+description = "Denies the send_component_interaction command without any pre-configured scope."
+commands.deny = ["send_component_interaction"]

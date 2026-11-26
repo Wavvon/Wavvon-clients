@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-application-response"
+description = "Enables the application_response command without any pre-configured scope."
+commands.allow = ["application_response"]
+
+[[permission]]
+identifier = "deny-application-response"
+description = "Denies the application_response command without any pre-configured scope."
+commands.deny = ["application_response"]

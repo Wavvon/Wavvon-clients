@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-survey-current"
+description = "Enables the survey_current command without any pre-configured scope."
+commands.allow = ["survey_current"]
+
+[[permission]]
+identifier = "deny-survey-current"
+description = "Denies the survey_current command without any pre-configured scope."
+commands.deny = ["survey_current"]

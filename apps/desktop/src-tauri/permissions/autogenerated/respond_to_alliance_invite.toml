@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-respond-to-alliance-invite"
+description = "Enables the respond_to_alliance_invite command without any pre-configured scope."
+commands.allow = ["respond_to_alliance_invite"]
+
+[[permission]]
+identifier = "deny-respond-to-alliance-invite"
+description = "Denies the respond_to_alliance_invite command without any pre-configured scope."
+commands.deny = ["respond_to_alliance_invite"]

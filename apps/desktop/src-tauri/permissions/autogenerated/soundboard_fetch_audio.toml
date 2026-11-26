@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-soundboard-fetch-audio"
+description = "Enables the soundboard_fetch_audio command without any pre-configured scope."
+commands.allow = ["soundboard_fetch_audio"]
+
+[[permission]]
+identifier = "deny-soundboard-fetch-audio"
+description = "Denies the soundboard_fetch_audio command without any pre-configured scope."
+commands.deny = ["soundboard_fetch_audio"]

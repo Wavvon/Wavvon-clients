@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stop-whisper"
+description = "Enables the stop_whisper command without any pre-configured scope."
+commands.allow = ["stop_whisper"]
+
+[[permission]]
+identifier = "deny-stop-whisper"
+description = "Denies the stop_whisper command without any pre-configured scope."
+commands.deny = ["stop_whisper"]
