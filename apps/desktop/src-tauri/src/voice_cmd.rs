@@ -632,15 +632,22 @@ pub(crate) async fn voice_floor(
     Ok(hands.into_iter().map(|h| h.pubkey).collect())
 }
 
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+pub(crate) struct VoicePins {
+    public_keys: Vec<String>,
+    /// Your own `voice.stage` in this channel.
+    can_pin: bool,
+}
+
 /// The room's stage (`voice.pins`), the same for everyone in it: `pin` and
-/// `unpin` someone (`moderation.mute`, or `unpin` yourself), `list` who is on it.
+/// `unpin` someone (`voice.stage`, or `unpin` yourself), `list` who is on it.
 #[tauri::command]
 pub(crate) async fn voice_pins(
     channel_id: String,
     action: String,
     public_key: Option<String>,
     state: State<'_, AppState>,
-) -> Result<Vec<String>, String> {
+) -> Result<VoicePins, String> {
     let (hub_url, token) = crate::state::active_session(&state)?;
     let base = format!("{hub_url}/channels/{channel_id}/voice-pins");
     let target = || public_key.clone().ok_or("public_key required".to_string());
@@ -652,7 +659,7 @@ pub(crate) async fn voice_pins(
     };
     let resp = crate::http::send_ok(req.bearer_auth(&token)).await?;
     if action != "list" {
-        return Ok(Vec::new());
+        return Ok(VoicePins::default());
     }
     resp.json().await.map_err(|e| format!("Invalid: {e}"))
 }

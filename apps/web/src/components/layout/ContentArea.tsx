@@ -277,7 +277,7 @@ export function ContentArea(props: Props) {
             : undefined,
           stagePins: activeHubSupports("voice.pins")
             ? voice.stagePins && voice.voiceChannelId === selectedChannel.id
-              ? { ...voice.stagePins, canPin: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
+              ? voice.stagePins
               : { pins: [], canPin: false, onPin: () => {}, onUnpin: () => {} }
             : undefined,
           room: voice.voiceChannelId === selectedChannel.id

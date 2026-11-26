@@ -50,6 +50,7 @@ export const ALL_PERMISSIONS: string[] = [
   "voice.soundboard.use",
   "voice.soundboard.manage",
   "voice.move_members",
+  "voice.stage",
   "moderation.kick",
   "moderation.mute",
   "moderation.timeout",

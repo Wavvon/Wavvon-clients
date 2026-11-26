@@ -37,6 +37,8 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
   const [voiceHands, setVoiceHands] = useState<{ channelId: string; keys: string[] } | null>(null);
   // The room's stage (`voice.pins`), held by the hub like the hands.
   const [voicePins, setVoicePins] = useState<{ channelId: string; keys: string[] } | null>(null);
+  // Your own `voice.stage` in the room you are in, as the hub resolved it.
+  const [canPinIn, setCanPinIn] = useState<string | null>(null);
   useEffect(() => {
     if (voiceChannelId) return;
     setMaySpeak(true);
@@ -574,8 +576,11 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
       .then((keys) => setVoiceHands((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
       .catch(() => { /* the next voice-hands corrects it */ });
     setVoicePins(null);
-    invoke<string[]>("voice_pins", { channelId, action: "list" })
-      .then((keys) => setVoicePins((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
+    invoke<{ public_keys: string[]; can_pin: boolean }>("voice_pins", { channelId, action: "list" })
+      .then((r) => {
+        setVoicePins((prev) => prev?.channelId === channelId ? prev : { channelId, keys: r.public_keys });
+        setCanPinIn(r.can_pin ? channelId : null);
+      })
       .catch(() => { /* an older hub has no stage; otherwise the next voice-pins corrects it */ });
   }
 
@@ -646,6 +651,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
   }
   const stagePins = voiceChannelId ? {
     pins: voicePins?.channelId === voiceChannelId ? voicePins.keys : [],
+    canPin: canPinIn === voiceChannelId,
     onPin: (pk: string) => pinCall("pin", pk),
     onUnpin: (pk: string) => pinCall("unpin", pk),
   } : null;

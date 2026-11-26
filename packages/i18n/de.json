@@ -914,6 +914,7 @@
   "hub.admin.roles.perm.voice.screen_share": "Bildschirm teilen",
   "hub.admin.roles.perm.voice.camera": "Kamera einschalten",
   "hub.admin.roles.perm.voice.move_members": "Mitglieder zwischen Sprachkanälen verschieben",
+  "hub.admin.roles.perm.voice.stage": "Mitglieder auf die Bühne eines Sprachraums setzen",
   "hub.admin.roles.perm.voice.soundboard.manage": "Soundboard-Clips verwalten",
   "hub.admin.roles.perm.voice.soundboard.use": "Soundboard verwenden",
   "hub.admin.roles.perm.webhooks.incoming.manage": "Eingehende Webhooks verwalten",
