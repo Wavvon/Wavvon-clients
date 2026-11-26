@@ -1833,88 +1833,7 @@ body:has(.channel-banner) #root {
   font-size: var(--text-xs);
   color: var(--text-faint);
   margin-top: 2px;
-}/* Account switcher's "#" / drag-handle column */
-.account-order-col {
-  width: 1%;
-  white-space: nowrap;
-}
-
-.account-order-cell {
-  /* Plain table-cell — display:flex on a <td> opts it out of table layout
-     and misaligns it against sibling cells. */
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.account-order-number {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  min-width: 1.2em;
-  text-align: right;
-}
-
-/* Whole-row dragging: the row is the drag target (except while renaming). */
-tr.account-row-draggable {
-  cursor: grab;
-}
-
-tr.account-row-draggable:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-tr.account-row-dragging {
-  cursor: grabbing;
-  opacity: 0.4;
-}
-
-/* Full public key shown in the account table; the text itself copies. */
-.account-key-copy {
-  font-family: monospace;
-  font-size: var(--text-xs);
-  word-break: break-all;
-  cursor: copy;
-  border-radius: var(--r-sm);
-  padding: 1px 3px;
-}
-
-.account-key-copy:hover,
-.account-key-copy:focus-visible {
-  background: var(--surface);
-  outline: none;
-}
-
-.account-key-copied {
-  color: var(--success, var(--accent));
-  margin-left: 6px;
-  white-space: nowrap;
-}
-
-/* Hover-revealed affordances in the account table: the copy glyph on the
-   key and the rename pencil on the label appear on cell hover (or keyboard
-   focus) instead of cluttering the resting state. */
-.account-hover-icon {
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  margin-left: 4px;
-}
-
-/* The copy glyph needs more breathing room from the dense hex key. */
-.account-key-copy .account-hover-icon {
-  margin-left: 10px;
-}
-
-td:hover .account-hover-icon,
-.account-key-copy:focus-visible .account-hover-icon,
-.account-hover-icon:focus-visible {
-  opacity: 1;
-}
-
-tr.account-drop-target td {
-  box-shadow: inset 0 2px 0 0 var(--accent);
-}
-
-.pending-section {
+}.pending-section {
   background: var(--bg-elevated);
   border: 1px solid var(--warning);
   border-radius: var(--r-md);
@@ -7724,6 +7643,120 @@ select:focus-visible {
 .share-go:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* Accounts on this device: one row per identity, name and key on the left,
+   what you can do with it on the right. */
+.account-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.account-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: grab;
+}
+.account-list-row.active {
+  border-color: var(--accent-dim);
+}
+.account-list-row.dragging {
+  opacity: 0.5;
+}
+.account-list-row.drop-target {
+  border-color: var(--accent);
+}
+.account-list-row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.account-list-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.account-list-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: var(--weight-semi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-list-active {
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: var(--weight-semi);
+}
+.account-list-key {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  cursor: copy;
+}
+.account-list-key:hover {
+  color: var(--text);
+}
+.account-list-who input {
+  width: 100%;
+  max-width: 280px;
+  font-size: 14px;
+}
+.account-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.account-list-switch {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: var(--weight-semi);
+  cursor: pointer;
+}
+.account-list-switch:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.account-list-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.account-list-actions .btn-icon.danger:hover:not(:disabled) {
+  color: var(--danger);
+}
+.account-remove-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  background: var(--danger-bg);
 }
 
 .backup-notice {

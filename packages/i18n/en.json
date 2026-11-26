@@ -1383,12 +1383,7 @@
   "search.placeholder": "Search messages…",
   "settings.about.description": "Wavvon — decentralized voice chat + community platform.",
   "settings.account.accounts.active_button": "Active",
-  "settings.account.accounts.active_hint": "This is the active account on this device.",
   "settings.account.accounts.add": "Add account",
-  "settings.account.accounts.col_actions": "Actions",
-  "settings.account.accounts.col_key": "Public key",
-  "settings.account.accounts.col_label": "Label",
-  "settings.account.accounts.col_order": "#",
   "settings.account.accounts.hint": "Switch between Wavvon identities you've added to this device. Accounts are device-local — this list is never synced to any hub.",
   "settings.account.accounts.import_button": "Import",
   "settings.account.accounts.key_click_to_copy": "Click to copy the full key",
@@ -1404,10 +1399,8 @@
   "settings.account.accounts.remove_title": "Remove {label} from this device?",
   "settings.account.accounts.rename_button": "Rename",
   "settings.account.accounts.rename_placeholder": "Name this account",
-  "settings.account.accounts.rename_save": "Save label",
   "settings.account.accounts.rename_title": "Label for this account",
-  "settings.account.accounts.reorder_handle": "Reorder {label}",
-  "settings.account.accounts.reorder_hint": "Drag to reorder. Focus and use the up/down arrow keys to move without a mouse.",
+  "settings.account.accounts.reorder_hint": "Drag to reorder, or focus the row and press Alt+Up/Down.",
   "settings.account.accounts.switch": "Switch",
   "settings.account.accounts.switch_blocked_voice": "Leave the voice channel to switch account",
   "settings.account.accounts.switch_cooldown": "Please wait a moment before switching accounts again.",
@@ -2687,5 +2680,7 @@
   "voice.screen_share.picker.bitrate_note": "About {mbps} Mbit/s going out. If your screen or network cannot keep up, viewers get fewer frames.",
   "voice.screen_share.picker.footer": "{resolution} · {fps} fps",
   "voice.stage.share_fullscreen": "Watch your share full screen",
-  "settings.account.identity_backup.error_other": "Could not restore the backup: {error}"
+  "settings.account.identity_backup.error_other": "Could not restore the backup: {error}",
+  "settings.account.accounts.rename_label": "Rename {name}",
+  "settings.account.accounts.remove_label": "Remove {name} from this device"
 }

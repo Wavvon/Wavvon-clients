@@ -1383,12 +1383,7 @@
   "search.placeholder": "Buscar mensajes…",
   "settings.about.description": "Wavvon — chat de voz descentralizado y plataforma de comunidades.",
   "settings.account.accounts.active_button": "Activa",
-  "settings.account.accounts.active_hint": "Esta es la cuenta activa en este dispositivo.",
   "settings.account.accounts.add": "Añadir cuenta",
-  "settings.account.accounts.col_actions": "Acciones",
-  "settings.account.accounts.col_key": "Clave pública",
-  "settings.account.accounts.col_label": "Etiqueta",
-  "settings.account.accounts.col_order": "#",
   "settings.account.accounts.hint": "Cambia entre las identidades de Wavvon que has añadido a este dispositivo. Las cuentas son locales al dispositivo — esta lista nunca se sincroniza con ningún hub.",
   "settings.account.accounts.import_button": "Importar",
   "settings.account.accounts.key_click_to_copy": "Haz clic para copiar la clave completa",
@@ -1404,10 +1399,8 @@
   "settings.account.accounts.remove_title": "¿Quitar {label} de este dispositivo?",
   "settings.account.accounts.rename_button": "Renombrar",
   "settings.account.accounts.rename_placeholder": "Nombra esta cuenta",
-  "settings.account.accounts.rename_save": "Guardar etiqueta",
   "settings.account.accounts.rename_title": "Etiqueta para esta cuenta",
-  "settings.account.accounts.reorder_handle": "Reordenar {label}",
-  "settings.account.accounts.reorder_hint": "Arrastra para reordenar. Enfoca y usa las flechas arriba/abajo para mover sin ratón.",
+  "settings.account.accounts.reorder_hint": "Arrastra para reordenar, o enfoca la fila y pulsa Alt+arriba/abajo.",
   "settings.account.accounts.switch": "Cambiar",
   "settings.account.accounts.switch_blocked_voice": "Sal del canal de voz para cambiar de cuenta",
   "settings.account.accounts.switch_cooldown": "Espera un momento antes de volver a cambiar de cuenta.",
@@ -2687,5 +2680,7 @@
   "voice.screen_share.picker.bitrate_note": "Unos {mbps} Mbit/s de subida. Si la pantalla o la red no dan abasto, quien mira recibe menos fotogramas.",
   "voice.screen_share.picker.footer": "{resolution} · {fps} fps",
   "voice.stage.share_fullscreen": "Ver tu pantalla compartida a pantalla completa",
-  "settings.account.identity_backup.error_other": "No se pudo restaurar la copia: {error}"
+  "settings.account.identity_backup.error_other": "No se pudo restaurar la copia: {error}",
+  "settings.account.accounts.rename_label": "Renombrar {name}",
+  "settings.account.accounts.remove_label": "Quitar {name} de este dispositivo"
 }

@@ -1383,12 +1383,7 @@
   "search.placeholder": "Nachrichten suchen…",
   "settings.about.description": "Wavvon — dezentraler Sprachchat und Community-Plattform.",
   "settings.account.accounts.active_button": "Aktiv",
-  "settings.account.accounts.active_hint": "Dies ist das aktive Konto auf diesem Gerät.",
   "settings.account.accounts.add": "Konto hinzufügen",
-  "settings.account.accounts.col_actions": "Aktionen",
-  "settings.account.accounts.col_key": "Öffentlicher Schlüssel",
-  "settings.account.accounts.col_label": "Bezeichnung",
-  "settings.account.accounts.col_order": "#",
   "settings.account.accounts.hint": "Wechsle zwischen Wavvon-Identitäten, die du zu diesem Gerät hinzugefügt hast. Konten sind geräteweise lokal — diese Liste wird nie mit einem Hub synchronisiert.",
   "settings.account.accounts.import_button": "Importieren",
   "settings.account.accounts.key_click_to_copy": "Klicken, um den vollständigen Schlüssel zu kopieren",
@@ -1404,10 +1399,8 @@
   "settings.account.accounts.remove_title": "{label} von diesem Gerät entfernen?",
   "settings.account.accounts.rename_button": "Umbenennen",
   "settings.account.accounts.rename_placeholder": "Dieses Konto benennen",
-  "settings.account.accounts.rename_save": "Bezeichnung speichern",
   "settings.account.accounts.rename_title": "Bezeichnung für dieses Konto",
-  "settings.account.accounts.reorder_handle": "{label} neu anordnen",
-  "settings.account.accounts.reorder_hint": "Zum Neuanordnen ziehen. Fokussieren und Pfeiltasten hoch/runter verwenden, um ohne Maus zu verschieben.",
+  "settings.account.accounts.reorder_hint": "Zum Umsortieren ziehen oder die Zeile fokussieren und Alt+Pfeil hoch/runter drücken.",
   "settings.account.accounts.switch": "Wechseln",
   "settings.account.accounts.switch_blocked_voice": "Verlasse den Sprachkanal, um das Konto zu wechseln",
   "settings.account.accounts.switch_cooldown": "Bitte warte einen Moment, bevor du erneut das Konto wechselst.",
@@ -2687,5 +2680,7 @@
   "voice.screen_share.picker.bitrate_note": "Etwa {mbps} Mbit/s ausgehend. Wenn Bildschirm oder Netz nicht mithalten, bekommen Zuschauer weniger Bilder.",
   "voice.screen_share.picker.footer": "{resolution} · {fps} fps",
   "voice.stage.share_fullscreen": "Deine Freigabe im Vollbild ansehen",
-  "settings.account.identity_backup.error_other": "Sicherung konnte nicht wiederhergestellt werden: {error}"
+  "settings.account.identity_backup.error_other": "Sicherung konnte nicht wiederhergestellt werden: {error}",
+  "settings.account.accounts.rename_label": "{name} umbenennen",
+  "settings.account.accounts.remove_label": "{name} von diesem Gerät entfernen"
 }

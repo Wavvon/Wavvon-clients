@@ -593,6 +593,8 @@ export { parseLayout, pruneLayout, EMPTY_LAYOUT } from "./utils/hubLayout";
 export type { HubLayout, HubFolder } from "./utils/hubLayout";
 export type { HubNotice } from "./hooks/useUnreadCounts";
 export { UserMenu } from "./components/layout/UserMenu";
+export { AccountList } from "./components/settings/AccountList";
+export type { AccountListItem, AccountListProps } from "./components/settings/AccountList";
 export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";
 export { useHubLayout } from "./hooks/useHubLayout";
 export { memberActivity } from "./utils/memberActivity";

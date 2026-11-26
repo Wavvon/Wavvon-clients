@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SettingRow, useConfirm } from "@wavvon/ui";
+import { AccountList, SettingRow, useConfirm } from "@wavvon/ui";
 import { identityNeedsBackup } from "../utils/identityBackup";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,25 +7,20 @@ import {
   createAccount,
   removeAccount,
   renameAccount,
+  reorderAccounts,
   switchAccountGuarded,
   SWITCH_BLOCKED_COOLDOWN,
   type AccountSummary,
 } from "../accounts/store";
 
-// Minimal multi-account switcher — the desktop analogue of web's Settings →
-// Account switcher table. This is deliberately bare-bones (no drag reorder,
-// no fingerprint-confirm-to-remove dialog styling); the shared, fully
-// designed ManageAccountsTab is a later hoist (settings-ia.md §6 step 2/6).
-// It only needs to expose list/create/switch/remove/rename, which is what
-// this wires straight into the Rust accounts.rs commands.
+// The accounts on this device, drawn by the shared AccountList and wired
+// straight into the Rust accounts.rs commands.
 export function AccountSwitcherSection() {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
   const { confirm, dialog } = useConfirm();
   const [open, setOpen] = useState(false);
 
@@ -105,7 +100,6 @@ export function AccountSwitcherSection() {
   // Renaming edits in place rather than through a prompt: `window.prompt`
   // is the same untranslatable native chrome `window.confirm` was.
   async function handleRename(account: AccountSummary, next: string) {
-    setRenamingId(null);
     setBusyId(account.id);
     setError(null);
     try {
@@ -134,56 +128,13 @@ export function AccountSwitcherSection() {
       {loading ? (
         <p className="muted">{t("modal.loading")}</p>
       ) : (
-        <div style={{ marginTop: 8 }}>
-          {accounts.map((a) => (
-            <div key={a.id} className="settings-row">
-              <code className="pubkey-display" title={a.id}>
-                {a.label ?? a.id.slice(0, 12)}
-              </code>
-              {a.is_active ? (
-                <span className="muted">{t("settings.account.accounts.active_button")}</span>
-              ) : (
-                <button onClick={() => handleSwitch(a.id)} disabled={busyId === a.id}>
-                  {t("settings.account.accounts.switch")}
-                </button>
-              )}
-              {renamingId === a.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={renameValue}
-                    autoFocus
-                    aria-label={t("settings.account.accounts.rename_title")}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleRename(a, renameValue);
-                      if (e.key === "Escape") setRenamingId(null);
-                    }}
-                  />
-                  <button className="btn-small btn-primary" onClick={() => void handleRename(a, renameValue)}>
-                    {t("settings.account.accounts.rename_save")}
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="btn-small"
-                  onClick={() => { setRenamingId(a.id); setRenameValue(a.label ?? ""); }}
-                  disabled={busyId === a.id}
-                >
-                  {t("settings.account.accounts.rename_button")}
-                </button>
-              )}
-              <button
-                className="btn-small"
-                onClick={() => handleRemove(a)}
-                disabled={busyId === a.id || accounts.length <= 1}
-                title={accounts.length <= 1 ? t("settings.account.accounts.last_account_title") : undefined}
-              >
-                {t("settings.account.accounts.remove")}
-              </button>
-            </div>
-          ))}
-        </div>
+        <AccountList
+          accounts={accounts.map((a) => ({ id: a.id, label: a.label ?? null, publicKey: a.id, active: a.is_active }))}
+          onSwitch={(id) => void handleSwitch(id)}
+          onRename={(id, label) => { const acc = accounts.find((x) => x.id === id); if (acc) void handleRename(acc, label); }}
+          onRemove={(id) => { const acc = accounts.find((x) => x.id === id); if (acc) void handleRemove(acc); }}
+          onReorder={(ids) => { void reorderAccounts(ids).then(setAccounts).catch((e) => setError(String(e))); }}
+        />
       )}
       <div className="settings-row" style={{ marginTop: 8 }}>
         <button onClick={() => handleCreate()} disabled={busyId === "__create__"}>
