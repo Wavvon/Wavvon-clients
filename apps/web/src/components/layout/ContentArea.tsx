@@ -275,6 +275,11 @@ export function ContentArea(props: Props) {
           floor: voice.floor && voice.voiceChannelId === selectedChannel.id && activeHubSupports("voice.hands")
             ? { ...voice.floor, canGrant: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
             : undefined,
+          stagePins: activeHubSupports("voice.pins")
+            ? voice.stagePins && voice.voiceChannelId === selectedChannel.id
+              ? { ...voice.stagePins, canPin: isAdmin || myRoles.some((r) => r.permissions.includes("moderation.mute")) }
+              : { pins: [], canPin: false, onPin: () => {}, onUnpin: () => {} }
+            : undefined,
           room: voice.voiceChannelId === selectedChannel.id
             ? {
                 zone: voice.roomZone,

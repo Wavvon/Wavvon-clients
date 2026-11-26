@@ -203,7 +203,7 @@ export { ChannelMessageList } from "./components/content/ChannelMessageList";
 export { DmView } from "./components/content/DmView";
 export { WelcomeInviteBanner } from "./components/content/WelcomeInviteBanner";
 export { ContentArea } from "./components/content/ContentArea";
-export type { VoiceStageInfo, VoiceFloor } from "./components/content/VoiceStage";
+export type { VoiceStageInfo, VoiceFloor, VoiceStagePins } from "./components/content/VoiceStage";
 export type { VoiceLive } from "./components/content/LiveTray";
 export { PinnedMessagesModal } from "./components/content/PinnedMessagesModal";
 export type { PinnedMessageEntry } from "./components/content/PinnedMessagesModal";

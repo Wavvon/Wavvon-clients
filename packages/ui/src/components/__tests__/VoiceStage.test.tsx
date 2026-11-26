@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { VoiceStage, type VoiceFloor } from "../content/VoiceStage";
+import { VoiceStage, orderedPins, type VoiceFloor, type VoiceStagePins } from "../content/VoiceStage";
 
 const noop = () => {};
 const floor = (over: Partial<VoiceFloor>): VoiceFloor => ({
@@ -68,5 +68,36 @@ describe("VoiceStage cameras", () => {
     const html = withCamera(13);
     expect(html).not.toContain("voice-tile-camera");
     expect(html).toContain("cam-badge");
+  });
+});
+
+describe("VoiceStage hub pins", () => {
+  const stage = (over: Partial<VoiceStagePins>): VoiceStagePins => ({ pins: [], canPin: false, onPin: noop, onUnpin: noop, ...over });
+  function withPins(p: VoiceStagePins) {
+    return renderToStaticMarkup(
+      <VoiceStage
+        participants={[{ public_key: "me", display_name: "Me" }, { public_key: "ann", display_name: "Ann" }]}
+        speaking={new Set()}
+        avatars={new Map()}
+        inThisRoom
+        onJoin={noop}
+        publicKey="me"
+        stagePins={p}
+      />,
+    );
+  }
+  it("puts the hub's pins on the stage for everyone", () => {
+    expect(withPins(stage({ pins: ["ann"] }))).toContain("voice.stage.stage_label");
+  });
+  it("offers pinning only to a moderator", () => {
+    expect(withPins(stage({}))).not.toContain("voice.stage.pin_short");
+    expect(withPins(stage({ canPin: true }))).toContain("voice.stage.pin_short");
+  });
+  it("lets a member step off the stage themselves, and nobody else", () => {
+    const html = withPins(stage({ pins: ["me", "ann"] }));
+    expect(html.split("voice.stage.unpin").length - 1).toBe(2);
+  });
+  it("keeps the viewer's order and appends new pins", () => {
+    expect(orderedPins(["a", "b", "c"], ["c", "x", "a"])).toEqual(["c", "a", "b"]);
   });
 });

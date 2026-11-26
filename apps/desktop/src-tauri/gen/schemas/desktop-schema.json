@@ -2355,6 +2355,12 @@
           "markdownDescription": "Enables the voice_mute_user_cmd command without any pre-configured scope."
         },
         {
+          "description": "Enables the voice_pins command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-voice-pins",
+          "markdownDescription": "Enables the voice_pins command without any pre-configured scope."
+        },
+        {
           "description": "Enables the voice_room_map_disable command without any pre-configured scope.",
           "type": "string",
           "const": "allow-voice-room-map-disable",
@@ -4363,6 +4369,12 @@
           "type": "string",
           "const": "deny-voice-mute-user-cmd",
           "markdownDescription": "Denies the voice_mute_user_cmd command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the voice_pins command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-voice-pins",
+          "markdownDescription": "Denies the voice_pins command without any pre-configured scope."
         },
         {
           "description": "Denies the voice_room_map_disable command without any pre-configured scope.",

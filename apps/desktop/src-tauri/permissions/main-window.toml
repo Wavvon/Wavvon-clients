@@ -70,6 +70,7 @@ commands.allow = [
   "get_pinned_messages",
   "voice_channel_participants",
   "voice_floor",
+  "voice_pins",
   "voice_join",
   "mint_alliance_voice_grant",
   "alliance_voice_join",

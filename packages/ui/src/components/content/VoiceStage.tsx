@@ -30,6 +30,20 @@ export interface VoiceFloor {
   onDismiss: (publicKey: string) => void;
 }
 
+export interface VoiceStagePins {
+  /** Who the hub has on this room's stage, in pin order. */
+  pins: string[];
+  /** You may pin and unpin anyone (`moderation.mute`); otherwise only step off yourself. */
+  canPin: boolean;
+  onPin: (publicKey: string) => void;
+  onUnpin: (publicKey: string) => void;
+}
+
+/** The hub's pins in this viewer's order: their own arrangement first, newcomers after. */
+export function orderedPins(hubPins: string[], order: string[]): string[] {
+  return [...order.filter((pk) => hubPins.includes(pk)), ...hubPins.filter((pk) => !order.includes(pk))];
+}
+
 export interface VoiceStageInfo {
   participants: VoiceParticipant[];
   /** Your friends' pubkeys: they lead the audience. */
@@ -56,6 +70,9 @@ export interface VoiceStageInfo {
   cameras?: Map<string, MediaStream>;
   /** Recent soundboard plays in this room, for the burst on the player. */
   soundboardChips?: SoundboardChip[];
+  /** The room's stage as the hub holds it; absent on a hub without `voice.pins`,
+   *  where pins are this viewer's own for the session. */
+  stagePins?: VoiceStagePins;
 }
 
 const MIN_STAGE = 120;
@@ -108,7 +125,7 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent, fullscreenLabel
  * the room. `children` is the viewer of the opened streams.
  */
 export function VoiceStage({
-  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, cameras, soundboardChips,
+  participants, friends, speaking, avatars, inThisRoom, onJoin, publicKey, floor, live, selfShare, room, cameras, soundboardChips, stagePins,
   roomName, connectionStatus, onOpenEvents, onOpenHubStreams, liveShareCount = 0, children,
 }: VoiceStageInfo & {
   children?: React.ReactNode;
@@ -121,10 +138,13 @@ export function VoiceStage({
   liveShareCount?: number;
 }) {
   const { t } = useTranslation();
-  // Pins last one voice session: leaving the room or moving to another one
-  // clears them, so nobody is still pinned the next time you walk in.
-  const [pins, setPins] = useState<string[]>([]);
-  useEffect(() => { setPins([]); }, [inThisRoom, roomName]);
+  // Without hub pins they last one voice session: leaving the room or moving
+  // to another one clears them, so nobody is still pinned next time.
+  const [localPins, setLocalPins] = useState<string[]>([]);
+  useEffect(() => { setLocalPins([]); setOrder([]); }, [inThisRoom, roomName]);
+  // The hub decides who is on the stage; the order is each viewer's own.
+  const [order, setOrder] = useState<string[]>([]);
+  const pins = stagePins ? orderedPins(stagePins.pins, order) : localPins;
   const [big, setBig] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
@@ -162,9 +182,15 @@ export function VoiceStage({
   }, [live, pins, participants.length, inThisRoom]);
 
   function togglePin(pk: string) {
-    const next = pins.includes(pk) ? pins.filter((p) => p !== pk) : [...pins, pk];
-    setPins(next);
+    const pinned = pins.includes(pk);
+    if (stagePins) {
+      if (pinned) stagePins.onUnpin(pk); else stagePins.onPin(pk);
+      return;
+    }
+    setLocalPins(pinned ? pins.filter((p) => p !== pk) : [...pins, pk]);
   }
+  const mayTogglePin = (pk: string) =>
+    !stagePins || stagePins.canPin || (pk === publicKey && pins.includes(pk));
 
   const myHandUp = !!floor && !!publicKey && floor.hands.includes(publicKey);
   const sharing = new Set(live?.streams.map((s) => s.sharer_pubkey));
@@ -183,7 +209,7 @@ export function VoiceStage({
     const to = pins.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
     const next = arrayMove(pins, from, to);
-    setPins(next);
+    if (stagePins) setOrder(next); else setLocalPins(next);
   }
   const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
   const opened = !!live && live.opened.size > 0;
@@ -269,7 +295,7 @@ export function VoiceStage({
           {name}
         </span>
         <div className="voice-tile-actions">
-          <button
+          {mayTogglePin(p.public_key) && <button
             type="button"
             className={pinned ? "btn-icon" : "voice-tile-pin"}
             aria-pressed={pinned}
@@ -279,7 +305,7 @@ export function VoiceStage({
           >
             <PinIcon size={12} />
             {!pinned && <span>{t("voice.stage.pin_short")}</span>}
-          </button>
+          </button>}
           {pinned && (
             <button
               type="button"

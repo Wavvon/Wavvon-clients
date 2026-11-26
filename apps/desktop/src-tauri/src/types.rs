@@ -636,6 +636,11 @@ pub(crate) enum WsServerMessage {
         channel_id: String,
         public_keys: Vec<String>,
     },
+    #[serde(rename = "voice_pins")]
+    VoicePins {
+        channel_id: String,
+        public_keys: Vec<String>,
+    },
     #[serde(rename = "voice_talk_granted")]
     VoiceTalkGranted {
         channel_id: String,
