@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { RefObject } from "react";
 import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundboardAudioBytes, markSoundboardPlayed, fetchDhKey, HubApiError } from "@platform";
-import { raiseHand, lowerHand, grantTalk, listRaisedHands } from "../platform/commands/voice";
+import { raiseHand, lowerHand, grantTalk, listRaisedHands, listVoicePins, pinVoice, unpinVoice } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
 import { playSound, playVoiceTone, formatPubkey, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
@@ -149,6 +149,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   // `voice_hands` can arrive before the session reports itself ready.
   const [maySpeak, setMaySpeak] = useState(true);
   const [voiceHands, setVoiceHands] = useState<{ channelId: string; keys: string[] } | null>(null);
+  // The room's stage (`voice.pins`), held by the hub like the hands.
+  const [voicePins, setVoicePins] = useState<{ channelId: string; keys: string[] } | null>(null);
 
   // handleVoiceJoin's "already there" guard is called both from JSX (fresh
   // voiceChannelId) and from the frozen onVoiceMove WS handler (via
@@ -323,6 +325,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
           setVoiceHubUrl(null);
           setMaySpeak(true);
           setVoiceHands(null);
+          setVoicePins(null);
           setMicBelowGate(false);
           extRef.current.clearVoiceChannelNameHint();
           setSelfMuted(false);
@@ -513,6 +516,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     setVoiceHubUrl(null);
     setMaySpeak(true);
     setVoiceHands(null);
+    setVoicePins(null);
     setMicBelowGate(false);
     extRef.current.clearVoiceChannelNameHint();
     setSelfMuted(false);
@@ -624,6 +628,16 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
           .then((keys) => setVoiceHands((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
           .catch(() => { /* the next voice_hands corrects it */ });
       }
+      setVoicePins(null);
+      if (activeHubSupports("voice.pins")) {
+        listVoicePins(channelId)
+          .then((keys) => setVoicePins((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
+          .catch(() => { /* the next voice_pins corrects it */ });
+      }
+      return;
+    }
+    if (m.type === "voice_pins") {
+      setVoicePins({ channelId, keys: m.public_keys ?? [] });
       return;
     }
     if (m.type === "voice_hands") {
@@ -831,12 +845,18 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     onGrant: (pk: string) => floorCall(grantTalk(voiceChannelId, pk)),
     onDismiss: (pk: string) => floorCall(lowerHand(voiceChannelId, pk)),
   } : null;
+  const stagePins = voiceChannelId ? {
+    pins: voicePins?.channelId === voiceChannelId ? voicePins.keys : [],
+    onPin: (pk: string) => floorCall(pinVoice(voiceChannelId, pk)),
+    onUnpin: (pk: string) => floorCall(unpinVoice(voiceChannelId, pk)),
+  } : null;
 
   return {
     voiceChannelId,
     voiceHubUrl,
     isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
+    stagePins,
     selfMuted,
     selfDeafened,
     micBelowGate,

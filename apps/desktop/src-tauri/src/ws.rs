@@ -287,6 +287,13 @@ pub(crate) async fn spawn_ws_task(
                                             "public_keys": public_keys,
                                         }));
                                     }
+                                    WsServerMessage::VoicePins { channel_id, public_keys } => {
+                                        let _ = app.emit("voice-pins", serde_json::json!({
+                                            "hub_id": hub_id_for_task,
+                                            "channel_id": channel_id,
+                                            "public_keys": public_keys,
+                                        }));
+                                    }
                                     WsServerMessage::VoiceTalkGranted { channel_id, public_key } => {
                                         // Only our own floor changes anything here: the hub
                                         // knows us by the canonical key, not this device's.

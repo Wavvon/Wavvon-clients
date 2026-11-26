@@ -35,10 +35,13 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
   // voice-hands can arrive before voice-joined.
   const [maySpeak, setMaySpeak] = useState(true);
   const [voiceHands, setVoiceHands] = useState<{ channelId: string; keys: string[] } | null>(null);
+  // The room's stage (`voice.pins`), held by the hub like the hands.
+  const [voicePins, setVoicePins] = useState<{ channelId: string; keys: string[] } | null>(null);
   useEffect(() => {
     if (voiceChannelId) return;
     setMaySpeak(true);
     setVoiceHands(null);
+    setVoicePins(null);
   }, [voiceChannelId]);
   const [voiceInputDevice, setVoiceInputDevice] = useState<string>("");
   const [voiceOutputDevice, setVoiceOutputDevice] = useState<string>("");
@@ -133,6 +136,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
     }));
     scope.add(listen<{ channel_id: string; public_keys: string[] }>("voice-hands", (e) => {
       if (!cancelled) setVoiceHands({ channelId: e.payload.channel_id, keys: e.payload.public_keys });
+    }));
+    scope.add(listen<{ channel_id: string; public_keys: string[] }>("voice-pins", (e) => {
+      if (!cancelled) setVoicePins({ channelId: e.payload.channel_id, keys: e.payload.public_keys });
     }));
     scope.add(listen("voice-talk-granted", () => { if (!cancelled) setMaySpeak(true); }));
 
@@ -567,6 +573,10 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
     invoke<string[]>("voice_floor", { channelId, action: "list" })
       .then((keys) => setVoiceHands((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
       .catch(() => { /* the next voice-hands corrects it */ });
+    setVoicePins(null);
+    invoke<string[]>("voice_pins", { channelId, action: "list" })
+      .then((keys) => setVoicePins((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
+      .catch(() => { /* an older hub has no stage; otherwise the next voice-pins corrects it */ });
   }
 
   function onParticipantJoined(channelId: string, participant: VoiceParticipant) {
@@ -630,6 +640,15 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
     onGrant: (pk: string) => floorCall("grant", pk),
     onDismiss: (pk: string) => floorCall("lower", pk),
   } : null;
+  function pinCall(action: "pin" | "unpin", publicKey: string) {
+    if (!voiceChannelId) return;
+    invoke("voice_pins", { channelId: voiceChannelId, action, publicKey }).catch((e) => setError(String(e)));
+  }
+  const stagePins = voiceChannelId ? {
+    pins: voicePins?.channelId === voiceChannelId ? voicePins.keys : [],
+    onPin: (pk: string) => pinCall("pin", pk),
+    onUnpin: (pk: string) => pinCall("unpin", pk),
+  } : null;
 
   return {
     voiceChannelId,
@@ -645,6 +664,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
     positionRefusals,
     isInOrJoiningVoice: () => !!voiceChannelIdRef.current || !!joiningVoiceRef.current,
     floor,
+    stagePins,
     selfMuted,
     selfDeafened,
     speakingPubkeys,

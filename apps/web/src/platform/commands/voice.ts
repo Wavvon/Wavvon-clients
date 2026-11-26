@@ -24,3 +24,18 @@ export async function listRaisedHands(channelId: string): Promise<string[]> {
   const res = await hubFetch(`/channels/${channelId}/raise-hands`);
   return ((await res.json()) as { pubkey: string }[]).map((h) => h.pubkey);
 }
+
+// The room's stage (`voice.pins`): the same for everyone in the room.
+export async function listVoicePins(channelId: string): Promise<string[]> {
+  const res = await hubFetch(`/channels/${channelId}/voice-pins`);
+  return (await res.json()) as string[];
+}
+
+export async function pinVoice(channelId: string, publicKey: string): Promise<void> {
+  await hubFetch(`/channels/${channelId}/voice-pins/${publicKey}`, { method: "POST" });
+}
+
+/** Anyone off the stage (moderation.mute), or yourself. */
+export async function unpinVoice(channelId: string, publicKey: string): Promise<void> {
+  await hubFetch(`/channels/${channelId}/voice-pins/${publicKey}`, { method: "DELETE" });
+}
