@@ -2397,7 +2397,7 @@
   "hub.admin.roles.perm.stickers.external": "Usar stickers de otros hubs",
   "hub.admin.roles.perm.stickers.moderate": "Moderar los stickers almacenados",
   "voice.live.label": "En directo en esta sala",
-  "voice.live.title": "Live · {count}",
+  "voice.live.title": "En directo {count}",
   "voice.live.open": "Abrir directo",
   "voice.live.close": "Cerrar directo",
   "voice.live.all": "Todos",
@@ -2673,5 +2673,16 @@
   "user_menu.help": "Ayuda",
   "user_menu.about": "Acerca de",
   "presence.dnd_hint": "Silencia las notificaciones",
-  "presence.invisible_hint": "Solo tú lo ves"
+  "presence.invisible_hint": "Solo tú lo ves",
+  "voice.stage.pin_short": "Fijar",
+  "voice.stage.pinned": "Fijado",
+  "voice.live.watch": "Ver",
+  "voice.live.stop_watching": "Cerrar",
+  "voice.live.search_n": "Buscar entre {count} directos",
+  "voice.live.note": "Ningún directo se abre solo.",
+  "voice.footer.ping": "{ms} ms",
+  "forum.list.search": "Buscar en los posts",
+  "forum.list.pinned_mark": "Fijado",
+  "forum.list.new_replies": "{count, plural, one {# nueva} other {# nuevas}}",
+  "forum.list.replies_word": "{count, plural, one {respuesta} other {respuestas}}"
 }

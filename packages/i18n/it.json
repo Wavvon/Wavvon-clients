@@ -2397,7 +2397,7 @@
   "hub.admin.roles.perm.stickers.external": "Usare sticker di altri hub",
   "hub.admin.roles.perm.stickers.moderate": "Moderare gli sticker archiviati",
   "voice.live.label": "Live in questa stanza",
-  "voice.live.title": "Live · {count}",
+  "voice.live.title": "Live {count}",
   "voice.live.open": "Apri la live",
   "voice.live.close": "Chiudi la live",
   "voice.live.all": "Tutte",
@@ -2673,5 +2673,16 @@
   "user_menu.help": "Aiuto",
   "user_menu.about": "Informazioni",
   "presence.dnd_hint": "Silenzia le notifiche",
-  "presence.invisible_hint": "Ti vedi solo tu"
+  "presence.invisible_hint": "Ti vedi solo tu",
+  "voice.stage.pin_short": "Fissa",
+  "voice.stage.pinned": "Fissato",
+  "voice.live.watch": "Guarda",
+  "voice.live.stop_watching": "Chiudi",
+  "voice.live.search_n": "Cerca tra {count} live",
+  "voice.live.note": "Nessuna live si apre da sola.",
+  "voice.footer.ping": "{ms} ms",
+  "forum.list.search": "Cerca nei post",
+  "forum.list.pinned_mark": "Fissato",
+  "forum.list.new_replies": "{count, plural, one {# nuova} other {# nuove}}",
+  "forum.list.replies_word": "{count, plural, one {risposta} other {risposte}}"
 }

@@ -2397,7 +2397,7 @@
   "hub.admin.roles.perm.stickers.external": "Sticker anderer Hubs verwenden",
   "hub.admin.roles.perm.stickers.moderate": "Gespeicherte Sticker moderieren",
   "voice.live.label": "Live in diesem Raum",
-  "voice.live.title": "Live · {count}",
+  "voice.live.title": "Live {count}",
   "voice.live.open": "Live öffnen",
   "voice.live.close": "Live schließen",
   "voice.live.all": "Alle",
@@ -2673,5 +2673,16 @@
   "user_menu.help": "Hilfe",
   "user_menu.about": "Über",
   "presence.dnd_hint": "Schaltet Benachrichtigungen stumm",
-  "presence.invisible_hint": "Nur du siehst es"
+  "presence.invisible_hint": "Nur du siehst es",
+  "voice.stage.pin_short": "Anheften",
+  "voice.stage.pinned": "Angeheftet",
+  "voice.live.watch": "Ansehen",
+  "voice.live.stop_watching": "Schließen",
+  "voice.live.search_n": "{count} Lives durchsuchen",
+  "voice.live.note": "Kein Live öffnet sich von selbst.",
+  "voice.footer.ping": "{ms} ms",
+  "forum.list.search": "Beiträge durchsuchen",
+  "forum.list.pinned_mark": "Angeheftet",
+  "forum.list.new_replies": "{count} neu",
+  "forum.list.replies_word": "{count, plural, one {Antwort} other {Antworten}}"
 }
