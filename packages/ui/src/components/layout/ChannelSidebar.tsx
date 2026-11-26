@@ -859,17 +859,29 @@ export function ChannelSidebar({
                 </button>
                 {voiceBarSlot && createPortal(
                   <div className="voice-media-bar" role="toolbar" aria-label={t("voice.bar.label")}>
-                    {/* On a phone the sidebar footer is in another panel, so the stage
-                        carries mute, deafen and hang-up too (CSS shows these only there). */}
-                    <button onClick={onToggleSelfMute} className={`btn-icon-gear voice-media-bar-narrow ${selfMuted ? "active" : ""}`} aria-pressed={selfMuted} aria-label={selfMuted ? t("voice.unmute") : t("voice.mute")} title={selfMuted ? t("voice.unmute.short") : t("voice.mute.short")}>
-                      {selfMuted ? <MicOffIcon /> : <MicOnIcon />}
-                    </button>
-                    <button onClick={onToggleSelfDeafen} className={`btn-icon-gear voice-media-bar-narrow ${selfDeafened ? "active" : ""}`} aria-pressed={selfDeafened} aria-label={selfDeafened ? t("voice.undeafen") : t("voice.deafen")} title={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}>
-                      <DeafenIcon muted={selfDeafened} />
-                    </button>
-                    <button onClick={onVoiceLeave} className="btn-icon-gear voice-call-btn end voice-media-bar-narrow" title={t("voice.leave")} aria-label={t("voice.leave")}>
-                      <PhoneOffIcon />
-                    </button>
+                    {/* The dock is the room's own controls: you (mic, sound, camera),
+                        what you put in the room, and leaving. Mic, sound and leave are
+                        also in the sidebar footer, which a phone keeps in another panel. */}
+                    <div className="voice-dock-group self">
+                      <button onClick={onToggleSelfMute} className={`btn-icon-gear${selfMuted ? " active" : ""}`} aria-pressed={selfMuted} aria-label={selfMuted ? t("voice.unmute") : t("voice.mute")} title={selfMuted ? t("voice.unmute.short") : t("voice.mute.short")}>
+                        {selfMuted ? <MicOffIcon /> : <MicOnIcon />}
+                      </button>
+                      <button onClick={onToggleSelfDeafen} className={`btn-icon-gear${selfDeafened ? " active" : ""}`} aria-pressed={selfDeafened} aria-label={selfDeafened ? t("voice.undeafen") : t("voice.deafen")} title={selfDeafened ? t("voice.undeafen") : t("voice.deafen")}>
+                        <DeafenIcon muted={selfDeafened} />
+                      </button>
+                      {onToggleVideo && (
+                        <button
+                          onClick={handleToggleVideo}
+                          className={`btn-icon-gear${videoEnabled ? " on" : ""}`}
+                          aria-pressed={videoEnabled}
+                          title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                          aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
+                        >
+                          {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
+                        </button>
+                      )}
+                    </div>
+                    <div className="voice-dock-group media">
                     {onScreenShare && (
                       <button
                         onClick={onScreenShare}
@@ -877,16 +889,6 @@ export function ChannelSidebar({
                         title={sharing ? t("voice.screen_share.stop") : t("voice.screen_share")}
                       >
                         <ScreenShareIcon />
-                      </button>
-                    )}
-                    {onToggleVideo && (
-                      <button
-                        onClick={handleToggleVideo}
-                        className={`btn-icon-gear ${videoEnabled ? "active" : ""}`}
-                        title={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                        aria-label={videoEnabled ? t("voice.camera.off") : t("voice.camera.on")}
-                      >
-                        {videoEnabled ? <CameraOnIcon /> : <CameraOffIcon />}
                       </button>
                     )}
                     {onToggleWhisperPanel && (
@@ -936,6 +938,10 @@ export function ChannelSidebar({
                         disabledReason={selfDeafened ? t("voice.soundboard_deafened") : null}
                       />
                     )}
+                    </div>
+                    <button onClick={onVoiceLeave} className="voice-dock-leave" title={t("voice.leave")} aria-label={t("voice.leave")}>
+                      <PhoneOffIcon />
+                    </button>
                   </div>,
                   voiceBarSlot,
                 )}

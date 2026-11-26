@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatPubkey } from "@wavvon/core";
+import { encryptBackup, formatPubkey, suggestBackupFilename } from "@wavvon/core";
 import {
   listAccountsOrdered,
   getActiveAccountId,
@@ -15,9 +15,9 @@ import {
   type IdentityRecord,
 } from "@identity/index";
 import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
-import { reorderByDrop, moveByStep } from "@identity/accountOrder";
+import { downloadFile } from "../../utils/downloadFile";
 import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
-import { EditIcon } from "@wavvon/ui";
+import { AccountList, ExportIdentityModal, IdentityModal } from "@wavvon/ui";
 
 // Short, typeable identifier for the "type to confirm" removal guard — the
 // formatted fingerprint (formatPubkey) contains an ellipsis and dashes that
@@ -43,8 +43,6 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<IdentityRecord[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameDraft, setRenameDraft] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeConfirmText, setRemoveConfirmText] = useState("");
   // An identity that never left this device: its phrase shown inline, or the
@@ -54,16 +52,13 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
   const [pendingRemoval, setPendingRemoval] = useState<IdentityRecord | null>(null);
   const pendingRef = useRef<{ id: string; wasActive: boolean; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   // No countdown UI — this just re-renders often enough that the Switch
   // buttons re-enable themselves once the cooldown (switchCooldownRemainingMs)
   // actually expires, without polling a fixed timeout tied to the cooldown
   // constant itself.
   const [, forceCooldownTick] = useState(0);
-  const handleRefs = useRef(new Map<string, HTMLTableRowElement>());
 
   function refresh() {
     listAccountsOrdered().then(setAccounts);
@@ -93,19 +88,16 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
     }
   }
 
-  function startRename(account: IdentityRecord) {
-    setRenamingId(account.id);
-    setRenameDraft(account.account_label ?? "");
+  // One account, encrypted in the browser and downloaded as a .wavvon-backup.
+  async function exportBackup(account: IdentityRecord, passphrase: string) {
+    const label = account.account_label || formatPubkey(account.id);
+    const envelope = await encryptBackup({ label, secret_key_hex: account.seed_hex }, passphrase);
+    downloadFile(JSON.stringify(envelope), suggestBackupFilename(label));
+    markIdentityBackedUp(account.id);
+    onBackedUp?.();
   }
 
-  async function commitRename(account: IdentityRecord) {
-    const label = renameDraft.trim().slice(0, 48);
-    setRenamingId(null);
-    // Labels are mandatory going forward — clearing the field reverts to the
-    // previous label instead of wiping it. Accounts created before this rule
-    // existed can still be unlabeled and just keep showing their fingerprint.
-    if (!label) return;
-    if (label === (account.account_label ?? "")) return;
+  async function renameTo(account: IdentityRecord, label: string) {
     await saveIdentity({ ...account, account_label: label });
     refresh();
   }
@@ -121,16 +113,6 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
     setRemovePhrase(seedToPhrase(account.seed_hex));
     markIdentityBackedUp(account.id);
     onBackedUp?.();
-  }
-
-  // Same value the old standalone "Your public key" section copied: the
-  // canonical identity the hub attributes actions to, falling back to the
-  // account's own pubkey for devices that were never paired.
-  function copyKey(account: IdentityRecord) {
-    const key = account.canonical_pubkey ?? account.id;
-    navigator.clipboard.writeText(key).catch(() => {});
-    setCopiedKeyId(account.id);
-    setTimeout(() => setCopiedKeyId(null), 2000);
   }
 
   // The delete is written only once the undo window closes, so an undo just
@@ -177,43 +159,8 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
     await setAccountOrder(newIds);
   }
 
-  function handleDrop(targetId: string) {
-    const sourceId = dragId;
-    setDragId(null);
-    setDragOverId(null);
-    if (!sourceId || !accounts) return;
-    void persistOrder(reorderByDrop(accounts.map((a) => a.id), sourceId, targetId));
-  }
-
-  function handleHandleKeyDown(e: React.KeyboardEvent, id: string) {
-    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    // Only reorder when the row itself is focused — arrows inside the rename
-    // input (cursor movement) or on buttons must behave normally.
-    if (e.target !== e.currentTarget) return;
-    e.preventDefault();
-    if (!accounts) return;
-    const direction = e.key === "ArrowUp" ? -1 : 1;
-    const newIds = moveByStep(accounts.map((a) => a.id), id, direction);
-    void persistOrder(newIds).then(() => handleRefs.current.get(id)?.focus());
-  }
-
-  if (showAdd) {
-    return (
-      <div className="settings-section">
-        <IdentitySetupScreen
-          variant="add"
-          onCancel={() => setShowAdd(false)}
-          onComplete={() => {
-            // Adding an account no longer switches to it automatically — it
-            // just lands in the list below, unswitched, until the user picks
-            // Switch on its row.
-            setShowAdd(false);
-            refresh();
-          }}
-        />
-      </div>
-    );
-  }
+  const removingAccount = accounts?.find((a) => a.id === removingId) ?? null;
+  const exportingAccount = accounts?.find((a) => a.id === exportingId) ?? null;
 
   return (
     <div className="settings-section">
@@ -234,198 +181,103 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
         </div>
       )}
 
-      <table className="members-table" style={{ marginTop: 4 }}>
-        <thead>
-          <tr>
-            <th className="account-order-col">{t("settings.account.accounts.col_order")}</th>
-            <th>{t("settings.account.accounts.col_label")}</th>
-            <th>{t("settings.account.accounts.col_key")}</th>
-            <th>{t("settings.account.accounts.col_actions")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(accounts ?? []).filter((a) => a.id !== pendingRemoval?.id).map((account, index) => {
-            const isActive = account.id === activeId;
-            const fp = shortFingerprint(account.id);
-            const isRemoving = removingId === account.id;
-            const unsaved = isRemoving && identityNeedsBackup(account);
-            const paired = !holdsMasterSeed(account);
-            const label = account.account_label || formatPubkey(account.id);
-            return (
-              <Fragment key={account.id}>
-                <tr
-                  className={[
-                    "account-row-draggable",
-                    dragId === account.id ? "account-row-dragging" : "",
-                    dragOverId === account.id && dragId && dragId !== account.id ? "account-drop-target" : "",
-                  ].filter(Boolean).join(" ")}
-                  ref={(el) => {
-                    if (el) handleRefs.current.set(account.id, el);
-                    else handleRefs.current.delete(account.id);
-                  }}
-                  // The whole row drags — except while renaming, where a drag
-                  // would fight text selection inside the input.
-                  draggable={renamingId !== account.id}
-                  tabIndex={0}
-                  onDragStart={() => setDragId(account.id)}
-                  onDragEnd={() => {
-                    setDragId(null);
-                    setDragOverId(null);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (dragOverId !== account.id) setDragOverId(account.id);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    handleDrop(account.id);
-                  }}
-                  onKeyDown={(e) => handleHandleKeyDown(e, account.id)}
-                  aria-label={t("settings.account.accounts.reorder_handle", { label })}
-                  title={t("settings.account.accounts.reorder_hint")}
-                >
-                  <td className="account-order-cell">
-                    <span className="account-order-number">{index + 1}</span>
-                  </td>
-                  <td>
-                    {renamingId === account.id ? (
-                      <input
-                        type="text"
-                        autoFocus
-                        value={renameDraft}
-                        placeholder={t("settings.account.accounts.rename_placeholder")}
-                        onChange={(e) => setRenameDraft(e.target.value)}
-                        onBlur={() => void commitRename(account)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") void commitRename(account);
-                          if (e.key === "Escape") setRenamingId(null);
-                        }}
-                        style={{ fontSize: "var(--text-sm)" }}
-                      />
-                    ) : (
-                      <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                        <span style={{ fontWeight: isActive ? 600 : 400 }} title={account.id}>
-                          {account.account_label || formatPubkey(account.id)}
-                        </span>
-                        <button
-                          type="button"
-                          className="btn-ghost account-hover-icon"
-                          onClick={() => startRename(account)}
-                          title={t("settings.account.accounts.rename_button")}
-                          aria-label={t("settings.account.accounts.rename_button")}
-                          style={{ padding: "2px 4px", fontSize: "var(--text-sm)", lineHeight: 1 }}
-                        >
-                          <EditIcon size={13} />
-                        </button>
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <code
-                      className="account-key-copy"
-                      role="button"
-                      tabIndex={0}
-                      title={t("settings.account.accounts.key_click_to_copy")}
-                      onClick={() => copyKey(account)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          copyKey(account);
-                        }
-                      }}
-                    >
-                      {account.canonical_pubkey ?? account.id}
-                      {copiedKeyId === account.id ? (
-                        <span className="account-key-copied">✓ {t("settings.account.pubkey.copied")}</span>
-                      ) : (
-                        <span className="account-hover-icon" aria-hidden="true">⧉</span>
-                      )}
-                    </code>
-                  </td>
-                  <td>
-                    {!isRemoving && (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button
-                          type="button"
-                          className="btn-small btn-secondary"
-                          disabled={isActive || inVoice || cooldownActive}
-                          title={
-                            isActive
-                              ? t("settings.account.accounts.active_hint")
-                              : inVoice
-                                ? t("settings.account.accounts.switch_blocked_voice")
-                                : undefined
-                          }
-                          onClick={() => handleSwitchClick(account.id)}
-                        >
-                          {isActive ? t("settings.account.accounts.active_button") : t("settings.account.accounts.switch")}
-                        </button>
-                        <button type="button" className="btn-small btn-secondary" onClick={() => startRemove(account.id)}>
-                          {t("settings.account.accounts.remove")}
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-                {isRemoving && (
-                  <tr>
-                    <td colSpan={4}>
-                      {removePhrase ? (
-                        <>
-                          <p className="muted" style={{ margin: 0 }}>{t("settings.account.accounts.remove_phrase_hint")}</p>
-                          <code style={{ display: "block", margin: "6px 0", userSelect: "all" }}>{removePhrase}</code>
-                        </>
-                      ) : unsaved ? (
-                        <p className="error-text" style={{ margin: 0 }}>{t("settings.account.accounts.remove_unsaved_warning")}</p>
-                      ) : (
-                        <p className="muted" style={{ margin: 0 }}>
-                          {t(paired ? "settings.account.accounts.remove_paired_hint" : "settings.account.accounts.remove_backed_up_hint")}{" "}
-                          {t("settings.account.accounts.remove_type_fingerprint")}
-                        </p>
-                      )}
-                      {unsaved && !removePhrase && !removeAnyway ? (
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
-                          <button type="button" className="btn-small" onClick={() => showPhraseBeforeRemoval(account)}>
-                            {t("settings.account.accounts.remove_show_phrase")}
-                          </button>
-                          <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
-                            {t("settings.account.accounts.remove_cancel")}
-                          </button>
-                          <button type="button" className="btn-small btn-danger" onClick={() => setRemoveAnyway(true)}>
-                            {t("settings.account.accounts.remove_anyway")}
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
-                          <input
-                            type="text"
-                            value={removeConfirmText}
-                            onChange={(e) => setRemoveConfirmText(e.target.value)}
-                            placeholder={t("settings.account.accounts.remove_confirm_placeholder", { fingerprint: fp })}
-                            style={{ fontFamily: "monospace" }}
-                          />
-                          <button
-                            type="button"
-                            className="btn-small btn-secondary"
-                            disabled={removeConfirmText.trim().toLowerCase() !== fp}
-                            onClick={() => confirmRemove(account)}
-                          >
-                            {t("settings.account.accounts.remove_confirm_button")}
-                          </button>
-                          <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
-                            {t("settings.account.accounts.remove_cancel")}
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+      <AccountList
+        accounts={(accounts ?? []).filter((a) => a.id !== pendingRemoval?.id).map((a) => ({
+          id: a.id,
+          label: a.account_label || null,
+          publicKey: a.canonical_pubkey ?? a.id,
+          active: a.id === activeId,
+          exportable: holdsMasterSeed(a),
+        }))}
+        switchBlockedReason={inVoice ? t("settings.account.accounts.switch_blocked_voice") : cooldownActive ? t("settings.account.accounts.switch_cooldown") : null}
+        onSwitch={handleSwitchClick}
+        onExport={setExportingId}
+        onRename={(id, label) => { const acc = accounts?.find((x) => x.id === id); if (acc) void renameTo(acc, label); }}
+        onRemove={startRemove}
+        onReorder={(ids) => void persistOrder(ids)}
+      />
+      {removingAccount && (() => {
+        const account = removingAccount;
+        const fp = shortFingerprint(account.id);
+        const unsaved = identityNeedsBackup(account);
+        const paired = !holdsMasterSeed(account);
+        return (
+          <div className="account-remove-panel" role="group" aria-label={t("settings.account.accounts.remove_title", { label: account.account_label || formatPubkey(account.id) })}>
+            <strong>{t("settings.account.accounts.remove_title", { label: account.account_label || formatPubkey(account.id) })}</strong>
 
+              {removePhrase ? (
+                <>
+                  <p className="muted" style={{ margin: 0 }}>{t("settings.account.accounts.remove_phrase_hint")}</p>
+                  <code style={{ display: "block", margin: "6px 0", userSelect: "all" }}>{removePhrase}</code>
+                </>
+              ) : unsaved ? (
+                <p className="error-text" style={{ margin: 0 }}>{t("settings.account.accounts.remove_unsaved_warning")}</p>
+              ) : (
+                <p className="muted" style={{ margin: 0 }}>
+                  {t(paired ? "settings.account.accounts.remove_paired_hint" : "settings.account.accounts.remove_backed_up_hint")}{" "}
+                  {t("settings.account.accounts.remove_type_fingerprint")}
+                </p>
+              )}
+              {unsaved && !removePhrase && !removeAnyway ? (
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+                  <button type="button" className="btn-small" onClick={() => showPhraseBeforeRemoval(account)}>
+                    {t("settings.account.accounts.remove_show_phrase")}
+                  </button>
+                  <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
+                    {t("settings.account.accounts.remove_cancel")}
+                  </button>
+                  <button type="button" className="btn-small btn-danger" onClick={() => setRemoveAnyway(true)}>
+                    {t("settings.account.accounts.remove_anyway")}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+                  <input
+                    type="text"
+                    value={removeConfirmText}
+                    onChange={(e) => setRemoveConfirmText(e.target.value)}
+                    placeholder={t("settings.account.accounts.remove_confirm_placeholder", { fingerprint: fp })}
+                    style={{ fontFamily: "monospace" }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-small btn-secondary"
+                    disabled={removeConfirmText.trim().toLowerCase() !== fp}
+                    onClick={() => confirmRemove(account)}
+                  >
+                    {t("settings.account.accounts.remove_confirm_button")}
+                  </button>
+                  <button type="button" className="btn-small btn-secondary" onClick={() => setRemovingId(null)}>
+                    {t("settings.account.accounts.remove_cancel")}
+                  </button>
+                </div>
+              )}
+          </div>
+        );
+      })()}
+
+      {exportingAccount && (
+        <ExportIdentityModal
+          label={exportingAccount.account_label || formatPubkey(exportingAccount.id)}
+          onClose={() => setExportingId(null)}
+          onExport={(passphrase) => exportBackup(exportingAccount, passphrase)}
+        />
+      )}
+      {showAdd && (
+        <IdentityModal label={t("identity_setup.add.title")} onClose={() => setShowAdd(false)}>
+          <IdentitySetupScreen
+            variant="add"
+            onCancel={() => setShowAdd(false)}
+            onComplete={() => {
+              // Adding an account no longer switches to it automatically — it
+              // just lands in the list below, unswitched, until the user picks
+              // Switch on its row.
+              setShowAdd(false);
+              refresh();
+            }}
+          />
+          </IdentityModal>
+      )}
       <div className="settings-row" style={{ marginTop: 8 }}>
         <button type="button" className="btn-secondary" onClick={() => setShowAdd(true)}>
           {t("settings.account.accounts.add")}

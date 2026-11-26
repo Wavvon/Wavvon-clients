@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import i18n from "@wavvon/i18n";
-import { listAccounts, switchAccountGuarded, SWITCH_BLOCKED_COOLDOWN } from "../accounts/store";
+import { listAccounts } from "../accounts/store";
 import { markIdentityBackedUp } from "../utils/identityBackup";
 import { deviceThemeStore, useThemes } from "@wavvon/ui";
 import type { SettingsTab } from "../components/SettingsPage";
@@ -52,22 +52,6 @@ export function useSettingsProfile({ setError, setToast }: UseSettingsProfilePar
     }
   }
 
-  async function handleRecoverIdentity(phrase: string) {
-    try {
-      // Brings the identity on as its own account (or finds it) and switches
-      // to it in place; the active account is never overwritten.
-      const id = await invoke<string>("recover_identity_from_phrase", { phrase });
-      setRecoveryPhrase(null);
-      const refused = await switchAccountGuarded(id);
-      if (refused) {
-        throw new Error(refused === SWITCH_BLOCKED_COOLDOWN ? i18n.t("settings.account.accounts.switch_cooldown") : refused);
-      }
-    } catch (e) {
-      setError(String(e));
-      throw e;
-    }
-  }
-
   async function copyPublicKey(publicKey: string | null) {
     if (!publicKey) return;
     try {
@@ -90,7 +74,6 @@ export function useSettingsProfile({ setError, setToast }: UseSettingsProfilePar
     copiedKey,
     handleShowRecovery,
     handleClearLocalData,
-    handleRecoverIdentity,
     copyPublicKey,
   };
 }

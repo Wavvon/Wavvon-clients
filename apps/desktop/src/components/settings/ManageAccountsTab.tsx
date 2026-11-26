@@ -1,27 +1,22 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
 import {
   FullArchiveSection,
   IdentityBackupSection,
   RecoveryContactsSection,
   SettingRow,
-  type IdentityBackupSectionActions,
   type RecoveryContactsSectionActions,
   type RecoveryContactItem,
   type RecoveryRequestBundle,
 } from "@wavvon/ui";
-import { suggestBackupFilename } from "@wavvon/core";
 import type { AccountSummary } from "../../accounts/store";
 import { buildRecoveryActions } from "../../utils/recoveryActions";
 import { buildFullArchiveActions } from "../../utils/fullArchiveActions";
-import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
+import { identityNeedsBackup } from "../../utils/identityBackup";
 import { AccountSwitcherSection } from "../AccountSwitcherSection";
 import { HomeHubSection } from "../HomeHubSection";
 import { FindableDirectorySection } from "../FindableDirectorySection";
 import { DISCOVERY_URL } from "../../constants";
-import { RestoreIdentitySection } from "../RestoreIdentitySection";
 import type { Hub } from "../../types";
 
 interface Props {
@@ -31,7 +26,6 @@ interface Props {
   accounts: AccountSummary[];
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
-  onRecoverIdentity: (phrase: string) => Promise<void>;
   onClearLocalData: () => void;
   onBackedUp: () => void;
 }
@@ -42,67 +36,27 @@ interface RecoveryContactsResponse {
   threshold: number;
 }
 
-interface ImportedAccount {
-  id: string;
-  is_new: boolean;
-}
-
 // Everything about getting accounts on/off this device: the switcher table,
 // recovery phrase + identity backup and full archive (shared components, going
 // through Rust commands so the secret key never enters the renderer), recovery
 // contacts, and the home-hub list.
-export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onRecoverIdentity, onClearLocalData, onBackedUp }: Props) {
+export function ManageAccountsTab({ hubs, activeHubUrl, isAdmin, accounts, recoveryPhrase, onShowRecovery, onClearLocalData, onBackedUp }: Props) {
   const { t } = useTranslation();
 
   const recoveryActions = buildRecoveryActions(activeHubUrl);
   const activeHubId = hubs.find((h) => h.is_active)?.hub_id ?? null;
-
-  const backupAccounts = accounts
-    .filter((a) => a.kind === "owned")
-    .map((a) => ({ id: a.id, label: a.label || a.id }));
-
-  const backupActions: IdentityBackupSectionActions = {
-    async exportToPath(accountId, passphrase) {
-      // Rust opens the save dialog itself: the renderer never picks where a
-      // seed-bearing file is written.
-      await invoke("export_account_backup", {
-        id: accountId,
-        passphrase,
-        suggestedName: suggestBackupFilename(backupAccounts.find((a) => a.id === accountId)?.label ?? accountId),
-        filterName: t("settings.account.identity_backup.file_filter"),
-      });
-    },
-    async pickImportPath() {
-      const path = await open({
-        multiple: false,
-        filters: [{ name: t("settings.account.identity_backup.file_filter"), extensions: ["wavvon-backup"] }],
-      });
-      return typeof path === "string" ? path : null;
-    },
-    async importFromPath(path, passphrase) {
-      const result = await invoke<ImportedAccount>("import_account_backup", { path, passphrase });
-      return { isNew: result.is_new };
-    },
-  };
 
   const [localDataOpen, setLocalDataOpen] = useState(false);
 
   return (
     <section>
       <h1>{t("settings.tabs.accounts")}</h1>
-      <AccountSwitcherSection />
+      <AccountSwitcherSection onBackedUp={onBackedUp} />
       <IdentityBackupSection
-        accounts={backupAccounts}
         recoveryPhrase={recoveryPhrase}
         onRevealPhrase={onShowRecovery}
-        actions={backupActions}
         needsBackup={identityNeedsBackup(accounts.find((a) => a.is_active))}
-        onSavedOffDevice={(id) => {
-          markIdentityBackedUp(id);
-          onBackedUp();
-        }}
       />
-      <RestoreIdentitySection onRestore={onRecoverIdentity} />
       {activeHubUrl && <RecoveryContactsSection isAdmin={isAdmin} actions={recoveryActions} />}
       <FullArchiveSection
         canExport={!!activeHubUrl}

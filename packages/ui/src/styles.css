@@ -1833,88 +1833,7 @@ body:has(.channel-banner) #root {
   font-size: var(--text-xs);
   color: var(--text-faint);
   margin-top: 2px;
-}/* Account switcher's "#" / drag-handle column */
-.account-order-col {
-  width: 1%;
-  white-space: nowrap;
-}
-
-.account-order-cell {
-  /* Plain table-cell — display:flex on a <td> opts it out of table layout
-     and misaligns it against sibling cells. */
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.account-order-number {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  min-width: 1.2em;
-  text-align: right;
-}
-
-/* Whole-row dragging: the row is the drag target (except while renaming). */
-tr.account-row-draggable {
-  cursor: grab;
-}
-
-tr.account-row-draggable:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-tr.account-row-dragging {
-  cursor: grabbing;
-  opacity: 0.4;
-}
-
-/* Full public key shown in the account table; the text itself copies. */
-.account-key-copy {
-  font-family: monospace;
-  font-size: var(--text-xs);
-  word-break: break-all;
-  cursor: copy;
-  border-radius: var(--r-sm);
-  padding: 1px 3px;
-}
-
-.account-key-copy:hover,
-.account-key-copy:focus-visible {
-  background: var(--surface);
-  outline: none;
-}
-
-.account-key-copied {
-  color: var(--success, var(--accent));
-  margin-left: 6px;
-  white-space: nowrap;
-}
-
-/* Hover-revealed affordances in the account table: the copy glyph on the
-   key and the rename pencil on the label appear on cell hover (or keyboard
-   focus) instead of cluttering the resting state. */
-.account-hover-icon {
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  margin-left: 4px;
-}
-
-/* The copy glyph needs more breathing room from the dense hex key. */
-.account-key-copy .account-hover-icon {
-  margin-left: 10px;
-}
-
-td:hover .account-hover-icon,
-.account-key-copy:focus-visible .account-hover-icon,
-.account-hover-icon:focus-visible {
-  opacity: 1;
-}
-
-tr.account-drop-target td {
-  box-shadow: inset 0 2px 0 0 var(--accent);
-}
-
-.pending-section {
+}.pending-section {
   background: var(--bg-elevated);
   border: 1px solid var(--warning);
   border-radius: var(--r-md);
@@ -2920,35 +2839,29 @@ tr.account-drop-target td {
   margin: 0 auto;
   z-index: 5;
   display: flex;
-  padding: 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 95%, transparent);
-  box-shadow: var(--shadow-md);
-}
-.voice-room-controls.voice-dock:empty {
-  display: none;
-}
-.voice-dock .voice-media-bar {
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
 }
 .voice-dock .btn-icon-gear {
-  width: 44px;
+  width: 52px;
   height: 44px;
-  border-radius: 50%;
-  background: var(--surface-hover);
+  border-radius: 9px;
+  background: transparent;
   color: var(--text);
 }
 .voice-dock .btn-icon-gear:hover {
-  background: color-mix(in srgb, var(--surface-hover) 70%, var(--text-faint));
+  background: var(--surface-hover);
+}
+.voice-dock .btn-icon-gear.on {
+  background: var(--surface-hover);
 }
 .voice-dock .btn-icon-gear.active {
   background: var(--danger);
-  color: var(--accent-text);
+  color: #fff;
 }
 .voice-dock .btn-icon-gear svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 /* A participant's own mute or deafen, in the tile's corner. */
 .voice-tile-state {
@@ -3105,11 +3018,42 @@ tr.account-drop-target td {
   width: fit-content;
   margin: 0 auto;
 }
-.voice-media-bar .voice-media-bar-narrow { display: none; }
-
-.voice-media-bar {
+/* The dock's groups are its direct flex items: the slot the sidebar fills and
+   its toolbar step aside so "you", media, the room's extras and leave line up
+   as siblings, each group its own pill, leave last and red. */
+.voice-dock-slot,
+.voice-dock .voice-media-bar {
+  display: contents;
+}
+.voice-dock-group {
   display: flex;
-  gap: var(--space-1);
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.voice-dock-group.self { order: 1; }
+.voice-dock-group.media { order: 2; }
+.voice-dock-group.extra { order: 3; }
+.voice-dock-leave {
+  order: 4;
+  width: 64px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 70%, #000);
+  color: #fff;
+  cursor: pointer;
+}
+.voice-dock-leave:hover {
+  background: var(--danger);
+}
+.voice-dock-leave svg {
+  width: 20px;
+  height: 20px;
 }
 .voice-stage-area {
   flex: 1;
@@ -3246,6 +3190,37 @@ tr.account-drop-target td {
 /* A camera fills its tile; the name rides on it as a chip. */
 .voice-tile.has-camera {
   padding: 0;
+}
+/* Your own share sits among the tiles: the picture fills it, the stop
+   button and the name ride on it. */
+.voice-tiles > .voice-self-share {
+  padding: 0;
+  background: #000;
+}
+.voice-tiles > .voice-self-share > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+  object-fit: contain;
+}
+.voice-tiles > .voice-self-share > .voice-tile-name {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: rgba(13, 15, 20, 0.88);
+  color: var(--text);
+}
+.voice-tiles > .voice-self-share > .voice-tile-actions {
+  opacity: 1;
+}
+.voice-tiles.size-strip > .voice-self-share {
+  width: 72px;
 }
 .voice-tile.has-camera > .voice-tile-camera {
   position: absolute;
@@ -3397,8 +3372,63 @@ tr.account-drop-target td {
   display: flex;
   gap: var(--space-1);
 }
+/* The way into a room with people in it: one button where the dock goes. */
 .voice-room-join {
-  gap: var(--space-2);
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin: 0 auto;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 12px;
+}
+.voice-room-join.floor {
+  bottom: 92px;
+  background: var(--surface);
+}
+.voice-room-join-btn {
+  height: 44px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 15px;
+  font-weight: var(--weight-semi);
+  cursor: pointer;
+}
+.voice-room-join-btn:hover {
+  background: #fff;
+}
+.voice-room-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.voice-room-empty h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 30px;
+  font-weight: var(--weight-semi);
+}
+.voice-room-empty h2 svg {
+  color: var(--text-muted);
+}
+.voice-room-empty p {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 15px;
 }
 .screen-share-tile-actions {
   position: absolute;
@@ -3920,13 +3950,6 @@ select:focus-visible {
   outline: none;
 }
 
-.recovery-input-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: var(--space-2);
-  gap: var(--space-3);
-}
 
 .public-key {
   background: var(--bg-sunken);
@@ -7615,6 +7638,121 @@ select:focus-visible {
   cursor: default;
 }
 
+/* Accounts on this device: one row per identity, name and key on the left,
+   what you can do with it on the right. */
+.account-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.account-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: grab;
+}
+.account-list-row.active {
+  border-color: var(--accent-dim);
+}
+.account-list-row.dragging {
+  opacity: 0.5;
+}
+.account-list-row.drop-target {
+  border-color: var(--accent);
+}
+.account-list-row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.account-list-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.account-list-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: var(--weight-semi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-list-active {
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: var(--weight-semi);
+}
+.account-list-key {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  cursor: copy;
+}
+.account-list-key:hover {
+  color: var(--text);
+}
+.account-list-who input {
+  width: 100%;
+  max-width: 280px;
+  font-size: 14px;
+}
+.account-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.account-list-switch {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: var(--weight-semi);
+  cursor: pointer;
+}
+.account-list-switch:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.account-list-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.account-list-actions .btn-icon.danger:hover:not(:disabled) {
+  color: var(--danger);
+}
+.account-remove-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  background: var(--danger-bg);
+}
+
+
 .screen-share-macos-notice {
   font-size: var(--text-xs);
   color: var(--text-muted);
@@ -9380,6 +9518,60 @@ a.embed-title:hover {
    ============================================================ */
 /* A fixed height, not min-height: the body does not scroll, so a screen
    taller than the viewport has to scroll inside its own box. */
+/* Adding an identity opens over Settings in a window of its own; the
+   onboarding's side panel (what Wavvon is) is for a first visit, not here. */
+.identity-modal-overlay {
+  z-index: 9500;
+}
+.identity-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+}
+.export-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+}
+.export-identity h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.export-identity p {
+  margin: 0;
+}
+.export-identity input {
+  width: 100%;
+}
+.export-identity-warning {
+  color: var(--warning);
+  font-size: var(--text-xs);
+}
+.export-identity-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+.identity-modal .onboarding {
+  height: auto;
+  padding: 0;
+}
+.identity-modal .onboarding--split {
+  grid-template-columns: minmax(0, 1fr);
+}
+.identity-modal .onboarding-side {
+  display: none;
+}
+.identity-modal .onboarding--split > .onboarding-card {
+  padding: 28px;
+}
+
 .onboarding {
   height: 100%;
   display: grid;
@@ -10119,7 +10311,7 @@ details.audit-entry > .audit-entry:last-child {
   .mobile-shell-mobile { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow: hidden; }
   .mobile-shell-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
   .mobile-shell-panel[hidden] { display: none; }
-  .voice-media-bar .voice-media-bar-narrow { display: inline-flex; }
+
   /* In a panel the top bar is a header; its desktop flex-basis of 100% made
      it fill the whole column with its buttons floating in the middle. */
   .mobile-shell-panel .top-bar { flex: 0 0 auto; }
@@ -10242,9 +10434,6 @@ details.audit-entry > .audit-entry:last-child {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-.voice-room-map-off {
-  margin-top: var(--space-3);
-}
 
 .themed-icon {
   display: inline-block;

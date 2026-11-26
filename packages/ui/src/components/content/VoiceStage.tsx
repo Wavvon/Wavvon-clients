@@ -58,17 +58,6 @@ export interface VoiceStageInfo {
   soundboardChips?: SoundboardChip[];
 }
 
-// Pins are the member's own, on this device, for every room.
-const PINS_KEY = "wavvon:voice-pins";
-function loadPins(): string[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(PINS_KEY) ?? "[]") as unknown;
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
 const MIN_STAGE = 120;
 /** Up to this many people, every camera opens by itself. */
 export const SMALL_ROOM = 12;
@@ -92,19 +81,22 @@ function CameraVideo({ stream, mirrored }: { stream: MediaStream; mirrored: bool
   return <video ref={ref} className={`voice-tile-camera${mirrored ? " mirrored" : ""}`} autoPlay muted playsInline />;
 }
 
-function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: MediaStream; onStop: () => void; label: string; stopLabel: string; sent: string }) {
+function SelfShareTile({ stream, onStop, label, stopLabel, sent, fullscreenLabel }: { stream: MediaStream; onStop: () => void; label: string; stopLabel: string; sent: string; fullscreenLabel: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream;
   }, [stream]);
   return (
-    <div className="voice-tile voice-tile--stream voice-self-share">
+    <li className="voice-tile voice-tile--stream voice-self-share">
       <video ref={ref} autoPlay muted playsInline />
       <span className="voice-tile-name"><span className="live-badge">LIVE</span> {label} · {sent}</span>
       <div className="voice-tile-actions">
+        <button type="button" className="btn-icon" title={fullscreenLabel} aria-label={fullscreenLabel} onClick={() => { void ref.current?.requestFullscreen?.(); }}>
+          <FullscreenIcon size={13} />
+        </button>
         <button type="button" className="btn-small" onClick={onStop}>{stopLabel}</button>
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -129,7 +121,10 @@ export function VoiceStage({
   liveShareCount?: number;
 }) {
   const { t } = useTranslation();
-  const [pins, setPins] = useState<string[]>(loadPins);
+  // Pins last one voice session: leaving the room or moving to another one
+  // clears them, so nobody is still pinned the next time you walk in.
+  const [pins, setPins] = useState<string[]>([]);
+  useEffect(() => { setPins([]); }, [inThisRoom, roomName]);
   const [big, setBig] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
@@ -169,7 +164,6 @@ export function VoiceStage({
   function togglePin(pk: string) {
     const next = pins.includes(pk) ? pins.filter((p) => p !== pk) : [...pins, pk];
     setPins(next);
-    try { localStorage.setItem(PINS_KEY, JSON.stringify(next)); } catch { /* not remembered */ }
   }
 
   const myHandUp = !!floor && !!publicKey && floor.hands.includes(publicKey);
@@ -190,11 +184,28 @@ export function VoiceStage({
     if (from < 0 || to < 0) return;
     const next = arrayMove(pins, from, to);
     setPins(next);
-    try { localStorage.setItem(PINS_KEY, JSON.stringify(next)); } catch { /* not remembered */ }
   }
   const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
   const opened = !!live && live.opened.size > 0;
-  const liveOnStage = opened || !!selfShare;
+  // Your own share is a tile beside yours, not the stage: you know what you
+  // are sharing, and on the stage it only mirrors itself.
+  const liveOnStage = opened;
+  // Stage and audience exist only once someone is pinned: the stage is who
+  // you pinned, the audience everyone else.
+  const showLabels = onStage.length > 0;
+  // Your share travels with your tile: beside it in the room, on the stage
+  // when you are pinned.
+  const myPinned = !!publicKey && pins.includes(publicKey);
+  const myShare = selfShare ? (
+    <SelfShareTile
+      stream={selfShare.stream}
+      onStop={selfShare.onStop}
+      label={t("voice.stage.you_share")}
+      stopLabel={t("voice.screen_share.stop")}
+      sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
+      fullscreenLabel={t("voice.stage.share_fullscreen")}
+    />
+  ) : null;
   const hasStage = onStage.length > 0 || liveOnStage;
   const q = query.trim().toLowerCase();
   const shown = q
@@ -317,17 +328,8 @@ export function VoiceStage({
           </span>
         )}
         {connectionStatus}
-        {live && <LiveTray {...live} />}
-        {inThisRoom && (
-          <PopOutRoom
-            people={onStage.length > 0 ? onStage : participants}
-            cameras={cameras}
-            avatars={avatars}
-            publicKey={publicKey}
-            livesKey={[...(live?.opened ?? [])].join(",")}
-            free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
-          />
-        )}
+        {/* Your own share is not something to open: it is already a tile. */}
+        {live && <LiveTray {...live} streams={live.streams.filter((st) => st.sharer_pubkey !== publicKey)} />}
         {onOpenHubStreams && (
           <button
             type="button"
@@ -348,44 +350,32 @@ export function VoiceStage({
 
       {hasStage && (
         <>
-          <div className="voice-stage-head">
-            <span className="voice-section-label">
-              <PinIcon size={13} />
-              {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) + (selfShare ? 1 : 0) })}
-            </span>
-            <button type="button" className="btn-small btn-secondary" aria-pressed={freeLayout.mode === "free"} onClick={() => setFreeLayout({ ...freeLayout, mode: freeLayout.mode === "free" ? "grid" : "free" })}>
-              {t(freeLayout.mode === "free" ? "voice.stage.layout_grid" : "voice.stage.layout_free")}
-            </button>
-            {freeLayout.mode === "free" && (
-              <button type="button" className="btn-small btn-secondary" onClick={() => setFreeLayout({ ...freeLayout, top: freeLayout.top === "people" ? "lives" : "people" })}>
-                {t(freeLayout.top === "people" ? "voice.stage.top_lives" : "voice.stage.top_people")}
-              </button>
-            )}
-          </div>
+          {(showLabels || freeLayout.mode === "free") && (
+            <div className="voice-stage-head">
+              {showLabels && (
+                <span className="voice-section-label">
+                  <PinIcon size={13} />
+                  {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) })}
+                </span>
+              )}
+              {freeLayout.mode === "free" && (
+                <button type="button" className="btn-small btn-secondary" onClick={() => setFreeLayout({ ...freeLayout, top: freeLayout.top === "people" ? "lives" : "people" })}>
+                  {t(freeLayout.top === "people" ? "voice.stage.top_lives" : "voice.stage.top_people")}
+                </button>
+              )}
+            </div>
+          )}
           <div className={`voice-stage-area${liveOnStage ? " has-live" : ""}`} ref={stageRef} style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
             {freeLayout.mode === "free" ? (
               <FreeStage
                 layout={freeLayout}
                 onChange={setFreeLayout}
                 items={[
-                  ...(selfShare || opened
+                  ...(opened
                     ? [{
                         id: LIVES_ITEM,
                         layer: "lives" as const,
-                        node: (
-                          <div className="free-lives">
-                            {selfShare && (
-                              <SelfShareTile
-                                stream={selfShare.stream}
-                                onStop={selfShare.onStop}
-                                label={t("voice.stage.you_share")}
-                                stopLabel={t("voice.screen_share.stop")}
-                                sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
-                              />
-                            )}
-                            {children}
-                          </div>
-                        ),
+                        node: <div className="free-lives">{children}</div>,
                       }]
                     : []),
                   ...onStage.map((p) => ({
@@ -397,27 +387,19 @@ export function VoiceStage({
               />
             ) : (<>
             {liveOnStage && (
-              <div className="voice-stage-lives">
-                {selfShare && (
-                  <SelfShareTile
-                    stream={selfShare.stream}
-                    onStop={selfShare.onStop}
-                    label={t("voice.stage.you_share")}
-                    stopLabel={t("voice.screen_share.stop")}
-                    sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
-                  />
-                )}
-                {children}
-              </div>
+              <div className="voice-stage-lives">{children}</div>
             )}
             {onStage.length > 0 && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>
                 <SortableContext items={onStage.map((p) => p.public_key)} strategy={rectSortingStrategy}>
                   <ul className="voice-tiles stage">
                     {onStage.map((p) => (
-                      <SortableStageTile key={p.public_key} id={p.public_key}>
-                        {(handle) => personTile(p, 96, handle)}
-                      </SortableStageTile>
+                      <React.Fragment key={p.public_key}>
+                        <SortableStageTile id={p.public_key}>
+                          {(handle) => personTile(p, 96, handle)}
+                        </SortableStageTile>
+                        {p.public_key === publicKey && myShare}
+                      </React.Fragment>
                     ))}
                   </ul>
                 </SortableContext>
@@ -437,11 +419,18 @@ export function VoiceStage({
 
       <div className="voice-audience">
         {participants.length === 0 ? (
-          <p className="muted">{t("voice.stage.empty")}</p>
+          // An empty room is a doorway: its name, that nobody is in, and the way in.
+          <div className="voice-room-empty">
+            <h2><SpeakerIcon size={26} /> {roomName}</h2>
+            <p>{t("voice.stage.empty")}</p>
+            {!inThisRoom && (
+              <button type="button" className="voice-room-join-btn" onClick={onJoin}>{t("voice.stage.join")}</button>
+            )}
+          </div>
         ) : (
           <>
             <div className="voice-audience-head">
-              {hasStage && <span className="voice-audience-label">{t("voice.stage.audience", { count: audience.length })}</span>}
+              {hasStage && showLabels && <span className="voice-audience-label">{t("voice.stage.audience", { count: audience.length })}</span>}
               {audience.length > 8 && (
                 <input
                   type="search"
@@ -451,26 +440,35 @@ export function VoiceStage({
                   onChange={(e) => setQuery(e.target.value)}
                 />
               )}
-              {hasStage && (
+              {hasStage && showLabels && (
                 <button type="button" className="btn-small btn-secondary" aria-expanded={!audienceCollapsed} onClick={() => setAudienceCollapsed((v) => !v)}>
                   {t(audienceCollapsed ? "voice.stage.expand" : "voice.stage.collapse")}
                 </button>
               )}
             </div>
             {/* With no stage the room is everyone, so the tiles take the room. */}
-            <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>{shown.map((p) => personTile(p, tileAvatar))}</ul>
+            <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>
+              {shown.map((p) => (
+                <React.Fragment key={p.public_key}>
+                  {personTile(p, tileAvatar)}
+                  {p.public_key === publicKey && myShare}
+                </React.Fragment>
+              ))}
+              {/* In the free layout the stage has no slot for it: it stays here. */}
+              {freeLayout.mode === "free" && myPinned && myShare}
+            </ul>
           </>
         )}
       </div>
 
-      {!inThisRoom && (
-        <div className="settings-row voice-room-join">
-          <button className="btn-primary" onClick={onJoin}>{t("voice.stage.join")}</button>
-          <span className="muted hint-fine">{t("voice.stage.join_hint")}</span>
+      {/* With people in the room the way in sits where the dock will be. */}
+      {!inThisRoom && participants.length > 0 && (
+        <div className="voice-room-join">
+          <button type="button" className="voice-room-join-btn" onClick={onJoin}>{t("voice.stage.join")}</button>
         </div>
       )}
       {inThisRoom && floor && !floor.maySpeak && (
-        <div className="settings-row voice-room-join">
+        <div className="voice-room-join floor">
           <span className="muted">{myHandUp ? t("voice.stage.waiting") : t("voice.stage.listening")}</span>
           {myHandUp ? (
             <button className="btn-secondary" onClick={floor.onLower}>{t("voice.stage.lower_hand")}</button>
@@ -482,9 +480,40 @@ export function VoiceStage({
       {inThisRoom && room && (
         <VoiceRoomMap room={room} participants={participants} avatars={avatars} publicKey={publicKey} />
       )}
-      {/* One floating dock for the room's media controls (share, camera,
-          whisper, soundboard); mic, deafen and leave live in the sidebar. */}
-      {inThisRoom && <div className="voice-room-controls voice-dock" ref={barRef} />}
+      {/* One floating dock for the room's controls. The sidebar fills the slot
+          (you, media, leave); the room adds its own extras beside them. */}
+      {inThisRoom && (
+        <div className="voice-room-controls voice-dock">
+          <div className="voice-dock-slot" ref={barRef} />
+          <div className="voice-dock-group extra">
+            <PopOutRoom
+              people={onStage.length > 0 ? onStage : participants}
+              cameras={cameras}
+              avatars={avatars}
+              publicKey={publicKey}
+              livesKey={[...(live?.opened ?? [])].join(",")}
+              free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
+            />
+            {hasStage && (
+              <button
+                type="button"
+                className={`btn-icon-gear${freeLayout.mode === "free" ? " on" : ""}`}
+                aria-pressed={freeLayout.mode === "free"}
+                title={t(freeLayout.mode === "free" ? "voice.stage.layout_grid" : "voice.stage.layout_free")}
+                aria-label={t(freeLayout.mode === "free" ? "voice.stage.layout_grid" : "voice.stage.layout_free")}
+                onClick={() => setFreeLayout({ ...freeLayout, mode: freeLayout.mode === "free" ? "grid" : "free" })}
+              >
+                <LayoutGlyph />
+              </button>
+            )}
+            {room && room.canManage && !room.zone && (
+              <button type="button" className="btn-icon-gear" onClick={room.onEnable} title={t("voice.room_map.enable")} aria-label={t("voice.room_map.enable")}>
+                <MapGlyph />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -511,4 +540,20 @@ function SortableStageTile({ id, children }: { id: string; children: (handle: So
       onKeyDown: (e: React.KeyboardEvent) => { if (e.target === e.currentTarget) listeners.onKeyDown?.(e); },
     },
   })}</>;
+}
+
+function MapGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
+    </svg>
+  );
+}
+
+function LayoutGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 4h10v9H3zM15 4h6v5h-6zM15 11h6v9h-6zM3 15h10v5H3z" />
+    </svg>
+  );
 }

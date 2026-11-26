@@ -1,33 +1,44 @@
 import { useEffect, useState } from "react";
-import { SettingRow, useConfirm } from "@wavvon/ui";
-import { identityNeedsBackup } from "../utils/identityBackup";
+import { invoke } from "@tauri-apps/api/core";
+import { suggestBackupFilename } from "@wavvon/core";
+import { AccountList, ExportIdentityModal, IdentityModal, SettingRow, useConfirm } from "@wavvon/ui";
+import { AddIdentityFlow } from "./AddIdentityFlow";
+import { identityNeedsBackup, markIdentityBackedUp } from "../utils/identityBackup";
 import { useTranslation } from "react-i18next";
 import {
   listAccounts,
-  createAccount,
   removeAccount,
   renameAccount,
+  reorderAccounts,
   switchAccountGuarded,
   SWITCH_BLOCKED_COOLDOWN,
   type AccountSummary,
 } from "../accounts/store";
 
-// Minimal multi-account switcher — the desktop analogue of web's Settings →
-// Account switcher table. This is deliberately bare-bones (no drag reorder,
-// no fingerprint-confirm-to-remove dialog styling); the shared, fully
-// designed ManageAccountsTab is a later hoist (settings-ia.md §6 step 2/6).
-// It only needs to expose list/create/switch/remove/rename, which is what
-// this wires straight into the Rust accounts.rs commands.
-export function AccountSwitcherSection() {
+// The accounts on this device, drawn by the shared AccountList and wired
+// straight into the Rust accounts.rs commands.
+export function AccountSwitcherSection({ onBackedUp }: { onBackedUp?: () => void }) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
   const { confirm, dialog } = useConfirm();
   const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const exporting = accounts.find((a) => a.id === exportingId);
+
+  // Rust opens the save dialog and encrypts: the key never enters the renderer.
+  async function exportBackup(account: AccountSummary, passphrase: string) {
+    await invoke("export_account_backup", {
+      id: account.id,
+      passphrase,
+      suggestedName: suggestBackupFilename(account.label || account.id),
+      filterName: t("settings.account.identity_backup.file_filter"),
+    });
+    markIdentityBackedUp(account.id);
+    onBackedUp?.();
+  }
 
   async function refresh() {
     try {
@@ -44,23 +55,7 @@ export function AccountSwitcherSection() {
     refresh();
   }, []);
 
-  // Bringing an existing identity here from its phrase is the Restore
-  // section's job, which also notices an account already on this device.
-  async function handleCreate() {
-    setBusyId("__create__");
-    setError(null);
-    try {
-      await createAccount({});
-      await refresh();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   async function handleSwitch(id: string) {
-    setBusyId(id);
     setError(null);
     try {
       const refusal = await switchAccountGuarded(id);
@@ -73,8 +68,6 @@ export function AccountSwitcherSection() {
       }
     } catch (e) {
       setError(String(e));
-    } finally {
-      setBusyId(null);
     }
   }
 
@@ -90,31 +83,24 @@ export function AccountSwitcherSection() {
       danger: true,
     });
     if (!confirmed) return;
-    setBusyId(account.id);
     setError(null);
     try {
       await removeAccount(account.id);
       await refresh();
     } catch (e) {
       setError(String(e));
-    } finally {
-      setBusyId(null);
     }
   }
 
   // Renaming edits in place rather than through a prompt: `window.prompt`
   // is the same untranslatable native chrome `window.confirm` was.
   async function handleRename(account: AccountSummary, next: string) {
-    setRenamingId(null);
-    setBusyId(account.id);
     setError(null);
     try {
       await renameAccount(account.id, next);
       await refresh();
     } catch (e) {
       setError(String(e));
-    } finally {
-      setBusyId(null);
     }
   }
 
@@ -134,62 +120,32 @@ export function AccountSwitcherSection() {
       {loading ? (
         <p className="muted">{t("modal.loading")}</p>
       ) : (
-        <div style={{ marginTop: 8 }}>
-          {accounts.map((a) => (
-            <div key={a.id} className="settings-row">
-              <code className="pubkey-display" title={a.id}>
-                {a.label ?? a.id.slice(0, 12)}
-              </code>
-              {a.is_active ? (
-                <span className="muted">{t("settings.account.accounts.active_button")}</span>
-              ) : (
-                <button onClick={() => handleSwitch(a.id)} disabled={busyId === a.id}>
-                  {t("settings.account.accounts.switch")}
-                </button>
-              )}
-              {renamingId === a.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={renameValue}
-                    autoFocus
-                    aria-label={t("settings.account.accounts.rename_title")}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleRename(a, renameValue);
-                      if (e.key === "Escape") setRenamingId(null);
-                    }}
-                  />
-                  <button className="btn-small btn-primary" onClick={() => void handleRename(a, renameValue)}>
-                    {t("settings.account.accounts.rename_save")}
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="btn-small"
-                  onClick={() => { setRenamingId(a.id); setRenameValue(a.label ?? ""); }}
-                  disabled={busyId === a.id}
-                >
-                  {t("settings.account.accounts.rename_button")}
-                </button>
-              )}
-              <button
-                className="btn-small"
-                onClick={() => handleRemove(a)}
-                disabled={busyId === a.id || accounts.length <= 1}
-                title={accounts.length <= 1 ? t("settings.account.accounts.last_account_title") : undefined}
-              >
-                {t("settings.account.accounts.remove")}
-              </button>
-            </div>
-          ))}
-        </div>
+        <AccountList
+          accounts={accounts.map((a) => ({ id: a.id, label: a.label ?? null, publicKey: a.id, active: a.is_active, exportable: a.kind === "owned" }))}
+          onSwitch={(id) => void handleSwitch(id)}
+          onExport={setExportingId}
+          onRename={(id, label) => { const acc = accounts.find((x) => x.id === id); if (acc) void handleRename(acc, label); }}
+          onRemove={(id) => { const acc = accounts.find((x) => x.id === id); if (acc) void handleRemove(acc); }}
+          onReorder={(ids) => { void reorderAccounts(ids).then(setAccounts).catch((e) => setError(String(e))); }}
+        />
       )}
       <div className="settings-row" style={{ marginTop: 8 }}>
-        <button onClick={() => handleCreate()} disabled={busyId === "__create__"}>
-          {t("settings.account.accounts.new_identity")}
+        <button className="btn-secondary" onClick={() => setAdding(true)}>
+          {t("settings.account.accounts.add")}
         </button>
       </div>
+      {exporting && (
+        <ExportIdentityModal
+          label={exporting.label || exporting.id.slice(0, 12)}
+          onClose={() => setExportingId(null)}
+          onExport={(passphrase) => exportBackup(exporting, passphrase)}
+        />
+      )}
+      {adding && (
+        <IdentityModal label={t("identity_setup.add.title")} onClose={() => setAdding(false)}>
+          <AddIdentityFlow variant="add" onCancel={() => setAdding(false)} onDone={() => { setAdding(false); void refresh(); }} />
+        </IdentityModal>
+      )}
     </SettingRow>
   );
 }
