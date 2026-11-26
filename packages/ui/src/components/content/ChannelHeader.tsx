@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { channelPath } from "@wavvon/core";
 import type { Channel } from "@wavvon/core";
 import type { Message } from "../../types";
-import { PinIcon, SearchIcon, MembersIcon, ScreenShareIcon, ChannelIcon } from "../Icons";
+import { PinIcon, SearchIcon, MembersIcon, ScreenShareIcon, ChannelIcon, CalendarIcon } from "../Icons";
 
 interface Props {
   selectedChannel: Channel;
@@ -28,6 +28,8 @@ interface Props {
   /** Screen shares live on the hub; shown on the icon when above zero. */
   liveShareCount?: number;
   onBreadcrumbCategoryClick: (categoryId: string) => void;
+  /** Opens the channel's events. */
+  onOpenEvents?: () => void;
 }
 
 export function ChannelHeader({
@@ -48,6 +50,7 @@ export function ChannelHeader({
   onOpenHubStreams,
   liveShareCount = 0,
   onBreadcrumbCategoryClick,
+  onOpenEvents,
 }: Props) {
   const { t } = useTranslation();
   const breadcrumb = channelPath(channels, selectedChannel.id);
@@ -73,13 +76,13 @@ export function ChannelHeader({
               <span className="channel-breadcrumb-item current"><ChannelIcon icon={selectedChannel.icon ?? null} customIconSvg={selectedChannel.custom_icon_svg ?? null} channelType={selectedChannel.channel_type} /> {selectedChannel.name}</span>
             </nav>
           )}
-          <h3>
+          <h1 className="channel-header-title">
             {/* The sidebar's icon for this channel's type, not a "#" for every kind. */}
             <ChannelIcon icon={selectedChannel.icon ?? null} customIconSvg={selectedChannel.custom_icon_svg ?? null} channelType={selectedChannel.channel_type} /> {selectedChannel.name}
             {selectedChannel.nsfw && (
               <span className="channel-temp-badge" style={{ marginLeft: 8 }} title={t("channel.sidebar.nsfw_badge")}>NSFW</span>
             )}
-          </h3>
+          </h1>
           {selectedChannel.description ? (
             <p
               className={`channel-description ${isAdmin ? "editable" : ""}`}
@@ -99,7 +102,7 @@ export function ChannelHeader({
           ) : null}
         </div>
         {connectionStatus}
-        {onOpenHubStreams && (
+        {onOpenHubStreams && liveShareCount > 0 && (
           <button
             onClick={onOpenHubStreams}
             className="btn-icon-header"
@@ -120,21 +123,33 @@ export function ChannelHeader({
           title={t("content.pinned.title")}
           aria-label={t("content.pinned.title")}
         >
-          <PinIcon />
+          <PinIcon size={18} />
         </button>
+        {onOpenEvents && (
+          <button
+            onClick={onOpenEvents}
+            className="btn-icon-header"
+            title={t("events.open_panel")}
+            aria-label={t("events.open_panel")}
+          >
+            <CalendarIcon size={18} />
+          </button>
+        )}
         <button
           onClick={onToggleSearch}
-          className="btn-icon-header"
+          className={`btn-icon-header${searchOpen ? " active" : ""}`}
           title={t("content.search.title")}
+          aria-label={t("content.search.title")}
         >
-          <SearchIcon />
+          <SearchIcon size={18} />
         </button>
         <button
           onClick={onToggleMemberSidebar}
-          className="btn-icon-header"
+          className={`btn-icon-header${memberSidebarHidden ? "" : " active"}`}
           title={memberSidebarHidden ? t("content.members.show") : t("content.members.hide")}
+          aria-label={memberSidebarHidden ? t("content.members.show") : t("content.members.hide")}
         >
-          <MembersIcon />
+          <MembersIcon size={18} />
         </button>
       </div>
 

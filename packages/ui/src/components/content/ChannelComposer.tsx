@@ -151,6 +151,56 @@ export function ChannelComposer({
           />
         )}
         <div className="composer-shell">
+          <div className="composer-more">
+            <button
+              type="button"
+              className={`composer-btn${moreOpen ? " open" : ""}`}
+              title={t("composer.more_actions")}
+              aria-label={t("composer.more_actions")}
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}
+            >
+              <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="10" y1="4" x2="10" y2="16" />
+                <line x1="4" y1="10" x2="16" y2="10" />
+              </svg>
+            </button>
+            {moreOpen && (
+              <>
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 199 }}
+                  onClick={closeMore}
+                  aria-hidden="true"
+                />
+                <div className="composer-more-menu" role="menu">
+                  {files && <button
+                    type="button"
+                    className="composer-more-item"
+                    role="menuitem"
+                    onClick={handleAttachClick}
+                  >
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M16 10l-5 5a4 4 0 0 1-5.66-5.66l6-6a2.5 2.5 0 0 1 3.54 3.54l-6.01 6a1 1 0 0 1-1.41-1.41L13 5.5" />
+                    </svg>
+                    {t("composer.attach")}
+                  </button>}
+                  <button
+                    type="button"
+                    className="composer-more-item"
+                    role="menuitem"
+                    onClick={handleCreatePoll}
+                  >
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="2" y="13" width="4" height="5" rx="1" />
+                      <rect x="8" y="8" width="4" height="10" rx="1" />
+                      <rect x="14" y="3" width="4" height="15" rx="1" />
+                    </svg>
+                    {t("composer.create_poll")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <div style={{ position: "relative", flex: 1 }}>
             {mentionSuggestions.length > 0 && mentionQuery !== null && (
               <div className="mention-popup">
@@ -203,56 +253,6 @@ export function ChannelComposer({
             />
           </div>
           <div className="composer-actions">
-            <div className="composer-more">
-              <button
-                type="button"
-                className={`composer-btn${moreOpen ? " open" : ""}`}
-                title={t("composer.more_actions")}
-                aria-label={t("composer.more_actions")}
-                aria-expanded={moreOpen}
-                onClick={() => setMoreOpen((v) => !v)}
-              >
-                <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <line x1="10" y1="4" x2="10" y2="16" />
-                  <line x1="4" y1="10" x2="16" y2="10" />
-                </svg>
-              </button>
-              {moreOpen && (
-                <>
-                  <div
-                    style={{ position: "fixed", inset: 0, zIndex: 199 }}
-                    onClick={closeMore}
-                    aria-hidden="true"
-                  />
-                  <div className="composer-more-menu" role="menu">
-                    {files && <button
-                      type="button"
-                      className="composer-more-item"
-                      role="menuitem"
-                      onClick={handleAttachClick}
-                    >
-                      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M16 10l-5 5a4 4 0 0 1-5.66-5.66l6-6a2.5 2.5 0 0 1 3.54 3.54l-6.01 6a1 1 0 0 1-1.41-1.41L13 5.5" />
-                      </svg>
-                      {t("composer.attach")}
-                    </button>}
-                    <button
-                      type="button"
-                      className="composer-more-item"
-                      role="menuitem"
-                      onClick={handleCreatePoll}
-                    >
-                      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <rect x="2" y="13" width="4" height="5" rx="1" />
-                        <rect x="8" y="8" width="4" height="10" rx="1" />
-                        <rect x="14" y="3" width="4" height="15" rx="1" />
-                      </svg>
-                      {t("composer.create_poll")}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
             {files && onSendVoice && (
               <VoiceRecordButton onSend={onSendVoice} onError={onVoiceError ?? (() => {})} />
             )}

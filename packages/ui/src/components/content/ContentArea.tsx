@@ -38,7 +38,7 @@ import type { MessageRowActions } from "./MessageRow";
 import type { StickerActions } from "../stickers/stickerActions";
 import { DmView } from "./DmView";
 import { WelcomeInviteBanner } from "./WelcomeInviteBanner";
-import { CalendarIcon, CloseIcon } from "../Icons";
+import { CloseIcon } from "../Icons";
 import { FocusTrap } from "../FocusTrap";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import type { AllianceScrollback } from "../../hooks/useAlliances";
@@ -183,11 +183,6 @@ interface Props {
   isWelcomeDismissed: (hubId: string) => boolean;
   dismissWelcome: (hubId: string) => void;
 
-  // Events panel (events.md §7.5). `eventsPresentation` picks the chrome
-  // each app already shipped -- web's inline messages/events tab strip vs
-  // desktop's on-demand modal overlay -- rather than forcing either app to
-  // change its shipped UX for this hoist.
-  eventsPresentation: "tabs" | "modal";
   getEvents: (params?: { upcoming?: boolean; limit?: number; channelId?: string }) => Promise<HubEvent[]>;
   deleteEvent: (eventId: string) => Promise<void>;
   rsvpEvent: (eventId: string, status: RsvpStatus, slotId?: string) => Promise<void>;
@@ -239,7 +234,7 @@ export function ContentArea({
   loadExpandedThreads, saveExpandedThreads,
   onComponentInteract, onCreatePoll,
   loadWelcomeInfo, isWelcomeDismissed, dismissWelcome,
-  eventsPresentation, getEvents, deleteEvent, rsvpEvent, createEvent, eventStaging,
+  getEvents, deleteEvent, rsvpEvent, createEvent, eventStaging,
 }: Props) {
   const { t } = useTranslation();
 
@@ -257,9 +252,8 @@ export function ContentArea({
   const [profileCardPubkey, setProfileCardPubkey] = useState<string | null>(null);
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [channelPolls, setChannelPolls] = useState<Poll[]>([]);
-  const [activeContentTab, setActiveContentTab] = useState<"messages" | "events">("messages");
   const [showEventsModal, setShowEventsModal] = useState(false);
-  useCloseOnEscape(() => setShowEventsModal(false), eventsPresentation === "modal" && showEventsModal);
+  useCloseOnEscape(() => setShowEventsModal(false), showEventsModal);
 
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() =>
     selectedChannel ? loadExpandedThreads(selectedChannel.id) : new Set()
@@ -274,7 +268,6 @@ export function ContentArea({
 
   useEffect(() => {
     setChannelPolls([]);
-    setActiveContentTab("messages");
     if (selectedChannel) {
       loadChannelPolls(selectedChannel.id).then(setChannelPolls).catch(() => {});
     }
@@ -480,7 +473,7 @@ export function ContentArea({
       createEvent={createEvent}
       advancedFieldsSupported
       staging={eventStaging}
-      onClose={eventsPresentation === "modal" ? () => setShowEventsModal(false) : undefined}
+      onClose={() => setShowEventsModal(false)}
     />
   );
 
@@ -574,6 +567,7 @@ export function ContentArea({
               onOpenHubStreams={onOpenHubStreams}
               liveShareCount={liveShareCount}
               onBreadcrumbCategoryClick={onBreadcrumbCategoryClick}
+              onOpenEvents={() => setShowEventsModal(true)}
             />}
             {selectedChannel.channel_type === "voice" && voiceStage ? (
               // A voice room is people and media only: no messages, composer or
@@ -605,35 +599,7 @@ export function ContentArea({
               </ErrorBoundary>
             )}
 
-            {eventsPresentation === "tabs" ? (
-              <>
-                <div className="content-area-tabs">
-                  {(["messages", "events"] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveContentTab(tab)}
-                      className={`content-area-tab${activeContentTab === tab ? " active" : ""}`}
-                    >
-                      {t(tab === "messages" ? "content.tab.messages" : "content.tab.events")}
-                    </button>
-                  ))}
-                </div>
-                {activeContentTab === "events" && eventsPanel}
-              </>
-            ) : (
-              <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px" }}>
-                <button
-                  onClick={() => setShowEventsModal(true)}
-                  className="btn-icon-header"
-                  title={t("events.open_panel")}
-                  aria-label={t("events.open_panel")}
-                >
-                  <CalendarIcon size={14} />
-                </button>
-              </div>
-            )}
-
-            {(eventsPresentation === "modal" || activeContentTab === "messages") && <>
+            <>
             <ChannelMessageList
               selectedChannelName={selectedChannel.name}
               selectedChannelDescription={selectedChannel.description}
@@ -720,7 +686,7 @@ export function ContentArea({
               stickers={stickerActions ? { channelId: selectedChannel.id, actions: stickerActions, onError } : undefined}
               onSendVoice={onSendVoice}
               onVoiceError={onError}
-            /></>}
+            /></>
             </>)}
           </div>
         ) : selectedAllianceChannel && selectedAllianceChannel.channel.channel_type === "forum" ? (
@@ -813,7 +779,7 @@ export function ContentArea({
         />
       )}
 
-      {(eventsPresentation === "modal" || (selectedChannel?.channel_type === "voice" && !!voiceStage)) && showEventsModal && (
+      {showEventsModal && (
         <div
           className="modal-overlay"
           onClick={() => setShowEventsModal(false)}

@@ -13,7 +13,7 @@ export const ICON_NAMES: readonly string[] = [
   "pin", "search", "members", "link", "flag", "reply", "edit", "trash", "settings",
   "plus", "close", "chevron", "expand", "fullscreen", "reset", "forum", "bell-off", "lock",
   "paperclip", "speaker", "clock", "whisper", "cake", "calendar", "wave",
-  "reaction-add", "messages", "discover", "mention", "bookmark",
+  "reaction-add", "messages", "discover", "mention", "bookmark", "menu",
   "channel-text", "channel-voice", "channel-forum", "channel-spawner",
   ...CHANNEL_GLYPHS.map((g) => `channel-${g}`),
 ];

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { formatPubkey } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 import type { PresenceStatus } from "../../utils/presenceExpiry";
+import { ICON } from "./userMenuIcons";
 
 export interface MenuAccount {
   id: string;
@@ -27,17 +28,35 @@ export interface UserMenuProps {
   onSwitchAccount?: (id: string) => void;
   onAddAccount?: () => void;
   onOpenShortcuts?: () => void;
+  /** Opens the personal Saved list. */
+  onOpenSaved?: () => void;
+  /** Reminders that came due and wait in the Saved list. */
+  savedDueCount?: number;
 }
 
 const STATUSES: PresenceStatus[] = ["online", "away", "dnd", "invisible"];
+const STATUS_HINT: Partial<Record<PresenceStatus, string>> = {
+  dnd: "presence.dnd_hint",
+  invisible: "presence.invisible_hint",
+};
+
 const SECTIONS = [
   { tab: "accounts", key: "user_menu.account_backup", device: false },
   { tab: "devices", key: "settings.tabs.devices", device: false },
-  { tab: "privacy", key: "settings.tabs.privacy", device: false },
+  { tab: "privacy", key: "user_menu.privacy", device: false },
   { tab: "notifications", key: "settings.tabs.notifications", device: true },
   { tab: "appearance", key: "settings.tabs.appearance", device: true },
   { tab: "voice", key: "user_menu.voice_camera", device: true },
 ] as const;
+
+function Glyph({ d, size = 18, className }: { d: string; size?: number; className?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
 
 /** The member's own menu, opened from their avatar. */
 export function UserMenu(p: UserMenuProps) {
@@ -56,7 +75,7 @@ export function UserMenu(p: UserMenuProps) {
     if (!open) return;
     menuRef.current?.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')?.focus();
     function onDown(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(e.target as Node)) { setOpen(false); setStatusOpen(false); }
     }
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -86,8 +105,6 @@ export function UserMenu(p: UserMenuProps) {
     items[next]?.focus();
   }
 
-  const statusLabel = t(`presence.${p.status}`);
-
   return (
     <div className="user-menu" ref={rootRef}>
       <button
@@ -97,9 +114,9 @@ export function UserMenu(p: UserMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t("user_menu.open", { name: p.name })}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setOpen((v) => !v); setStatusOpen(false); }}
       >
-        <Avatar src={p.avatar} name={p.name} pubkey={p.publicKey} size={28} />
+        <Avatar src={p.avatar} name={p.name} pubkey={p.publicKey} size={32} self />
         <span className={`user-status-dot status-${p.status}`} />
         {p.settingsNeedsAttention && <span className="gear-attention-dot" aria-label={t("settings.identity_backup.badge")} />}
       </button>
@@ -107,29 +124,115 @@ export function UserMenu(p: UserMenuProps) {
       {open && (
         <div className="user-menu-panel" role="menu" ref={menuRef} onKeyDown={onKeyDown} aria-label={t("user_menu.label")}>
           <div className="user-menu-header">
-            <Avatar src={p.avatar} name={p.name} pubkey={p.publicKey} size={40} />
+            <span className="user-menu-avatar">
+              <Avatar src={p.avatar} name={p.name} pubkey={p.publicKey} size={48} self />
+              <span className={`user-status-dot status-${p.status}`} />
+            </span>
             <div className="user-menu-who">
               <span className="user-menu-name">{p.name}</span>
               {p.publicKey && <span className="user-menu-key">{formatPubkey(p.publicKey)}</span>}
             </div>
-            <button type="button" role="menuitem" className="btn-secondary btn-small" onClick={() => act(() => p.onOpenSettings("profile"))}>
+            <button type="button" role="menuitem" className="user-menu-profile" onClick={() => act(() => p.onOpenSettings("profile"))}>
               {t("user_menu.profile")}
             </button>
           </div>
 
-          <button
-            type="button"
-            role="menuitem"
-            className="user-menu-item"
-            aria-haspopup="menu"
-            aria-expanded={statusOpen}
-            onClick={() => setStatusOpen((v) => !v)}
-          >
-            <span className={`user-status-dot status-${p.status}`} />
-            {statusLabel}
-          </button>
+          <div className="user-menu-group">
+            <button
+              type="button"
+              role="menuitem"
+              className={`user-menu-item${statusOpen ? " open" : ""}`}
+              aria-haspopup="menu"
+              aria-expanded={statusOpen}
+              onClick={() => setStatusOpen((v) => !v)}
+            >
+              <span className={`user-status-dot status-${p.status}`} />
+              <span className="user-menu-item-label">{t(`presence.${p.status}`)}</span>
+              <Glyph d={ICON.back} size={14} className="user-menu-chev" />
+            </button>
+            <form
+              className="user-menu-custom"
+              onSubmit={(e) => { e.preventDefault(); p.onSetCustomStatus(custom); }}
+            >
+              <Glyph d={ICON.smile} />
+              <input
+                type="text"
+                value={custom}
+                maxLength={128}
+                placeholder={t("presence.custom_placeholder")}
+                aria-label={t("presence.custom_placeholder")}
+                onChange={(e) => setCustom(e.target.value)}
+                onBlur={() => { if (custom.trim() !== (p.customStatus ?? "")) p.onSetCustomStatus(custom); }}
+              />
+            </form>
+          </div>
+
+          <div className="user-menu-sep" role="separator" />
+          <div className="user-menu-group">
+            {p.onOpenSaved && (
+              <button type="button" role="menuitem" className="user-menu-item" onClick={() => act(p.onOpenSaved!)}>
+                <Glyph d={ICON.saved} className="user-menu-icon" />
+                <span className="user-menu-item-label">{t("saved.title")}</span>
+                {(p.savedDueCount ?? 0) > 0 && <span className="hub-unread-pill mention">{p.savedDueCount}</span>}
+              </button>
+            )}
+            {SECTIONS.map((s) => (
+              <button key={s.tab} type="button" role="menuitem" className="user-menu-item" onClick={() => act(() => p.onOpenSettings(s.tab))}>
+                <Glyph d={ICON[s.tab]} className="user-menu-icon" />
+                <span className="user-menu-item-label">{t(s.key)}</span>
+                {s.tab === "accounts" && p.settingsNeedsAttention && (
+                  <>
+                    <span className="user-menu-attention">{t("user_menu.backup_now")}</span>
+                    <span className="settings-nav-dot" aria-label={t("settings.identity_backup.badge")} />
+                  </>
+                )}
+                {s.device && <span className="user-menu-hint">{t("user_menu.this_device")}</span>}
+              </button>
+            ))}
+          </div>
+
+          {p.accounts && p.onSwitchAccount && (
+            <>
+              <div className="user-menu-sep" role="separator" />
+              <div className="user-menu-group">
+                <span className="user-menu-heading">{t("user_menu.accounts")}</span>
+                {p.accounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={a.active}
+                    className="user-menu-item"
+                    onClick={() => act(() => { if (!a.active) p.onSwitchAccount!(a.id); })}
+                  >
+                    <Avatar name={a.name} pubkey={a.id} size={24} self={a.active} />
+                    <span className="user-menu-item-label">{a.name}</span>
+                    {a.active && <Glyph d={ICON.check} size={16} className="user-menu-check" />}
+                  </button>
+                ))}
+                {p.onAddAccount && (
+                  <button type="button" role="menuitem" className="user-menu-item muted" onClick={() => act(p.onAddAccount!)}>
+                    <Glyph d={ICON.plus} />
+                    {t("user_menu.add_account")}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          <div className="user-menu-sep" role="separator" />
+          <div className="user-menu-footer">
+            <button type="button" role="menuitem" className="user-menu-link" onClick={() => act(() => p.onOpenSettings("help"))}>{t("user_menu.help")}</button>
+            <button type="button" role="menuitem" className="user-menu-link" onClick={() => act(() => p.onOpenSettings("about"))}>{t("user_menu.about")}</button>
+            {p.onOpenShortcuts && (
+              <button type="button" role="menuitem" className="user-menu-link end" onClick={() => act(p.onOpenShortcuts!)}>
+                {t("user_menu.shortcuts")} <kbd>Ctrl /</kbd>
+              </button>
+            )}
+          </div>
+
           {statusOpen && (
-            <div className="user-menu-sub" role="group" aria-label={t("user_menu.status")}>
+            <div className="user-menu-status" role="group" aria-label={t("user_menu.status")}>
               {STATUSES.map((s) => (
                 <button
                   key={s}
@@ -140,9 +243,14 @@ export function UserMenu(p: UserMenuProps) {
                   onClick={() => act(() => p.onSetStatus(s, s === "online" || ttl === 0 ? null : ttl))}
                 >
                   <span className={`user-status-dot status-${s}`} />
-                  {t(`presence.${s}`)}
+                  <span className="user-menu-item-label">
+                    <span>{t(`presence.${s}`)}</span>
+                    {STATUS_HINT[s] && <span className="user-menu-sub-hint">{t(STATUS_HINT[s]!)}</span>}
+                  </span>
+                  {p.status === s && <Glyph d={ICON.check} size={15} className="user-menu-check" />}
                 </button>
               ))}
+              <div className="user-menu-sep" role="separator" />
               <label className="status-menu-ttl">
                 <span>{t("presence.clear_after")}</span>
                 <select value={ttl} onChange={(e) => setTtl(Number(e.target.value))}>
@@ -154,62 +262,6 @@ export function UserMenu(p: UserMenuProps) {
               </label>
             </div>
           )}
-          <form
-            className="user-menu-custom"
-            onSubmit={(e) => { e.preventDefault(); p.onSetCustomStatus(custom); }}
-          >
-            <input
-              type="text"
-              value={custom}
-              maxLength={128}
-              placeholder={t("presence.custom_placeholder")}
-              aria-label={t("presence.custom_placeholder")}
-              onChange={(e) => setCustom(e.target.value)}
-              onBlur={() => { if (custom.trim() !== (p.customStatus ?? "")) p.onSetCustomStatus(custom); }}
-            />
-          </form>
-
-          <div className="user-menu-sep" role="separator" />
-          {SECTIONS.map((s) => (
-            <button key={s.tab} type="button" role="menuitem" className="user-menu-item" onClick={() => act(() => p.onOpenSettings(s.tab))}>
-              <span className="user-menu-item-label">{t(s.key)}</span>
-              {s.tab === "accounts" && p.settingsNeedsAttention && <span className="settings-nav-dot" aria-label={t("settings.identity_backup.badge")} />}
-              {s.device && <span className="user-menu-hint">{t("user_menu.this_device")}</span>}
-            </button>
-          ))}
-
-          {p.accounts && p.onSwitchAccount && (
-            <>
-              <div className="user-menu-sep" role="separator" />
-              <span className="user-menu-heading">{t("user_menu.accounts")}</span>
-              {p.accounts.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={a.active}
-                  className="user-menu-item"
-                  onClick={() => act(() => { if (!a.active) p.onSwitchAccount!(a.id); })}
-                >
-                  {a.name}
-                </button>
-              ))}
-              {p.onAddAccount && (
-                <button type="button" role="menuitem" className="user-menu-item" onClick={() => act(p.onAddAccount!)}>
-                  {t("user_menu.add_account")}
-                </button>
-              )}
-            </>
-          )}
-
-          <div className="user-menu-sep" role="separator" />
-          <div className="user-menu-footer">
-            <button type="button" role="menuitem" className="user-menu-link" onClick={() => act(() => p.onOpenSettings("help"))}>{t("settings.tabs.help")}</button>
-            <button type="button" role="menuitem" className="user-menu-link" onClick={() => act(() => p.onOpenSettings("about"))}>{t("settings.tabs.about")}</button>
-            {p.onOpenShortcuts && (
-              <button type="button" role="menuitem" className="user-menu-link" onClick={() => act(p.onOpenShortcuts!)}>{t("user_menu.shortcuts")}</button>
-            )}
-          </div>
         </div>
       )}
     </div>

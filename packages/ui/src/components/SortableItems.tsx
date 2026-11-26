@@ -154,7 +154,6 @@ function VoiceParticipantRow({
   );
 }
 
-const SUMMARY_AFTER = 3;
 
 /** "banana, you and 40 others": the first two names, self as "you", then a count. */
 export function voiceSummary(
@@ -253,9 +252,9 @@ export function SortableChannelItem({
   selfPubkey?: string | null;
 }) {
   const { t } = useTranslation();
-  // A busy room is summed up in one line; the roster opens on demand.
+  // An occupied room is summed up in one line; the roster opens on demand.
   const [rosterOpen, setRosterOpen] = useState(false);
-  const busy = participants.length > SUMMARY_AFTER;
+  const busy = participants.length > 0;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: channel.id });
   const setRefs = (el: HTMLLIElement | null) => {
@@ -413,10 +412,17 @@ export function SortableChannelItem({
           aria-expanded={rosterOpen}
           onClick={() => setRosterOpen((v) => !v)}
         >
-          {voiceSummary(participants, selfPubkey, t)}
+          <span className="channel-voice-stack" aria-hidden="true">
+            {participants.slice(0, 3).map((p) => (
+              <span key={p.public_key} className={`channel-voice-face${speaking?.has(p.public_key) ? " speaking" : ""}`}>
+                <Avatar src={avatars?.get(p.public_key)} name={p.display_name || p.public_key} pubkey={p.public_key} size={20} self={p.public_key === selfPubkey} />
+              </span>
+            ))}
+          </span>
+          <span className="channel-voice-names">{voiceSummary(participants, selfPubkey, t)}</span>
         </button>
       )}
-      {!isSpawner && participants.length > 0 && (!busy || rosterOpen) && (
+      {!isSpawner && rosterOpen && participants.length > 0 && (
         <ul className="channel-participants">
           {participants.map((p) => (
             <VoiceParticipantRow

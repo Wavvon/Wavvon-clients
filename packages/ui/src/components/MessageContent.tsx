@@ -116,7 +116,9 @@ export function MessageContent({
   const myLower = myName?.toLowerCase() ?? null;
 
   const html = useMemo(
-    () => decorateMessageHtml(renderMarkdown(content), { hubEmojiMap, hubBaseUrl, knownNames, myLower }),
+    // marked ends its output with a newline, and .md-content keeps newlines
+    // (pre-wrap): untrimmed, every message carried an empty last line.
+    () => decorateMessageHtml(renderMarkdown(content), { hubEmojiMap, hubBaseUrl, knownNames, myLower }).trim(),
     [content, hubEmojiMap, hubBaseUrl, knownNames, myLower],
   );
 
