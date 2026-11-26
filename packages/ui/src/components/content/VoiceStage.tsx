@@ -58,17 +58,6 @@ export interface VoiceStageInfo {
   soundboardChips?: SoundboardChip[];
 }
 
-// Pins are the member's own, on this device, for every room.
-const PINS_KEY = "wavvon:voice-pins";
-function loadPins(): string[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(PINS_KEY) ?? "[]") as unknown;
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
 const MIN_STAGE = 120;
 /** Up to this many people, every camera opens by itself. */
 export const SMALL_ROOM = 12;
@@ -129,7 +118,10 @@ export function VoiceStage({
   liveShareCount?: number;
 }) {
   const { t } = useTranslation();
-  const [pins, setPins] = useState<string[]>(loadPins);
+  // Pins last one voice session: leaving the room or moving to another one
+  // clears them, so nobody is still pinned the next time you walk in.
+  const [pins, setPins] = useState<string[]>([]);
+  useEffect(() => { setPins([]); }, [inThisRoom, roomName]);
   const [big, setBig] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
@@ -169,7 +161,6 @@ export function VoiceStage({
   function togglePin(pk: string) {
     const next = pins.includes(pk) ? pins.filter((p) => p !== pk) : [...pins, pk];
     setPins(next);
-    try { localStorage.setItem(PINS_KEY, JSON.stringify(next)); } catch { /* not remembered */ }
   }
 
   const myHandUp = !!floor && !!publicKey && floor.hands.includes(publicKey);
@@ -190,7 +181,6 @@ export function VoiceStage({
     if (from < 0 || to < 0) return;
     const next = arrayMove(pins, from, to);
     setPins(next);
-    try { localStorage.setItem(PINS_KEY, JSON.stringify(next)); } catch { /* not remembered */ }
   }
   const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
   const opened = !!live && live.opened.size > 0;
