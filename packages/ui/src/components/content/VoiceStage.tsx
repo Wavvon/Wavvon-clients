@@ -70,6 +70,7 @@ function loadPins(): string[] {
 }
 
 const MIN_STAGE = 120;
+const LABELS_AFTER = 6;
 /** Up to this many people, every camera opens by itself. */
 export const SMALL_ROOM = 12;
 
@@ -98,13 +99,13 @@ function SelfShareTile({ stream, onStop, label, stopLabel, sent }: { stream: Med
     if (ref.current) ref.current.srcObject = stream;
   }, [stream]);
   return (
-    <div className="voice-tile voice-tile--stream voice-self-share">
+    <li className="voice-tile voice-tile--stream voice-self-share">
       <video ref={ref} autoPlay muted playsInline />
       <span className="voice-tile-name"><span className="live-badge">LIVE</span> {label} · {sent}</span>
       <div className="voice-tile-actions">
         <button type="button" className="btn-small" onClick={onStop}>{stopLabel}</button>
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -194,7 +195,12 @@ export function VoiceStage({
   }
   const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
   const opened = !!live && live.opened.size > 0;
-  const liveOnStage = opened || !!selfShare;
+  // Your own share is a tile beside yours, not the stage: you know what you
+  // are sharing, and on the stage it only mirrors itself.
+  const liveOnStage = opened;
+  // Stage and audience are named only in a crowded room; with a few people
+  // the labels name nothing the eye cannot already count.
+  const showLabels = participants.length > LABELS_AFTER;
   const hasStage = onStage.length > 0 || liveOnStage;
   const q = query.trim().toLowerCase();
   const shown = q
@@ -317,17 +323,8 @@ export function VoiceStage({
           </span>
         )}
         {connectionStatus}
-        {live && <LiveTray {...live} />}
-        {inThisRoom && (
-          <PopOutRoom
-            people={onStage.length > 0 ? onStage : participants}
-            cameras={cameras}
-            avatars={avatars}
-            publicKey={publicKey}
-            livesKey={[...(live?.opened ?? [])].join(",")}
-            free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
-          />
-        )}
+        {/* Your own share is not something to open: it is already a tile. */}
+        {live && <LiveTray {...live} streams={live.streams.filter((st) => st.sharer_pubkey !== publicKey)} />}
         {onOpenHubStreams && (
           <button
             type="button"
@@ -348,44 +345,32 @@ export function VoiceStage({
 
       {hasStage && (
         <>
-          <div className="voice-stage-head">
-            <span className="voice-section-label">
-              <PinIcon size={13} />
-              {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) + (selfShare ? 1 : 0) })}
-            </span>
-            <button type="button" className="btn-small btn-secondary" aria-pressed={freeLayout.mode === "free"} onClick={() => setFreeLayout({ ...freeLayout, mode: freeLayout.mode === "free" ? "grid" : "free" })}>
-              {t(freeLayout.mode === "free" ? "voice.stage.layout_grid" : "voice.stage.layout_free")}
-            </button>
-            {freeLayout.mode === "free" && (
-              <button type="button" className="btn-small btn-secondary" onClick={() => setFreeLayout({ ...freeLayout, top: freeLayout.top === "people" ? "lives" : "people" })}>
-                {t(freeLayout.top === "people" ? "voice.stage.top_lives" : "voice.stage.top_people")}
-              </button>
-            )}
-          </div>
+          {(showLabels || freeLayout.mode === "free") && (
+            <div className="voice-stage-head">
+              {showLabels && (
+                <span className="voice-section-label">
+                  <PinIcon size={13} />
+                  {t("voice.stage.stage_label", { count: onStage.length + (live?.opened.size ?? 0) })}
+                </span>
+              )}
+              {freeLayout.mode === "free" && (
+                <button type="button" className="btn-small btn-secondary" onClick={() => setFreeLayout({ ...freeLayout, top: freeLayout.top === "people" ? "lives" : "people" })}>
+                  {t(freeLayout.top === "people" ? "voice.stage.top_lives" : "voice.stage.top_people")}
+                </button>
+              )}
+            </div>
+          )}
           <div className={`voice-stage-area${liveOnStage ? " has-live" : ""}`} ref={stageRef} style={stageHeight ? { height: stageHeight, flex: "none" } : undefined}>
             {freeLayout.mode === "free" ? (
               <FreeStage
                 layout={freeLayout}
                 onChange={setFreeLayout}
                 items={[
-                  ...(selfShare || opened
+                  ...(opened
                     ? [{
                         id: LIVES_ITEM,
                         layer: "lives" as const,
-                        node: (
-                          <div className="free-lives">
-                            {selfShare && (
-                              <SelfShareTile
-                                stream={selfShare.stream}
-                                onStop={selfShare.onStop}
-                                label={t("voice.stage.you_share")}
-                                stopLabel={t("voice.screen_share.stop")}
-                                sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
-                              />
-                            )}
-                            {children}
-                          </div>
-                        ),
+                        node: <div className="free-lives">{children}</div>,
                       }]
                     : []),
                   ...onStage.map((p) => ({
@@ -397,18 +382,7 @@ export function VoiceStage({
               />
             ) : (<>
             {liveOnStage && (
-              <div className="voice-stage-lives">
-                {selfShare && (
-                  <SelfShareTile
-                    stream={selfShare.stream}
-                    onStop={selfShare.onStop}
-                    label={t("voice.stage.you_share")}
-                    stopLabel={t("voice.screen_share.stop")}
-                    sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
-                  />
-                )}
-                {children}
-              </div>
+              <div className="voice-stage-lives">{children}</div>
             )}
             {onStage.length > 0 && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>
@@ -448,7 +422,7 @@ export function VoiceStage({
         ) : (
           <>
             <div className="voice-audience-head">
-              {hasStage && <span className="voice-audience-label">{t("voice.stage.audience", { count: audience.length })}</span>}
+              {hasStage && showLabels && <span className="voice-audience-label">{t("voice.stage.audience", { count: audience.length })}</span>}
               {audience.length > 8 && (
                 <input
                   type="search"
@@ -458,14 +432,25 @@ export function VoiceStage({
                   onChange={(e) => setQuery(e.target.value)}
                 />
               )}
-              {hasStage && (
+              {hasStage && showLabels && (
                 <button type="button" className="btn-small btn-secondary" aria-expanded={!audienceCollapsed} onClick={() => setAudienceCollapsed((v) => !v)}>
                   {t(audienceCollapsed ? "voice.stage.expand" : "voice.stage.collapse")}
                 </button>
               )}
             </div>
             {/* With no stage the room is everyone, so the tiles take the room. */}
-            <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>{shown.map((p) => personTile(p, tileAvatar))}</ul>
+            <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>
+              {shown.map((p) => personTile(p, tileAvatar))}
+              {selfShare && (
+                <SelfShareTile
+                  stream={selfShare.stream}
+                  onStop={selfShare.onStop}
+                  label={t("voice.stage.you_share")}
+                  stopLabel={t("voice.screen_share.stop")}
+                  sent={t("voice.stage.sending", { mbps: (selfShare.kbps / 1000).toFixed(1) })}
+                />
+              )}
+            </ul>
           </>
         )}
       </div>
@@ -494,13 +479,33 @@ export function VoiceStage({
       {inThisRoom && (
         <div className="voice-room-controls voice-dock">
           <div className="voice-dock-slot" ref={barRef} />
-          {room && room.canManage && !room.zone && (
-            <div className="voice-dock-group extra">
+          <div className="voice-dock-group extra">
+            <PopOutRoom
+              people={onStage.length > 0 ? onStage : participants}
+              cameras={cameras}
+              avatars={avatars}
+              publicKey={publicKey}
+              livesKey={[...(live?.opened ?? [])].join(",")}
+              free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
+            />
+            {hasStage && (
+              <button
+                type="button"
+                className={`btn-icon-gear${freeLayout.mode === "free" ? " on" : ""}`}
+                aria-pressed={freeLayout.mode === "free"}
+                title={t(freeLayout.mode === "free" ? "voice.stage.layout_grid" : "voice.stage.layout_free")}
+                aria-label={t(freeLayout.mode === "free" ? "voice.stage.layout_grid" : "voice.stage.layout_free")}
+                onClick={() => setFreeLayout({ ...freeLayout, mode: freeLayout.mode === "free" ? "grid" : "free" })}
+              >
+                <LayoutGlyph />
+              </button>
+            )}
+            {room && room.canManage && !room.zone && (
               <button type="button" className="btn-icon-gear" onClick={room.onEnable} title={t("voice.room_map.enable")} aria-label={t("voice.room_map.enable")}>
                 <MapGlyph />
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </section>
@@ -535,6 +540,14 @@ function MapGlyph() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
+    </svg>
+  );
+}
+
+function LayoutGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 4h10v9H3zM15 4h6v5h-6zM15 11h6v9h-6zM3 15h10v5H3z" />
     </svg>
   );
 }

@@ -3272,6 +3272,37 @@ tr.account-drop-target td {
 .voice-tile.has-camera {
   padding: 0;
 }
+/* Your own share sits among the tiles: the picture fills it, the stop
+   button and the name ride on it. */
+.voice-tiles > .voice-self-share {
+  padding: 0;
+  background: #000;
+}
+.voice-tiles > .voice-self-share > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+  object-fit: contain;
+}
+.voice-tiles > .voice-self-share > .voice-tile-name {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: rgba(13, 15, 20, 0.88);
+  color: var(--text);
+}
+.voice-tiles > .voice-self-share > .voice-tile-actions {
+  opacity: 1;
+}
+.voice-tiles.size-strip > .voice-self-share {
+  width: 72px;
+}
 .voice-tile.has-camera > .voice-tile-camera {
   position: absolute;
   inset: 0;

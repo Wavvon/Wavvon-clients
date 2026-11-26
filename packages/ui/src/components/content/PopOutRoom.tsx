@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
-import { ExpandIcon } from "../Icons";
 import { adoptPageStyles, documentPictureInPicture, type CapturableVideo } from "../../utils/documentPip";
 import { LIVES_ITEM, type FreeLayout } from "../../utils/freeLayout";
 
@@ -133,14 +132,16 @@ export function PopOutRoom(props: RoomPipProps) {
     <>
       <button
         type="button"
-        className="btn-icon-header"
+        className={`btn-icon-gear${win ? " on" : ""}`}
         disabled={!docPip}
         aria-pressed={!!win}
         title={label}
         aria-label={label}
         onClick={() => void toggle()}
       >
-        <ExpandIcon size={14} />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 5h18v14H3zM12 12h7v5h-7z" />
+        </svg>
       </button>
       {win && createPortal(<RoomPipView {...props} />, win.document.body)}
     </>
