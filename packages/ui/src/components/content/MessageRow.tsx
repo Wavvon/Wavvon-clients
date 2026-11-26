@@ -203,7 +203,7 @@ export function MessageRow({
   // e.g. an alliance-proxied message).
   const senderNameColor = safeRoleColor(senderUser?.name_color);
   const senderNameStyle = senderNameColor ? nameColorStyle(senderNameColor) : undefined;
-  const senderNameClass = `message-sender${senderNameColor ? " name-colored" : ""}`;
+  const senderNameClass = `message-sender${senderNameColor ? " name-colored" : ""}${m.sender === publicKey && !senderNameColor ? " self" : ""}`;
   const showBirthdayBadge = !hideBirthdays && isBirthdayToday(senderUser?.birthday);
   const isMentioned = m.sender !== publicKey && mentionsName(m.content, myDisplayName);
   const isEphemeral = !!m.visible_to_pubkey && m.visible_to_pubkey === publicKey;
@@ -381,7 +381,7 @@ export function MessageRow({
           </div>
         )}
         <span className="message-avatar" onContextMenu={(e) => onAuthorContextMenu(e, m.sender, senderLabel)}>
-          <Avatar src={m.masquerade ? masqueradeAvatar : senderUser?.avatar} name={shownName} pubkey={m.sender} size={36} />
+          <Avatar src={m.masquerade ? masqueradeAvatar : senderUser?.avatar} name={shownName} pubkey={m.sender} size={40} self={m.sender === publicKey && !m.masquerade} />
         </span>
         {/* Who and when sit on their own line above the message, so the body
             can be the largest type in the stream. A flat row put the name at

@@ -1,5 +1,5 @@
 import { useVoiceBarSlot } from "../../utils/voiceBarSlot";
-import { Avatar } from "../Avatar";
+import { Avatar, avatarTone } from "../Avatar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -68,7 +68,7 @@ export function categoryHasVisibleChannel(node: TreeNode): boolean {
 // voice-controls footer usable; the upper bound protects the message pane.
 const SIDEBAR_MIN_W = 220;
 const SIDEBAR_MAX_W = 480;
-const SIDEBAR_DEFAULT_W = 260;
+const SIDEBAR_DEFAULT_W = 280;
 const SIDEBAR_WIDTH_KEY = "wavvon.sidebarWidth";
 
 function loadSidebarWidth(): number {
@@ -478,28 +478,27 @@ export function ChannelSidebar({
       {view === "channels" && (
         <div className="hub-header" ref={hubHeaderRef}>
           <button
-            className={`hub-header-button hub-card${hubBannerUrl ? " has-banner" : ""}`}
+            className={`hub-header-button hub-card tone-${activeHub ? avatarTone(activeHub.hub_id) : 0}${hubBannerUrl ? " has-banner" : ""}`}
             style={hubBannerUrl ? { ["--hub-banner" as string]: `url("${hubBannerUrl}")` } : undefined}
             aria-expanded={hubDropdownOpen}
+            title={activeHub?.hub_url ? displayHubAddress(activeHub.hub_url) : undefined}
             onClick={() => onHubDropdownOpenChange(!hubDropdownOpen)}
           >
-            {activeHub && <Avatar src={activeHub.hub_icon} name={activeHub.hub_name} pubkey={activeHub.hub_id} size={36} />}
-            {/* The address, not just the name. Self-hosted means whose machine
-                you are on is part of knowing where you are. */}
-            <span className="hub-header-id">
-              <span className="hub-header-name">{activeHub?.hub_name ?? t("hub.placeholder_name")}</span>
-              {activeHub?.hub_url && (
-                <span className="hub-header-address">{displayHubAddress(activeHub.hub_url)}</span>
-              )}
-            </span>
-            <span className="hub-card-counts">
-              {t("hub.card.members", { count: users.length })}
-              {" · "}
-              <span className="status-dot online" aria-hidden="true" />
-              {t("hub.card.online", { count: users.filter((u) => u.online).length })}
-            </span>
+            <span className="hub-card-blob one" aria-hidden="true" />
+            <span className="hub-card-blob two" aria-hidden="true" />
             <HubClock timezone={hubTimezone} />
-            <span className="hub-header-chevron"><ChevronIcon size={12} dir={hubDropdownOpen ? "up" : "down"} /></span>
+            <span className="hub-card-id">
+              {activeHub && <Avatar src={activeHub.hub_icon} name={activeHub.hub_name} pubkey={activeHub.hub_id} size={40} />}
+              <span className="hub-header-id">
+                <span className="hub-header-name">{activeHub?.hub_name ?? t("hub.placeholder_name")}</span>
+                <span className="hub-card-counts">
+                  {t("hub.card.members", { count: users.length })}
+                  {" · "}
+                  {t("hub.card.online", { count: users.filter((u) => u.online).length })}
+                </span>
+              </span>
+            </span>
+            <span className="hub-header-chevron"><ChevronIcon size={16} dir={hubDropdownOpen ? "up" : "down"} /></span>
           </button>
           {hubDropdownOpen && (
             <div className="hub-dropdown">

@@ -154,7 +154,6 @@ function VoiceParticipantRow({
   );
 }
 
-const SUMMARY_AFTER = 3;
 
 /** "banana, you and 40 others": the first two names, self as "you", then a count. */
 export function voiceSummary(
@@ -168,6 +167,10 @@ export function voiceSummary(
   const names = self ? [...named, t("channel.voice.you")] : named;
   return t("channel.voice.summary", { names: names.join(", "), count: participants.length - names.length });
 }
+
+// Up to this many people a room lists them in full; past it, a face stack
+// and one line sum it up and the roster opens on demand.
+const SUMMARY_AFTER = 3;
 
 export function SortableChannelItem({
   channel,
@@ -413,7 +416,14 @@ export function SortableChannelItem({
           aria-expanded={rosterOpen}
           onClick={() => setRosterOpen((v) => !v)}
         >
-          {voiceSummary(participants, selfPubkey, t)}
+          <span className="channel-voice-stack" aria-hidden="true">
+            {participants.slice(0, 3).map((p) => (
+              <span key={p.public_key} className={`channel-voice-face${speaking?.has(p.public_key) ? " speaking" : ""}`}>
+                <Avatar src={avatars?.get(p.public_key)} name={p.display_name || p.public_key} pubkey={p.public_key} size={20} self={p.public_key === selfPubkey} />
+              </span>
+            ))}
+          </span>
+          <span className="channel-voice-names">{voiceSummary(participants, selfPubkey, t)}</span>
         </button>
       )}
       {!isSpawner && participants.length > 0 && (!busy || rosterOpen) && (

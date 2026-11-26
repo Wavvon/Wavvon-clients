@@ -15,9 +15,10 @@ async function openEventsTab(page: Page, channel: string) {
   await expect(page.getByRole("heading", { name: "Upcoming events" })).toBeVisible();
 }
 
-async function openMessagesTab(page: Page, channel: string) {
+// Messages and the events panel no longer share a tab strip: selecting the
+// channel shows its messages, with event cards inline.
+async function openChannel(page: Page, channel: string) {
   await channelButton(page, channel).click();
-  await page.getByRole("button", { name: "Messages", exact: true }).click();
 }
 
 test("propagate_to_children fans the event card out to a descendant channel", async ({ page, browser }) => {
@@ -77,7 +78,7 @@ test("propagate_to_children fans the event card out to a descendant channel", as
   // card in both the anchor and its child.
   const { context, page: member } = await newMemberPage(browser, uniqueName("Reader"));
   try {
-    await openMessagesTab(member, anchor);
+    await openChannel(member, anchor);
     await expect(member.getByText(title)).toBeVisible({ timeout: 15000 });
     // The squad room is a voice room: no chat, so its propagated events
     // show in its Events dialog.

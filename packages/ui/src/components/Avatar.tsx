@@ -16,40 +16,53 @@ function initialsFrom(name: string | null | undefined): string {
   return trimmed.slice(0, 2).toUpperCase();
 }
 
+const AVATAR_TONES = 6;
+
+/** Which of the palette tones a hub or person gets, for surfaces drawn in
+ *  their colour (the hub card behind the sidebar header). */
+export function avatarTone(seed: string): number {
+  return hashToHue(seed) % AVATAR_TONES;
+}
+
 export function Avatar({
   src,
   name,
   pubkey,
   size = 24,
+  self = false,
 }: {
   src?: string | null;
   name: string | null | undefined;
   pubkey?: string | null;
   size?: number;
+  /** Your own avatar: the one tile drawn in the accent. */
+  self?: boolean;
 }) {
+  // Corners scale with the tile, so a 22px tab icon and a 48px header avatar
+  // read as the same shape.
+  const radius = Math.round(size * 0.28);
   if (src) {
     return (
       <img
         src={src}
         alt=""
         className="avatar-img"
-        style={{ width: size, height: size }}
+        style={{ width: size, height: size, borderRadius: radius }}
       />
     );
   }
   const initials = initialsFrom(name);
-  const hue = hashToHue(pubkey || name || "?");
-  // The hue is handed to CSS rather than baked into a colour here: telling two
-  // people apart is worth a tint, but how saturated that tint gets is the
-  // theme's call, and a fully saturated one here fights the single accent.
+  // A fixed palette, picked by hash: the theme owns the colours, the hash
+  // only decides which one a person gets.
+  const tone = self ? "self" : String(avatarTone(pubkey || name || "?"));
   return (
     <span
-      className="avatar-fallback"
+      className={`avatar-fallback avatar-tone-${tone}`}
       style={{
         width: size,
         height: size,
-        fontSize: Math.round(size * 0.45),
-        ["--avatar-hue" as string]: String(hue),
+        borderRadius: radius,
+        fontSize: Math.round(size * (size < 30 ? 0.41 : 0.34)),
       }}
     >
       {initials}

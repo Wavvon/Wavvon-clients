@@ -4,7 +4,7 @@ import type { User } from "../../types";
 import { isBirthdayToday } from "@wavvon/core";
 import { Avatar } from "../Avatar";
 import { nameColorStyle, safeRoleColor } from "../../utils/roleAppearance";
-import { CakeIcon, MicOnIcon } from "../Icons";
+import { CakeIcon, MicOnIcon, SearchIcon } from "../Icons";
 import type { MemberActivity } from "../../utils/memberActivity";
 
 interface Section {
@@ -79,7 +79,6 @@ export function UserListGrouped({
 
   const sections = groupMembers(matched, t("member.list.members"), t("member.list.offline"));
   const allUsers = sections.flatMap((s) => s.users);
-  const onlineCount = matched.filter((u) => u.online).length;
 
   // Enter/Space opens the same context menu a right-click would, anchored at
   // the focused item, so keyboard-only users reach roles and mod actions.
@@ -120,14 +119,8 @@ export function UserListGrouped({
 
   return (
     <>
-      <div className="user-list-header">
-        <span className="user-list-total">{t("member.list.count", { count: matched.length })}</span>
-        <span className="user-list-online" title={t("presence.online")}>
-          <span className="status-dot online" />
-          {onlineCount}
-        </span>
-      </div>
       <div className="user-list-filter">
+        <SearchIcon size={13} />
         <input
           type="text"
           placeholder={t("users.list.filter_placeholder")}
@@ -135,10 +128,10 @@ export function UserListGrouped({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
-        {filter && matched.length === 0 && (
-          <p className="muted user-list-empty">{t("users.list.no_matches")}</p>
-        )}
       </div>
+      {filter && matched.length === 0 && (
+        <p className="muted user-list-empty">{t("users.list.no_matches")}</p>
+      )}
       {sections.map((section) => (
         <div className="user-section" key={section.key}>
           <p className="user-section-title">
@@ -161,7 +154,7 @@ export function UserListGrouped({
                   onContextMenu={(e) => onContextMenu?.(e, u)}
                 >
                   <span className="user-avatar-presence">
-                    <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={28} />
+                    <Avatar src={u.avatar} name={u.display_name || u.public_key} pubkey={u.public_key} size={32} self={u.public_key === myPubkey} />
                     <span
                       className={`status-dot ${dotClass(u, selfInvisibleRow)}`}
                       title={selfInvisibleRow ? t("presence.invisible_self_tooltip") : undefined}

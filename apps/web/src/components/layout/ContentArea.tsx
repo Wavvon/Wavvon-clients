@@ -414,7 +414,6 @@ export function ContentArea(props: Props) {
         loadWelcomeInfo={previewHubInfo}
         isWelcomeDismissed={isWelcomeDismissed}
         dismissWelcome={dismissWelcome}
-        eventsPresentation="tabs"
         getEvents={getEventsAction}
         deleteEvent={deleteEvent}
         rsvpEvent={rsvpEventAction}
