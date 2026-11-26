@@ -3236,6 +3236,29 @@ tr.account-drop-target td {
   background: #000;
 }
 .voice-tile-camera.mirrored { transform: scaleX(-1); }
+/* A camera fills its tile; the name rides on it as a chip. */
+.voice-tile.has-camera {
+  padding: 0;
+}
+.voice-tile.has-camera > .voice-tile-camera {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+.voice-tile.has-camera > .voice-tile-name {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: rgba(13, 15, 20, 0.88);
+  color: var(--text);
+  font-size: 13px;
+}
 .cam-badge {
   font-size: 10px;
   font-weight: 700;
