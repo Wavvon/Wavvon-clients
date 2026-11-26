@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { AccountList, SettingRow, useConfirm } from "@wavvon/ui";
+import { AccountList, IdentityModal, SettingRow, useConfirm } from "@wavvon/ui";
+import { AddIdentityFlow } from "./AddIdentityFlow";
 import { identityNeedsBackup } from "../utils/identityBackup";
 import { useTranslation } from "react-i18next";
 import {
   listAccounts,
-  createAccount,
   removeAccount,
   renameAccount,
   reorderAccounts,
@@ -20,9 +20,9 @@ export function AccountSwitcherSection() {
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   async function refresh() {
     try {
@@ -39,23 +39,7 @@ export function AccountSwitcherSection() {
     refresh();
   }, []);
 
-  // Bringing an existing identity here from its phrase is the Restore
-  // section's job, which also notices an account already on this device.
-  async function handleCreate() {
-    setBusyId("__create__");
-    setError(null);
-    try {
-      await createAccount({});
-      await refresh();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   async function handleSwitch(id: string) {
-    setBusyId(id);
     setError(null);
     try {
       const refusal = await switchAccountGuarded(id);
@@ -68,8 +52,6 @@ export function AccountSwitcherSection() {
       }
     } catch (e) {
       setError(String(e));
-    } finally {
-      setBusyId(null);
     }
   }
 
@@ -85,30 +67,24 @@ export function AccountSwitcherSection() {
       danger: true,
     });
     if (!confirmed) return;
-    setBusyId(account.id);
     setError(null);
     try {
       await removeAccount(account.id);
       await refresh();
     } catch (e) {
       setError(String(e));
-    } finally {
-      setBusyId(null);
     }
   }
 
   // Renaming edits in place rather than through a prompt: `window.prompt`
   // is the same untranslatable native chrome `window.confirm` was.
   async function handleRename(account: AccountSummary, next: string) {
-    setBusyId(account.id);
     setError(null);
     try {
       await renameAccount(account.id, next);
       await refresh();
     } catch (e) {
       setError(String(e));
-    } finally {
-      setBusyId(null);
     }
   }
 
@@ -137,10 +113,15 @@ export function AccountSwitcherSection() {
         />
       )}
       <div className="settings-row" style={{ marginTop: 8 }}>
-        <button onClick={() => handleCreate()} disabled={busyId === "__create__"}>
-          {t("settings.account.accounts.new_identity")}
+        <button className="btn-secondary" onClick={() => setAdding(true)}>
+          {t("settings.account.accounts.add")}
         </button>
       </div>
+      {adding && (
+        <IdentityModal label={t("identity_setup.add.title")} onClose={() => setAdding(false)}>
+          <AddIdentityFlow variant="add" onCancel={() => setAdding(false)} onDone={() => { setAdding(false); void refresh(); }} />
+        </IdentityModal>
+      )}
     </SettingRow>
   );
 }

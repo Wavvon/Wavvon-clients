@@ -594,6 +594,7 @@ export type { HubLayout, HubFolder } from "./utils/hubLayout";
 export type { HubNotice } from "./hooks/useUnreadCounts";
 export { UserMenu } from "./components/layout/UserMenu";
 export { AccountList } from "./components/settings/AccountList";
+export { IdentityModal } from "./components/settings/IdentityModal";
 export type { AccountListItem, AccountListProps } from "./components/settings/AccountList";
 export type { UserMenuProps, MenuAccount } from "./components/layout/UserMenu";
 export { useHubLayout } from "./hooks/useHubLayout";

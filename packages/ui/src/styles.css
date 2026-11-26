@@ -9530,6 +9530,34 @@ a.embed-title:hover {
    ============================================================ */
 /* A fixed height, not min-height: the body does not scroll, so a screen
    taller than the viewport has to scroll inside its own box. */
+/* Adding an identity opens over Settings in a window of its own; the
+   onboarding's side panel (what Wavvon is) is for a first visit, not here. */
+.identity-modal-overlay {
+  z-index: 9500;
+}
+.identity-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+}
+.identity-modal .onboarding {
+  height: auto;
+  padding: 0;
+}
+.identity-modal .onboarding--split {
+  grid-template-columns: minmax(0, 1fr);
+}
+.identity-modal .onboarding-side {
+  display: none;
+}
+.identity-modal .onboarding--split > .onboarding-card {
+  padding: 28px;
+}
+
 .onboarding {
   height: 100%;
   display: grid;

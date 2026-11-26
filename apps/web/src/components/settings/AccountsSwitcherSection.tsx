@@ -16,7 +16,7 @@ import {
 } from "@identity/index";
 import { identityNeedsBackup, markIdentityBackedUp } from "../../utils/identityBackup";
 import { IdentitySetupScreen } from "@components/identity/IdentitySetupScreen";
-import { AccountList } from "@wavvon/ui";
+import { AccountList, IdentityModal } from "@wavvon/ui";
 
 // Short, typeable identifier for the "type to confirm" removal guard — the
 // formatted fingerprint (formatPubkey) contains an ellipsis and dashes that
@@ -148,24 +148,6 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
     await setAccountOrder(newIds);
   }
 
-  if (showAdd) {
-    return (
-      <div className="settings-section">
-        <IdentitySetupScreen
-          variant="add"
-          onCancel={() => setShowAdd(false)}
-          onComplete={() => {
-            // Adding an account no longer switches to it automatically — it
-            // just lands in the list below, unswitched, until the user picks
-            // Switch on its row.
-            setShowAdd(false);
-            refresh();
-          }}
-        />
-      </div>
-    );
-  }
-
   const removingAccount = accounts?.find((a) => a.id === removingId) ?? null;
 
   return (
@@ -260,6 +242,21 @@ export function AccountsSwitcherSection({ inVoice = false, onBackedUp }: Props) 
         );
       })()}
 
+      {showAdd && (
+        <IdentityModal label={t("identity_setup.add.title")} onClose={() => setShowAdd(false)}>
+          <IdentitySetupScreen
+            variant="add"
+            onCancel={() => setShowAdd(false)}
+            onComplete={() => {
+              // Adding an account no longer switches to it automatically — it
+              // just lands in the list below, unswitched, until the user picks
+              // Switch on its row.
+              setShowAdd(false);
+              refresh();
+            }}
+          />
+          </IdentityModal>
+      )}
       <div className="settings-row" style={{ marginTop: 8 }}>
         <button type="button" className="btn-secondary" onClick={() => setShowAdd(true)}>
           {t("settings.account.accounts.add")}
