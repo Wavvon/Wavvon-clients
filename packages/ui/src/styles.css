@@ -2908,11 +2908,16 @@ tr.account-drop-target td {
   color: var(--accent);
 }
 /* The media controls float as one dock at the foot of the room (#494). */
+/* Centred with auto margins, not a transform: a transformed box becomes the
+   containing block of its fixed-position popovers (the soundboard), which
+   then land off screen. */
 .voice-room-controls.voice-dock {
   position: absolute;
   bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin: 0 auto;
   z-index: 5;
   display: flex;
   padding: 6px;
@@ -3094,9 +3099,11 @@ tr.account-drop-target td {
 }
 .voice-room-bar .live-tray {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
   top: 0;
-  transform: translateX(-50%);
+  width: fit-content;
+  margin: 0 auto;
 }
 .voice-media-bar .voice-media-bar-narrow { display: none; }
 
