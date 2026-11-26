@@ -15,7 +15,7 @@ async function joinVoiceAndEnableCamera(page: Page, channel: string) {
   // channel row is joined by double-click (see the "Double-click to join
   // voice" row tooltip in SortableItems.tsx), not a header button.
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 15000 });
   const cam = page.getByRole("button", { name: "Turn on camera" });
   await expect(cam).toBeVisible({ timeout: 15000 });
   await cam.click();

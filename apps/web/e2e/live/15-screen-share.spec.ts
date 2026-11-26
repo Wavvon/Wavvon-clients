@@ -11,7 +11,7 @@ import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } 
 // SortableItems.tsx), not a header button.
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 15000 });
 }
 
 test("start a screen share; a second client sees it, then stop", async ({ page, browser }) => {

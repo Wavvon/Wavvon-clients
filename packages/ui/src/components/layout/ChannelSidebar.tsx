@@ -827,7 +827,7 @@ export function ChannelSidebar({
             <div className="user-actions">
               <span className="voice-footer-dot" aria-hidden="true" />
               <span className="voice-status-label">
-                <strong>{voiceChannelName}</strong>
+                <strong className="voice-status-room">{voiceChannelName}</strong>
                 {typeof activePing === "number" && <span className="muted"> · {t("voice.footer.ping", { ms: activePing })}</span>}
               </span>
               <div className="user-actions-icons">

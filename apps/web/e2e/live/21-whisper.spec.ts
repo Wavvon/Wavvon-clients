@@ -13,7 +13,7 @@ import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqu
 // voice" row tooltip in SortableItems.tsx), not a header button.
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 15000 });
   await expect(page.getByTitle("Whisper", { exact: true })).toBeVisible({ timeout: 15000 });
 }
 

@@ -19,7 +19,7 @@ function rosterEntry(page: Page, channelName: string, displayName: string) {
 // "Double-click to join voice" row tooltip in SortableItems.tsx).
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, { timeout: 15000 });
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, { timeout: 15000 });
 }
 
 test("owner moves a member via right-click; prompt accept/decline both work", async ({ page, browser }) => {
@@ -56,7 +56,7 @@ test("owner moves a member via right-click; prompt accept/decline both work", as
     await prompt.getByRole("button", { name: "Decline" }).click();
     await expect(prompt).not.toBeVisible();
     await member.waitForTimeout(1000);
-    await expect(member.locator(".voice-status-label").first()).toHaveText(`#${a}`);
+    await expect(member.locator(".voice-status-room").first()).toHaveText(`${a}`);
     await expect(rosterEntry(page, b, memberName)).toHaveCount(0);
     await expect(rosterEntry(page, a, memberName)).toBeVisible();
 
@@ -68,7 +68,7 @@ test("owner moves a member via right-click; prompt accept/decline both work", as
     const prompt2 = member.getByRole("dialog", { name: "Move to another channel?" });
     await expect(prompt2).toBeVisible({ timeout: 15000 });
     await prompt2.getByRole("button", { name: "Accept" }).click();
-    await expect(member.locator(".voice-status-label").first()).toHaveText(`#${b}`, { timeout: 15000 });
+    await expect(member.locator(".voice-status-room").first()).toHaveText(`${b}`, { timeout: 15000 });
     await expect(rosterEntry(page, b, memberName)).toBeVisible({ timeout: 15000 });
     await expect(rosterEntry(page, a, memberName)).toHaveCount(0);
   } finally {

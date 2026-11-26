@@ -52,7 +52,7 @@ async function transmitContinuously(page: Page) {
 
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, {
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, {
     timeout: 30000,
   });
 }
@@ -102,7 +102,7 @@ test("a datagram is received, unsealed and decoded — not just a roster row", a
     // foreground at once. What accumulates in `lossBySender` stays there, so
     // the owner's readout is still true once focus moves back.
     await speaker.bringToFront();
-    await expect(speaker.locator(".voice-status-label").first()).toHaveText(`#${channel}`);
+    await expect(speaker.locator(".voice-status-room").first()).toHaveText(`${channel}`);
     await page.bringToFront();
 
     await page.locator(".conn-chip").click();
@@ -139,7 +139,7 @@ test("a datagram is received, unsealed and decoded — not just a roster row", a
     // in its new session, so a percentage again means those frames decoded.
     const leave = async (p: Page) => {
       await p.getByRole("button", { name: "Leave voice" }).first().click();
-      await expect(p.locator(".voice-status-label")).toHaveCount(0, { timeout: 15000 });
+      await expect(p.locator(".voice-status-room")).toHaveCount(0, { timeout: 15000 });
     };
     await speaker.bringToFront();
     await leave(speaker);

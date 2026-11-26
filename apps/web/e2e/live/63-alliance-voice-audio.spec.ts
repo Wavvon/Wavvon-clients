@@ -74,7 +74,7 @@ test("a visitor hears the allied hub's room, not just its roster", async ({ page
   try {
     await transmitContinuously(host);
     await channelButton(host, CHANNEL!).dblclick();
-    await expect(host.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`, {
+    await expect(host.locator(".voice-status-room").first()).toHaveText(`${CHANNEL}`, {
       timeout: 30000,
     });
 
@@ -103,7 +103,7 @@ test("a visitor hears the allied hub's room, not just its roster", async ({ page
     // and that hub's operator sees the IP. The app draws the dialog now, so
     // nothing native fires and a `page.on("dialog")` handler would never run.
     await confirmInApp(page);
-    await expect(page.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`, {
+    await expect(page.locator(".voice-status-room").first()).toHaveText(`${CHANNEL}`, {
       timeout: 40000,
     });
 
@@ -111,7 +111,7 @@ test("a visitor hears the allied hub's room, not just its roster", async ({ page
     // ScriptProcessor is throttled, and both pages cannot be foreground at
     // once. What the visitor has already folded stays folded.
     await host.bringToFront();
-    await expect(host.locator(".voice-status-label").first()).toHaveText(`#${CHANNEL}`);
+    await expect(host.locator(".voice-status-room").first()).toHaveText(`${CHANNEL}`);
     await page.bringToFront();
 
     await page.locator(".conn-chip").click({ timeout: 15000 });

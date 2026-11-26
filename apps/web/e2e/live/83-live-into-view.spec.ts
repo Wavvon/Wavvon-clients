@@ -9,7 +9,7 @@ import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } 
 
 async function joinVoice(page: Page, channel: string) {
   await channelButton(page, channel).dblclick();
-  await expect(page.locator(".voice-status-label").first()).toHaveText(`#${channel}`, {
+  await expect(page.locator(".voice-status-room").first()).toHaveText(`${channel}`, {
     timeout: 15000,
   });
 }
