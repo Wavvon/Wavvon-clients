@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mark-post-read"
+description = "Enables the mark_post_read command without any pre-configured scope."
+commands.allow = ["mark_post_read"]
+
+[[permission]]
+identifier = "deny-mark-post-read"
+description = "Denies the mark_post_read command without any pre-configured scope."
+commands.deny = ["mark_post_read"]

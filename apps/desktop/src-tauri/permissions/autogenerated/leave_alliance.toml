@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-leave-alliance"
+description = "Enables the leave_alliance command without any pre-configured scope."
+commands.allow = ["leave_alliance"]
+
+[[permission]]
+identifier = "deny-leave-alliance"
+description = "Denies the leave_alliance command without any pre-configured scope."
+commands.deny = ["leave_alliance"]

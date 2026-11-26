@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-talk-power"
+description = "Enables the get_talk_power command without any pre-configured scope."
+commands.allow = ["get_talk_power"]
+
+[[permission]]
+identifier = "deny-get-talk-power"
+description = "Denies the get_talk_power command without any pre-configured scope."
+commands.deny = ["get_talk_power"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-my-profile-on-hub"
+description = "Enables the update_my_profile_on_hub command without any pre-configured scope."
+commands.allow = ["update_my_profile_on_hub"]
+
+[[permission]]
+identifier = "deny-update-my-profile-on-hub"
+description = "Denies the update_my_profile_on_hub command without any pre-configured scope."
+commands.deny = ["update_my_profile_on_hub"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-hub-icons"
+description = "Enables the list_hub_icons command without any pre-configured scope."
+commands.allow = ["list_hub_icons"]
+
+[[permission]]
+identifier = "deny-list-hub-icons"
+description = "Denies the list_hub_icons command without any pre-configured scope."
+commands.deny = ["list_hub_icons"]

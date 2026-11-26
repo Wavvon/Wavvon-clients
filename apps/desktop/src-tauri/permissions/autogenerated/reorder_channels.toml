@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reorder-channels"
+description = "Enables the reorder_channels command without any pre-configured scope."
+commands.allow = ["reorder_channels"]
+
+[[permission]]
+identifier = "deny-reorder-channels"
+description = "Denies the reorder_channels command without any pre-configured scope."
+commands.deny = ["reorder_channels"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forum-edit-tag"
+description = "Enables the forum_edit_tag command without any pre-configured scope."
+commands.allow = ["forum_edit_tag"]
+
+[[permission]]
+identifier = "deny-forum-edit-tag"
+description = "Denies the forum_edit_tag command without any pre-configured scope."
+commands.deny = ["forum_edit_tag"]

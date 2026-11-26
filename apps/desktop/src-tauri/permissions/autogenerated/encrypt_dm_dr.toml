@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-encrypt-dm-dr"
+description = "Enables the encrypt_dm_dr command without any pre-configured scope."
+commands.allow = ["encrypt_dm_dr"]
+
+[[permission]]
+identifier = "deny-encrypt-dm-dr"
+description = "Denies the encrypt_dm_dr command without any pre-configured scope."
+commands.deny = ["encrypt_dm_dr"]

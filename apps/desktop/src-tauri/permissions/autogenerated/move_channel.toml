@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-move-channel"
+description = "Enables the move_channel command without any pre-configured scope."
+commands.allow = ["move_channel"]
+
+[[permission]]
+identifier = "deny-move-channel"
+description = "Denies the move_channel command without any pre-configured scope."
+commands.deny = ["move_channel"]

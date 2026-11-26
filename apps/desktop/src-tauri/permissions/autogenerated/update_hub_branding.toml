@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-hub-branding"
+description = "Enables the update_hub_branding command without any pre-configured scope."
+commands.allow = ["update_hub_branding"]
+
+[[permission]]
+identifier = "deny-update-hub-branding"
+description = "Denies the update_hub_branding command without any pre-configured scope."
+commands.deny = ["update_hub_branding"]

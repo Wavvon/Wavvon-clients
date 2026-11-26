@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fetch-group-sender-keys"
+description = "Enables the fetch_group_sender_keys command without any pre-configured scope."
+commands.allow = ["fetch_group_sender_keys"]
+
+[[permission]]
+identifier = "deny-fetch-group-sender-keys"
+description = "Denies the fetch_group_sender_keys command without any pre-configured scope."
+commands.deny = ["fetch_group_sender_keys"]

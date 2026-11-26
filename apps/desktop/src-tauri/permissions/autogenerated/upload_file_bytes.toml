@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-upload-file-bytes"
+description = "Enables the upload_file_bytes command without any pre-configured scope."
+commands.allow = ["upload_file_bytes"]
+
+[[permission]]
+identifier = "deny-upload-file-bytes"
+description = "Denies the upload_file_bytes command without any pre-configured scope."
+commands.deny = ["upload_file_bytes"]

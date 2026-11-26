@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-banlist-overrides"
+description = "Enables the get_banlist_overrides command without any pre-configured scope."
+commands.allow = ["get_banlist_overrides"]
+
+[[permission]]
+identifier = "deny-get-banlist-overrides"
+description = "Denies the get_banlist_overrides command without any pre-configured scope."
+commands.deny = ["get_banlist_overrides"]

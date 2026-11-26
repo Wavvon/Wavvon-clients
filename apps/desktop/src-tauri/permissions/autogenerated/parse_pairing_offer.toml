@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-parse-pairing-offer"
+description = "Enables the parse_pairing_offer command without any pre-configured scope."
+commands.allow = ["parse_pairing_offer"]
+
+[[permission]]
+identifier = "deny-parse-pairing-offer"
+description = "Denies the parse_pairing_offer command without any pre-configured scope."
+commands.deny = ["parse_pairing_offer"]

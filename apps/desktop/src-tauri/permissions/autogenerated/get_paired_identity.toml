@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-paired-identity"
+description = "Enables the get_paired_identity command without any pre-configured scope."
+commands.allow = ["get_paired_identity"]
+
+[[permission]]
+identifier = "deny-get-paired-identity"
+description = "Denies the get_paired_identity command without any pre-configured scope."
+commands.deny = ["get_paired_identity"]

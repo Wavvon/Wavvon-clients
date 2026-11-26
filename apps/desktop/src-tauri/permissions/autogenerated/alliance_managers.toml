@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-alliance-managers"
+description = "Enables the alliance_managers command without any pre-configured scope."
+commands.allow = ["alliance_managers"]
+
+[[permission]]
+identifier = "deny-alliance-managers"
+description = "Denies the alliance_managers command without any pre-configured scope."
+commands.deny = ["alliance_managers"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-application-form"
+description = "Enables the application_form command without any pre-configured scope."
+commands.allow = ["application_form"]
+
+[[permission]]
+identifier = "deny-application-form"
+description = "Denies the application_form command without any pre-configured scope."
+commands.deny = ["application_form"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-hub-listed"
+description = "Enables the set_hub_listed command without any pre-configured scope."
+commands.allow = ["set_hub_listed"]
+
+[[permission]]
+identifier = "deny-set-hub-listed"
+description = "Denies the set_hub_listed command without any pre-configured scope."
+commands.deny = ["set_hub_listed"]

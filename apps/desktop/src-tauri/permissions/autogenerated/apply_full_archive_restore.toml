@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-apply-full-archive-restore"
+description = "Enables the apply_full_archive_restore command without any pre-configured scope."
+commands.allow = ["apply_full_archive_restore"]
+
+[[permission]]
+identifier = "deny-apply-full-archive-restore"
+description = "Denies the apply_full_archive_restore command without any pre-configured scope."
+commands.deny = ["apply_full_archive_restore"]

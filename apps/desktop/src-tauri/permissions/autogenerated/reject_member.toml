@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reject-member"
+description = "Enables the reject_member command without any pre-configured scope."
+commands.allow = ["reject_member"]
+
+[[permission]]
+identifier = "deny-reject-member"
+description = "Denies the reject_member command without any pre-configured scope."
+commands.deny = ["reject_member"]

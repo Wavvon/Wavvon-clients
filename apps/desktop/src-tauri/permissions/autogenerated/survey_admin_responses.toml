@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-survey-admin-responses"
+description = "Enables the survey_admin_responses command without any pre-configured scope."
+commands.allow = ["survey_admin_responses"]
+
+[[permission]]
+identifier = "deny-survey-admin-responses"
+description = "Denies the survey_admin_responses command without any pre-configured scope."
+commands.deny = ["survey_admin_responses"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-join-alliance"
+description = "Enables the join_alliance command without any pre-configured scope."
+commands.allow = ["join_alliance"]
+
+[[permission]]
+identifier = "deny-join-alliance"
+description = "Denies the join_alliance command without any pre-configured scope."
+commands.deny = ["join_alliance"]

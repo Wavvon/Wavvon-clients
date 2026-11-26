@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-event-squad-rooms"
+description = "Enables the create_event_squad_rooms command without any pre-configured scope."
+commands.allow = ["create_event_squad_rooms"]
+
+[[permission]]
+identifier = "deny-create-event-squad-rooms"
+description = "Denies the create_event_squad_rooms command without any pre-configured scope."
+commands.deny = ["create_event_squad_rooms"]

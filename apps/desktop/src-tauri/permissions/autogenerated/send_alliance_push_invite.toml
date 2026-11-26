@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-send-alliance-push-invite"
+description = "Enables the send_alliance_push_invite command without any pre-configured scope."
+commands.allow = ["send_alliance_push_invite"]
+
+[[permission]]
+identifier = "deny-send-alliance-push-invite"
+description = "Denies the send_alliance_push_invite command without any pre-configured scope."
+commands.deny = ["send_alliance_push_invite"]

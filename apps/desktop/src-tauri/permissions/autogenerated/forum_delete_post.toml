@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forum-delete-post"
+description = "Enables the forum_delete_post command without any pre-configured scope."
+commands.allow = ["forum_delete_post"]
+
+[[permission]]
+identifier = "deny-forum-delete-post"
+description = "Denies the forum_delete_post command without any pre-configured scope."
+commands.deny = ["forum_delete_post"]

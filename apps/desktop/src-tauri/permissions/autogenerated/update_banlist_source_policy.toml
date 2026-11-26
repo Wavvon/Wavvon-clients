@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-banlist-source-policy"
+description = "Enables the update_banlist_source_policy command without any pre-configured scope."
+commands.allow = ["update_banlist_source_policy"]
+
+[[permission]]
+identifier = "deny-update-banlist-source-policy"
+description = "Denies the update_banlist_source_policy command without any pre-configured scope."
+commands.deny = ["update_banlist_source_policy"]

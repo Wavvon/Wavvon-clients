@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-alliance-voice-join"
+description = "Enables the alliance_voice_join command without any pre-configured scope."
+commands.allow = ["alliance_voice_join"]
+
+[[permission]]
+identifier = "deny-alliance-voice-join"
+description = "Denies the alliance_voice_join command without any pre-configured scope."
+commands.deny = ["alliance_voice_join"]

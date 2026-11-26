@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-add-hub"
+description = "Enables the add_hub command without any pre-configured scope."
+commands.allow = ["add_hub"]
+
+[[permission]]
+identifier = "deny-add-hub"
+description = "Denies the add_hub command without any pre-configured scope."
+commands.deny = ["add_hub"]

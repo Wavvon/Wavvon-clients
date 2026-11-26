@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-patch-channel-banner-url"
+description = "Enables the patch_channel_banner_url command without any pre-configured scope."
+commands.allow = ["patch_channel_banner_url"]
+
+[[permission]]
+identifier = "deny-patch-channel-banner-url"
+description = "Denies the patch_channel_banner_url command without any pre-configured scope."
+commands.deny = ["patch_channel_banner_url"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-soundboard-upload-clip"
+description = "Enables the soundboard_upload_clip command without any pre-configured scope."
+commands.allow = ["soundboard_upload_clip"]
+
+[[permission]]
+identifier = "deny-soundboard-upload-clip"
+description = "Denies the soundboard_upload_clip command without any pre-configured scope."
+commands.deny = ["soundboard_upload_clip"]

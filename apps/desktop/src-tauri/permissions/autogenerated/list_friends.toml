@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-friends"
+description = "Enables the list_friends command without any pre-configured scope."
+commands.allow = ["list_friends"]
+
+[[permission]]
+identifier = "deny-list-friends"
+description = "Denies the list_friends command without any pre-configured scope."
+commands.deny = ["list_friends"]

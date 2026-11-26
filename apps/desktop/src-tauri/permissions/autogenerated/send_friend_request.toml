@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-send-friend-request"
+description = "Enables the send_friend_request command without any pre-configured scope."
+commands.allow = ["send_friend_request"]
+
+[[permission]]
+identifier = "deny-send-friend-request"
+description = "Denies the send_friend_request command without any pre-configured scope."
+commands.deny = ["send_friend_request"]

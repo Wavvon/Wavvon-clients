@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-attest-rotation-request"
+description = "Enables the attest_rotation_request command without any pre-configured scope."
+commands.allow = ["attest_rotation_request"]
+
+[[permission]]
+identifier = "deny-attest-rotation-request"
+description = "Denies the attest_rotation_request command without any pre-configured scope."
+commands.deny = ["attest_rotation_request"]

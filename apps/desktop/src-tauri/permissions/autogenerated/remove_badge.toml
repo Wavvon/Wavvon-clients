@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-badge"
+description = "Enables the remove_badge command without any pre-configured scope."
+commands.allow = ["remove_badge"]
+
+[[permission]]
+identifier = "deny-remove-badge"
+description = "Denies the remove_badge command without any pre-configured scope."
+commands.deny = ["remove_badge"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-load-ignored-users"
+description = "Enables the load_ignored_users command without any pre-configured scope."
+commands.allow = ["load_ignored_users"]
+
+[[permission]]
+identifier = "deny-load-ignored-users"
+description = "Denies the load_ignored_users command without any pre-configured scope."
+commands.deny = ["load_ignored_users"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fetch-public-profile"
+description = "Enables the fetch_public_profile command without any pre-configured scope."
+commands.allow = ["fetch_public_profile"]
+
+[[permission]]
+identifier = "deny-fetch-public-profile"
+description = "Denies the fetch_public_profile command without any pre-configured scope."
+commands.deny = ["fetch_public_profile"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ping-hub"
+description = "Enables the ping_hub command without any pre-configured scope."
+commands.allow = ["ping_hub"]
+
+[[permission]]
+identifier = "deny-ping-hub"
+description = "Denies the ping_hub command without any pre-configured scope."
+commands.deny = ["ping_hub"]

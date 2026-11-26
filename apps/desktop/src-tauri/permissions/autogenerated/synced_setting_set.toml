@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-synced-setting-set"
+description = "Enables the synced_setting_set command without any pre-configured scope."
+commands.allow = ["synced_setting_set"]
+
+[[permission]]
+identifier = "deny-synced-setting-set"
+description = "Denies the synced_setting_set command without any pre-configured scope."
+commands.deny = ["synced_setting_set"]

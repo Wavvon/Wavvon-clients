@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-collapsed-categories"
+description = "Enables the save_collapsed_categories command without any pre-configured scope."
+commands.allow = ["save_collapsed_categories"]
+
+[[permission]]
+identifier = "deny-save-collapsed-categories"
+description = "Denies the save_collapsed_categories command without any pre-configured scope."
+commands.deny = ["save_collapsed_categories"]

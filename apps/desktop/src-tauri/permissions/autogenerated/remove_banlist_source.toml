@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-banlist-source"
+description = "Enables the remove_banlist_source command without any pre-configured scope."
+commands.allow = ["remove_banlist_source"]
+
+[[permission]]
+identifier = "deny-remove-banlist-source"
+description = "Denies the remove_banlist_source command without any pre-configured scope."
+commands.deny = ["remove_banlist_source"]

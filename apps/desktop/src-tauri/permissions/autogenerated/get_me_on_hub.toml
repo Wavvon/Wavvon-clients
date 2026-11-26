@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-me-on-hub"
+description = "Enables the get_me_on_hub command without any pre-configured scope."
+commands.allow = ["get_me_on_hub"]
+
+[[permission]]
+identifier = "deny-get-me-on-hub"
+description = "Denies the get_me_on_hub command without any pre-configured scope."
+commands.deny = ["get_me_on_hub"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-directory-identity-publish"
+description = "Enables the directory_identity_publish command without any pre-configured scope."
+commands.allow = ["directory_identity_publish"]
+
+[[permission]]
+identifier = "deny-directory-identity-publish"
+description = "Denies the directory_identity_publish command without any pre-configured scope."
+commands.deny = ["directory_identity_publish"]

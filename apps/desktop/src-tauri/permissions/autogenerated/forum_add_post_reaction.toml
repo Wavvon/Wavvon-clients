@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forum-add-post-reaction"
+description = "Enables the forum_add_post_reaction command without any pre-configured scope."
+commands.allow = ["forum_add_post_reaction"]
+
+[[permission]]
+identifier = "deny-forum-add-post-reaction"
+description = "Denies the forum_add_post_reaction command without any pre-configured scope."
+commands.deny = ["forum_add_post_reaction"]

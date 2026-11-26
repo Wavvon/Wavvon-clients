@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assign-role"
+description = "Enables the assign_role command without any pre-configured scope."
+commands.allow = ["assign_role"]
+
+[[permission]]
+identifier = "deny-assign-role"
+description = "Denies the assign_role command without any pre-configured scope."
+commands.deny = ["assign_role"]

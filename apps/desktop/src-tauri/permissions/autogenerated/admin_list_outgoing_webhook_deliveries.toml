@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-admin-list-outgoing-webhook-deliveries"
+description = "Enables the admin_list_outgoing_webhook_deliveries command without any pre-configured scope."
+commands.allow = ["admin_list_outgoing_webhook_deliveries"]
+
+[[permission]]
+identifier = "deny-admin-list-outgoing-webhook-deliveries"
+description = "Denies the admin_list_outgoing_webhook_deliveries command without any pre-configured scope."
+commands.deny = ["admin_list_outgoing_webhook_deliveries"]

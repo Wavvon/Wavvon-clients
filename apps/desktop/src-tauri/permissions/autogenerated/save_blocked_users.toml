@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-blocked-users"
+description = "Enables the save_blocked_users command without any pre-configured scope."
+commands.allow = ["save_blocked_users"]
+
+[[permission]]
+identifier = "deny-save-blocked-users"
+description = "Denies the save_blocked_users command without any pre-configured scope."
+commands.deny = ["save_blocked_users"]

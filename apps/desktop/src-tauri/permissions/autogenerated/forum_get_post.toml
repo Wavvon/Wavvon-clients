@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-forum-get-post"
+description = "Enables the forum_get_post command without any pre-configured scope."
+commands.allow = ["forum_get_post"]
+
+[[permission]]
+identifier = "deny-forum-get-post"
+description = "Denies the forum_get_post command without any pre-configured scope."
+commands.deny = ["forum_get_post"]

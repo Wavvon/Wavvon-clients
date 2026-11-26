@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-admin-list-webhooks"
+description = "Enables the admin_list_webhooks command without any pre-configured scope."
+commands.allow = ["admin_list_webhooks"]
+
+[[permission]]
+identifier = "deny-admin-list-webhooks"
+description = "Denies the admin_list_webhooks command without any pre-configured scope."
+commands.deny = ["admin_list_webhooks"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-paired-identity"
+description = "Enables the save_paired_identity command without any pre-configured scope."
+commands.allow = ["save_paired_identity"]
+
+[[permission]]
+identifier = "deny-save-paired-identity"
+description = "Denies the save_paired_identity command without any pre-configured scope."
+commands.deny = ["save_paired_identity"]

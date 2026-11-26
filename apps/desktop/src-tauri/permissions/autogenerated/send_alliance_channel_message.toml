@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-send-alliance-channel-message"
+description = "Enables the send_alliance_channel_message command without any pre-configured scope."
+commands.allow = ["send_alliance_channel_message"]
+
+[[permission]]
+identifier = "deny-send-alliance-channel-message"
+description = "Denies the send_alliance_channel_message command without any pre-configured scope."
+commands.deny = ["send_alliance_channel_message"]

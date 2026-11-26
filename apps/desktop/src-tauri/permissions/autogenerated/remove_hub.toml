@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-remove-hub"
+description = "Enables the remove_hub command without any pre-configured scope."
+commands.allow = ["remove_hub"]
+
+[[permission]]
+identifier = "deny-remove-hub"
+description = "Denies the remove_hub command without any pre-configured scope."
+commands.deny = ["remove_hub"]

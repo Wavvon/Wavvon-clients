@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-recovery-requests-to-attest"
+description = "Enables the list_recovery_requests_to_attest command without any pre-configured scope."
+commands.allow = ["list_recovery_requests_to_attest"]
+
+[[permission]]
+identifier = "deny-list-recovery-requests-to-attest"
+description = "Denies the list_recovery_requests_to_attest command without any pre-configured scope."
+commands.deny = ["list_recovery_requests_to_attest"]

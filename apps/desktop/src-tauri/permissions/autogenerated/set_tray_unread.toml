@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-tray-unread"
+description = "Enables the set_tray_unread command without any pre-configured scope."
+commands.allow = ["set_tray_unread"]
+
+[[permission]]
+identifier = "deny-set-tray-unread"
+description = "Denies the set_tray_unread command without any pre-configured scope."
+commands.deny = ["set_tray_unread"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mint-alliance-voice-grant"
+description = "Enables the mint_alliance_voice_grant command without any pre-configured scope."
+commands.allow = ["mint_alliance_voice_grant"]
+
+[[permission]]
+identifier = "deny-mint-alliance-voice-grant"
+description = "Denies the mint_alliance_voice_grant command without any pre-configured scope."
+commands.deny = ["mint_alliance_voice_grant"]

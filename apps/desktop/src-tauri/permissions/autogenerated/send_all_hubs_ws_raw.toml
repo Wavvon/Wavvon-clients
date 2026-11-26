@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-send-all-hubs-ws-raw"
+description = "Enables the send_all_hubs_ws_raw command without any pre-configured scope."
+commands.allow = ["send_all_hubs_ws_raw"]
+
+[[permission]]
+identifier = "deny-send-all-hubs-ws-raw"
+description = "Denies the send_all_hubs_ws_raw command without any pre-configured scope."
+commands.deny = ["send_all_hubs_ws_raw"]

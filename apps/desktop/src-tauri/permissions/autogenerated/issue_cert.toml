@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-issue-cert"
+description = "Enables the issue_cert command without any pre-configured scope."
+commands.allow = ["issue_cert"]
+
+[[permission]]
+identifier = "deny-issue-cert"
+description = "Denies the issue_cert command without any pre-configured scope."
+commands.deny = ["issue_cert"]
