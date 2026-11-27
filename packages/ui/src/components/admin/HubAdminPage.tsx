@@ -423,7 +423,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
   const AREAS: SettingsAreaDef<Area>[] = ([
     { id: "general", label: t("hub.admin.group.general") },
     { id: "joining", label: t("hub.admin.group.joining") },
-    { id: "people", label: t("hub.admin.area.people") },
+    { id: "people", label: t("hub.admin.tabs.members") },
     { id: "roles", label: t("hub.admin.area.roles") },
     { id: "certifications", label: t("hub.admin.area.certifications") },
     { id: "moderation", label: t("hub.admin.group.moderation") },
