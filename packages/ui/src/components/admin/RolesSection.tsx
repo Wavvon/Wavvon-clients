@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RoleCategory, RoleInfo } from "../../types";
-import { permissionSections, type PermissionCatalogueEntry } from "../../utils/channelPermissions";
-import { PermissionSections } from "./PermissionSections";
-import { RoleOrderEditor } from "./RoleOrderEditor";
-import { groupRolesByCategory, roleTintStyle, safeRoleColor } from "../../utils/roleAppearance";
-import { EmojiPicker } from "../content/EmojiPicker";
+import type { MemberAdminInfo, RoleCategory, RoleInfo } from "../../types";
+import type { PermissionCatalogueEntry } from "../../utils/channelPermissions";
 import { ErrorRetry } from "../ErrorRetry";
-import { ColorSwatchPicker } from "./ColorSwatchPicker";
 import { RoleCategoryManager, type RoleCategoryManagerActions } from "./RoleCategoryManager";
 import { useConfirm } from "../ConfirmDialog";
-import { SettingRow } from "../SettingRow";
+import { RoleEditor } from "./RoleEditor";
+import { RoleListPane } from "./RoleListPane";
+import { effectiveDraft, type RoleDraft } from "./roleDraft";
 
 /** Permission ids, in display order. Each label is the catalog key
  *  `hub.admin.roles.perm.<id>`, so a new permission is one id here plus one
@@ -131,42 +128,41 @@ export interface RolesSectionActions extends Partial<RoleCategoryManagerActions>
   /** `PUT /roles/order`, highest first; present only on a hub advertising
    *  `roles.order`. Returns every role in its new place. */
   reorderRoles?: (roleIdsHighestFirst: string[]) => Promise<RoleInfo[]>;
+  /** Members tab of a role. Both absent means the tab is not offered. */
+  assignRoleToUser?: (pubkey: string, roleId: string) => Promise<void>;
+  removeRoleFromUser?: (pubkey: string, roleId: string) => Promise<void>;
 }
 
 interface Props {
   actions: RolesSectionActions;
   /** The caller's highest role priority: roles at or above it cannot move. */
   myMaxPriority?: number;
+  /** The hub members with their roles: feeds member counts and the Members tab. */
+  members?: MemberAdminInfo[];
+  onMemberRolesChanged?: (publicKey: string, roles: RoleInfo[]) => void;
 }
 
 const isBuiltin = (role: RoleInfo) => role.id.startsWith("builtin-");
 
-export function RolesSection({ actions, myMaxPriority }: Props) {
+export function RolesSection({ actions, myMaxPriority, members, onMemberRolesChanged }: Props) {
   const { t } = useTranslation();
   const { confirm, dialog } = useConfirm();
-  const [open, setOpen] = useState<string | null>(null);
-  const row = (id: string) => ({
-    open: open === id,
-    onToggle: () => setOpen((cur) => (cur === id ? null : id)),
-  });
   const [roles, setRoles] = useState<RoleInfo[] | null>(null);
   const [categories, setCategories] = useState<RoleCategory[]>([]);
-  // What this screen offers to tick. It comes from the hub, not from
-  // ALL_PERMISSIONS above: a hub newer than this build enforces ids this
-  // build has never heard of, and a screen that cannot offer them is how a
-  // permission ends up enforced but ungrantable.
+  // What this screen offers to tick comes from the hub, not from ALL_PERMISSIONS:
+  // a hub newer than this build enforces ids this build has never heard of.
   const [catalogue, setCatalogue] = useState<PermissionCatalogueEntry[]>([]);
-  const permissionIds = catalogue.map((e) => e.id);
   const [error, setError] = useState<string | null>(null);
-  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
-  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
-  const [newName, setNewName] = useState("");
-  const [newPriority, setNewPriority] = useState(1);
-  const [newPerms, setNewPerms] = useState<Set<string>>(new Set());
-  const [newHoist, setNewHoist] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [justCreated, setJustCreated] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, RoleDraft>>({});
+  const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [managingCategories, setManagingCategories] = useState(false);
 
-  const supportsAppearance = !!(actions.listRoleCategories && actions.createRoleCategory && actions.updateRoleCategory && actions.deleteRoleCategory);
+  const supportsCategories = !!(
+    actions.listRoleCategories && actions.createRoleCategory && actions.updateRoleCategory && actions.deleteRoleCategory
+  );
 
   async function load() {
     setError(null);
@@ -177,76 +173,62 @@ export function RolesSection({ actions, myMaxPriority }: Props) {
       ]);
       setRoles(r);
       setCategories(c);
+      setSelectedId((cur) => cur ?? r.slice().sort((a, b) => b.priority - a.priority)[0]?.id ?? null);
     } catch (e) {
       setError(String(e));
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Its own effect, not part of `load()`: a hub that cannot serve a catalogue
-  // must leave the roles themselves readable rather than turning the screen
-  // into an error.
+  // Its own effect: a hub that cannot serve a catalogue must leave the roles
+  // readable rather than turning the screen into an error.
   useEffect(() => {
     let cancelled = false;
     const pending = actions.listPermissionCatalogue?.();
     if (!pending) return;
     pending
       .then((entries) => { if (!cancelled) setCatalogue(entries); })
-      .catch(() => { /* hub too old to serve one — nothing to offer is the honest answer */ });
+      .catch(() => { /* hub too old to serve one: nothing to offer is the honest answer */ });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** A label for `perm`, or the id itself when this build has no name for it.
-   *  A hub newer than this one is a normal state, not an error: showing the
-   *  raw id offers the permission instead of hiding that it exists. */
-  const permLabel = (perm: string) => t(`hub.admin.roles.perm.${perm}`, { defaultValue: perm });
-
-  const editableIdsFor = (role: RoleInfo) => roleEditorIds(permissionIds, role.permissions);
-
-  function replaceRole(updated: RoleInfo) {
+  const replaceRole = (updated: RoleInfo) =>
     setRoles((prev) => (prev ? prev.map((r) => (r.id === updated.id ? updated : r)) : prev));
-  }
+  const dropDraft = (id: string) => setDrafts(({ [id]: _gone, ...rest }) => rest);
 
-  async function applyUpdate(roleId: string, updates: RoleUpdateInput) {
+  async function guarded(fn: () => Promise<void>) {
     setError(null);
     try {
-      const updated = await actions.updateRole(roleId, updates);
-      replaceRole(updated);
+      await fn();
     } catch (e) {
       setError(String(e));
     }
-  }
-
-  function toggleRolePerm(role: RoleInfo, perm: string) {
-    const has = role.permissions.includes(perm);
-    const next = has ? role.permissions.filter((p) => p !== perm) : [...role.permissions, perm];
-    void applyUpdate(role.id, { permissions: next });
   }
 
   async function handleCreate() {
-    const name = newName.trim();
-    if (!name) return;
     setCreating(true);
-    setError(null);
-    try {
+    await guarded(async () => {
       const created = await actions.createRole({
-        name,
-        permissions: Array.from(newPerms),
-        priority: newPriority,
-        display_separately: newHoist,
+        name: t("hub.admin.roles.new_default"),
+        permissions: [],
+        priority: 1,
+        display_separately: false,
       });
       setRoles((prev) => (prev ? [...prev, created] : [created]));
-      setNewName("");
-      setNewPriority(1);
-      setNewPerms(new Set());
-      setNewHoist(false);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setCreating(false);
-    }
+      setSelectedId(created.id);
+      setJustCreated(created.id);
+    });
+    setCreating(false);
+  }
+
+  async function handleSave(role: RoleInfo) {
+    setSaving(true);
+    await guarded(async () => {
+      replaceRole(await actions.updateRole(role.id, effectiveDraft(role, drafts[role.id])));
+      dropDraft(role.id);
+    });
+    setSaving(false);
   }
 
   async function handleDelete(role: RoleInfo) {
@@ -255,20 +237,27 @@ export function RolesSection({ actions, myMaxPriority }: Props) {
       confirmLabel: t("hub.admin.roles.delete"),
       danger: true,
     }))) return;
-    setError(null);
-    try {
+    await guarded(async () => {
       await actions.deleteRole(role.id);
       setRoles((prev) => (prev ? prev.filter((r) => r.id !== role.id) : prev));
-    } catch (e) {
-      setError(String(e));
-    }
+      dropDraft(role.id);
+      setSelectedId(null);
+    });
+  }
+
+  async function changeMembership(role: RoleInfo, member: MemberAdminInfo, add: boolean) {
+    await guarded(async () => {
+      if (add) await actions.assignRoleToUser!(member.public_key, role.id);
+      else await actions.removeRoleFromUser!(member.public_key, role.id);
+      const next = add ? [...member.roles, role] : member.roles.filter((r) => r.id !== role.id);
+      onMemberRolesChanged?.(member.public_key, next);
+    });
   }
 
   if (roles === null) {
     if (error) {
       return (
         <section>
-          {dialog}
           <h1>{t("hub.admin.roles.title")}</h1>
           <ErrorRetry message={error} onRetry={load} />
         </section>
@@ -277,195 +266,74 @@ export function RolesSection({ actions, myMaxPriority }: Props) {
     return <p className="muted">{t("hub.admin.roles.loading")}</p>;
   }
 
-  const groups = groupRolesByCategory(roles, categories, { includeEmptyCategories: true });
+  const counts = new Map<string, number>();
+  for (const m of members ?? []) for (const r of m.roles) counts.set(r.id, (counts.get(r.id) ?? 0) + 1);
+  if (members) counts.set("builtin-everyone", members.length);
+
+  const selected = roles.find((r) => r.id === selectedId) ?? null;
+  const canAssign = !!(members && actions.assignRoleToUser && actions.removeRoleFromUser);
+  const catalogueIds = catalogue.map((e) => e.id);
 
   return (
     <section>
       <h1>{t("hub.admin.roles.title")}</h1>
       {dialog}
-      <p className="muted">{t("hub.admin.roles.hint")}</p>
       {error && <p className="error-text">{error}</p>}
-
-      <SettingRow
-        title={t("hub.admin.roles.new")}
-        state={t("hub.admin.roles.state.new")}
-        {...row("new")}
-      >
-        <div className="settings-section">
-          <div className="settings-row" style={{ gap: "var(--space-2)" }}>
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder={t("hub.admin.roles.name_placeholder")}
-              aria-label={t("hub.admin.roles.name_placeholder")}
-              autoFocus
-            />
-            <input
-              type="number"
-              value={newPriority}
-              onChange={(e) => setNewPriority(Number(e.target.value))}
-              style={{ maxWidth: 90 }}
-              title={t("hub.admin.roles.priority_title")}
-              aria-label={t("hub.admin.roles.priority_aria")}
-            />
-          </div>
-          <PermissionSections
-            sections={permissionSections(permissionIds, catalogue)}
-            isSet={(perm) => newPerms.has(perm)}
-            renderItem={(perm) => (
-              <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
-                <input
-                  type="checkbox"
-                  checked={newPerms.has(perm)}
-                  onChange={() => setNewPerms((prev) => {
-                    const n = new Set(prev);
-                    if (n.has(perm)) n.delete(perm); else n.add(perm);
-                    return n;
-                  })}
-                />
-                {permLabel(perm)}
-              </label>
-            )}
+      <div className="roles-admin">
+        <RoleListPane
+          roles={roles}
+          categories={categories}
+          memberCounts={counts}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onNew={() => void handleCreate()}
+          creating={creating}
+          onManageCategories={supportsCategories ? () => setManagingCategories(true) : undefined}
+          reorder={
+            actions.reorderRoles && myMaxPriority !== undefined
+              ? {
+                  myMaxPriority,
+                  onReorder: (ids) => void guarded(async () => setRoles(await actions.reorderRoles!(ids))),
+                }
+              : undefined
+          }
+        />
+        {selected ? (
+          <RoleEditor
+            key={selected.id}
+            role={selected}
+            memberCount={counts.get(selected.id) ?? 0}
+            draft={drafts[selected.id]}
+            onDraft={(patch) => setDrafts((d) => ({ ...d, [selected.id]: { ...d[selected.id], ...patch } }))}
+            onSave={() => void handleSave(selected)}
+            onUndo={() => dropDraft(selected.id)}
+            saving={saving}
+            onDelete={isBuiltin(selected) ? undefined : () => void handleDelete(selected)}
+            initialTab={justCreated === selected.id ? "appearance" : undefined}
+            permissionIds={roleEditorIds(catalogueIds, selected.permissions)}
+            catalogue={catalogue}
+            categories={categories}
+            showAppearance={!isBuiltin(selected)}
+            membersPanel={
+              canAssign && selected.id !== "builtin-everyone"
+                ? {
+                    members: members!,
+                    canEdit: myMaxPriority !== undefined && selected.priority < myMaxPriority,
+                    onAdd: (m) => void changeMembership(selected, m, true),
+                    onRemove: (m) => void changeMembership(selected, m, false),
+                  }
+                : undefined
+            }
           />
-          <label className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
-            <input type="checkbox" checked={newHoist} onChange={(e) => setNewHoist(e.target.checked)} />
-            {t("hub.admin.roles.hoist")}
-          </label>
-          <div className="settings-row" style={{ marginTop: "var(--space-2)" }}>
-            <button type="button" className="btn-primary" onClick={handleCreate} disabled={creating || !newName.trim()}>
-              {creating ? t("hub.admin.roles.creating") : t("hub.admin.roles.create")}
-            </button>
-          </div>
-        </div>
-      </SettingRow>
-
-      {actions.reorderRoles && myMaxPriority !== undefined && (
-        <SettingRow
-          title={t("hub.admin.roles.order.title")}
-          state={t("hub.admin.roles.order.state")}
-          {...row("order")}
-        >
-          <RoleOrderEditor
-            roles={roles}
-            myMaxPriority={myMaxPriority}
-            onSave={async (ids) => setRoles(await actions.reorderRoles!(ids))}
-          />
-        </SettingRow>
-      )}
-
-      {groups.map((group) => (
-        <div key={group.category?.id ?? "uncategorized"} className="role-category-group">
-          <div
-            className={`role-category-header ${group.category?.color ? "role-category-header-tinted" : ""}`}
-            style={roleTintStyle(group.category?.color)}
-          >
-            {group.category?.icon && <span>{group.category.icon}</span>}
-            <span>{group.category?.name ?? t("hub.admin.roles.uncategorized")}</span>
-          </div>
-
-          {group.roles.length === 0 && (
-            <p className="muted" style={{ marginLeft: "var(--space-2)" }}>{t("hub.admin.role_categories.category_empty")}</p>
-          )}
-
-          {group.roles.map((role) => (
-            <SettingRow
-              key={role.id}
-              title={role.name}
-              state={t("hub.admin.roles.state", {
-                priority: role.priority,
-                count: role.permissions.length,
-              })}
-              meta={role.icon ?? undefined}
-              {...row(role.id)}
-            >
-              {!isBuiltin(role) && supportsAppearance && (
-                <div className="settings-row" style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
-                  <select
-                    value={role.category_id ?? ""}
-                    onChange={(e) => applyUpdate(role.id, { category_id: e.target.value || null })}
-                    title={t("hub.admin.roles.category_label")}
-                  >
-                    <option value="">{t("hub.admin.roles.category_none")}</option>
-                    {categories
-                      .slice()
-                      .sort((a, b) => a.position - b.position)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                  </select>
-
-                  <EmojiPicker onPick={(icon) => applyUpdate(role.id, { icon })} unicodeOnly />
-                  {role.icon && (
-                    <button
-                      type="button"
-                      className="btn-small"
-                      onClick={() => applyUpdate(role.id, { icon: null })}
-                    >
-                      {t("hub.admin.roles.clear_icon")}
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    className="color-swatch"
-                    style={{
-                      background: safeRoleColor(role.color) ?? "transparent",
-                      border: safeRoleColor(role.color) ? undefined : "1px solid var(--border)",
-                    }}
-                    onClick={() => setColorPickerFor(colorPickerFor === role.id ? null : role.id)}
-                    title={t("hub.admin.roles.color_label")}
-                  />
-                </div>
-              )}
-
-              {colorPickerFor === role.id && (
-                <ColorSwatchPicker
-                  value={role.color}
-                  noColorLabel={t("hub.admin.roles.no_color")}
-                  onChange={(color) => applyUpdate(role.id, { color })}
-                />
-              )}
-
-              {role.id !== "builtin-owner" && (
-                <>
-                  <span className="settings-label">{t("hub.admin.roles.permissions")}</span>
-                  <PermissionSections
-                    sections={permissionSections(editableIdsFor(role), catalogue)}
-                    isSet={(perm) => role.permissions.includes(perm)}
-                    renderItem={(perm) => (
-                      <label key={perm} className="checkbox-label" style={{ fontSize: "var(--text-sm)" }}>
-                        <input
-                          type="checkbox"
-                          checked={role.permissions.includes(perm)}
-                          onChange={() => toggleRolePerm(role, perm)}
-                        />
-                        {permLabel(perm)}
-                      </label>
-                    )}
-                  />
-                </>
-              )}
-
-              {!isBuiltin(role) && (
-                <button
-                  type="button"
-                  className="btn-small danger"
-                  onClick={() => handleDelete(role)}
-                >
-                  {t("hub.admin.roles.delete")}
-                </button>
-              )}
-            </SettingRow>
-          ))}
-        </div>
-      ))}
-      {supportsAppearance && (
+        ) : (
+          <p className="muted">{t("hub.admin.roles.select_hint")}</p>
+        )}
+      </div>
+      {managingCategories && supportsCategories && (
         <RoleCategoryManager
           categories={categories}
           onChange={setCategories}
+          onClose={() => setManagingCategories(false)}
           actions={{
             createRoleCategory: actions.createRoleCategory!,
             updateRoleCategory: actions.updateRoleCategory!,

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { PermissionSection } from "../../utils/channelPermissions";
 
-const LABELS: Record<string, string> = {
+export const SECTION_LABELS: Record<string, string> = {
   messages: "hub.admin.roles.section.messages",
   voice: "hub.admin.roles.section.voice",
   moderation: "hub.admin.roles.section.moderation",
@@ -52,7 +52,7 @@ export function PermissionSections({
                 return next;
               })}
             >
-              {LABELS[s.key] ? t(LABELS[s.key]) : s.key}{" "}
+              {SECTION_LABELS[s.key] ? t(SECTION_LABELS[s.key]) : s.key}{" "}
               <span className="muted">
                 {t("hub.admin.roles.section.count", { set: s.ids.filter(isSet).length, total: s.ids.length })}
               </span>
