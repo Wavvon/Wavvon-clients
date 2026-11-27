@@ -569,7 +569,8 @@ export function VoiceStage({
               cameras={cameras}
               avatars={avatars}
               publicKey={publicKey}
-              livesKey={[...(live?.opened ?? [])].join(",")}
+              livesKey={`${freeLayout.mode}:${[...(live?.opened ?? [])].join(",")}`}
+              selfShare={selfShare?.stream}
               free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
             />
             {hasStage && (

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
 import { adoptPageStyles, documentPictureInPicture, type CapturableVideo } from "../../utils/documentPip";
-import { LIVES_ITEM, type FreeLayout } from "../../utils/freeLayout";
+import { LIVES_ITEM, SELF_SHARE_ITEM, type FreeLayout } from "../../utils/freeLayout";
 
 interface RoomPipProps {
   people: VoiceParticipant[];
@@ -12,6 +12,9 @@ interface RoomPipProps {
   avatars: Map<string, string | null>;
   publicKey?: string | null;
   livesKey: string;
+  /** Your own share as you capture it: the page never plays it as a live, so
+   *  it is not among the captured players. */
+  selfShare?: MediaStream;
   /** The stage in free layout, mirrored as arranged; absent for the grid. */
   free?: FreeLayout;
 }
@@ -56,14 +59,20 @@ function personTile(p: VoiceParticipant, { cameras, avatars, publicKey }: TileSo
   );
 }
 
-function RoomPipView({ people, cameras, avatars, publicKey, livesKey, free }: RoomPipProps) {
+function RoomPipView({ people, cameras, avatars, publicKey, livesKey, selfShare, free }: RoomPipProps) {
   const lives = useCapturedLives(livesKey);
   // The stage in free layout: the same rectangles and layer order, scaled to
   // the window.
   if (free) {
     const liveRect = free.rects[LIVES_ITEM];
+    const selfRect = free.rects[SELF_SHARE_ITEM];
     return (
       <div className="room-pip room-pip--free">
+        {selfRect && selfShare && (
+          <div className="free-item" style={{ left: `${selfRect.x}%`, top: `${selfRect.y}%`, width: `${selfRect.w}%`, height: `${selfRect.h}%`, zIndex: free.top === "lives" ? 2 : 1 }}>
+            <div className="room-pip-live"><StreamVideo stream={selfShare} /></div>
+          </div>
+        )}
         {liveRect && lives.length > 0 && (
           <div className="free-item" style={{ left: `${liveRect.x}%`, top: `${liveRect.y}%`, width: `${liveRect.w}%`, height: `${liveRect.h}%`, zIndex: free.top === "lives" ? 2 : 1 }}>
             <div className="room-pip-live">{lives.map((ms, i) => <StreamVideo key={i} stream={ms} />)}</div>
@@ -86,6 +95,7 @@ function RoomPipView({ people, cameras, avatars, publicKey, livesKey, free }: Ro
       {lives.map((ms, i) => (
         <div key={`live-${i}`} className="room-pip-live"><StreamVideo stream={ms} /></div>
       ))}
+      {selfShare && <div className="room-pip-live"><StreamVideo stream={selfShare} /></div>}
       <ul className="voice-tiles room-pip-people">
         {people.map((p) => personTile(p, { cameras, avatars, publicKey }))}
       </ul>
