@@ -90,8 +90,8 @@ describe("VoiceStage hub pins", () => {
     expect(withPins(stage({ pins: ["ann"] }))).toContain("voice.stage.stage_label");
   });
   it("offers pinning only to a moderator", () => {
-    expect(withPins(stage({}))).not.toContain("voice.stage.pin_short");
-    expect(withPins(stage({ canPin: true }))).toContain("voice.stage.pin_short");
+    expect(withPins(stage({}))).not.toContain("voice-tile-pin");
+    expect(withPins(stage({ canPin: true }))).toContain("voice-tile-pin");
   });
   it("lets a member step off the stage themselves, and nobody else", () => {
     const html = withPins(stage({ pins: ["me", "ann"] }));

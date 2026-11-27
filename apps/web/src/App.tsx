@@ -359,6 +359,8 @@ export default function App({ initialView }: AppProps = {}) {
     return m;
   }, [users]);
   const { blockedUsers, setBlockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore(showHubError);
+  // Blocked or ignored, someone is not heard in voice and plays no soundboard clip at you.
+  const silencedUsers = useMemo(() => new Set([...blockedUsers, ...ignoredUsers]), [blockedUsers, ignoredUsers]);
   // Applied while that hub is open: by default in the hub build, after the
   // user opts in on the user build and desktop (useThemes hubThemesDefault).
   useActiveHubTheme(activeHubId, settingsProfile.themes.setHubTheme);
@@ -453,7 +455,7 @@ export default function App({ initialView }: AppProps = {}) {
     clearVoiceChannelNameHint: () => {},
   });
   const voice = useVoice({
-    publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef: voiceExtRef,
+    publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef: voiceExtRef, silencedUsers,
   });
   const video = useVideo({ voiceChannelId: voice.voiceChannelId, showHubError, publicKeyRef });
   const voiceMoveUx = useVoiceMoveUx({ joinVoice: voice.handleVoiceJoin, isInVoice: voice.isInOrJoiningVoice });
@@ -522,7 +524,7 @@ export default function App({ initialView }: AppProps = {}) {
     () => publicKeyRef.current,
   );
   const { receiveTyping, pingTyping, pingDmTyping } = typingIndicators;
-  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips();
+  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips(voice.selfDeafened, silencedUsers);
   const cameras = useMemo(() => {
     const m = new Map(video.remoteVideoStreams);
     if (publicKey && video.localVideoStream) m.set(publicKey, video.localVideoStream);

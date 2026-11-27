@@ -75,6 +75,7 @@ pub fn run() {
                 conn_stats: Default::default(),
                 active_hub: Default::default(),
                 voice: Default::default(),
+                voice_silenced: Default::default(),
                 http_client: reqwest::Client::new(),
             });
             app.manage(updater::UpdaterState::default());
@@ -209,6 +210,7 @@ pub fn run() {
             voice_cmd::voice_room_map_restore,
             voice_cmd::voice_set_muted,
             voice_cmd::voice_set_deafened,
+            voice_cmd::voice_set_silenced,
             voice_cmd::list_audio_devices,
             local_store::get_voice_settings,
             local_store::save_voice_settings,

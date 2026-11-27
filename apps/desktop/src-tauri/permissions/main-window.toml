@@ -81,6 +81,7 @@ commands.allow = [
   "voice_room_map_restore",
   "voice_set_muted",
   "voice_set_deafened",
+  "voice_set_silenced",
   "list_audio_devices",
   "get_voice_settings",
   "save_voice_settings",

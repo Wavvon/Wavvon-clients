@@ -122,10 +122,14 @@ pub(crate) async fn soundboard_play_clip(
     clip_id: String,
     channel_id: String,
 ) -> Result<(), String> {
-    let (active_clip_slot, opus_rate) = {
+    let (active_clip_slot, opus_rate, deafened) = {
         let voice = state.voice.lock().unwrap();
         let session = voice.as_ref().ok_or("Not in a voice channel")?;
-        (session.active_clip.clone(), session.opus_rate)
+        (
+            session.active_clip.clone(),
+            session.opus_rate,
+            session.deafened.clone(),
+        )
     };
 
     let bytes = fetch_clip_bytes(&state, &clip_id).await?;
@@ -139,6 +143,8 @@ pub(crate) async fn soundboard_play_clip(
     *active_clip_slot.lock().unwrap() = Some(wavvon_voice::soundboard::ActiveClip {
         samples: resampled,
         pos: 0,
+        monitor: !deafened.load(std::sync::atomic::Ordering::Relaxed),
+        monitor_pos: 0,
     });
 
     // Attribution event only (soundboard.md §1) -- best-effort, mirrors the

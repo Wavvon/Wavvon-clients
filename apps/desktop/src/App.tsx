@@ -195,6 +195,8 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
 
   const { collapsedCategories, toggleCategoryCollapsed } = useCollapsedCategories();
   const { blockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore();
+  // Blocked or ignored, someone is not heard in voice and plays no soundboard clip at you.
+  const silencedUsers = useMemo(() => new Set([...blockedUsers, ...ignoredUsers]), [blockedUsers, ignoredUsers]);
 
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -556,7 +558,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
     myDisplayNameRef.current = myDisplayName;
   }, [myDisplayName]);
 
-  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast, publicKey });
+  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast, publicKey, silencedUsers });
 
   useMiniAppVoiceBridge({
     voiceChannelId: voice.voiceChannelId,
@@ -588,7 +590,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
 
   const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
   const soundboard = useSoundboard(voice.voiceChannelId);
-  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips();
+  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips(voice.selfDeafened, silencedUsers);
   const cameras = useMemo(() => {
     const m = new Map<string, MediaStream>();
     for (const [pk, stream] of video.remoteStreams) if (video.videoPubkeys.has(pk)) m.set(pk, stream);

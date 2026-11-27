@@ -130,9 +130,26 @@ pub fn decode_ogg_opus_clip(bytes: &[u8]) -> Result<Vec<f32>> {
 }
 
 /// A clip mid-playback: the samples to mix and how far into them we are.
+#[derive(Default)]
 pub struct ActiveClip {
     pub samples: Vec<f32>,
     pub pos: usize,
+    /// Whether the sender hears it too: the relay never sends you your own
+    /// audio, so playback mixes the clip in locally (false while deafened).
+    pub monitor: bool,
+    /// How far local playback has got, apart from `pos`: the speaker and
+    /// the encoder drain the clip at their own pace.
+    pub monitor_pos: usize,
+}
+
+/// The next sample of `clip` for local playback, or 0 once it has been heard.
+pub fn next_monitor_sample(clip: &mut ActiveClip) -> f32 {
+    if !clip.monitor {
+        return 0.0;
+    }
+    let s = clip.samples.get(clip.monitor_pos).copied().unwrap_or(0.0);
+    clip.monitor_pos += 1;
+    s
 }
 
 /// Sums as much of `clip` as fits into `frame`, saturating to the valid
@@ -187,6 +204,7 @@ mod tests {
         let mut clip = ActiveClip {
             samples: vec![0.05, 0.05],
             pos: 0,
+            ..Default::default()
         };
         let done = mix_clip_into_frame(&mut frame, &mut clip);
         assert!(
@@ -207,6 +225,7 @@ mod tests {
         let mut clip = ActiveClip {
             samples: vec![0.9],
             pos: 0,
+            ..Default::default()
         };
         let done = mix_clip_into_frame(&mut frame, &mut clip);
         assert!(done);
@@ -219,6 +238,7 @@ mod tests {
         let mut clip = ActiveClip {
             samples: vec![0.1, 0.1],
             pos: 0,
+            ..Default::default()
         };
         assert!(mix_clip_into_frame(&mut frame, &mut clip));
         // Calling again with an already-exhausted clip is a no-op, not a panic.

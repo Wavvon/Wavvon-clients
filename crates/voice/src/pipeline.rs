@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -62,6 +62,9 @@ pub struct VoiceSettings {
     pub custom_channels: Option<u16>,
     pub custom_frame_ms: Option<u32>,
     pub custom_complexity: Option<u32>,
+    /// Public keys whose audio is dropped on arrival: people the user
+    /// blocked or ignored. Shared, so the shell can change it mid-call.
+    pub silenced: Arc<std::sync::RwLock<HashSet<String>>>,
 }
 
 impl VoiceSettings {
@@ -351,8 +354,12 @@ impl AudioPipeline {
 
         let capture =
             AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
-        let playback =
-            AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
+        let active_clip: Arc<Mutex<Option<ActiveClip>>> = Arc::new(Mutex::new(None));
+        let playback = AudioPlayback::start_with_device(
+            playback_cons,
+            settings.output_device.as_deref(),
+            active_clip.clone(),
+        )?;
 
         let cfg = EffectiveVoiceConfig::default();
         let opus_rate = resolve_opus_rate(capture.actual_sample_rate);
@@ -425,7 +432,7 @@ impl AudioPipeline {
             inbound_loss: Arc::new(TokioRwLock::new(HashMap::new())),
             transport: Arc::new(TokioRwLock::new(None)),
             voice_keys: Arc::new(TokioRwLock::new(VoiceKeys::new())),
-            active_clip: Arc::new(Mutex::new(None)),
+            active_clip,
             opus_rate,
         })
     }
@@ -447,8 +454,12 @@ impl AudioPipeline {
 
         let capture =
             AudioCapture::start_with_device(capture_prod, settings.input_device.as_deref())?;
-        let playback =
-            AudioPlayback::start_with_device(playback_cons, settings.output_device.as_deref())?;
+        let active_clip: Arc<Mutex<Option<ActiveClip>>> = Arc::new(Mutex::new(None));
+        let playback = AudioPlayback::start_with_device(
+            playback_cons,
+            settings.output_device.as_deref(),
+            active_clip.clone(),
+        )?;
 
         // Resolve the active profile once; all sub-tasks use the same snapshot.
         let cfg = settings.effective_config();
@@ -471,8 +482,6 @@ impl AudioPipeline {
         let roster_map = Arc::new(TokioRwLock::new(HashMap::<u16, String>::new()));
         let inbound_loss = Arc::new(TokioRwLock::new(HashMap::<u16, LossTracker>::new()));
         let voice_keys = Arc::new(TokioRwLock::new(VoiceKeys::new()));
-
-        let active_clip: Arc<Mutex<Option<ActiveClip>>> = Arc::new(Mutex::new(None));
 
         // Send task: capture → encode → seal → data channel, plus RMS-based VAD + level meter.
         let send_transport = transport.clone();
@@ -551,8 +560,11 @@ impl AudioPipeline {
                     let _ = level_tx.send(rms);
                 }
 
+                // Muted, nothing of you goes out, so you are not speaking:
+                // the ring used to light while muted and stay lit after.
+                let heard = !muted_now || clip_playing;
                 if vad_enabled {
-                    if rms > vad_threshold {
+                    if heard && rms > vad_threshold {
                         last_active_at = Some(std::time::Instant::now());
                         if !is_speaking {
                             is_speaking = true;
@@ -568,10 +580,10 @@ impl AudioPipeline {
                     }
                 } else {
                     // VAD disabled (e.g. Music profile): always transmit.
-                    // Emit a single speaking=true on first audio; no release.
-                    if !is_speaking {
-                        is_speaking = true;
-                        let _ = speaking_tx.send(true);
+                    // Speaking from the first audio until muted.
+                    if heard != is_speaking {
+                        is_speaking = heard;
+                        let _ = speaking_tx.send(heard);
                     }
                 }
 
@@ -628,6 +640,7 @@ impl AudioPipeline {
         let recv_transport = transport.clone();
         let recv_voice_keys = voice_keys.clone();
         let recv_roster = roster_map.clone();
+        let recv_silenced = settings.silenced.clone();
         let recv_inbound_loss = inbound_loss.clone();
         let recv_deafened = deafened.clone();
         let recv_gain_map = gain_map.clone();
@@ -688,6 +701,13 @@ impl AudioPipeline {
                     // Unknown sender_id: no roster entry yet. Drop.
                     continue;
                 };
+                if recv_silenced
+                    .read()
+                    .map(|s| s.contains(&pubkey))
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
 
                 let gen = {
                     let mut vk = recv_voice_keys.write().await;

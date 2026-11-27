@@ -86,7 +86,7 @@ function VoiceParticipantRow({
   return (
     <li
       className={`channel-participant${speaking ? " speaking" : ""}`}
-      title={participant.public_key}
+      data-pubkey={participant.public_key}
       onContextMenu={
         onContextMenu || onSetGain
           ? (e) => {

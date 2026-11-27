@@ -147,7 +147,6 @@ export function VoiceStage({
   const pins = stagePins ? orderedPins(stagePins.pins, order) : localPins;
   // Everyone off the stage can be rearranged too, for this viewer only.
   const [audienceOrder, setAudienceOrder] = useState<string[]>([]);
-  const [big, setBig] = useState<string | null>(null);
   // Which of the streams side by side takes most of the stage in the grid.
   const [bigStream, setBigStream] = useState<"lives" | "self" | null>(null);
   const [query, setQuery] = useState("");
@@ -245,7 +244,11 @@ export function VoiceStage({
       fullscreenLabel={t("voice.stage.share_fullscreen")}
     />
   ) : null;
-  const hasStage = onStage.length > 0 || liveOnStage;
+  // In free layout with nothing on the stage, the whole room is the canvas:
+  // everyone is placed where you put them, and there is no audience.
+  const freeRoom = freeLayout.mode === "free" && onStage.length === 0 && !liveOnStage && participants.length > 0;
+  const hasStage = onStage.length > 0 || liveOnStage || freeRoom;
+  const stagePeople = freeRoom ? participants : onStage;
   const q = query.trim().toLowerCase();
   const shown = q
     ? audience.filter((p) => (p.display_name ?? p.public_key).toLowerCase().includes(q))
@@ -298,8 +301,7 @@ export function VoiceStage({
     return (
       <li
         key={p.public_key}
-        className={`voice-tile${speaking.has(p.public_key) ? " speaking" : ""}${big === p.public_key ? " big" : ""}${showCamera ? " has-camera" : ""}`}
-        title={p.public_key}
+        className={`voice-tile${speaking.has(p.public_key) ? " speaking" : ""}${showCamera ? " has-camera" : ""}`}
         ref={sortable?.setNodeRef}
         style={sortable?.style}
         {...sortable?.attributes}
@@ -309,15 +311,14 @@ export function VoiceStage({
         {showCamera && camera
           ? <CameraVideo stream={camera} mirrored={p.public_key === publicKey} />
           : <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={size} self={p.public_key === publicKey} />}
-        <SoundboardBurst chips={soundboardChips} pubkey={p.public_key} />
+        {/* Outside the room you hear no clip, so you see no burst either. */}
+        {inThisRoom && <SoundboardBurst chips={soundboardChips} pubkey={p.public_key} />}
         <span className="voice-tile-state"><SelfStateIcon participant={p} /></span>
-        {(sharing.has(p.public_key) || (camera && !showCamera) || pinned) && (
+        {(sharing.has(p.public_key) || (camera && !showCamera)) && (
           <span className="voice-tile-badges">
             {sharing.has(p.public_key)
               ? <span className="live-badge">LIVE</span>
-              : camera && !showCamera
-                ? <span className="cam-badge" title={t("voice.stage.camera_on")}>{t("voice.stage.camera_badge")}</span>
-                : <span className="voice-tile-pinned" role="img" aria-label={t("voice.stage.pinned")}><PinIcon size={14} /></span>}
+              : camera && !showCamera && <span className="cam-badge" title={t("voice.stage.camera_on")}>{t("voice.stage.camera_badge")}</span>}
           </span>
         )}
         <span className="voice-tile-name">
@@ -325,29 +326,6 @@ export function VoiceStage({
           {name}
         </span>
         <div className="voice-tile-actions">
-          {mayTogglePin(p.public_key) && <button
-            type="button"
-            className={pinned ? "btn-icon" : "voice-tile-pin"}
-            aria-pressed={pinned}
-            aria-label={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
-            title={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
-            onClick={() => togglePin(p.public_key)}
-          >
-            <PinIcon size={12} />
-            {!pinned && <span>{t("voice.stage.pin_short")}</span>}
-          </button>}
-          {pinned && (
-            <button
-              type="button"
-              className="btn-icon"
-              aria-pressed={big === p.public_key}
-              aria-label={t("voice.stage.enlarge", { name })}
-              title={t("voice.stage.enlarge", { name })}
-              onClick={() => setBig((b) => (b === p.public_key ? null : p.public_key))}
-            >
-              <ExpandIcon size={13} />
-            </button>
-          )}
           {showCamera && (
             <button
               type="button"
@@ -358,6 +336,22 @@ export function VoiceStage({
             >
               <FullscreenIcon size={13} />
             </button>
+          )}
+          {/* One pin, top right, in both states: pinned it stays lit, and
+              clicking it again unpins. The tooltip says which. */}
+          {mayTogglePin(p.public_key) ? (
+            <button
+              type="button"
+              className={`voice-tile-pin${pinned ? " on" : ""}`}
+              aria-pressed={pinned}
+              aria-label={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
+              title={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
+              onClick={() => togglePin(p.public_key)}
+            >
+              <PinIcon size={13} />
+            </button>
+          ) : pinned && (
+            <span className="voice-tile-pin on" role="img" aria-label={t("voice.stage.pinned")} title={t("voice.stage.pinned")}><PinIcon size={13} /></span>
           )}
         </div>
         {handUp && floor?.canGrant && p.public_key !== publicKey && (
@@ -441,7 +435,7 @@ export function VoiceStage({
                         node: <ul className="voice-tiles free-lives">{myShare}</ul>,
                       }]
                     : []),
-                  ...onStage.map((p) => ({
+                  ...stagePeople.map((p) => ({
                     id: p.public_key,
                     layer: "people" as const,
                     node: <ul className="voice-tiles free-tile">{personTile(p, 96)}</ul>,
@@ -482,17 +476,17 @@ export function VoiceStage({
             )}
             </>)}
           </div>
-          <div
+          {!freeRoom && <div
             className="voice-room-sep"
             role="separator"
             aria-orientation="horizontal"
             aria-label={t("voice.stage.resize")}
             onPointerDown={startResize}
-          />
+          />}
         </>
       )}
 
-      <div className="voice-audience">
+      {!freeRoom && <div className="voice-audience">
         {participants.length === 0 ? (
           // An empty room is a doorway: its name, that nobody is in, and the way in.
           <div className="voice-room-empty">
@@ -537,7 +531,7 @@ export function VoiceStage({
             </DndContext>
           </>
         )}
-      </div>
+      </div>}
 
       {/* With people in the room the way in sits where the dock will be. */}
       {!inThisRoom && participants.length > 0 && (
@@ -573,7 +567,7 @@ export function VoiceStage({
               selfShare={selfShare?.stream}
               free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
             />
-            {hasStage && (
+            {participants.length > 0 && (
               <button
                 type="button"
                 className={`btn-icon-gear${freeLayout.mode === "free" ? " on" : ""}`}
@@ -585,8 +579,15 @@ export function VoiceStage({
                 <LayoutGlyph />
               </button>
             )}
-            {room && room.canManage && !room.zone && (
-              <button type="button" className="btn-icon-gear" onClick={room.onEnable} title={t("voice.room_map.enable")} aria-label={t("voice.room_map.enable")}>
+            {room && room.canManage && (
+              <button
+                type="button"
+                className={`btn-icon-gear${room.zone ? " on" : ""}`}
+                aria-pressed={!!room.zone}
+                onClick={room.zone ? room.onDisable : room.onEnable}
+                title={t(room.zone ? "voice.room_map.disable" : "voice.room_map.enable")}
+                aria-label={t(room.zone ? "voice.room_map.disable" : "voice.room_map.enable")}
+              >
                 <MapGlyph />
               </button>
             )}
@@ -632,7 +633,10 @@ function MapGlyph() {
 function LayoutGlyph() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 4h10v9H3zM15 4h6v5h-6zM15 11h6v9h-6zM3 15h10v5H3z" />
+      <rect x="3" y="3" width="7" height="9" rx="1.5" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" />
     </svg>
   );
 }

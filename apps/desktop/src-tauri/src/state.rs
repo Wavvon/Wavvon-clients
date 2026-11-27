@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -77,6 +77,9 @@ impl ConnStats {
 }
 
 pub(crate) struct AppState {
+    /// Blocked and ignored public keys: the voice pipeline drops their
+    /// audio. Outlives voice sessions, so a call joined later starts silenced.
+    pub voice_silenced: std::sync::Arc<std::sync::RwLock<HashSet<String>>>,
     /// Live hub sessions keyed by hub_id (the hub's public_key).
     pub hubs: Mutex<HashMap<String, HubSession>>,
     /// Connection figures per hub_id, written by that hub's socket task.

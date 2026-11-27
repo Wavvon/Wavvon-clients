@@ -4,7 +4,7 @@ import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundbo
 import { raiseHand, lowerHand, grantTalk, listRaisedHands, listVoicePins, pinVoice, unpinVoice } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
 import { playSound, playVoiceTone, formatPubkey, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
-import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
+import { useBatchedAnnouncement, ROOM_MAP_RADIUS, heardSpeakers } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
 import { getScoped, setScoped } from "../utils/accountScope";
@@ -89,13 +89,17 @@ export interface UseVoiceParams {
   // lands in a sibling room not yet in the local channel list.
   refetchChannels: () => void;
   extRef: RefObject<VoiceExtDeps>;
+  /** Blocked and ignored people: you hear nothing from them. */
+  silencedUsers: ReadonlySet<string>;
 }
 
 // Voice session lifecycle (join/leave/mute/deafen), the roster + zone WS
 // handlers, push-to-talk, per-user gain, and the soundboard trigger. Camera
 // video and whisper are separate hooks/app state, wired in via `extRef` —
 // see the CRITICAL correctness constraint on handleVoiceJoin below.
-export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef }: UseVoiceParams) {
+export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef, silencedUsers }: UseVoiceParams) {
+  const silencedRef = useRef(silencedUsers);
+  silencedRef.current = silencedUsers;
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
   // The hub carrying the call: the owning hub on an alliance visit.
   const [voiceHubUrl, setVoiceHubUrl] = useState<string | null>(null);
@@ -103,6 +107,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const [selfDeafened, setSelfDeafened] = useState(false);
   const [micBelowGate, setMicBelowGate] = useState(false);
   const voiceSessionRef = useRef<VoiceSession | null>(null);
+  useEffect(() => { voiceSessionRef.current?.setSilenced(silencedUsers); }, [silencedUsers]);
   // A join in flight, waiting for the main WS to reply with `voice_joined`
   // (resolved from onVoiceState below — see the CRITICAL note on
   // handleVoiceJoin for why this can't be a plain local variable).
@@ -376,6 +381,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     // the data channel, and the handlers deliver them via this ref —
     // set-after-start silently dropped every early key.
     voiceSessionRef.current = session;
+    session.setSilenced(silencedRef.current);
     try {
       await session.start();
     } catch (e) {
@@ -882,7 +888,9 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     positionRefused,
     positionRefusals,
     onVoicePositionRefused,
-    voiceActiveUsers,
+    // Deafened you hear nobody, and blocked or ignored you hear not them:
+    // whoever you cannot hear does not light up as speaking.
+    voiceActiveUsers: heardSpeakers(voiceActiveUsers, selfDeafened, silencedUsers),
     myVoicePerms,
     soundboardPlayingClipId,
     handleVoiceJoin,
