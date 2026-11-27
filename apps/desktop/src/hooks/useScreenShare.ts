@@ -43,11 +43,16 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
   const kbpsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Stable per hub, so the dialog fetches once per opening.
+  // Read with the limits from the same /info: whether the hub takes an
+  // audience for a share (`screenshare.audience`).
+  const [audienceChoice, setAudienceChoice] = useState(false);
   const loadStreamLimits = useCallback(async (): Promise<StreamLimits | undefined> => {
     if (!hubId) return undefined;
     const info = await invoke<WsInfo>("get_hub_ws_info", { hubId });
     const res = await fetchWithTimeout(`${info.hub_url.replace(/\/+$/, "")}/info`);
-    return ((await res.json()) as { stream_limits?: StreamLimits }).stream_limits;
+    const body = (await res.json()) as { stream_limits?: StreamLimits; capabilities?: string[] };
+    setAudienceChoice(!!body.capabilities?.includes("screenshare.audience"));
+    return body.stream_limits;
   }, [hubId]);
 
   async function startShare(opts: ScreenShareOpts) {
@@ -216,5 +221,5 @@ export function useScreenShare(hubId: string | null, channelId: string | null) {
     setKbps(0);
   }
 
-  return { sharing, startShare, stopShare, error, kbps, loadStreamLimits, localStream };
+  return { sharing, startShare, stopShare, error, kbps, loadStreamLimits, audienceChoice, localStream };
 }

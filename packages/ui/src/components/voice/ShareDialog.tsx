@@ -18,6 +18,9 @@ export interface ShareQuality {
   fps: number;
   kbps: number;
   audio: boolean;
+  /** Who may watch, on hubs with `screenshare.audience`: the voice room
+   *  only, or anyone in the hub. Absent on older hubs (the whole hub). */
+  audience?: "room" | "hub";
 }
 
 const RESOLUTIONS = [
@@ -65,6 +68,7 @@ export function declaredQuality(q: ShareQuality, track: MediaStreamTrack | undef
     height: q.height ?? s?.height,
     fps: q.fps,
     kbps: q.kbps,
+    ...(q.audience ? { audience: q.audience } : {}),
   };
 }
 
@@ -73,6 +77,8 @@ interface Props {
   loadLimits: () => Promise<StreamLimits | undefined>;
   onStart: (quality: ShareQuality) => void;
   onCancel: () => void;
+  /** The hub takes an audience (`screenshare.audience`): offer the choice. */
+  audienceChoice?: boolean;
   /** Extra options a client adds (desktop: the webcam). */
   children?: React.ReactNode;
 }
@@ -82,12 +88,13 @@ interface Props {
  * The source itself is chosen in the browser's or the system's picker that
  * follows; neither lets a page preselect one.
  */
-export function ShareDialog({ loadLimits, onStart, onCancel, children }: Props) {
+export function ShareDialog({ loadLimits, onStart, onCancel, audienceChoice, children }: Props) {
   const { t } = useTranslation();
   const [limits, setLimits] = useState<StreamLimits | undefined>();
   const [res, setRes] = useState(1);
   const [fps, setFps] = useState(30);
   const [audio, setAudio] = useState(false);
+  const [audience, setAudience] = useState<"room" | "hub">("room");
 
   const resAllowed = (i: number) => {
     const r = RESOLUTIONS[i];
@@ -126,7 +133,7 @@ export function ShareDialog({ loadLimits, onStart, onCancel, children }: Props) 
 
   function share() {
     if (!ready) return;
-    onStart({ width: chosen.width, height: chosen.height, fps, kbps, audio });
+    onStart({ width: chosen.width, height: chosen.height, fps, kbps, audio, ...(audienceChoice ? { audience } : {}) });
   }
 
   return (
@@ -194,6 +201,19 @@ export function ShareDialog({ loadLimits, onStart, onCancel, children }: Props) 
               {t("voice.screen_share.picker.include_audio")}
             </label>
             {audio && <p className="screen-share-macos-notice">{t("voice.screen_share.picker.macos_notice")}</p>}
+            {audienceChoice && (
+              <fieldset className="share-audience">
+                <legend className="share-section-label">{t("voice.screen_share.picker.audience")}</legend>
+                <label>
+                  <input type="radio" name="share-audience" checked={audience === "room"} onChange={() => setAudience("room")} />
+                  {t("voice.screen_share.picker.audience_room")}
+                </label>
+                <label>
+                  <input type="radio" name="share-audience" checked={audience === "hub"} onChange={() => setAudience("hub")} />
+                  {t("voice.screen_share.picker.audience_hub")}
+                </label>
+              </fieldset>
+            )}
             {children}
           </div>
 

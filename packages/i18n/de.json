@@ -2763,5 +2763,12 @@
   "hub.admin.roles.cat.confirm_yes": "Löschen",
   "hub.admin.roles.cat.confirm_no": "Abbrechen",
   "hub.admin.roles.perm.badges.programs": "Abzeichen aus einem Programm erstellen",
-  "hub.admin.roles.perm_desc.badges.programs": "Ein Programm dieser Rolle kann eigene Abzeichen festlegen und nach eigenen Regeln vergeben."
+  "hub.admin.roles.perm_desc.badges.programs": "Ein Programm dieser Rolle kann eigene Abzeichen festlegen und nach eigenen Regeln vergeben.",
+  "invites.create.code_label": "Eigener Code (optional)",
+  "invites.create.code_placeholder": "z. B. spieleabend",
+  "invites.create.code_hint": "3 bis 32 Buchstaben, Ziffern, - oder _. Groß- und Kleinschreibung zählt nicht. Leer lassen für einen Zufallscode.",
+  "invites.create.code_invalid": "Verwende 3 bis 32 Buchstaben, Ziffern, - oder _.",
+  "voice.screen_share.picker.audience": "Wer zusehen kann",
+  "voice.screen_share.picker.audience_room": "Nur wer in diesem Sprachraum ist",
+  "voice.screen_share.picker.audience_hub": "Der ganze Hub, über die Live-Liste"
 }

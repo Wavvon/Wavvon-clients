@@ -5,12 +5,13 @@ import { ShareDialog, type StreamLimits } from "@wavvon/ui";
 
 interface Props {
   loadLimits: () => Promise<StreamLimits | undefined>;
+  audienceChoice?: boolean;
   onStart: (opts: ScreenShareOpts) => void;
   onCancel: () => void;
 }
 
 // The shared dialog plus the webcam the desktop can send beside the screen.
-export function ScreenShareModal({ loadLimits, onStart, onCancel }: Props) {
+export function ScreenShareModal({ loadLimits, audienceChoice, onStart, onCancel }: Props) {
   const { t } = useTranslation();
   const [includeWebcam, setIncludeWebcam] = useState(false);
   const [webcamDeviceId, setWebcamDeviceId] = useState("");
@@ -28,6 +29,7 @@ export function ScreenShareModal({ loadLimits, onStart, onCancel }: Props) {
   return (
     <ShareDialog
       loadLimits={loadLimits}
+      audienceChoice={audienceChoice}
       onStart={(quality) => onStart({ quality, includeWebcam, webcamDeviceId })}
       onCancel={onCancel}
     >

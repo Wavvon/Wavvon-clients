@@ -285,14 +285,20 @@ export function useHubAdmin({
     maxUses: number | null,
     expiresInSeconds: number | null,
     grantRoleId: string | null,
+    boundPubkey?: string | null,
+    code?: string | null,
   ) {
-    try {
-      await invoke<InviteInfo>("create_invite", { maxUses, expiresInSeconds, grantRoleId });
-      await refreshInvites();
-      setToast(i18n.t("toast.invite_created"));
-    } catch (e) {
-      setError(String(e));
-    }
+    // A refusal (a taken code) goes back to the form, which shows it beside
+    // the field instead of in the error banner.
+    await invoke<InviteInfo>("create_invite", {
+      maxUses,
+      expiresInSeconds,
+      grantRoleId,
+      boundPubkey: boundPubkey ?? null,
+      code: code ?? null,
+    });
+    await refreshInvites();
+    setToast(i18n.t("toast.invite_created"));
   }
 
   async function handleRevokeInvite(code: string) {

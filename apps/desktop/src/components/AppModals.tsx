@@ -490,6 +490,7 @@ export function AppModals(p: AppModalsProps) {
       {voice.showSharePicker && (
         <ScreenShareModal
           loadLimits={voice.loadStreamLimits}
+          audienceChoice={voice.shareAudienceChoice}
           onStart={voice.handleShareStart}
           onCancel={() => voice.setShowSharePicker(false)}
         />

@@ -164,11 +164,11 @@ export function HubAdminContainer({
         myMaxPriority={myMaxPriority}
         onMemberRolesChanged={hubAdmin.setMemberRoles}
         supportsBoundInvites={activeHubSupports("invites.bound")}
-        onCreateInvite={(maxUses, expiresIn, grantRoleId, boundPubkey) =>
-          hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in_seconds: expiresIn, grant_role_id: grantRoleId, bound_pubkey: boundPubkey }) })
+        supportsCustomInviteCode={activeHubSupports("invites.customcode")}
+        onCreateInvite={(maxUses, expiresIn, grantRoleId, boundPubkey, code) =>
+          hubFetch("/invites", { method: "POST", body: JSON.stringify({ max_uses: maxUses, expires_in_seconds: expiresIn, grant_role_id: grantRoleId, bound_pubkey: boundPubkey, ...(code ? { code } : {}) }) })
             .then((r) => r.json() as Promise<InviteInfo>)
             .then((inv) => hubAdmin.addInvite(inv))
-            .catch(() => {})
         }
         onRevokeInvite={(code) => {
           hubFetch(`/invites/${code}`, { method: "DELETE" }).catch(() => {});
