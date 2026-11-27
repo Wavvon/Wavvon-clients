@@ -18,7 +18,6 @@ import { getScoped, setScoped } from "./accountScope";
 
 const SAVED_HUBS_KEY = "wavvon:saved_hubs";
 const DRAFTS_KEY = "wavvon.drafts";
-const IGNORED_USERS_KEY = "wavvon.ignoredUsers";
 const VOICE_GAINS_KEY = "wavvon.voice_gains";
 const MENTION_PING_KEY = "wavvon.mentionPing";
 
@@ -52,7 +51,6 @@ export async function readExistingAccountSnapshot(
     drafts: safeJsonParse<Record<string, string>>(getScoped(DRAFTS_KEY, accountId), {}),
     themeNames: (await themeStore.list()).map((t) => t.manifest.name),
     languageNames: (await languageStore.list()).map((l) => l.manifest.name),
-    ignoredUsers: safeJsonParse<string[]>(getScoped(IGNORED_USERS_KEY, accountId), []),
     voiceGains: safeJsonParse<Record<string, number>>(getScoped(VOICE_GAINS_KEY, accountId), {}),
     hasMentionPingSetting: getScoped(MENTION_PING_KEY, accountId) !== null,
   };
@@ -68,7 +66,6 @@ export async function applyRestorePlan(
   setScoped(DRAFTS_KEY, JSON.stringify(plan.drafts), accountId);
   await restoreThemes(themeStore, plan.newThemes);
   await restoreLanguages(plan.newLanguages, languageStore);
-  setScoped(IGNORED_USERS_KEY, JSON.stringify(plan.ignoredUsers), accountId);
   setScoped(VOICE_GAINS_KEY, JSON.stringify(plan.voiceGains), accountId);
   if (plan.mentionPingEnabled !== null) {
     setScoped(MENTION_PING_KEY, plan.mentionPingEnabled ? "1" : "0", accountId);

@@ -12,9 +12,7 @@ interface Props {
   isAdmin: boolean;
   publicKey: string | null;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   onUnblock: (pubkey: string) => void;
-  onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
@@ -32,7 +30,7 @@ interface Props {
 // individually-threaded props in App.
 export function SettingsPageContainer({
   onClose, onHubProfileSaved, hubs, activeHubId, isAdmin, publicKey,
-  blockedUsers, ignoredUsers, onUnblock, onUnignore, knownNames,
+  blockedUsers, onUnblock, knownNames,
   hideBirthdays, onToggleHideBirthdays,
   voice, channelMessages, settingsProfile,
 }: Props) {
@@ -127,9 +125,7 @@ export function SettingsPageContainer({
       onShowRecovery={settingsProfile.handleShowRecovery}
       onClearLocalData={settingsProfile.handleClearLocalData}
       blocks={Array.from(blockedUsers).map((p) => ({ pubkey: p, since: 0 }))}
-      ignores={Array.from(ignoredUsers).map((p) => ({ pubkey: p, since: 0 }))}
       onUnblock={onUnblock}
-      onUnignore={onUnignore}
       knownNames={knownNames}
       hideBirthdays={hideBirthdays}
       onToggleHideBirthdays={onToggleHideBirthdays}

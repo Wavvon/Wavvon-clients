@@ -332,11 +332,6 @@ export interface BlockEntry {
   since: number;
 }
 
-export interface IgnoreEntry {
-  pubkey: string;
-  since: number;
-}
-
 export interface AppOpenEvent {
   type: 'app_open';
   app_id: string;

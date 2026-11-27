@@ -15,12 +15,10 @@ export interface SettingsPageContainerProps {
   hubs: Hub[];
   publicKey: string | null;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   knownNames: Record<string, string | null>;
   inVoice: boolean;
   onHubProfileSaved: (hubId: string) => void;
   onUnblock: (pubkey: string) => void;
-  onUnignore: (pubkey: string) => void;
   webPush: WebPush;
 }
 
@@ -28,8 +26,8 @@ export interface SettingsPageContainerProps {
 // grouped state (state-access-design.md Phase 1), including the show/hide
 // gate App used to own inline.
 export function SettingsPageContainer({
-  settingsProfile, notifyPrefs, hubs, publicKey, blockedUsers, ignoredUsers,
-  knownNames, inVoice, onHubProfileSaved, onUnblock, onUnignore, webPush,
+  settingsProfile, notifyPrefs, hubs, publicKey, blockedUsers,
+  knownNames, inVoice, onHubProfileSaved, onUnblock, webPush,
 }: SettingsPageContainerProps) {
   if (!settingsProfile.showSettings) return null;
   const close = () => settingsProfile.setShowSettings(false);
@@ -53,9 +51,7 @@ export function SettingsPageContainer({
         recoveryPhrase={settingsProfile.recoveryPhrase}
         onShowRecovery={settingsProfile.handleShowRecovery}
         blocks={Array.from(blockedUsers).map((p) => ({ pubkey: p, since: 0 }))}
-        ignores={Array.from(ignoredUsers).map((p) => ({ pubkey: p, since: 0 }))}
         onUnblock={onUnblock}
-        onUnignore={onUnignore}
         knownNames={knownNames}
         hideBirthdays={notifyPrefs.hideBirthdays}
         onToggleHideBirthdays={notifyPrefs.toggleHideBirthdays}

@@ -33,7 +33,6 @@ interface Props {
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   isAdmin: boolean;
@@ -45,7 +44,7 @@ interface Props {
   setUserContextMenu: (menu: { x: number; y: number; user: User } | null) => void;
   slashCommands?: SlashCommandEntry[];
   openImage: (src: string, alt: string) => void;
-  setToast: (msg: string | null) => void;
+  showNotice: (msg: string) => void;
   setError: (msg: string | null) => void;
   showHubStreams: boolean;
   setShowHubStreams: (v: boolean) => void;
@@ -71,11 +70,11 @@ interface Props {
 export function ContentAreaContainer({
   cameras,
   soundboardChipsByChannel,
-  allianceScrollback, view, channels, users, publicKey, blockedUsers, ignoredUsers,
+  allianceScrollback, view, channels, users, publicKey, blockedUsers,
   knownDisplayNames, myDisplayName, isAdmin, myRoles,
   memberSidebarHidden, setMemberSidebarHidden, hideBirthdays,
   openEditDescription, setUserContextMenu, slashCommands, openImage,
-  setToast, setError, showHubStreams, setShowHubStreams,
+  showNotice, setError, showHubStreams, setShowHubStreams,
   canMoveMembers, handleMoveMember,
   voice, hubLifecycle, hubConnections, typing, channelMessages, dms, firstNotify, savedActions,
 }: Props) {
@@ -173,7 +172,6 @@ export function ContentAreaContainer({
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}
-        ignoredUsers={ignoredUsers}
         knownDisplayNames={knownDisplayNames}
         myDisplayName={myDisplayName}
         isAdmin={isAdmin}
@@ -243,7 +241,7 @@ export function ContentAreaContainer({
         onKeyDown={channelMessages.handleKeyDown}
         slashCommands={slashCommands}
         onOpenImage={openImage}
-        onToast={setToast}
+        onToast={showNotice}
         onError={setError}
         onOpenHubStreams={() => setShowHubStreams(true)}
         liveShareCount={liveScreenShares(voice.hubStreams).length}

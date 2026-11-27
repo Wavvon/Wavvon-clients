@@ -1,42 +1,33 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BlockEntry, IgnoreEntry } from "@shared/types";
-import { getScoped, setScoped } from "@shared/utils/accountScope";
-import { BlockIgnoreSection } from "@wavvon/ui";
+import type { BlockEntry } from "@shared/types";
+import { BlockedUsersSection } from "@wavvon/ui";
 import { hubFetchAs, isNotMemberError } from "@platform";
 import { getActiveAccountId, type IdentityRecord } from "@identity/index";
 
-const IGNORED_KEY = "wavvon.ignoredUsers";
-
 interface Props {
   account: IdentityRecord;
-  // The active account's blocked/ignored lists live in App state (they also
+  // The active account's blocked list lives in App state (they also
   // drive live message filtering there) — passed straight through when the
   // selected account IS the active one, so nothing about that path changes.
   activeBlocks: BlockEntry[];
-  activeIgnores: IgnoreEntry[];
   onUnblockActive: (pubkey: string) => void;
-  onUnignoreActive: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
 }
 
-// Managing a non-active account's blocked/ignored users (AccountTab's
+// Managing a non-active account's blocked users (AccountTab's
 // "Managing" selector) fetches and mutates its own copy — dm-blocks via
-// hubFetchAs (session-bound, see platform/hubFetchAs.ts), ignores via that
-// account's own namespaced localStorage (local-only, no hub call).
-export function AccountBlockIgnoreSection({
+// hubFetchAs (session-bound, see platform/hubFetchAs.ts).
+export function AccountBlockedUsersSection({
   account,
   activeBlocks,
-  activeIgnores,
   onUnblockActive,
-  onUnignoreActive,
   knownNames,
 }: Props) {
   const { t } = useTranslation();
   const isActive = account.id === getActiveAccountId();
   const label = account.account_label ?? null;
   const [remoteBlocks, setRemoteBlocks] = useState<string[] | null>(null);
-  const [remoteIgnores, setRemoteIgnores] = useState<string[]>([]);
   const [notMember, setNotMember] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,12 +37,6 @@ export function AccountBlockIgnoreSection({
     setRemoteBlocks(null);
     setNotMember(false);
     setError(null);
-    try {
-      const raw = getScoped(IGNORED_KEY, account.id);
-      setRemoteIgnores(raw ? (JSON.parse(raw) as string[]) : []);
-    } catch {
-      setRemoteIgnores([]);
-    }
     (async () => {
       try {
         const res = await hubFetchAs(account, "/identity/dm-blocks");
@@ -84,19 +69,11 @@ export function AccountBlockIgnoreSection({
     }
   }
 
-  function unignoreRemote(pubkey: string) {
-    const next = remoteIgnores.filter((p) => p !== pubkey);
-    setRemoteIgnores(next);
-    setScoped(IGNORED_KEY, JSON.stringify(next), account.id);
-  }
-
   if (isActive) {
     return (
-      <BlockIgnoreSection
+      <BlockedUsersSection
         blocks={activeBlocks}
-        ignores={activeIgnores}
         onUnblock={onUnblockActive}
-        onUnignore={onUnignoreActive}
         knownNames={knownNames}
         accountLabel={label}
       />
@@ -116,11 +93,9 @@ export function AccountBlockIgnoreSection({
 
   return (
     <>
-      <BlockIgnoreSection
+      <BlockedUsersSection
         blocks={(remoteBlocks ?? []).map((p) => ({ pubkey: p, since: 0 }))}
-        ignores={remoteIgnores.map((p) => ({ pubkey: p, since: 0 }))}
         onUnblock={unblockRemote}
-        onUnignore={unignoreRemote}
         knownNames={knownNames}
         accountLabel={label}
       />

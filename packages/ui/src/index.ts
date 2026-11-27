@@ -5,7 +5,6 @@ export type {
   Message,
   AllianceSharedChannel,
   BlockEntry,
-  IgnoreEntry,
   AppLaunchEvent,
   AppCommandDef,
   AppProfile,
@@ -46,7 +45,7 @@ export { PendingFiles } from "./components/PendingFiles";
 export { usePendingFiles } from "./hooks/usePendingFiles";
 export type { PendingFile, PendingFilesState } from "./hooks/usePendingFiles";
 export { StoredAttachment } from "./components/StoredAttachment";
-export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
+export { BlockedUsersSection } from "./components/BlockedUsersSection";
 export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
 export { firstUnreadId } from "./utils/unreadCounts";
@@ -103,6 +102,7 @@ export { TypingIndicator } from "./components/TypingIndicator";
 export { VoiceMoveMenu } from "./components/VoiceMoveMenu";
 export type { VoiceMoveChannelOption } from "./components/VoiceMoveMenu";
 export { VoiceMoveToast } from "./components/VoiceMoveToast";
+export { NoticeToast } from "./components/NoticeToast";
 export { VoiceMovePromptModal } from "./components/VoiceMovePromptModal";
 export { StagingPanel } from "./components/StagingPanel";
 export { StagingSlotGroup } from "./components/StagingSlotGroup";
@@ -190,7 +190,7 @@ export type {
 export { MessageEmbeds } from "./components/content/MessageEmbeds";
 export { MessageReactions } from "./components/content/MessageReactions";
 export { MessageComponents } from "./components/content/MessageComponents";
-export { IgnoredMessagePlaceholder, URL_RE } from "./components/content/MessageHelpers";
+export { URL_RE } from "./components/content/MessageHelpers";
 export { LinkPreviewCard } from "./components/content/LinkPreviewCard";
 export { LinkPreviewInMessage } from "./components/content/LinkPreviewInMessage";
 export { ReactionPicker } from "./components/content/ReactionPicker";
@@ -523,6 +523,8 @@ export { RecoveryContactsSection } from "./components/settings/RecoveryContactsS
 export type { RecoveryContactsSectionActions } from "./components/settings/RecoveryContactsSection";
 
 // Shared app-orchestration hooks (used by both web and desktop App.tsx).
+export { useNoticeToast } from "./hooks/useNoticeToast";
+export type { Notice } from "./hooks/useNoticeToast";
 export { useVoiceMoveUx } from "./hooks/useVoiceMoveUx";
 export type { VoiceMoveMenuState } from "./hooks/useVoiceMoveUx";
 export { RemoveHubModal } from "./components/RemoveHubModal";

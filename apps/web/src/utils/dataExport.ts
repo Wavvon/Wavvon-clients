@@ -47,13 +47,6 @@ export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platfo
     // ignore malformed local state
   }
 
-  let ignored_users: string[] = [];
-  try {
-    ignored_users = JSON.parse(getScoped("wavvon.ignoredUsers") ?? "[]") as string[];
-  } catch {
-    // ignore malformed local state
-  }
-
   let voice_gains: Record<string, number> = {};
   try {
     voice_gains = JSON.parse(getScoped("wavvon.voice_gains") ?? "{}") as Record<string, number>;
@@ -64,7 +57,6 @@ export function buildLocalPrefsSnapshot(loadSavedHubs: () => SavedHub[] = platfo
   return {
     hub_list: loadSavedHubs(),
     theme,
-    ignored_users,
     voice_gains,
     mention_ping_enabled: getScoped("wavvon.mentionPing") !== "0",
     hub_synced: null,

@@ -17,7 +17,6 @@
 //     active_hub             — pointer to the last-selected hub
 //     voice_gains.json      — per-peer voice volume overrides
 //     blocked_users.json    — local cache of the synced DM block list
-//     ignored_users.json    — locally-ignored pubkeys
 //     pinned_channels.json  — pinned-channel flags, keyed by hub/channel id
 //     collapsed_categories.json — collapsed-category flags
 //     notification_mutes.json  — per-hub/channel notify mode
@@ -440,7 +439,6 @@ pub(crate) fn active_own_dm_plaintexts_path() -> Result<PathBuf, String> {
 // not be the active one.
 pub(crate) const SAVED_HUBS_FILE: &str = "hubs.json";
 pub(crate) const VOICE_GAINS_FILE: &str = "voice_gains.json";
-pub(crate) const IGNORED_USERS_FILE: &str = "ignored_users.json";
 
 pub(crate) fn active_saved_hubs_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join(SAVED_HUBS_FILE))
@@ -456,10 +454,6 @@ pub(crate) fn active_voice_gains_path() -> Result<PathBuf, String> {
 
 pub(crate) fn active_blocked_users_path() -> Result<PathBuf, String> {
     Ok(active_account_dir()?.join("blocked_users.json"))
-}
-
-pub(crate) fn active_ignored_users_path() -> Result<PathBuf, String> {
-    Ok(active_account_dir()?.join(IGNORED_USERS_FILE))
 }
 
 pub(crate) fn active_pinned_channels_path() -> Result<PathBuf, String> {

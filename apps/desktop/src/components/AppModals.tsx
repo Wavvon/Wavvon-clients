@@ -78,6 +78,7 @@ export interface AppModalsProps {
   myRoles: RoleInfo[];
   error: string | null;
   setToast: (v: string | null) => void;
+  showNotice: (msg: string, undo?: () => void) => void;
 
   // Add a hub / admission challenge / approval survey
   setShowDiscover: (v: boolean) => void;
@@ -121,12 +122,10 @@ export interface AppModalsProps {
   userContextMenu: { x: number; y: number; user: User } | null;
   setUserContextMenu: (v: null) => void;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   refreshMembers: () => void | Promise<void>;
   handleUserDm: (u: User) => void | Promise<void>;
   handleUserAddFriend: (u: User) => void | Promise<void>;
   toggleBlockUser: (pubkey: string) => void;
-  toggleIgnoreUser: (pubkey: string) => void;
   handleDiscoverJoin: (url: string, code: string) => void;
 
   // Image lightbox
@@ -157,6 +156,7 @@ export function AppModals(p: AppModalsProps) {
     myRoles,
     error,
     setToast,
+    showNotice,
     setShowDiscover,
     pendingSurveyHubId,
     setPendingSurveyHubId,
@@ -186,12 +186,10 @@ export function AppModals(p: AppModalsProps) {
     userContextMenu,
     setUserContextMenu,
     blockedUsers,
-    ignoredUsers,
     refreshMembers,
     handleUserDm,
     handleUserAddFriend,
     toggleBlockUser,
-    toggleIgnoreUser,
     handleDiscoverJoin,
     lightbox,
     setLightbox,
@@ -330,7 +328,7 @@ export function AppModals(p: AppModalsProps) {
             const link = `wavvon://${hubUrl.replace(/^https?:\/\//, "")}/channel/${channel.id}`;
             try {
               await navigator.clipboard.writeText(link);
-              setToast(t("message.action.link_copied"));
+              showNotice(t("message.action.link_copied"));
             } catch (e) {
               setToast(String(e));
             }
@@ -451,10 +449,10 @@ export function AppModals(p: AppModalsProps) {
           canManageRoles={canManageRoles}
           myMaxPriority={myMaxPriority}
           blockedUsers={blockedUsers}
-          ignoredUsers={ignoredUsers}
           position={{ x: userContextMenu.x, y: userContextMenu.y }}
           onClose={() => setUserContextMenu(null)}
-          onToast={setToast}
+          onToast={showNotice}
+          onError={setToast}
           onRolesChanged={() => { void refreshMembers(); }}
           actions={{
             listRoles: () => invoke<RoleInfo[]>("list_roles"),
@@ -474,7 +472,6 @@ export function AppModals(p: AppModalsProps) {
             dm: handleUserDm,
             addFriend: handleUserAddFriend,
             toggleBlock: toggleBlockUser,
-            toggleIgnore: toggleIgnoreUser,
             fetchPublicProfile: (pubkey) => invoke<PublicHubProfile | null>("fetch_public_profile", {
               hubUrl: hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "",
               pubkey,

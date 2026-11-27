@@ -1503,12 +1503,6 @@
           "markdownDescription": "Enables the load_collapsed_categories command without any pre-configured scope."
         },
         {
-          "description": "Enables the load_ignored_users command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-load-ignored-users",
-          "markdownDescription": "Enables the load_ignored_users command without any pre-configured scope."
-        },
-        {
           "description": "Enables the load_notification_mutes command without any pre-configured scope.",
           "type": "string",
           "const": "allow-load-notification-mutes",
@@ -1855,12 +1849,6 @@
           "type": "string",
           "const": "allow-save-collapsed-categories",
           "markdownDescription": "Enables the save_collapsed_categories command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the save_ignored_users command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-save-ignored-users",
-          "markdownDescription": "Enables the save_ignored_users command without any pre-configured scope."
         },
         {
           "description": "Enables the save_notification_mutes command without any pre-configured scope.",
@@ -3549,12 +3537,6 @@
           "markdownDescription": "Denies the load_collapsed_categories command without any pre-configured scope."
         },
         {
-          "description": "Denies the load_ignored_users command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-load-ignored-users",
-          "markdownDescription": "Denies the load_ignored_users command without any pre-configured scope."
-        },
-        {
           "description": "Denies the load_notification_mutes command without any pre-configured scope.",
           "type": "string",
           "const": "deny-load-notification-mutes",
@@ -3895,12 +3877,6 @@
           "type": "string",
           "const": "deny-save-collapsed-categories",
           "markdownDescription": "Denies the save_collapsed_categories command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the save_ignored_users command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-save-ignored-users",
-          "markdownDescription": "Denies the save_ignored_users command without any pre-configured scope."
         },
         {
           "description": "Denies the save_notification_mutes command without any pre-configured scope.",

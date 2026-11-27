@@ -178,7 +178,6 @@ interface Props {
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   isAdmin: boolean;
@@ -189,6 +188,7 @@ interface Props {
   onSetUserContextMenu: (menu: { x: number; y: number; user: User } | null) => void;
   onOpenImage: (src: string, alt: string) => void;
   onToast: (msg: string) => void;
+  onNotice: (msg: string) => void;
   slashCommands?: SlashCommandEntry[];
   canMoveMembers: boolean;
   onMoveMember: (targetPubkey: string, targetChannelId: string, eventId?: string) => void;
@@ -204,9 +204,9 @@ export function ContentArea(props: Props) {
   const {
     channelMessages, dms, alliances, hubLifecycle, hubConnection, voice, screenShare,
     notifyPrefs, channelCrud, typing,
-    view, channels, onBreadcrumbCategoryClick, users, publicKey, blockedUsers, ignoredUsers,
+    view, channels, onBreadcrumbCategoryClick, users, publicKey, blockedUsers,
     knownDisplayNames, myDisplayName, isAdmin, myRoles, memberSidebarHidden, onSetMemberSidebarHidden,
-    selfInvisible, onSetUserContextMenu, onToast, slashCommands, canMoveMembers, onMoveMember,
+    selfInvisible, onSetUserContextMenu, onToast, onNotice, slashCommands, canMoveMembers, onMoveMember,
   } = props;
   const { selectedChannel } = channelMessages;
 
@@ -316,7 +316,6 @@ export function ContentArea(props: Props) {
         users={users}
         publicKey={publicKey}
         blockedUsers={blockedUsers}
-        ignoredUsers={ignoredUsers}
         knownDisplayNames={knownDisplayNames}
         myDisplayName={myDisplayName}
         isAdmin={isAdmin}
@@ -390,7 +389,7 @@ export function ContentArea(props: Props) {
         onInputTextChange={channelMessages.handleInputTextChange}
         onKeyDown={channelMessages.handleKeyDown}
         onOpenImage={props.onOpenImage}
-        onToast={onToast}
+        onToast={onNotice}
         onError={(msg) => onToast(typeof msg === "string" ? msg : String((msg as Record<string, unknown>).message ?? msg))}
         slashCommands={slashCommands}
         activeScreenShares={screenShare.activeScreenShares}

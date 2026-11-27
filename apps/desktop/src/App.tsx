@@ -26,13 +26,13 @@ import { SavedMessagesModal, notifyReminder, type SavedMessage } from "@wavvon/u
 import { useSavedList } from "./hooks/useSavedList";
 import { PendingApplication } from "./components/PendingApplication";
 import { AppLaunchCard, DiscoverPage, Lobby, type CreateEventPayload, type HubEvent, type Poll, ClockIcon, HubRefusedPanel, SettingsModal } from "@wavvon/ui";
-import { useConfirm, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions } from "@wavvon/ui";
+import { useConfirm, useNoticeToast, NoticeToast, VoiceMoveMenu, VoiceMoveToast, VoiceMovePromptModal, SearchBar, moveChannelOptions } from "@wavvon/ui";
 import { useVoiceMoveUx, usePresenceStatus, useHubSetupWizardGate, useSoundboardChips } from "@wavvon/ui";
 import { WhisperInbox } from "@wavvon/ui";
 import type { GlobalSearchResult } from "@wavvon/ui";
 import { useWhisperReply } from "./hooks/useWhisperReply";
 import { useCollapsedCategories } from "./hooks/useCollapsedCategories";
-import { useBlockIgnore } from "./hooks/useBlockIgnore";
+import { useBlockedUsers } from "./hooks/useBlockedUsers";
 import { useActiveApps } from "./hooks/useActiveApps";
 import { useMiniAppVoiceBridge } from "./hooks/useMiniAppVoiceBridge";
 import { useDeepLink } from "./hooks/useDeepLink";
@@ -116,7 +116,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
   const notifyPrefs = useNotificationPrefs();
   const saved = useSavedList(accountId, (due) => {
     for (const s of due) {
-      setToast(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
+      showNotice(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
       notifyReminder(s, t("remind.notification_title", { where: s.channel_name ? `#${s.channel_name}` : s.hub_name ?? "" }), (x) => openSavedRef.current(x));
     }
   });
@@ -194,9 +194,8 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
   }
 
   const { collapsedCategories, toggleCategoryCollapsed } = useCollapsedCategories();
-  const { blockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore();
-  // Blocked or ignored, someone is not heard in voice and plays no soundboard clip at you.
-  const silencedUsers = useMemo(() => new Set([...blockedUsers, ...ignoredUsers]), [blockedUsers, ignoredUsers]);
+  const { blockedUsers, toggleBlockUser } = useBlockedUsers();
+  const { notice, showNotice, dismissNotice } = useNoticeToast();
 
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -558,7 +557,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
     myDisplayNameRef.current = myDisplayName;
   }, [myDisplayName]);
 
-  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast, publicKey, silencedUsers });
+  const voice = useVoice({ activeHubId, selectedChannel: channelMessages.selectedChannel, setError, setToast, publicKey, silencedUsers: blockedUsers });
 
   useMiniAppVoiceBridge({
     voiceChannelId: voice.voiceChannelId,
@@ -590,7 +589,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
 
   const whisper = useWhisper({ activeHubId, voiceChannelId: voice.voiceChannelId });
   const soundboard = useSoundboard(voice.voiceChannelId);
-  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips(voice.selfDeafened, silencedUsers);
+  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips(voice.selfDeafened, blockedUsers);
   const cameras = useMemo(() => {
     const m = new Map<string, MediaStream>();
     for (const [pk, stream] of video.remoteStreams) if (video.videoPubkeys.has(pk)) m.set(pk, stream);
@@ -1235,6 +1234,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
         onDismiss={whisper.dismissInbound}
         onClearAll={whisper.clearInbound}
       />
+      {notice && <NoticeToast notice={notice} onDismiss={dismissNotice} />}
       {toast && (
         <div className="toast" onClick={() => setToast(null)}>
           {toast}
@@ -1333,9 +1333,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
             isAdmin={isAdmin}
             publicKey={publicKey}
             blockedUsers={blockedUsers}
-            ignoredUsers={ignoredUsers}
             onUnblock={toggleBlockUser}
-            onUnignore={toggleIgnoreUser}
             knownNames={pubkeyToName}
             hideBirthdays={hideBirthdays}
             onToggleHideBirthdays={() => setHideBirthdays((v) => !v)}
@@ -1595,7 +1593,6 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
                   users={users}
                   publicKey={publicKey}
                   blockedUsers={blockedUsers}
-                  ignoredUsers={ignoredUsers}
                   knownDisplayNames={knownDisplayNames}
                   myDisplayName={myDisplayName}
                   isAdmin={isAdmin}
@@ -1607,7 +1604,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
                   setUserContextMenu={setUserContextMenu}
                   slashCommands={slashCommands}
                   openImage={openImage}
-                  setToast={setToast}
+                  showNotice={showNotice}
                   setError={setError}
                   showHubStreams={showHubStreams}
                   setShowHubStreams={setShowHubStreams}
@@ -1659,6 +1656,7 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
           myRoles={myRoles}
           error={error}
           setToast={setToast}
+          showNotice={showNotice}
           setShowDiscover={setShowDiscover}
           pendingSurveyHubId={pendingSurveyHubId}
           setPendingSurveyHubId={setPendingSurveyHubId}
@@ -1688,12 +1686,10 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
           userContextMenu={userContextMenu}
           setUserContextMenu={setUserContextMenu}
           blockedUsers={blockedUsers}
-          ignoredUsers={ignoredUsers}
           refreshMembers={refreshMembers}
           handleUserDm={handleUserDm}
           handleUserAddFriend={handleUserAddFriend}
           toggleBlockUser={toggleBlockUser}
-          toggleIgnoreUser={toggleIgnoreUser}
           handleDiscoverJoin={handleDiscoverJoin}
           lightbox={lightbox}
           setLightbox={setLightbox}

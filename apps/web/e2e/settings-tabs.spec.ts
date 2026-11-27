@@ -37,10 +37,10 @@ test("user settings shows every area, and every section is reachable", async ({ 
 
   await page.getByRole("menu").getByRole("menuitem", { name: "Profile", exact: true }).click();
   const areas = page.locator(".settings-areas");
-  for (const name of ["Profile", "Audio and video", "App", "Account and security", "Blocked and ignored"]) {
+  for (const name of ["Profile", "Audio and video", "App", "Account and security", "Blocked users"]) {
     await expect(areas.getByRole("button", { name, exact: true })).toBeVisible();
   }
-  for (const name of ["Trusted issuers", "Voice", "Camera", "Appearance", "Notifications", "About & credits", "Manage accounts", "Devices", "Blocked and ignored"]) {
+  for (const name of ["Trusted issuers", "Voice", "Camera", "Appearance", "Notifications", "About & credits", "Manage accounts", "Devices", "Blocked users"]) {
     await openSettingsSection(page, name);
     await expect(page.getByRole("heading", { name, exact: true }).first()).toBeVisible();
   }

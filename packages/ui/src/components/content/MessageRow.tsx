@@ -17,7 +17,6 @@ import { ReactionPicker } from "./ReactionPicker";
 import { MessageEmbeds } from "./MessageEmbeds";
 import { MessageComponents } from "./MessageComponents";
 import { LinkPreviewInMessage } from "./LinkPreviewInMessage";
-import { IgnoredMessagePlaceholder } from "./MessageHelpers";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { RemindAtModal } from "./RemindAtModal";
 import { formatMuteEnd as formatRemindTime } from "../layout/MuteForItems";
@@ -70,9 +69,6 @@ interface Props {
   myRoles: { permissions: string[] }[];
   users: User[];
   knownDisplayNames: Set<string>;
-  /** Client-local ignore list (desktop feature web lacked — messages from an
-   * ignored sender collapse to a reveal-on-click placeholder). */
-  ignoredUsers?: Set<string>;
   editingMessageId: string | null;
   editingDraft: string;
   focusedMessageIndex: number;
@@ -130,7 +126,6 @@ export function MessageRow({
   myRoles,
   users,
   knownDisplayNames,
-  ignoredUsers,
   editingMessageId,
   editingDraft,
   focusedMessageIndex,
@@ -176,11 +171,6 @@ export function MessageRow({
   const [reported, setReported] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [pickingRemind, setPickingRemind] = useState(false);
-
-  const isIgnored = !!ignoredUsers?.has(m.sender) && m.sender !== publicKey;
-  if (isIgnored) {
-    return <IgnoredMessagePlaceholder key={m.id} />;
-  }
 
   const showSeparator = !prevMessage || dayKey(m.created_at) !== dayKey(prevMessage.created_at);
   const isMine = m.sender === publicKey;

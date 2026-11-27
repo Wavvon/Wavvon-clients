@@ -89,7 +89,7 @@ export interface UseVoiceParams {
   // lands in a sibling room not yet in the local channel list.
   refetchChannels: () => void;
   extRef: RefObject<VoiceExtDeps>;
-  /** Blocked and ignored people: you hear nothing from them. */
+  /** Blocked people: you hear nothing from them. */
   silencedUsers: ReadonlySet<string>;
 }
 
@@ -888,7 +888,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
     positionRefused,
     positionRefusals,
     onVoicePositionRefused,
-    // Deafened you hear nobody, and blocked or ignored you hear not them:
+    // Deafened you hear nobody, and blocked you hear not them:
     // whoever you cannot hear does not light up as speaking.
     voiceActiveUsers: heardSpeakers(voiceActiveUsers, selfDeafened, silencedUsers),
     myVoicePerms,

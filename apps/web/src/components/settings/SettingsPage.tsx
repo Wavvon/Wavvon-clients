@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Hub, BlockEntry, IgnoreEntry } from "@shared/types";
+import type { Hub, BlockEntry } from "@shared/types";
 import type { WebPush } from "../../hooks/useWebPush";
 import type { ThemesController, TrustRoot, UserSettingsSection } from "@wavvon/ui";
 import { AboutTab, CameraTab, HelpTab, ProfileTab, resolveManagingAccount, SettingsAccountPicker, SettingsShell, TrustedIssuersTab, knownIssuerHubs, userSettingsLayout } from "@wavvon/ui";
@@ -33,9 +33,7 @@ interface SettingsPageProps {
   recoveryPhrase: string | null;
   onShowRecovery: () => void;
   blocks: BlockEntry[];
-  ignores: IgnoreEntry[];
   onUnblock: (pubkey: string) => void;
-  onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
@@ -141,9 +139,7 @@ export function SettingsPage(props: SettingsPageProps) {
         {section === "privacy" && (
           <PrivacyTab
             blocks={props.blocks}
-            ignores={props.ignores}
             onUnblock={props.onUnblock}
-            onUnignore={props.onUnignore}
             knownNames={props.knownNames}
             {...perAccount}
           />

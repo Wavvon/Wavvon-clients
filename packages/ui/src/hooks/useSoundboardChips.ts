@@ -36,8 +36,8 @@ export function parseSoundboardPlayedEvent(raw: unknown): SoundboardPlayedEvent 
  *  `CHIP_TTL_MS`. Network-free — both apps feed it raw WS payloads from
  *  whatever transport they use (web: the hub WebSocket; desktop: the
  *  `soundboard-played` Tauri event). Deafened, you hear no clip, so a play
- *  makes no chip and no burst either; nor does one by somebody you blocked or
- *  ignored, whose clip you do not hear. */
+ *  makes no chip and no burst either; nor does one by somebody you
+ *  blocked, whose clip you do not hear. */
 export function useSoundboardChips(deafened = false, silenced?: ReadonlySet<string>) {
   const [chipsByChannel, setChipsByChannel] = useState<Record<string, SoundboardChip[]>>({});
   const deafenedRef = useRef(deafened);
