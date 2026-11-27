@@ -33,7 +33,7 @@ const HUB_AREA_OF: Record<string, string> = {
   "Approval and anti-spam": "Joining", "Welcome message": "Joining", "Message limits": "Content",
   Discovery: "General", Tags: "General", Theme: "General", Languages: "General",
   Invites: "Joining", Onboarding: "Joining", Survey: "Joining", Application: "Joining",
-  Members: "People", Roles: "People", Certifications: "People",
+  Members: "People", Roles: "Roles", Certifications: "Certifications",
   Reports: "Moderation", "Recovery requests": "Moderation", Bans: "Moderation", "Audit log": "Moderation",
   Icons: "Content", "Sticker packs": "Content", "Sticker settings": "Content", Soundboard: "Content",
   Attachments: "Content", "Stored stickers": "Content",

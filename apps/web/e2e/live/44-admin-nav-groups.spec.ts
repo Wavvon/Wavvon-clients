@@ -16,7 +16,7 @@ test("hub settings show their areas across the top", async ({ page }) => {
   await openHubSettings(page);
   const areas = page.locator(".settings-areas");
   await expect(areas.getByRole("button", { name: "General", exact: true })).toBeVisible({ timeout: 10000 });
-  for (const area of ["Joining", "People", "Moderation", "Content", "Connections"]) {
+  for (const area of ["Joining", "People", "Roles", "Certifications", "Moderation", "Content", "Connections"]) {
     await expect(areas.getByRole("button", { name: area, exact: true })).toBeVisible();
   }
 });
