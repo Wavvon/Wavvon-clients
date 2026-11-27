@@ -924,7 +924,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
           />
         )}
 
-        {section === "roles" && <RolesSection actions={props.rolesActions} myMaxPriority={props.myMaxPriority} />}
+        {section === "roles" && <RolesSection actions={props.rolesActions} myMaxPriority={props.myMaxPriority} members={props.members} onMemberRolesChanged={props.onMemberRolesChanged} />}
 
         {section === "integrations" && (
           <section>

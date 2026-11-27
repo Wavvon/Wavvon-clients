@@ -1,11 +1,19 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import type { RoleCategory } from "../../types";
-import { safeRoleColor } from "../../utils/roleAppearance";
-import { EmojiPicker } from "../content/EmojiPicker";
-import { ColorSwatchPicker } from "./ColorSwatchPicker";
-import { useConfirm } from "../ConfirmDialog";
-import { ChevronIcon } from "../Icons";
+import { FocusTrap } from "../FocusTrap";
+import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
+import { RoleCategoryRow } from "./RoleCategoryRow";
 
 export interface RoleCategoryManagerActions {
   createRoleCategory: (input: { name: string; position: number }) => Promise<RoleCategory>;
@@ -20,23 +28,24 @@ interface Props {
   categories: RoleCategory[];
   onChange: (categories: RoleCategory[]) => void;
   actions: RoleCategoryManagerActions;
+  onClose: () => void;
 }
 
-export function RoleCategoryManager({ categories, onChange, actions }: Props) {
+/** Dialog for the hub's role categories: order, rename, delete, add. A deleted
+ *  category's roles fall back to "No category", which is always last. */
+export function RoleCategoryManager({ categories, onChange, actions, onClose }: Props) {
   const { t } = useTranslation();
-  const { confirm, dialog } = useConfirm();
+  useCloseOnEscape(onClose);
   const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   const sorted = categories.slice().sort((a, b) => a.position - b.position);
 
-  function replace(updated: RoleCategory) {
-    onChange(categories.map((c) => (c.id === updated.id ? updated : c)));
-  }
-
-  async function runMutation(fn: () => Promise<void>) {
+  async function run(fn: () => Promise<void>) {
     setError(null);
     try {
       await fn();
@@ -45,142 +54,82 @@ export function RoleCategoryManager({ categories, onChange, actions }: Props) {
     }
   }
 
-  async function handleCreate() {
+  const replace = (u: RoleCategory) => onChange(categories.map((c) => (c.id === u.id ? u : c)));
+
+  async function add() {
     const name = newName.trim();
     if (!name) return;
-    setCreating(true);
-    await runMutation(async () => {
-      const position = sorted.length > 0 ? sorted[sorted.length - 1].position + 1 : 0;
-      const created = await actions.createRoleCategory({ name, position });
-      onChange([...categories, created]);
+    setBusy(true);
+    await run(async () => {
+      const position = sorted.length ? sorted[sorted.length - 1].position + 1 : 0;
+      onChange([...categories, await actions.createRoleCategory({ name, position })]);
       setNewName("");
     });
-    setCreating(false);
+    setBusy(false);
   }
 
-  async function handleMove(index: number, direction: -1 | 1) {
-    const otherIndex = index + direction;
-    if (otherIndex < 0 || otherIndex >= sorted.length) return;
-    const a = sorted[index];
-    const b = sorted[otherIndex];
-    await runMutation(async () => {
-      const [updatedA, updatedB] = await Promise.all([
-        actions.updateRoleCategory(a.id, { position: b.position }),
-        actions.updateRoleCategory(b.id, { position: a.position }),
-      ]);
-      onChange(
-        categories.map((c) => {
-          if (c.id === updatedA.id) return updatedA;
-          if (c.id === updatedB.id) return updatedB;
-          return c;
+  function onDragEnd(e: DragEndEvent) {
+    if (!e.over || e.active.id === e.over.id) return;
+    const ids = sorted.map((c) => c.id);
+    const next = arrayMove(ids, ids.indexOf(String(e.active.id)), ids.indexOf(String(e.over.id)));
+    void run(async () => {
+      const updated = await Promise.all(
+        next.map((id, position) => {
+          const cat = sorted.find((c) => c.id === id)!;
+          return cat.position === position ? Promise.resolve(cat) : actions.updateRoleCategory(id, { position });
         }),
       );
-    });
-  }
-
-  async function handleDelete(cat: RoleCategory) {
-    if (!(await confirm({
-      title: t("hub.admin.role_categories.delete_confirm", { name: cat.name }),
-      confirmLabel: t("hub.admin.role_categories.delete"),
-      danger: true,
-    }))) return;
-    await runMutation(async () => {
-      await actions.deleteRoleCategory(cat.id);
-      onChange(categories.filter((c) => c.id !== cat.id));
+      onChange(updated);
     });
   }
 
   return (
-    <section>
-      {dialog}
-      <h2>{t("hub.admin.role_categories.title")}</h2>
-      <p className="muted">{t("hub.admin.role_categories.hint")}</p>
-      {error && <p className="error-text">{error}</p>}
-
-      {sorted.length === 0 && <p className="muted">{t("hub.admin.role_categories.empty")}</p>}
-
-      {sorted.map((cat, index) => (
-        <div key={cat.id} className="settings-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="btn-small btn-secondary"
-            onClick={() => handleMove(index, -1)}
-            disabled={index === 0}
-            aria-label={t("hub.admin.role_categories.move_up")}
-            title={t("hub.admin.role_categories.move_up")}
-          >
-            <ChevronIcon size={12} dir="up" />
-          </button>
-          <button
-            type="button"
-            className="btn-small btn-secondary"
-            onClick={() => handleMove(index, 1)}
-            disabled={index === sorted.length - 1}
-            aria-label={t("hub.admin.role_categories.move_down")}
-            title={t("hub.admin.role_categories.move_down")}
-          >
-            <ChevronIcon size={12} dir="down" />
-          </button>
-          <span style={{ minWidth: 20, textAlign: "center" }}>{cat.icon ?? "—"}</span>
-          <EmojiPicker onPick={(icon) => runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { icon })))} unicodeOnly />
-          {cat.icon && (
-            <button
-              type="button"
-              className="btn-small btn-secondary"
-              onClick={() => runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { icon: null })))}
-            >
-              {t("hub.admin.role_categories.clear_icon")}
-            </button>
-          )}
-          <input
-            type="text"
-            defaultValue={cat.name}
-            style={{ flex: 1, minWidth: 120 }}
-            onBlur={(e) => {
-              const name = e.target.value.trim();
-              if (name && name !== cat.name) {
-                runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { name })));
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="color-swatch"
-            style={{
-              background: safeRoleColor(cat.color) ?? "transparent",
-              border: safeRoleColor(cat.color) ? undefined : "1px solid var(--border)",
-            }}
-            onClick={() => setColorPickerFor(colorPickerFor === cat.id ? null : cat.id)}
-            title={t("hub.admin.role_categories.color_label")}
-          />
-          <button
-            type="button"
-            className="btn-small btn-secondary danger"
-            onClick={() => handleDelete(cat)}
-          >
-            {t("hub.admin.role_categories.delete")}
-          </button>
-          {colorPickerFor === cat.id && (
-            <ColorSwatchPicker
-              value={cat.color}
-              noColorLabel={t("hub.admin.role_categories.no_color")}
-              onChange={(color) => runMutation(async () => replace(await actions.updateRoleCategory(cat.id, { color })))}
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={t("hub.admin.roles.cat.title")}>
+      <FocusTrap>
+        <div className="modal roles-cat-modal" onClick={(e) => e.stopPropagation()}>
+          <h3>{t("hub.admin.roles.cat.title")}</h3>
+          <p className="muted">{t("hub.admin.role_categories.hint")}</p>
+          {error && <p className="error-text">{error}</p>}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={sorted.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              <ul className="roles-list">
+                {sorted.map((c) => (
+                  <RoleCategoryRow
+                    key={c.id}
+                    category={c}
+                    onUpdate={(u) => void run(async () => replace(await actions.updateRoleCategory(c.id, u)))}
+                    onDelete={() =>
+                      void run(async () => {
+                        await actions.deleteRoleCategory(c.id);
+                        onChange(categories.filter((x) => x.id !== c.id));
+                      })
+                    }
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+          <p className="muted roles-cat-fixed">{t("hub.admin.roles.category_none")}</p>
+          <div className="settings-row">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void add(); }}
+              placeholder={t("hub.admin.role_categories.new_name_placeholder")}
+              aria-label={t("hub.admin.role_categories.new_name_placeholder")}
             />
-          )}
+            <button type="button" onClick={() => void add()} disabled={busy || !newName.trim()}>
+              {t("hub.admin.roles.cat.add")}
+            </button>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-primary" onClick={onClose}>
+              {t("hub.admin.roles.cat.done")}
+            </button>
+          </div>
         </div>
-      ))}
-
-      <div className="settings-row">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder={t("hub.admin.role_categories.new_name_placeholder")}
-        />
-        <button type="button" onClick={handleCreate} disabled={creating || !newName.trim()}>
-          {t("hub.admin.role_categories.create")}
-        </button>
-      </div>
-    </section>
+      </FocusTrap>
+    </div>
   );
 }

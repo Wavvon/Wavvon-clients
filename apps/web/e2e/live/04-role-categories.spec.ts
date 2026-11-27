@@ -1,22 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
-import { openHubAdminSection } from "../helpers/settings";
-import { expectInHub, hubApi, uniqueName, openSettingRow } from "./helpers/live";
+import { expectInHub, hubApi, uniqueName, openRolesAdmin, selectRole, saveRole } from "./helpers/live";
 
 // P4 — role categories + per-role color/icon (role-categories.md §4, §6):
 // create a category, file a custom role under it, set a role color and a
 // unicode icon, and confirm everything survives a reload.
-//
-// The role itself is created over REST: the web client has no role-creation
-// UI yet (desktop parity item), and the hub rejects appearance updates on
-// built-in roles ("Cannot modify built-in roles") even though the web UI
-// offers the controls there — recorded as a finding in ROADMAP.
 
-async function openRolesAdmin(page: Page) {
-  await page.locator(".hub-header-button").click();
-  await page.getByRole("button", { name: "Hub settings" }).click();
-  await openHubAdminSection(page, "Roles");
-  await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
-}
+const groupOf = (page: Page, cat: string) =>
+  page
+    .locator(".roles-list-pane .role-category-group")
+    .filter({ has: page.locator(".role-category-header", { hasText: cat }) });
 
 test("role category grouping, color, and icon persist", async ({ page }) => {
   await page.goto("/");
@@ -30,53 +22,36 @@ test("role category grouping, color, and icon persist", async ({ page }) => {
 
   await openRolesAdmin(page);
 
-  // Create a category; it shows up as an (empty) group.
+  // Categories live in their own dialog.
   const cat = uniqueName("teams");
-  await page.getByPlaceholder("New category name").fill(cat);
-  await page.getByRole("button", { name: "Create category" }).click();
-  // hasText would also match other groups through their rows' category
-  // <select> options — anchor on the group header instead.
-  const group = page
-    .locator(".role-category-group")
-    .filter({ has: page.locator(".role-category-header", { hasText: cat }) });
-  await expect(group).toBeVisible();
-  await expect(group.getByText("No roles in this category.")).toBeVisible();
+  await page.getByRole("button", { name: "Manage categories" }).click();
+  const dialog = page.getByRole("dialog", { name: "Manage categories" });
+  await dialog.getByPlaceholder("New category name").fill(cat);
+  await dialog.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(dialog.getByRole("textbox", { name: `Rename ${cat}` })).toHaveValue(cat);
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(dialog).toBeHidden();
 
-  // File the custom role under the new category via its row's select.
-  const roleRow = await openSettingRow(page, role);
-  await roleRow.locator("select").first().selectOption({ label: cat });
-  const movedRow = group.locator(".setting-row").filter({ hasText: role });
-  await expect(movedRow).toBeVisible();
-
-  // Set a role color from the swatch picker.
-  await movedRow.getByTitle("Role color").click();
-  await page.getByTitle("#e74c3c", { exact: true }).click();
-  await expect(movedRow.getByTitle("Role color")).toHaveCSS(
-    "background-color",
-    "rgb(231, 76, 60)",
-  );
-
-  // Set a unicode icon via the emoji picker in the same row.
-  await movedRow.getByRole("button", { name: "Add reaction" }).click();
+  // File the role under it, colour it and give it an icon, in one save.
+  const editor = await selectRole(page, role);
+  await editor.getByRole("tab", { name: "Appearance" }).click();
+  await editor.getByRole("combobox", { name: "Category" }).selectOption({ label: cat });
+  await editor.getByTitle("#e74c3c", { exact: true }).click();
+  await editor.getByRole("button", { name: "Add reaction" }).click();
   await page.locator(".reaction-picker-emoji", { hasText: "🎮" }).first().click();
-  await expect(movedRow.getByText("🎮")).toBeVisible();
+  await saveRole(page);
 
-  // Persistence: reload and re-open the tab.
+  const row = groupOf(page, cat).locator(".roles-row", { hasText: role });
+  await expect(row).toBeVisible();
+  await expect(row.locator(".roles-dot")).toHaveCSS("background-color", "rgb(231, 76, 60)");
+
+  // Persistence: reload and re-open.
   await page.reload();
   await expectInHub(page);
   await openRolesAdmin(page);
-  const groupAfter = page
-    .locator(".role-category-group")
-    .filter({ has: page.locator(".role-category-header", { hasText: cat }) });
-  const rowAfter = groupAfter.locator(".setting-row").filter({ hasText: role });
-  await expect(rowAfter).toBeVisible();
-  // The icon rides in the row's head, so it is on screen with the row closed.
-  // The swatch is part of the form the row opens to, and is not in the DOM
-  // until it does.
-  await expect(rowAfter.getByText("🎮")).toBeVisible();
-  const reopened = await openSettingRow(page, role);
-  await expect(reopened.getByTitle("Role color")).toHaveCSS(
-    "background-color",
-    "rgb(231, 76, 60)",
-  );
+  await expect(groupOf(page, cat).locator(".roles-row", { hasText: role })).toBeVisible();
+  const after = await selectRole(page, role);
+  await after.getByRole("tab", { name: "Appearance" }).click();
+  await expect(after.locator(".roles-preview")).toContainText("🎮");
+  await expect(after.getByTitle("#e74c3c", { exact: true })).toHaveClass(/\bselected\b/);
 });

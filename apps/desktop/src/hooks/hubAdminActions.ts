@@ -81,6 +81,8 @@ export const rolesActions: RolesSectionActions = {
       categoryId: updates.category_id ?? null,
     }),
   deleteRole: (roleId) => invoke("delete_role", { roleId }),
+  assignRoleToUser: (pubkey, roleId) => invoke("assign_role", { targetPublicKey: pubkey, roleId }),
+  removeRoleFromUser: (pubkey, roleId) => invoke("unassign_role", { targetPublicKey: pubkey, roleId }),
   // What this screen offers to tick is the hub's catalogue, not a list this
   // build carries — same command the channel overwrite tab uses.
   listPermissionCatalogue: () => invoke<PermissionCatalogueEntry[]>("list_permission_catalogue"),

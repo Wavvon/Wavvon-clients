@@ -20,6 +20,8 @@ interface Props {
   actions: MemberRoleManagerActions;
 }
 
+const FILTER_THRESHOLD = 6;
+
 // Chip list + a "manage roles" popover, for inline role editing in the
 // hub-admin Members table.
 export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChanged, actions }: Props) {
@@ -29,6 +31,7 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
   const [assigned, setAssigned] = useState<Set<string>>(new Set(currentRoles.map((r) => r.id)));
   const [busyRole, setBusyRole] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
   const popRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,6 +84,8 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
   const assignable = (allRoles ?? [])
     .filter((r) => r.id !== "builtin-everyone" && r.priority < myMaxPriority)
     .sort((a, b) => b.priority - a.priority);
+  const needle = filter.trim().toLowerCase();
+  const shown = needle ? assignable.filter((r) => r.name.toLowerCase().includes(needle)) : assignable;
 
   return (
     <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -124,7 +129,21 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
           ) : assignable.length === 0 ? (
             <div style={{ padding: "4px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("user.ctx.roles_empty")}</div>
           ) : (
-            assignable.map((role) => {
+            <>
+              {assignable.length > FILTER_THRESHOLD && (
+                <input
+                  type="search"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder={t("hub.admin.roles.search")}
+                  aria-label={t("hub.admin.roles.search")}
+                  style={{ margin: "0 8px 4px", width: "calc(100% - 16px)" }}
+                />
+              )}
+              {shown.length === 0 && (
+                <div style={{ padding: "4px 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("hub.admin.roles.no_match")}</div>
+              )}
+            {shown.map((role) => {
               const has = assigned.has(role.id);
               const color = safeRoleColor(role.color);
               return (
@@ -138,7 +157,8 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
                   <span>{role.name}</span>
                 </label>
               );
-            })
+            })}
+            </>
           )}
         </div>
       )}
