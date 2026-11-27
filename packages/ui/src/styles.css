@@ -2876,21 +2876,6 @@ body:has(.channel-banner) #root {
   left: 6px;
   display: flex;
 }
-.voice-tile-pinned {
-  display: inline-flex;
-  margin: 2px;
-  color: var(--accent);
-}
-button.voice-tile-pinned {
-  padding: 2px;
-  border: none;
-  border-radius: 4px;
-  background: none;
-  cursor: pointer;
-}
-button.voice-tile-pinned:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
-}
 .voice-self-state {
   display: inline-flex;
   color: var(--danger);
