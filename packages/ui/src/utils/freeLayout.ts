@@ -58,3 +58,21 @@ export function placeNew(size: { w: number; h: number }, sameLayer: Rect[]): Rec
   }
   return null;
 }
+
+/** The free spot of the same size closest to where `r` was dropped, so a
+ *  drop onto another item slides beside it instead of being refused; null
+ *  when the layer has no room for that size anywhere. */
+export function nearestFit(r: Rect, sameLayer: Rect[]): Rect | null {
+  if (fits(r, sameLayer)) return r;
+  let best: Rect | null = null;
+  let bestDist = Infinity;
+  for (let y = 0; y + r.h <= 100; y += 1) {
+    for (let x = 0; x + r.w <= 100; x += 1) {
+      const d = (x - r.x) ** 2 + (y - r.y) ** 2;
+      if (d >= bestDist) continue;
+      const c = { ...r, x, y };
+      if (fits(c, sameLayer)) { best = c; bestDist = d; }
+    }
+  }
+  return best;
+}

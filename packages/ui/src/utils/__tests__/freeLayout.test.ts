@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampRect, fits, overlaps, placeNew } from "../freeLayout";
+import { clampRect, fits, nearestFit, overlaps, placeNew } from "../freeLayout";
 
 describe("free stage layout", () => {
   it("tells overlapping rectangles from touching ones", () => {
@@ -23,5 +23,19 @@ describe("free stage layout", () => {
   it("only same-layer items block a spot", () => {
     expect(fits({ x: 0, y: 0, w: 40, h: 40 }, [])).toBe(true);
     expect(fits({ x: 0, y: 0, w: 40, h: 40 }, [{ x: 10, y: 10, w: 10, h: 10 }])).toBe(false);
+  });
+});
+
+describe("dropping onto another item", () => {
+  const other = { x: 40, y: 0, w: 40, h: 100 };
+  it("slides to the nearest free spot instead of refusing", () => {
+    expect(nearestFit({ x: 30, y: 10, w: 20, h: 20 }, [other])).toEqual({ x: 20, y: 10, w: 20, h: 20 });
+  });
+  it("keeps a drop that already fits", () => {
+    const r = { x: 0, y: 0, w: 20, h: 20 };
+    expect(nearestFit(r, [other])).toBe(r);
+  });
+  it("finds nothing when the size fits nowhere", () => {
+    expect(nearestFit({ x: 0, y: 0, w: 70, h: 20 }, [other])).toBeNull();
   });
 });

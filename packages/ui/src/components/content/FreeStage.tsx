@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { clampRect, fits, placeNew, type FreeLayout, type Layer, type Rect } from "../../utils/freeLayout";
+import { clampRect, nearestFit, placeNew, type FreeLayout, type Layer, type Rect } from "../../utils/freeLayout";
 
 export interface FreeItem {
   id: string;
@@ -79,12 +79,11 @@ export function FreeStage({ items, layout, onChange }: {
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      if (fits(next, sameLayerRects(item.id, item.layer))) {
-        onChange({ ...layout, rects: { ...layout.rects, [item.id]: next } });
-      } else if (el) {
-        // Same layer, overlapping: snap back to where it was.
-        Object.assign(el.style, { left: `${start.x}%`, top: `${start.y}%`, width: `${start.w}%`, height: `${start.h}%` });
-      }
+      // Dropped onto another item of its layer: the nearest free spot, or
+      // back where it was when there is none for that size.
+      const landed = nearestFit(next, sameLayerRects(item.id, item.layer)) ?? start;
+      if (el) Object.assign(el.style, { left: `${landed.x}%`, top: `${landed.y}%`, width: `${landed.w}%`, height: `${landed.h}%` });
+      onChange({ ...layout, rects: { ...layout.rects, [item.id]: landed } });
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
