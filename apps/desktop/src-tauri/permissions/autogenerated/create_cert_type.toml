@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-cert-type"
+description = "Enables the create_cert_type command without any pre-configured scope."
+commands.allow = ["create_cert_type"]
+
+[[permission]]
+identifier = "deny-create-cert-type"
+description = "Denies the create_cert_type command without any pre-configured scope."
+commands.deny = ["create_cert_type"]

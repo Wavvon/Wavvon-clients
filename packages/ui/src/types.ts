@@ -866,8 +866,25 @@ export interface CertIssuance {
   standing: "good" | "revoked";
 }
 
+/** A type from a hub's certificate catalogue (`GET /certs/types`). */
+export interface CertType {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface TrustedCertType {
+  issuer: string;
+  cert_type: string;
+}
+
 export interface CertAdmissionSettings {
-  cert_mode: "none" | "any" | "trusted";
+  /** Hubs before certified admission (`admission.certfastlane`) only. */
+  cert_mode?: "none" | "any" | "trusted";
+  /** Certified admission: present on hubs that have it. */
+  cert_trusted_types?: TrustedCertType[];
+  cert_others?: "lobby" | "refuse";
+  cert_replaces_invite?: boolean;
   cert_auto_issue: boolean;
   cert_min_age_days: number;
   cert_validity_days: number;

@@ -509,6 +509,8 @@ export type {
   AuditLogPage,
   CertIssuance,
   CertAdmissionSettings,
+  CertType,
+  TrustedCertType,
   ChallengeMode,
   ChallengeDifficulty,
   RecoveryContactItem,

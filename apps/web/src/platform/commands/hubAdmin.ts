@@ -11,7 +11,7 @@ import type {
   RecoveryRequestBundle,
   InviteInfo,
 } from "../../types";
-import type { CertIssuance, CertAdmissionSettings, NameColorMode } from "@wavvon/ui";
+import type { CertIssuance, CertAdmissionSettings, CertType, NameColorMode } from "@wavvon/ui";
 import { signRecoveryRequest, signRecoveryAttestation, publicKeyHex } from "@wavvon/core";
 import { loadIdentity } from "../../identity/store";
 
@@ -123,8 +123,28 @@ export async function saveCertSettings(settings: Partial<CertAdmissionSettings>)
   });
 }
 
-export async function issueCertManual(subjectPubkey: string): Promise<void> {
-  await hubFetch(`/admin/certs/${subjectPubkey}`, { method: "POST" });
+export async function issueCertManual(subjectPubkey: string, certType?: string): Promise<void> {
+  await hubFetch(`/admin/certs/${subjectPubkey}`, {
+    method: "POST",
+    ...(certType ? { body: JSON.stringify({ cert_type: certType }) } : {}),
+  });
+}
+
+/** A hub's certificate catalogue: this hub's, or another's by base URL
+ *  (public, so a plain fetch reaches it). */
+export async function listCertTypes(hubUrl?: string): Promise<CertType[]> {
+  if (!hubUrl) return (await hubFetch("/certs/types")).json() as Promise<CertType[]>;
+  const r = await fetch(`${hubUrl.replace(/\/$/, "")}/certs/types`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json() as Promise<CertType[]>;
+}
+
+export async function createCertType(name: string, description?: string): Promise<void> {
+  await hubFetch("/admin/cert-types", { method: "POST", body: JSON.stringify({ name, description }) });
+}
+
+export async function deleteCertType(id: string): Promise<void> {
+  await hubFetch(`/admin/cert-types/${id}`, { method: "DELETE" });
 }
 
 export async function revokeCert(subjectPubkey: string): Promise<void> {
