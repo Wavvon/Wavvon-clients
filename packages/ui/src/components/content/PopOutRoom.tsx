@@ -98,8 +98,9 @@ function RoomPipView({ people, cameras, avatars, publicKey, livesKey, free }: Ro
  * always-on-top OS window that can sit over a game. It is a read-only copy of
  * the stage as arranged here, or of everyone when there is no stage
  * (decisions.md, "Free layout on the voice stage, mirrored by a
- * picture-in-picture window"). Only on request; where the browser lacks the
- * API the button stays, disabled, and says why.
+ * picture-in-picture window"). Only on request. Where the browser lacks the
+ * API (Firefox, Safari) it opens an ordinary small window instead: the same
+ * copy, which the OS does not keep on top.
  */
 export function PopOutRoom(props: RoomPipProps) {
   const { t } = useTranslation();
@@ -113,27 +114,27 @@ export function PopOutRoom(props: RoomPipProps) {
       win.close();
       return;
     }
-    if (!docPip) return;
-    let next: Window;
+    let next: Window | null;
     try {
-      next = await docPip.requestWindow({ width: 420, height: 300 });
+      next = docPip
+        ? await docPip.requestWindow({ width: 420, height: 300 })
+        : window.open("", "wavvon-room", "popup,width=420,height=300");
     } catch {
       return;
     }
+    if (!next) return;
+    if (!docPip) next.document.title = t("voice.stage.pop_out");
     adoptPageStyles(next);
     next.addEventListener("pagehide", () => setWin(null), { once: true });
     setWin(next);
   }
 
-  const label = !docPip
-    ? t("voice.stage.pop_out_unsupported")
-    : win ? t("voice.stage.pop_in") : t("voice.stage.pop_out");
+  const label = win ? t("voice.stage.pop_in") : t("voice.stage.pop_out");
   return (
     <>
       <button
         type="button"
         className={`btn-icon-gear${win ? " on" : ""}`}
-        disabled={!docPip}
         aria-pressed={!!win}
         title={label}
         aria-label={label}

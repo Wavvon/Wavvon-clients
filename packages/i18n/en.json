@@ -2620,7 +2620,6 @@
   "voice.participant.deafened": "Deafened",
   "voice.stage.pop_out": "Pop the room out",
   "voice.stage.pop_in": "Back to the page",
-  "voice.stage.pop_out_unsupported": "Popping out needs Chrome, Edge or Firefox on a computer",
   "voice.stage.layout_free": "Free layout",
   "voice.stage.layout_grid": "Grid",
   "voice.stage.top_lives": "Lives on top",

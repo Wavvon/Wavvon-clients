@@ -2620,7 +2620,6 @@
   "voice.participant.deafened": "Todo el audio silenciado",
   "voice.stage.pop_out": "Separar la sala",
   "voice.stage.pop_in": "Volver a la página",
-  "voice.stage.pop_out_unsupported": "Para separar la sala hace falta Chrome, Edge o Firefox en un ordenador",
   "voice.stage.layout_free": "Disposición libre",
   "voice.stage.layout_grid": "Cuadrícula",
   "voice.stage.top_lives": "Directos encima",

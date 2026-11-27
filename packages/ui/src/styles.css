@@ -3315,10 +3315,20 @@ body:has(.channel-banner) #root {
   flex-direction: column;
   gap: 12px;
 }
-.voice-stage-lives > .voice-self-share,
+.voice-stage-lives > .voice-tiles,
 .voice-stage-lives > .screen-share-panel {
   flex: 1;
   min-height: 0;
+}
+.voice-stage-lives.with-own {
+  flex-direction: row;
+}
+.voice-stage-lives > .voice-tiles {
+  display: flex;
+}
+.voice-stage-lives > .voice-tiles > .voice-self-share {
+  flex: 1;
+  height: 100%;
 }
 .voice-stage-lives .voice-tile--stream video {
   height: 100%;
@@ -3359,8 +3369,23 @@ body:has(.channel-banner) #root {
   border-radius: 12px;
   background: transparent;
 }
+/* A face in the strip still pins: the button, without its word. */
+.voice-tiles.audience.size-strip .voice-tile-actions {
+  top: auto;
+  right: -4px;
+  bottom: -4px;
+}
+.voice-tiles.audience.size-strip .voice-tile-pin {
+  height: 20px;
+  padding: 0 4px;
+}
+.voice-tiles.audience.size-strip .voice-tile-pin > span {
+  display: none;
+}
+.voice-tiles.audience.size-strip {
+  overflow: visible;
+}
 .voice-tiles.audience.size-strip .voice-tile-name,
-.voice-tiles.audience.size-strip .voice-tile-actions,
 .voice-tiles.audience.size-strip .voice-tile-badges,
 .voice-tiles.audience.size-strip .voice-tile-state {
   display: none;

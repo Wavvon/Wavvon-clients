@@ -141,10 +141,12 @@ export function VoiceStage({
   // Without hub pins they last one voice session: leaving the room or moving
   // to another one clears them, so nobody is still pinned next time.
   const [localPins, setLocalPins] = useState<string[]>([]);
-  useEffect(() => { setLocalPins([]); setOrder([]); }, [inThisRoom, roomName]);
+  useEffect(() => { setLocalPins([]); setOrder([]); setAudienceOrder([]); }, [inThisRoom, roomName]);
   // The hub decides who is on the stage; the order is each viewer's own.
   const [order, setOrder] = useState<string[]>([]);
   const pins = stagePins ? orderedPins(stagePins.pins, order) : localPins;
+  // Everyone off the stage can be rearranged too, for this viewer only.
+  const [audienceOrder, setAudienceOrder] = useState<string[]>([]);
   const [big, setBig] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
@@ -211,11 +213,24 @@ export function VoiceStage({
     const next = arrayMove(pins, from, to);
     if (stagePins) setOrder(next); else setLocalPins(next);
   }
-  const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
+  const unpinned = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
+  const audience = orderedPins(unpinned.map((p) => p.public_key), audienceOrder)
+    .map((pk) => unpinned.find((p) => p.public_key === pk))
+    .filter((p): p is VoiceParticipant => !!p);
+  function onAudienceDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = audience.map((p) => p.public_key);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    setAudienceOrder(arrayMove(ids, from, to));
+  }
   const opened = !!live && live.opened.size > 0;
-  // Your own share is a tile beside yours, not the stage: you know what you
-  // are sharing, and on the stage it only mirrors itself.
   const liveOnStage = opened;
+  // Your share is a tile beside yours; once lives are on the stage it joins
+  // them there, or the audience strip would shrink it to a thumbnail.
+  const myShareWithLives = liveOnStage && freeLayout.mode !== "free";
   // Stage and audience exist only once someone is pinned: the stage is who
   // you pinned, the audience everyone else.
   const showLabels = onStage.length > 0;
@@ -413,7 +428,10 @@ export function VoiceStage({
               />
             ) : (<>
             {liveOnStage && (
-              <div className="voice-stage-lives">{children}</div>
+              <div className={`voice-stage-lives${myShare ? " with-own" : ""}`}>
+                {children}
+                {myShare && <ul className="voice-tiles">{myShare}</ul>}
+              </div>
             )}
             {onStage.length > 0 && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>
@@ -424,7 +442,7 @@ export function VoiceStage({
                         <SortableStageTile id={p.public_key}>
                           {(handle) => personTile(p, 96, handle)}
                         </SortableStageTile>
-                        {p.public_key === publicKey && myShare}
+                        {p.public_key === publicKey && !myShareWithLives && myShare}
                       </React.Fragment>
                     ))}
                   </ul>
@@ -473,16 +491,22 @@ export function VoiceStage({
               )}
             </div>
             {/* With no stage the room is everyone, so the tiles take the room. */}
-            <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>
-              {shown.map((p) => (
-                <React.Fragment key={p.public_key}>
-                  {personTile(p, tileAvatar)}
-                  {p.public_key === publicKey && myShare}
-                </React.Fragment>
-              ))}
-              {/* In the free layout the stage has no slot for it: it stays here. */}
-              {freeLayout.mode === "free" && myPinned && myShare}
-            </ul>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onAudienceDragEnd}>
+              <SortableContext items={shown.map((p) => p.public_key)} strategy={rectSortingStrategy}>
+                <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>
+                  {shown.map((p) => (
+                    <React.Fragment key={p.public_key}>
+                      <SortableStageTile id={p.public_key}>
+                        {(handle) => personTile(p, tileAvatar, handle)}
+                      </SortableStageTile>
+                      {p.public_key === publicKey && !myShareWithLives && myShare}
+                    </React.Fragment>
+                  ))}
+                  {/* In the free layout the stage has no slot for it: it stays here. */}
+                  {freeLayout.mode === "free" && myPinned && myShare}
+                </ul>
+              </SortableContext>
+            </DndContext>
           </>
         )}
       </div>
