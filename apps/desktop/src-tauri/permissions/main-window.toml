@@ -164,6 +164,7 @@ commands.allow = [
   "rename_hub_icon",
   "delete_hub_icon",
   "list_hub_members",
+  "search_member_keys",
   "kick_user_cmd",
   "ban_user_cmd",
   "report_message",

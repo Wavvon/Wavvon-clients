@@ -651,6 +651,18 @@
   "hub.admin.discovery.share.label": "Share this hub",
   "hub.admin.discovery.title": "Discovery",
   "hub.admin.area.people": "People",
+
+  "hub.admin.area.roles": "Roles",
+
+  "hub.admin.area.certifications": "Certifications",
+
+  "hub.admin.members.search": "Search by name or public key",
+
+  "hub.admin.members.online": "online",
+
+  "hub.admin.members.load_more": "Load more",
+
+  "hub.admin.members.no_match": "No members match.",
   "hub.admin.area.content": "Content",
   "hub.admin.group.general": "General",
   "hub.admin.icons.add": "Add icon",
@@ -681,7 +693,7 @@
   "hub.admin.members.pending.no_name": "(no name)",
   "hub.admin.members.pending.ban_evasion": "Same address as a banned member ({banned}). Could be a shared connection.",
   "hub.admin.members.pending.title": "Pending approval — {count}",
-  "hub.admin.members.state": "{roles} · joined {joined}",
+  "hub.admin.members.state": "joined {joined}",
   "hub.admin.members.state.no_roles": "no roles",
   "hub.admin.members.timeout": "Timeout",
   "hub.admin.members.title": "Members — {count}",

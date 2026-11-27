@@ -660,6 +660,26 @@ pub(crate) struct MemberAdminInfo {
     pub roles: Vec<RoleInfo>,
 }
 
+/// Public keys of the members whose display name or key matches `q`
+/// (`GET /users?q=`); the hub caps the query, this only forwards it.
+#[tauri::command]
+pub(crate) async fn search_member_keys(
+    q: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let (hub_url, token) = active_session(&state)?;
+    let users: Vec<UserInfo> = crate::paging::walk_pages(
+        &state.http_client,
+        &token,
+        &format!("{hub_url}/users"),
+        &[("q", q)],
+        |u: &UserInfo| Some(u.public_key.clone()),
+        "search_member_keys",
+    )
+    .await?;
+    Ok(users.into_iter().map(|u| u.public_key).collect())
+}
+
 #[tauri::command]
 pub(crate) async fn list_hub_members(
     state: State<'_, AppState>,

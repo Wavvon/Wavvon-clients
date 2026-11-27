@@ -48,3 +48,10 @@ export async function fetchAllUsers(): Promise<User[]> {
     label: "fetchAllUsers",
   });
 }
+
+/** Public keys matching `q` by display name or key; the hub caps the query length. */
+export async function searchMemberKeys(q: string): Promise<string[]> {
+  const params = new URLSearchParams({ q, limit: String(PAGE_SIZE) });
+  const users = (await (await hubFetch(`/users?${params}`)).json()) as User[];
+  return users.map((u) => u.public_key);
+}

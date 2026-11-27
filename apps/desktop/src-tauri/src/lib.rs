@@ -296,6 +296,7 @@ pub fn run() {
             admin::rename_hub_icon,
             admin::delete_hub_icon,
             admin::list_hub_members,
+            admin::search_member_keys,
             admin::kick_user_cmd,
             admin::ban_user_cmd,
             admin::report_message,

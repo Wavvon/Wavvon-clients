@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-search-member-keys"
+description = "Enables the search_member_keys command without any pre-configured scope."
+commands.allow = ["search_member_keys"]
+
+[[permission]]
+identifier = "deny-search-member-keys"
+description = "Denies the search_member_keys command without any pre-configured scope."
+commands.deny = ["search_member_keys"]
