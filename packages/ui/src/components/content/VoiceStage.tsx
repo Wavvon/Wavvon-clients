@@ -148,6 +148,8 @@ export function VoiceStage({
   // Everyone off the stage can be rearranged too, for this viewer only.
   const [audienceOrder, setAudienceOrder] = useState<string[]>([]);
   const [big, setBig] = useState<string | null>(null);
+  // Which of the streams side by side takes most of the stage in the grid.
+  const [bigStream, setBigStream] = useState<"lives" | "self" | null>(null);
   const [query, setQuery] = useState("");
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
   const [freeLayout, setFreeLayoutState] = useState<FreeLayout>(loadFreeLayout);
@@ -267,6 +269,23 @@ export function VoiceStage({
   // A live on the stage shrinks the audience to a strip of faces.
   const tileSize = liveOnStage ? "strip" : hasStage ? "s" : participants.length <= 6 ? "l" : participants.length <= 12 ? "m" : "s";
   const tileAvatar = { l: 100, m: 72, s: 48, strip: 40 }[tileSize];
+
+  function enlargeStream(which: "lives" | "self") {
+    const on = bigStream === which;
+    const label = t(on ? "voice.stage.shrink_stream" : "voice.stage.enlarge_stream");
+    return (
+      <button
+        type="button"
+        className="btn-icon voice-stage-live-enlarge"
+        aria-pressed={on}
+        title={label}
+        aria-label={label}
+        onClick={() => setBigStream(on ? null : which)}
+      >
+        <ExpandIcon size={14} />
+      </button>
+    );
+  }
 
   function personTile(p: VoiceParticipant, size: number, sortable?: SortableHandle) {
     const name = p.display_name || p.public_key.slice(0, 12);
@@ -432,8 +451,18 @@ export function VoiceStage({
             ) : (<>
             {liveOnStage && (
               <div className={`voice-stage-lives${opened && myShare ? " with-own" : ""}`}>
-                {opened && children}
-                {myShare && <ul className="voice-tiles">{myShare}</ul>}
+                {opened && (
+                  <div className={`voice-stage-live-slot${bigStream === "lives" ? " big" : ""}`}>
+                    {children}
+                    {myShare && enlargeStream("lives")}
+                  </div>
+                )}
+                {myShare && (
+                  <div className={`voice-stage-live-slot${bigStream === "self" ? " big" : ""}`}>
+                    <ul className="voice-tiles">{myShare}</ul>
+                    {opened && enlargeStream("self")}
+                  </div>
+                )}
               </div>
             )}
             {onStage.length > 0 && (

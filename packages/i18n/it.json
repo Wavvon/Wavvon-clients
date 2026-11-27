@@ -2431,6 +2431,8 @@
   "voice.stage.pin": "Fissa {name}",
   "voice.stage.unpin": "Sgancia {name}",
   "voice.stage.enlarge": "Ingrandisci {name}",
+  "voice.stage.enlarge_stream": "Ingrandisci questo streaming",
+  "voice.stage.shrink_stream": "Torna a dimensioni uguali",
   "voice.stage.audience": "Platea · {count}",
   "voice.stage.search": "Cerca in platea",
   "voice.stage.resize": "Ridimensiona il palco",

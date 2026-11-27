@@ -2431,6 +2431,8 @@
   "voice.stage.pin": "{name} anheften",
   "voice.stage.unpin": "{name} lösen",
   "voice.stage.enlarge": "{name} vergrößern",
+  "voice.stage.enlarge_stream": "Diesen Stream vergrößern",
+  "voice.stage.shrink_stream": "Wieder gleich groß",
   "voice.stage.audience": "Publikum · {count}",
   "voice.stage.search": "Im Publikum suchen",
   "voice.stage.resize": "Bühnengröße ändern",

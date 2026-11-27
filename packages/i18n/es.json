@@ -2431,6 +2431,8 @@
   "voice.stage.pin": "Fijar a {name}",
   "voice.stage.unpin": "Desfijar a {name}",
   "voice.stage.enlarge": "Ampliar a {name}",
+  "voice.stage.enlarge_stream": "Ampliar esta transmisión",
+  "voice.stage.shrink_stream": "Volver a tamaños iguales",
   "voice.stage.audience": "Público · {count}",
   "voice.stage.search": "Buscar en el público",
   "voice.stage.resize": "Cambiar el tamaño del escenario",

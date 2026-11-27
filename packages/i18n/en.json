@@ -2431,6 +2431,8 @@
   "voice.stage.pin": "Pin {name}",
   "voice.stage.unpin": "Unpin {name}",
   "voice.stage.enlarge": "Enlarge {name}",
+  "voice.stage.enlarge_stream": "Enlarge this stream",
+  "voice.stage.shrink_stream": "Back to equal size",
   "voice.stage.audience": "Audience · {count}",
   "voice.stage.search": "Search the audience",
   "voice.stage.resize": "Resize the stage",
