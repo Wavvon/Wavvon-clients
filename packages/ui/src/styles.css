@@ -2928,6 +2928,44 @@ body:has(.channel-banner) #root {
   cursor: grab;
   touch-action: none;
 }
+.free-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* A magnetic guide while an item is held against it. */
+.free-guide {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--accent);
+}
+.free-guide--x { top: 0; bottom: 0; width: 1px; }
+.free-guide--y { left: 0; right: 0; height: 1px; }
+/* The layout tools popover beside the grid/free toggle. */
+.free-tools {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 260px;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: var(--text-sm);
+}
+.free-tools label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.free-tools select {
+  margin-left: auto;
+}
 .free-item-resize {
   position: absolute;
   right: 0;

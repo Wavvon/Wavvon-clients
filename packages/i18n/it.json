@@ -2664,5 +2664,15 @@
   "settings.account.identity_backup.error_other": "Impossibile ripristinare il backup: {error}",
   "settings.account.accounts.rename_label": "Rinomina {name}",
   "settings.account.accounts.remove_label": "Rimuovi {name} da questo dispositivo",
-  "settings.account.identity_backup.export_title": "Esporta {label}"
+  "settings.account.identity_backup.export_title": "Esporta {label}",
+  "voice.stage.tools": "Strumenti di disposizione",
+  "voice.stage.tools.snap": "Aggancia alla griglia",
+  "voice.stage.tools.density": "Dimensione della griglia",
+  "voice.stage.tools.cols": "{count} colonne",
+  "voice.stage.tools.keep_ratio": "Mantieni le proporzioni",
+  "voice.stage.tools.guides": "Guide magnetiche",
+  "voice.stage.tools.live_scale": "Un live è",
+  "voice.stage.tools.scale": "{n, select, 1 {grande come una persona} other {{n}× una persona}}",
+  "voice.stage.tools.arrange": "Disponi",
+  "voice.stage.tools.hint": "Tieni premuto Alt per posizionare liberamente, Shift per invertire le proporzioni in un ridimensionamento. Un elemento selezionato si sposta con le frecce; Alt+frecce lo ridimensiona."
 }
