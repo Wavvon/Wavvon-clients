@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { hubFetch, activeHubSupports, getApplicationResponse, rejectApplication, getAttachmentSettings, saveAttachmentSettings } from "@platform";
+import { hubFetch, searchMemberKeys, activeHubSupports, getApplicationResponse, rejectApplication, getAttachmentSettings, saveAttachmentSettings } from "@platform";
 import {
   submitToDirectory,
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -36,13 +36,14 @@ const hubLanguagesActions = { list: listHubLanguages, upload: uploadHubLanguage,
 import { listRecoveryPeople, listRecoveryRequestsToAttest } from "../../platform/commands/recoveryPeople";
 import { outgoingWebhookActions } from "./outgoingWebhookActions";
 import type { useHubAdmin } from "../../hooks/useHubAdmin";
-import type { Channel, Hub, InviteInfo } from "@shared/types";
+import type { Channel, Hub, InviteInfo, User } from "@shared/types";
 
 type HubAdminState = ReturnType<typeof useHubAdmin>;
 
 export interface HubAdminContainerProps {
   hubAdmin: HubAdminState;
   channels: Channel[];
+  users: User[];
   hubs: Hub[];
   activeHubId: string;
   publicKey: string | null;
@@ -61,7 +62,7 @@ export interface HubAdminContainerProps {
 // admin state App/useHubAdmin own. Per-app action-wiring wrappers are
 // explicitly allowed to live outside packages/ui (decisions.md 2026-07-18/20).
 export function HubAdminContainer({
-  hubAdmin, channels, hubs, activeHubId, publicKey,
+  hubAdmin, channels, users, hubs, activeHubId, publicKey,
   isAdmin, canDo, canManageRoles, canManageSoundboard, canManageHubAlliances, myMaxPriority, onClose,
 }: HubAdminContainerProps) {
   const activeHubUrl = hubs.find((h) => h.hub_id === activeHubId)?.hub_url ?? "";
@@ -140,6 +141,8 @@ export function HubAdminContainer({
         loadApplication={getApplicationResponse}
         onRejectMember={async (pk, reason) => { await rejectApplication(pk, reason); hubAdmin.dropPending(pk); }}
         members={hubAdmin.hubAdminMembers}
+        memberProfiles={users}
+        onSearchMembers={searchMemberKeys}
         onKickMember={hubAdmin.onKickMember}
         onBanMember={hubAdmin.onBanMember}
         onMuteMember={hubAdmin.onMuteMember}

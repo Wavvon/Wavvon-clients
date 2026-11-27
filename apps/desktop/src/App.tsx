@@ -1292,6 +1292,8 @@ function App({ accountId, onboardingExit }: { accountId: string | null; onboardi
             loadApplication={loadApplication}
             onRejectMember={handleRejectMember}
             members={adminMembers}
+            memberProfiles={users}
+            onSearchMembers={(q) => invoke<string[]>("search_member_keys", { q })}
             onKickMember={handleKickMember}
             onBanMember={handleBanMember}
             onMuteMember={handleMuteMember}

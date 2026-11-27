@@ -134,6 +134,7 @@ export function AppModals(p: AppModalsProps) {
         <HubAdminContainer
           hubAdmin={hubAdminState}
           channels={channels}
+          users={users}
           hubs={hubs}
           activeHubId={activeHubId}
           publicKey={publicKey}

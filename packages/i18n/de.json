@@ -651,6 +651,18 @@
   "hub.admin.discovery.share.label": "Diesen Hub teilen",
   "hub.admin.discovery.title": "Auffindbarkeit",
   "hub.admin.area.people": "Personen",
+
+  "hub.admin.area.roles": "Rollen",
+
+  "hub.admin.area.certifications": "Zertifizierungen",
+
+  "hub.admin.members.search": "Nach Name oder öffentlichem Schlüssel suchen",
+
+  "hub.admin.members.online": "online",
+
+  "hub.admin.members.load_more": "Mehr laden",
+
+  "hub.admin.members.no_match": "Keine Mitglieder gefunden.",
   "hub.admin.area.content": "Inhalte",
   "hub.admin.group.general": "Allgemein",
   "hub.admin.icons.add": "Icon hinzufügen",
@@ -681,7 +693,7 @@
   "hub.admin.members.pending.no_name": "(kein Name)",
   "hub.admin.members.pending.ban_evasion": "Gleiche Adresse wie ein gebanntes Mitglied ({banned}). Kann eine geteilte Verbindung sein.",
   "hub.admin.members.pending.title": "Warten auf Freigabe — {count}",
-  "hub.admin.members.state": "{roles} · dabei seit {joined}",
+  "hub.admin.members.state": "dabei seit {joined}",
   "hub.admin.members.state.no_roles": "keine Rollen",
   "hub.admin.members.timeout": "Auszeit",
   "hub.admin.members.title": "Mitglieder — {count}",

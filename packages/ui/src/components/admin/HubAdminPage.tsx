@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { formatDateTime, formatPubkey, formatRelative, type Channel } from "@wavvon/core";
 import { PendingApplicationDetails } from "./PendingApplicationDetails";
 import type { BanInfo, InviteInfo, MemberAdminInfo, MuteInfo, NameColorMode, PendingUser, RoleInfo, SurveyResponseAdmin } from "../../types";
+import { Avatar } from "../Avatar";
+import type { User } from "../../types";
 import { ImagePicker } from "../ImagePicker";
 import { AlliancesSection, type AlliancesSectionActions } from "./AlliancesSection";
 import { WebhooksSection, type WebhooksSectionActions } from "./WebhooksSection";
@@ -27,6 +29,8 @@ import { HubThemeSection, type HubThemeActions } from "./HubThemeSection";
 import { HubLanguagesSection, type HubLanguagesActions } from "./HubLanguagesSection";
 import { InviteLandingSection, type InviteLandingActions } from "./InviteLandingSection";
 import { SettingsShell, type SettingsAreaDef, type SettingsSectionDef } from "../settings/SettingsShell";
+
+const MEMBER_PAGE = 50;
 
 export type MemberAction = Promise<boolean | void>;
 
@@ -132,6 +136,10 @@ export interface HubAdminPageProps {
   /** Reject a joiner's application with a reason they will read. */
   onRejectMember?: (publicKey: string, reason: string) => Promise<void>;
   members: MemberAdminInfo[];
+  /** The app's member roster, for what `members` lacks: avatar, resolved name colour, presence. */
+  memberProfiles?: User[];
+  /** Public keys the hub matches to a search query. Absent: the loaded list is filtered locally. */
+  onSearchMembers?: (query: string) => Promise<string[]>;
   // Member actions reject with the hub's message on failure and resolve
   // `false` when the user backed out of a prompt; the page reports either.
   onKickMember: (publicKey: string) => MemberAction;
@@ -291,6 +299,33 @@ export function HubAdminPage(props: HubAdminPageProps) {
       setMemberBusy(null);
     }
   }
+  const [memberQuery, setMemberQuery] = useState("");
+  const [memberMatches, setMemberMatches] = useState<Set<string> | null>(null);
+  const [memberLimit, setMemberLimit] = useState(MEMBER_PAGE);
+  const searchRef = useRef(props.onSearchMembers);
+  searchRef.current = props.onSearchMembers;
+  useEffect(() => {
+    setMemberLimit(MEMBER_PAGE);
+    const q = memberQuery.trim();
+    const search = searchRef.current;
+    if (!q || !search) {
+      setMemberMatches(null);
+      return;
+    }
+    let stale = false;
+    const id = setTimeout(() => {
+      search(q).then((keys) => { if (!stale) setMemberMatches(new Set(keys)); }, () => { if (!stale) setMemberMatches(null); });
+    }, 300);
+    return () => { stale = true; clearTimeout(id); };
+  }, [memberQuery]);
+  const profiles = new Map((props.memberProfiles ?? []).map((u) => [u.public_key, u]));
+  const needle = memberQuery.trim().toLowerCase();
+  const filteredMembers = !needle
+    ? props.members
+    : props.members.filter((m) =>
+        memberMatches
+          ? memberMatches.has(m.public_key)
+          : (m.display_name ?? "").toLowerCase().includes(needle) || m.public_key.toLowerCase().includes(needle));
   const nowSecs = Date.now() / 1000;
   const activeMutes = new Map(
     props.mutes.filter((x) => x.expires_at === null || x.expires_at > nowSecs).map((x) => [x.target_public_key, x]),
@@ -334,7 +369,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
   // Six areas, in the order an admin reaches for them (Wavvon-clients#464).
   // A section appears only when this viewer and this hub can use it; an area
   // with nothing in it is not shown.
-  type Area = "general" | "joining" | "people" | "moderation" | "content" | "connections";
+  type Area = "general" | "joining" | "people" | "roles" | "certifications" | "moderation" | "content" | "connections";
   const admin = props.isAdmin;
   // The tab holds the hub-scoped acts (alliances.manage) and the per-alliance
   // grant lists (roles.manage edits them); either is reason to reach it.
@@ -363,8 +398,8 @@ export function HubAdminPage(props: HubAdminPageProps) {
     ] : []),
     S("welcome", t("hub.admin.overview.welcome"), "joining", [t("hub.admin.overview.welcome_label"), t("hub.admin.overview.farewell_label")]),
     S("members", t("hub.admin.tabs.members"), "people"),
-    S("roles", t("hub.admin.tabs.roles"), "people"),
-    S("certifications", t("hub.admin.tabs.certifications"), "people"),
+    S("roles", t("hub.admin.tabs.roles"), "roles"),
+    S("certifications", t("hub.admin.tabs.certifications"), "certifications"),
     ...(admin && props.renderModerationTab ? [S("moderation", t("hub.admin.tabs.moderation"), "moderation")] : []),
     ...(admin && props.renderRecoveryContacts ? [S("recovery", t("hub.admin.tabs.recovery"), "moderation")] : []),
     S("bans", t("hub.admin.tabs.bans"), "moderation"),
@@ -384,6 +419,8 @@ export function HubAdminPage(props: HubAdminPageProps) {
     { id: "general", label: t("hub.admin.group.general") },
     { id: "joining", label: t("hub.admin.group.joining") },
     { id: "people", label: t("hub.admin.area.people") },
+    { id: "roles", label: t("hub.admin.area.roles") },
+    { id: "certifications", label: t("hub.admin.area.certifications") },
     { id: "moderation", label: t("hub.admin.group.moderation") },
     { id: "content", label: t("hub.admin.area.content") },
     { id: "connections", label: t("hub.admin.group.connections") },
@@ -754,14 +791,24 @@ export function HubAdminPage(props: HubAdminPageProps) {
                 {memberNotice.text}
               </p>
             )}
-            {props.members.map((m) => {
+            <input
+              type="search"
+              value={memberQuery}
+              onChange={(e) => setMemberQuery(e.target.value)}
+              placeholder={t("hub.admin.members.search")}
+              aria-label={t("hub.admin.members.search")}
+              style={{ marginBottom: "var(--space-3)" }}
+            />
+            {filteredMembers.slice(0, memberLimit).map((m) => {
+              const profile = profiles.get(m.public_key);
+              const name = m.display_name || t("hub.admin.members.pending.no_name");
+              const topRole = m.roles.reduce<RoleInfo | null>((a, r) => (!a || r.priority > a.priority ? r : a), null);
+              const nameColor = profile?.name_color ?? topRole?.color ?? undefined;
               const mute = activeMutes.get(m.public_key);
               const busy = memberBusy === m.public_key;
               const state = [
-                t("hub.admin.members.state", {
-                  roles: m.roles.map((r) => r.name).join(", ") || t("hub.admin.members.state.no_roles"),
-                  joined: formatRelative(m.first_seen_at),
-                }),
+                profile?.online && t("hub.admin.members.online"),
+                t("hub.admin.members.state", { joined: formatRelative(m.first_seen_at) }),
                 mute &&
                   (mute.expires_at === null
                     ? t("hub.admin.members.muted")
@@ -773,14 +820,25 @@ export function HubAdminPage(props: HubAdminPageProps) {
               return (
               <SettingRow
                 key={m.public_key}
-                title={m.display_name || t("hub.admin.members.pending.no_name")}
-                state={state}
+                lead={<Avatar src={profile?.avatar} name={m.display_name} pubkey={m.public_key} size={32} />}
+                title={
+                  <>
+                    <span style={nameColor ? { color: nameColor } : undefined}>{name}</span>{" "}
+                    <span className="member-pk" title={m.public_key}>{formatPubkey(m.public_key)}</span>
+                  </>
+                }
+                state={
+                  <>
+                    {m.roles.length === 0
+                      ? t("hub.admin.members.state.no_roles")
+                      : m.roles.map((r) => (
+                          <span key={r.id} className="role-chip" style={{ marginRight: 4, ...(r.color ? { color: r.color } : {}) }}>{r.name}</span>
+                        ))}{" "}
+                    {state}
+                  </>
+                }
                 {...adminRow(m.public_key)}
               >
-                <p className="member-pk" title={m.public_key} style={{ marginBottom: "var(--space-3)" }}>
-                  {formatPubkey(m.public_key)}
-                </p>
-
                 {props.canManageRoles && (
                   <div style={{ marginBottom: "var(--space-4)" }}>
                     <MemberRoleManager
@@ -812,15 +870,21 @@ export function HubAdminPage(props: HubAdminPageProps) {
                   )}
                 </div>
 
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-4)", marginTop: "var(--space-5)" }}>
                 <span className="settings-label">{t("hub.admin.members.group.remove")}</span>
                 <div className="settings-row" style={{ flexWrap: "wrap" }}>
                   <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onKickMember, "hub.admin.members.done.kicked")}>{t("hub.admin.members.kick")}</button>
                   <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onBanMember, "hub.admin.members.done.banned")}>{t("hub.admin.members.ban")}</button>
                 </div>
+                </div>
               </SettingRow>
               );
             })}
+            {filteredMembers.length > memberLimit && (
+              <button className="btn-small" onClick={() => setMemberLimit((n) => n + MEMBER_PAGE)}>{t("hub.admin.members.load_more")}</button>
+            )}
             {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
+            {props.members.length > 0 && filteredMembers.length === 0 && <p className="muted">{t("hub.admin.members.no_match")}</p>}
           </section>
         )}
 

@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 
 export interface SettingRowProps {
   /** What this setting is. */
-  title: string;
+  title: ReactNode;
+  /** Replaces the marker, for a row that is about someone (an avatar). */
+  lead?: ReactNode;
   /** What it is set to right now, in one line — the reason this row exists.
    *  A row that cannot say its own state is a heading with extra steps. */
   state?: ReactNode;
@@ -35,6 +37,7 @@ export interface SettingRowProps {
  */
 export function SettingRow({
   title,
+  lead,
   state,
   attention,
   meta,
@@ -48,7 +51,9 @@ export function SettingRow({
   return (
     <section className={`setting-row${open ? " open" : ""}`}>
       <div className="setting-row-head">
-        {step !== undefined ? (
+        {lead !== undefined ? (
+          <span style={{ flex: "none", display: "inline-flex" }}>{lead}</span>
+        ) : step !== undefined ? (
           <span className="setting-row-step" aria-hidden="true">{step}</span>
         ) : (
           <span className={`setting-row-mark${attention ? " attention" : ""}`} aria-hidden="true" />

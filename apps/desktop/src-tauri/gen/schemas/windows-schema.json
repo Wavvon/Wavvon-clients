@@ -1893,6 +1893,12 @@
           "markdownDescription": "Enables the save_whisper_optout command without any pre-configured scope."
         },
         {
+          "description": "Enables the search_member_keys command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-search-member-keys",
+          "markdownDescription": "Enables the search_member_keys command without any pre-configured scope."
+        },
+        {
           "description": "Enables the search_messages command without any pre-configured scope.",
           "type": "string",
           "const": "allow-search-messages",
@@ -3919,6 +3925,12 @@
           "type": "string",
           "const": "deny-save-whisper-optout",
           "markdownDescription": "Denies the save_whisper_optout command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the search_member_keys command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-search-member-keys",
+          "markdownDescription": "Denies the search_member_keys command without any pre-configured scope."
         },
         {
           "description": "Denies the search_messages command without any pre-configured scope.",
