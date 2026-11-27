@@ -26,9 +26,10 @@ export async function listRaisedHands(channelId: string): Promise<string[]> {
 }
 
 // The room's stage (`voice.pins`): the same for everyone in the room.
-export async function listVoicePins(channelId: string): Promise<string[]> {
+/** `can_pin` is your own `voice.stage` in this channel. */
+export async function listVoicePins(channelId: string): Promise<{ public_keys: string[]; can_pin: boolean }> {
   const res = await hubFetch(`/channels/${channelId}/voice-pins`);
-  return (await res.json()) as string[];
+  return (await res.json()) as { public_keys: string[]; can_pin: boolean };
 }
 
 export async function pinVoice(channelId: string, publicKey: string): Promise<void> {

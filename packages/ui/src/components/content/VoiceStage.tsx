@@ -33,7 +33,7 @@ export interface VoiceFloor {
 export interface VoiceStagePins {
   /** Who the hub has on this room's stage, in pin order. */
   pins: string[];
-  /** You may pin and unpin anyone (`moderation.mute`); otherwise only step off yourself. */
+  /** You may pin and unpin anyone (`voice.stage` in this room); otherwise only step off yourself. */
   canPin: boolean;
   onPin: (publicKey: string) => void;
   onUnpin: (publicKey: string) => void;

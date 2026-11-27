@@ -151,6 +151,8 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   const [voiceHands, setVoiceHands] = useState<{ channelId: string; keys: string[] } | null>(null);
   // The room's stage (`voice.pins`), held by the hub like the hands.
   const [voicePins, setVoicePins] = useState<{ channelId: string; keys: string[] } | null>(null);
+  // Your own `voice.stage` in the room you are in, as the hub resolved it.
+  const [canPinIn, setCanPinIn] = useState<string | null>(null);
 
   // handleVoiceJoin's "already there" guard is called both from JSX (fresh
   // voiceChannelId) and from the frozen onVoiceMove WS handler (via
@@ -631,8 +633,11 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       setVoicePins(null);
       if (activeHubSupports("voice.pins")) {
         listVoicePins(channelId)
-          .then((keys) => setVoicePins((prev) => prev?.channelId === channelId ? prev : { channelId, keys }))
-          .catch(() => { /* the next voice_pins corrects it */ });
+          .then((r) => {
+            setVoicePins((prev) => prev?.channelId === channelId ? prev : { channelId, keys: r.public_keys });
+            setCanPinIn(r.can_pin ? channelId : null);
+          })
+          .catch(() => { /* the next voice_pins corrects the stage; no pin button meanwhile */ });
       }
       return;
     }
@@ -847,6 +852,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
   } : null;
   const stagePins = voiceChannelId ? {
     pins: voicePins?.channelId === voiceChannelId ? voicePins.keys : [],
+    canPin: canPinIn === voiceChannelId,
     onPin: (pk: string) => floorCall(pinVoice(voiceChannelId, pk)),
     onUnpin: (pk: string) => floorCall(unpinVoice(voiceChannelId, pk)),
   } : null;
