@@ -305,3 +305,157 @@ pub(crate) async fn delete_cert_type(
     }
     Ok(())
 }
+
+async fn badge_request(
+    state: &AppState,
+    hub_url: &str,
+    method: reqwest::Method,
+    path: &str,
+    body: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    let token = crate::state::session_for_url(state, hub_url)?;
+    let mut req = state
+        .http_client
+        .request(method, format!("{}{}", hub_url.trim_end_matches('/'), path))
+        .bearer_auth(&token);
+    if let Some(b) = body {
+        req = req.json(&b);
+    }
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    if text.is_empty() {
+        return Ok(serde_json::Value::Null);
+    }
+    serde_json::from_str(&text).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn list_badge_defs(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    badge_request(&state, &hub_url, reqwest::Method::GET, "/badges/defs", None).await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_badge_def(
+    hub_url: String,
+    request: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    badge_request(
+        &state,
+        &hub_url,
+        reqwest::Method::POST,
+        "/admin/badge-defs/preview",
+        Some(request),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn create_badge_def(
+    hub_url: String,
+    request: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    badge_request(
+        &state,
+        &hub_url,
+        reqwest::Method::POST,
+        "/admin/badge-defs",
+        Some(request),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn set_badge_def_hidden(
+    hub_url: String,
+    id: String,
+    hidden: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    badge_request(
+        &state,
+        &hub_url,
+        reqwest::Method::PATCH,
+        &format!("/admin/badge-defs/{id}"),
+        Some(serde_json::json!({ "hidden": hidden })),
+    )
+    .await
+    .map(|_| ())
+}
+
+#[tauri::command]
+pub(crate) async fn delete_badge_def(
+    hub_url: String,
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    badge_request(
+        &state,
+        &hub_url,
+        reqwest::Method::DELETE,
+        &format!("/admin/badge-defs/{id}"),
+        None,
+    )
+    .await
+    .map(|_| ())
+}
+
+#[tauri::command]
+pub(crate) async fn list_badge_awards(
+    hub_url: String,
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    badge_request(
+        &state,
+        &hub_url,
+        reqwest::Method::GET,
+        &format!("/admin/badge-defs/{id}/awards"),
+        None,
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn grant_badge_def(
+    hub_url: String,
+    id: String,
+    subjects: Vec<String>,
+    level: Option<i64>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    badge_request(
+        &state,
+        &hub_url,
+        reqwest::Method::POST,
+        &format!("/admin/badge-defs/{id}/grant"),
+        Some(serde_json::json!({ "subjects": subjects, "level": level })),
+    )
+    .await
+    .map(|_| ())
+}
+
+#[tauri::command]
+pub(crate) async fn revoke_badge_award(
+    hub_url: String,
+    id: String,
+    pubkey: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    badge_request(
+        &state,
+        &hub_url,
+        reqwest::Method::DELETE,
+        &format!("/admin/badge-defs/{id}/awards/{pubkey}"),
+        None,
+    )
+    .await
+    .map(|_| ())
+}

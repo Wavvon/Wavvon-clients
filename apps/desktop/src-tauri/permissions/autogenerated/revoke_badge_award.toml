@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-revoke-badge-award"
+description = "Enables the revoke_badge_award command without any pre-configured scope."
+commands.allow = ["revoke_badge_award"]
+
+[[permission]]
+identifier = "deny-revoke-badge-award"
+description = "Denies the revoke_badge_award command without any pre-configured scope."
+commands.deny = ["revoke_badge_award"]

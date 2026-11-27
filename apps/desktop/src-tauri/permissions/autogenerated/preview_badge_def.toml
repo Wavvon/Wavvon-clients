@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-preview-badge-def"
+description = "Enables the preview_badge_def command without any pre-configured scope."
+commands.allow = ["preview_badge_def"]
+
+[[permission]]
+identifier = "deny-preview-badge-def"
+description = "Denies the preview_badge_def command without any pre-configured scope."
+commands.deny = ["preview_badge_def"]

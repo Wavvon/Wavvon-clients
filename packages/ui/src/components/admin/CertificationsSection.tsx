@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
-import type { CertAdmissionSettings, CertIssuance, CertType } from "../../types";
+import type { CertAdmissionSettings, CertIssuance, CertType, MemberAdminInfo, RoleInfo } from "../../types";
 import { useConfirm } from "../ConfirmDialog";
 import { SettingRow } from "../SettingRow";
 import { IssuerHubPicker, type IssuerHub } from "../settings/IssuerHubPicker";
+import { BadgeCatalogue } from "./BadgeCatalogue";
+import type { BadgeCatalogueActions } from "./BadgeCatalogueActions";
 import { CertAdmissionBlock } from "./CertAdmissionBlock";
 
 export interface CertificationsSectionActions {
@@ -24,6 +26,9 @@ export interface CertificationsSectionActions {
    *  (ServerTagsSection); omitted where the Tauri command doesn't exist yet.
    *  `icon` is optional — desktop's Tauri command doesn't accept it yet. */
   grantUserBadge?: (subjectPubkey: string, label: string, description?: string, icon?: string) => Promise<void>;
+  /** Present only on hubs advertising `badges.catalogue`; replaces the one-off
+   *  grant row below. */
+  badgeCatalogue?: BadgeCatalogueActions;
   /** Hubs to offer as issuers: the ones this client joined and this hub's
    *  alliance partners. */
   listKnownHubs: () => Promise<IssuerHub[]>;
@@ -32,9 +37,11 @@ export interface CertificationsSectionActions {
 
 interface Props {
   actions: CertificationsSectionActions;
+  members?: MemberAdminInfo[];
+  listRoles?: () => Promise<RoleInfo[]>;
 }
 
-export function CertificationsSection({ actions }: Props) {
+export function CertificationsSection({ actions, members = [], listRoles }: Props) {
   const { t } = useTranslation();
   const { confirm, dialog } = useConfirm();
   const [open, setOpen] = useState<string | null>(null);
@@ -407,7 +414,14 @@ export function CertificationsSection({ actions }: Props) {
         </div>
       </SettingRow>
 
-      {actions.grantUserBadge && (
+      {actions.badgeCatalogue && (
+        <div className="settings-section">
+          <h2>{t("hub.admin.badges.title")}</h2>
+          <BadgeCatalogue actions={actions.badgeCatalogue} members={members} listRoles={listRoles} />
+        </div>
+      )}
+
+      {!actions.badgeCatalogue && actions.grantUserBadge && (
         <SettingRow
           title={t("hub.admin.certs.badge.label")}
           state={t("hub.admin.certs.state.badge")}

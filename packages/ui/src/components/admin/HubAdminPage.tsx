@@ -940,7 +940,7 @@ export function HubAdminPage(props: HubAdminPageProps) {
         )}
 
         {section === "certifications" && (
-          <CertificationsSection actions={props.certActions} />
+          <CertificationsSection actions={props.certActions} members={props.members} listRoles={props.rolesActions.listRoles} />
         )}
 
         {section === "recovery" && (

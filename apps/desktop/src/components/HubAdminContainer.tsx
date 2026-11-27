@@ -134,7 +134,7 @@ export function HubAdminContainer({
       submitToDirectory={submitToDirectory}
       webhookActions={webhookActions}
       auditLogActions={auditLogActions}
-      certActions={certActions}
+      certActions={hubCaps.includes("badges.catalogue") ? certActions : { ...certActions, badgeCatalogue: undefined }}
       onboardingActions={onboardingActions}
       surveyActions={surveyActions}
       applicationActions={applicationActions}

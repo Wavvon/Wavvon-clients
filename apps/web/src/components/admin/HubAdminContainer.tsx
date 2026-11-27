@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { hubFetch, searchMemberKeys, activeHubSupports, getApplicationResponse, rejectApplication, getAttachmentSettings, saveAttachmentSettings } from "@platform";
+import { hubFetch, searchMemberKeys, activeHubSupports, badgeCatalogueActions, getApplicationResponse, rejectApplication, getAttachmentSettings, saveAttachmentSettings } from "@platform";
 import {
   submitToDirectory,
   getRecoveryContacts, setRecoveryContacts, removeRecoveryContact,
@@ -181,7 +181,7 @@ export function HubAdminContainer({
         inviteActions={inviteActions}
         webhookActions={webhookActions}
         auditLogActions={auditLogActions}
-        certActions={certActions}
+        certActions={activeHubSupports("badges.catalogue") ? { ...certActions, badgeCatalogue: badgeCatalogueActions } : certActions}
         soundboardActions={soundboardActions}
         stickersAdmin={stickersAdmin}
         attachmentSettingsActions={activeHubSupports("attachments.stored") && canDo("hub.settings")
