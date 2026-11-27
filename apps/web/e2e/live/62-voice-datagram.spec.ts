@@ -129,8 +129,8 @@ test("a datagram is received, unsealed and decoded — not just a roster row", a
     // reports speaking from the first frame, so both rows qualify.
     const roster = page.locator(".channel-participants .channel-participant");
     await expect(roster.filter({ hasText: speakerName })).toHaveClass(/\bspeaking\b/, { timeout: 30000 });
-    // By key: other specs rename the owner, and a row's title is its pubkey.
-    await expect(roster.and(page.locator(`[title="${OWNER_PUBKEY}"]`))).toHaveClass(/\bspeaking\b/, { timeout: 30000 });
+    // By key: other specs rename the owner.
+    await expect(roster.and(page.locator(`[data-pubkey="${OWNER_PUBKEY}"]`))).toHaveClass(/\bspeaking\b/, { timeout: 30000 });
 
     // Voice shares one AudioContext and one capture node for the page's
     // lifetime (clients#338), so a second session attaches to what the first

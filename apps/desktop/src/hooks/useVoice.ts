@@ -8,7 +8,7 @@ import { listenerScope } from "../utils/listenerScope";
 import { playSound, playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
-import { voiceTransportFailure, ROOM_MAP_RADIUS } from "@wavvon/ui";
+import { voiceTransportFailure, ROOM_MAP_RADIUS, heardSpeakers } from "@wavvon/ui";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -17,9 +17,14 @@ interface UseVoiceParams {
   setToast: (msg: string) => void;
   /** Our key in the room's positions, to find where the hub last placed us. */
   publicKey: string | null;
+  /** Blocked and ignored people: you hear nothing from them. */
+  silencedUsers: ReadonlySet<string>;
 }
 
-export function useVoice({ activeHubId, selectedChannel, setError, setToast, publicKey }: UseVoiceParams) {
+export function useVoice({ activeHubId, selectedChannel, setError, setToast, publicKey, silencedUsers }: UseVoiceParams) {
+  useEffect(() => {
+    invoke("voice_set_silenced", { pubkeys: [...silencedUsers] }).catch(() => {});
+  }, [silencedUsers]);
   const publicKeyRef = useRef(publicKey);
   publicKeyRef.current = publicKey;
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null);
@@ -673,7 +678,9 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
     stagePins,
     selfMuted,
     selfDeafened,
-    speakingPubkeys,
+    // Deafened you hear nobody, and blocked or ignored you hear not them:
+    // whoever you cannot hear does not light up as speaking.
+    speakingPubkeys: heardSpeakers(speakingPubkeys, selfDeafened, silencedUsers),
     voicePartByChannel,
     voiceInputDevice,
     voiceOutputDevice,

@@ -7,7 +7,7 @@ import { AdoptScreen } from "./components/handover/AdoptScreen";
 import { ChannelBanner } from "./components/ChannelBanner";
 import { MULTI_HUB } from "./constants";
 import { primeServedHubLanguages, primeServedHubTheme } from "./utils/primeServedHubTheme";
-import { ErrorBoundary, registerInstalledLanguages } from "@wavvon/ui";
+import { ErrorBoundary, HoverTips, registerInstalledLanguages } from "@wavvon/ui";
 import "@wavvon/ui/styles.css";
 
 const storedLang = localStorage.getItem('wavvon_language');
@@ -29,6 +29,7 @@ createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nextProvider i18n={i18n}>
       <ChannelBanner />
+      <HoverTips />
       <ErrorBoundary>
         {isAdopt ? <AdoptScreen /> : <AccountRoot />}
       </ErrorBoundary>

@@ -2876,11 +2876,6 @@ body:has(.channel-banner) #root {
   left: 6px;
   display: flex;
 }
-.voice-tile-pinned {
-  display: inline-flex;
-  margin: 2px;
-  color: var(--accent);
-}
 .voice-self-state {
   display: inline-flex;
   color: var(--danger);
@@ -2958,6 +2953,10 @@ body:has(.channel-banner) #root {
 .free-lives .screen-share-panel,
 .free-lives .screen-share-main-wrap {
   max-height: none;
+  height: 100%;
+}
+.voice-tiles.free-lives > .voice-self-share {
+  flex: 1;
   height: 100%;
 }
 .room-pip--free {
@@ -3174,10 +3173,6 @@ body:has(.channel-banner) #root {
 .voice-tile.speaking {
   border-color: var(--success);
 }
-.voice-tile.big {
-  grid-column: span 2;
-  grid-row: span 2;
-}
 /* A camera takes the place of the avatar in its owner's tile. */
 .voice-tile-camera {
   width: 100%;
@@ -3216,7 +3211,7 @@ body:has(.channel-banner) #root {
   background: rgba(13, 15, 20, 0.88);
   color: var(--text);
 }
-.voice-tiles > .voice-self-share > .voice-tile-actions {
+.voice-tiles > .voice-self-share > .voice-tile-actions > * {
   opacity: 1;
 }
 .voice-tiles.size-strip > .voice-self-share {
@@ -3270,29 +3265,38 @@ body:has(.channel-banner) #root {
   top: 6px;
   right: 6px;
   display: flex;
+  align-items: center;
   gap: 2px;
+}
+/* Each action shows on hover; one that is on (a pin, an enlarged tile)
+   stays visible where it is. */
+.voice-tile-actions > * {
   opacity: 0;
   transition: opacity 120ms;
 }
-/* "Pin" on hover: the one amber control on a tile, because pinning is what
-   puts someone on the stage. */
+/* The pin, top right: plain on hover, amber once pinned. */
 .voice-tile-pin {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  width: 26px;
   height: 26px;
-  padding: 0 8px;
+  padding: 0;
   border: none;
   border-radius: 6px;
-  background: var(--accent);
-  color: var(--accent-text);
-  font-size: 11px;
-  font-weight: var(--weight-bold);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  color: var(--text-muted);
   cursor: pointer;
 }
-.voice-tile:hover .voice-tile-actions,
-.voice-tile:focus-within .voice-tile-actions,
-.voice-tile-actions [aria-pressed="true"] {
+.voice-tile-pin:hover { color: var(--text); }
+.voice-tile-pin.on {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.voice-tile:hover .voice-tile-actions > *,
+.voice-tile:focus-within .voice-tile-actions > *,
+.voice-tile-actions > [aria-pressed="true"],
+.voice-tile-actions > .on {
   opacity: 1;
 }
 .voice-tile--stream video {
@@ -3315,10 +3319,52 @@ body:has(.channel-banner) #root {
   flex-direction: column;
   gap: 12px;
 }
-.voice-stage-lives > .voice-self-share,
-.voice-stage-lives > .screen-share-panel {
+.voice-stage-live-slot {
+  position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
+  display: flex;
+}
+.voice-stage-live-slot.big {
+  flex: 3;
+}
+.voice-stage-live-slot > .voice-tiles,
+.voice-stage-live-slot > .screen-share-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+/* On the stage a live fills its frame like your own share does, instead of
+   the 60vh cap and the bottom rule it has elsewhere. */
+.voice-stage-live-slot > .screen-share-panel {
+  max-height: none;
+  border-bottom: none;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.voice-stage-live-slot .screen-share-main-wrap,
+.voice-stage-live-slot .screen-share-panel video.main-stream {
+  max-height: 100%;
+}
+.voice-stage-live-enlarge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 2;
+  background: rgba(13, 15, 20, 0.7);
+}
+/* Yours and the ones you watch side by side, each its own frame. */
+.voice-stage-lives.with-own {
+  flex-direction: row;
+  gap: 16px;
+}
+.voice-stage-live-slot > .voice-tiles {
+  display: flex;
+}
+.voice-stage-live-slot > .voice-tiles > .voice-self-share {
+  flex: 1;
+  height: 100%;
 }
 .voice-stage-lives .voice-tile--stream video {
   height: 100%;
@@ -3359,8 +3405,20 @@ body:has(.channel-banner) #root {
   border-radius: 12px;
   background: transparent;
 }
+/* A face in the strip still pins, from its corner. */
+.voice-tiles.audience.size-strip .voice-tile-actions {
+  top: auto;
+  right: -4px;
+  bottom: -4px;
+}
+.voice-tiles.audience.size-strip .voice-tile-pin {
+  width: 20px;
+  height: 20px;
+}
+.voice-tiles.audience.size-strip {
+  overflow: visible;
+}
 .voice-tiles.audience.size-strip .voice-tile-name,
-.voice-tiles.audience.size-strip .voice-tile-actions,
 .voice-tiles.audience.size-strip .voice-tile-badges,
 .voice-tiles.audience.size-strip .voice-tile-state {
   display: none;
@@ -10828,7 +10886,10 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
   animation: soundboard-burst-rise 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
 }
 
-.voice-tile.has-camera .soundboard-burst { left: 50%; bottom: 30%; }
+/* On a tile the fountain rises from the middle of it, not the roster-row
+   corner. */
+.voice-tile .soundboard-burst { left: calc(50% - 11px); bottom: 50%; }
+.voice-tile.has-camera .soundboard-burst { bottom: 30%; }
 .voice-tile.has-camera .soundboard-burst > span {
   font-size: 28px;
   --k: 2;
@@ -10846,3 +10907,22 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
 @media (prefers-reduced-motion: reduce) {
   .soundboard-burst { display: none; }
 }
+
+/* The quick tooltip (HoverTips): above the element, or below it near the
+   top edge of the window. */
+.hover-tip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 280px;
+  padding: 5px 9px;
+  border-radius: var(--r-md);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.hover-tip.below { transform: translate(-50%, 0); }

@@ -2,7 +2,10 @@ use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, StreamTrait};
 use ringbuf::traits::Consumer;
 
+use std::sync::{Arc, Mutex};
+
 use crate::devices::find_output_device;
+use crate::soundboard::{next_monitor_sample, ActiveClip};
 
 pub struct AudioPlayback {
     // Held, never read: a cpal stream stops the moment its handle is
@@ -16,13 +19,11 @@ pub struct AudioPlayback {
 }
 
 impl AudioPlayback {
-    pub fn start(consumer: ringbuf::HeapCons<f32>) -> Result<Self> {
-        Self::start_with_device(consumer, None)
-    }
-
     pub fn start_with_device(
         mut consumer: ringbuf::HeapCons<f32>,
         device_name: Option<&str>,
+        // The soundboard clip being sent, mixed in so the sender hears it too.
+        clip: Arc<Mutex<Option<ActiveClip>>>,
     ) -> Result<Self> {
         let device = find_output_device(device_name)?;
 
@@ -51,17 +52,27 @@ impl AudioPlayback {
             .build_output_stream(
                 &config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    // Never block the audio thread: if the send task holds
+                    // the clip this instant, this buffer goes without it.
+                    let mut clip = clip.try_lock().ok();
+                    let mut next = || {
+                        let s = consumer.try_pop().unwrap_or(0.0);
+                        match clip.as_mut().and_then(|g| g.as_mut()) {
+                            Some(c) => (s + next_monitor_sample(c)).clamp(-1.0, 1.0),
+                            None => s,
+                        }
+                    };
                     // If stereo output, duplicate mono samples to both channels
                     if channels > 1 {
                         for chunk in data.chunks_mut(channels as usize) {
-                            let sample = consumer.try_pop().unwrap_or(0.0);
+                            let sample = next();
                             for ch in chunk.iter_mut() {
                                 *ch = sample;
                             }
                         }
                     } else {
                         for sample in data.iter_mut() {
-                            *sample = consumer.try_pop().unwrap_or(0.0);
+                            *sample = next();
                         }
                     }
                 },

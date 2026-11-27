@@ -6,7 +6,7 @@ import { SoundboardBurst } from "../SoundboardBurst";
 import { SelfStateIcon } from "../SortableItems";
 import { PopOutRoom } from "./PopOutRoom";
 import { FreeStage } from "./FreeStage";
-import { LIVES_ITEM, loadFreeLayout, saveFreeLayout, type FreeLayout } from "../../utils/freeLayout";
+import { LIVES_ITEM, SELF_SHARE_ITEM, loadFreeLayout, saveFreeLayout, type FreeLayout } from "../../utils/freeLayout";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
@@ -141,11 +141,14 @@ export function VoiceStage({
   // Without hub pins they last one voice session: leaving the room or moving
   // to another one clears them, so nobody is still pinned next time.
   const [localPins, setLocalPins] = useState<string[]>([]);
-  useEffect(() => { setLocalPins([]); setOrder([]); }, [inThisRoom, roomName]);
+  useEffect(() => { setLocalPins([]); setOrder([]); setAudienceOrder([]); }, [inThisRoom, roomName]);
   // The hub decides who is on the stage; the order is each viewer's own.
   const [order, setOrder] = useState<string[]>([]);
   const pins = stagePins ? orderedPins(stagePins.pins, order) : localPins;
-  const [big, setBig] = useState<string | null>(null);
+  // Everyone off the stage can be rearranged too, for this viewer only.
+  const [audienceOrder, setAudienceOrder] = useState<string[]>([]);
+  // Which of the streams side by side takes most of the stage in the grid.
+  const [bigStream, setBigStream] = useState<"lives" | "self" | null>(null);
   const [query, setQuery] = useState("");
   const [audienceCollapsed, setAudienceCollapsed] = useState(false);
   const [freeLayout, setFreeLayoutState] = useState<FreeLayout>(loadFreeLayout);
@@ -211,17 +214,26 @@ export function VoiceStage({
     const next = arrayMove(pins, from, to);
     if (stagePins) setOrder(next); else setLocalPins(next);
   }
-  const audience = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
+  const unpinned = friendsFirst(participants.filter((p) => !pins.includes(p.public_key)), friends);
+  const audience = orderedPins(unpinned.map((p) => p.public_key), audienceOrder)
+    .map((pk) => unpinned.find((p) => p.public_key === pk))
+    .filter((p): p is VoiceParticipant => !!p);
+  function onAudienceDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = audience.map((p) => p.public_key);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    setAudienceOrder(arrayMove(ids, from, to));
+  }
   const opened = !!live && live.opened.size > 0;
-  // Your own share is a tile beside yours, not the stage: you know what you
-  // are sharing, and on the stage it only mirrors itself.
-  const liveOnStage = opened;
+  // Any stream open, yours included, brings the stage up: each one is its own
+  // item there, and the audience shrinks to a strip under them.
+  const liveOnStage = opened || !!selfShare;
   // Stage and audience exist only once someone is pinned: the stage is who
   // you pinned, the audience everyone else.
   const showLabels = onStage.length > 0;
-  // Your share travels with your tile: beside it in the room, on the stage
-  // when you are pinned.
-  const myPinned = !!publicKey && pins.includes(publicKey);
   const myShare = selfShare ? (
     <SelfShareTile
       stream={selfShare.stream}
@@ -232,7 +244,11 @@ export function VoiceStage({
       fullscreenLabel={t("voice.stage.share_fullscreen")}
     />
   ) : null;
-  const hasStage = onStage.length > 0 || liveOnStage;
+  // In free layout with nothing on the stage, the whole room is the canvas:
+  // everyone is placed where you put them, and there is no audience.
+  const freeRoom = freeLayout.mode === "free" && onStage.length === 0 && !liveOnStage && participants.length > 0;
+  const hasStage = onStage.length > 0 || liveOnStage || freeRoom;
+  const stagePeople = freeRoom ? participants : onStage;
   const q = query.trim().toLowerCase();
   const shown = q
     ? audience.filter((p) => (p.display_name ?? p.public_key).toLowerCase().includes(q))
@@ -257,6 +273,23 @@ export function VoiceStage({
   const tileSize = liveOnStage ? "strip" : hasStage ? "s" : participants.length <= 6 ? "l" : participants.length <= 12 ? "m" : "s";
   const tileAvatar = { l: 100, m: 72, s: 48, strip: 40 }[tileSize];
 
+  function enlargeStream(which: "lives" | "self") {
+    const on = bigStream === which;
+    const label = t(on ? "voice.stage.shrink_stream" : "voice.stage.enlarge_stream");
+    return (
+      <button
+        type="button"
+        className="btn-icon voice-stage-live-enlarge"
+        aria-pressed={on}
+        title={label}
+        aria-label={label}
+        onClick={() => setBigStream(on ? null : which)}
+      >
+        <ExpandIcon size={14} />
+      </button>
+    );
+  }
+
   function personTile(p: VoiceParticipant, size: number, sortable?: SortableHandle) {
     const name = p.display_name || p.public_key.slice(0, 12);
     const handUp = !!floor?.hands.includes(p.public_key);
@@ -268,8 +301,7 @@ export function VoiceStage({
     return (
       <li
         key={p.public_key}
-        className={`voice-tile${speaking.has(p.public_key) ? " speaking" : ""}${big === p.public_key ? " big" : ""}${showCamera ? " has-camera" : ""}`}
-        title={p.public_key}
+        className={`voice-tile${speaking.has(p.public_key) ? " speaking" : ""}${showCamera ? " has-camera" : ""}`}
         ref={sortable?.setNodeRef}
         style={sortable?.style}
         {...sortable?.attributes}
@@ -279,15 +311,14 @@ export function VoiceStage({
         {showCamera && camera
           ? <CameraVideo stream={camera} mirrored={p.public_key === publicKey} />
           : <Avatar src={avatars.get(p.public_key)} name={name} pubkey={p.public_key} size={size} self={p.public_key === publicKey} />}
-        <SoundboardBurst chips={soundboardChips} pubkey={p.public_key} />
+        {/* Outside the room you hear no clip, so you see no burst either. */}
+        {inThisRoom && <SoundboardBurst chips={soundboardChips} pubkey={p.public_key} />}
         <span className="voice-tile-state"><SelfStateIcon participant={p} /></span>
-        {(sharing.has(p.public_key) || (camera && !showCamera) || pinned) && (
+        {(sharing.has(p.public_key) || (camera && !showCamera)) && (
           <span className="voice-tile-badges">
             {sharing.has(p.public_key)
               ? <span className="live-badge">LIVE</span>
-              : camera && !showCamera
-                ? <span className="cam-badge" title={t("voice.stage.camera_on")}>{t("voice.stage.camera_badge")}</span>
-                : <span className="voice-tile-pinned" role="img" aria-label={t("voice.stage.pinned")}><PinIcon size={14} /></span>}
+              : camera && !showCamera && <span className="cam-badge" title={t("voice.stage.camera_on")}>{t("voice.stage.camera_badge")}</span>}
           </span>
         )}
         <span className="voice-tile-name">
@@ -295,29 +326,6 @@ export function VoiceStage({
           {name}
         </span>
         <div className="voice-tile-actions">
-          {mayTogglePin(p.public_key) && <button
-            type="button"
-            className={pinned ? "btn-icon" : "voice-tile-pin"}
-            aria-pressed={pinned}
-            aria-label={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
-            title={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
-            onClick={() => togglePin(p.public_key)}
-          >
-            <PinIcon size={12} />
-            {!pinned && <span>{t("voice.stage.pin_short")}</span>}
-          </button>}
-          {pinned && (
-            <button
-              type="button"
-              className="btn-icon"
-              aria-pressed={big === p.public_key}
-              aria-label={t("voice.stage.enlarge", { name })}
-              title={t("voice.stage.enlarge", { name })}
-              onClick={() => setBig((b) => (b === p.public_key ? null : p.public_key))}
-            >
-              <ExpandIcon size={13} />
-            </button>
-          )}
           {showCamera && (
             <button
               type="button"
@@ -328,6 +336,22 @@ export function VoiceStage({
             >
               <FullscreenIcon size={13} />
             </button>
+          )}
+          {/* One pin, top right, in both states: pinned it stays lit, and
+              clicking it again unpins. The tooltip says which. */}
+          {mayTogglePin(p.public_key) ? (
+            <button
+              type="button"
+              className={`voice-tile-pin${pinned ? " on" : ""}`}
+              aria-pressed={pinned}
+              aria-label={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
+              title={t(pinned ? "voice.stage.unpin" : "voice.stage.pin", { name })}
+              onClick={() => togglePin(p.public_key)}
+            >
+              <PinIcon size={13} />
+            </button>
+          ) : pinned && (
+            <span className="voice-tile-pin on" role="img" aria-label={t("voice.stage.pinned")} title={t("voice.stage.pinned")}><PinIcon size={13} /></span>
           )}
         </div>
         {handUp && floor?.canGrant && p.public_key !== publicKey && (
@@ -404,7 +428,14 @@ export function VoiceStage({
                         node: <div className="free-lives">{children}</div>,
                       }]
                     : []),
-                  ...onStage.map((p) => ({
+                  ...(myShare
+                    ? [{
+                        id: SELF_SHARE_ITEM,
+                        layer: "lives" as const,
+                        node: <ul className="voice-tiles free-lives">{myShare}</ul>,
+                      }]
+                    : []),
+                  ...stagePeople.map((p) => ({
                     id: p.public_key,
                     layer: "people" as const,
                     node: <ul className="voice-tiles free-tile">{personTile(p, 96)}</ul>,
@@ -413,7 +444,20 @@ export function VoiceStage({
               />
             ) : (<>
             {liveOnStage && (
-              <div className="voice-stage-lives">{children}</div>
+              <div className={`voice-stage-lives${opened && myShare ? " with-own" : ""}`}>
+                {opened && (
+                  <div className={`voice-stage-live-slot${bigStream === "lives" ? " big" : ""}`}>
+                    {children}
+                    {myShare && enlargeStream("lives")}
+                  </div>
+                )}
+                {myShare && (
+                  <div className={`voice-stage-live-slot${bigStream === "self" ? " big" : ""}`}>
+                    <ul className="voice-tiles">{myShare}</ul>
+                    {opened && enlargeStream("self")}
+                  </div>
+                )}
+              </div>
             )}
             {onStage.length > 0 && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>
@@ -424,7 +468,6 @@ export function VoiceStage({
                         <SortableStageTile id={p.public_key}>
                           {(handle) => personTile(p, 96, handle)}
                         </SortableStageTile>
-                        {p.public_key === publicKey && myShare}
                       </React.Fragment>
                     ))}
                   </ul>
@@ -433,17 +476,17 @@ export function VoiceStage({
             )}
             </>)}
           </div>
-          <div
+          {!freeRoom && <div
             className="voice-room-sep"
             role="separator"
             aria-orientation="horizontal"
             aria-label={t("voice.stage.resize")}
             onPointerDown={startResize}
-          />
+          />}
         </>
       )}
 
-      <div className="voice-audience">
+      {!freeRoom && <div className="voice-audience">
         {participants.length === 0 ? (
           // An empty room is a doorway: its name, that nobody is in, and the way in.
           <div className="voice-room-empty">
@@ -473,19 +516,22 @@ export function VoiceStage({
               )}
             </div>
             {/* With no stage the room is everyone, so the tiles take the room. */}
-            <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>
-              {shown.map((p) => (
-                <React.Fragment key={p.public_key}>
-                  {personTile(p, tileAvatar)}
-                  {p.public_key === publicKey && myShare}
-                </React.Fragment>
-              ))}
-              {/* In the free layout the stage has no slot for it: it stays here. */}
-              {freeLayout.mode === "free" && myPinned && myShare}
-            </ul>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onAudienceDragEnd}>
+              <SortableContext items={shown.map((p) => p.public_key)} strategy={rectSortingStrategy}>
+                <ul className={`voice-tiles audience size-${tileSize}${audienceCollapsed ? " collapsed" : ""}${hasStage ? "" : " roomy"}`}>
+                  {shown.map((p) => (
+                    <React.Fragment key={p.public_key}>
+                      <SortableStageTile id={p.public_key}>
+                        {(handle) => personTile(p, tileAvatar, handle)}
+                      </SortableStageTile>
+                    </React.Fragment>
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
           </>
         )}
-      </div>
+      </div>}
 
       {/* With people in the room the way in sits where the dock will be. */}
       {!inThisRoom && participants.length > 0 && (
@@ -517,10 +563,11 @@ export function VoiceStage({
               cameras={cameras}
               avatars={avatars}
               publicKey={publicKey}
-              livesKey={[...(live?.opened ?? [])].join(",")}
+              livesKey={`${freeLayout.mode}:${[...(live?.opened ?? [])].join(",")}`}
+              selfShare={selfShare?.stream}
               free={hasStage && freeLayout.mode === "free" ? freeLayout : undefined}
             />
-            {hasStage && (
+            {participants.length > 0 && (
               <button
                 type="button"
                 className={`btn-icon-gear${freeLayout.mode === "free" ? " on" : ""}`}
@@ -532,8 +579,15 @@ export function VoiceStage({
                 <LayoutGlyph />
               </button>
             )}
-            {room && room.canManage && !room.zone && (
-              <button type="button" className="btn-icon-gear" onClick={room.onEnable} title={t("voice.room_map.enable")} aria-label={t("voice.room_map.enable")}>
+            {room && room.canManage && (
+              <button
+                type="button"
+                className={`btn-icon-gear${room.zone ? " on" : ""}`}
+                aria-pressed={!!room.zone}
+                onClick={room.zone ? room.onDisable : room.onEnable}
+                title={t(room.zone ? "voice.room_map.disable" : "voice.room_map.enable")}
+                aria-label={t(room.zone ? "voice.room_map.disable" : "voice.room_map.enable")}
+              >
                 <MapGlyph />
               </button>
             )}
@@ -579,7 +633,10 @@ function MapGlyph() {
 function LayoutGlyph() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 4h10v9H3zM15 4h6v5h-6zM15 11h6v9h-6zM3 15h10v5H3z" />
+      <rect x="3" y="3" width="7" height="9" rx="1.5" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" />
     </svg>
   );
 }

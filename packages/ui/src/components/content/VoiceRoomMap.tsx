@@ -67,11 +67,6 @@ export function VoiceRoomMap({ room, participants, avatars, publicKey }: Props) 
             ? t("voice.room_map.moved_by", { app: room.movedBy })
             : mine ? t("voice.room_map.hint") : t("voice.room_map.place_yourself")}
         </span>
-        {room.canManage && (
-          <button type="button" className="btn-small btn-secondary" onClick={room.onDisable}>
-            {t("voice.room_map.disable")}
-          </button>
-        )}
       </div>
       <div
         className="voice-room-map"

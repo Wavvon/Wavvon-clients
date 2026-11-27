@@ -158,6 +158,9 @@ export class VoiceSession {
    *  decrypting anything. */
   private lossBySender: Map<number, LossTracker> = new Map();
   private savedGains: Record<string, number>;
+  /** People you blocked or ignored: their audio plays at zero, whatever
+   *  volume you set for them. */
+  private silenced: ReadonlySet<string> = new Set();
   private zones: Map<string, VoiceZone> = new Map();
   private myPubkey: string;
   private activeClipId: string | null = null;
@@ -443,7 +446,9 @@ export class VoiceSession {
 
     const gainNode = this.audioCtx!.createGain();
     const pubkey = this.senderIdToPubkey.get(senderId);
-    if (pubkey && this.savedGains[pubkey] !== undefined) {
+    if (pubkey && this.silenced.has(pubkey)) {
+      gainNode.gain.value = 0;
+    } else if (pubkey && this.savedGains[pubkey] !== undefined) {
       gainNode.gain.value = this.savedGains[pubkey] / 100;
     } else {
       gainNode.gain.value = 1.0;
@@ -553,10 +558,15 @@ export class VoiceSession {
       }
 
       const manualGainPct = this.savedGains[pubkey] ?? 100;
-      const effective = Math.min(200, Math.max(0, manualGainPct * proximityGain));
+      const effective = this.silenced.has(pubkey) ? 0 : Math.min(200, Math.max(0, manualGainPct * proximityGain));
       const gainNode = this.gainNodes.get(senderId);
       if (gainNode) gainNode.gain.value = effective / 100;
     }
+  }
+
+  setSilenced(pubkeys: ReadonlySet<string>): void {
+    this.silenced = pubkeys;
+    this.recomputeAllProximityGains();
   }
 
   setSenderGain(pubkey: string, gainPct: number): void {
@@ -578,7 +588,7 @@ export class VoiceSession {
       if (pk === pubkey) {
         const gainNode = this.gainNodes.get(sid);
         if (gainNode) {
-          gainNode.gain.value = gainValue;
+          gainNode.gain.value = this.silenced.has(pubkey) ? 0 : gainValue;
         }
         break;
       }
@@ -606,7 +616,23 @@ export class VoiceSession {
     if (this.activeClipId) return false;
     this.activeClipId = clipId;
     this.postToWorker({ type: 'clip', samples });
+    this.playClipLocally(samples);
     return true;
+  }
+
+  /** The relay never sends you your own audio, so the clip you send is
+   *  played here too, or you would see the burst and hear nothing. */
+  private playClipLocally(samples: Float32Array): void {
+    const ctx = this.audioCtx;
+    if (!ctx || this.deafened) return;
+    try {
+      const buffer = ctx.createBuffer(1, samples.length, ctx.sampleRate);
+      buffer.getChannelData(0).set(samples);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start();
+    } catch { /* local monitoring is best-effort; the clip still goes out */ }
   }
 
   getPlayingClipId(): string | null {

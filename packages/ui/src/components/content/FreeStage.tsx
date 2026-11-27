@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { clampRect, fits, placeNew, type FreeLayout, type Layer, type Rect } from "../../utils/freeLayout";
+import { clampRect, largestFit, nearestFit, placeNew, type FreeLayout, type Layer, type Rect } from "../../utils/freeLayout";
 
 export interface FreeItem {
   id: string;
@@ -24,21 +23,25 @@ export function FreeStage({ items, layout, onChange }: {
   layout: FreeLayout;
   onChange: (next: FreeLayout) => void;
 }) {
-  const { t } = useTranslation();
   const areaRef = useRef<HTMLDivElement>(null);
 
-  // A new item takes the first free spot on its layer.
+  // A new item takes the first free spot on its layer, shrinking until one
+  // fits; on a full layer it lands small in the corner, to be moved by hand,
+  // rather than not appearing at all.
   const missing = items.filter((it) => !layout.rects[it.id]);
-  const noRoom: FreeItem[] = [];
   const placed: Record<string, Rect> = {};
   for (const it of missing) {
     const sameLayer = items
       .filter((o) => o.layer === it.layer && o.id !== it.id)
       .map((o) => layout.rects[o.id] ?? placed[o.id])
       .filter((r): r is Rect => !!r);
-    const spot = placeNew(DEFAULT_SIZE[it.layer], sameLayer);
-    if (spot) placed[it.id] = spot;
-    else noRoom.push(it);
+    const size = DEFAULT_SIZE[it.layer];
+    let spot: Rect | null = null;
+    for (const k of [1, 0.75, 0.5, 0.35]) {
+      spot = placeNew({ w: Math.round(size.w * k), h: Math.round(size.h * k) }, sameLayer);
+      if (spot) break;
+    }
+    placed[it.id] = spot ?? { x: 0, y: 0, w: 20, h: 20 };
   }
   const placedKey = Object.keys(placed).join(",");
   useEffect(() => {
@@ -76,20 +79,20 @@ export function FreeStage({ items, layout, onChange }: {
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      if (fits(next, sameLayerRects(item.id, item.layer))) {
-        onChange({ ...layout, rects: { ...layout.rects, [item.id]: next } });
-      } else if (el) {
-        // Same layer, overlapping: snap back to where it was.
-        Object.assign(el.style, { left: `${start.x}%`, top: `${start.y}%`, width: `${start.w}%`, height: `${start.h}%` });
-      }
+      // Onto another item of its layer: a move lands in the nearest free
+      // spot, a resize stops as large as it can get; back where it was when
+      // neither works.
+      const others = sameLayerRects(item.id, item.layer);
+      const landed = (mode === "move" ? nearestFit(next, others) : largestFit(next, start, others)) ?? start;
+      if (el) Object.assign(el.style, { left: `${landed.x}%`, top: `${landed.y}%`, width: `${landed.w}%`, height: `${landed.h}%` });
+      onChange({ ...layout, rects: { ...layout.rects, [item.id]: landed } });
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   }
 
   return (
-    <>
-      <div className="free-stage" ref={areaRef}>
+    <div className="free-stage" ref={areaRef}>
         {items.map((it) => {
           const r = layout.rects[it.id] ?? placed[it.id];
           if (!r) return null;
@@ -110,10 +113,6 @@ export function FreeStage({ items, layout, onChange }: {
             </div>
           );
         })}
-      </div>
-      {noRoom.length > 0 && (
-        <p className="muted hint-fine">{t("voice.stage.free_no_room", { count: noRoom.length })}</p>
-      )}
-    </>
+    </div>
   );
 }

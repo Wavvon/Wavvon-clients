@@ -148,13 +148,19 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
       }
     }
 
+    // Read through a ref so the handle below can be built once: a handle
+    // rebuilt every render detaches and reattaches the ref on every commit,
+    // which the app reads as the viewer mounting again (and resubscribes).
+    const osPip = useRef({ onOsPipChunk, onOsPipStop });
+    osPip.current = { onOsPipChunk, onOsPipStop };
+
     useImperativeHandle(ref, () => ({
       appendChunk(streamId, isInit, data) {
         const s = streamStates.current.get(streamId);
         if (!s) return;
 
         if (isInit) initChunks.current.set(streamId, data);
-        if (osPipOpenRef.current.has(streamId)) onOsPipChunk?.(streamId, data);
+        if (osPipOpenRef.current.has(streamId)) osPip.current.onOsPipChunk?.(streamId, data);
 
         if (isInit && s.sourceBuffer) {
           s.queue = [data];
@@ -181,7 +187,7 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
         if (el) { el.srcObject = null; }
 
         initChunks.current.delete(streamId);
-        if (osPipOpenRef.current.has(streamId)) onOsPipStop?.(streamId);
+        if (osPipOpenRef.current.has(streamId)) osPip.current.onOsPipStop?.(streamId);
       },
 
       attachStream(streamId, stream) {
@@ -193,7 +199,8 @@ const ScreenShareViewer = forwardRef<ScreenShareViewerRef, Props>(
           el.play().catch(() => {});
         }
       },
-    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- built once; see osPip
+    }), []);
 
     useEffect(() => {
       const currentIds = new Set(streams.map((s) => s.stream_id));

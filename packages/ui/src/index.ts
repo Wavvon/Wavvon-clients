@@ -50,6 +50,7 @@ export { BlockIgnoreSection } from "./components/BlockIgnoreSection";
 export { IdentityBackupSection } from "./components/IdentityBackupSection";
 export { passphraseStrength } from "./utils/passphraseStrength";
 export { firstUnreadId } from "./utils/unreadCounts";
+export { heardSpeakers } from "./utils/heardSpeakers";
 export { readFileAsB64 } from "./utils/attachments";
 export type { PassphraseStrength } from "./utils/passphraseStrength";
 export { FullArchiveSection } from "./components/FullArchiveSection";
@@ -555,6 +556,7 @@ export { useOlderPages, mergeOlderPage, MESSAGE_PAGE_SIZE } from "./hooks/useOld
 export type { AllianceScrollback } from "./hooks/useAlliances";
 export { useConfirm } from "./components/ConfirmDialog";
 export { SettingRow } from "./components/SettingRow";
+export { HoverTips } from "./components/HoverTips";
 export { LanguageSetting } from "./components/LanguageSetting";
 export { SoundboardBurst, SoundboardBurstSetting } from "./components/SoundboardBurst";
 export { HubLanguagesSection } from "./components/admin/HubLanguagesSection";

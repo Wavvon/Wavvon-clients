@@ -248,6 +248,12 @@ scope.onmessage = (e) => {
     case 'muted':
       muted = msg.muted;
       if (muted) setSubGate(INITIAL_SUB_GATE_STATE);
+      // Muted frames skip the detector, so the sentence you were in never
+      // ended and the speaking ring stayed lit until unmute.
+      if (muted && speakingState.speaking) {
+        speakingState = INITIAL_SPEAKING_STATE;
+        scope.postMessage({ type: 'speaking', speaking: false });
+      }
       break;
     case 'clip':
       activeClip = { samples: msg.samples, pos: 0 };

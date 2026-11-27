@@ -2,7 +2,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SoundboardClip } from "../../types";
 import { FocusTrap } from "../FocusTrap";
-import { SpeakerIcon } from "../Icons";
+import { SoundboardIcon } from "../Icons";
 
 const POPUP_HEIGHT = 260;
 
@@ -86,7 +86,7 @@ export function SoundboardPopover({ onListClips, onTrigger, playingClipId, disab
         title={disabledReason ?? t("voice.soundboard")}
         aria-label={disabledReason ?? t("voice.soundboard")}
       >
-        <SpeakerIcon size={14} />
+        <SoundboardIcon size={14} />
       </button>
       {open && (
         <>

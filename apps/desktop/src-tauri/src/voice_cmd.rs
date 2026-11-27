@@ -163,6 +163,7 @@ fn start_voice(
     let speaking_ws = ws_tx.clone();
     let speaking_channel_id = channel_id.clone();
     let speaking_app = app.clone();
+    let silenced = state.voice_silenced.clone();
 
     std::thread::spawn(move || {
         let rt = match tokio::runtime::Runtime::new() {
@@ -192,6 +193,7 @@ fn start_voice(
                 custom_channels: saved.custom_channels,
                 custom_frame_ms: saved.custom_frame_ms,
                 custom_complexity: saved.custom_complexity,
+                silenced,
             };
             let mut pipeline =
                 match wavvon_voice::AudioPipeline::start_p2p_with_settings(vsettings).await {
@@ -349,6 +351,14 @@ pub(crate) fn voice_set_muted(muted: bool, state: State<'_, AppState>) -> Result
         s.muted.store(muted, Ordering::Relaxed);
     }
     Ok(())
+}
+
+/// Who you blocked or ignored: you hear nothing from them in voice.
+#[tauri::command]
+pub(crate) fn voice_set_silenced(pubkeys: Vec<String>, state: State<'_, AppState>) {
+    if let Ok(mut s) = state.voice_silenced.write() {
+        *s = pubkeys.into_iter().collect();
+    }
 }
 
 #[tauri::command]
@@ -513,6 +523,7 @@ pub(crate) fn mic_test_start(state: State<'_, AppState>, app: AppHandle) -> Resu
                 custom_channels: saved.custom_channels,
                 custom_frame_ms: saved.custom_frame_ms,
                 custom_complexity: saved.custom_complexity,
+                silenced: Default::default(),
             };
             let mut pipeline =
                 match wavvon_voice::AudioPipeline::start_loopback_with_settings(vsettings).await {

@@ -31,27 +31,43 @@ export function MicOnIcon({ size = 16 }: { size?: number }) {
   if (themed) return themed;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4zm-1 16.93A8 8 0 0 1 4.07 11H6a6 6 0 0 0 12 0h1.93A8 8 0 0 1 13 18.93V22h-2v-3.07z" />
+      <path d={MIC_PATH} />
     </svg>
   );
 }
 
+/** The same glyph struck through, with a gap cut around the stroke so it
+ *  reads on any background. */
+function Struck({ size, d }: { size: number; d: string }) {
+  const id = React.useId();
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <mask id={id}>
+        <rect width="24" height="24" fill="white" />
+        <line x1="3" y1="3" x2="21" y2="21" stroke="black" strokeWidth="5" strokeLinecap="round" />
+      </mask>
+      <path d={d} mask={`url(#${id})`} />
+      <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const MIC_PATH = "M12 2a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4zm-1 16.93A8 8 0 0 1 4.07 11H6a6 6 0 0 0 12 0h1.93A8 8 0 0 1 13 18.93V22h-2v-3.07z";
+const HEADPHONES_PATH = "M12 3a9 9 0 0 0-9 9v5a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H5v-2a7 7 0 0 1 14 0v2h-2a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-5a9 9 0 0 0-9-9z";
+
 export function MicOffIcon({ size = 16 }: { size?: number }) {
   const themed = useThemedIcon("mic-off", size, { off: true });
   if (themed) return themed;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M2 2l20 20-1.4 1.4-3.07-3.07A8 8 0 0 1 4.07 11H6a6 6 0 0 0 8.93 5.52l-1.56-1.56A4 4 0 0 1 8 12V9.41L3.4 4.82 2 3.41 3.41 2zM13 5.17V6a4 4 0 0 1 .83 7.9L12 12.07V6a1.98 1.98 0 0 0-2.92-1.75L7.64 2.82A4 4 0 0 1 13 5.17zm-1 13.76V22h-2v-3.07A8 8 0 0 1 5.08 13h1.95A6 6 0 0 0 12 18.93z" />
-    </svg>
-  );
+  return <Struck size={size} d={MIC_PATH} />;
 }
 
 export function DeafenIcon({ size = 16, muted = false }: { size?: number; muted?: boolean }) {
   const themed = useThemedIcon("deafen", size, { off: muted });
   if (themed) return themed;
+  if (muted) return <Struck size={size} d={HEADPHONES_PATH} />;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={muted ? { opacity: 0.4 } : undefined} aria-hidden="true">
-      <path d="M12 3a9 9 0 0 0-9 9v5a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H5v-2a7 7 0 0 1 14 0v2h-2a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-5a9 9 0 0 0-9-9z" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d={HEADPHONES_PATH} />
     </svg>
   );
 }
@@ -523,6 +539,17 @@ export function SpeakerIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Soundboard: a note, so it does not read as the volume control. */
+export function SoundboardIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </svg>
+  );
+}
+
 export function ClockIcon({ size = 14 }: { size?: number }) {
   const themed = useThemedIcon("clock", size);
   if (themed) return themed;
@@ -542,9 +569,10 @@ export function WhisperIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="9" y="3" width="6" height="10" rx="3" />
-      <path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V21" />
-      <path d="M19.5 4.5a3 3 0 0 1 0 4" />
+      {/* A head in profile speaking: talk to chosen people, not the room. */}
+      <path d="M8.8 20v-4.1l1.9.2a2.3 2.3 0 0 0 2.16-2.1V8.3A5.37 5.37 0 0 0 2 8.25c0 2.8.66 3.05 1 4.55a5.77 5.77 0 0 1 .03 2.76L2 20" />
+      <path d="M19.8 17.8a7.5 7.5 0 0 0 0-10.6" />
+      <path d="M17 15a3.5 3.5 0 0 0 0-5" />
     </svg>
   );
 }

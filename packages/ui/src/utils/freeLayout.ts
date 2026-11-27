@@ -15,6 +15,8 @@ export interface FreeLayout {
 
 const KEY = "wavvon:voice-stage-free";
 export const LIVES_ITEM = "__lives";
+/** Your own share: its own item, so it moves apart from the lives you watch. */
+export const SELF_SHARE_ITEM = "__self_share";
 
 export function loadFreeLayout(): FreeLayout {
   try {
@@ -55,4 +57,38 @@ export function placeNew(size: { w: number; h: number }, sameLayer: Rect[]): Rec
     }
   }
   return null;
+}
+
+/** The free spot of the same size closest to where `r` was dropped, so a
+ *  drop onto another item slides beside it instead of being refused; null
+ *  when the layer has no room for that size anywhere. */
+export function nearestFit(r: Rect, sameLayer: Rect[]): Rect | null {
+  if (fits(r, sameLayer)) return r;
+  let best: Rect | null = null;
+  let bestDist = Infinity;
+  for (let y = 0; y + r.h <= 100; y += 1) {
+    for (let x = 0; x + r.w <= 100; x += 1) {
+      const d = (x - r.x) ** 2 + (y - r.y) ** 2;
+      if (d >= bestDist) continue;
+      const c = { ...r, x, y };
+      if (fits(c, sameLayer)) { best = c; bestDist = d; }
+    }
+  }
+  return best;
+}
+
+/** A resize pulled over another item: as large as it can get from the same
+ *  corner without overlapping, never smaller than it started; null when even
+ *  `start` no longer fits. */
+export function largestFit(r: Rect, start: Rect, sameLayer: Rect[]): Rect | null {
+  if (fits(r, sameLayer)) return r;
+  let best: Rect | null = null;
+  for (let w = r.w; w >= Math.min(start.w, r.w); w -= 1) {
+    for (let h = r.h; h >= Math.min(start.h, r.h); h -= 1) {
+      if (best && w * h <= best.w * best.h) break;
+      const c = { ...r, w, h };
+      if (fits(c, sameLayer)) { best = c; break; }
+    }
+  }
+  return best;
 }
