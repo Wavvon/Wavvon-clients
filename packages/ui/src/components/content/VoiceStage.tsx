@@ -230,7 +230,7 @@ export function VoiceStage({
   const liveOnStage = opened;
   // Your share is a tile beside yours; once lives are on the stage it joins
   // them there, or the audience strip would shrink it to a thumbnail.
-  const myShareWithLives = liveOnStage && freeLayout.mode !== "free";
+  const myShareWithLives = liveOnStage;
   // Stage and audience exist only once someone is pinned: the stage is who
   // you pinned, the audience everyone else.
   const showLabels = onStage.length > 0;
@@ -416,7 +416,12 @@ export function VoiceStage({
                     ? [{
                         id: LIVES_ITEM,
                         layer: "lives" as const,
-                        node: <div className="free-lives">{children}</div>,
+                        node: (
+                          <div className={`free-lives${myShare ? " with-own" : ""}`}>
+                            {children}
+                            {myShare && <ul className="voice-tiles">{myShare}</ul>}
+                          </div>
+                        ),
                       }]
                     : []),
                   ...onStage.map((p) => ({
@@ -503,7 +508,7 @@ export function VoiceStage({
                     </React.Fragment>
                   ))}
                   {/* In the free layout the stage has no slot for it: it stays here. */}
-                  {freeLayout.mode === "free" && myPinned && myShare}
+                  {freeLayout.mode === "free" && myPinned && !myShareWithLives && myShare}
                 </ul>
               </SortableContext>
             </DndContext>
