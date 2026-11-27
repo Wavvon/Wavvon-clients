@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { VoiceParticipant } from "../../types";
 import { Avatar } from "../Avatar";
@@ -19,9 +19,20 @@ export interface VoiceRoomMapInfo {
   refused?: boolean;
 }
 
-/** How far a voice carries on the map, in map units (the zone's `max_radius`). */
-export const ROOM_MAP_RADIUS = 60;
+/** How a voice carries on the map (0..100 square): full volume within
+ *  `ref_dist`, fading to silence at `max_radius`, so a neighbour a few
+ *  steps away still sounds close and the far corner is quiet. */
+export const ROOM_MAP_ATTENUATION = { model: "step", ref_dist: 25, max_radius: 100, rolloff: 1 } as const;
 const STEP = 5;
+/** The hub refuses position updates closer than 30 ms apart. */
+const DRAG_INTERVAL_MS = 50;
+
+/** Where someone stands on walking in: around the centre, spread by key so
+ *  newcomers do not sit on top of each other. */
+export function arrivalSpot(publicKey: string): [number, number] {
+  const angle = (parseInt(publicKey.slice(0, 4), 16) || 0) / 0x10000 * 2 * Math.PI;
+  return [Math.round(50 + 18 * Math.cos(angle)), Math.round(50 + 18 * Math.sin(angle))];
+}
 
 interface Props {
   room: VoiceRoomMapInfo;
@@ -34,16 +45,59 @@ export function VoiceRoomMap({ room, participants, avatars, publicKey }: Props) 
   const { t } = useTranslation();
   const { zone } = room;
 
+  const mine = publicKey && zone ? zone.positions[publicKey] : undefined;
+  const dragging = useRef(false);
+  const lastSent = useRef(0);
+  const pending = useRef<[number, number] | null>(null);
+  const trailing = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (trailing.current) clearTimeout(trailing.current); }, []);
+
+  // Everyone is on the map from the moment it is on: a member who never
+  // placed themselves would hear everyone at full volume and be invisible.
+  const placedIn = useRef<string | null>(null);
+  const zoneId = zone?.zoneId ?? null;
+  useEffect(() => {
+    if (!zoneId || !publicKey || mine || room.movedBy || placedIn.current === zoneId) return;
+    placedIn.current = zoneId;
+    room.onMove(arrivalSpot(publicKey));
+  }, [zoneId, publicKey, mine, room]);
+
   // Off, the map is one button in the room's dock (VoiceStage).
   if (!zone) return null;
 
-  const mine = publicKey ? zone.positions[publicKey] : undefined;
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
-
-  function handleClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (room.movedBy) return;
+  function at(e: React.PointerEvent<HTMLDivElement>): [number, number] {
     const r = e.currentTarget.getBoundingClientRect();
-    room.onMove([clamp(((e.clientX - r.left) / r.width) * 100), clamp(((e.clientY - r.top) / r.height) * 100)]);
+    return [clamp(((e.clientX - r.left) / r.width) * 100), clamp(((e.clientY - r.top) / r.height) * 100)];
+  }
+  function send(pos: [number, number], force = false) {
+    const now = performance.now();
+    if (!force && now - lastSent.current < DRAG_INTERVAL_MS) {
+      pending.current = pos;
+      // Where the pointer came to rest still goes out, not only on release.
+      trailing.current ??= setTimeout(() => {
+        trailing.current = null;
+        if (pending.current) send(pending.current, true);
+      }, DRAG_INTERVAL_MS);
+      return;
+    }
+    lastSent.current = now;
+    pending.current = null;
+    room.onMove(pos);
+  }
+  function handleDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (room.movedBy) return;
+    dragging.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    send(at(e), true);
+  }
+  function handleMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragging.current) send(at(e));
+  }
+  function handleUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging.current) return;
+    dragging.current = false;
+    send(pending.current ?? at(e), true);
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -78,7 +132,10 @@ export function VoiceRoomMap({ room, participants, avatars, publicKey }: Props) 
         role="application"
         tabIndex={0}
         aria-label={t("voice.room_map.label")}
-        onClick={handleClick}
+        onPointerDown={handleDown}
+        onPointerMove={handleMove}
+        onPointerUp={handleUp}
+        onPointerCancel={handleUp}
         onKeyDown={handleKey}
       >
         {participants.map((p) => {

@@ -126,8 +126,8 @@ describe("computeAttenuation", () => {
     expect(computeAttenuation(10, stepCfg(100, 10))).toBe(1);
   });
 
-  it("step: outside ref_dist but inside max_radius returns 0", () => {
-    expect(computeAttenuation(11, stepCfg(100, 10))).toBe(0);
+  it("step: fades linearly from ref_dist to max_radius, as the desktop does", () => {
+    expect(computeAttenuation(55, stepCfg(100, 10))).toBeCloseTo(0.5);
   });
 
   it("step: beyond max_radius returns 0", () => {

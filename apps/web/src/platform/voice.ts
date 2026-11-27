@@ -41,8 +41,10 @@ export function computeAttenuation(dist: number, cfg: VoiceZoneAttenuation): num
       const d = Math.max(dist, cfg.ref_dist);
       return Math.min(1, (cfg.ref_dist / d) ** 2);
     }
+    // Full volume inside ref_dist, then a linear fade to max_radius
+    // (proximity-voice.md), the same curve as the desktop's.
     case 'step':
-      return dist <= cfg.ref_dist ? 1 : 0;
+      return dist <= cfg.ref_dist ? 1 : 1 - (dist - cfg.ref_dist) / Math.max(cfg.max_radius - cfg.ref_dist, 0.001);
     case 'exponential':
       return Math.exp(-cfg.rolloff * t);
     default:
@@ -555,7 +557,10 @@ export class VoiceSession {
       const manualGainPct = this.savedGains[pubkey] ?? 100;
       const effective = Math.min(200, Math.max(0, manualGainPct * proximityGain));
       const gainNode = this.gainNodes.get(senderId);
-      if (gainNode) gainNode.gain.value = effective / 100;
+      // Glide rather than jump: a dot dragged across the map would otherwise
+      // step the volume at every position update.
+      if (gainNode && this.audioCtx) gainNode.gain.setTargetAtTime(effective / 100, this.audioCtx.currentTime, 0.08);
+      else if (gainNode) gainNode.gain.value = effective / 100;
     }
   }
 

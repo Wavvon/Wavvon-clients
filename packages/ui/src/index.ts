@@ -549,7 +549,7 @@ export { useMuteExpiry } from "./hooks/useMuteExpiry";
 export type { HomeHubStatus } from "./utils/homeHubStatus";
 export { useUnreadCounts } from "./hooks/useUnreadCounts";
 export { useBatchedAnnouncement } from "./hooks/useBatchedAnnouncement";
-export { ROOM_MAP_RADIUS } from "./components/content/VoiceRoomMap";
+export { ROOM_MAP_ATTENUATION } from "./components/content/VoiceRoomMap";
 export type { VoiceRoomMapInfo } from "./components/content/VoiceRoomMap";
 export { useOlderPages, mergeOlderPage, MESSAGE_PAGE_SIZE } from "./hooks/useOlderPages";
 export type { AllianceScrollback } from "./hooks/useAlliances";

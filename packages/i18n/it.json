@@ -1947,7 +1947,7 @@
   "voice.announce.left": "{name} è uscito dalla voce",
   "voice.room_map.disable": "Spegni la mappa della stanza",
   "voice.room_map.enable": "Accendi la mappa della stanza",
-  "voice.room_map.hint": "Clicca sulla mappa, o usa le frecce, per spostarti. Le voci si affievoliscono con la distanza.",
+  "voice.room_map.hint": "Trascinati sulla mappa, o usa le frecce. Vicino senti tutti a pieno volume, poi le voci sfumano con la distanza.",
   "voice.room_map.label": "Mappa della stanza",
   "voice.room_map.place_yourself": "Clicca sulla mappa per metterti da qualche parte. Finché non lo fai, senti tutti a pieno volume.",
   "voice.room_map.moved_by": "{app} ti sta spostando",

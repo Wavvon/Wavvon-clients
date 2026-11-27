@@ -10440,7 +10440,12 @@ details.audit-entry > .audit-entry:last-child {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--bg-sunken);
-  cursor: crosshair;
+  cursor: grab;
+  touch-action: none;
+}
+
+.voice-room-map:active {
+  cursor: grabbing;
 }
 
 .voice-room-map:focus-visible {

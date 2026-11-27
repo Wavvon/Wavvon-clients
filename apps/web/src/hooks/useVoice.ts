@@ -4,7 +4,7 @@ import { activeSession, activeHubSupports, getMyChannelPermissions, fetchSoundbo
 import { raiseHand, lowerHand, grantTalk, listRaisedHands, listVoicePins, pinVoice, unpinVoice } from "../platform/commands/voice";
 import type { MyChannelPermissions } from "@platform";
 import { playSound, playVoiceTone, formatPubkey, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
-import { useBatchedAnnouncement, ROOM_MAP_RADIUS } from "@wavvon/ui";
+import { useBatchedAnnouncement, ROOM_MAP_ATTENUATION } from "@wavvon/ui";
 import i18n from "@wavvon/i18n";
 import type { Channel, VoiceParticipant, MeInfo, SoundboardClip } from "@shared/types";
 import { getScoped, setScoped } from "../utils/accountScope";
@@ -790,7 +790,7 @@ export function useVoice({ publicKey, publicKeyRef, meInfoRef, showHubError, ref
       zone_id: crypto.randomUUID(),
       name: "room",
       coordinate_system: "2d",
-      attenuation: { model: "linear", max_radius: ROOM_MAP_RADIUS },
+      attenuation: ROOM_MAP_ATTENUATION,
       auth_mode: "any_channel_member",
     });
   }

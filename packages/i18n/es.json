@@ -1947,7 +1947,7 @@
   "voice.announce.left": "{name} salió de la voz",
   "voice.room_map.disable": "Apagar el mapa de la sala",
   "voice.room_map.enable": "Encender el mapa de la sala",
-  "voice.room_map.hint": "Haz clic en el mapa, o usa las flechas, para moverte. Las voces se apagan con la distancia.",
+  "voice.room_map.hint": "Arrástrate por el mapa, o usa las flechas. De cerca se oye a pleno volumen y las voces se apagan con la distancia.",
   "voice.room_map.label": "Mapa de la sala",
   "voice.room_map.place_yourself": "Haz clic en el mapa para colocarte. Hasta entonces, oyes a todos a pleno volumen.",
   "voice.room_map.moved_by": "{app} te está moviendo",

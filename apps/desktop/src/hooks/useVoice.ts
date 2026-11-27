@@ -8,7 +8,7 @@ import { listenerScope } from "../utils/listenerScope";
 import { playSound, playVoiceTone, INITIAL_SUB_GATE_STATE, nextSubGateState, createPositionCoalescer, type PositionCoalescer } from "@wavvon/core";
 import i18n from "@wavvon/i18n";
 import type { ScreenShareViewerRef } from "@wavvon/ui";
-import { voiceTransportFailure, ROOM_MAP_RADIUS } from "@wavvon/ui";
+import { voiceTransportFailure, ROOM_MAP_ATTENUATION } from "@wavvon/ui";
 
 interface UseVoiceParams {
   activeHubId: string | null;
@@ -233,7 +233,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
   }, []);
 
   function enableRoomMap() {
-    invoke("voice_room_map_enable", { maxRadius: ROOM_MAP_RADIUS }).catch((e) => setError(String(e)));
+    invoke("voice_room_map_enable", { attenuation: ROOM_MAP_ATTENUATION }).catch((e) => setError(String(e)));
   }
   function disableRoomMap() {
     if (roomZone) invoke("voice_room_map_disable", { zoneId: roomZone.zoneId }).catch((e) => setError(String(e)));

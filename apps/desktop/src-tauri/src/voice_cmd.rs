@@ -750,7 +750,7 @@ fn send_on_voice_socket(state: &AppState, payload: serde_json::Value) -> Result<
 /// The hub checks `channels.manage` for both of these; the client only asks.
 #[tauri::command]
 pub(crate) fn voice_room_map_enable(
-    max_radius: f64,
+    attenuation: serde_json::Value,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     send_on_voice_socket(
@@ -760,7 +760,7 @@ pub(crate) fn voice_room_map_enable(
             "zone_id": crate::dm::random_uuid(),
             "name": "room",
             "coordinate_system": "2d",
-            "attenuation": { "model": "linear", "max_radius": max_radius },
+            "attenuation": attenuation,
             "auth_mode": "any_channel_member",
         }),
     )
