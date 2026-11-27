@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatPubkey, formatRelative } from "@wavvon/core";
-import type { CertAdmissionSettings, CertIssuance } from "../../types";
+import type { CertAdmissionSettings, CertIssuance, CertType } from "../../types";
 import { useConfirm } from "../ConfirmDialog";
 import { SettingRow } from "../SettingRow";
 import { IssuerHubPicker, type IssuerHub } from "../settings/IssuerHubPicker";
+import { CertAdmissionBlock } from "./CertAdmissionBlock";
 
 export interface CertificationsSectionActions {
   listCertIssuances: () => Promise<CertIssuance[]>;
   getCertSettings: () => Promise<CertAdmissionSettings>;
   saveCertSettings: (settings: CertAdmissionSettings) => Promise<void>;
-  issueCertManual: (subjectPubkey: string) => Promise<void>;
+  /** `certType` names a type from this hub's catalogue; absent issues a
+   *  plain standing certificate. */
+  issueCertManual: (subjectPubkey: string, certType?: string) => Promise<void>;
+  /** A hub's catalogue by base URL; no URL reads this hub's own. Used only on
+   *  hubs with certified admission. */
+  listCertTypes: (hubUrl?: string) => Promise<CertType[]>;
+  createCertType: (name: string, description?: string) => Promise<void>;
+  deleteCertType: (id: string) => Promise<void>;
   revokeCert: (subjectPubkey: string) => Promise<void>;
   /** Member-badge grants use a separate hub route from hub-to-hub badges
    *  (ServerTagsSection); omitted where the Tauri command doesn't exist yet.
@@ -46,6 +54,10 @@ export function CertificationsSection({ actions }: Props) {
   const [badgeIcon, setBadgeIcon] = useState("");
   const [badgeStatus, setBadgeStatus] = useState("");
   const [knownHubs, setKnownHubs] = useState<IssuerHub[]>([]);
+  const [ownTypes, setOwnTypes] = useState<CertType[]>([]);
+  const [manualType, setManualType] = useState("");
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypeDesc, setNewTypeDesc] = useState("");
 
   async function load() {
     setLoading(true);
@@ -54,6 +66,8 @@ export function CertificationsSection({ actions }: Props) {
       const [iss, sett] = await Promise.all([actions.listCertIssuances(), actions.getCertSettings()]);
       setIssuances(iss);
       setSettings(sett);
+      // A hub with certified admission answers with `cert_others`.
+      if (sett.cert_others !== undefined) setOwnTypes(await actions.listCertTypes().catch(() => []));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -82,7 +96,7 @@ export function CertificationsSection({ actions }: Props) {
     const target = manualTarget.trim();
     if (!target) return;
     try {
-      await actions.issueCertManual(target);
+      await actions.issueCertManual(target, manualType || undefined);
       setManualTarget("");
       await load();
     } catch (e) {
@@ -122,7 +136,47 @@ export function CertificationsSection({ actions }: Props) {
   if (loading) return <section><p className="muted">{t("hub.admin.certs.loading")}</p></section>;
   if (error || !settings) return <section><h1>{t("hub.admin.certs.title")}</h1><p className="error-text">{error ?? t("hub.admin.certs.load_error")}</p></section>;
 
+  const fastLane = settings.cert_others !== undefined;
   const goodCerts = issuances.filter((i) => i.standing === "good");
+
+  async function addType() {
+    const name = newTypeName.trim();
+    if (!name) return;
+    try {
+      await actions.createCertType(name, newTypeDesc.trim() || undefined);
+      setNewTypeName("");
+      setNewTypeDesc("");
+      setOwnTypes(await actions.listCertTypes());
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function removeType(type: CertType) {
+    if (!(await confirm({
+      title: t("hub.admin.certs.types.delete_confirm", { name: type.name }),
+      confirmLabel: t("hub.admin.certs.types.delete"),
+      danger: true,
+    }))) return;
+    try {
+      await actions.deleteCertType(type.id);
+      setOwnTypes(await actions.listCertTypes());
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  const saveRow = (
+    <div className="settings-row">
+      <button className="btn-primary" onClick={handleSaveSettings} disabled={saveStatus === "saving"}>
+        {saveStatus === "saving" ? t("hub.admin.certs.saving") : t("hub.admin.certs.save")}
+      </button>
+      {saveStatus === "saved" && <span className="muted">{t("hub.admin.certs.saved")}</span>}
+      {saveStatus !== "idle" && saveStatus !== "saving" && saveStatus !== "saved" && (
+        <span className="error-text">{saveStatus}</span>
+      )}
+    </div>
+  );
   const revokedCerts = issuances.filter((i) => i.standing === "revoked");
 
   return (
@@ -131,9 +185,75 @@ export function CertificationsSection({ actions }: Props) {
       <h1>{t("hub.admin.certs.title")}</h1>
       <p className="muted">{t("hub.admin.certs.intro")}</p>
 
-      <SettingRow
+      {fastLane && (
+        <SettingRow
+          title={t("hub.admin.certs.admission.title")}
+          state={settings.cert_trusted_issuers.length + (settings.cert_trusted_types?.length ?? 0) === 0
+            ? t("hub.admin.certs.admission.state_off")
+            : settings.cert_others === "refuse"
+              ? t("hub.admin.certs.admission.state_refuse")
+              : t("hub.admin.certs.admission.state_lobby")}
+          {...row("admission")}
+        >
+          <CertAdmissionBlock
+            settings={settings}
+            onChange={setSettings}
+            knownHubs={knownHubs}
+            lookupHub={actions.lookupHub}
+            listCertTypes={(url) => actions.listCertTypes(url)}
+          />
+          {saveRow}
+        </SettingRow>
+      )}
+
+      {fastLane && (
+        <SettingRow
+          title={t("hub.admin.certs.types.title")}
+          state={ownTypes.length === 0
+            ? t("hub.admin.certs.types.state_none")
+            : t("hub.admin.certs.types.state", { count: ownTypes.length })}
+          {...row("types")}
+        >
+          <p className="muted">{t("hub.admin.certs.types.hint")}</p>
+          {ownTypes.length > 0 && (
+            <ul className="cert-admission-types">
+              {ownTypes.map((ty) => (
+                <li key={ty.id}>
+                  <span><strong>{ty.name}</strong>{ty.description ? <span className="muted"> · {ty.description}</span> : null}</span>
+                  <button type="button" className="btn-small danger" onClick={() => void removeType(ty)}>
+                    {t("hub.admin.certs.types.delete")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
+            <input
+              type="text"
+              value={newTypeName}
+              onChange={(e) => setNewTypeName(e.target.value)}
+              placeholder={t("hub.admin.certs.types.name_placeholder")}
+              aria-label={t("hub.admin.certs.types.name_placeholder")}
+              style={{ flex: 1, minWidth: 160 }}
+            />
+            <input
+              type="text"
+              value={newTypeDesc}
+              onChange={(e) => setNewTypeDesc(e.target.value)}
+              placeholder={t("hub.admin.certs.types.desc_placeholder")}
+              aria-label={t("hub.admin.certs.types.desc_placeholder")}
+              style={{ flex: 2, minWidth: 200 }}
+            />
+            <button className="btn-secondary" onClick={() => void addType()} disabled={!newTypeName.trim()}>
+              {t("hub.admin.certs.types.add")}
+            </button>
+          </div>
+        </SettingRow>
+      )}
+
+      {!fastLane && <SettingRow
         title={t("hub.admin.certs.mode")}
-        state={t(`hub.admin.certs.mode.${settings.cert_mode}`, settings.cert_mode)}
+        state={t(`hub.admin.certs.mode.${settings.cert_mode ?? "none"}`)}
         {...row("mode")}
       >
         <p className="muted">{t("hub.admin.certs.mode_hint")}</p>
@@ -145,9 +265,9 @@ export function CertificationsSection({ actions }: Props) {
           <option value="any">{t("hub.admin.certs.mode.any")}</option>
           <option value="trusted">{t("hub.admin.certs.mode.trusted")}</option>
         </select>
-      </SettingRow>
+      </SettingRow>}
 
-      {settings.cert_mode !== "none" && (
+      {!fastLane && settings.cert_mode !== "none" && (
         <div className="cert-lockout-warning">
           {/* One sentence, one key. The <em> that used to sit on "None" is
               gone: splitting a sentence around emphasis gives a translator
@@ -157,7 +277,7 @@ export function CertificationsSection({ actions }: Props) {
         </div>
       )}
 
-      {settings.cert_mode === "trusted" && (
+      {!fastLane && settings.cert_mode === "trusted" && (
         <div className="settings-section">
           <label className="settings-label">{t("hub.admin.certs.trusted.label")}</label>
           <p className="muted">{t("hub.admin.certs.trusted.hint")}</p>
@@ -273,6 +393,16 @@ export function CertificationsSection({ actions }: Props) {
             placeholder={t("hub.admin.certs.manual.placeholder")}
             style={{ flex: 1 }}
           />
+          {fastLane && ownTypes.length > 0 && (
+            <select
+              aria-label={t("hub.admin.certs.types.pick")}
+              value={manualType}
+              onChange={(e) => setManualType(e.target.value)}
+            >
+              <option value="">{t("hub.admin.certs.types.plain")}</option>
+              {ownTypes.map((ty) => <option key={ty.id} value={ty.id}>{ty.name}</option>)}
+            </select>
+          )}
           <button className="btn-primary" onClick={handleManualIssue} disabled={!manualTarget.trim()}>{t("hub.admin.certs.manual.issue")}</button>
         </div>
       </SettingRow>

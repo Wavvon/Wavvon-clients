@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-cert-types"
+description = "Enables the list_cert_types command without any pre-configured scope."
+commands.allow = ["list_cert_types"]
+
+[[permission]]
+identifier = "deny-list-cert-types"
+description = "Denies the list_cert_types command without any pre-configured scope."
+commands.deny = ["list_cert_types"]

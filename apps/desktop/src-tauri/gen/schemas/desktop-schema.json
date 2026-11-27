@@ -675,6 +675,12 @@
           "markdownDescription": "Enables the create_alliance_invite command without any pre-configured scope."
         },
         {
+          "description": "Enables the create_cert_type command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-cert-type",
+          "markdownDescription": "Enables the create_cert_type command without any pre-configured scope."
+        },
+        {
           "description": "Enables the create_channel command without any pre-configured scope.",
           "type": "string",
           "const": "allow-create-channel",
@@ -739,6 +745,12 @@
           "type": "string",
           "const": "allow-decline-badge",
           "markdownDescription": "Enables the decline_badge command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the delete_cert_type command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-cert-type",
+          "markdownDescription": "Enables the delete_cert_type command without any pre-configured scope."
         },
         {
           "description": "Enables the delete_channel command without any pre-configured scope.",
@@ -1333,6 +1345,12 @@
           "type": "string",
           "const": "allow-list-bans",
           "markdownDescription": "Enables the list_bans command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_cert_types command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-list-cert-types",
+          "markdownDescription": "Enables the list_cert_types command without any pre-configured scope."
         },
         {
           "description": "Enables the list_channel_bans command without any pre-configured scope.",
@@ -2703,6 +2721,12 @@
           "markdownDescription": "Denies the create_alliance_invite command without any pre-configured scope."
         },
         {
+          "description": "Denies the create_cert_type command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-cert-type",
+          "markdownDescription": "Denies the create_cert_type command without any pre-configured scope."
+        },
+        {
           "description": "Denies the create_channel command without any pre-configured scope.",
           "type": "string",
           "const": "deny-create-channel",
@@ -2767,6 +2791,12 @@
           "type": "string",
           "const": "deny-decline-badge",
           "markdownDescription": "Denies the decline_badge command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_cert_type command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-cert-type",
+          "markdownDescription": "Denies the delete_cert_type command without any pre-configured scope."
         },
         {
           "description": "Denies the delete_channel command without any pre-configured scope.",
@@ -3361,6 +3391,12 @@
           "type": "string",
           "const": "deny-list-bans",
           "markdownDescription": "Denies the list_bans command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_cert_types command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-list-cert-types",
+          "markdownDescription": "Denies the list_cert_types command without any pre-configured scope."
         },
         {
           "description": "Denies the list_channel_bans command without any pre-configured scope.",

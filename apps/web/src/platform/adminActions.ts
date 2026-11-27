@@ -21,6 +21,7 @@ import {
   createHubIcon, renameHubIcon, deleteHubIcon,
   getAuditLog,
   listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+  listCertTypes, createCertType, deleteCertType,
   listSoundboardClips, uploadSoundboardClip, deleteSoundboardClip,
   listPendingUsers, approvePendingUser, setLobbySettings, setChallengeSettings,
   getSurveyAdmin, setSurveyAdmin, getSurveyResponses,
@@ -145,6 +146,7 @@ async function listKnownIssuerHubs(): Promise<IssuerHub[]> {
 
 export const certActions = {
   listCertIssuances, getCertSettings, saveCertSettings, issueCertManual, revokeCert, grantUserBadge,
+  listCertTypes, createCertType, deleteCertType,
   listKnownHubs: listKnownIssuerHubs,
   lookupHub: lookupIssuerHub,
 } as CertificationsSectionActions;

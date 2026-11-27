@@ -10964,3 +10964,10 @@ html[data-layout-member-list="hidden"] .user-list-sidebar {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 .hover-tip.below { transform: translate(-50%, 0); }
+
+/* Certified admission (certified-admission.md): two trust lists side by side. */
+.cert-admission { display: flex; flex-direction: column; gap: var(--space-3); }
+.cert-admission-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4); }
+.cert-admission-types { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.cert-admission-types li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 6px 10px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--r-sm); }
+.cert-admission-others { margin: 0; padding: 0; border: none; display: flex; flex-direction: column; gap: var(--space-1); }

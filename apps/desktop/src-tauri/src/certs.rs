@@ -101,37 +101,9 @@ pub(crate) async fn save_cert_settings(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let cert_auto_issue = settings["cert_auto_issue"].as_bool().map(|b| {
-        if b {
-            "true".to_string()
-        } else {
-            "false".to_string()
-        }
-    });
-    let cert_standing_days = settings["cert_min_age_days"]
-        .as_i64()
-        .map(|n| n.to_string());
-    let cert_validity_days = settings["cert_validity_days"]
-        .as_i64()
-        .map(|n| n.to_string());
-    let cert_mode = settings["cert_mode"].as_str().map(|s| s.to_string());
-    let cert_trusted_issuers = settings.get("cert_trusted_issuers").cloned();
-    let mut body = serde_json::Map::new();
-    if let Some(v) = cert_auto_issue {
-        body.insert("cert_auto_issue".into(), v.into());
-    }
-    if let Some(v) = cert_standing_days {
-        body.insert("cert_min_age_days".into(), v.into());
-    }
-    if let Some(v) = cert_validity_days {
-        body.insert("cert_validity_days".into(), v.into());
-    }
-    if let Some(v) = cert_mode {
-        body.insert("cert_mode".into(), v.into());
-    }
-    if let Some(v) = cert_trusted_issuers {
-        body.insert("cert_trusted_issuers".into(), v);
-    }
+    // The settings go through whole, as the web client sends them: picking
+    // fields one by one is how the issuer URLs were dropped here unseen.
+    let body = settings;
     let res = state
         .http_client
         .patch(format!(
@@ -153,20 +125,22 @@ pub(crate) async fn save_cert_settings(
 pub(crate) async fn issue_cert(
     hub_url: String,
     subject_pubkey: String,
+    cert_type: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let token = crate::state::session_for_url(&state, &hub_url)?;
-    let res = state
+    let mut req = state
         .http_client
         .post(format!(
             "{}/admin/certs/{}",
             hub_url.trim_end_matches('/'),
             subject_pubkey
         ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+        .bearer_auth(&token);
+    if let Some(t) = cert_type {
+        req = req.json(&serde_json::json!({ "cert_type": t }));
+    }
+    let res = req.send().await.map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("HTTP {}", res.status()));
     }
@@ -264,4 +238,70 @@ pub(crate) async fn fetch_my_certs(
         }
     }
     Ok(all_certs)
+}
+
+/// A hub's certificate catalogue; public, so any hub's URL works.
+#[tauri::command]
+pub(crate) async fn list_cert_types(
+    hub_url: String,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let res = state
+        .http_client
+        .get(format!("{}/certs/types", hub_url.trim_end_matches('/')))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
+    res.json().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn create_cert_type(
+    hub_url: String,
+    name: String,
+    description: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let res = state
+        .http_client
+        .post(format!(
+            "{}/admin/cert-types",
+            hub_url.trim_end_matches('/')
+        ))
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "name": name, "description": description }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn delete_cert_type(
+    hub_url: String,
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let token = crate::state::session_for_url(&state, &hub_url)?;
+    let res = state
+        .http_client
+        .delete(format!(
+            "{}/admin/cert-types/{id}",
+            hub_url.trim_end_matches('/')
+        ))
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
+    Ok(())
 }
