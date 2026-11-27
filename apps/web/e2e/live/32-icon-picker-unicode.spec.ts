@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openHubAdminSection } from "../helpers/settings";
-import { channelButton, createChannel, expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, hubApi, uniqueName, openRolesAdmin, createRoleInEditor, deleteSelectedRole } from "./helpers/live";
 
 // P32 — icon pickers (role/channel/category/soundboard) are unicode-only.
 // Hub custom emoji are returned as `:name:` shortcodes that only resolve in
@@ -9,13 +8,6 @@ import { channelButton, createChannel, expectInHub, hubApi, uniqueName, confirmI
 
 const PNG_1x1_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
-
-async function openRolesAdmin(page: import("@playwright/test").Page) {
-  await page.locator(".hub-header-button").click();
-  await page.getByRole("button", { name: "Hub settings" }).click();
-  await openHubAdminSection(page, "Roles");
-  await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
-}
 
 test("hub custom emoji appear in the composer but not in icon pickers", async ({ page }) => {
   test.setTimeout(60000);
@@ -45,21 +37,13 @@ test("hub custom emoji appear in the composer but not in icon pickers", async ({
 
   // A role icon picker (unicodeOnly) does NOT — no "This server" section.
   await openRolesAdmin(page);
-  const roleName = uniqueName("Emo");
-  const creator = await openSettingRow(page, "New role");
-  await creator.getByRole("textbox", { name: "Role name" }).fill(roleName);
-  await creator.getByRole("button", { name: "Create role" }).click();
-
-  // The icon picker is part of the form the role's row opens to.
-  const row = await openSettingRow(page, roleName);
-  await row.getByRole("button", { name: "Add reaction" }).click();
+  // A new role opens on Appearance, where the icon picker is.
+  const editor = await createRoleInEditor(page, uniqueName("Emo"));
+  await editor.getByRole("button", { name: "Add reaction" }).click();
   // The picker is open, but with no hub-emoji section.
   await expect(page.getByText("Standard").first()).toBeVisible({ timeout: 10000 });
   await expect(page.getByText("This server")).toHaveCount(0);
 
-  // Cleanup the role.
   await page.keyboard.press("Escape");
-  await row.getByRole("button", { name: "Delete", exact: true }).click();
-  await confirmInApp(page);
-  await expect(row).toBeHidden({ timeout: 10000 });
+  await deleteSelectedRole(page);
 });

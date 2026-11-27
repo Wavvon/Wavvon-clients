@@ -1,16 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { openHubAdminSection } from "../helpers/settings";
-import { expectInHub, hubApi, uniqueName, confirmInApp, openSettingRow, openPermissionSection } from "./helpers/live";
+import { expectInHub, hubApi, uniqueName, openRolesAdmin, createRoleInEditor, saveRole, deleteSelectedRole } from "./helpers/live";
 
-// P13 — create / edit-permissions / delete a role from the web Roles admin
-// tab (previously desktop-only; see docs/client-parity.md).
-
-async function openRolesAdmin(page: import("@playwright/test").Page) {
-  await page.locator(".hub-header-button").click();
-  await page.getByRole("button", { name: "Hub settings" }).click();
-  await openHubAdminSection(page, "Roles");
-  await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
-}
+// P13 — create / edit-permissions / delete a role from the web Roles admin.
 
 type Role = { id: string; name: string; permissions: string[] };
 
@@ -20,33 +11,23 @@ test("create a role with a permission, edit its permissions, then delete it", as
   await openRolesAdmin(page);
 
   const roleName = uniqueName("Mod");
-
-  // Create: open the creator, name it, tick a permission, submit.
-  await openSettingRow(page, "New role");
-  await page.getByRole("textbox", { name: "Role name" }).fill(roleName);
-  await openPermissionSection(page.locator(".setting-row").filter({ has: page.getByRole("button", { name: "Create role" }) }), "Moderation");
-  await page.getByRole("checkbox", { name: "Kick members" }).check();
-  await page.getByRole("button", { name: "Create role" }).click();
-
-  // The role appears in the list, and the hub has it with the permission.
-  // Every role is a settings row now: its permissions and its Delete live in
-  // the form the row opens to, and the roles list is an accordion, so opening
-  // this one closes the creator above it.
-  const row = await openSettingRow(page, roleName);
+  const editor = await createRoleInEditor(page, roleName);
   const findRole = async () =>
     (await hubApi<Role[]>(page, "/roles")).find((r) => r.name === roleName);
+  await expect.poll(async () => (await findRole())?.id).toBeTruthy();
+
+  // Permissions are switches labelled by name and a sentence; edits collect
+  // in the save bar until Save.
+  await editor.getByRole("tab", { name: "Permissions" }).click();
+  await editor.getByRole("switch", { name: /^Kick members/ }).check();
+  await saveRole(page);
   await expect.poll(async () => (await findRole())?.permissions).toContain("moderation.kick");
 
-  await openPermissionSection(row, "Moderation");
-  // Edit permissions: the open row lists them. This checkbox is
-  // server-controlled (flips only after the PATCH round-trips), so click and
-  // poll the API rather than using check()'s immediate assert.
-  await row.getByRole("checkbox", { name: "Ban members permanently" }).click();
+  await editor.getByRole("switch", { name: /^Ban members permanently/ }).check();
+  await saveRole(page);
   await expect.poll(async () => (await findRole())?.permissions).toContain("moderation.ban.permanent");
 
-  // Delete, going through the app's own confirmation.
-  await row.getByRole("button", { name: "Delete", exact: true }).click();
-  await confirmInApp(page);
-  await expect(row).toBeHidden({ timeout: 10000 });
+  await deleteSelectedRole(page);
+  await expect(page.locator(".roles-row-main", { hasText: roleName })).toHaveCount(0);
   await expect.poll(async () => await findRole()).toBeFalsy();
 });

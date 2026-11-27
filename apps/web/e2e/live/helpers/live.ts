@@ -394,3 +394,46 @@ export async function openPermissionSection(scope: Locator, name: string): Promi
   if ((await header.getAttribute("aria-expanded")) !== "true") await header.click();
   await expect(header).toHaveAttribute("aria-expanded", "true");
 }
+
+/** Hub settings, Roles: the list on the left, the selected role's editor on
+ *  the right. */
+export async function openRolesAdmin(page: Page): Promise<void> {
+  await page.locator(".hub-header-button").click();
+  await page.getByRole("button", { name: "Hub settings" }).click();
+  await page.locator(".settings-areas").getByRole("button", { name: "Roles", exact: true }).click();
+  await expect(page.locator(".roles-list-pane")).toBeVisible();
+}
+
+/** Selects `name` in the roles list and returns the editor pane. */
+export async function selectRole(page: Page, name: string): Promise<Locator> {
+  await page.locator(".roles-row-main", { hasText: name }).first().click();
+  const editor = page.locator(".roles-editor");
+  await expect(editor.getByRole("heading", { name, exact: true })).toBeVisible();
+  return editor;
+}
+
+/** "+ New" creates a role at once and opens it on Appearance; this renames it
+ *  and saves, then returns the editor pane. */
+export async function createRoleInEditor(page: Page, name: string): Promise<Locator> {
+  await page.locator(".roles-list-pane").getByRole("button", { name: "+ New" }).click();
+  const editor = page.locator(".roles-editor");
+  await expect(editor.getByRole("tab", { name: "Appearance" })).toHaveAttribute("aria-selected", "true");
+  await editor.getByRole("textbox", { name: "Name" }).fill(name);
+  await saveRole(page);
+  await expect(editor.getByRole("heading", { name, exact: true })).toBeVisible();
+  return editor;
+}
+
+/** Saves the pending edits and waits for the save bar to go away. */
+export async function saveRole(page: Page): Promise<void> {
+  const bar = page.locator(".roles-savebar");
+  await bar.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(bar).toBeHidden({ timeout: 10000 });
+}
+
+/** Deletes the role open in the editor, through the app's confirmation. */
+export async function deleteSelectedRole(page: Page): Promise<void> {
+  await page.locator(".roles-editor-header").getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmInApp(page);
+  await expect(page.locator(".roles-editor")).toBeHidden({ timeout: 10000 });
+}
