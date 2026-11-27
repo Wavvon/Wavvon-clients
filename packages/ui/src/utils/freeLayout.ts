@@ -76,3 +76,19 @@ export function nearestFit(r: Rect, sameLayer: Rect[]): Rect | null {
   }
   return best;
 }
+
+/** A resize pulled over another item: as large as it can get from the same
+ *  corner without overlapping, never smaller than it started; null when even
+ *  `start` no longer fits. */
+export function largestFit(r: Rect, start: Rect, sameLayer: Rect[]): Rect | null {
+  if (fits(r, sameLayer)) return r;
+  let best: Rect | null = null;
+  for (let w = r.w; w >= Math.min(start.w, r.w); w -= 1) {
+    for (let h = r.h; h >= Math.min(start.h, r.h); h -= 1) {
+      if (best && w * h <= best.w * best.h) break;
+      const c = { ...r, w, h };
+      if (fits(c, sameLayer)) { best = c; break; }
+    }
+  }
+  return best;
+}

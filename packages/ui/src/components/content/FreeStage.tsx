@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { clampRect, nearestFit, placeNew, type FreeLayout, type Layer, type Rect } from "../../utils/freeLayout";
+import { clampRect, largestFit, nearestFit, placeNew, type FreeLayout, type Layer, type Rect } from "../../utils/freeLayout";
 
 export interface FreeItem {
   id: string;
@@ -79,9 +79,11 @@ export function FreeStage({ items, layout, onChange }: {
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      // Dropped onto another item of its layer: the nearest free spot, or
-      // back where it was when there is none for that size.
-      const landed = nearestFit(next, sameLayerRects(item.id, item.layer)) ?? start;
+      // Onto another item of its layer: a move lands in the nearest free
+      // spot, a resize stops as large as it can get; back where it was when
+      // neither works.
+      const others = sameLayerRects(item.id, item.layer);
+      const landed = (mode === "move" ? nearestFit(next, others) : largestFit(next, start, others)) ?? start;
       if (el) Object.assign(el.style, { left: `${landed.x}%`, top: `${landed.y}%`, width: `${landed.w}%`, height: `${landed.h}%` });
       onChange({ ...layout, rects: { ...layout.rects, [item.id]: landed } });
     };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampRect, fits, nearestFit, overlaps, placeNew } from "../freeLayout";
+import { clampRect, fits, largestFit, nearestFit, overlaps, placeNew } from "../freeLayout";
 
 describe("free stage layout", () => {
   it("tells overlapping rectangles from touching ones", () => {
@@ -37,5 +37,17 @@ describe("dropping onto another item", () => {
   });
   it("finds nothing when the size fits nowhere", () => {
     expect(nearestFit({ x: 0, y: 0, w: 70, h: 20 }, [other])).toBeNull();
+  });
+});
+
+describe("resizing over another item", () => {
+  const other = { x: 50, y: 0, w: 50, h: 100 };
+  const start = { x: 0, y: 0, w: 30, h: 30 };
+  it("stops at the largest size that does not overlap", () => {
+    expect(largestFit({ x: 0, y: 0, w: 70, h: 60 }, start, [other])).toEqual({ x: 0, y: 0, w: 50, h: 60 });
+  });
+  it("keeps a resize that already fits", () => {
+    const r = { x: 0, y: 0, w: 40, h: 40 };
+    expect(largestFit(r, start, [other])).toBe(r);
   });
 });
