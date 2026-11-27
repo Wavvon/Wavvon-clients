@@ -6,7 +6,7 @@ import { SoundboardBurst } from "../SoundboardBurst";
 import { SelfStateIcon } from "../SortableItems";
 import { PopOutRoom } from "./PopOutRoom";
 import { FreeStage } from "./FreeStage";
-import { LIVES_ITEM, SELF_SHARE_ITEM, loadFreeLayout, saveFreeLayout, type FreeLayout } from "../../utils/freeLayout";
+import { LIVES_ITEM, SELF_SHARE_ITEM, arrange, loadFreeLayout, saveFreeLayout, type FreeLayout, type FreeTools } from "../../utils/freeLayout";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
@@ -156,6 +156,7 @@ export function VoiceStage({
     setFreeLayoutState(next);
     saveFreeLayout(next);
   }
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [stageHeight, setStageHeight] = useState<number | null>(null);
   const roomRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -579,6 +580,36 @@ export function VoiceStage({
                 <LayoutGlyph />
               </button>
             )}
+            {freeLayout.mode === "free" && participants.length > 0 && (
+              <span style={{ position: "relative", display: "inline-flex" }}>
+                <button
+                  type="button"
+                  className={`btn-icon-gear${toolsOpen ? " on" : ""}`}
+                  aria-expanded={toolsOpen}
+                  title={t("voice.stage.tools")}
+                  aria-label={t("voice.stage.tools")}
+                  onClick={() => setToolsOpen((v) => !v)}
+                >
+                  <ToolsGlyph />
+                </button>
+                {toolsOpen && (
+                  <FreeToolsPanel
+                    tools={freeLayout.tools}
+                    onChange={(tools) => setFreeLayout({ ...freeLayout, tools })}
+                    onArrange={() => {
+                      const box = stageRef.current?.getBoundingClientRect();
+                      const ids = [
+                        ...(opened ? [{ id: LIVES_ITEM, layer: "lives" as const }] : []),
+                        ...(myShare ? [{ id: SELF_SHARE_ITEM, layer: "lives" as const }] : []),
+                        ...stagePeople.map((p) => ({ id: p.public_key, layer: "people" as const })),
+                      ];
+                      const ratio = box && box.height > 0 ? box.width / box.height : 16 / 9;
+                      setFreeLayout({ ...freeLayout, rects: { ...freeLayout.rects, ...arrange(ids, freeLayout.tools.liveScale, ratio) } });
+                    }}
+                  />
+                )}
+              </span>
+            )}
             {room && room.canManage && (
               <button
                 type="button"
@@ -626,6 +657,49 @@ function MapGlyph() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
+    </svg>
+  );
+}
+
+/** The free layout's helpers: grid, proportions, guides, and Arrange. */
+function FreeToolsPanel({ tools, onChange, onArrange }: { tools: FreeTools; onChange: (t: FreeTools) => void; onArrange: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="free-tools" role="group" aria-label={t("voice.stage.tools")}>
+      <label>
+        <input type="checkbox" checked={tools.snap} onChange={(e) => onChange({ ...tools, snap: e.target.checked })} />
+        {t("voice.stage.tools.snap")}
+        <select aria-label={t("voice.stage.tools.density")} value={tools.cols} disabled={!tools.snap} onChange={(e) => onChange({ ...tools, cols: Number(e.target.value) })}>
+          {[12, 24, 48].map((n) => <option key={n} value={n}>{t("voice.stage.tools.cols", { count: n })}</option>)}
+        </select>
+      </label>
+      <label>
+        <input type="checkbox" checked={tools.keepRatio} onChange={(e) => onChange({ ...tools, keepRatio: e.target.checked })} />
+        {t("voice.stage.tools.keep_ratio")}
+      </label>
+      <label>
+        <input type="checkbox" checked={tools.guides} onChange={(e) => onChange({ ...tools, guides: e.target.checked })} />
+        {t("voice.stage.tools.guides")}
+      </label>
+      <label>
+        {t("voice.stage.tools.live_scale")}
+        <select value={tools.liveScale} onChange={(e) => onChange({ ...tools, liveScale: Number(e.target.value) })}>
+          {[1, 2, 3].map((n) => <option key={n} value={n}>{t("voice.stage.tools.scale", { n })}</option>)}
+        </select>
+      </label>
+      <button type="button" className="btn-small" onClick={onArrange}>{t("voice.stage.tools.arrange")}</button>
+      <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{t("voice.stage.tools.hint")}</span>
+    </div>
+  );
+}
+
+function ToolsGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="10" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
     </svg>
   );
 }

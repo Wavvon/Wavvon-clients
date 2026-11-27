@@ -2664,5 +2664,15 @@
   "settings.account.identity_backup.error_other": "Could not restore the backup: {error}",
   "settings.account.accounts.rename_label": "Rename {name}",
   "settings.account.accounts.remove_label": "Remove {name} from this device",
-  "settings.account.identity_backup.export_title": "Export {label}"
+  "settings.account.identity_backup.export_title": "Export {label}",
+  "voice.stage.tools": "Layout tools",
+  "voice.stage.tools.snap": "Snap to a grid",
+  "voice.stage.tools.density": "Grid size",
+  "voice.stage.tools.cols": "{count} columns",
+  "voice.stage.tools.keep_ratio": "Keep proportions",
+  "voice.stage.tools.guides": "Magnetic guides",
+  "voice.stage.tools.live_scale": "A live is",
+  "voice.stage.tools.scale": "{n, select, 1 {the same size as a person} other {{n}× a person}}",
+  "voice.stage.tools.arrange": "Arrange",
+  "voice.stage.tools.hint": "Hold Alt to place freely, Shift to flip proportions for one resize. A selected item moves with the arrow keys; Alt+arrows resize it."
 }

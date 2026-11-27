@@ -2664,5 +2664,15 @@
   "settings.account.identity_backup.error_other": "No se pudo restaurar la copia: {error}",
   "settings.account.accounts.rename_label": "Renombrar {name}",
   "settings.account.accounts.remove_label": "Quitar {name} de este dispositivo",
-  "settings.account.identity_backup.export_title": "Exportar {label}"
+  "settings.account.identity_backup.export_title": "Exportar {label}",
+  "voice.stage.tools": "Herramientas de disposición",
+  "voice.stage.tools.snap": "Ajustar a una cuadrícula",
+  "voice.stage.tools.density": "Tamaño de la cuadrícula",
+  "voice.stage.tools.cols": "{count} columnas",
+  "voice.stage.tools.keep_ratio": "Mantener las proporciones",
+  "voice.stage.tools.guides": "Guías magnéticas",
+  "voice.stage.tools.live_scale": "Un directo es",
+  "voice.stage.tools.scale": "{n, select, 1 {del tamaño de una persona} other {{n}× una persona}}",
+  "voice.stage.tools.arrange": "Ordenar",
+  "voice.stage.tools.hint": "Mantén Alt para colocar libremente y Shift para invertir las proporciones en un cambio de tamaño. Un elemento seleccionado se mueve con las flechas; Alt+flechas cambia su tamaño."
 }

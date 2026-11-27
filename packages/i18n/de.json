@@ -2664,5 +2664,15 @@
   "settings.account.identity_backup.error_other": "Sicherung konnte nicht wiederhergestellt werden: {error}",
   "settings.account.accounts.rename_label": "{name} umbenennen",
   "settings.account.accounts.remove_label": "{name} von diesem Gerät entfernen",
-  "settings.account.identity_backup.export_title": "{label} exportieren"
+  "settings.account.identity_backup.export_title": "{label} exportieren",
+  "voice.stage.tools": "Anordnungswerkzeuge",
+  "voice.stage.tools.snap": "An einem Raster ausrichten",
+  "voice.stage.tools.density": "Rastergröße",
+  "voice.stage.tools.cols": "{count} Spalten",
+  "voice.stage.tools.keep_ratio": "Seitenverhältnis beibehalten",
+  "voice.stage.tools.guides": "Magnetische Hilfslinien",
+  "voice.stage.tools.live_scale": "Ein Live ist",
+  "voice.stage.tools.scale": "{n, select, 1 {so groß wie eine Person} other {{n}× eine Person}}",
+  "voice.stage.tools.arrange": "Anordnen",
+  "voice.stage.tools.hint": "Alt gedrückt halten, um frei zu platzieren; Shift kehrt das Seitenverhältnis für eine Größenänderung um. Ein ausgewähltes Element bewegt sich mit den Pfeiltasten, Alt+Pfeile ändern seine Größe."
 }
