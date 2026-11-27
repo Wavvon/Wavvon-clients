@@ -13,6 +13,7 @@ import type { Hub, RoleInfo } from "../types";
 import {
   rolesActions,
   rolesActionsWithOrder,
+  rolesActionsWithEveryoneOrder,
   memberRoleActions,
   serverTagsActions,
   inviteActions,
@@ -125,7 +126,7 @@ export function HubAdminContainer({
       inviteLandingActions={hubCaps.includes("hub.landing") && can("hub.settings") && inviteLandingActions ? inviteLandingActions : undefined}
       hubLanguagesActions={hubCaps.includes("hub.languages") && isAdmin && hubLanguagesActions ? hubLanguagesActions : undefined}
       canManageHubAlliances={canManageHubAlliances}
-      rolesActions={hubCaps.includes("roles.order") ? rolesActionsWithOrder : rolesActions}
+      rolesActions={hubCaps.includes("roles.order.everyone") ? rolesActionsWithEveryoneOrder : hubCaps.includes("roles.order") ? rolesActionsWithOrder : rolesActions}
       memberRoleActions={memberRoleActions}
       serverTagsActions={serverTagsActions}
       inviteActions={inviteActions}

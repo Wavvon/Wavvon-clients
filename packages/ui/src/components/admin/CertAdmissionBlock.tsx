@@ -24,6 +24,7 @@ export function CertAdmissionBlock({ settings, onChange, knownHubs, lookupHub, l
   const [typesByIssuer, setTypesByIssuer] = useState<Record<string, CertType[]>>({});
   const [pickHub, setPickHub] = useState("");
   const [pickType, setPickType] = useState("");
+  const [addingHub, setAddingHub] = useState(false);
 
   const hubs: IssuerHub[] = [
     ...knownHubs,
@@ -67,38 +68,70 @@ export function CertAdmissionBlock({ settings, onChange, knownHubs, lookupHub, l
     setPickType("");
   }
 
+  const initials = (name: string) => name.replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  const trustedHubs = settings.cert_trusted_issuers;
+  const setTrusted = (hub: IssuerHub, on: boolean) => {
+    const nextUrls = { ...urls };
+    if (on && hub.url) nextUrls[hub.pubkey] = hub.url;
+    const issuers = trustedHubs.filter((x) => x !== hub.pubkey);
+    onChange({ ...settings, cert_trusted_issuers: on ? [...issuers, hub.pubkey] : issuers, cert_issuer_urls: nextUrls });
+  };
+
   return (
     <div className="cert-admission">
-      <p className="muted">{t("hub.admin.certs.admission.intro")}</p>
+      <p className="cert-admission-intro">{t("hub.admin.certs.admission.intro")}</p>
 
       <div className="cert-admission-lists">
-        <div>
-          <label className="settings-label">{t("hub.admin.certs.admission.whole")}</label>
+        <div className="cert-admission-box">
+          <h2>{t("hub.admin.certs.admission.whole")}</h2>
           <p className="muted">{t("hub.admin.certs.admission.whole_hint")}</p>
-          <IssuerHubPicker
-            hubs={hubs}
-            trusted={new Set(settings.cert_trusted_issuers)}
-            onToggle={(hub, on) => {
-              const nextUrls = { ...urls };
-              if (on && hub.url) nextUrls[hub.pubkey] = hub.url;
-              const issuers = settings.cert_trusted_issuers.filter((x) => x !== hub.pubkey);
-              onChange({ ...settings, cert_trusted_issuers: on ? [...issuers, hub.pubkey] : issuers, cert_issuer_urls: nextUrls });
-            }}
-            lookupHub={lookupHub}
-          />
-        </div>
-
-        <div>
-          <label className="settings-label">{t("hub.admin.certs.admission.specific")}</label>
-          <p className="muted">{t("hub.admin.certs.admission.specific_hint")}</p>
-          {trustedTypes.length > 0 && (
-            <ul className="cert-admission-types">
-              {trustedTypes.map((tt) => (
-                <li key={`${tt.issuer}:${tt.cert_type}`}>
-                  <span>{hubName(tt.issuer)} › <strong>{typeName(tt.issuer, tt.cert_type)}</strong></span>
+          {trustedHubs.length > 0 && (
+            <ul className="cert-admission-rows">
+              {trustedHubs.map((pk) => (
+                <li key={pk}>
+                  <span className="cert-admission-av" aria-hidden="true">{initials(hubName(pk))}</span>
+                  <span className="cert-admission-what">{hubName(pk)} <span className="member-pk">{formatPubkey(pk)}</span></span>
                   <button
                     type="button"
-                    className="btn-small btn-secondary"
+                    className="btn-secondary btn-small"
+                    aria-label={t("hub.admin.certs.admission.remove_named", { name: hubName(pk) })}
+                    onClick={() => setTrusted(hubs.find((h) => h.pubkey === pk) ?? { pubkey: pk, name: hubName(pk), url: urls[pk] ?? "" }, false)}
+                  >
+                    {t("hub.admin.certs.admission.remove")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {addingHub ? (
+            <div className="cert-admission-add">
+              <IssuerHubPicker
+                hubs={hubs.filter((h) => !trustedHubs.includes(h.pubkey))}
+                trusted={new Set()}
+                onToggle={(hub, on) => { if (on) { setTrusted(hub, true); setAddingHub(false); } }}
+                lookupHub={lookupHub}
+              />
+            </div>
+          ) : (
+            <button type="button" className="cert-admission-add-btn" onClick={() => setAddingHub(true)}>
+              {t("hub.admin.certs.admission.add_hub")}
+            </button>
+          )}
+        </div>
+
+        <div className="cert-admission-box">
+          <h2>{t("hub.admin.certs.admission.specific")}</h2>
+          <p className="muted">{t("hub.admin.certs.admission.specific_hint")}</p>
+          {trustedTypes.length > 0 && (
+            <ul className="cert-admission-rows">
+              {trustedTypes.map((tt) => (
+                <li key={`${tt.issuer}:${tt.cert_type}`}>
+                  <span className="cert-admission-av" aria-hidden="true">{initials(hubName(tt.issuer))}</span>
+                  <span className="cert-admission-what">{hubName(tt.issuer)} <span className="muted">›</span> <strong>{typeName(tt.issuer, tt.cert_type)}</strong></span>
+                  <button
+                    type="button"
+                    className="btn-secondary btn-small"
+                    aria-label={t("hub.admin.certs.admission.remove_named", { name: typeName(tt.issuer, tt.cert_type) })}
                     onClick={() => onChange({ ...settings, cert_trusted_types: trustedTypes.filter((x) => x !== tt) })}
                   >
                     {t("hub.admin.certs.admission.remove")}
@@ -107,7 +140,7 @@ export function CertAdmissionBlock({ settings, onChange, knownHubs, lookupHub, l
               ))}
             </ul>
           )}
-          <div className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
+          <div className="cert-admission-pick">
             <select
               aria-label={t("hub.admin.certs.admission.pick_hub")}
               value={pickHub}
@@ -129,7 +162,7 @@ export function CertAdmissionBlock({ settings, onChange, knownHubs, lookupHub, l
               </option>
               {(typesByIssuer[pickHub] ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
             </select>
-            <button type="button" className="btn-secondary" onClick={addType} disabled={!pickHub || !pickType}>
+            <button type="button" className="btn-secondary btn-small" onClick={addType} disabled={!pickHub || !pickType}>
               {t("hub.admin.certs.admission.add")}
             </button>
           </div>
@@ -137,34 +170,45 @@ export function CertAdmissionBlock({ settings, onChange, knownHubs, lookupHub, l
       </div>
 
       <fieldset className="cert-admission-others">
-        <legend className="settings-label">{t("hub.admin.certs.admission.others")}</legend>
-        <label className="checkbox-label">
+        <legend>{t("hub.admin.certs.admission.others")}</legend>
+        <label className={settings.cert_others !== "refuse" ? "selected" : undefined}>
           <input
             type="radio"
             name="cert-others"
             checked={settings.cert_others !== "refuse"}
             onChange={() => onChange({ ...settings, cert_others: "lobby" })}
           />
-          {t("hub.admin.certs.admission.others_lobby")}
+          <span>
+            <strong>{t("hub.admin.certs.admission.others_lobby_title")}</strong>
+            <span className="muted">{t("hub.admin.certs.admission.others_lobby_desc")}</span>
+          </span>
         </label>
-        <label className="checkbox-label">
+        <label className={settings.cert_others === "refuse" ? "selected" : undefined}>
           <input
             type="radio"
             name="cert-others"
             checked={settings.cert_others === "refuse"}
             onChange={() => onChange({ ...settings, cert_others: "refuse" })}
           />
-          {t("hub.admin.certs.admission.others_refuse")}
+          <span>
+            <strong>{t("hub.admin.certs.admission.others_refuse_title")}</strong>
+            <span className="muted">{t("hub.admin.certs.admission.others_refuse_desc")}</span>
+          </span>
         </label>
       </fieldset>
 
-      <label className="checkbox-label">
+      <label className="roles-perm-row cert-admission-invite">
+        <span className="roles-perm-text">
+          <span>{t("hub.admin.certs.admission.invite_title")}</span>
+          <span className="muted roles-perm-desc">{t("hub.admin.certs.admission.invite_desc")}</span>
+        </span>
         <input
           type="checkbox"
+          role="switch"
+          className="roles-switch"
           checked={!!settings.cert_replaces_invite}
           onChange={(e) => onChange({ ...settings, cert_replaces_invite: e.target.checked })}
         />
-        {t("hub.admin.certs.admission.replaces_invite")}
       </label>
     </div>
   );

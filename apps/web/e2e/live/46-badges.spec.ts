@@ -28,19 +28,23 @@ test("owner defines a badge in the catalogue and grants it; it lands in the memb
     // A hub with the catalogue defines the badge once, then grants it from
     // the badge's own page.
     const badgeName = uniqueName("Raid Leader");
+    await page.getByRole("tab", { name: /^Badges/ }).click();
     await page.getByRole("button", { name: "New badge" }).click();
     const create = page.getByRole("dialog", { name: "New badge" });
     await create.getByLabel("Badge icon").fill("🏆");
-    await create.getByLabel("Badge name").fill(badgeName);
+    await create.getByRole("textbox", { name: "Name", exact: true }).fill(badgeName);
     await create.getByRole("button", { name: "Create", exact: true }).click();
     await expect(create).toBeHidden();
 
     await page.locator(".badge-row-main", { hasText: badgeName }).click();
-    const detail = page.getByRole("dialog", { name: badgeName });
+    // The badge opens in place of the catalogue.
+    const detail = page.locator(".badge-detail");
+    await expect(detail.getByRole("heading", { name: badgeName })).toBeVisible();
+    await detail.getByRole("button", { name: "Grant to…" }).click();
     await detail.getByLabel("Find a member").fill(memberName);
     await detail.getByRole("checkbox", { name: memberName }).check();
     await detail.getByRole("button", { name: "Grant to 1 member" }).click();
-    await expect(detail.locator(".badge-holders")).toContainText(memberName);
+    await expect(detail.locator(".certs-table")).toContainText(memberName);
 
     // The badge (a labelled cert) is now in the member's portfolio.
     await expect

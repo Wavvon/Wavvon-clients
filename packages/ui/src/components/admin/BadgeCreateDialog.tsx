@@ -4,6 +4,7 @@ import type { BadgeDefRequest, BadgeRule, RoleInfo } from "../../types";
 import { useCloseOnEscape } from "../../hooks/useCloseOnEscape";
 import { ruleUnits, toThreshold, type BadgeUnit } from "../../utils/badgeUnits";
 import { FocusTrap } from "../FocusTrap";
+import { CloseIcon } from "../Icons";
 import type { BadgeCatalogueActions } from "./BadgeCatalogueActions";
 
 const RULES: Exclude<BadgeRule, "manual">[] = ["member_age", "online", "messages", "active_days", "voice", "role_held"];
@@ -105,139 +106,162 @@ export function BadgeCreateDialog({ actions, roles, onClose, onCreated }: Props)
 
   const unitLabel = (u: BadgeUnit) => t(`hub.admin.badges.unit.${u === "count" ? rule : u}`);
 
+  const top = request?.levels[request.levels.length - 1];
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={t("hub.admin.badges.create.title")}>
       <FocusTrap>
         <div className="modal badge-dialog" onClick={(e) => e.stopPropagation()}>
-          <h3>{t("hub.admin.badges.create.title")}</h3>
-
-          <div className="badge-dialog-grid">
-            <input
-              type="text"
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              placeholder={t("hub.admin.certs.badge.icon_placeholder")}
-              aria-label={t("hub.admin.certs.badge.icon_aria")}
-              className="badge-icon-input"
-            />
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("hub.admin.certs.badge.name_placeholder")}
-              aria-label={t("hub.admin.certs.badge.name_placeholder")}
-              autoFocus
-            />
+          <div className="badge-dialog-head">
+            <h3>{t("hub.admin.badges.create.title")}</h3>
+            <button type="button" className="btn-ghost" onClick={onClose} aria-label={t("modal.close")}><CloseIcon size={13} /></button>
           </div>
 
-          <fieldset className="badge-kind">
-            <legend>{t("hub.admin.badges.create.kind")}</legend>
-            <label><input type="radio" name="badge-kind" checked={!byRule} onChange={() => setByRule(false)} /> {t("hub.admin.badges.rule.manual")}</label>
-            <label><input type="radio" name="badge-kind" checked={byRule} onChange={() => setByRule(true)} /> {t("hub.admin.badges.create.by_rule")}</label>
-            <p className="muted">{t("hub.admin.badges.create.program_note")}</p>
-          </fieldset>
-
-          {byRule && (
-            <div className="settings-row" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
-              <select aria-label={t("hub.admin.badges.create.rule")} value={rule} onChange={(e) => pickRule(e.target.value as typeof rule)}>
-                {RULES.map((r) => <option key={r} value={r}>{t(`hub.admin.badges.rule.${r}`)}</option>)}
-              </select>
-              {rule === "role_held" && (
-                <select aria-label={t("hub.admin.badges.create.role")} value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-                  <option value="">{t("hub.admin.badges.create.role_pick")}</option>
-                  {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              )}
-            </div>
-          )}
-
-          <h4>{t("hub.admin.badges.levels")}</h4>
-          <ul className="badge-level-editor">
-            {levels.map((l, i) => (
-              <li key={i} className="settings-row">
+          <div className="badge-dialog-cols">
+            <div className="badge-dialog-form">
+              <div className="badge-dialog-name">
                 <input
                   type="text"
-                  value={l.name}
-                  onChange={(e) => updateLevel(i, { name: e.target.value })}
-                  placeholder={t("hub.admin.badges.create.level_name", { n: i + 1 })}
-                  aria-label={t("hub.admin.badges.create.level_name", { n: i + 1 })}
+                  value={icon}
+                  onChange={(e) => setIcon(e.target.value)}
+                  placeholder="🏅"
+                  aria-label={t("hub.admin.certs.badge.icon_aria")}
+                  className="badge-icon-input"
                 />
-                {byRule && (
-                  <>
-                    <input
-                      type="number"
-                      min={1}
-                      value={l.amount}
-                      onChange={(e) => updateLevel(i, { amount: e.target.value })}
-                      aria-label={t("hub.admin.badges.create.level_amount", { n: i + 1 })}
-                      className="badge-amount"
-                    />
-                    {units.length > 1 ? (
-                      <select
-                        aria-label={t("hub.admin.badges.create.level_unit", { n: i + 1 })}
-                        value={l.unit}
-                        onChange={(e) => updateLevel(i, { unit: e.target.value as BadgeUnit })}
-                      >
-                        {units.map((u) => <option key={u} value={u}>{unitLabel(u)}</option>)}
+                <label className="badge-field">
+                  <span>{t("hub.admin.badges.create.name")}</span>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+                </label>
+              </div>
+
+              <fieldset className="badge-kind">
+                <legend>{t("hub.admin.badges.create.kind")}</legend>
+                <div className="badge-kind-cards">
+                  <label className={!byRule ? "selected" : undefined}>
+                    <input type="radio" name="badge-kind" checked={!byRule} onChange={() => setByRule(false)} /> {t("hub.admin.badges.rule.manual")}
+                  </label>
+                  <label className={byRule ? "selected" : undefined}>
+                    <input type="radio" name="badge-kind" checked={byRule} onChange={() => setByRule(true)} /> {t("hub.admin.badges.create.by_rule")}
+                  </label>
+                </div>
+                <p className="muted">{t("hub.admin.badges.create.program_note")}</p>
+              </fieldset>
+
+              {byRule && (
+                <div className="badge-field-row">
+                  <label className="badge-field">
+                    <span>{t("hub.admin.badges.create.rule")}</span>
+                    <select value={rule} onChange={(e) => pickRule(e.target.value as typeof rule)}>
+                      {RULES.map((r) => <option key={r} value={r}>{t(`hub.admin.badges.rule_long.${r}`)}</option>)}
+                    </select>
+                  </label>
+                  {rule === "role_held" && (
+                    <label className="badge-field">
+                      <span>{t("hub.admin.badges.create.role")}</span>
+                      <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+                        <option value="">{t("hub.admin.badges.create.role_pick")}</option>
+                        {roles.filter((r) => !r.id.startsWith("builtin-")).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                       </select>
-                    ) : (
-                      <span className="muted">{unitLabel(units[0])}</span>
-                    )}
-                  </>
-                )}
-                {levels.length > 1 && (
-                  <button
-                    type="button"
-                    className="btn-small"
-                    aria-label={t("hub.admin.badges.create.remove_level", { n: i + 1 })}
-                    onClick={() => setLevels((ls) => ls.filter((_, j) => j !== i))}
-                  >
-                    ×
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setLevels((ls) => [...ls, { name: "", amount: "", unit: ls[ls.length - 1].unit }])}
-          >
-            {t("hub.admin.badges.create.add_level")}
-          </button>
+                    </label>
+                  )}
+                </div>
+              )}
 
-          {byRule && (
-            <fieldset className="badge-kind">
-              <label><input type="radio" name="badge-keep" checked={!keepWhile} onChange={() => setKeepWhile(false)} /> {t("hub.admin.badges.create.keep_good")}</label>
-              <label><input type="radio" name="badge-keep" checked={keepWhile} onChange={() => setKeepWhile(true)} /> {t("hub.admin.badges.create.keep_while")}</label>
-            </fieldset>
-          )}
+              <div className="badge-field">
+                <span>{t("hub.admin.badges.levels")}</span>
+                <ul className="badge-level-editor">
+                  {levels.map((l, i) => (
+                    <li key={i}>
+                      <span className="badge-level-n">{i + 1}</span>
+                      <input
+                        type="text"
+                        value={l.name}
+                        onChange={(e) => updateLevel(i, { name: e.target.value })}
+                        placeholder={name.trim() || t("hub.admin.badges.create.level_name", { n: i + 1 })}
+                        aria-label={t("hub.admin.badges.create.level_name", { n: i + 1 })}
+                      />
+                      {byRule && (
+                        <>
+                          <span className="muted">{t("hub.admin.badges.create.after")}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={l.amount}
+                            onChange={(e) => updateLevel(i, { amount: e.target.value })}
+                            aria-label={t("hub.admin.badges.create.level_amount", { n: i + 1 })}
+                            className="badge-amount"
+                          />
+                          {units.length > 1 ? (
+                            <select
+                              aria-label={t("hub.admin.badges.create.level_unit", { n: i + 1 })}
+                              value={l.unit}
+                              onChange={(e) => updateLevel(i, { unit: e.target.value as BadgeUnit })}
+                            >
+                              {units.map((u) => <option key={u} value={u}>{unitLabel(u)}</option>)}
+                            </select>
+                          ) : (
+                            <span className="muted badge-unit">{unitLabel(units[0])}</span>
+                          )}
+                        </>
+                      )}
+                      {levels.length > 1 && (
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          aria-label={t("hub.admin.badges.create.remove_level", { n: i + 1 })}
+                          onClick={() => setLevels((ls) => ls.filter((_, j) => j !== i))}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className="badge-add-level"
+                  onClick={() => setLevels((ls) => [...ls, { name: "", amount: "", unit: ls[ls.length - 1].unit }])}
+                >
+                  {t("hub.admin.badges.create.add_level")}
+                </button>
+              </div>
 
-          <p className="muted">{t("hub.admin.badges.create.preview")}</p>
-          <div className="badge-level">
-            <span aria-hidden="true">{icon.trim() || "🏅"}</span> {name.trim() || t("hub.admin.certs.badge.name_placeholder")}
-          </div>
-
-          {byRule && request && (
-            <div aria-live="polite" className="muted">
-              {counts === null ? null : awardCount === 0 ? (
-                t("hub.admin.badges.create.retro_none")
-              ) : (
-                <>
-                  <div>{t("hub.admin.badges.create.retro", { count: awardCount })}</div>
-                  <ul>
-                    {request.levels.map((l) => (
-                      <li key={l.level}>{l.name}: {counts[String(l.level)] ?? 0}</li>
-                    ))}
-                  </ul>
-                </>
+              {byRule && (
+                <fieldset className="badge-kind">
+                  <legend>{t("hub.admin.badges.create.once")}</legend>
+                  <label><input type="radio" name="badge-keep" checked={!keepWhile} onChange={() => setKeepWhile(false)} /> {t("hub.admin.badges.create.keep_good")}</label>
+                  <label><input type="radio" name="badge-keep" checked={keepWhile} onChange={() => setKeepWhile(true)} /> {t("hub.admin.badges.create.keep_while")}</label>
+                </fieldset>
               )}
             </div>
-          )}
+
+            <aside className="badge-dialog-side">
+              <div className="badge-preview-card">
+                <span className="muted">{t("hub.admin.badges.create.preview")}</span>
+                <span className="badge-preview-line">
+                  <span className="badge-row-icon" aria-hidden="true">{icon.trim() || "🏅"}</span>
+                  <strong>{top?.name || name.trim() || t("hub.admin.certs.badge.name_placeholder")}</strong>
+                </span>
+              </div>
+              {byRule && request && counts !== null && (
+                <div className="badge-retro-card" aria-live="polite">
+                  <strong>{t("hub.admin.badges.create.retro_title")}</strong>
+                  <span>
+                    {awardCount === 0
+                      ? t("hub.admin.badges.create.retro_none")
+                      : t("hub.admin.badges.create.retro", { count: awardCount })}
+                  </span>
+                  {awardCount > 0 && request.levels.length > 1 && (
+                    <span>{request.levels.map((l) => `${l.name}: ${counts[String(l.level)] ?? 0}`).join(" · ")}</span>
+                  )}
+                </div>
+              )}
+              {levels.length > 1 && <p className="muted">{t("hub.admin.badges.create.one_at_a_time")}</p>}
+            </aside>
+          </div>
 
           {error && <p className="error-text" role="alert">{error}</p>}
-          <div className="confirm-modal-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>{t("modal.cancel")}</button>
+          <div className="badge-dialog-foot">
+            <button type="button" className="btn-ghost" onClick={onClose}>{t("modal.cancel")}</button>
             <button type="button" className="btn-primary" disabled={!request || busy} onClick={() => void submit()}>
               {effective !== "manual" && awardCount > 0
                 ? t("hub.admin.badges.create.confirm_award", { count: awardCount })

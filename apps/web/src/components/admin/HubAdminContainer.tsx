@@ -10,7 +10,7 @@ import { HubAdminPage, RecoveryContactsSection, OutgoingWebhooksSection, Setting
 import type { InviteLandingActions, RecoveryContactsSectionActions } from "@wavvon/ui";
 import type { HubLanding } from "@wavvon/core";
 import {
-  rolesActions, rolesActionsWithOrder, memberRoleActions, serverTagsActions, inviteActions,
+  rolesActions, rolesActionsWithOrder, rolesActionsWithEveryoneOrder, memberRoleActions, serverTagsActions, inviteActions,
   webhookActions, auditLogActions,
   certActions, soundboardActions, onboardingActions, allianceActions,
   hubIconActions, surveyActions, applicationActions,
@@ -175,7 +175,7 @@ export function HubAdminContainer({
           hubAdmin.removeInvite(code);
         }}
         channels={channels}
-        rolesActions={activeHubSupports("roles.order") ? rolesActionsWithOrder : rolesActions}
+        rolesActions={activeHubSupports("roles.order.everyone") ? rolesActionsWithEveryoneOrder : activeHubSupports("roles.order") ? rolesActionsWithOrder : rolesActions}
         memberRoleActions={memberRoleActions}
         serverTagsActions={serverTagsActions}
         inviteActions={inviteActions}

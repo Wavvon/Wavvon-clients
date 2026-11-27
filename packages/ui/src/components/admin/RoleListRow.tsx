@@ -7,14 +7,13 @@ import { LockIcon } from "../Icons";
 
 interface Props {
   role: RoleInfo;
-  count: number;
   selected: boolean;
   onSelect: () => void;
-  /** `sortable` rows carry a drag handle; the rest show a lock when pinned. */
+  /** `sortable` rows carry a drag handle, a pinned one a lock in its place. */
   mode: "sortable" | "plain" | "pinned";
 }
 
-export function RoleListRow({ role, count, selected, onSelect, mode }: Props) {
+export function RoleListRow({ role, selected, onSelect, mode }: Props) {
   const { t } = useTranslation();
   const sortable = useSortable({ id: role.id, disabled: mode !== "sortable" });
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = sortable;
@@ -25,7 +24,7 @@ export function RoleListRow({ role, count, selected, onSelect, mode }: Props) {
       className={`roles-row${selected ? " selected" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
     >
-      {mode === "sortable" && (
+      {mode === "sortable" ? (
         <span
           {...attributes}
           {...listeners}
@@ -35,17 +34,18 @@ export function RoleListRow({ role, count, selected, onSelect, mode }: Props) {
         >
           ⠿
         </span>
+      ) : mode === "pinned" ? (
+        <span className="roles-row-handle fixed" role="img" aria-label={t("hub.admin.roles.pinned")} title={t("hub.admin.roles.pinned")}>
+          <LockIcon size={12} />
+        </span>
+      ) : (
+        <span className="roles-row-handle fixed" aria-hidden="true" />
       )}
       <button type="button" className="roles-row-main" aria-current={selected || undefined} onClick={onSelect}>
         <span className="roles-dot" aria-hidden="true" style={{ background: color ?? "var(--border)" }} />
+        {role.icon && <span className="roles-row-icon" aria-hidden="true">{role.icon}</span>}
         <span className="roles-row-name">{role.name}</span>
-        <span className="muted roles-row-count">{count}</span>
       </button>
-      {mode === "pinned" && (
-        <span className="muted" role="img" aria-label={t("hub.admin.roles.pinned")} title={t("hub.admin.roles.pinned")}>
-          <LockIcon size={12} />
-        </span>
-      )}
     </li>
   );
 }

@@ -1,13 +1,12 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import type { RoleInfo } from "../../types";
 
-const BUILTIN = new Set(["builtin-owner", "builtin-everyone"]);
-
 /** The roles the caller may move, highest first: what `PUT /roles/order`
- *  takes, and nothing it would refuse. */
-export function movableRoles(roles: RoleInfo[], myMaxPriority: number): RoleInfo[] {
+ *  takes, and nothing it would refuse. `everyone` moves only on hubs with
+ *  `roles.order.everyone`. */
+export function movableRoles(roles: RoleInfo[], myMaxPriority: number, everyoneMovable = false): RoleInfo[] {
   return roles
-    .filter((r) => !BUILTIN.has(r.id) && r.priority < myMaxPriority)
+    .filter((r) => r.id !== "builtin-owner" && (everyoneMovable || r.id !== "builtin-everyone") && r.priority < myMaxPriority)
     .sort((a, b) => b.priority - a.priority);
 }
 

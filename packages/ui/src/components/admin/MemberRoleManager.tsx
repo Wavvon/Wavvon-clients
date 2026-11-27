@@ -22,8 +22,8 @@ interface Props {
 
 const FILTER_THRESHOLD = 6;
 
-// Chip list + a "manage roles" popover, for inline role editing in the
-// hub-admin Members table.
+// The member's roles as chips, each removable where the viewer outranks it,
+// and "+ role" opening a filterable list of the roles they may give.
 export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChanged, actions }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -73,7 +73,9 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
       const nextIds = new Set(assigned);
       if (has) nextIds.delete(role.id); else nextIds.add(role.id);
       setAssigned(nextIds);
-      onChanged((allRoles ?? []).filter((r) => nextIds.has(r.id)));
+      // From the roles the member is shown with, so a chip removed before the
+      // list of all roles ever loaded does not take the others with it.
+      onChanged(has ? currentRoles.filter((r) => r.id !== role.id) : [...currentRoles, role]);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -89,20 +91,32 @@ export function MemberRoleManager({ pubkey, currentRoles, myMaxPriority, onChang
 
   return (
     <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-      {currentRoles.length === 0 ? (
-        <span className="muted">—</span>
-      ) : (
-        currentRoles.map((r) => {
+      {currentRoles
+        .filter((r) => r.id !== "builtin-everyone")
+        .map((r) => {
           const color = safeRoleColor(r.color);
+          const removable = r.id !== "builtin-owner" && r.priority < myMaxPriority;
           return (
-            <span key={r.id} className="role-chip" style={color ? { borderColor: color, color } : undefined}>
+            <span key={r.id} className="member-role-chip">
+              <span className="roles-dot" aria-hidden="true" style={{ background: color ?? "var(--border-strong)" }} />
               {r.name}
+              {removable && (
+                <button
+                  type="button"
+                  className="member-role-chip-x"
+                  disabled={busyRole === r.id}
+                  onClick={() => void toggle(r)}
+                  aria-label={t("hub.admin.members.remove_role", { name: r.name })}
+                  title={t("hub.admin.members.remove_role", { name: r.name })}
+                >
+                  ×
+                </button>
+              )}
             </span>
           );
-        })
-      )}
-      <button type="button" className="btn-small btn-secondary" onClick={() => setOpen((v) => !v)}>
-        {t("hub.admin.members.manage_roles")}
+        })}
+      <button type="button" className="member-role-add" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        {t("hub.admin.members.add_role")}
       </button>
       {open && (
         <div

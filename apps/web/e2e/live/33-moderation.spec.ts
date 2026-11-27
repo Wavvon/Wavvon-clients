@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openHubAdminSection } from "../helpers/settings";
-import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, openSettingRow, settingRow, uniqueName } from "./helpers/live";
+import { channelButton, createChannel, expectInHub, hubApi, newMemberPage, uniqueName } from "./helpers/live";
 
 // P33 — ban a member from the right-click menu. The client used to POST to
 // /admin/bans (and DELETE /admin/members/... for kick, /admin/members/../mute
@@ -62,16 +62,18 @@ test("hub admin says what a mute and a kick did", async ({ page, browser }) => {
   const { context } = await newMemberPage(browser, memberName);
   try {
     await openAdminTab(page, "Members");
-    const row = await openSettingRow(page, memberName);
+    // A member row says who they are; Manage opens its roles and actions.
+    const row = page.locator(".member-admin-row", { hasText: memberName });
+    await row.getByRole("button", { name: "Manage", exact: true }).click();
 
     await row.getByRole("button", { name: "Mute", exact: true }).click();
     await expect(page.getByText(`${memberName} is muted.`)).toBeVisible({ timeout: 10000 });
-    await expect(row.locator(".setting-row-state")).toContainText("muted");
+    await expect(row.locator(".member-admin-meta")).toContainText("muted");
     await expect(row.getByRole("button", { name: "Unmute", exact: true })).toBeVisible();
 
     await row.getByRole("button", { name: "Kick", exact: true }).click();
     await expect(page.getByText(`${memberName} was kicked.`)).toBeVisible({ timeout: 10000 });
-    await expect(settingRow(page, memberName)).toHaveCount(0);
+    await expect(row).toHaveCount(0);
   } finally {
     await context.close();
   }

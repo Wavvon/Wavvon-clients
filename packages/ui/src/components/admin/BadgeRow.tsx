@@ -20,22 +20,30 @@ export function BadgeRow({ def, programName, onOpen, onToggleHidden, onDelete }:
       <button type="button" className="badge-row-main" onClick={onOpen}>
         <span className="badge-row-icon" aria-hidden="true">{def.icon || "🏅"}</span>
         <span className="badge-row-body">
-          <strong>{def.name}</strong>
-          {def.hidden && <span className="muted"> · {t("hub.admin.badges.hidden")}</span>}
+          <span className="badge-row-name">
+            {def.name}
+            {def.hidden && <span className="muted"> · {t("hub.admin.badges.hidden")}</span>}
+          </span>
           <span className="muted badge-row-rule"><BadgeRuleText def={def} programName={programName} /></span>
+        </span>
+        {def.levels.length > 1 ? (
           <span className="badge-levels" role="list" aria-label={t("hub.admin.badges.levels")}>
             {def.levels.map((l, i) => {
               const n = def.holders[String(l.level)] ?? 0;
               return (
                 <Fragment key={l.level}>
                   {i > 0 && <span className="badge-level-sep" aria-hidden="true">›</span>}
-                  <span role="listitem" className={`badge-level${n === 0 ? " empty" : ""}`}>{l.name} · {n}</span>
+                  <span role="listitem" className={`badge-level${n === 0 ? " empty" : ""}`}>
+                    <b>{l.name}</b><i>{n}</i>
+                  </span>
                 </Fragment>
               );
             })}
           </span>
-        </span>
-        <span className="badge-row-total muted">{t("hub.admin.badges.total", { count: total })}</span>
+        ) : (
+          <span className="badge-levels muted">{t("hub.admin.badges.single_level")}</span>
+        )}
+        <span className="badge-row-total" title={t("hub.admin.badges.total", { count: total })}>{total}</span>
       </button>
       <div className="badge-row-menu">
         <button

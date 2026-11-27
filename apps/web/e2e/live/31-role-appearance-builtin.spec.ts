@@ -11,11 +11,10 @@ test("built-in roles hide appearance controls; custom roles keep them", async ({
   await expectInHub(page);
   await openRolesAdmin(page);
 
-  // Built-in roles have no Appearance tab at all.
-  for (const name of ["everyone", "Owner"]) {
-    const editor = await selectRole(page, name);
-    await expect(editor.getByRole("tab", { name: "Appearance" })).toHaveCount(0);
-  }
+  // everyone has no Appearance tab; the owner role is not listed at all.
+  const everyone = await selectRole(page, "everyone");
+  await expect(everyone.getByRole("tab", { name: "Appearance" })).toHaveCount(0);
+  await expect(page.locator(".roles-row-main", { hasText: /^Owner$/ })).toHaveCount(0);
 
   // A custom role has one, with the colour swatches.
   const editor = await createRoleInEditor(page, uniqueName("Trim"));

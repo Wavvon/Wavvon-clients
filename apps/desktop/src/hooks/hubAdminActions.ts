@@ -103,6 +103,7 @@ export const rolesActions: RolesSectionActions = {
 };
 
 export const rolesActionsWithOrder: RolesSectionActions = { ...rolesActions, reorderRoles };
+export const rolesActionsWithEveryoneOrder: RolesSectionActions = { ...rolesActionsWithOrder, everyoneMovable: true };
 
 export const memberRoleActions: MemberRoleManagerActions = {
   listRoles: () => invoke<RoleInfo[]>("list_roles"),
