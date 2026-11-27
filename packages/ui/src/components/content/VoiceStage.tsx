@@ -6,7 +6,7 @@ import { SoundboardBurst } from "../SoundboardBurst";
 import { SelfStateIcon } from "../SortableItems";
 import { PopOutRoom } from "./PopOutRoom";
 import { FreeStage } from "./FreeStage";
-import { LIVES_ITEM, loadFreeLayout, saveFreeLayout, type FreeLayout } from "../../utils/freeLayout";
+import { LIVES_ITEM, SELF_SHARE_ITEM, loadFreeLayout, saveFreeLayout, type FreeLayout } from "../../utils/freeLayout";
 import { LiveTray, type VoiceLive } from "./LiveTray";
 import { VoiceRoomMap, type VoiceRoomMapInfo } from "./VoiceRoomMap";
 import { setVoiceBarSlot } from "../../utils/voiceBarSlot";
@@ -227,16 +227,12 @@ export function VoiceStage({
     setAudienceOrder(arrayMove(ids, from, to));
   }
   const opened = !!live && live.opened.size > 0;
-  const liveOnStage = opened;
-  // Your share is a tile beside yours; once lives are on the stage it joins
-  // them there, or the audience strip would shrink it to a thumbnail.
-  const myShareWithLives = liveOnStage;
+  // Any stream open, yours included, brings the stage up: each one is its own
+  // item there, and the audience shrinks to a strip under them.
+  const liveOnStage = opened || !!selfShare;
   // Stage and audience exist only once someone is pinned: the stage is who
   // you pinned, the audience everyone else.
   const showLabels = onStage.length > 0;
-  // Your share travels with your tile: beside it in the room, on the stage
-  // when you are pinned.
-  const myPinned = !!publicKey && pins.includes(publicKey);
   const myShare = selfShare ? (
     <SelfShareTile
       stream={selfShare.stream}
@@ -416,12 +412,14 @@ export function VoiceStage({
                     ? [{
                         id: LIVES_ITEM,
                         layer: "lives" as const,
-                        node: (
-                          <div className={`free-lives${myShare ? " with-own" : ""}`}>
-                            {children}
-                            {myShare && <ul className="voice-tiles">{myShare}</ul>}
-                          </div>
-                        ),
+                        node: <div className="free-lives">{children}</div>,
+                      }]
+                    : []),
+                  ...(myShare
+                    ? [{
+                        id: SELF_SHARE_ITEM,
+                        layer: "lives" as const,
+                        node: <ul className="voice-tiles free-lives">{myShare}</ul>,
                       }]
                     : []),
                   ...onStage.map((p) => ({
@@ -433,8 +431,8 @@ export function VoiceStage({
               />
             ) : (<>
             {liveOnStage && (
-              <div className={`voice-stage-lives${myShare ? " with-own" : ""}`}>
-                {children}
+              <div className={`voice-stage-lives${opened && myShare ? " with-own" : ""}`}>
+                {opened && children}
                 {myShare && <ul className="voice-tiles">{myShare}</ul>}
               </div>
             )}
@@ -447,7 +445,6 @@ export function VoiceStage({
                         <SortableStageTile id={p.public_key}>
                           {(handle) => personTile(p, 96, handle)}
                         </SortableStageTile>
-                        {p.public_key === publicKey && !myShareWithLives && myShare}
                       </React.Fragment>
                     ))}
                   </ul>
@@ -504,11 +501,8 @@ export function VoiceStage({
                       <SortableStageTile id={p.public_key}>
                         {(handle) => personTile(p, tileAvatar, handle)}
                       </SortableStageTile>
-                      {p.public_key === publicKey && !myShareWithLives && myShare}
                     </React.Fragment>
                   ))}
-                  {/* In the free layout the stage has no slot for it: it stays here. */}
-                  {freeLayout.mode === "free" && myPinned && !myShareWithLives && myShare}
                 </ul>
               </SortableContext>
             </DndContext>

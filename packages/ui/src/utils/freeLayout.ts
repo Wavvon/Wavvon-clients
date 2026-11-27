@@ -15,6 +15,8 @@ export interface FreeLayout {
 
 const KEY = "wavvon:voice-stage-free";
 export const LIVES_ITEM = "__lives";
+/** Your own share: its own item, so it moves apart from the lives you watch. */
+export const SELF_SHARE_ITEM = "__self_share";
 
 export function loadFreeLayout(): FreeLayout {
   try {

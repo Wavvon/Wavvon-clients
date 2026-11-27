@@ -2960,19 +2960,7 @@ body:has(.channel-banner) #root {
   max-height: none;
   height: 100%;
 }
-.free-lives.with-own {
-  flex-direction: row;
-  gap: 12px;
-}
-.free-lives > .screen-share-panel,
-.free-lives > .voice-tiles {
-  flex: 1;
-  min-width: 0;
-}
-.free-lives > .voice-tiles {
-  display: flex;
-}
-.free-lives > .voice-tiles > .voice-self-share {
+.voice-tiles.free-lives > .voice-self-share {
   flex: 1;
   height: 100%;
 }
@@ -3336,8 +3324,10 @@ body:has(.channel-banner) #root {
   flex: 1;
   min-height: 0;
 }
+/* Yours and the ones you watch side by side, each its own frame. */
 .voice-stage-lives.with-own {
   flex-direction: row;
+  gap: 16px;
 }
 .voice-stage-lives > .voice-tiles {
   display: flex;
