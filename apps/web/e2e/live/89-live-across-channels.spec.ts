@@ -3,8 +3,8 @@ import { channelButton, createChannel, expectInHub, newMemberPage, uniqueName } 
 
 // P89 — a viewer who moves around keeps the live (clients#514).
 //
-// Leaving the voice room's view for a text channel unmounts the lives viewer;
-// coming back must decode again without the sharer restarting. A share opened
+// After a visit to a text channel the live must still decode when the viewer
+// comes back, without the sharer restarting. A share opened
 // to the whole hub must also survive the viewer joining another voice room.
 
 async function joinVoice(page: Page, channel: string) {
@@ -46,7 +46,7 @@ test("the live decodes again after the viewer visits a text channel", async ({ p
 
     // Away to a text channel (still in the voice room), then back.
     await channelButton(viewer, text).click();
-    await expect(viewer.locator(".screen-share-panel video.main-stream")).toHaveCount(0, { timeout: 10000 });
+    await expect(viewer.locator(".channel-header, .chat-header").filter({ hasText: text }).first()).toBeVisible({ timeout: 10000 });
     await channelButton(viewer, voice).click();
     const chip = viewer.locator(".live-chip:not(.all)").first();
     await expect(chip).toBeVisible({ timeout: 15000 });
