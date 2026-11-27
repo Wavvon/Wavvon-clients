@@ -2624,7 +2624,6 @@
   "voice.stage.layout_grid": "Raster",
   "voice.stage.top_lives": "Livestreams oben",
   "voice.stage.top_people": "Personen oben",
-  "voice.stage.free_no_room": "{count, plural, one {# Kachel hat} other {# Kacheln haben}} keinen Platz auf der Bühne: verschiebe oder verkleinere eine, um Platz zu machen",
   "hubs.search_everywhere": "Überall suchen",
   "hubs.in_voice": "● im Sprachkanal",
   "hubs.messages_ago": "{count, plural, one {# Nachricht} other {# Nachrichten}} · {ago}",

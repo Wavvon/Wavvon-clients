@@ -2624,7 +2624,6 @@
   "voice.stage.layout_grid": "Cuadrícula",
   "voice.stage.top_lives": "Directos encima",
   "voice.stage.top_people": "Personas encima",
-  "voice.stage.free_no_room": "{count, plural, one {# recuadro no tiene} other {# recuadros no tienen}} sitio en el escenario: mueve o reduce uno para hacer hueco",
   "hubs.search_everywhere": "Buscar en todo",
   "hubs.in_voice": "● en voz",
   "hubs.messages_ago": "{count, plural, one {# mensaje} other {# mensajes}} · {ago}",

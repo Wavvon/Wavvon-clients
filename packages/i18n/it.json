@@ -2624,7 +2624,6 @@
   "voice.stage.layout_grid": "Griglia",
   "voice.stage.top_lives": "Live sopra",
   "voice.stage.top_people": "Persone sopra",
-  "voice.stage.free_no_room": "{count, plural, one {# riquadro non ha} other {# riquadri non hanno}} spazio sul palco: sposta o rimpicciolisci un riquadro per fargli posto",
   "hubs.search_everywhere": "Cerca ovunque",
   "hubs.in_voice": "● in voce",
   "hubs.messages_ago": "{count, plural, one {# messaggio} other {# messaggi}} · {ago}",

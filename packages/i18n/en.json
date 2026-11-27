@@ -2624,7 +2624,6 @@
   "voice.stage.layout_grid": "Grid",
   "voice.stage.top_lives": "Lives on top",
   "voice.stage.top_people": "People on top",
-  "voice.stage.free_no_room": "{count, plural, one {# tile has} other {# tiles have}} no room on the stage: move or shrink one to make space",
   "hubs.search_everywhere": "Search everywhere",
   "hubs.in_voice": "● in voice",
   "hubs.messages_ago": "{count, plural, one {# message} other {# messages}} · {ago}",
