@@ -23,7 +23,11 @@ test("discover and watch a screen share from another channel", async ({ page, br
   await channelButton(page, shareChan).dblclick();
   await expect(page.locator(".voice-status-room").first()).toHaveText(`${shareChan}`, { timeout: 15000 });
   await page.getByRole("button", { name: "Share screen" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Share", exact: true }).click();
+  // A share is the voice room's alone unless the sharer opens it to the hub
+  // (`screenshare.audience`); only then does it reach the live list.
+  const shareDialog = page.getByRole("dialog");
+  await shareDialog.getByRole("radio", { name: "Anyone in the hub, from the live list" }).check();
+  await shareDialog.getByRole("button", { name: "Share", exact: true }).click();
 
   await expect(page.locator(".voice-self-share")).toBeVisible({ timeout: 20000 });
 

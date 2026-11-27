@@ -32,12 +32,16 @@ interface Props {
    *  ordinary bearer code while the admin believes they named somebody —
    *  which is the one failure the feature exists to prevent. */
   supportsBoundInvites?: boolean;
+  /** `invites.customcode`: the creator may choose the code. */
+  supportsCustomInviteCode?: boolean;
+  /** Resolves when created; rejects with the hub's reason (a taken code). */
   onCreateInvite: (
     maxUses: number | null,
     expiresInSeconds: number | null,
     grantRoleId: string | null,
     boundPubkey: string | null,
-  ) => void;
+    code?: string | null,
+  ) => void | Promise<void>;
   onRevokeInvite: (code: string) => void;
   actions: InviteManagerActions;
 }
@@ -55,6 +59,8 @@ export function InviteManager(props: Props) {
   const [inviteExpiry, setInviteExpiry] = useState("");
   const [grantRoleId, setGrantRoleId] = useState("");
   const [boundPubkey, setBoundPubkey] = useState("");
+  const [customCode, setCustomCode] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const [defaultRoleId, setDefaultRoleId] = useState("");
   const [defaultRoleStatus, setDefaultRoleStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -105,15 +111,25 @@ export function InviteManager(props: Props) {
   // The hub's own rule (routes/invites.rs::create_invite). Mirrored here so a
   // typo is caught beside the field rather than as a 400 after the click.
   const boundLooksWrong = bound.length > 0 && !/^[0-9a-f]{64}$/i.test(bound);
+  // The hub's rule for a chosen code, mirrored so a typo shows beside the field.
+  const code = customCode.trim().toLowerCase();
+  const codeLooksWrong = code.length > 0 && !/^[a-z0-9_-]{3,32}$/.test(code);
 
-  function handleCreate() {
-    props.onCreateInvite(
-      forcesSingleUse ? 1 : (inviteMaxUses ? Number(inviteMaxUses) : null),
-      adminCapped ? ADMIN_GRANT_DEFAULT_EXPIRY_SECS : (inviteExpiry ? Number(inviteExpiry) : null),
-      grantRoleId || null,
-      bound || null,
-    );
-    setBoundPubkey("");
+  async function handleCreate() {
+    setCreateError(null);
+    try {
+      await props.onCreateInvite(
+        forcesSingleUse ? 1 : (inviteMaxUses ? Number(inviteMaxUses) : null),
+        adminCapped ? ADMIN_GRANT_DEFAULT_EXPIRY_SECS : (inviteExpiry ? Number(inviteExpiry) : null),
+        grantRoleId || null,
+        bound || null,
+        code || null,
+      );
+      setBoundPubkey("");
+      setCustomCode("");
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   async function handleSaveDefaultRole() {
@@ -197,11 +213,31 @@ export function InviteManager(props: Props) {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <button className="btn-primary" onClick={handleCreate} disabled={boundLooksWrong || badNumbers}>
+          <button className="btn-primary" onClick={() => void handleCreate()} disabled={boundLooksWrong || codeLooksWrong || badNumbers}>
             {t("invites.create.submit")}
           </button>
         </div>
         {badNumbers && <p className="error-text">{t("invites.create.positive_hint")}</p>}
+        {createError && <p className="error-text" role="alert">{createError}</p>}
+        {props.supportsCustomInviteCode && (
+          <div className="settings-section">
+            <label className="settings-label" htmlFor="invite-custom-code">
+              {t("invites.create.code_label")}
+            </label>
+            <input
+              id="invite-custom-code"
+              type="text"
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value)}
+              placeholder={t("invites.create.code_placeholder")}
+              style={{ width: "100%", fontFamily: "var(--font-mono)" }}
+            />
+            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+              {t("invites.create.code_hint")}
+            </p>
+            {codeLooksWrong && <p className="error-text">{t("invites.create.code_invalid")}</p>}
+          </div>
+        )}
         {props.supportsBoundInvites && (
           <div className="settings-section">
             <label className="settings-label" htmlFor="invite-bound-pubkey">

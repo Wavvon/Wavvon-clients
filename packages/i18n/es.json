@@ -2763,5 +2763,12 @@
   "hub.admin.roles.cat.confirm_yes": "Eliminar",
   "hub.admin.roles.cat.confirm_no": "Cancelar",
   "hub.admin.roles.perm.badges.programs": "Crear insignias desde un programa",
-  "hub.admin.roles.perm_desc.badges.programs": "Un programa gestionado por este rol puede definir sus propias insignias y otorgarlas con sus propias reglas."
+  "hub.admin.roles.perm_desc.badges.programs": "Un programa gestionado por este rol puede definir sus propias insignias y otorgarlas con sus propias reglas.",
+  "invites.create.code_label": "Código personalizado (opcional)",
+  "invites.create.code_placeholder": "p. ej. noche-de-juegos",
+  "invites.create.code_hint": "De 3 a 32 letras, cifras, - o _. Mayúsculas y minúsculas son iguales. Vacío para un código aleatorio.",
+  "invites.create.code_invalid": "Usa de 3 a 32 letras, cifras, - o _.",
+  "voice.screen_share.picker.audience": "Quién puede verlo",
+  "voice.screen_share.picker.audience_room": "Solo quien está en esta sala de voz",
+  "voice.screen_share.picker.audience_hub": "Todo el hub, desde la lista de directos"
 }

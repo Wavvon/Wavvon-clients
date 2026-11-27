@@ -1204,19 +1204,26 @@ pub(crate) async fn create_invite(
     max_uses: Option<i64>,
     expires_in_seconds: Option<i64>,
     grant_role_id: Option<String>,
+    bound_pubkey: Option<String>,
+    code: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<InviteInfo, String> {
     let (hub_url, token) = active_session(&state)?;
     let client = state.http_client.clone();
+    let mut body = serde_json::json!({
+        "max_uses": max_uses,
+        "expires_in_seconds": expires_in_seconds,
+        "grant_role_id": grant_role_id,
+        "bound_pubkey": bound_pubkey,
+    });
+    if let Some(c) = code {
+        body["code"] = c.into();
+    }
     crate::http::send_json(
         client
             .post(format!("{hub_url}/invites"))
             .bearer_auth(&token)
-            .json(&serde_json::json!({
-                "max_uses": max_uses,
-                "expires_in_seconds": expires_in_seconds,
-                "grant_role_id": grant_role_id,
-            })),
+            .json(&body),
     )
     .await
 }

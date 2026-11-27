@@ -2763,5 +2763,12 @@
   "hub.admin.roles.cat.confirm_yes": "Elimina",
   "hub.admin.roles.cat.confirm_no": "Annulla",
   "hub.admin.roles.perm.badges.programs": "Creare badge da un programma",
-  "hub.admin.roles.perm_desc.badges.programs": "Un programma gestito da questo ruolo può definire i propri badge e assegnarli con le proprie regole."
+  "hub.admin.roles.perm_desc.badges.programs": "Un programma gestito da questo ruolo può definire i propri badge e assegnarli con le proprie regole.",
+  "invites.create.code_label": "Codice personalizzato (facoltativo)",
+  "invites.create.code_placeholder": "es. serata-giochi",
+  "invites.create.code_hint": "Da 3 a 32 lettere, cifre, - o _. Maiuscole e minuscole sono uguali. Vuoto per un codice casuale.",
+  "invites.create.code_invalid": "Usa da 3 a 32 lettere, cifre, - o _.",
+  "voice.screen_share.picker.audience": "Chi può guardare",
+  "voice.screen_share.picker.audience_room": "Solo chi è in questa stanza vocale",
+  "voice.screen_share.picker.audience_hub": "Tutto l'hub, dall'elenco dei live"
 }

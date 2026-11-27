@@ -1143,6 +1143,7 @@ export default function App({ initialView }: AppProps = {}) {
       {screenShare.shareDialogFor && (
         <ShareDialog
           loadLimits={screenShare.loadStreamLimits}
+          audienceChoice={activeHubSupports("screenshare.audience")}
           onStart={(q) => void screenShare.handleShareChosen(q)}
           onCancel={() => screenShare.setShareDialogFor(null)}
         />
