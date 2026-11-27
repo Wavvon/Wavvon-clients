@@ -15,7 +15,24 @@ interface UseScreenShareParams {
 // renders opened streams, so on a hub without `screenshare.onrequest` the
 // chunks of a closed live are dropped here instead of at the hub.
 export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareParams) {
-  const screenShareViewerRef = useRef<ScreenShareViewerRef | null>(null);
+  // A viewer that mounts again (the stage switching layout, the member coming
+  // back to the room) starts new MediaSources that have not seen the stream's
+  // init segment, and shows black. Subscribing again makes the hub replay it
+  // with the last keyframe, as it does for a late viewer.
+  const screenShareViewerRef = useMemo(() => {
+    let current: ScreenShareViewerRef | null = null;
+    let mountedBefore = false;
+    return {
+      get current() { return current; },
+      set current(next: ScreenShareViewerRef | null) {
+        const remount = next !== null && current === null && mountedBefore;
+        current = next;
+        if (next) mountedBefore = true;
+        if (remount) queueMicrotask(() => resyncRef.current());
+      },
+    };
+  }, []);
+  const resyncRef = useRef<() => void>(() => {});
   const [liveStreams, setLiveStreams] = useState<(ActiveStream & { channel_id: string })[]>([]);
   const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
   // Opened, by stream id, with the channel the subscribe names.
@@ -114,6 +131,16 @@ export function useScreenShare({ activeHubIdRef, showHubError }: UseScreenShareP
     }
     for (const id of sent.current) if (!openedIds.has(id)) sent.current.delete(id);
   }, [openedIds]);
+
+  // Only streams already subscribed: one opened just now is subscribed by the
+  // effect above, and a second subscribe would replay it twice.
+  resyncRef.current = () => {
+    for (const id of sent.current) {
+      const channelId = requested.current.get(id);
+      if (!channelId) continue;
+      try { activeSession().ws?.subscribeStream(channelId, id); } catch { /* ws not ready */ }
+    }
+  };
 
   function resubscribeStreams() {
     for (const [id, channelId] of requested.current) {
