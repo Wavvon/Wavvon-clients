@@ -1057,3 +1057,44 @@ export interface OutgoingWebhookDelivery {
   success: boolean;
   error_msg: string | null;
 }
+
+export type BadgeRule = "manual" | "member_age" | "online" | "messages" | "active_days" | "voice" | "role_held";
+
+export interface BadgeLevel {
+  level: number;
+  name: string;
+  /** Seconds for member_age, online, voice and role_held; a count for messages and active_days. */
+  threshold: number;
+}
+
+export interface BadgeDef {
+  id: string;
+  name: string;
+  icon?: string | null;
+  description?: string | null;
+  rule: string;
+  role_id?: string | null;
+  keep_while: boolean;
+  program_pubkey?: string | null;
+  declared_rule?: string | null;
+  hidden: boolean;
+  levels: BadgeLevel[];
+  /** Members per level number. */
+  holders: Record<string, number>;
+}
+
+export interface BadgeDefRequest {
+  name: string;
+  icon?: string;
+  description?: string;
+  rule: BadgeRule;
+  role_id?: string;
+  keep_while?: boolean;
+  levels: BadgeLevel[];
+}
+
+export interface BadgeAward {
+  subject_pubkey: string;
+  level: number;
+  awarded_at: number;
+}

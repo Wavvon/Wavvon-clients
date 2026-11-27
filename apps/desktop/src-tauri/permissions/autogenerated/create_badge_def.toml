@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-badge-def"
+description = "Enables the create_badge_def command without any pre-configured scope."
+commands.allow = ["create_badge_def"]
+
+[[permission]]
+identifier = "deny-create-badge-def"
+description = "Denies the create_badge_def command without any pre-configured scope."
+commands.deny = ["create_badge_def"]

@@ -33,6 +33,8 @@ import type {
   CertIssuance,
   CertAdmissionSettings,
   CertType,
+  BadgeDef,
+  BadgeAward,
   Alliance,
   AllianceInvite,
   PendingAllianceInvite,
@@ -225,6 +227,16 @@ export function makeCertActions(getHubUrl: () => string): CertificationsSectionA
     revokeCert: (subjectPubkey) => invoke("revoke_cert", { hubUrl: getHubUrl(), subjectPubkey }),
     grantUserBadge: (subjectPubkey, label) =>
       invoke("grant_user_badge", { hubUrl: getHubUrl(), subjectPubkey, label }),
+    badgeCatalogue: {
+      listBadgeDefs: () => invoke<BadgeDef[]>("list_badge_defs", { hubUrl: getHubUrl() }),
+      previewBadgeDef: (request) => invoke<Record<string, number>>("preview_badge_def", { hubUrl: getHubUrl(), request }),
+      createBadgeDef: (request) => invoke<BadgeDef>("create_badge_def", { hubUrl: getHubUrl(), request }),
+      setBadgeDefHidden: (id, hidden) => invoke("set_badge_def_hidden", { hubUrl: getHubUrl(), id, hidden }),
+      deleteBadgeDef: (id) => invoke("delete_badge_def", { hubUrl: getHubUrl(), id }),
+      listBadgeAwards: (id) => invoke<BadgeAward[]>("list_badge_awards", { hubUrl: getHubUrl(), id }),
+      grantBadgeDef: (id, subjects, level) => invoke("grant_badge_def", { hubUrl: getHubUrl(), id, subjects, level: level ?? null }),
+      revokeBadgeAward: (id, pubkey) => invoke("revoke_badge_award", { hubUrl: getHubUrl(), id, pubkey }),
+    },
     listKnownHubs: async () => {
       const hubs = await invoke<Hub[]>("list_hubs");
       const alliances = await invoke<Alliance[]>("list_alliances").catch(() => [] as Alliance[]);

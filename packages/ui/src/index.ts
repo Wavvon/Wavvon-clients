@@ -423,6 +423,7 @@ export { AuditLogSection, normalizeAuditPage } from "./components/admin/AuditLog
 export type { AuditLogSectionActions, AuditLogQuery } from "./components/admin/AuditLogSection";
 export { CertificationsSection } from "./components/admin/CertificationsSection";
 export type { CertificationsSectionActions } from "./components/admin/CertificationsSection";
+export type { BadgeCatalogueActions } from "./components/admin/BadgeCatalogueActions";
 
 // ---------------------------------------------------------------------------
 // Settings: ProfileTab / ProfileEditorSection + TABS skeleton (settings-ia.md
@@ -510,6 +511,11 @@ export type {
   CertIssuance,
   CertAdmissionSettings,
   CertType,
+  BadgeDef,
+  BadgeDefRequest,
+  BadgeAward,
+  BadgeRule,
+  BadgeLevel,
   TrustedCertType,
   ChallengeMode,
   ChallengeDifficulty,

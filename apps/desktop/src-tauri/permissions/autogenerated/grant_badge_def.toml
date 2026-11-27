@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-grant-badge-def"
+description = "Enables the grant_badge_def command without any pre-configured scope."
+commands.allow = ["grant_badge_def"]
+
+[[permission]]
+identifier = "deny-grant-badge-def"
+description = "Denies the grant_badge_def command without any pre-configured scope."
+commands.deny = ["grant_badge_def"]

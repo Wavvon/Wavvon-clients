@@ -675,6 +675,12 @@
           "markdownDescription": "Enables the create_alliance_invite command without any pre-configured scope."
         },
         {
+          "description": "Enables the create_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-badge-def",
+          "markdownDescription": "Enables the create_badge_def command without any pre-configured scope."
+        },
+        {
           "description": "Enables the create_cert_type command without any pre-configured scope.",
           "type": "string",
           "const": "allow-create-cert-type",
@@ -745,6 +751,12 @@
           "type": "string",
           "const": "allow-decline-badge",
           "markdownDescription": "Enables the decline_badge command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the delete_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-badge-def",
+          "markdownDescription": "Enables the delete_badge_def command without any pre-configured scope."
         },
         {
           "description": "Enables the delete_cert_type command without any pre-configured scope.",
@@ -1233,6 +1245,12 @@
           "markdownDescription": "Enables the grant_badge command without any pre-configured scope."
         },
         {
+          "description": "Enables the grant_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-grant-badge-def",
+          "markdownDescription": "Enables the grant_badge_def command without any pre-configured scope."
+        },
+        {
           "description": "Enables the grant_user_badge command without any pre-configured scope.",
           "type": "string",
           "const": "allow-grant-user-badge",
@@ -1333,6 +1351,18 @@
           "type": "string",
           "const": "allow-list-audio-devices",
           "markdownDescription": "Enables the list_audio_devices command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_badge_awards command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-list-badge-awards",
+          "markdownDescription": "Enables the list_badge_awards command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_badge_defs command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-list-badge-defs",
+          "markdownDescription": "Enables the list_badge_defs command without any pre-configured scope."
         },
         {
           "description": "Enables the list_badges command without any pre-configured scope.",
@@ -1659,6 +1689,12 @@
           "markdownDescription": "Enables the poll_pairing_status command without any pre-configured scope."
         },
         {
+          "description": "Enables the preview_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-preview-badge-def",
+          "markdownDescription": "Enables the preview_badge_def command without any pre-configured scope."
+        },
+        {
           "description": "Enables the preview_hub_info command without any pre-configured scope.",
           "type": "string",
           "const": "allow-preview-hub-info",
@@ -1807,6 +1843,12 @@
           "type": "string",
           "const": "allow-review-report",
           "markdownDescription": "Enables the review_report command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the revoke_badge_award command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-revoke-badge-award",
+          "markdownDescription": "Enables the revoke_badge_award command without any pre-configured scope."
         },
         {
           "description": "Enables the revoke_cert command without any pre-configured scope.",
@@ -1969,6 +2011,12 @@
           "type": "string",
           "const": "allow-set-active-hub",
           "markdownDescription": "Enables the set_active_hub command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_badge_def_hidden command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-badge-def-hidden",
+          "markdownDescription": "Enables the set_badge_def_hidden command without any pre-configured scope."
         },
         {
           "description": "Enables the set_banlist_publish command without any pre-configured scope.",
@@ -2715,6 +2763,12 @@
           "markdownDescription": "Denies the create_alliance_invite command without any pre-configured scope."
         },
         {
+          "description": "Denies the create_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-badge-def",
+          "markdownDescription": "Denies the create_badge_def command without any pre-configured scope."
+        },
+        {
           "description": "Denies the create_cert_type command without any pre-configured scope.",
           "type": "string",
           "const": "deny-create-cert-type",
@@ -2785,6 +2839,12 @@
           "type": "string",
           "const": "deny-decline-badge",
           "markdownDescription": "Denies the decline_badge command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-badge-def",
+          "markdownDescription": "Denies the delete_badge_def command without any pre-configured scope."
         },
         {
           "description": "Denies the delete_cert_type command without any pre-configured scope.",
@@ -3273,6 +3333,12 @@
           "markdownDescription": "Denies the grant_badge command without any pre-configured scope."
         },
         {
+          "description": "Denies the grant_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-grant-badge-def",
+          "markdownDescription": "Denies the grant_badge_def command without any pre-configured scope."
+        },
+        {
           "description": "Denies the grant_user_badge command without any pre-configured scope.",
           "type": "string",
           "const": "deny-grant-user-badge",
@@ -3373,6 +3439,18 @@
           "type": "string",
           "const": "deny-list-audio-devices",
           "markdownDescription": "Denies the list_audio_devices command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_badge_awards command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-list-badge-awards",
+          "markdownDescription": "Denies the list_badge_awards command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_badge_defs command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-list-badge-defs",
+          "markdownDescription": "Denies the list_badge_defs command without any pre-configured scope."
         },
         {
           "description": "Denies the list_badges command without any pre-configured scope.",
@@ -3693,6 +3771,12 @@
           "markdownDescription": "Denies the poll_pairing_status command without any pre-configured scope."
         },
         {
+          "description": "Denies the preview_badge_def command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-preview-badge-def",
+          "markdownDescription": "Denies the preview_badge_def command without any pre-configured scope."
+        },
+        {
           "description": "Denies the preview_hub_info command without any pre-configured scope.",
           "type": "string",
           "const": "deny-preview-hub-info",
@@ -3841,6 +3925,12 @@
           "type": "string",
           "const": "deny-review-report",
           "markdownDescription": "Denies the review_report command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the revoke_badge_award command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-revoke-badge-award",
+          "markdownDescription": "Denies the revoke_badge_award command without any pre-configured scope."
         },
         {
           "description": "Denies the revoke_cert command without any pre-configured scope.",
@@ -4003,6 +4093,12 @@
           "type": "string",
           "const": "deny-set-active-hub",
           "markdownDescription": "Denies the set_active_hub command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_badge_def_hidden command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-badge-def-hidden",
+          "markdownDescription": "Denies the set_badge_def_hidden command without any pre-configured scope."
         },
         {
           "description": "Denies the set_banlist_publish command without any pre-configured scope.",
