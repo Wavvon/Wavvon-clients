@@ -16,7 +16,6 @@ interface Props {
   messages: Message[];
   searchResults: Message[] | null;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   publicKey: string | null;
   myDisplayName: string | null;
   myRoles: RoleInfo[];
@@ -91,7 +90,6 @@ export function ChannelMessageList({
   messages,
   searchResults,
   blockedUsers,
-  ignoredUsers,
   publicKey,
   myDisplayName,
   myRoles,
@@ -250,7 +248,6 @@ export function ChannelMessageList({
             myRoles={myRoles}
             users={users}
             knownDisplayNames={knownDisplayNames}
-            ignoredUsers={ignoredUsers}
             editingMessageId={editingMessageId}
             editingDraft={editingDraft}
             focusedMessageIndex={focusedMessageIndex}

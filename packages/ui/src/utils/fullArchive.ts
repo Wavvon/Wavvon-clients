@@ -32,7 +32,6 @@ export interface ArchiveHub {
 export interface LocalPrefsSnapshot {
   hub_list: ArchiveHub[];
   theme: string;
-  ignored_users: string[];
   /** Percent, 100 = unchanged. */
   voice_gains: Record<string, number>;
   mention_ping_enabled: boolean;
@@ -113,8 +112,7 @@ export function parseArchiveDocument(json: string): ArchiveDocument {
     !d.drafts ||
     typeof d.drafts !== "object" ||
     !prefs ||
-    !Array.isArray(prefs.hub_list) ||
-    !Array.isArray(prefs.ignored_users)
+    !Array.isArray(prefs.hub_list)
   ) {
     throw new Error("malformed_archive");
   }
@@ -126,7 +124,6 @@ export interface ExistingAccountSnapshot {
   drafts: Record<string, string>;
   themeNames: string[];
   languageNames: string[];
-  ignoredUsers: string[];
   voiceGains: Record<string, number>;
   hasMentionPingSetting: boolean;
 }
@@ -147,8 +144,6 @@ export interface RestoreSummary {
   themesSkipped: number;
   languagesRestored: number;
   languagesSkipped: number;
-  ignoredUsersRestored: number;
-  ignoredUsersSkipped: number;
   voiceGainsRestored: number;
   voiceGainsSkipped: number;
   mentionPingRestored: boolean;
@@ -163,7 +158,6 @@ export interface RestorePlan {
   drafts: Record<string, string>;
   newThemes: RestoredTheme[];
   newLanguages: RestoredLanguage[];
-  ignoredUsers: string[];
   voiceGains: Record<string, number>;
   mentionPingEnabled: boolean | null;
   summary: RestoreSummary;
@@ -186,9 +180,6 @@ export function planRestore(
   const archivedLanguages = archive.languages ?? [];
   const newLanguages = newPackages(archivedLanguages, existing.languageNames, idFactory, "Restored language");
 
-  const ignored = new Set(existing.ignoredUsers);
-  const newIgnored = archive.prefs.ignored_users.filter((u) => !ignored.has(u) && ignored.add(u));
-
   const mentionPingRestored = !existing.hasMentionPingSetting;
   const dmMessages = archive.dms.reduce((sum, c) => sum + c.messages.length, 0);
 
@@ -209,7 +200,6 @@ export function planRestore(
     drafts: drafts.merged,
     newThemes,
     newLanguages,
-    ignoredUsers: [...existing.ignoredUsers, ...newIgnored],
     voiceGains: voiceGains.merged,
     mentionPingEnabled: mentionPingRestored ? archive.prefs.mention_ping_enabled : null,
     summary: {
@@ -221,8 +211,6 @@ export function planRestore(
       themesSkipped: archive.themes.length - newThemes.length,
       languagesRestored: newLanguages.length,
       languagesSkipped: archivedLanguages.length - newLanguages.length,
-      ignoredUsersRestored: newIgnored.length,
-      ignoredUsersSkipped: archive.prefs.ignored_users.length - newIgnored.length,
       voiceGainsRestored: voiceGains.added,
       voiceGainsSkipped: voiceGains.skipped,
       mentionPingRestored,
@@ -268,9 +256,9 @@ function mergeRecord<T>(existing: { [key: string]: T }, incoming: { [key: string
 }
 
 export function totalRestored(s: RestoreSummary): number {
-  return s.hubsRestored + s.draftsRestored + s.themesRestored + s.languagesRestored + s.ignoredUsersRestored + s.voiceGainsRestored + (s.mentionPingRestored ? 1 : 0);
+  return s.hubsRestored + s.draftsRestored + s.themesRestored + s.languagesRestored + s.voiceGainsRestored + (s.mentionPingRestored ? 1 : 0);
 }
 
 export function totalSkipped(s: RestoreSummary): number {
-  return s.hubsSkipped + s.draftsSkipped + s.themesSkipped + s.languagesSkipped + s.ignoredUsersSkipped + s.voiceGainsSkipped + (s.mentionPingSkipped ? 1 : 0);
+  return s.hubsSkipped + s.draftsSkipped + s.themesSkipped + s.languagesSkipped + s.voiceGainsSkipped + (s.mentionPingSkipped ? 1 : 0);
 }

@@ -1,7 +1,7 @@
 import type { SettingsTab } from "@components/settings/SettingsPage";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useConfirm, useUnreadCounts, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel, ApplicationPreview } from "@wavvon/ui";
+import { useConfirm, useUnreadCounts, useNoticeToast, NoticeToast, ClockIcon, HubRefusedPanel, AdmissionChallenge, ApplicationPanel, ApplicationPreview } from "@wavvon/ui";
 import { useNotificationPrefs } from "./hooks/useNotificationPrefs";
 import { useRemoveHubConfirm } from "./hooks/useRemoveHubConfirm";
 import { useTypingIndicators } from "./hooks/useTypingIndicators";
@@ -25,7 +25,7 @@ import { useHubLifecycle } from "./hooks/useHubLifecycle";
 import { useChannelMessages } from "./hooks/useChannelMessages";
 import { useAppKeybinds } from "./hooks/useAppKeybinds";
 import { useIdentityBackup } from "./hooks/useIdentityBackup";
-import { useBlockIgnore } from "./hooks/useBlockIgnore";
+import { useBlockedUsers } from "./hooks/useBlockedUsers";
 import { useHubErrorToast } from "./hooks/useHubErrorToast";
 import { useMeProfile } from "./hooks/useMeProfile";
 import { useHubRestore } from "./hooks/useHubRestore";
@@ -138,6 +138,7 @@ export default function App({ initialView }: AppProps = {}) {
   const { t, i18n } = useTranslation();
   const { confirm: confirmReinstalled, dialog: reinstalledDialog } = useConfirm();
   const { hubErrorToast, showHubError } = useHubErrorToast();
+  const { notice, showNotice, dismissNotice } = useNoticeToast();
 
   // A saved hub that came back under a key its old one never endorsed was
   // reinstalled: the platform layer forgot it without signing in. Say so once,
@@ -318,7 +319,7 @@ export default function App({ initialView }: AppProps = {}) {
   const notifyPrefs = useNotificationPrefs();
   const saved = useSavedList((due) => {
     for (const s of due) {
-      showHubError(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
+      showNotice(t("remind.toast", { excerpt: s.deleted ? t("saved.deleted") : s.excerpt.slice(0, 80) }));
       notifyReminder(s, t("remind.notification_title", { where: s.channel_name ? `#${s.channel_name}` : s.hub_name ?? "" }), (x) => openSavedRef.current(x));
     }
   });
@@ -358,9 +359,7 @@ export default function App({ initialView }: AppProps = {}) {
     for (const u of users) m[u.public_key] = u.display_name ?? null;
     return m;
   }, [users]);
-  const { blockedUsers, setBlockedUsers, ignoredUsers, toggleBlockUser, toggleIgnoreUser } = useBlockIgnore(showHubError);
-  // Blocked or ignored, someone is not heard in voice and plays no soundboard clip at you.
-  const silencedUsers = useMemo(() => new Set([...blockedUsers, ...ignoredUsers]), [blockedUsers, ignoredUsers]);
+  const { blockedUsers, setBlockedUsers, toggleBlockUser } = useBlockedUsers(showHubError);
   // Applied while that hub is open: by default in the hub build, after the
   // user opts in on the user build and desktop (useThemes hubThemesDefault).
   useActiveHubTheme(activeHubId, settingsProfile.themes.setHubTheme);
@@ -455,7 +454,7 @@ export default function App({ initialView }: AppProps = {}) {
     clearVoiceChannelNameHint: () => {},
   });
   const voice = useVoice({
-    publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef: voiceExtRef, silencedUsers,
+    publicKey, publicKeyRef, meInfoRef, showHubError, refetchChannels, extRef: voiceExtRef, silencedUsers: blockedUsers,
   });
   const video = useVideo({ voiceChannelId: voice.voiceChannelId, showHubError, publicKeyRef });
   const voiceMoveUx = useVoiceMoveUx({ joinVoice: voice.handleVoiceJoin, isInVoice: voice.isInOrJoiningVoice });
@@ -524,7 +523,7 @@ export default function App({ initialView }: AppProps = {}) {
     () => publicKeyRef.current,
   );
   const { receiveTyping, pingTyping, pingDmTyping } = typingIndicators;
-  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips(voice.selfDeafened, silencedUsers);
+  const { chipsByChannel: soundboardChipsByChannel, receiveSoundboardPlayed } = useSoundboardChips(voice.selfDeafened, blockedUsers);
   const cameras = useMemo(() => {
     const m = new Map(video.remoteVideoStreams);
     if (publicKey && video.localVideoStream) m.set(publicKey, video.localVideoStream);
@@ -781,7 +780,7 @@ export default function App({ initialView }: AppProps = {}) {
       publishDhKey().catch(() => {});
     }
     const hubName = hubsRef.current.find((h) => h.hub_id === hubId)?.hub_name ?? t("app.the_hub");
-    showHubError(t("lobby.welcome", { hub: hubName }));
+    showNotice(t("lobby.welcome", { hub: hubName }));
   }
 
   // === Hub management ===
@@ -973,11 +972,10 @@ export default function App({ initialView }: AppProps = {}) {
     dm: (user) => handleStartConversation(user.public_key),
     addFriend: (user) => {
       void sendFriendRequest(user.public_key)
-        .then(() => showHubError(`Friend request sent to ${user.display_name ?? user.public_key.slice(0, 8)}`))
+        .then(() => showNotice(`Friend request sent to ${user.display_name ?? user.public_key.slice(0, 8)}`))
         .catch((e) => showHubError(`Failed to send friend request: ${e}`));
     },
     toggleBlock: toggleBlockUser,
-    toggleIgnore: toggleIgnoreUser,
     fetchMemberHistory,
   };
 
@@ -1063,6 +1061,8 @@ export default function App({ initialView }: AppProps = {}) {
         </div>
       )}
 
+      {notice && <NoticeToast notice={notice} onDismiss={dismissNotice} />}
+
       {voiceMoveUx.voiceMoveToast && (
         <VoiceMoveToast
           channelName={voiceMoveUx.voiceMoveToast.channelName}
@@ -1136,7 +1136,7 @@ export default function App({ initialView }: AppProps = {}) {
         <FriendsModal
           actions={{ listFriends, listPendingFriendRequests, sendFriendRequest, acceptFriendRequest, removeFriend }}
           onClose={() => setShowFriends(false)}
-          onToast={(msg) => showHubError(msg)}
+          onToast={(msg) => showNotice(msg)}
         />
       )}
 
@@ -1176,12 +1176,10 @@ export default function App({ initialView }: AppProps = {}) {
         hubs={hubs}
         publicKey={publicKey}
         blockedUsers={blockedUsers}
-        ignoredUsers={ignoredUsers}
         knownNames={pubkeyToName}
         inVoice={voice.voiceChannelId !== null}
         onHubProfileSaved={handleHubProfileSaved}
         onUnblock={toggleBlockUser}
-        onUnignore={toggleIgnoreUser}
       />
 
       {userContextMenu && (
@@ -1192,11 +1190,11 @@ export default function App({ initialView }: AppProps = {}) {
           canManageRoles={canManageRoles}
           myMaxPriority={myMaxPriority}
           blockedUsers={blockedUsers}
-          ignoredUsers={ignoredUsers}
           position={userContextMenu.position}
           actions={userContextMenuActions}
           onClose={() => setUserContextMenu(null)}
-          onToast={(msg) => showHubError(msg)}
+          onToast={showNotice}
+          onError={showHubError}
           onRolesChanged={() => {
             fetchAllUsers().then(setUsers).catch(() => {});
           }}
@@ -1422,7 +1420,6 @@ export default function App({ initialView }: AppProps = {}) {
           users={users}
           publicKey={publicKey}
           blockedUsers={blockedUsers}
-          ignoredUsers={ignoredUsers}
           knownDisplayNames={knownDisplayNames}
           myDisplayName={meInfo?.display_name ?? null}
           isAdmin={isAdmin}
@@ -1435,6 +1432,7 @@ export default function App({ initialView }: AppProps = {}) {
             setUserContextMenu({ user: menu.user, position: { x: menu.x, y: menu.y } });
           }}
           onToast={showHubError}
+          onNotice={showNotice}
           slashCommands={slashCommands}
           canMoveMembers={canMoveMembers}
           onMoveMember={handleMoveMember}

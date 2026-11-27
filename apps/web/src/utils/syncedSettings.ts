@@ -36,7 +36,6 @@ export const SYNCED_KEYS: SyncedKey[] = [
   { key: "wavvon.mentionPing", scoped: true },
   { key: "wavvon.voiceSounds", scoped: true },
   { key: "wavvon.presence", scoped: true },
-  { key: "wavvon.ignoredUsers", scoped: true },
   { key: "wavvon.voice_gains", scoped: true },
   { key: "wavvon.notifyMode.hub", scoped: true },
   { key: "wavvon.notifyMode.channel", scoped: true },

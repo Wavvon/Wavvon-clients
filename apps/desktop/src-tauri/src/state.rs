@@ -77,7 +77,7 @@ impl ConnStats {
 }
 
 pub(crate) struct AppState {
-    /// Blocked and ignored public keys: the voice pipeline drops their
+    /// Blocked public keys: the voice pipeline drops their
     /// audio. Outlives voice sessions, so a call joined later starts silenced.
     pub voice_silenced: std::sync::Arc<std::sync::RwLock<HashSet<String>>>,
     /// Live hub sessions keyed by hub_id (the hub's public_key).

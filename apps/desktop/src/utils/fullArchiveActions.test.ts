@@ -28,7 +28,7 @@ function opened() {
   return {
     account_id: "acct-1",
     was_first_account: false,
-    existing: { hub_list: [{ hub_id: "kept", hub_name: "Kept", hub_url: "https://kept" }], ignored_users: [], voice_gains: {} },
+    existing: { hub_list: [{ hub_id: "kept", hub_name: "Kept", hub_url: "https://kept" }], voice_gains: {} },
     archive: {
       version: 1,
       kind: "full-archive",
@@ -38,7 +38,6 @@ function opened() {
       prefs: {
         hub_list: [{ hub_id: "new", hub_name: "New", hub_url: "https://new" }],
         theme: "dark",
-        ignored_users: ["peer"],
         voice_gains: { peer: 150 },
         mention_ping_enabled: false,
         hub_synced: null,
@@ -71,7 +70,6 @@ describe("desktop full-archive restore", () => {
           { hub_id: "kept", hub_name: "Kept", hub_url: "https://kept" },
           { hub_id: "new", hub_name: "New", hub_url: "https://new" },
         ],
-        ignored_users: ["peer"],
         voice_gains: { peer: 150 },
       },
     });

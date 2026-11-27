@@ -40,7 +40,7 @@ export function userSettingsLayout(t: (key: string) => string, accountsAttention
       { id: "about", label: t("settings.tabs.about"), area: "app" },
       { id: "accounts", label: t("settings.tabs.accounts"), area: "account", keywords: [t("settings.account.identity_backup.label"), t("settings.security.recovery.label"), t("settings.account.home_hubs.label"), t("settings.account.full_archive.label"), t("settings.account.local_data.label")], attention: accountsAttention },
       { id: "devices", label: t("settings.tabs.devices"), area: "account", keywords: [t("settings.account.devices.pair_label")] },
-      { id: "privacy", label: t("settings.tabs.privacy"), area: "blocked", keywords: [t("settings.account.blocked_users.title"), t("settings.account.ignored_users.title")] },
+      { id: "privacy", label: t("settings.tabs.privacy"), area: "blocked", keywords: [t("settings.account.blocked_users.title")] },
       { id: "help", label: t("settings.tabs.help"), area: "help" },
     ],
   };

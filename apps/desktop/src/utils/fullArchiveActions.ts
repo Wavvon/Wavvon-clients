@@ -24,7 +24,6 @@ const MENTION_PING_KEY = "wavvon.mentionPing";
 /** archive.rs's ArchiveStores: the per-account files Rust owns. */
 interface ArchiveStores {
   hub_list: ArchiveHub[];
-  ignored_users: string[];
   voice_gains: Record<string, number>;
 }
 
@@ -88,7 +87,6 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
           drafts: loadAllDrafts(),
           themeNames: (await deviceThemeStore.list()).map((t) => t.manifest.name),
           languageNames: (await deviceLanguageStore.list()).map((l) => l.manifest.name),
-          ignoredUsers: existing.ignored_users,
           voiceGains: existing.voice_gains,
           hasMentionPingSetting: localStorage.getItem(MENTION_PING_KEY) !== null,
         },
@@ -96,7 +94,7 @@ export function buildFullArchiveActions(fileFilterName: string, cooldownMessage:
       );
       await invoke("apply_full_archive_restore", {
         accountId: account_id,
-        stores: { hub_list: plan.hubList, ignored_users: plan.ignoredUsers, voice_gains: plan.voiceGains },
+        stores: { hub_list: plan.hubList, voice_gains: plan.voiceGains },
       });
       await restoreThemes(deviceThemeStore, plan.newThemes);
       await restoreLanguages(plan.newLanguages, deviceLanguageStore);

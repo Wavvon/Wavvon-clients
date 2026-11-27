@@ -250,8 +250,6 @@ pub fn run() {
             local_store::save_collapsed_categories,
             local_store::load_blocked_users,
             local_store::save_blocked_users,
-            local_store::load_ignored_users,
-            local_store::save_ignored_users,
             local_store::load_whisper_optout,
             local_store::save_whisper_optout,
             local_store::get_profile,

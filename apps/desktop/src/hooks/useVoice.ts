@@ -17,7 +17,7 @@ interface UseVoiceParams {
   setToast: (msg: string) => void;
   /** Our key in the room's positions, to find where the hub last placed us. */
   publicKey: string | null;
-  /** Blocked and ignored people: you hear nothing from them. */
+  /** Blocked people: you hear nothing from them. */
   silencedUsers: ReadonlySet<string>;
 }
 
@@ -678,7 +678,7 @@ export function useVoice({ activeHubId, selectedChannel, setError, setToast, pub
     stagePins,
     selfMuted,
     selfDeafened,
-    // Deafened you hear nobody, and blocked or ignored you hear not them:
+    // Deafened you hear nobody, and blocked you hear not them:
     // whoever you cannot hear does not light up as speaking.
     speakingPubkeys: heardSpeakers(speakingPubkeys, selfDeafened, silencedUsers),
     voicePartByChannel,

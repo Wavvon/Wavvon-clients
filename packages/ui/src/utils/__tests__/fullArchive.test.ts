@@ -19,7 +19,7 @@ function makeHub(overrides: Partial<ArchiveHub> = {}): ArchiveHub {
 }
 
 function emptySnapshot(overrides: Partial<ExistingAccountSnapshot> = {}): ExistingAccountSnapshot {
-  return { hubList: [], drafts: {}, themeNames: [], languageNames: [], ignoredUsers: [], voiceGains: {}, hasMentionPingSetting: false, ...overrides };
+  return { hubList: [], drafts: {}, themeNames: [], languageNames: [], voiceGains: {}, hasMentionPingSetting: false, ...overrides };
 }
 
 function makeArchive(overrides: Partial<ArchiveDocument> = {}): ArchiveDocument {
@@ -33,7 +33,6 @@ function makeArchive(overrides: Partial<ArchiveDocument> = {}): ArchiveDocument 
     prefs: {
       hub_list: [],
       theme: "dark",
-      ignored_users: [],
       voice_gains: {},
       mention_ping_enabled: true,
       hub_synced: null,
@@ -72,25 +71,23 @@ describe("planRestore", () => {
   it("restores everything into an empty account", () => {
     const hubs = [makeHub({ hub_id: "a" }), makeHub({ hub_id: "b" })];
     const archive = makeArchive({
-      prefs: { ...makeArchive().prefs, hub_list: hubs, ignored_users: ["x"], voice_gains: { x: 50 }, mention_ping_enabled: false },
+      prefs: { ...makeArchive().prefs, hub_list: hubs, voice_gains: { x: 50 }, mention_ping_enabled: false },
       drafts: { "conv-1": "hello draft" },
     });
     const plan = planRestore(archive, emptySnapshot(), fixedId);
     expect(plan.hubList).toEqual(hubs);
     expect(plan.drafts).toEqual({ "conv-1": "hello draft" });
-    expect(plan.ignoredUsers).toEqual(["x"]);
     expect(plan.voiceGains).toEqual({ x: 50 });
     expect(plan.mentionPingEnabled).toBe(false);
-    expect(totalRestored(plan.summary)).toBe(6);
+    expect(totalRestored(plan.summary)).toBe(5);
     expect(plan.summary.unrestorable).toEqual([]);
   });
 
-  it("skips hubs, drafts, ignored users and gains already present, keeping the local copy", () => {
+  it("skips hubs, drafts and gains already present, keeping the local copy", () => {
     const archive = makeArchive({
       prefs: {
         ...makeArchive().prefs,
         hub_list: [makeHub({ hub_id: "shared", hub_name: "Archive name" })],
-        ignored_users: ["peer-1"],
         voice_gains: { "peer-1": 50 },
         mention_ping_enabled: false,
       },
@@ -99,7 +96,6 @@ describe("planRestore", () => {
     const existing = emptySnapshot({
       hubList: [makeHub({ hub_id: "shared", hub_name: "Local name (kept)" })],
       drafts: { "conv-1": "local draft (kept)" },
-      ignoredUsers: ["peer-1"],
       voiceGains: { "peer-1": 90 },
       hasMentionPingSetting: true,
     });
@@ -111,7 +107,7 @@ describe("planRestore", () => {
     expect(plan.voiceGains["peer-1"]).toBe(90);
     expect(plan.mentionPingEnabled).toBeNull();
     expect(totalRestored(plan.summary)).toBe(0);
-    expect(totalSkipped(plan.summary)).toBe(5);
+    expect(totalSkipped(plan.summary)).toBe(4);
   });
 
   it("skips a custom theme whose name already exists and restores the rest", () => {

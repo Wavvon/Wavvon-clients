@@ -76,7 +76,6 @@ interface Props {
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   isAdmin: boolean;
@@ -200,7 +199,7 @@ export function ContentArea({
   selectedChannel, selectedConversation, selectedAllianceChannel,
   messages, searchResults, searchOpen, searchQuery,
   dmMessages, allianceMessages, allianceScrollback,
-  users, publicKey, blockedUsers, ignoredUsers, knownDisplayNames, myDisplayName,
+  users, publicKey, blockedUsers, knownDisplayNames, myDisplayName,
   isAdmin, myRoles, editingMessageId, editingDraft, replyTarget,
   pendingAttachments, channelFiles, stickToBottom, newWhileScrolledUp,
   hubConnected, reconnectingHubs, memberSidebarHidden, voiceActiveUsers, connectionStatus, voiceStage, memberActivity,
@@ -608,7 +607,6 @@ export function ContentArea({
               messages={messages}
               searchResults={searchResults}
               blockedUsers={blockedUsers}
-              ignoredUsers={ignoredUsers}
               publicKey={publicKey}
               myDisplayName={myDisplayName}
               myRoles={myRoles}

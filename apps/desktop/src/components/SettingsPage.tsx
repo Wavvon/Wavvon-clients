@@ -37,7 +37,7 @@ import { DevicesTab } from "./settings/DevicesTab";
 import { PrivacyTab } from "./settings/PrivacyTab";
 import { NotificationsTab } from "./settings/NotificationsTab";
 import { lookupIssuerHub } from "../hooks/hubAdminActions";
-import type { BlockEntry, IgnoreEntry } from "../types";
+import type { BlockEntry } from "../types";
 
 export type SettingsTab = UserSettingsSection;
 
@@ -94,9 +94,7 @@ export interface SettingsPageProps {
   onShowRecovery: () => void;
   onClearLocalData: () => void;
   blocks: BlockEntry[];
-  ignores: IgnoreEntry[];
   onUnblock: (pubkey: string) => void;
-  onUnignore: (pubkey: string) => void;
   knownNames: Record<string, string | null>;
   hideBirthdays: boolean;
   onToggleHideBirthdays: () => void;
@@ -220,9 +218,7 @@ export function SettingsPage(props: SettingsPageProps) {
         {section === "privacy" && (
           <PrivacyTab
             blocks={props.blocks}
-            ignores={props.ignores}
             onUnblock={props.onUnblock}
-            onUnignore={props.onUnignore}
             knownNames={props.knownNames}
           />
         )}

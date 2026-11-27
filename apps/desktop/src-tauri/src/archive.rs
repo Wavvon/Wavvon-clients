@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::State;
 
-use crate::accounts::{self, IGNORED_USERS_FILE, SAVED_HUBS_FILE, VOICE_GAINS_FILE};
+use crate::accounts::{self, SAVED_HUBS_FILE, VOICE_GAINS_FILE};
 use crate::backup::{derive_key, BACKUP_M, BACKUP_P, BACKUP_T};
 use crate::identity::{Identity, SignedPrefsBlob};
 use crate::state::{active_session, AppState};
@@ -141,7 +141,6 @@ fn validate_document(doc: &Value) -> Result<(), String> {
         || !doc["themes"].is_array()
         || !doc["drafts"].is_object()
         || !doc["prefs"]["hub_list"].is_array()
-        || !doc["prefs"]["ignored_users"].is_array()
     {
         return Err(malformed());
     }
@@ -171,7 +170,6 @@ fn is_paired_archive(identity: &Value) -> Result<bool, String> {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ArchiveStores {
     hub_list: Vec<SavedHub>,
-    ignored_users: Vec<String>,
     /// Percent, as the archive and web store it; desktop's file holds a
     /// 0.0–2.0 multiplier.
     voice_gains: HashMap<String, f64>,
@@ -193,7 +191,6 @@ fn read_stores(dir: &Path) -> ArchiveStores {
     let gains: HashMap<String, f32> = read_json(&dir.join(VOICE_GAINS_FILE));
     ArchiveStores {
         hub_list: read_json(&dir.join(SAVED_HUBS_FILE)),
-        ignored_users: read_json(&dir.join(IGNORED_USERS_FILE)),
         voice_gains: gains
             .into_iter()
             .map(|(k, g)| (k, (f64::from(g) * 100.0).round()))
@@ -204,7 +201,6 @@ fn read_stores(dir: &Path) -> ArchiveStores {
 fn write_stores(dir: &Path, stores: &ArchiveStores) -> Result<(), String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("mkdir: {e}"))?;
     write_json(&dir.join(SAVED_HUBS_FILE), &stores.hub_list)?;
-    write_json(&dir.join(IGNORED_USERS_FILE), &stores.ignored_users)?;
     let gains: HashMap<&String, f32> = stores
         .voice_gains
         .iter()
@@ -370,7 +366,6 @@ pub(crate) async fn export_full_archive(
         "prefs": {
             "hub_list": hub_list,
             "theme": sections.theme,
-            "ignored_users": stores.ignored_users,
             "voice_gains": stores.voice_gains,
             "mention_ping_enabled": sections.mention_ping_enabled,
             "hub_synced": hub_synced,
@@ -514,7 +509,7 @@ mod tests {
             "identity": { "seed_hex": "a1".repeat(32), "security_nonce": 0, "security_level": 0 },
             "home_hubs": { "designations": [] },
             "devices": { "subkey_certs": [], "revocations": [] },
-            "prefs": { "hub_list": [], "theme": "dark", "ignored_users": [], "voice_gains": {},
+            "prefs": { "hub_list": [], "theme": "dark", "voice_gains": {},
                        "mention_ping_enabled": true, "hub_synced": null, "gap_note": null },
             "dms": [], "themes": [], "drafts": {},
         })
@@ -566,7 +561,6 @@ mod tests {
                 hub_name: "Hub".into(),
                 hub_url: "https://hub.example".into(),
             }],
-            ignored_users: vec!["peer".into()],
             voice_gains: HashMap::from([("loud".to_string(), 150.0), ("same".to_string(), 100.0)]),
         };
         write_stores(&dir, &stores).unwrap();
@@ -574,7 +568,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
 
         assert_eq!(back.hub_list.len(), 1);
-        assert_eq!(back.ignored_users, vec!["peer".to_string()]);
         // 100% is desktop's "no override" and is not written at all.
         assert_eq!(
             back.voice_gains,

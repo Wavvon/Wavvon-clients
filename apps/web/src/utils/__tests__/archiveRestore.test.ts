@@ -37,7 +37,6 @@ function emptySnapshot(overrides: Partial<ExistingAccountSnapshot> = {}): Existi
     drafts: {},
     themeNames: [],
     languageNames: [],
-    ignoredUsers: [],
     voiceGains: {},
     hasMentionPingSetting: false,
     ...overrides,
@@ -55,7 +54,6 @@ function makeArchive(overrides: Partial<ArchiveDocument> = {}): ArchiveDocument 
     prefs: {
       hub_list: [],
       theme: "dark",
-      ignored_users: [],
       voice_gains: {},
       mention_ping_enabled: true,
       hub_synced: null,
@@ -78,7 +76,6 @@ describe("planRestore — round trip against buildLocalPrefsSnapshot's shape", (
 
     expect(plan.hubList).toEqual(hubs);
     expect(plan.drafts).toEqual({ "conv-1": "hello draft" });
-    expect(plan.ignoredUsers).toEqual(prefs.ignored_users);
     expect(plan.voiceGains).toEqual(prefs.voice_gains);
     expect(plan.mentionPingEnabled).toBe(prefs.mention_ping_enabled);
     expect(plan.summary.hubsRestored).toBe(2);
@@ -100,7 +97,6 @@ describe("readExistingAccountSnapshot / applyRestorePlan", () => {
       prefs: {
         hub_list: [makeHub({ hub_id: "new-hub" })],
         theme: "dark",
-        ignored_users: ["peer-x"],
         voice_gains: {},
         mention_ping_enabled: true,
         hub_synced: null,

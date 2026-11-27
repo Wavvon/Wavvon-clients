@@ -117,7 +117,7 @@ pub(crate) fn profile_path() -> Result<std::path::PathBuf, String> {
 
 // Per-account (settings-ia.md §7 fix): every one of these mirrors a web
 // localStorage key that's namespaced under `wavvon:acct:<pubkey>:*` (saved
-// hubs, active hub pointer, per-peer voice gains, ignored users, pinned
+// hubs, active hub pointer, per-peer voice gains, pinned
 // channels, collapsed categories, notify mode/mutes, per-hub notify level)
 // or, for unread state and the synced DM-block cache, data that's only
 // meaningful within one account's own hub membership.
@@ -151,10 +151,6 @@ pub(crate) fn collapsed_categories_path() -> Result<std::path::PathBuf, String> 
 
 pub(crate) fn blocked_users_path() -> Result<std::path::PathBuf, String> {
     crate::accounts::active_blocked_users_path()
-}
-
-pub(crate) fn ignored_users_path() -> Result<std::path::PathBuf, String> {
-    crate::accounts::active_ignored_users_path()
 }
 
 pub(crate) fn whisper_optout_path() -> Result<std::path::PathBuf, String> {
@@ -314,7 +310,7 @@ pub(crate) fn save_blocked_users_raw(users: &[String]) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
-// Tauri commands: blocked/ignored users, collapsables, profile,
+// Tauri commands: blocked users, collapsables, profile,
 // voice settings, DnD, unread, notification mutes
 // ---------------------------------------------------------------------------
 
@@ -335,27 +331,6 @@ pub(crate) fn save_blocked_users(blocked: Vec<String>) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
     }
     let text = serde_json::to_string(&blocked).map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| format!("write: {e}"))?;
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) fn load_ignored_users() -> Result<Vec<String>, String> {
-    let path = ignored_users_path()?;
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("read: {e}"))?;
-    serde_json::from_str(&text).map_err(|e| format!("parse: {e}"))
-}
-
-#[tauri::command]
-pub(crate) fn save_ignored_users(ignored: Vec<String>) -> Result<(), String> {
-    let path = ignored_users_path()?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
-    }
-    let text = serde_json::to_string(&ignored).map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| format!("write: {e}"))?;
     Ok(())
 }

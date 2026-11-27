@@ -12,7 +12,7 @@ const AREA_OF: Record<string, string> = {
   "About & credits": "App",
   "Manage accounts": "Account and security",
   Devices: "Account and security",
-  "Blocked and ignored": "Blocked and ignored",
+  "Blocked users": "Blocked users",
 };
 
 /** Opens a user-settings section: its area tab, then its entry in the index

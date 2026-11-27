@@ -6,7 +6,7 @@ import { safeRoleColor } from "../../utils/roleAppearance";
 
 /** Platform-calling operations the roster context menu needs. Role
  * management and moderation are wired on both clients; the social actions
- * (`dm`/`addFriend`/`toggleBlock`/`toggleIgnore`) and the "their hubs" lookup
+ * (`dm`/`addFriend`/`toggleBlock`) and the "their hubs" lookup
  * are desktop-only today — web reaches the same actions from Friends/Block
  * settings instead, so the menu simply omits the buttons when unset. */
 export interface UserContextMenuActions {
@@ -20,7 +20,6 @@ export interface UserContextMenuActions {
   dm?: (user: User) => void;
   addFriend?: (user: User) => void;
   toggleBlock?: (pubkey: string) => void;
-  toggleIgnore?: (pubkey: string) => void;
   fetchPublicProfile?: (pubkey: string) => Promise<PublicHubProfile | null>;
   /** What other hubs have said about this member (soft-flag ban entries and
    *  hard ones alike). Optional: a client that omits it simply shows nothing,
@@ -38,18 +37,20 @@ interface Props {
   /** Highest priority among the viewer's own roles; only lower-priority roles are assignable (matches the hub guard). */
   myMaxPriority?: number;
   blockedUsers?: Set<string>;
-  ignoredUsers?: Set<string>;
   position: { x: number; y: number };
   actions: UserContextMenuActions;
   onClose: () => void;
-  onToast: (msg: string) => void;
+  /** Neutral confirmation; `undo` adds an Undo button. */
+  onToast: (msg: string, undo?: () => void) => void;
+  /** Failures; falls back to `onToast` when omitted. */
+  onError?: (msg: string) => void;
   /** Called after a role is assigned/removed so the caller can refresh the member list. */
   onRolesChanged?: () => void;
 }
 
 export function UserContextMenu({
-  user, publicKey, isAdmin, canManageRoles, myMaxPriority, blockedUsers, ignoredUsers,
-  position, actions, onClose, onToast, onRolesChanged,
+  user, publicKey, isAdmin, canManageRoles, myMaxPriority, blockedUsers,
+  position, actions, onClose, onToast, onError = onToast, onRolesChanged,
 }: Props) {
   const { t } = useTranslation();
   const pubkey = user.public_key;
@@ -82,7 +83,7 @@ export function UserContextMenu({
         setRoles(all);
         setAssigned(new Set(mine.map((r) => r.id)));
       })
-      .catch((e) => { if (!cancelled) onToast(`Failed to load roles: ${e}`); });
+      .catch((e) => { if (!cancelled) onError(`Failed to load roles: ${e}`); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManageRoles, pubkey]);
@@ -131,7 +132,7 @@ export function UserContextMenu({
       await navigator.clipboard.writeText(pubkey);
       onToast("Public key copied");
     } catch {
-      onToast("Copy failed");
+      onError("Copy failed");
     }
     onClose();
   }
@@ -142,7 +143,7 @@ export function UserContextMenu({
       await actions.kickUser(pubkey);
       onToast("Kicked");
     } catch (e) {
-      onToast(`Failed to kick: ${e}`);
+      onError(`Failed to kick: ${e}`);
     }
     onClose();
   }
@@ -153,7 +154,7 @@ export function UserContextMenu({
       await actions.banUser(pubkey);
       onToast("Banned");
     } catch (e) {
-      onToast(`Failed to ban: ${e}`);
+      onError(`Failed to ban: ${e}`);
     }
     onClose();
   }
@@ -163,7 +164,7 @@ export function UserContextMenu({
       await actions.muteUser(pubkey);
       onToast("Muted");
     } catch (e) {
-      onToast(`Failed to mute: ${e}`);
+      onError(`Failed to mute: ${e}`);
     }
     onClose();
   }
@@ -183,7 +184,7 @@ export function UserContextMenu({
       }
       onRolesChanged?.();
     } catch (e) {
-      onToast(`Failed to update role: ${e}`);
+      onError(`Failed to update role: ${e}`);
     } finally {
       setBusyRole(null);
     }
@@ -225,19 +226,6 @@ export function UserContextMenu({
           {t("user.ctx.copy_key")}
         </button>
 
-        {!isSelf && actions.toggleIgnore && ignoredUsers && (
-          <button
-            className="context-menu-item"
-            onClick={() => {
-              const wasIgnored = ignoredUsers.has(pubkey);
-              onClose();
-              actions.toggleIgnore!(pubkey);
-              onToast(wasIgnored ? t("user.ctx.unignore") : t("user.ctx.ignored_feedback"));
-            }}
-          >
-            {ignoredUsers.has(pubkey) ? t("user.ctx.unignore") : t("user.ctx.ignore")}
-          </button>
-        )}
         {!isSelf && actions.toggleBlock && blockedUsers && (
           <button
             className="context-menu-item"
@@ -245,7 +233,10 @@ export function UserContextMenu({
               const wasBlocked = blockedUsers.has(pubkey);
               onClose();
               actions.toggleBlock!(pubkey);
-              onToast(wasBlocked ? t("user.ctx.unblocked_feedback") : t("user.ctx.blocked_feedback"));
+              onToast(
+                wasBlocked ? t("user.ctx.unblocked_feedback") : t("user.ctx.blocked_feedback"),
+                wasBlocked ? undefined : () => actions.toggleBlock!(pubkey),
+              );
             }}
           >
             {blockedUsers.has(pubkey) ? t("user.ctx.unblock") : t("user.ctx.block")}

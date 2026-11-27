@@ -1138,6 +1138,26 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
 /* Voice-move toast (events.md §7.2) — bottom-left, near the voice HUD
    footer, rather than the top-center `.toast` used for hub errors: it's a
    notice about where you now are in voice, not an error. */
+.notice-toast {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--r-md);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 10000;
+  max-width: min(500px, calc(100vw - var(--space-8)));
+  animation: slide-in-down var(--transition-base);
+}
+
 .voice-move-toast {
   position: fixed;
   bottom: var(--space-4);

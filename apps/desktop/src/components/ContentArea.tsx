@@ -152,7 +152,6 @@ interface Props {
   users: User[];
   publicKey: string | null;
   blockedUsers: Set<string>;
-  ignoredUsers: Set<string>;
   knownDisplayNames: Set<string>;
   myDisplayName: string | null;
   isAdmin: boolean;

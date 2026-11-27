@@ -158,7 +158,7 @@ export class VoiceSession {
    *  decrypting anything. */
   private lossBySender: Map<number, LossTracker> = new Map();
   private savedGains: Record<string, number>;
-  /** People you blocked or ignored: their audio plays at zero, whatever
+  /** People you blocked: their audio plays at zero, whatever
    *  volume you set for them. */
   private silenced: ReadonlySet<string> = new Set();
   private zones: Map<string, VoiceZone> = new Map();

@@ -45,7 +45,6 @@ export type {
   SurveyResponseAdmin,
   HubCertification,
   BlockEntry,
-  IgnoreEntry,
   AppOpenEvent,
   AppCloseEvent,
   CertPayload,

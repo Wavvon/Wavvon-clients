@@ -63,7 +63,7 @@ pub struct VoiceSettings {
     pub custom_frame_ms: Option<u32>,
     pub custom_complexity: Option<u32>,
     /// Public keys whose audio is dropped on arrival: people the user
-    /// blocked or ignored. Shared, so the shell can change it mid-call.
+    /// blocked. Shared, so the shell can change it mid-call.
     pub silenced: Arc<std::sync::RwLock<HashSet<String>>>,
 }
 

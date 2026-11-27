@@ -353,7 +353,7 @@ pub(crate) fn voice_set_muted(muted: bool, state: State<'_, AppState>) -> Result
     Ok(())
 }
 
-/// Who you blocked or ignored: you hear nothing from them in voice.
+/// Who you blocked: you hear nothing from them in voice.
 #[tauri::command]
 pub(crate) fn voice_set_silenced(pubkeys: Vec<String>, state: State<'_, AppState>) {
     if let Ok(mut s) = state.voice_silenced.write() {

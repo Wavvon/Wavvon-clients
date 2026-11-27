@@ -119,8 +119,6 @@ commands.allow = [
   "save_collapsed_categories",
   "load_blocked_users",
   "save_blocked_users",
-  "load_ignored_users",
-  "save_ignored_users",
   "load_whisper_optout",
   "save_whisper_optout",
   "get_profile",
