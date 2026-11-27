@@ -910,7 +910,6 @@
   "hub.admin.roles.perm.voice.soundboard.use": "Use the soundboard",
   "hub.admin.roles.perm.webhooks.incoming.manage": "Manage incoming webhooks",
   "hub.admin.roles.perm.webhooks.outgoing.manage": "Manage outgoing webhooks",
-  "hub.admin.roles.permissions": "Permissions",
   "hub.admin.roles.title": "Roles",
   "hub.admin.roles.uncategorized": "Uncategorized",
   "hub.admin.soundboard.add.title": "Add a clip",
