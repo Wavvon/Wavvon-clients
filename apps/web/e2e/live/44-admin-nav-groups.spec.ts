@@ -26,7 +26,7 @@ test("sections still navigate inside their areas", async ({ page }) => {
   await expectInHub(page);
   await openHubSettings(page);
   await openHubAdminSection(page, "Roles");
-  await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole("heading", { name: "Roles", exact: true })).toBeVisible({ timeout: 10000 });
   await openHubAdminSection(page, "Invites");
   await expect(page.getByRole("heading", { name: "Invites" })).toBeVisible();
 });

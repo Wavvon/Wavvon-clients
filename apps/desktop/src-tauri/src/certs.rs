@@ -89,6 +89,8 @@ pub(crate) async fn list_issued_certs(
                 "issued_at": r["issued_at"],
                 "expires_at": r["expires_at"],
                 "standing": r["standing"],
+                "revoked_at": r["revoked_at"],
+                "payload": r["payload"],
             })
         })
         .collect())

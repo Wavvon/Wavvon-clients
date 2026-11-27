@@ -10,6 +10,10 @@ describe("movableRoles", () => {
     expect(movableRoles(roles, 100).map((r) => r.id)).toEqual(["mid", "low"]);
     expect(movableRoles(roles, 1000).map((r) => r.id)).toEqual(["admin", "mid", "low"]);
   });
+  it("takes everyone too where the hub lets it move, never the owner", () => {
+    const roles = [role("builtin-owner", 1000), role("mid", 50), role("builtin-everyone", 0), role("below", -1)];
+    expect(movableRoles(roles, 1000, true).map((r) => r.id)).toEqual(["mid", "builtin-everyone", "below"]);
+  });
 });
 
 describe("reorderWithinGroup", () => {

@@ -18,20 +18,18 @@ import { RoleListRow } from "./RoleListRow";
 interface Props {
   roles: RoleInfo[];
   categories: RoleCategory[];
-  memberCounts: Map<string, number>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
   creating: boolean;
   onManageCategories?: () => void;
   /** Present only when the hub can reorder and the caller's rank is known. */
-  reorder?: { myMaxPriority: number; onReorder: (idsHighestFirst: string[]) => void };
+  reorder?: { myMaxPriority: number; everyoneMovable: boolean; onReorder: (idsHighestFirst: string[]) => void };
 }
 
 export function RoleListPane({
   roles,
   categories,
-  memberCounts,
   selectedId,
   onSelect,
   onNew,
@@ -46,24 +44,25 @@ export function RoleListPane({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const owner = roles.find((r) => r.id === "builtin-owner");
-  const everyone = roles.find((r) => r.id === "builtin-everyone");
-  const middle = roles.filter((r) => r.id !== "builtin-owner" && r.id !== "builtin-everyone");
-  const movableIds = new Set(reorder ? movableRoles(roles, reorder.myMaxPriority).map((r) => r.id) : []);
+  // The owner role is left out: one per hub, nothing to edit. `everyone` sits
+  // in the order like any role where the hub lets it move, else at the bottom.
+  const everyoneMovable = !!reorder?.everyoneMovable;
+  const everyone = everyoneMovable ? undefined : roles.find((r) => r.id === "builtin-everyone");
+  const middle = roles.filter((r) => r.id !== "builtin-owner" && (everyoneMovable || r.id !== "builtin-everyone"));
+  const movableIds = new Set(reorder ? movableRoles(roles, reorder.myMaxPriority, everyoneMovable).map((r) => r.id) : []);
   const needle = query.trim().toLowerCase();
   const matches = (r: RoleInfo) => !needle || r.name.toLowerCase().includes(needle);
   const groups = groupRolesByCategory(
     middle.slice().sort((a, b) => b.priority - a.priority).filter(matches),
     categories,
   );
-  const pinned = [owner, everyone].filter((r): r is RoleInfo => !!r && matches(r));
+  const pinned = everyone && matches(everyone) ? [everyone] : [];
   const shownAny = groups.length > 0 || pinned.length > 0;
 
   const row = (r: RoleInfo, mode: "sortable" | "plain" | "pinned") => (
     <RoleListRow
       key={r.id}
       role={r}
-      count={memberCounts.get(r.id) ?? 0}
       selected={selectedId === r.id}
       onSelect={() => onSelect(r.id)}
       mode={mode}
@@ -72,7 +71,7 @@ export function RoleListPane({
 
   function onDragEnd(e: DragEndEvent) {
     if (!reorder || !e.over || e.active.id === e.over.id) return;
-    const ordered = movableRoles(roles, reorder.myMaxPriority);
+    const ordered = movableRoles(roles, reorder.myMaxPriority, everyoneMovable);
     const group = groups.find((g) => g.roles.some((r) => r.id === e.active.id));
     const groupIds = ordered.filter((r) => group?.roles.some((g) => g.id === r.id)).map((r) => r.id);
     const next = reorderWithinGroup(ordered.map((r) => r.id), groupIds, String(e.active.id), String(e.over.id));
@@ -96,9 +95,6 @@ export function RoleListPane({
 
       {!shownAny && <p className="muted">{t("hub.admin.roles.no_match")}</p>}
 
-      <ul className="roles-list">
-        {pinned.filter((r) => r.id === "builtin-owner").map((r) => row(r, "pinned"))}
-      </ul>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         {groups.map((g) => {
           const ids = g.roles.filter((r) => movableIds.has(r.id)).map((r) => r.id);
@@ -112,7 +108,7 @@ export function RoleListPane({
                 <span>{g.category?.name ?? t("hub.admin.roles.category_none")}</span>
               </div>
               <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-                <ul className="roles-list">
+                <ul className="roles-nav">
                   {g.roles.map((r) => row(r, movableIds.has(r.id) ? "sortable" : "plain"))}
                 </ul>
               </SortableContext>
@@ -120,13 +116,11 @@ export function RoleListPane({
           );
         })}
       </DndContext>
-      <ul className="roles-list">
-        {pinned.filter((r) => r.id === "builtin-everyone").map((r) => row(r, "pinned"))}
-      </ul>
+      {pinned.length > 0 && <ul className="roles-nav">{pinned.map((r) => row(r, "pinned"))}</ul>}
 
       <p className="muted roles-hint">{t("hub.admin.roles.list_hint")}</p>
       {onManageCategories && (
-        <button type="button" className="btn-secondary" onClick={onManageCategories}>
+        <button type="button" className="btn-secondary roles-manage-cats" onClick={onManageCategories}>
           {t("hub.admin.roles.manage_categories")}
         </button>
       )}

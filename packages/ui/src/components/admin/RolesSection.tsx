@@ -128,6 +128,8 @@ export interface RolesSectionActions extends Partial<RoleCategoryManagerActions>
   /** `PUT /roles/order`, highest first; present only on a hub advertising
    *  `roles.order`. Returns every role in its new place. */
   reorderRoles?: (roleIdsHighestFirst: string[]) => Promise<RoleInfo[]>;
+  /** The hub orders `everyone` like any other role (`roles.order.everyone`). */
+  everyoneMovable?: boolean;
   /** Members tab of a role. Both absent means the tab is not offered. */
   assignRoleToUser?: (pubkey: string, roleId: string) => Promise<void>;
   removeRoleFromUser?: (pubkey: string, roleId: string) => Promise<void>;
@@ -173,7 +175,8 @@ export function RolesSection({ actions, myMaxPriority, members, onMemberRolesCha
       ]);
       setRoles(r);
       setCategories(c);
-      setSelectedId((cur) => cur ?? r.slice().sort((a, b) => b.priority - a.priority)[0]?.id ?? null);
+      // The owner role is not listed: there is always exactly one and nothing to edit on it.
+      setSelectedId((cur) => cur ?? r.filter((x) => x.id !== "builtin-owner").sort((a, b) => b.priority - a.priority)[0]?.id ?? null);
     } catch (e) {
       setError(String(e));
     }
@@ -283,7 +286,6 @@ export function RolesSection({ actions, myMaxPriority, members, onMemberRolesCha
         <RoleListPane
           roles={roles}
           categories={categories}
-          memberCounts={counts}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onNew={() => void handleCreate()}
@@ -293,6 +295,7 @@ export function RolesSection({ actions, myMaxPriority, members, onMemberRolesCha
             actions.reorderRoles && myMaxPriority !== undefined
               ? {
                   myMaxPriority,
+                  everyoneMovable: !!actions.everyoneMovable,
                   onReorder: (ids) => void guarded(async () => setRoles(await actions.reorderRoles!(ids))),
                 }
               : undefined
@@ -332,6 +335,11 @@ export function RolesSection({ actions, myMaxPriority, members, onMemberRolesCha
       {managingCategories && supportsCategories && (
         <RoleCategoryManager
           categories={categories}
+          roleCounts={roles.reduce((m, r) => {
+            if (r.id.startsWith("builtin-")) return m;
+            const k = r.category_id ?? "";
+            return m.set(k, (m.get(k) ?? 0) + 1);
+          }, new Map<string, number>())}
           onChange={setCategories}
           onClose={() => setManagingCategories(false)}
           actions={{

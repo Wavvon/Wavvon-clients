@@ -863,6 +863,9 @@ export interface CertIssuance {
   issued_at: number;
   expires_at: number;
   standing: "good" | "revoked";
+  revoked_at?: number | null;
+  /** What was signed: a type from the hub's catalogue, or a badge's label. */
+  payload?: { cert_type?: string | null; label?: string | null };
 }
 
 /** A type from a hub's certificate catalogue (`GET /certs/types`). */

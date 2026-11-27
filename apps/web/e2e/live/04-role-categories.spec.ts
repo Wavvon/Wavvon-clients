@@ -26,9 +26,9 @@ test("role category grouping, color, and icon persist", async ({ page }) => {
   const cat = uniqueName("teams");
   await page.getByRole("button", { name: "Manage categories" }).click();
   const dialog = page.getByRole("dialog", { name: "Manage categories" });
-  await dialog.getByPlaceholder("New category name").fill(cat);
+  await dialog.getByPlaceholder("New category, e.g. Moderation").fill(cat);
   await dialog.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(dialog.getByRole("textbox", { name: `Rename ${cat}` })).toHaveValue(cat);
+  await expect(dialog.locator(".roles-cat-row", { hasText: cat })).toContainText("0 roles");
   await dialog.getByRole("button", { name: "Done" }).click();
   await expect(dialog).toBeHidden();
 

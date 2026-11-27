@@ -14,11 +14,13 @@ interface Props {
   actions: BadgeCatalogueActions;
   members: MemberAdminInfo[];
   listRoles?: () => Promise<RoleInfo[]>;
+  /** Told how many badges the catalogue holds, for the tab label. */
+  onCount?: (n: number) => void;
 }
 
 const total = (d: BadgeDef) => Object.values(d.holders).reduce((a, b) => a + b, 0);
 
-export function BadgeCatalogue({ actions, members, listRoles }: Props) {
+export function BadgeCatalogue({ actions, members, listRoles, onCount }: Props) {
   const { t } = useTranslation();
   const { confirm, dialog } = useConfirm();
   const [defs, setDefs] = useState<BadgeDef[]>([]);
@@ -32,7 +34,9 @@ export function BadgeCatalogue({ actions, members, listRoles }: Props) {
 
   async function reload() {
     try {
-      setDefs(await actions.listBadgeDefs());
+      const list = await actions.listBadgeDefs();
+      setDefs(list);
+      onCount?.(list.length);
       setError(null);
     } catch (e) {
       setError(String(e));
@@ -87,6 +91,23 @@ export function BadgeCatalogue({ actions, members, listRoles }: Props) {
 
   const open = defs.find((d) => d.id === openId);
 
+  if (open) {
+    return (
+      <>
+        {dialog}
+        <BadgeDetailDialog
+          def={open}
+          programName={programName(open.program_pubkey)}
+          actions={actions}
+          members={members}
+          onClose={() => setOpenId(null)}
+          onChanged={() => void reload()}
+          onDelete={async () => { if (await remove(open)) setOpenId(null); }}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="badge-catalogue">
       {dialog}
@@ -98,7 +119,8 @@ export function BadgeCatalogue({ actions, members, listRoles }: Props) {
           placeholder={t("hub.admin.badges.search")}
           aria-label={t("hub.admin.badges.search")}
         />
-        <select aria-label={t("hub.admin.badges.filter")} value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <label htmlFor="badge-filter" className="badge-toolbar-label">{t("hub.admin.badges.filter")}</label>
+        <select id="badge-filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">{t("hub.admin.badges.filter.all")}</option>
           <option value="manual">{t("hub.admin.badges.rule.manual")}</option>
           {RULES.map((r) => <option key={r} value={r}>{t(`hub.admin.badges.rule.${r}`)}</option>)}
@@ -106,12 +128,14 @@ export function BadgeCatalogue({ actions, members, listRoles }: Props) {
             <option key={p} value={`program:${p}`}>{t("hub.admin.badges.rule.program", { name: programName(p) })}</option>
           ))}
         </select>
-        <select aria-label={t("hub.admin.badges.sort")} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+        <label htmlFor="badge-sort" className="badge-toolbar-label">{t("hub.admin.badges.sort")}</label>
+        <select id="badge-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
           <option value="held">{t("hub.admin.badges.sort.held")}</option>
           <option value="name">{t("hub.admin.badges.sort.name")}</option>
           <option value="new">{t("hub.admin.badges.sort.new")}</option>
         </select>
-        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>{t("hub.admin.badges.new")}</button>
+        <span className="badge-toolbar-gap" />
+        <button type="button" className="btn-primary btn-small" onClick={() => setCreating(true)}>{t("hub.admin.badges.new")}</button>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
       {shown.length === 0 ? (
@@ -130,24 +154,13 @@ export function BadgeCatalogue({ actions, members, listRoles }: Props) {
           ))}
         </ul>
       )}
-      <p className="muted">{t("hub.admin.badges.footnote")}</p>
+      <p className="muted badge-foot">{t("hub.admin.badges.footnote")}</p>
       {creating && (
         <BadgeCreateDialog
           actions={actions}
           roles={roles}
           onClose={() => setCreating(false)}
           onCreated={() => { setCreating(false); void reload(); }}
-        />
-      )}
-      {open && (
-        <BadgeDetailDialog
-          def={open}
-          programName={programName(open.program_pubkey)}
-          actions={actions}
-          members={members}
-          onClose={() => setOpenId(null)}
-          onChanged={() => void reload()}
-          onDelete={async () => { if (await remove(open)) setOpenId(null); }}
         />
       )}
     </div>

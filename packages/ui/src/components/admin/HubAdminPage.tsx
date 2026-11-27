@@ -12,6 +12,7 @@ import { HubIconsSection, type HubIconsSectionActions } from "./HubIconsSection"
 import { SurveyAdminSection, type SurveyAdminSectionActions } from "./SurveyAdminSection";
 import { RolesSection, type RolesSectionActions } from "./RolesSection";
 import { MemberRoleManager, type MemberRoleManagerActions } from "./MemberRoleManager";
+import { MemberAdminRow } from "./MemberAdminRow";
 import { ServerTagsSection, type ServerTagsSectionActions } from "./ServerTagsSection";
 import { InviteManager, type InviteManagerActions } from "./InviteManager";
 import { AuditLogSection, type AuditLogSectionActions } from "./AuditLogSection";
@@ -788,29 +789,31 @@ export function HubAdminPage(props: HubAdminPageProps) {
         )}
 
         {section === "members" && (
-          <section>
-            <h1>{t("hub.admin.members.title", { count: props.members.length })}</h1>
+          <section className="members-admin">
+            <div className="members-admin-top">
+              <h1>{t("hub.admin.members.heading")} <span className="members-admin-count">{props.members.length}</span></h1>
+              <input
+                type="search"
+                value={memberQuery}
+                onChange={(e) => setMemberQuery(e.target.value)}
+                placeholder={t("hub.admin.members.search")}
+                aria-label={t("hub.admin.members.search")}
+              />
+            </div>
             {memberNotice && (
               <p role="status" className={memberNotice.error ? "error-text" : "muted"} style={{ marginBottom: "var(--space-3)" }}>
                 {memberNotice.text}
               </p>
             )}
-            <input
-              type="search"
-              value={memberQuery}
-              onChange={(e) => setMemberQuery(e.target.value)}
-              placeholder={t("hub.admin.members.search")}
-              aria-label={t("hub.admin.members.search")}
-              style={{ marginBottom: "var(--space-3)" }}
-            />
+            {filteredMembers.length > 0 && (
+            <ul className="member-admin-list">
             {filteredMembers.slice(0, memberLimit).map((m) => {
               const profile = profiles.get(m.public_key);
-              const name = m.display_name || t("hub.admin.members.pending.no_name");
               const topRole = m.roles.reduce<RoleInfo | null>((a, r) => (!a || r.priority > a.priority ? r : a), null);
               const nameColor = profile?.name_color ?? topRole?.color ?? undefined;
               const mute = activeMutes.get(m.public_key);
               const busy = memberBusy === m.public_key;
-              const state = [
+              const status = [
                 profile?.online && t("hub.admin.members.online"),
                 t("hub.admin.members.state", { joined: formatRelative(m.first_seen_at) }),
                 mute &&
@@ -821,30 +824,17 @@ export function HubAdminPage(props: HubAdminPageProps) {
               ]
                 .filter(Boolean)
                 .join(" · ");
+              const row = adminRow(m.public_key);
               return (
-              <SettingRow
-                key={m.public_key}
-                lead={<Avatar src={profile?.avatar} name={m.display_name} pubkey={m.public_key} size={32} />}
-                title={
-                  <>
-                    <span style={nameColor ? { color: nameColor } : undefined}>{name}</span>{" "}
-                    <span className="member-pk" title={m.public_key}>{formatPubkey(m.public_key)}</span>
-                  </>
-                }
-                state={
-                  <>
-                    {m.roles.length === 0
-                      ? t("hub.admin.members.state.no_roles")
-                      : m.roles.map((r) => (
-                          <span key={r.id} className="role-chip" style={{ marginRight: 4, ...(r.color ? { color: r.color } : {}) }}>{r.name}</span>
-                        ))}{" "}
-                    {state}
-                  </>
-                }
-                {...adminRow(m.public_key)}
-              >
-                {props.canManageRoles && (
-                  <div style={{ marginBottom: "var(--space-4)" }}>
+                <MemberAdminRow
+                  key={m.public_key}
+                  member={m}
+                  profile={profile}
+                  nameColor={nameColor}
+                  status={status}
+                  open={row.open}
+                  onToggle={row.onToggle}
+                  roles={props.canManageRoles ? (
                     <MemberRoleManager
                       pubkey={m.public_key}
                       currentRoles={m.roles}
@@ -852,40 +842,41 @@ export function HubAdminPage(props: HubAdminPageProps) {
                       onChanged={(roles) => props.onMemberRolesChanged(m.public_key, roles)}
                       actions={props.memberRoleActions}
                     />
-                  </div>
-                )}
-
-                <span className="settings-label">{t("hub.admin.members.group.limit")}</span>
-                <div className="settings-row" style={{ marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
-                  {mute ? (
-                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onUnmuteMember, "hub.admin.members.done.unmuted")}>
-                      {t(mute.expires_at === null ? "hub.admin.members.unmute" : "hub.admin.members.end_timeout")}
-                    </button>
-                  ) : (
+                  ) : undefined}
+                  actions={
                     <>
-                      <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onMuteMember, "hub.admin.members.done.muted")}>{t("hub.admin.members.mute")}</button>
-                      <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onTimeoutMember, "hub.admin.members.done.timed_out")}>{t("hub.admin.members.timeout")}</button>
+                      {mute ? (
+                        <button className="btn-secondary btn-small" disabled={busy} onClick={() => void memberAction(m, props.onUnmuteMember, "hub.admin.members.done.unmuted")}>
+                          {t(mute.expires_at === null ? "hub.admin.members.unmute" : "hub.admin.members.end_timeout")}
+                        </button>
+                      ) : (
+                        <>
+                          <button className="btn-secondary btn-small" disabled={busy} onClick={() => void memberAction(m, props.onMuteMember, "hub.admin.members.done.muted")}>{t("hub.admin.members.mute")}</button>
+                          <button className="btn-secondary btn-small" disabled={busy} onClick={() => void memberAction(m, props.onTimeoutMember, "hub.admin.members.done.timed_out")}>{t("hub.admin.members.timeout")}</button>
+                        </>
+                      )}
+                      {props.voiceMutedKeys.has(m.public_key) ? (
+                        <button className="btn-secondary btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceUnmuteMember, "hub.admin.members.done.voice_unmuted")}>{t("hub.admin.members.voice_unmute")}</button>
+                      ) : (
+                        <button className="btn-secondary btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceMuteMember, "hub.admin.members.done.voice_muted")}>{t("hub.admin.members.voice_mute")}</button>
+                      )}
+                      <span className="member-admin-gap" />
+                      <button className="btn-secondary btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onKickMember, "hub.admin.members.done.kicked")}>{t("hub.admin.members.kick")}</button>
+                      <button className="btn-secondary btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onBanMember, "hub.admin.members.done.banned")}>{t("hub.admin.members.ban")}</button>
                     </>
-                  )}
-                  {props.voiceMutedKeys.has(m.public_key) ? (
-                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceUnmuteMember, "hub.admin.members.done.voice_unmuted")}>{t("hub.admin.members.voice_unmute")}</button>
-                  ) : (
-                    <button className="btn-small" disabled={busy} onClick={() => void memberAction(m, props.onVoiceMuteMember, "hub.admin.members.done.voice_muted")}>{t("hub.admin.members.voice_mute")}</button>
-                  )}
-                </div>
-
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--space-4)", marginTop: "var(--space-5)" }}>
-                <span className="settings-label">{t("hub.admin.members.group.remove")}</span>
-                <div className="settings-row" style={{ flexWrap: "wrap" }}>
-                  <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onKickMember, "hub.admin.members.done.kicked")}>{t("hub.admin.members.kick")}</button>
-                  <button className="btn-small danger" disabled={busy} onClick={() => void memberAction(m, props.onBanMember, "hub.admin.members.done.banned")}>{t("hub.admin.members.ban")}</button>
-                </div>
-                </div>
-              </SettingRow>
+                  }
+                />
               );
             })}
-            {filteredMembers.length > memberLimit && (
-              <button className="btn-small" onClick={() => setMemberLimit((n) => n + MEMBER_PAGE)}>{t("hub.admin.members.load_more")}</button>
+            </ul>
+            )}
+            {filteredMembers.length > 0 && (
+              <div className="members-admin-foot">
+                <span>{t("hub.admin.members.shown", { shown: Math.min(memberLimit, filteredMembers.length), total: filteredMembers.length })}</span>
+                {filteredMembers.length > memberLimit && (
+                  <button className="btn-secondary btn-small" onClick={() => setMemberLimit((n) => n + MEMBER_PAGE)}>{t("hub.admin.members.load_more")}</button>
+                )}
+              </div>
             )}
             {props.members.length === 0 && <p className="muted">{t("hub.admin.members.empty")}</p>}
             {props.members.length > 0 && filteredMembers.length === 0 && <p className="muted">{t("hub.admin.members.no_match")}</p>}

@@ -112,6 +112,7 @@ export const rolesActions = {
 
 /** `rolesActions` plus one-call reordering, for a hub advertising `roles.order`. */
 export const rolesActionsWithOrder: RolesSectionActions = { ...rolesActions, reorderRoles };
+export const rolesActionsWithEveryoneOrder: RolesSectionActions = { ...rolesActionsWithOrder, everyoneMovable: true };
 
 export const memberRoleActions = { listRoles, listUserRoles, assignRoleToUser, removeRoleFromUser } as MemberRoleManagerActions;
 
