@@ -1158,6 +1158,21 @@ button, a, input, textarea, select, .channel-item, .hub-tab, .user-list-item, .h
   animation: slide-in-down var(--transition-base);
 }
 
+.hub-error-toast {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(500px, calc(100vw - var(--space-8)));
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-md);
+  padding: var(--space-2) var(--space-4);
+  z-index: 9999;
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
 .voice-move-toast {
   position: fixed;
   bottom: var(--space-4);
@@ -4160,7 +4175,8 @@ select:focus-visible {
   align-content: flex-start;
 }
 
-.main-layout > :not(.top-bar):not(.sr-only):not(.mobile-shell-mobile),
+/* Fixed toasts are children too; stretched to this height they become tall empty panels. */
+.main-layout > :not(.top-bar):not(.sr-only):not(.mobile-shell-mobile):not(.notice-toast):not(.voice-move-toast):not(.hub-error-toast),
 .main-layout > .mobile-shell-desktop > :not(.top-bar) {
   height: calc(100% - 44px);
 }

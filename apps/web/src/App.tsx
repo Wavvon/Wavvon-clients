@@ -1049,16 +1049,7 @@ export default function App({ initialView }: AppProps = {}) {
       />
 
       {hubErrorToast && (
-        <div
-          style={{
-            position: "fixed", top: 52, left: "50%", transform: "translateX(-50%)",
-            background: "var(--surface)", border: "1px solid var(--danger)",
-            borderRadius: "var(--r-md)", padding: "8px 16px", zIndex: 9999,
-            fontSize: "var(--text-sm)", color: "var(--danger)",
-          }}
-        >
-          {hubErrorToast}
-        </div>
+        <div className="hub-error-toast" role="alert">{hubErrorToast}</div>
       )}
 
       {notice && <NoticeToast notice={notice} onDismiss={dismissNotice} />}
